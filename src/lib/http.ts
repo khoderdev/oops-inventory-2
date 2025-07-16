@@ -150,7 +150,7 @@ class ApiClient {
 
 // Create API instance
 const api = new ApiClient({
-  baseURL: process.env.REACT_APP_API_URL || "http://localhost:3000",
+  baseURL: "http://localhost:3000/api",
   timeout: 15000
 });
 

@@ -1,4 +1,3 @@
-import { MENU_CATEGORIES } from "@/api/matierials.api.ts";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import api from "@/lib/http.ts";
 import { Material, MATERIAL_CATEGORIES, MenuItem, MenuItemIngredient, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
@@ -14,6 +14,9 @@ import { getConversionFactor } from "@/utils/getConversionFactor";
 import { calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials } from "@/utils/inventoryCalculations";
 import { AlertTriangle, DollarSign, Edit, Package, Plus, Search, Trash2, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { materialsAPI } from "../api/matierials.api.ts";
+import { sectionAPI } from "../api/sections.api.ts";
+import { MENU_CATEGORIES } from "../types/inventory";
 import { AssignmentForm } from "./AssignmentForm";
 import { MaterialForm } from "./MaterialForm";
 import { MenuItemForm } from "./MenuItemForm";
@@ -48,33 +51,28 @@ export function InventoryDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch data from JSON Server
+  // Fetch data from server
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [materialsRes, stockRes, sectionsRes, assignmentsRes, menuItemsRes] = await Promise.all([fetch("http://localhost:3000/materials"), fetch("http://localhost:3000/stockEntries"), fetch("http://localhost:3000/sections"), fetch("http://localhost:3000/assignments"), fetch("http://localhost:3000/menuItems")]);
+        const [materialsRes, stockRes, sectionsRes, assignmentsRes, menuItemsRes] = await Promise.all([materialsAPI.getMaterials(), api.get("/stockEntries").then(res => res.data), sectionAPI.getSections(), api.get("/assignments").then(res => res.data), api.get("/menuItems").then(res => res.data)]);
 
-        const [materialsData, stockData, sectionsData, assignmentsData, menuItemsData] = await Promise.all([materialsRes.json(), stockRes.json(), sectionsRes.json(), assignmentsRes.json(), menuItemsRes.json()]);
-
-        // Convert string dates to Date objects
-        const parseDates = (items: any[]) =>
-          items.map(item => ({
-            ...item,
-            createdAt: new Date(item.createdAt),
-            updatedAt: new Date(item.updatedAt),
-            ...(item.purchaseDate && { purchaseDate: new Date(item.purchaseDate) }),
-            ...(item.expiryDate && { expiryDate: new Date(item.expiryDate) })
-          }));
-
-        setMaterials(parseDates(materialsData));
-        setStockEntries(parseDates(stockData));
-        setSections(parseDates(sectionsData));
-        setAssignments(parseDates(assignmentsData));
-        setMenuItems(parseDates(menuItemsData));
-      } catch (err) {
-        setError("Failed to fetch data from server");
+        // Ensure materialsRes is an array, fallback to empty array if not
+        setMaterials(Array.isArray(materialsRes) ? materialsRes : []);
+        setStockEntries(Array.isArray(stockRes) ? stockRes : []);
+        setSections(Array.isArray(sectionsRes) ? sectionsRes : []);
+        setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes : []);
+        setMenuItems(Array.isArray(menuItemsRes) ? menuItemsRes : []);
+      } catch (err: any) {
+        setError(err.message || "Failed to fetch data from server");
         console.error(err);
+        // Set materials to empty array on error to prevent map errors
+        setMaterials([]);
+        setStockEntries([]);
+        setSections([]);
+        setAssignments([]);
+        setMenuItems([]);
       } finally {
         setIsLoading(false);
       }
@@ -85,7 +83,7 @@ export function InventoryDashboard() {
 
   // Calculate inventory data
   const materialsWithStock = useMemo(() => {
-    if (!materials || !stockEntries) return [];
+    if (!Array.isArray(materials) || !Array.isArray(stockEntries)) return [];
     return materials.map(material => {
       const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
       return calculateMaterialInventory(material, materialStockEntries);
@@ -93,7 +91,7 @@ export function InventoryDashboard() {
   }, [materials, stockEntries]);
 
   const sectionsWithAssignments = useMemo(() => {
-    if (!sections || !assignments || !stockEntries || !materials) return [];
+    if (!Array.isArray(sections) || !Array.isArray(assignments) || !Array.isArray(stockEntries) || !Array.isArray(materials)) return [];
     return sections.map(section => {
       const sectionAssignments = assignments
         .filter(a => a.sectionId === section.id)
@@ -106,7 +104,7 @@ export function InventoryDashboard() {
             material
           };
         })
-        .filter(a => a.stockEntry && a.material); // Filter out invalid assignments
+        .filter(a => a.stockEntry && a.material);
 
       const totalValue = sectionAssignments.reduce((sum, a) => {
         if (!a.stockEntry || !a.material) return sum;
@@ -125,7 +123,7 @@ export function InventoryDashboard() {
   }, [sections, assignments, stockEntries, materials]);
 
   const materialsWithSectionAssignments = useMemo(() => {
-    if (!materialsWithStock || !assignments || !stockEntries || !sections) return [];
+    if (!Array.isArray(materialsWithStock) || !Array.isArray(assignments) || !Array.isArray(stockEntries) || !Array.isArray(sections)) return [];
     return materialsWithStock.map(material => {
       const materialAssignments = assignments
         .filter(a => {
@@ -157,7 +155,7 @@ export function InventoryDashboard() {
 
   // Filter materials
   const filteredMaterials = useMemo(() => {
-    if (!materialsWithStock) return [];
+    if (!Array.isArray(materialsWithStock)) return [];
     return materialsWithStock.filter(material => {
       const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase()) || material.description?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === "all" || material.category === selectedCategory;
@@ -172,173 +170,140 @@ export function InventoryDashboard() {
   const totalStockEntries = stockEntries?.length || 0;
 
   // API call functions
-  const apiRequest = async (url: string, method: string, data?: any) => {
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: data ? JSON.stringify(data) : undefined
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("API request failed:", error);
-      throw error;
-    }
-  };
-
-  // Handler functions with API integration
   const handleAddMaterial = async (data: Material) => {
     try {
-      const { id, ...materialData } = data; // 🚨 Remove any accidental `id`
-      const newMaterial = await apiRequest("http://localhost:3000/materials", "POST", materialData);
-      setMaterials([...materials, newMaterial]);
+      const newMaterial = await materialsAPI.createMaterial(data);
+      setMaterials(prev => [...prev, newMaterial.data]);
       setShowMaterialForm(false);
-    } catch (error) {
-      setError("Failed to add material");
+    } catch (error: any) {
+      setError(error.message || "Failed to add material");
     }
   };
-
-  // const handleAddMaterial = async (data: Material) => {
-  //   try {
-  //     const newMaterial = await apiRequest("http://localhost:3000/materials", "POST", data);
-  //     setMaterials([...materials, newMaterial]);
-  //     setShowMaterialForm(false);
-  //   } catch (error) {
-  //     setError("Failed to add material");
-  //   }
-  // };
 
   const handleEditMaterial = async (data: Material) => {
     if (editingMaterial) {
       try {
-        const updatedMaterial = await apiRequest(`http://localhost:3000/materials/${editingMaterial.id}`, "PUT", data);
-        setMaterials(materials.map(m => (m.id === editingMaterial.id ? updatedMaterial : m)));
+        const updatedMaterial = await materialsAPI.updateMaterial(editingMaterial.id, data);
+        setMaterials(prev => prev.map(m => (m.id === editingMaterial.id ? updatedMaterial.data : m)));
         setEditingMaterial(undefined);
         setShowMaterialForm(false);
-      } catch (error) {
-        setError("Failed to update material");
+      } catch (error: any) {
+        setError(error.message || "Failed to update material");
       }
     }
   };
 
   const handleDeleteMaterial = async (materialId: string) => {
     try {
-      await apiRequest(`http://localhost:3000/materials/${materialId}`, "DELETE");
-      setMaterials(materials.filter(m => m.id !== materialId));
+      await materialsAPI.deleteMaterial(materialId);
+      setMaterials(prev => prev.filter(m => m.id !== materialId));
       // Also delete associated stock entries
       const stockToDelete = stockEntries.filter(s => s.materialId === materialId);
-      await Promise.all(stockToDelete.map(s => apiRequest(`http://localhost:3000/stockEntries/${s.id}`, "DELETE")));
-      setStockEntries(stockEntries.filter(s => s.materialId !== materialId));
-    } catch (error) {
-      setError("Failed to delete material");
+      await Promise.all(stockToDelete.map(s => api.delete(`/stockEntries/${s.id}`)));
+      setStockEntries(prev => prev.filter(s => s.materialId !== materialId));
+    } catch (error: any) {
+      setError(error.message || "Failed to delete material");
     }
   };
 
   const handleAddStock = async (data: StockEntry) => {
     try {
-      const newStockEntry = await apiRequest("http://localhost:3000/stockEntries", "POST", data);
-      setStockEntries([...stockEntries, newStockEntry]);
+      const newStockEntry = await api.post("/stockEntries", data).then(res => res.data);
+      setStockEntries(prev => [...prev, newStockEntry]);
       setShowStockForm(false);
       setSelectedMaterialId("");
-    } catch (error) {
-      setError("Failed to add stock entry");
+    } catch (error: any) {
+      setError(error.message || "Failed to add stock entry");
     }
   };
 
   const handleEditStock = async (data: StockEntry) => {
     if (editingStock) {
       try {
-        const updatedStock = await apiRequest(`http://localhost:3000/stockEntries/${editingStock.id}`, "PUT", data);
-        setStockEntries(stockEntries.map(entry => (entry.id === editingStock.id ? updatedStock : entry)));
+        const updatedStock = await api.put(`/stockEntries/${editingStock.id}`, data).then(res => res.data);
+        setStockEntries(prev => prev.map(entry => (entry.id === editingStock.id ? updatedStock : entry)));
         setEditingStock(undefined);
         setShowStockForm(false);
-      } catch (error) {
-        setError("Failed to update stock entry");
+      } catch (error: any) {
+        setError(error.message || "Failed to update stock entry");
       }
     }
   };
 
   const handleDeleteStock = async (stockId: string) => {
     try {
-      await apiRequest(`http://localhost:3000/stockEntries/${stockId}`, "DELETE");
-      setStockEntries(stockEntries.filter(s => s.id !== stockId));
-    } catch (error) {
-      setError("Failed to delete stock entry");
+      await api.delete(`/stockEntries/${stockId}`);
+      setStockEntries(prev => prev.filter(s => s.id !== stockId));
+    } catch (error: any) {
+      setError(error.message || "Failed to delete stock entry");
     }
   };
 
   const handleAddSection = async (data: Section) => {
     try {
-      const newSection = await apiRequest("http://localhost:3000/sections", "POST", data);
-      setSections([...sections, newSection]);
+      const newSection = await sectionAPI.createSection(data);
+      setSections(prev => [...prev, newSection.data]);
       setShowSectionForm(false);
-    } catch (error) {
-      setError("Failed to add section");
+    } catch (error: any) {
+      setError(error.message || "Failed to add section");
     }
   };
 
   const handleEditSection = async (data: Section) => {
     if (editingSection) {
       try {
-        const updatedSection = await apiRequest(`http://localhost:3000/sections/${editingSection.id}`, "PUT", data);
-        setSections(sections.map(section => (section.id === editingSection.id ? updatedSection : section)));
+        const updatedSection = await sectionAPI.updateSection(editingSection.id, data);
+        setSections(prev => prev.map(section => (section.id === editingSection.id ? updatedSection.data : section)));
         setEditingSection(undefined);
         setShowSectionForm(false);
-      } catch (error) {
-        setError("Failed to update section");
+      } catch (error: any) {
+        setError(error.message || "Failed to update section");
       }
     }
   };
 
   const handleDeleteSection = async (sectionId: string) => {
     try {
-      await apiRequest(`http://localhost:3000/sections/${sectionId}`, "DELETE");
-      setSections(sections.filter(s => s.id !== sectionId));
+      await sectionAPI.deleteSection(sectionId);
+      setSections(prev => prev.filter(s => s.id !== sectionId));
       // Also delete associated assignments
       const assignmentsToDelete = assignments.filter(a => a.sectionId === sectionId);
-      await Promise.all(assignmentsToDelete.map(a => apiRequest(`http://localhost:3000/assignments/${a.id}`, "DELETE")));
-      setAssignments(assignments.filter(a => a.sectionId !== sectionId));
-    } catch (error) {
-      setError("Failed to delete section");
+      await Promise.all(assignmentsToDelete.map(a => api.delete(`/assignments/${a.id}`)));
+      setAssignments(prev => prev.filter(a => a.sectionId !== sectionId));
+    } catch (error: any) {
+      setError(error.message || "Failed to delete section");
     }
   };
 
   const handleAddAssignment = async (data: SectionAssignment) => {
     try {
-      const newAssignment = await apiRequest("http://localhost:3000/assignments", "POST", data);
-      setAssignments([...assignments, newAssignment]);
+      const newAssignment = await api.post("/assignments", data).then(res => res.data);
+      setAssignments(prev => [...prev, newAssignment]);
       setShowAssignmentForm(false);
-    } catch (error) {
-      setError("Failed to add assignment");
+    } catch (error: any) {
+      setError(error.message || "Failed to add assignment");
     }
   };
 
   const handleEditAssignment = async (data: SectionAssignment) => {
     if (editingAssignment) {
       try {
-        const updatedAssignment = await apiRequest(`http://localhost:3000/assignments/${editingAssignment.id}`, "PUT", data);
-        setAssignments(assignments.map(assignment => (assignment.id === editingAssignment.id ? updatedAssignment : assignment)));
+        const updatedAssignment = await api.put(`/assignments/${editingAssignment.id}`, data).then(res => res.data);
+        setAssignments(prev => prev.map(assignment => (assignment.id === editingAssignment.id ? updatedAssignment : assignment)));
         setEditingAssignment(undefined);
         setShowAssignmentForm(false);
-      } catch (error) {
-        setError("Failed to update assignment");
+      } catch (error: any) {
+        setError(error.message || "Failed to update assignment");
       }
     }
   };
 
   const handleDeleteAssignment = async (assignmentId: string) => {
     try {
-      await apiRequest(`http://localhost:3000/assignments/${assignmentId}`, "DELETE");
-      setAssignments(assignments.filter(a => a.id !== assignmentId));
-    } catch (error) {
-      setError("Failed to delete assignment");
+      await api.delete(`/assignments/${assignmentId}`);
+      setAssignments(prev => prev.filter(a => a.id !== assignmentId));
+    } catch (error: any) {
+      setError(error.message || "Failed to delete assignment");
     }
   };
 
@@ -354,13 +319,10 @@ export function InventoryDashboard() {
     });
 
     try {
-      const newMenuItem = await apiRequest("http://localhost:3000/menuItems", "POST", {
-        ...data,
-        ingredients: ingredientsWithCosts
-      });
-      setMenuItems([...menuItems, newMenuItem]);
-    } catch (error) {
-      setError("Failed to add menu item");
+      const newMenuItem = await api.post("/menuItems", { ...data, ingredients: ingredientsWithCosts }).then(res => res.data);
+      setMenuItems(prev => [...prev, newMenuItem]);
+    } catch (error: any) {
+      setError(error.message || "Failed to add menu item");
     }
   };
 
@@ -376,23 +338,20 @@ export function InventoryDashboard() {
     });
 
     try {
-      const updatedMenuItem = await apiRequest(`http://localhost:3000/menuItems/${editingMenuItem?.id}`, "PUT", {
-        ...data,
-        ingredients: ingredientsWithCosts
-      });
-      setMenuItems(menuItems.map(item => (item.id === editingMenuItem?.id ? updatedMenuItem : item)));
+      const updatedMenuItem = await api.put(`/menuItems/${editingMenuItem?.id}`, { ...data, ingredients: ingredientsWithCosts }).then(res => res.data);
+      setMenuItems(prev => prev.map(item => (item.id === editingMenuItem?.id ? updatedMenuItem : item)));
       setEditingMenuItem(undefined);
-    } catch (error) {
-      setError("Failed to update menu item");
+    } catch (error: any) {
+      setError(error.message || "Failed to update menu item");
     }
   };
 
   const handleDeleteMenuItem = async (id: string) => {
     try {
-      await apiRequest(`http://localhost:3000/menuItems/${id}`, "DELETE");
-      setMenuItems(menuItems.filter(item => item.id !== id));
-    } catch (error) {
-      setError("Failed to delete menu item");
+      await api.delete(`/menuItems/${id}`);
+      setMenuItems(prev => prev.filter(item => item.id !== id));
+    } catch (error: any) {
+      setError(error.message || "Failed to delete menu item");
     }
   };
 
@@ -430,7 +389,6 @@ export function InventoryDashboard() {
         </div>
       )}
 
-      {/* Rest of the component remains the same as before */}
       {/* Dashboard Header */}
       <div className="flex justify-between items-center">
         <div>

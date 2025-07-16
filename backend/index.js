@@ -1,18 +1,25 @@
 import cors from "cors";
 import express from "express";
 import sequelize from "./config/database.js";
+import assignmentsRoutes from "./routes/assignments.js";
 import materialRoutes from "./routes/materials.js";
+import menuItemsRoutes from "./routes/menuItems.js";
 import sectionRoutes from "./routes/sections.js";
+import stockEntriesRoutes from "./routes/stockEntries.js";
+
 const app = express();
-const PORT = 3001;
+const PORT = 3000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use("/materials", materialRoutes);
-app.use("/sections", sectionRoutes);
+app.use("/api/materials", materialRoutes);
+app.use("/api/sections", sectionRoutes);
+app.use("/api/assignments", assignmentsRoutes);
+app.use("/api/stockEntries", stockEntriesRoutes);
+app.use("/api/menuItems", menuItemsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
