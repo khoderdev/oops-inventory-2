@@ -211,8 +211,15 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export function formatNumber(num: number, decimals: number = 3): string {
-  return Number(num).toFixed(decimals);
+export function formatNumber(num: number, unit?: string): string {
+  // For piece/unit items, show no decimals if whole number
+  if (unit && ["piece", "unit", "each", "dozen", "package", "box", "case"].includes(unit.toLowerCase())) {
+    return Number.isInteger(num) ? num.toString() : num.toFixed(2);
+  }
+
+  // For mass/volume, show 3 decimal places by default
+  const decimals = (unit && isMassUnit(unit)) || (unit && isVolumeUnit(unit)) ? 3 : 2;
+  return num.toFixed(decimals).replace(/\.?0+$/, "");
 }
 
 // Main conversion function with cost calculation
