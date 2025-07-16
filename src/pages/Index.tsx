@@ -1,10 +1,10 @@
+import { mockAssignments, mockMaterials, mockSections, mockStockEntries } from "@/api/matierials.api.ts";
 import { InventoryDashboard } from "@/components/InventoryDashboard";
 import { PackageCalculator } from "@/components/PackageCalculator";
 import { POSScreen } from "@/components/POSScreen";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnitConverter } from "@/components/UnitConverter";
-import { mockAssignments, mockMaterials, mockSections, mockStockEntries } from "@/mockData/InventoryDashboard";
 import { SaleRecord, SectionAssignment, SoldItem } from "@/types/inventory";
 import { Calculator, Info, Package, Warehouse } from "lucide-react";
 import { useState } from "react";

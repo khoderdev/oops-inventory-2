@@ -14,6 +14,24 @@ export interface Material {
   updatedAt: Date;
 }
 
+export interface CreateMaterialData {
+  name: string;
+  category: MaterialCategory;
+  baseUnit: string;
+  unitType: UnitType;
+  costPerBaseUnit: number;
+  description?: string;
+}
+
+export interface UpdateMaterialData {
+  name?: string;
+  category?: MaterialCategory;
+  baseUnit?: string;
+  unitType?: UnitType;
+  costPerBaseUnit?: number;
+  description?: string;
+}
+
 export interface StockEntry {
   id: string;
   materialId: string;
@@ -28,6 +46,32 @@ export interface StockEntry {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CreateStockEntryData {
+  materialId: string;
+  supplier: string;
+  purchasedQuantity: number;
+  purchasedUnit: string;
+  costPerPurchasedUnit: number;
+  totalCost: number;
+  purchaseDate: Date;
+  expiryDate?: Date;
+  batchNumber?: string;
+  notes?: string;
+}
+
+export interface UpdateStockEntryData {
+  materialId?: string;
+  supplier?: string;
+  purchasedQuantity?: number;
+  purchasedUnit?: string;
+  costPerPurchasedUnit?: number;
+  totalCost?: number;
+  purchaseDate?: Date;
+  expiryDate?: Date;
+  batchNumber?: string;
+  notes?: string;
 }
 
 export interface MaterialWithStock extends Material {
@@ -70,6 +114,16 @@ export interface Section {
   description?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CreateSectionData {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateSectionData {
+  name?: string;
+  description?: string;
 }
 
 export interface SectionAssignment {
@@ -158,4 +212,20 @@ export interface MenuItemIngredient {
   quantity: number;
   unit: string;
   cost: number;
+}
+
+export interface CreateMenuItemData {
+  name: string;
+  description?: string;
+  category: MenuItemCategory;
+  price: number;
+  ingredients: MenuItemIngredient[];
+}
+
+export interface UpdateMenuItemData {
+  name?: string;
+  description?: string;
+  category?: MenuItemCategory;
+  price?: number;
+  ingredients?: MenuItemIngredient[];
 }
