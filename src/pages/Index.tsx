@@ -16,12 +16,10 @@ const Index = () => {
   const [materials, setMaterials] = useState(mockMaterials);
   const [stockEntries, setStockEntries] = useState(mockStockEntries);
 
-  // Add this function to handle assignment updates
   const handleUpdateAssignment = (assignmentId: string, newQuantity: number) => {
     setAssignments(prevAssignments => prevAssignments.map(assignment => (assignment.id === assignmentId ? { ...assignment, assignedQuantity: newQuantity } : assignment)));
   };
 
-  // Add this function to record sales
   const handleCompleteSale = (soldItems: SoldItem[]) => {
     const newSale: SaleRecord = {
       id: Date.now().toString(),
@@ -57,10 +55,10 @@ const Index = () => {
               <Warehouse className="h-4 w-4" />
               Inventory Manager
             </TabsTrigger>
-            <TabsTrigger value="info" className="flex items-center gap-2">
+            {/* <TabsTrigger value="info" className="flex items-center gap-2">
               <Info className="h-4 w-4" />
               Conversion Guide
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="pos" className="space-y-6">

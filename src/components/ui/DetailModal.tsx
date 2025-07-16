@@ -11,65 +11,67 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
     const sectionAssignments = materialWithAssignments?.sectionAssignments || [];
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-semibold">{material.name}</h3>
-          <p className="text-muted-foreground">{material.description}</p>
+          <h3 className="text-xl font-bold text-foreground">{material.name}</h3>
+          <p className="text-sm text-muted-foreground">{material.description}</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <h4 className="font-medium">Category</h4>
-            <p>{getCategoryLabel(material.category)}</p>
-          </div>
-          <div>
-            <h4 className="font-medium">Base Unit</h4>
-            <p>{material.baseUnit}</p>
-          </div>
-          <div>
-            <h4 className="font-medium">Unit Type</h4>
-            <p>{material.unitType}</p>
-          </div>
-          <div>
-            <h4 className="font-medium">Cost per Unit</h4>
-            <p>
-              {formatCurrency(material.costPerBaseUnit)}/{material.baseUnit}
-            </p>
+        <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Category</h4>
+              <p className="text-base">{getCategoryLabel(material.category)}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Base Unit</h4>
+              <p>{material.baseUnit}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Unit Type</h4>
+              <p>{material.unitType}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Cost per Unit</h4>
+              <p className="font-medium">
+                {formatCurrency(material.costPerBaseUnit)} / {material.baseUnit}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <h4 className="font-medium">Total Quantity</h4>
-            <p>
-              {formatNumber(material.totalQuantityInBaseUnit)} {material.baseUnit}
-            </p>
-          </div>
-          <div>
-            <h4 className="font-medium">Available Quantity</h4>
-            <p>
-              {formatNumber(materialWithAssignments?.availableQuantity || material.totalQuantityInBaseUnit)} {material.baseUnit}
-            </p>
-          </div>
-          <div>
-            <h4 className="font-medium">Total Value</h4>
-            <p>{formatCurrency(material.totalValue)}</p>
+        <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Total Quantity</h4>
+              <p>
+                {formatNumber(material.totalQuantityInBaseUnit)} {material.baseUnit}
+              </p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Available Quantity</h4>
+              <p>
+                {formatNumber(materialWithAssignments?.availableQuantity || material.totalQuantityInBaseUnit)} {material.baseUnit}
+              </p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Total Value</h4>
+              <p className="font-semibold text-foreground">{formatCurrency(material.totalValue)}</p>
+            </div>
           </div>
         </div>
 
         {sectionAssignments.length > 0 && (
-          <div>
-            <h4 className="font-medium">Section Assignments</h4>
-            <div className="space-y-2 mt-2">
-              {sectionAssignments.map((assignment, index) => (
-                <div key={index} className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                  <span>{assignment.sectionName}</span>
-                  <span>
-                    {formatNumber(assignment.assignedQuantity)} {assignment.assignedUnit}
-                  </span>
-                </div>
-              ))}
-            </div>
+          <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-2">
+            <h4 className="text-sm font-semibold text-muted-foreground">Section Assignments</h4>
+            {sectionAssignments.map((assignment, index) => (
+              <div key={index} className="rounded-md bg-accent/30 px-4 py-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-primary">{assignment.sectionName}</span>
+                <span className="text-sm">
+                  {formatNumber(assignment.assignedQuantity)} {assignment.assignedUnit}
+                </span>
+              </div>
+            ))}
           </div>
         )}
       </div>
