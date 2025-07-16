@@ -1,14 +1,11 @@
-import { convertMass, convertVolume, isMassUnit, isVolumeUnit, formatCurrency, formatNumber } from './conversionLogic';
-import { Material, StockEntry, ConversionData, MaterialWithStock } from '@/types/inventory';
+import { ConversionData, Material, MaterialWithStock, StockEntry } from "@/types/inventory";
+import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "./conversionLogic";
 
 // Calculate conversion data for stock entries
-export function calculateStockConversion(
-  stockEntry: StockEntry,
-  material: Material
-): ConversionData {
+export function calculateStockConversion(stockEntry: StockEntry, material: Material): ConversionData {
   let convertedQuantity = stockEntry.purchasedQuantity;
   let conversionFactor = 1;
-  
+
   // Convert purchased quantity to base unit
   if (stockEntry.purchasedUnit !== material.baseUnit) {
     if (isMassUnit(stockEntry.purchasedUnit) && isMassUnit(material.baseUnit)) {
@@ -20,11 +17,11 @@ export function calculateStockConversion(
     }
     // For package units, we assume direct conversion (1:1) unless specified
   }
-  
+
   // Calculate cost per base unit
   const costPerBaseUnit = stockEntry.totalCost / convertedQuantity;
   const totalCostInBaseUnit = stockEntry.totalCost;
-  
+
   return {
     convertedQuantity,
     convertedUnit: material.baseUnit,
@@ -35,41 +32,34 @@ export function calculateStockConversion(
 }
 
 // Calculate total inventory data for a material
-export function calculateMaterialInventory(
-  material: Material,
-  stockEntries: StockEntry[]
-): MaterialWithStock {
+export function calculateMaterialInventory(material: Material, stockEntries: StockEntry[]): MaterialWithStock {
   let totalQuantityInBaseUnit = 0;
   let totalValue = 0;
-  
+
   const conversions = stockEntries.map(entry => {
     const conversion = calculateStockConversion(entry, material);
     totalQuantityInBaseUnit += conversion.convertedQuantity;
     totalValue += conversion.totalCostInBaseUnit;
     return conversion;
   });
-  
+
   const averageCostPerBaseUnit = totalQuantityInBaseUnit > 0 ? totalValue / totalQuantityInBaseUnit : 0;
-  
+
   return {
     ...material,
     stockEntries,
     totalQuantityInBaseUnit,
     totalValue,
-    averageCostPerBaseUnit
+    averageCostPerBaseUnit,
+    availableQuantity: totalQuantityInBaseUnit
   };
 }
 
 // Calculate cost for a specific quantity in any unit
-export function calculateCostForQuantity(
-  material: Material,
-  quantity: number,
-  unit: string,
-  averageCostPerBaseUnit: number
-): { cost: number; steps: string[] } {
+export function calculateCostForQuantity(material: Material, quantity: number, unit: string, averageCostPerBaseUnit: number): { cost: number; steps: string[] } {
   const steps: string[] = [];
   let convertedQuantity = quantity;
-  
+
   // Convert to base unit if needed
   if (unit !== material.baseUnit) {
     if (isMassUnit(unit) && isMassUnit(material.baseUnit)) {
@@ -82,24 +72,24 @@ export function calculateCostForQuantity(
       steps.push(`Using ${quantity} ${unit} directly (no conversion available)`);
     }
   }
-  
+
   const cost = convertedQuantity * averageCostPerBaseUnit;
   steps.push(`Cost calculation: ${formatNumber(convertedQuantity)} × ${formatCurrency(averageCostPerBaseUnit)} = ${formatCurrency(cost)}`);
-  
+
   return { cost, steps };
 }
 
 // Validate unit compatibility
 export function isUnitCompatible(unit: string, materialUnitType: string): boolean {
   switch (materialUnitType) {
-    case 'mass':
+    case "mass":
       return isMassUnit(unit);
-    case 'volume':
+    case "volume":
       return isVolumeUnit(unit);
-    case 'piece':
-      return ['piece', 'unit'].includes(unit.toLowerCase());
-    case 'package':
-      return ['box', 'pack', 'case', 'bottle'].includes(unit.toLowerCase());
+    case "piece":
+      return ["piece", "unit"].includes(unit.toLowerCase());
+    case "package":
+      return ["box", "pack", "case", "bottle"].includes(unit.toLowerCase());
     default:
       return false;
   }
@@ -108,14 +98,14 @@ export function isUnitCompatible(unit: string, materialUnitType: string): boolea
 // Get suggested units for a material type
 export function getSuggestedUnits(unitType: string): string[] {
   switch (unitType) {
-    case 'mass':
-      return ['kg', 'gram', 'lb'];
-    case 'volume':
-      return ['liter', 'ml', 'gallon'];
-    case 'piece':
-      return ['piece', 'unit'];
-    case 'package':
-      return ['box', 'pack', 'case', 'bottle'];
+    case "mass":
+      return ["kg", "gram", "lb"];
+    case "volume":
+      return ["liter", "ml", "gallon"];
+    case "piece":
+      return ["piece", "unit"];
+    case "package":
+      return ["box", "pack", "case", "bottle"];
     default:
       return [];
   }
@@ -127,20 +117,14 @@ export function calculateTotalInventoryValue(materials: MaterialWithStock[]): nu
 }
 
 // Find low stock materials (less than specified threshold in base units)
-export function findLowStockMaterials(
-  materials: MaterialWithStock[],
-  threshold: number = 10
-): MaterialWithStock[] {
+export function findLowStockMaterials(materials: MaterialWithStock[], threshold: number = 10): MaterialWithStock[] {
   return materials.filter(material => material.totalQuantityInBaseUnit < threshold);
 }
 
 // Calculate inventory turnover rate (simplified)
-export function calculateInventoryTurnover(
-  material: MaterialWithStock,
-  usagePerMonth: number
-): { turnoverRate: number; monthsOfStock: number } {
+export function calculateInventoryTurnover(material: MaterialWithStock, usagePerMonth: number): { turnoverRate: number; monthsOfStock: number } {
   const turnoverRate = usagePerMonth > 0 ? material.totalQuantityInBaseUnit / usagePerMonth : 0;
   const monthsOfStock = usagePerMonth > 0 ? material.totalQuantityInBaseUnit / usagePerMonth : Infinity;
-  
+
   return { turnoverRate, monthsOfStock };
 }

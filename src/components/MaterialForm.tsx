@@ -1,23 +1,21 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Material, MATERIAL_CATEGORIES, UNIT_OPTIONS, UnitType } from '@/types/inventory';
-import { getSuggestedUnits } from '@/utils/inventoryCalculations';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Material, MATERIAL_CATEGORIES } from "@/types/inventory";
+import { getSuggestedUnits } from "@/utils/inventoryCalculations";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 const materialSchema = z.object({
-  name: z.string().min(1, 'Material name is required'),
-  category: z.string().min(1, 'Category is required'),
-  unitType: z.string().min(1, 'Unit type is required'),
-  baseUnit: z.string().min(1, 'Base unit is required'),
-  costPerBaseUnit: z.number().min(0, 'Cost must be positive'),
+  name: z.string().min(1, "Material name is required"),
+  category: z.string().min(1, "Category is required"),
+  unitType: z.string().min(1, "Unit type is required"),
+  baseUnit: z.string().min(1, "Base unit is required"),
+  costPerBaseUnit: z.number().min(0, "Cost must be positive"),
   description: z.string().optional()
 });
 
@@ -33,16 +31,16 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
     defaultValues: {
-      name: material?.name || '',
-      category: material?.category || '',
-      unitType: material?.unitType || '',
-      baseUnit: material?.baseUnit || '',
+      name: material?.name || "",
+      category: material?.category || "",
+      unitType: material?.unitType || "",
+      baseUnit: material?.baseUnit || "",
       costPerBaseUnit: material?.costPerBaseUnit || 0,
-      description: material?.description || ''
+      description: material?.description || ""
     }
   });
 
-  const watchedUnitType = form.watch('unitType');
+  const watchedUnitType = form.watch("unitType");
   const suggestedUnits = getSuggestedUnits(watchedUnitType);
 
   const handleSubmit = (data: MaterialFormData) => {
@@ -52,7 +50,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>{material ? 'Edit Material' : 'Add New Material'}</CardTitle>
+        <CardTitle>{material ? "Edit Material" : "Add New Material"}</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -85,7 +83,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {MATERIAL_CATEGORIES.map((category) => (
+                        {MATERIAL_CATEGORIES.map(category => (
                           <SelectItem key={category.value} value={category.value}>
                             {category.label}
                           </SelectItem>
@@ -134,7 +132,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {suggestedUnits.map((unit) => (
+                        {suggestedUnits.map(unit => (
                           <SelectItem key={unit} value={unit}>
                             {unit}
                           </SelectItem>
@@ -153,13 +151,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                   <FormItem>
                     <FormLabel>Cost per Base Unit ($)</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        step="0.0001"
-                        placeholder="0.00"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
+                      <Input type="number" step="0.0001" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -174,11 +166,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                 <FormItem>
                   <FormLabel>Description (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Additional details about the material..."
-                      className="resize-none"
-                      {...field}
-                    />
+                    <Textarea placeholder="Additional details about the material..." className="resize-none" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -189,9 +177,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {material ? 'Update Material' : 'Add Material'}
-              </Button>
+              <Button type="submit">{material ? "Update Material" : "Add Material"}</Button>
             </div>
           </form>
         </Form>
