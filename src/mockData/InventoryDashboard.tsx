@@ -65,7 +65,8 @@ export const mockAssignments: SectionAssignment[] = [
     assignedUnit: "kg",
     notes: "For daily burger production",
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    materialId: ""
   },
   {
     id: "2",
@@ -75,7 +76,8 @@ export const mockAssignments: SectionAssignment[] = [
     assignedUnit: "piece",
     notes: "For lunch service",
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    materialId: ""
   }
 ];
 
@@ -125,4 +127,14 @@ export const mockStockEntries: StockEntry[] = [
     createdAt: new Date(),
     updatedAt: new Date()
   }
+];
+
+// Menu categories
+export const MENU_CATEGORIES = [
+  { value: "appetizers", label: "Appetizers" },
+  { value: "mains", label: "Main Courses" },
+  { value: "sides", label: "Sides" },
+  { value: "desserts", label: "Desserts" },
+  { value: "beverages", label: "Beverages" },
+  { value: "other", label: "Other" }
 ];

@@ -6,15 +6,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mockAssignments, mockMaterials, mockSections, mockStockEntries } from "@/mockData/InventoryDashboard";
-import { Material, MATERIAL_CATEGORIES, Section, SectionAssignment, StockEntry, UnitType } from "@/types/inventory";
-import { convertMass, convertVolume, formatCurrency, formatNumber } from "@/utils/conversionLogic";
+import { MENU_CATEGORIES, mockAssignments, mockMaterials, mockSections, mockStockEntries } from "@/mockData/InventoryDashboard";
+import { Material, MATERIAL_CATEGORIES, MenuItem, MenuItemIngredient, Section, SectionAssignment, StockEntry } from "@/types/inventory";
+import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
+import { getConversionFactor } from "@/utils/getConversionFactor";
 import { calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials } from "@/utils/inventoryCalculations";
 import { AlertTriangle, DollarSign, Edit, Package, Plus, Search, Trash2, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AssignmentForm } from "./AssignmentForm";
 import { MaterialForm } from "./MaterialForm";
+import { MenuItemForm } from "./MenuItemForm";
 import { SectionForm } from "./SectionForm";
 import { StockForm } from "./StockForm";
 import { DetailModal } from "./ui/DetailModal";
@@ -38,6 +40,8 @@ export function InventoryDashboard() {
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<{ type: "material" | "stock" | "section" | "assignment"; data: Material | StockEntry | Section | SectionAssignment } | null>(null);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | undefined>();
 
   // Calculate inventory data
   const materialsWithStock = useMemo(() => {
@@ -126,23 +130,6 @@ export function InventoryDashboard() {
   const lowStockMaterials = useMemo(() => findLowStockMaterials(materialsWithStock || [], 5), [materialsWithStock]);
   const totalMaterials = materials?.length || 0;
   const totalStockEntries = stockEntries?.length || 0;
-
-  // Utility function
-  function getConversionFactor(fromUnit: string, toUnit: string, unitType: UnitType): number {
-    if (fromUnit === toUnit) return 1;
-
-    if (unitType === "mass") {
-      const fromInGrams = convertMass(1, fromUnit, "gram");
-      const toInGrams = convertMass(1, toUnit, "gram");
-      return fromInGrams / toInGrams;
-    } else if (unitType === "volume") {
-      const fromInMl = convertVolume(1, fromUnit, "ml");
-      const toInMl = convertVolume(1, toUnit, "ml");
-      return fromInMl / toInMl;
-    }
-
-    return 1; // For piece and package types, assume 1:1
-  }
 
   // Handler functions
   const handleAddMaterial = (data: Material) => {
@@ -244,6 +231,57 @@ export function InventoryDashboard() {
     setAssignments(assignments.filter(a => a.id !== assignmentId));
   };
 
+  // Add menu item handlers
+  const handleAddMenuItem = (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
+    const ingredientsWithCosts = data.ingredients.map(ingredient => {
+      const material = materialsWithStock.find(m => m.id === ingredient.materialId);
+      const costPerUnit = material?.averageCostPerBaseUnit || 0;
+      const conversionFactor = getConversionFactor(ingredient.unit, material?.baseUnit || ingredient.unit, material?.unitType || "piece");
+      return {
+        ...ingredient,
+        cost: ingredient.quantity * conversionFactor * costPerUnit
+      };
+    });
+
+    const newMenuItem: MenuItem = {
+      id: Date.now().toString(),
+      ...data,
+      ingredients: ingredientsWithCosts,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    setMenuItems([...menuItems, newMenuItem]);
+  };
+
+  const handleUpdateMenuItem = (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
+    const ingredientsWithCosts = data.ingredients.map(ingredient => {
+      const material = materialsWithStock.find(m => m.id === ingredient.materialId);
+      const costPerUnit = material?.averageCostPerBaseUnit || 0;
+      const conversionFactor = getConversionFactor(ingredient.unit, material?.baseUnit || ingredient.unit, material?.unitType || "piece");
+      return {
+        ...ingredient,
+        cost: ingredient.quantity * conversionFactor * costPerUnit
+      };
+    });
+
+    const updatedMenuItems = menuItems.map(item =>
+      item.id === editingMenuItem?.id
+        ? {
+            ...item,
+            ...data,
+            ingredients: ingredientsWithCosts,
+            updatedAt: new Date()
+          }
+        : item
+    );
+    setMenuItems(updatedMenuItems);
+    setEditingMenuItem(undefined);
+  };
+
+  const handleDeleteMenuItem = (id: string) => {
+    setMenuItems(menuItems.filter(item => item.id !== id));
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Dashboard Header */}
@@ -251,55 +289,6 @@ export function InventoryDashboard() {
         <div>
           <h1 className="text-3xl font-bold">Inventory Management</h1>
           <p className="text-muted-foreground">Manage materials and stock with automatic conversions and cost calculations</p>
-        </div>
-
-        <div className="flex gap-2">
-          <Dialog open={showMaterialForm} onOpenChange={setShowMaterialForm}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Material
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingMaterial ? "Edit Material" : "Add New Material"}</DialogTitle>
-              </DialogHeader>
-              <MaterialForm
-                material={editingMaterial}
-                onSubmit={editingMaterial ? handleEditMaterial : handleAddMaterial}
-                onCancel={() => {
-                  setShowMaterialForm(false);
-                  setEditingMaterial(undefined);
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={showStockForm} onOpenChange={setShowStockForm}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Package className="h-4 w-4 mr-2" />
-                Add Stock
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingStock ? "Edit Stock Entry" : "Add New Stock Entry"}</DialogTitle>
-              </DialogHeader>
-              <StockForm
-                materials={materials}
-                stockEntry={editingStock}
-                selectedMaterialId={selectedMaterialId}
-                onSubmit={editingStock ? handleEditStock : handleAddStock}
-                onCancel={() => {
-                  setShowStockForm(false);
-                  setEditingStock(undefined);
-                  setSelectedMaterialId("");
-                }}
-              />
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
@@ -355,20 +344,59 @@ export function InventoryDashboard() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex gap-4 items-center">
+      <div className="flex gap-4 justify-between items-center">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input placeholder="Search materials..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9" />
         </div>
+        <div className="flex gap-2">
+          <Dialog open={showMaterialForm} onOpenChange={setShowMaterialForm}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Material
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingMaterial ? "Edit Material" : "Add New Material"}</DialogTitle>
+              </DialogHeader>
+              <MaterialForm
+                material={editingMaterial}
+                onSubmit={editingMaterial ? handleEditMaterial : handleAddMaterial}
+                onCancel={() => {
+                  setShowMaterialForm(false);
+                  setEditingMaterial(undefined);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
 
-        <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="px-3 py-2 border border-input bg-background rounded-md">
-          <option value="all">All Categories</option>
-          {MATERIAL_CATEGORIES.map(category => (
-            <option key={category.value} value={category.value}>
-              {category.label}
-            </option>
-          ))}
-        </select>
+          <Dialog open={showStockForm} onOpenChange={setShowStockForm}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Package className="h-4 w-4 mr-2" />
+                Add Stock
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingStock ? "Edit Stock Entry" : "Add New Stock Entry"}</DialogTitle>
+              </DialogHeader>
+              <StockForm
+                materials={materials}
+                stockEntry={editingStock}
+                selectedMaterialId={selectedMaterialId}
+                onSubmit={editingStock ? handleEditStock : handleAddStock}
+                onCancel={() => {
+                  setShowStockForm(false);
+                  setEditingStock(undefined);
+                  setSelectedMaterialId("");
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -377,6 +405,7 @@ export function InventoryDashboard() {
           <TabsTrigger value="materials">Materials</TabsTrigger>
           <TabsTrigger value="stock">Stock Entries</TabsTrigger>
           <TabsTrigger value="sections">Sections</TabsTrigger>
+          <TabsTrigger value="menu">Menu Builder</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -784,6 +813,119 @@ export function InventoryDashboard() {
                   </TableBody>
                 </Table>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Menu Builder Tab */}
+        <TabsContent value="menu" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Menu Builder</CardTitle>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="sm" onClick={() => setEditingMenuItem(undefined)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Menu Item
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
+                    </DialogHeader>
+                    <MenuItemForm menuItem={editingMenuItem} materials={materialsWithStock} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={() => setEditingMenuItem(undefined)} />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Ingredients</TableHead>
+                    <TableHead>Cost</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Profit</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {menuItems.length > 0 ? (
+                    menuItems.map(item => {
+                      const totalCost = item.ingredients.reduce((sum, i) => sum + i.cost, 0);
+                      const profit = item.price - totalCost;
+                      const profitMargin = (profit / item.price) * 100;
+
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">
+                            <div>{item.name}</div>
+                            {item.description && <div className="text-sm text-muted-foreground">{item.description}</div>}
+                          </TableCell>
+                          <TableCell>{MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}</TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {item.ingredients.map((ingredient, idx) => (
+                                <div key={idx} className="text-sm">
+                                  {formatNumber(ingredient.quantity)} {ingredient.unit} {materialsWithStock.find(m => m.id === ingredient.materialId)?.name || "Unknown"}
+                                </div>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatCurrency(totalCost)}</TableCell>
+                          <TableCell>{formatCurrency(item.price)}</TableCell>
+                          <TableCell className={profit >= 0 ? "text-green-600" : "text-red-600"}>
+                            {formatCurrency(profit)} ({formatNumber(profitMargin)}%)
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingMenuItem(item);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="sm" variant="outline">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                                    <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <Package className="h-12 w-12 text-muted-foreground" />
+                          <p className="text-lg font-medium">No menu items found</p>
+                          <p className="text-sm text-muted-foreground">Create your first menu item</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>

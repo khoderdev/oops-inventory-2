@@ -62,7 +62,20 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="pos" className="space-y-6">
-            <POSScreen sections={sections} assignments={assignments} materials={materials} stockEntries={stockEntries} onUpdateAssignment={handleUpdateAssignment} onCompleteSale={handleCompleteSale} />
+            <POSScreen
+              sections={sections}
+              assignments={assignments}
+              materials={materials}
+              stockEntries={stockEntries}
+              onUpdateAssignment={handleUpdateAssignment}
+              onCompleteSale={({ individualItems, menuItems, customerName, notes }) => {
+                // Handle the sale data here
+                console.log("Individual items sold:", individualItems);
+                console.log("Menu items sold:", menuItems);
+                console.log("Customer name:", customerName);
+                console.log("Notes:", notes);
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="converter" className="space-y-6">

@@ -3,7 +3,6 @@ export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spi
 export type UnitType = "mass" | "volume" | "piece" | "package";
 
 export interface Material {
-  sectionAssignments: any[];
   id: string;
   name: string;
   category: MaterialCategory;
@@ -32,7 +31,6 @@ export interface StockEntry {
 }
 
 export interface MaterialWithStock extends Material {
-  sectionAssignments: any;
   availableQuantity: number;
   stockEntries: StockEntry[];
   totalQuantityInBaseUnit: number;
@@ -48,7 +46,7 @@ export interface ConversionData {
   conversionFactor: number;
 }
 
-export const MATERIAL_CATEGORIES: { value: MaterialCategory; label: string }[] = [
+export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label: string }> = [
   { value: "meat", label: "Meat & Poultry" },
   { value: "dairy", label: "Dairy Products" },
   { value: "vegetables", label: "Vegetables & Fruits" },
@@ -59,24 +57,24 @@ export const MATERIAL_CATEGORIES: { value: MaterialCategory; label: string }[] =
   { value: "other", label: "Other" }
 ];
 
-export const UNIT_OPTIONS = {
-  mass: ["kg", "gram", "lb"],
-  volume: ["liter", "ml", "gallon"],
-  piece: ["piece", "unit"],
+export const UNIT_OPTIONS: Readonly<Record<UnitType, ReadonlyArray<string>>> = {
+  mass: ["kg", "g", "lb", "oz"],
+  volume: ["l", "ml", "gal", "fl oz"],
+  piece: ["piece", "unit", "dozen"],
   package: ["box", "pack", "case", "bottle"]
 };
 
-export type Section = {
+export interface Section {
   id: string;
   name: string;
   description?: string;
   createdAt: Date;
   updatedAt: Date;
-};
+}
 
 export interface SectionAssignment {
-  materialId: string;
   id: string;
+  materialId: string;
   sectionId: string;
   stockEntryId: string;
   assignedQuantity: number;
@@ -87,21 +85,22 @@ export interface SectionAssignment {
 }
 
 export interface SectionWithAssignments extends Section {
-  assignments: (SectionAssignment & {
-    stockEntry: StockEntry;
-    material: Material;
-  })[];
+  assignments: Array<
+    SectionAssignment & {
+      stockEntry: StockEntry;
+      material: Material;
+    }
+  >;
   totalValue: number;
 }
 
 export interface MaterialWithSectionAssignments extends MaterialWithStock {
-  sectionAssignments: {
+  sectionAssignments: Array<{
     sectionId: string;
     sectionName: string;
     assignedQuantity: number;
     assignedUnit: string;
-  }[];
-  availableQuantity: number;
+  }>;
 }
 
 export interface SoldItem {
@@ -123,4 +122,40 @@ export interface SaleRecord {
   sectionId: string;
   customerName?: string;
   notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MenuItemSale {
+  menuItemId: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  ingredients: Array<{
+    materialId: string;
+    quantity: number;
+    unit: string;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type MenuItemCategory = "appetizers" | "mains" | "sides" | "desserts" | "beverages" | "other";
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  description?: string;
+  category: MenuItemCategory;
+  price: number;
+  ingredients: MenuItemIngredient[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MenuItemIngredient {
+  materialId: string;
+  quantity: number;
+  unit: string;
+  cost: number;
 }
