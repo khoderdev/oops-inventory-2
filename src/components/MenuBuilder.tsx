@@ -71,8 +71,11 @@ export function MenuItemBuilder({ materials, stockEntries, sections }: MenuItemB
         };
         setMenuItems(prev => [...prev, newMenuItem]);
         setShowMenuItemForm(false);
+        setEditingMenuItem(null);
       } catch (error) {
         console.error("Error adding menu item:", error);
+        setShowMenuItemForm(false);
+        setEditingMenuItem(null);
       }
     },
     [materials]
@@ -106,10 +109,12 @@ export function MenuItemBuilder({ materials, stockEntries, sections }: MenuItemB
               : item
           )
         );
-        setEditingMenuItem(null);
         setShowMenuItemForm(false);
+        setEditingMenuItem(null);
       } catch (error) {
         console.error("Error updating menu item:", error);
+        setShowMenuItemForm(false);
+        setEditingMenuItem(null);
       }
     },
     [editingMenuItem, materials]
@@ -121,6 +126,11 @@ export function MenuItemBuilder({ materials, stockEntries, sections }: MenuItemB
 
   const getMaterialName = useCallback((id: string) => materials.find(m => m.id === id)?.name || "Unknown", [materials]);
 
+  const handleCloseModal = useCallback(() => {
+    setShowMenuItemForm(false);
+    setEditingMenuItem(null);
+  }, []);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -129,7 +139,7 @@ export function MenuItemBuilder({ materials, stockEntries, sections }: MenuItemB
           <p className="text-muted-foreground">Create and manage menu items with ingredients from inventory</p>
         </div>
 
-        <Dialog open={showMenuItemForm} onOpenChange={setShowMenuItemForm}>
+        <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
           <DialogTrigger asChild>
             <Button onClick={() => setEditingMenuItem(null)} aria-label="Add new menu item">
               <Plus className="h-4 w-4 mr-2" />
@@ -140,16 +150,7 @@ export function MenuItemBuilder({ materials, stockEntries, sections }: MenuItemB
             <DialogHeader>
               <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
             </DialogHeader>
-            <MenuItemForm
-              menuItem={editingMenuItem}
-              materials={materials}
-              categories={MENU_CATEGORIES}
-              onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem}
-              onCancel={() => {
-                setShowMenuItemForm(false);
-                setEditingMenuItem(null);
-              }}
-            />
+            <MenuItemForm menuItem={editingMenuItem} materials={materials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCloseModal} />
           </DialogContent>
         </Dialog>
       </div>

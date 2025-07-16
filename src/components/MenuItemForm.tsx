@@ -1,7 +1,9 @@
+import { DialogClose } from "@/components/ui/dialog";
 import { Material, MenuItem, MenuItemCategory, MenuItemIngredient } from "@/types/inventory";
 import { formatNumber } from "@/utils/conversionLogic";
+import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { Plus, Trash2 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -46,6 +48,10 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
     return Object.keys(newErrors).length === 0;
   }, [name, category, price, ingredients]);
 
+  useEffect(() => {
+    validateForm();
+  }, [name, category, price, ingredients, validateForm]);
+
   const handleAddIngredient = useCallback(() => {
     if (!selectedMaterialId || !ingredientQuantity || !ingredientUnit) {
       setErrors(prev => ({
@@ -75,27 +81,35 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
   }, [selectedMaterialId, ingredientQuantity, ingredientUnit]);
 
   const handleRemoveIngredient = useCallback((index: number) => {
-    setIngredients(prev => {
-      const newIngredients = prev.filter((_, i) => i !== index);
-      setErrors(prevErrors => ({
-        ...prevErrors,
-        ingredients: newIngredients.length === 0 ? "At least one ingredient is required" : undefined
-      }));
-      return newIngredients;
-    });
+    setIngredients(prev => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleSubmit = useCallback(() => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      return;
+    }
 
-    onSubmit({
-      name: name.trim(),
-      description: description.trim(),
-      category: category as MenuItemCategory, // Type assertion since validateForm ensures category is not empty
-      price: parseFloat(price),
-      ingredients
-    });
-  }, [name, description, category, price, ingredients, onSubmit, validateForm]);
+    try {
+      onSubmit({
+        name: name.trim(),
+        description: description.trim(),
+        category: category as MenuItemCategory,
+        price: parseFloat(price),
+        ingredients
+      });
+      // Reset form state
+      setName("");
+      setDescription("");
+      setCategory("");
+      setPrice("");
+      setIngredients([]);
+      setErrors({});
+      onCancel();
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      onCancel();
+    }
+  }, [name, description, category, price, ingredients, onSubmit, onCancel, validateForm]);
 
   const handleMaterialSelect = useCallback(
     (materialId: string) => {
@@ -108,21 +122,9 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
     [materials]
   );
 
-  const getAvailableUnits = useCallback(
-    (materialId: string) => {
-      const material = materials.find(m => m.id === materialId);
-      if (!material) return [];
-      switch (material.unitType) {
-        case "mass":
-          return ["g", "kg", "lb", "oz"];
-        case "volume":
-          return ["ml", "l", "gal", "fl oz"];
-        default:
-          return ["each", "dozen", "package"];
-      }
-    },
-    [materials]
-  );
+  const handleCancel = useCallback(() => {
+    onCancel();
+  }, [onCancel]);
 
   return (
     <div className="space-y-6 p-4">
@@ -255,7 +257,7 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
             </label>
             <select id="unit" value={ingredientUnit} onChange={e => setIngredientUnit(e.target.value)} className="w-full px-3 py-2 border border-input bg-background rounded-md" disabled={!selectedMaterialId}>
               {selectedMaterialId ? (
-                getAvailableUnits(selectedMaterialId).map(unit => (
+                getAvailableUnits(selectedMaterialId, materials).map(unit => (
                   <option key={unit} value={unit}>
                     {unit}
                   </option>
@@ -276,12 +278,16 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button variant="outline" onClick={onCancel} aria-label="Cancel form">
-          Cancel
-        </Button>
-        <Button onClick={handleSubmit} disabled={!!Object.keys(errors).length || !name || !category || !price || ingredients.length === 0} aria-label={menuItem ? "Update menu item" : "Create menu item"}>
-          {menuItem ? "Update" : "Create"} Menu Item
-        </Button>
+        <DialogClose asChild>
+          <Button variant="outline" onClick={handleCancel} aria-label="Cancel form">
+            Cancel
+          </Button>
+        </DialogClose>
+        <DialogClose asChild>
+          <Button onClick={handleSubmit} disabled={!!Object.keys(errors).length || !name.trim() || !category || !price || parseFloat(price) <= 0 || ingredients.length === 0} aria-label={menuItem ? "Update menu item" : "Create menu item"}>
+            {menuItem ? "Update" : "Create"} Menu Item
+          </Button>
+        </DialogClose>
       </div>
     </div>
   );
