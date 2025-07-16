@@ -1,14 +1,15 @@
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Material, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { Edit, Trash2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 interface StockEntriesTableProps {
   stockEntries: StockEntry[];
   materials: Material[];
-  setSelectedItem: (item: { type: string; data: any }) => void;
+  setSelectedItem: (item: { type: string; data: StockEntry }) => void;
   setIsDetailModalOpen: (open: boolean) => void;
   setEditingStock: (stock: StockEntry | undefined) => void;
   setShowStockForm: (show: boolean) => void;
@@ -61,7 +62,8 @@ export function StockEntriesTable({ stockEntries, materials, setSelectedItem, se
                       {formatCurrency(entry.costPerPurchasedUnit)}/{entry.purchasedUnit}
                     </TableCell>
                     <TableCell>{formatCurrency(entry.totalCost)}</TableCell>
-                    <TableCell>{entry.purchaseDate.toLocaleDateString()}</TableCell>
+                    <TableCell>{entry.purchaseDate ? new Date(entry.purchaseDate).toLocaleDateString() : "N/A"}</TableCell>
+
                     <TableCell>
                       <div className="flex gap-2">
                         <Button

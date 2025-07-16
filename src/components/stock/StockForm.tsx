@@ -43,7 +43,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   const form = useForm<StockFormData>({
     resolver: zodResolver(stockSchema),
     defaultValues: {
-      materialId: stockEntry?.materialId || selectedMaterialId || "",
+      materialId: stockEntry?.materialId?.toString() || selectedMaterialId?.toString() || "",
       supplier: stockEntry?.supplier || "",
       purchasedQuantity: stockEntry?.purchasedQuantity || 0,
       purchasedUnit: stockEntry?.purchasedUnit || "",
@@ -59,7 +59,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   const watchedMaterialId = form.watch("materialId");
   const watchedQuantity = form.watch("purchasedQuantity");
   const watchedCostPerUnit = form.watch("costPerPurchasedUnit");
-  const selectedMaterial = materials.find(m => m.id === watchedMaterialId);
+  const selectedMaterial = materials.find(m => m.id.toString() === watchedMaterialId);
+
   const availableUnits = selectedMaterial ? getSuggestedUnits(selectedMaterial.unitType) : [];
 
   // Auto-calculate total cost
@@ -86,7 +87,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Material</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select material" />
@@ -94,7 +95,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                       </FormControl>
                       <SelectContent>
                         {materials.map(material => (
-                          <SelectItem key={material.id} value={material.id}>
+                          <SelectItem key={material.id} value={material.id.toString()}>
                             {material.name} ({material.baseUnit})
                           </SelectItem>
                         ))}
@@ -139,7 +140,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Unit</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select unit" />

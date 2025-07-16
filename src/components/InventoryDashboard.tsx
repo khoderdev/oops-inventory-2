@@ -51,11 +51,19 @@ export function InventoryDashboard() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+
         const [materialsRes, stockRes, sectionsRes, assignmentsRes, menuItemsRes] = await Promise.all([materialsAPI.getMaterials(), api.get("/stockEntries").then(res => res.data), sectionAPI.getSections(), api.get("/assignments").then(res => res.data), api.get("/menuItems").then(res => res.data)]);
 
-        setMaterials(Array.isArray(materialsRes) ? materialsRes : []);
+        const parsedMaterials = Array.isArray(materialsRes.data)
+          ? materialsRes.data.map(m => ({
+              ...m,
+              costPerBaseUnit: Number(m.costPerBaseUnit)
+            }))
+          : [];
+
+        setMaterials(parsedMaterials);
         setStockEntries(Array.isArray(stockRes) ? stockRes : []);
-        setSections(Array.isArray(sectionsRes) ? sectionsRes : []);
+        setSections(Array.isArray(sectionsRes.data) ? sectionsRes.data : []);
         setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes : []);
         setMenuItems(Array.isArray(menuItemsRes) ? menuItemsRes : []);
       } catch (err: any) {
@@ -170,6 +178,10 @@ export function InventoryDashboard() {
     } catch (error: any) {
       setError(error.message || "Failed to add material");
     }
+  };
+
+  const handleMaterialSelect = (materialId: number | string) => {
+    setSelectedMaterialId(String(materialId));
   };
 
   const handleEditMaterial = async (data: Material) => {
@@ -496,7 +508,7 @@ export function InventoryDashboard() {
         </TabsList>
 
         <TabsContent value="materials">
-          <MaterialsTable filteredMaterials={filteredMaterials} materialsWithSectionAssignments={materialsWithSectionAssignments} setSelectedItem={setSelectedItem} setIsDetailModalOpen={setIsDetailModalOpen} setSelectedMaterialId={setSelectedMaterialId} setShowStockForm={setShowStockForm} setEditingMaterial={setEditingMaterial} setShowMaterialForm={setShowMaterialForm} handleDeleteMaterial={handleDeleteMaterial} />
+          <MaterialsTable filteredMaterials={filteredMaterials} materialsWithSectionAssignments={materialsWithSectionAssignments} setSelectedItem={setSelectedItem} setIsDetailModalOpen={setIsDetailModalOpen} handleMaterialSelect={handleMaterialSelect} setShowStockForm={setShowStockForm} setEditingMaterial={setEditingMaterial} setShowMaterialForm={setShowMaterialForm} handleDeleteMaterial={handleDeleteMaterial} />
         </TabsContent>
 
         <TabsContent value="sections">

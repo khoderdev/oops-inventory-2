@@ -8,10 +8,10 @@ export interface Material {
   category: MaterialCategory;
   baseUnit: string;
   unitType: UnitType;
-  costPerBaseUnit: number;
+  costPerBaseUnit?: number;
   description?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface CreateMaterialData {
@@ -19,7 +19,7 @@ export interface CreateMaterialData {
   category: MaterialCategory;
   baseUnit: string;
   unitType: UnitType;
-  costPerBaseUnit: number;
+  costPerBaseUnit?: number;
   description?: string;
 }
 

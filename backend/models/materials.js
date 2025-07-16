@@ -40,9 +40,18 @@ const Material = sequelize.define(
         }
       }
     },
+
+    costPerBaseUnit: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      validate: {
+        isDecimal: { msg: "Cost per base unit must be a decimal number" }
+      }
+    },
+
     category: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       validate: {
         isValidCategory(value) {
           if (!isValidMaterialCategory(value)) {
@@ -51,6 +60,7 @@ const Material = sequelize.define(
         }
       }
     },
+
     description: {
       type: DataTypes.STRING,
       allowNull: true
@@ -58,7 +68,7 @@ const Material = sequelize.define(
   },
   {
     tableName: "materials",
-    timestamps: false
+    timestamps: true
   }
 );
 

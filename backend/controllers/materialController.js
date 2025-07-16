@@ -52,11 +52,11 @@ const materialController = {
   // Create a new material
   createMaterial: async (req, res, next) => {
     try {
-      const { name, baseUnit } = req.body;
+      const { name, baseUnit, unitType } = req.body;
 
       // Validate required fields
-      if (!name || !baseUnit) {
-        return res.status(400).json({ error: "Name and baseUnit are required" });
+      if (!name || !baseUnit || !unitType) {
+        return res.status(400).json({ error: "Name, baseUnit, unitType are required" });
       }
 
       // Validate baseUnit is not empty
@@ -75,7 +75,7 @@ const materialController = {
   updateMaterial: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { name, baseUnit } = req.body;
+      const { name, baseUnit, unitType } = req.body;
 
       const material = await Material.findByPk(id);
       if (!material) {
@@ -89,7 +89,10 @@ const materialController = {
 
       await material.update({
         name: name !== undefined ? name : material.name,
-        baseUnit: baseUnit !== undefined ? baseUnit : material.baseUnit
+        baseUnit: baseUnit !== undefined ? baseUnit : material.baseUnit,
+        unitType: unitType !== undefined ? unitType : material.unitType,
+        costPerBaseUnit: costPerBaseUnit !== undefined ? costPerBaseUnit : material.costPerBaseUnit,
+        category: category !== undefined ? category : material.category
       });
 
       res.status(200).json(material);

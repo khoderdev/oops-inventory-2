@@ -18,9 +18,10 @@ interface MaterialsTableProps {
   setEditingMaterial: (material: Material | undefined) => void;
   setShowMaterialForm: (show: boolean) => void;
   handleDeleteMaterial: (materialId: string) => void;
+  handleMaterialSelect: (id: string | number) => void;
 }
 
-export function MaterialsTable({ filteredMaterials, materialsWithSectionAssignments, setSelectedItem, setIsDetailModalOpen, setSelectedMaterialId, setShowStockForm, setEditingMaterial, setShowMaterialForm, handleDeleteMaterial }: MaterialsTableProps) {
+export function MaterialsTable({ filteredMaterials, materialsWithSectionAssignments, setSelectedItem, setIsDetailModalOpen, setSelectedMaterialId, setShowStockForm, setEditingMaterial, setShowMaterialForm, handleDeleteMaterial, handleMaterialSelect }: MaterialsTableProps) {
   return (
     <Card>
       <CardHeader>
@@ -35,13 +36,15 @@ export function MaterialsTable({ filteredMaterials, materialsWithSectionAssignme
                 <TableHead>Category</TableHead>
                 <TableHead>Stock Quantity</TableHead>
                 <TableHead>Avg. Cost/Unit</TableHead>
-                <TableHead>Total Value</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredMaterials.map(material => {
+                console.log("filteredMaterials", filteredMaterials);
+                console.log("material", material);
                 const materialWithAssignments = materialsWithSectionAssignments.find(m => m.id === material.id);
+                console.log("materialWithAssignments", materialWithAssignments);
                 const sectionAssignments = materialWithAssignments?.sectionAssignments || [];
                 return (
                   <TableRow
@@ -76,9 +79,8 @@ export function MaterialsTable({ filteredMaterials, materialsWithSectionAssignme
                       </div>
                     </TableCell>
                     <TableCell>
-                      {formatCurrency(material.averageCostPerBaseUnit)}/{material.baseUnit}
+                      {formatCurrency(material.costPerBaseUnit)}/{material.baseUnit}
                     </TableCell>
-                    <TableCell>{formatCurrency(material.totalValue)}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
@@ -86,7 +88,7 @@ export function MaterialsTable({ filteredMaterials, materialsWithSectionAssignme
                           variant="outline"
                           onClick={e => {
                             e.stopPropagation();
-                            setSelectedMaterialId(material.id);
+                            handleMaterialSelect(material.id);
                             setShowStockForm(true);
                           }}
                         >

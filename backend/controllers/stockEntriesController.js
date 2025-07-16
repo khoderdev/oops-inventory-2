@@ -34,34 +34,33 @@ const stockEntriesController = {
   // Create new stock entry
   createStockEntries: async (req, res, next) => {
     try {
-      const { materialId, purchasedQuantity, purchasedUnit, totalCost } = req.body;
+      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, purchaseDate, expiryDate, batchNumber, notes } = req.body;
 
-      // Validate required fields
-      if (!materialId || !purchasedQuantity || !purchasedUnit || !totalCost) {
-        return res.status(400).json({ error: "All fields are required" });
+      if (!materialId || !supplier || !purchasedQuantity || !purchasedUnit || !costPerPurchasedUnit || !totalCost || !purchaseDate) {
+        return res.status(400).json({ error: "Missing required fields" });
       }
 
-      // Validate purchasedQuantity and totalCost are positive
-      if (purchasedQuantity <= 0) {
-        return res.status(400).json({ error: "Purchased quantity must be positive" });
-      }
-      if (totalCost < 0) {
-        return res.status(400).json({ error: "Total cost cannot be negative" });
+      if (purchasedQuantity <= 0 || costPerPurchasedUnit < 0 || totalCost < 0) {
+        return res.status(400).json({ error: "Invalid numeric values" });
       }
 
-      // Validate purchasedUnit is not empty
       if (purchasedUnit.trim() === "") {
         return res.status(400).json({ error: "Purchased unit cannot be empty" });
       }
 
       const stockEntry = await StockEntry.create({
         materialId,
+        supplier,
         purchasedQuantity,
         purchasedUnit,
-        totalCost
+        costPerPurchasedUnit,
+        totalCost,
+        purchaseDate,
+        expiryDate,
+        batchNumber,
+        notes
       });
 
-      // Fetch the created stock entry with associations
       const createdStockEntry = await StockEntry.findByPk(stockEntry.id, {
         include: { model: Material, as: "material" }
       });
@@ -76,34 +75,42 @@ const stockEntriesController = {
   updateStockEntries: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { materialId, purchasedQuantity, purchasedUnit, totalCost } = req.body;
+      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, purchaseDate, expiryDate, batchNumber, notes } = req.body;
 
-      const stockEntry = await StockEntry.findByPk(id, {
-        include: [{ model: Material, as: "material" }]
-      });
+      const stockEntry = await StockEntry.findByPk(id);
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
       }
 
-      // Validate provided fields
       if (purchasedQuantity !== undefined && purchasedQuantity <= 0) {
         return res.status(400).json({ error: "Purchased quantity must be positive" });
       }
+
+      if (costPerPurchasedUnit !== undefined && costPerPurchasedUnit < 0) {
+        return res.status(400).json({ error: "Unit cost cannot be negative" });
+      }
+
       if (totalCost !== undefined && totalCost < 0) {
         return res.status(400).json({ error: "Total cost cannot be negative" });
       }
+
       if (purchasedUnit !== undefined && purchasedUnit.trim() === "") {
         return res.status(400).json({ error: "Purchased unit cannot be empty" });
       }
 
       await stockEntry.update({
-        materialId: materialId || stockEntry.materialId,
-        purchasedQuantity: purchasedQuantity !== undefined ? purchasedQuantity : stockEntry.purchasedQuantity,
-        purchasedUnit: purchasedUnit !== undefined ? purchasedUnit : stockEntry.purchasedUnit,
-        totalCost: totalCost !== undefined ? totalCost : stockEntry.totalCost
+        materialId: materialId ?? stockEntry.materialId,
+        supplier: supplier ?? stockEntry.supplier,
+        purchasedQuantity: purchasedQuantity ?? stockEntry.purchasedQuantity,
+        purchasedUnit: purchasedUnit ?? stockEntry.purchasedUnit,
+        costPerPurchasedUnit: costPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit,
+        totalCost: totalCost ?? stockEntry.totalCost,
+        purchaseDate: purchaseDate ?? stockEntry.purchaseDate,
+        expiryDate: expiryDate ?? stockEntry.expiryDate,
+        batchNumber: batchNumber ?? stockEntry.batchNumber,
+        notes: notes ?? stockEntry.notes
       });
 
-      // Fetch the updated stock entry with associations
       const updatedStockEntry = await StockEntry.findByPk(id, {
         include: { model: Material, as: "material" }
       });
@@ -118,10 +125,7 @@ const stockEntriesController = {
   deleteStockEntries: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const stockEntry = await StockEntry.findByPk(id, {
-        include: { model: Material, as: "material" }
-      });
-
+      const stockEntry = await StockEntry.findByPk(id);
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
       }

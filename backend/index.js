@@ -29,7 +29,7 @@ app.use(errorHandler);
 
 // Database sync and server start
 sequelize
-  .sync({ force: false })
+  .sync({ force: false, alter: true })
   .then(() => {
     console.log("✅ Database connected and synced.");
     app.listen(PORT, () => {
