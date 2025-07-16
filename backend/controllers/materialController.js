@@ -1,5 +1,4 @@
-import Material from "../models/materials.js";
-import StockEntry from "../models/StockEntry.js";
+import { Material } from "../models/index.js";
 import calculateStockConversion from "../utils/conversions.js";
 
 const materialController = {

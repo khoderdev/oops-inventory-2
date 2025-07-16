@@ -1,38 +1,34 @@
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import api from "@/lib/http.ts";
-import { Material, MATERIAL_CATEGORIES, MenuItem, MenuItemIngredient, Section, SectionAssignment, StockEntry } from "@/types/inventory";
-import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { getCategoryLabel } from "@/utils/getCategoryLabel";
-import { getConversionFactor } from "@/utils/getConversionFactor";
+import { Material, MenuItem, MenuItemIngredient, Section, SectionAssignment, StockEntry } from "@/types/inventory";
+import { formatCurrency } from "@/utils/conversionLogic";
+import { getConversionFactor } from "@/utils/getConversionFactor.ts";
 import { calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials } from "@/utils/inventoryCalculations";
-import { AlertTriangle, DollarSign, Edit, Package, Plus, Search, Trash2, TrendingUp } from "lucide-react";
+import { AlertTriangle, DollarSign, Package, Plus, Search, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { materialsAPI } from "../api/matierials.api.ts";
 import { sectionAPI } from "../api/sections.api.ts";
-import { MENU_CATEGORIES } from "../types/inventory";
-import { AssignmentForm } from "./AssignmentForm";
-import { MaterialForm } from "./MaterialForm";
-import { MenuItemForm } from "./MenuItemForm";
-import { SectionForm } from "./SectionForm";
-import { StockForm } from "./StockForm";
+import { AnalyticsPanel } from "./analytics/AnalyticsPanel";
+import { MaterialForm } from "./materials/MaterialForm.tsx";
+import { MaterialsTable } from "./materials/MaterialsTable";
+import { MenuBuilder } from "./menu/MenuBuilder.tsx";
+import { AssignmentForm } from "./sections/AssignmentForm.tsx";
+import { SectionForm } from "./sections/SectionForm.tsx";
+import { SectionsTable } from "./sections/SectionsTable";
+import { StockEntriesTable } from "./stock/StockEntriesTable";
+import { StockForm } from "./stock/StockForm.tsx";
 import { DetailModal } from "./ui/DetailModal";
 
 export function InventoryDashboard() {
-  // State for all data
   const [materials, setMaterials] = useState<Material[]>([]);
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [assignments, setAssignments] = useState<SectionAssignment[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-
-  // UI state
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showMaterialForm, setShowMaterialForm] = useState(false);
@@ -51,14 +47,12 @@ export function InventoryDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch data from server
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
         const [materialsRes, stockRes, sectionsRes, assignmentsRes, menuItemsRes] = await Promise.all([materialsAPI.getMaterials(), api.get("/stockEntries").then(res => res.data), sectionAPI.getSections(), api.get("/assignments").then(res => res.data), api.get("/menuItems").then(res => res.data)]);
 
-        // Ensure materialsRes is an array, fallback to empty array if not
         setMaterials(Array.isArray(materialsRes) ? materialsRes : []);
         setStockEntries(Array.isArray(stockRes) ? stockRes : []);
         setSections(Array.isArray(sectionsRes) ? sectionsRes : []);
@@ -66,8 +60,6 @@ export function InventoryDashboard() {
         setMenuItems(Array.isArray(menuItemsRes) ? menuItemsRes : []);
       } catch (err: any) {
         setError(err.message || "Failed to fetch data from server");
-        console.error(err);
-        // Set materials to empty array on error to prevent map errors
         setMaterials([]);
         setStockEntries([]);
         setSections([]);
@@ -197,7 +189,6 @@ export function InventoryDashboard() {
     try {
       await materialsAPI.deleteMaterial(materialId);
       setMaterials(prev => prev.filter(m => m.id !== materialId));
-      // Also delete associated stock entries
       const stockToDelete = stockEntries.filter(s => s.materialId === materialId);
       await Promise.all(stockToDelete.map(s => api.delete(`/stockEntries/${s.id}`)));
       setStockEntries(prev => prev.filter(s => s.materialId !== materialId));
@@ -266,7 +257,6 @@ export function InventoryDashboard() {
     try {
       await sectionAPI.deleteSection(sectionId);
       setSections(prev => prev.filter(s => s.id !== sectionId));
-      // Also delete associated assignments
       const assignmentsToDelete = assignments.filter(a => a.sectionId === sectionId);
       await Promise.all(assignmentsToDelete.map(a => api.delete(`/assignments/${a.id}`)));
       setAssignments(prev => prev.filter(a => a.sectionId !== sectionId));
@@ -376,7 +366,6 @@ export function InventoryDashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Error display */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
           <span className="block sm:inline">{error}</span>
@@ -389,7 +378,6 @@ export function InventoryDashboard() {
         </div>
       )}
 
-      {/* Dashboard Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Inventory Management</h1>
@@ -397,7 +385,6 @@ export function InventoryDashboard() {
         </div>
       </div>
 
-      {/* Dashboard Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
@@ -410,7 +397,6 @@ export function InventoryDashboard() {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
@@ -422,7 +408,6 @@ export function InventoryDashboard() {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
@@ -434,7 +419,6 @@ export function InventoryDashboard() {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
@@ -448,7 +432,6 @@ export function InventoryDashboard() {
         </Card>
       </div>
 
-      {/* Search and Filters */}
       <div className="flex gap-4 justify-between items-center">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -476,7 +459,6 @@ export function InventoryDashboard() {
               />
             </DialogContent>
           </Dialog>
-
           <Dialog open={showStockForm} onOpenChange={setShowStockForm}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -504,7 +486,6 @@ export function InventoryDashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
       <Tabs defaultValue="materials" className="space-y-4">
         <TabsList>
           <TabsTrigger value="materials">Materials</TabsTrigger>
@@ -514,305 +495,40 @@ export function InventoryDashboard() {
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="materials" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Materials Inventory</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Material</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Stock Quantity</TableHead>
-                      <TableHead>Avg. Cost/Unit</TableHead>
-                      <TableHead>Total Value</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMaterials.map(material => {
-                      const materialWithAssignments = materialsWithSectionAssignments.find(m => m.id === material.id);
-                      const sectionAssignments = materialWithAssignments?.sectionAssignments || [];
-                      return (
-                        <TableRow
-                          key={material.id}
-                          onClick={() => {
-                            setSelectedItem({
-                              type: "material",
-                              data: material
-                            });
-                            setIsDetailModalOpen(true);
-                          }}
-                          className="cursor-pointer hover:bg-muted/50"
-                        >
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{material.name}</div>
-                              <div className="text-sm text-muted-foreground">{material.description}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{getCategoryLabel(material.category)}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div>
-                                Total: {formatNumber(material.totalQuantityInBaseUnit)} {material.baseUnit}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Available: {formatNumber(materialWithAssignments?.availableQuantity || material.totalQuantityInBaseUnit)} {material.baseUnit}
-                              </div>
-                              {sectionAssignments.length > 0 && <div className="text-sm text-muted-foreground mt-1">Assigned to: {sectionAssignments.map(a => `${a.sectionName} (${formatNumber(a.assignedQuantity)} ${a.assignedUnit})`).join(", ")}</div>}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {formatCurrency(material.averageCostPerBaseUnit)}/{material.baseUnit}
-                          </TableCell>
-                          <TableCell>{formatCurrency(material.totalValue)}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setSelectedMaterialId(material.id);
-                                  setShowStockForm(true);
-                                }}
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setEditingMaterial(material);
-                                  setShowMaterialForm(true);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button size="sm" variant="outline">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Material</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete "{material.name}" and all associated stock entries.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteMaterial(material.id)}>Delete</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="materials">
+          <MaterialsTable filteredMaterials={filteredMaterials} materialsWithSectionAssignments={materialsWithSectionAssignments} setSelectedItem={setSelectedItem} setIsDetailModalOpen={setIsDetailModalOpen} setSelectedMaterialId={setSelectedMaterialId} setShowStockForm={setShowStockForm} setEditingMaterial={setEditingMaterial} setShowMaterialForm={setShowMaterialForm} handleDeleteMaterial={handleDeleteMaterial} />
         </TabsContent>
 
-        <TabsContent value="sections" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Section Inventory</CardTitle>
-                <Dialog open={showSectionForm} onOpenChange={setShowSectionForm}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Section
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>{editingSection ? "Edit Section" : "Add New Section"}</DialogTitle>
-                    </DialogHeader>
-                    <SectionForm
-                      section={editingSection}
-                      onSubmit={editingSection ? handleEditSection : handleAddSection}
-                      onCancel={() => {
-                        setShowSectionForm(false);
-                        setEditingSection(undefined);
-                      }}
-                    />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Section</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Assigned Items</TableHead>
-                      <TableHead>Total Value</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sectionsWithAssignments.map(section => (
-                      <TableRow
-                        key={section.id}
-                        onClick={() => {
-                          setSelectedItem({
-                            type: "section",
-                            data: section
-                          });
-                          setIsDetailModalOpen(true);
-                        }}
-                        className="cursor-pointer hover:bg-muted/50"
-                      >
-                        <TableCell className="font-medium">{section.name}</TableCell>
-                        <TableCell>{section.description}</TableCell>
-                        <TableCell>{section.assignments.length}</TableCell>
-                        <TableCell>{formatCurrency(section.totalValue)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={e => {
-                                e.stopPropagation();
-                                setEditingSection(section);
-                                setShowSectionForm(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="outline">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Section</AlertDialogTitle>
-                                  <AlertDialogDescription>This will permanently delete the "{section.name}" section and all its assignments.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteSection(section.id)}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={e => {
-                                e.stopPropagation();
-                                setSelectedSectionId(section.id);
-                                setShowAssignmentForm(true);
-                              }}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Section Details */}
-          {selectedSectionId && (
-            <Card>
-              <CardHeader>
-                <CardTitle>{sections.find(s => s.id === selectedSectionId)?.name} Inventory</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Material</TableHead>
-                      <TableHead>Assigned Quantity</TableHead>
-                      <TableHead>Unit</TableHead>
-                      <TableHead>Value</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sectionsWithAssignments
-                      .find(s => s.id === selectedSectionId)
-                      ?.assignments.map(assignment => (
-                        <TableRow
-                          key={assignment.id}
-                          onClick={() => {
-                            setSelectedItem({
-                              type: "assignment",
-                              data: assignment
-                            });
-                            setIsDetailModalOpen(true);
-                          }}
-                          className="cursor-pointer hover:bg-muted/50"
-                        >
-                          <TableCell>
-                            <div className="font-medium">{assignment.material?.name}</div>
-                            <div className="text-sm text-muted-foreground">{assignment.notes}</div>
-                          </TableCell>
-                          <TableCell>{formatNumber(assignment.assignedQuantity)}</TableCell>
-                          <TableCell>{assignment.assignedUnit}</TableCell>
-                          <TableCell>{formatCurrency(assignment.assignedQuantity * (assignment.stockEntry?.costPerPurchasedUnit || 0) * getConversionFactor(assignment.assignedUnit, assignment.stockEntry?.purchasedUnit || assignment.assignedUnit, assignment.material?.unitType || "piece"))}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setEditingAssignment(assignment);
-                                  setShowAssignmentForm(true);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button size="sm" variant="outline">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Remove Assignment</AlertDialogTitle>
-                                    <AlertDialogDescription>This will remove this item from the section but won't delete the stock entry.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteAssignment(assignment.id)}>Remove</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Assignment Form Dialog */}
+        <TabsContent value="sections">
+          <SectionsTable
+            sectionsWithAssignments={sectionsWithAssignments}
+            selectedSectionId={selectedSectionId}
+            sections={sections}
+            setSelectedItem={setSelectedItem}
+            setIsDetailModalOpen={setIsDetailModalOpen}
+            setEditingSection={setEditingSection}
+            setShowSectionForm={setShowSectionForm}
+            handleDeleteSection={handleDeleteSection}
+            setSelectedSectionId={setSelectedSectionId}
+            setShowAssignmentForm={setShowAssignmentForm}
+            setEditingAssignment={setEditingAssignment}
+            handleDeleteAssignment={handleDeleteAssignment}
+          />
+          <Dialog open={showSectionForm} onOpenChange={setShowSectionForm}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingSection ? "Edit Section" : "Add New Section"}</DialogTitle>
+              </DialogHeader>
+              <SectionForm
+                section={editingSection}
+                onSubmit={editingSection ? handleEditSection : handleAddSection}
+                onCancel={() => {
+                  setShowSectionForm(false);
+                  setEditingSection(undefined);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
           <Dialog open={showAssignmentForm} onOpenChange={setShowAssignmentForm}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -834,259 +550,19 @@ export function InventoryDashboard() {
           </Dialog>
         </TabsContent>
 
-        <TabsContent value="stock" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Stock Entries</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Material</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Unit Cost</TableHead>
-                      <TableHead>Total Cost</TableHead>
-                      <TableHead>Purchase Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stockEntries.map(entry => {
-                      const material = materials.find(m => m.id === entry.materialId);
-                      return (
-                        <TableRow
-                          key={entry.id}
-                          onClick={() => {
-                            setSelectedItem({
-                              type: "stock",
-                              data: entry
-                            });
-                            setIsDetailModalOpen(true);
-                          }}
-                          className="cursor-pointer hover:bg-muted/50"
-                        >
-                          <TableCell>
-                            <div className="font-medium">{material?.name}</div>
-                          </TableCell>
-                          <TableCell>{entry.supplier}</TableCell>
-                          <TableCell>
-                            {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit}
-                          </TableCell>
-                          <TableCell>
-                            {formatCurrency(entry.costPerPurchasedUnit)}/{entry.purchasedUnit}
-                          </TableCell>
-                          <TableCell>{formatCurrency(entry.totalCost)}</TableCell>
-                          <TableCell>{entry.purchaseDate.toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setEditingStock(entry);
-                                  setShowStockForm(true);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button size="sm" variant="outline">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Stock Entry</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete this stock entry.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteStock(entry.id)}>Delete</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="stock">
+          <StockEntriesTable stockEntries={stockEntries} materials={materials} setSelectedItem={setSelectedItem} setIsDetailModalOpen={setIsDetailModalOpen} setEditingStock={setEditingStock} setShowStockForm={setShowStockForm} handleDeleteStock={handleDeleteStock} />
         </TabsContent>
 
-        {/* Menu Builder Tab */}
-        <TabsContent value="menu" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Menu Builder</CardTitle>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button size="sm" onClick={() => setEditingMenuItem(undefined)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Menu Item
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
-                    </DialogHeader>
-                    <MenuItemForm menuItem={editingMenuItem} materials={materialsWithStock} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={() => setEditingMenuItem(undefined)} />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Ingredients</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Profit</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {menuItems.length > 0 ? (
-                    menuItems.map(item => {
-                      const totalCost = item.ingredients.reduce((sum, i) => sum + i.cost, 0);
-                      const profit = item.price - totalCost;
-                      const profitMargin = (profit / item.price) * 100;
-
-                      return (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">
-                            <div>{item.name}</div>
-                            {item.description && <div className="text-sm text-muted-foreground">{item.description}</div>}
-                          </TableCell>
-                          <TableCell>{MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}</TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              {item.ingredients.map((ingredient, idx) => (
-                                <div key={idx} className="text-sm">
-                                  {formatNumber(ingredient.quantity)} {ingredient.unit} {materialsWithStock.find(m => m.id === ingredient.materialId)?.name || "Unknown"}
-                                </div>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>{formatCurrency(totalCost)}</TableCell>
-                          <TableCell>{formatCurrency(item.price)}</TableCell>
-                          <TableCell className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                            {formatCurrency(profit)} ({formatNumber(profitMargin)}%)
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingMenuItem(item);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button size="sm" variant="outline">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
-                        <div className="flex flex-col items-center justify-center space-y-2">
-                          <Package className="h-12 w-12 text-muted-foreground" />
-                          <p className="text-lg font-medium">No menu items found</p>
-                          <p className="text-sm text-muted-foreground">Create your first menu item</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+        <TabsContent value="menu">
+          <MenuBuilder menuItems={menuItems} materialsWithStock={materialsWithStock} setEditingMenuItem={setEditingMenuItem} handleDeleteMenuItem={handleDeleteMenuItem} handleAddMenuItem={handleAddMenuItem} handleUpdateMenuItem={handleUpdateMenuItem} editingMenuItem={editingMenuItem} />
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Low Stock Alert</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {lowStockMaterials.length === 0 ? (
-                  <p className="text-muted-foreground">All materials are well-stocked.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {lowStockMaterials.map(material => (
-                      <div key={material.id} className="flex justify-between items-center">
-                        <span>{material.name}</span>
-                        <Badge variant="destructive">
-                          {formatNumber(material.totalQuantityInBaseUnit)} {material.baseUnit}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Inventory by Category</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {MATERIAL_CATEGORIES.map(category => {
-                    const categoryMaterials = materialsWithStock.filter(m => m.category === category.value);
-                    const categoryValue = categoryMaterials.reduce((sum, m) => sum + m.totalValue, 0);
-
-                    if (categoryValue === 0) return null;
-
-                    return (
-                      <div key={category.value} className="flex justify-between items-center">
-                        <span>{category.label}</span>
-                        <div className="text-right">
-                          <div className="font-medium">{formatCurrency(categoryValue)}</div>
-                          <div className="text-sm text-muted-foreground">{categoryMaterials.length} items</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="analytics">
+          <AnalyticsPanel lowStockMaterials={lowStockMaterials} materialsWithStock={materialsWithStock} />
         </TabsContent>
       </Tabs>
+
       <DetailModal isOpen={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} selectedItem={selectedItem} materialsWithSectionAssignments={materialsWithSectionAssignments} sectionsWithAssignments={sectionsWithAssignments} />
     </div>
   );

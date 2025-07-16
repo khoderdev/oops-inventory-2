@@ -9,7 +9,7 @@ import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Textarea } from "./ui/textarea";
+import { Textarea } from "../ui/textarea";
 
 const assignmentSchema = z.object({
   sectionId: z.string().min(1, "Section is required"),

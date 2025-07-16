@@ -1,6 +1,5 @@
 import sequelize from "../config/database.js";
-import Material from "../models/materials.js";
-import { MenuItem, MenuItemIngredient } from "../models/menuItems.js";
+import { Material, MenuItem, MenuItemIngredient } from "../models/index.js";
 
 const menuItemsController = {
   // Get all menu items with ingredients
@@ -10,8 +9,8 @@ const menuItemsController = {
         include: [
           {
             model: MenuItemIngredient,
-            as: "menuItemIngredients",
-            include: [{ model: Material, as: "Material" }]
+            as: "menuItemIngredients", // This matches your hasMany association
+            include: [{ model: Material, as: "material" }]
           }
         ]
       });
@@ -42,7 +41,7 @@ const menuItemsController = {
           {
             model: MenuItemIngredient,
             as: "menuItemIngredients",
-            include: [{ model: Material, as: "Material" }]
+            include: [{ model: Material, as: "material" }]
           }
         ]
       });
@@ -146,7 +145,7 @@ const menuItemsController = {
           {
             model: MenuItemIngredient,
             as: "menuItemIngredients",
-            include: [{ model: Material, as: "Material" }]
+            include: [{ model: Material, as: "material" }]
           }
         ],
         transaction
@@ -269,7 +268,7 @@ const menuItemsController = {
           {
             model: MenuItemIngredient,
             as: "menuItemIngredients",
-            include: [{ model: Material, as: "Material" }]
+            include: [{ model: Material, as: "material" }]
           }
         ],
         transaction

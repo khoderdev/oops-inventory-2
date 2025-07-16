@@ -102,30 +102,4 @@ const MenuItemIngredient = sequelize.define(
   }
 );
 
-// Define associations
-MenuItem.belongsToMany(Material, {
-  through: MenuItemIngredient,
-  foreignKey: "menuItemId",
-  otherKey: "materialId",
-  as: "ingredients"
-});
-Material.belongsToMany(MenuItem, {
-  through: MenuItemIngredient,
-  foreignKey: "materialId",
-  otherKey: "menuItemId",
-  as: "menuItems"
-});
-
-// Additional associations to access MenuItemIngredient directly
-MenuItem.hasMany(MenuItemIngredient, {
-  foreignKey: "menuItemId",
-  as: "menuItemIngredients"
-});
-MenuItemIngredient.belongsTo(MenuItem, { foreignKey: "menuItemId" });
-Material.hasMany(MenuItemIngredient, {
-  foreignKey: "materialId",
-  as: "menuItemIngredients"
-});
-MenuItemIngredient.belongsTo(Material, { foreignKey: "materialId" });
-
 export { MenuItem, MenuItemIngredient };

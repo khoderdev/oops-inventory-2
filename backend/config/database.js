@@ -1,4 +1,12 @@
+import chalk from "chalk"; // install via: npm install chalk
 import { Sequelize } from "sequelize";
+
+const customLogger = (sql, timing) => {
+  const timestamp = new Date().toLocaleTimeString();
+  const method = sql.trim().split(" ")[0].toUpperCase();
+
+  console.log(chalk.gray(`[${timestamp}]`), chalk.cyan(`[${method}]`), chalk.white(sql), chalk.green(timing ? `(${timing}ms)` : ""));
+};
 
 const sequelize = new Sequelize({
   dialect: "postgres",
@@ -6,7 +14,9 @@ const sequelize = new Sequelize({
   database: "inventory_db",
   username: "postgres",
   password: "postgres",
-  port: 5432
+  port: 5432,
+  logging: customLogger,
+  benchmark: true
 });
 
 export default sequelize;

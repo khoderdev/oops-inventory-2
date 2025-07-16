@@ -1,3 +1,36 @@
+export const MATERIAL_CATEGORIES = [
+  { value: "meat", label: "Meat & Poultry" },
+  { value: "dairy", label: "Dairy Products" },
+  { value: "vegetables", label: "Vegetables & Fruits" },
+  { value: "grains", label: "Grains & Cereals" },
+  { value: "spices", label: "Spices & Seasonings" },
+  { value: "beverages", label: "Beverages" },
+  { value: "packaging", label: "Packaging Materials" },
+  { value: "other", label: "Other" }
+];
+
+export const UNIT_OPTIONS = {
+  mass: ["kg", "g", "lb", "oz"],
+  volume: ["l", "ml", "gal", "fl oz"],
+  piece: ["piece", "unit", "dozen"],
+  package: ["box", "pack", "case", "bottle"]
+};
+
+// Helper function to validate material category
+export function isValidMaterialCategory(category) {
+  return MATERIAL_CATEGORIES.some(c => c.value === category);
+}
+
+// Helper function to validate unit type
+export function isValidUnitType(unitType) {
+  return Object.keys(UNIT_OPTIONS).includes(unitType);
+}
+
+// Helper function to validate unit for a given unit type
+export function isValidUnit(unit, unitType) {
+  return UNIT_OPTIONS[unitType] && UNIT_OPTIONS[unitType].includes(unit);
+}
+
 function isMassUnit(unit) {
   return ["kg", "g", "lb", "oz"].includes(unit.toLowerCase());
 }

@@ -9,7 +9,7 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Edit, Package, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { MenuItemForm } from "./MenuItemForm";
+import { MenuItemForm } from "./menu/MenuItemForm";
 
 interface MenuItemBuilderProps {
   materials: MaterialWithStock[];

@@ -1,11 +1,13 @@
 import cors from "cors";
 import express from "express";
 import sequelize from "./config/database.js";
+import "./models/index.js";
 import assignmentsRoutes from "./routes/assignments.js";
 import materialRoutes from "./routes/materials.js";
 import menuItemsRoutes from "./routes/menuItems.js";
 import sectionRoutes from "./routes/sections.js";
 import stockEntriesRoutes from "./routes/stockEntries.js";
+import { errorHandler } from "./utils/logger.js";
 
 const app = express();
 const PORT = 3000;
@@ -22,19 +24,19 @@ app.use("/api/stockEntries", stockEntriesRoutes);
 app.use("/api/menuItems", menuItemsRoutes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Something went wrong!" });
-});
+// IMPORTANT: app.use(errorHandler) should be the *last* middleware
+app.use(errorHandler);
 
 // Database sync and server start
 sequelize
   .sync({ force: false })
   .then(() => {
+    console.log("✅ Database connected and synced.");
     app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+      console.log(`🚀 Server is running on port ${PORT}`);
     });
   })
   .catch(err => {
-    console.error("Unable to connect to the database:", err);
+    console.error("❌ Unable to connect to the database:", err.message);
+    process.exit(1);
   });

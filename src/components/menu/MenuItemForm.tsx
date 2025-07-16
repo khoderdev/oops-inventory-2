@@ -4,9 +4,9 @@ import { formatNumber } from "@/utils/conversionLogic";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
 interface MenuItemFormProps {
   menuItem?: MenuItem;

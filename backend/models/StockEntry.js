@@ -37,6 +37,4 @@ const StockEntry = sequelize.define(
   }
 );
 
-StockEntry.belongsTo(Material, { foreignKey: "materialId" });
-
 export default StockEntry;

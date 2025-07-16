@@ -1,7 +1,4 @@
-import Assignment from "../models/Assignment.js";
-import Material from "../models/materials.js";
-import Section from "../models/sections.js";
-import StockEntry from "../models/StockEntry.js";
+import { Assignment, Material, Section, StockEntry } from "../models/index.js";
 import calculateStockConversion from "../utils/conversions.js";
 
 const sectionController = {

@@ -47,8 +47,4 @@ const Assignment = sequelize.define(
   }
 );
 
-Assignment.belongsTo(Section, { foreignKey: "sectionId" });
-Assignment.belongsTo(Material, { foreignKey: "materialId" });
-Assignment.belongsTo(StockEntry, { foreignKey: "stockEntryId" });
-
 export default Assignment;

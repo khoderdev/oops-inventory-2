@@ -1,11 +1,11 @@
-import StockEntry from "../models/StockEntry.js";
+import { Material, StockEntry } from "../models/index.js";
 
 const stockEntriesController = {
   // Get all stock entries
   getAllStockEntries: async (req, res, next) => {
     try {
       const stockEntries = await StockEntry.findAll({
-        include: ["Material"]
+        include: { model: Material, as: "material" }
       });
       res.status(200).json(stockEntries);
     } catch (error) {
@@ -17,8 +17,8 @@ const stockEntriesController = {
   getStockEntryById: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const stockEntry = await StockEntry.findbyPk(id, {
-        include: ["Material"]
+      const stockEntry = await StockEntry.findByPk(id, {
+        include: { model: Material, as: "material" }
       });
 
       if (!stockEntry) {
@@ -63,7 +63,7 @@ const stockEntriesController = {
 
       // Fetch the created stock entry with associations
       const createdStockEntry = await StockEntry.findByPk(stockEntry.id, {
-        include: ["Material"]
+        include: { model: Material, as: "material" }
       });
 
       res.status(201).json(createdStockEntry);
@@ -78,7 +78,9 @@ const stockEntriesController = {
       const { id } = req.params;
       const { materialId, purchasedQuantity, purchasedUnit, totalCost } = req.body;
 
-      const stockEntry = await StockEntry.findByPk(id);
+      const stockEntry = await StockEntry.findByPk(id, {
+        include: [{ model: Material, as: "material" }]
+      });
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
       }
@@ -103,7 +105,7 @@ const stockEntriesController = {
 
       // Fetch the updated stock entry with associations
       const updatedStockEntry = await StockEntry.findByPk(id, {
-        include: ["Material"]
+        include: { model: Material, as: "material" }
       });
 
       res.status(200).json(updatedStockEntry);
@@ -116,7 +118,9 @@ const stockEntriesController = {
   deleteStockEntries: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const stockEntry = await StockEntry.findByPk(id);
+      const stockEntry = await StockEntry.findByPk(id, {
+        include: { model: Material, as: "material" }
+      });
 
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
