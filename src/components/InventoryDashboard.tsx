@@ -6,14 +6,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MENU_CATEGORIES, mockAssignments, mockMaterials, mockSections, mockStockEntries } from "@/mockData/InventoryDashboard";
+import { MENU_CATEGORIES } from "@/mockData/InventoryDashboard";
 import { Material, MATERIAL_CATEGORIES, MenuItem, MenuItemIngredient, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials } from "@/utils/inventoryCalculations";
 import { AlertTriangle, DollarSign, Edit, Package, Plus, Search, Trash2, TrendingUp } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AssignmentForm } from "./AssignmentForm";
 import { MaterialForm } from "./MaterialForm";
 import { MenuItemForm } from "./MenuItemForm";
@@ -22,26 +22,66 @@ import { StockForm } from "./StockForm";
 import { DetailModal } from "./ui/DetailModal";
 
 export function InventoryDashboard() {
-  const [materials, setMaterials] = useState<Material[]>(mockMaterials);
-  const [stockEntries, setStockEntries] = useState<StockEntry[]>(mockStockEntries);
+  // State for all data
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [assignments, setAssignments] = useState<SectionAssignment[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+
+  // UI state
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [showStockForm, setShowStockForm] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState<Material | undefined>();
-  const [editingStock, setEditingStock] = useState<StockEntry | undefined>();
-  const [selectedMaterialId, setSelectedMaterialId] = useState<string>("");
-  const [sections, setSections] = useState<Section[]>(mockSections);
-  const [assignments, setAssignments] = useState<SectionAssignment[]>(mockAssignments);
   const [showSectionForm, setShowSectionForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<Material | undefined>();
+  const [editingStock, setEditingStock] = useState<StockEntry | undefined>();
   const [editingSection, setEditingSection] = useState<Section | undefined>();
   const [editingAssignment, setEditingAssignment] = useState<SectionAssignment | undefined>();
+  const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | undefined>();
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string>("");
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<{ type: "material" | "stock" | "section" | "assignment"; data: Material | StockEntry | Section | SectionAssignment } | null>(null);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | undefined>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch data from JSON Server
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const [materialsRes, stockRes, sectionsRes, assignmentsRes, menuItemsRes] = await Promise.all([fetch("http://localhost:3000/materials"), fetch("http://localhost:3000/stockEntries"), fetch("http://localhost:3000/sections"), fetch("http://localhost:3000/assignments"), fetch("http://localhost:3000/menuItems")]);
+
+        const [materialsData, stockData, sectionsData, assignmentsData, menuItemsData] = await Promise.all([materialsRes.json(), stockRes.json(), sectionsRes.json(), assignmentsRes.json(), menuItemsRes.json()]);
+
+        // Convert string dates to Date objects
+        const parseDates = (items: any[]) =>
+          items.map(item => ({
+            ...item,
+            createdAt: new Date(item.createdAt),
+            updatedAt: new Date(item.updatedAt),
+            ...(item.purchaseDate && { purchaseDate: new Date(item.purchaseDate) }),
+            ...(item.expiryDate && { expiryDate: new Date(item.expiryDate) })
+          }));
+
+        setMaterials(parseDates(materialsData));
+        setStockEntries(parseDates(stockData));
+        setSections(parseDates(sectionsData));
+        setAssignments(parseDates(assignmentsData));
+        setMenuItems(parseDates(menuItemsData));
+      } catch (err) {
+        setError("Failed to fetch data from server");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Calculate inventory data
   const materialsWithStock = useMemo(() => {
@@ -131,108 +171,178 @@ export function InventoryDashboard() {
   const totalMaterials = materials?.length || 0;
   const totalStockEntries = stockEntries?.length || 0;
 
-  // Handler functions
-  const handleAddMaterial = (data: Material) => {
-    const newMaterial: Material = {
-      id: Date.now().toString(),
-      ...data,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    setMaterials([...materials, newMaterial]);
-    setShowMaterialForm(false);
+  // API call functions
+  const apiRequest = async (url: string, method: string, data?: any) => {
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: data ? JSON.stringify(data) : undefined
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("API request failed:", error);
+      throw error;
+    }
   };
 
-  const handleEditMaterial = (data: Material) => {
-    if (editingMaterial) {
-      const updatedMaterials = materials.map(material => (material.id === editingMaterial.id ? { ...material, ...data, updatedAt: new Date() } : material));
-      setMaterials(updatedMaterials);
-      setEditingMaterial(undefined);
+  // Handler functions with API integration
+  const handleAddMaterial = async (data: Material) => {
+    try {
+      const { id, ...materialData } = data; // 🚨 Remove any accidental `id`
+      const newMaterial = await apiRequest("http://localhost:3000/materials", "POST", materialData);
+      setMaterials([...materials, newMaterial]);
       setShowMaterialForm(false);
+    } catch (error) {
+      setError("Failed to add material");
     }
   };
 
-  const handleDeleteMaterial = (materialId: string) => {
-    setMaterials(materials.filter(m => m.id !== materialId));
-    setStockEntries(stockEntries.filter(s => s.materialId !== materialId));
+  // const handleAddMaterial = async (data: Material) => {
+  //   try {
+  //     const newMaterial = await apiRequest("http://localhost:3000/materials", "POST", data);
+  //     setMaterials([...materials, newMaterial]);
+  //     setShowMaterialForm(false);
+  //   } catch (error) {
+  //     setError("Failed to add material");
+  //   }
+  // };
+
+  const handleEditMaterial = async (data: Material) => {
+    if (editingMaterial) {
+      try {
+        const updatedMaterial = await apiRequest(`http://localhost:3000/materials/${editingMaterial.id}`, "PUT", data);
+        setMaterials(materials.map(m => (m.id === editingMaterial.id ? updatedMaterial : m)));
+        setEditingMaterial(undefined);
+        setShowMaterialForm(false);
+      } catch (error) {
+        setError("Failed to update material");
+      }
+    }
   };
 
-  const handleAddStock = (data: StockEntry) => {
-    const newStockEntry: StockEntry = {
-      id: Date.now().toString(),
-      ...data,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    setStockEntries([...stockEntries, newStockEntry]);
-    setShowStockForm(false);
-    setSelectedMaterialId("");
+  const handleDeleteMaterial = async (materialId: string) => {
+    try {
+      await apiRequest(`http://localhost:3000/materials/${materialId}`, "DELETE");
+      setMaterials(materials.filter(m => m.id !== materialId));
+      // Also delete associated stock entries
+      const stockToDelete = stockEntries.filter(s => s.materialId === materialId);
+      await Promise.all(stockToDelete.map(s => apiRequest(`http://localhost:3000/stockEntries/${s.id}`, "DELETE")));
+      setStockEntries(stockEntries.filter(s => s.materialId !== materialId));
+    } catch (error) {
+      setError("Failed to delete material");
+    }
   };
 
-  const handleEditStock = (data: StockEntry) => {
-    if (editingStock) {
-      const updatedStock = stockEntries.map(entry => (entry.id === editingStock.id ? { ...entry, ...data, updatedAt: new Date() } : entry));
-      setStockEntries(updatedStock);
-      setEditingStock(undefined);
+  const handleAddStock = async (data: StockEntry) => {
+    try {
+      const newStockEntry = await apiRequest("http://localhost:3000/stockEntries", "POST", data);
+      setStockEntries([...stockEntries, newStockEntry]);
       setShowStockForm(false);
+      setSelectedMaterialId("");
+    } catch (error) {
+      setError("Failed to add stock entry");
     }
   };
 
-  const handleDeleteStock = (stockId: string) => {
-    setStockEntries(stockEntries.filter(s => s.id !== stockId));
+  const handleEditStock = async (data: StockEntry) => {
+    if (editingStock) {
+      try {
+        const updatedStock = await apiRequest(`http://localhost:3000/stockEntries/${editingStock.id}`, "PUT", data);
+        setStockEntries(stockEntries.map(entry => (entry.id === editingStock.id ? updatedStock : entry)));
+        setEditingStock(undefined);
+        setShowStockForm(false);
+      } catch (error) {
+        setError("Failed to update stock entry");
+      }
+    }
   };
 
-  const handleAddSection = (data: Section) => {
-    const newSection: Section = {
-      id: Date.now().toString(),
-      ...data,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    setSections([...sections, newSection]);
-    setShowSectionForm(false);
+  const handleDeleteStock = async (stockId: string) => {
+    try {
+      await apiRequest(`http://localhost:3000/stockEntries/${stockId}`, "DELETE");
+      setStockEntries(stockEntries.filter(s => s.id !== stockId));
+    } catch (error) {
+      setError("Failed to delete stock entry");
+    }
   };
 
-  const handleEditSection = (data: Section) => {
-    if (editingSection) {
-      const updatedSections = sections.map(section => (section.id === editingSection.id ? { ...section, ...data, updatedAt: new Date() } : section));
-      setSections(updatedSections);
-      setEditingSection(undefined);
+  const handleAddSection = async (data: Section) => {
+    try {
+      const newSection = await apiRequest("http://localhost:3000/sections", "POST", data);
+      setSections([...sections, newSection]);
       setShowSectionForm(false);
+    } catch (error) {
+      setError("Failed to add section");
     }
   };
 
-  const handleDeleteSection = (sectionId: string) => {
-    setSections(sections.filter(s => s.id !== sectionId));
-    setAssignments(assignments.filter(a => a.sectionId !== sectionId));
+  const handleEditSection = async (data: Section) => {
+    if (editingSection) {
+      try {
+        const updatedSection = await apiRequest(`http://localhost:3000/sections/${editingSection.id}`, "PUT", data);
+        setSections(sections.map(section => (section.id === editingSection.id ? updatedSection : section)));
+        setEditingSection(undefined);
+        setShowSectionForm(false);
+      } catch (error) {
+        setError("Failed to update section");
+      }
+    }
   };
 
-  const handleAddAssignment = (data: SectionAssignment) => {
-    const newAssignment: SectionAssignment = {
-      id: Date.now().toString(),
-      ...data,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    setAssignments([...assignments, newAssignment]);
-    setShowAssignmentForm(false);
+  const handleDeleteSection = async (sectionId: string) => {
+    try {
+      await apiRequest(`http://localhost:3000/sections/${sectionId}`, "DELETE");
+      setSections(sections.filter(s => s.id !== sectionId));
+      // Also delete associated assignments
+      const assignmentsToDelete = assignments.filter(a => a.sectionId === sectionId);
+      await Promise.all(assignmentsToDelete.map(a => apiRequest(`http://localhost:3000/assignments/${a.id}`, "DELETE")));
+      setAssignments(assignments.filter(a => a.sectionId !== sectionId));
+    } catch (error) {
+      setError("Failed to delete section");
+    }
   };
 
-  const handleEditAssignment = (data: SectionAssignment) => {
-    if (editingAssignment) {
-      const updatedAssignments = assignments.map(assignment => (assignment.id === editingAssignment.id ? { ...assignment, ...data, updatedAt: new Date() } : assignment));
-      setAssignments(updatedAssignments);
-      setEditingAssignment(undefined);
+  const handleAddAssignment = async (data: SectionAssignment) => {
+    try {
+      const newAssignment = await apiRequest("http://localhost:3000/assignments", "POST", data);
+      setAssignments([...assignments, newAssignment]);
       setShowAssignmentForm(false);
+    } catch (error) {
+      setError("Failed to add assignment");
     }
   };
 
-  const handleDeleteAssignment = (assignmentId: string) => {
-    setAssignments(assignments.filter(a => a.id !== assignmentId));
+  const handleEditAssignment = async (data: SectionAssignment) => {
+    if (editingAssignment) {
+      try {
+        const updatedAssignment = await apiRequest(`http://localhost:3000/assignments/${editingAssignment.id}`, "PUT", data);
+        setAssignments(assignments.map(assignment => (assignment.id === editingAssignment.id ? updatedAssignment : assignment)));
+        setEditingAssignment(undefined);
+        setShowAssignmentForm(false);
+      } catch (error) {
+        setError("Failed to update assignment");
+      }
+    }
   };
 
-  // Add menu item handlers
-  const handleAddMenuItem = (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
+  const handleDeleteAssignment = async (assignmentId: string) => {
+    try {
+      await apiRequest(`http://localhost:3000/assignments/${assignmentId}`, "DELETE");
+      setAssignments(assignments.filter(a => a.id !== assignmentId));
+    } catch (error) {
+      setError("Failed to delete assignment");
+    }
+  };
+
+  const handleAddMenuItem = async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
     const ingredientsWithCosts = data.ingredients.map(ingredient => {
       const material = materialsWithStock.find(m => m.id === ingredient.materialId);
       const costPerUnit = material?.averageCostPerBaseUnit || 0;
@@ -243,17 +353,18 @@ export function InventoryDashboard() {
       };
     });
 
-    const newMenuItem: MenuItem = {
-      id: Date.now().toString(),
-      ...data,
-      ingredients: ingredientsWithCosts,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    setMenuItems([...menuItems, newMenuItem]);
+    try {
+      const newMenuItem = await apiRequest("http://localhost:3000/menuItems", "POST", {
+        ...data,
+        ingredients: ingredientsWithCosts
+      });
+      setMenuItems([...menuItems, newMenuItem]);
+    } catch (error) {
+      setError("Failed to add menu item");
+    }
   };
 
-  const handleUpdateMenuItem = (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
+  const handleUpdateMenuItem = async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
     const ingredientsWithCosts = data.ingredients.map(ingredient => {
       const material = materialsWithStock.find(m => m.id === ingredient.materialId);
       const costPerUnit = material?.averageCostPerBaseUnit || 0;
@@ -264,26 +375,62 @@ export function InventoryDashboard() {
       };
     });
 
-    const updatedMenuItems = menuItems.map(item =>
-      item.id === editingMenuItem?.id
-        ? {
-            ...item,
-            ...data,
-            ingredients: ingredientsWithCosts,
-            updatedAt: new Date()
-          }
-        : item
+    try {
+      const updatedMenuItem = await apiRequest(`http://localhost:3000/menuItems/${editingMenuItem?.id}`, "PUT", {
+        ...data,
+        ingredients: ingredientsWithCosts
+      });
+      setMenuItems(menuItems.map(item => (item.id === editingMenuItem?.id ? updatedMenuItem : item)));
+      setEditingMenuItem(undefined);
+    } catch (error) {
+      setError("Failed to update menu item");
+    }
+  };
+
+  const handleDeleteMenuItem = async (id: string) => {
+    try {
+      await apiRequest(`http://localhost:3000/menuItems/${id}`, "DELETE");
+      setMenuItems(menuItems.filter(item => item.id !== id));
+    } catch (error) {
+      setError("Failed to delete menu item");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex justify-center items-center h-screen">
+        <div className="text-center">
+          <p>Loading inventory data...</p>
+        </div>
+      </div>
     );
-    setMenuItems(updatedMenuItems);
-    setEditingMenuItem(undefined);
-  };
+  }
 
-  const handleDeleteMenuItem = (id: string) => {
-    setMenuItems(menuItems.filter(item => item.id !== id));
-  };
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-red-600">{error}</div>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
+      {/* Error display */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <span className="block sm:inline">{error}</span>
+          <span className="absolute top-0 bottom-0 right-0 px-4 py-3" onClick={() => setError(null)}>
+            <svg className="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <title>Close</title>
+              <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z" />
+            </svg>
+          </span>
+        </div>
+      )}
+
+      {/* Rest of the component remains the same as before */}
       {/* Dashboard Header */}
       <div className="flex justify-between items-center">
         <div>
