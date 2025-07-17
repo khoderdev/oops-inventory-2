@@ -18,8 +18,6 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   const [cart, setCart] = useState<SoldItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [customerName, setCustomerName] = useState("");
-  const [notes, setNotes] = useState("");
   const [saleType, setSaleType] = useState<"individual" | "menu">("individual");
   const [selectedMenuItems, setSelectedMenuItems] = useState<MenuItemSale[]>([]);
   // Derive sections from assignments
@@ -208,8 +206,6 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       // Reset form
       setCart([]);
       setSelectedMenuItems([]);
-      setCustomerName("");
-      setNotes("");
     } catch (error) {
       console.error("Failed to complete sale:", error);
       // You might want to add error handling UI here

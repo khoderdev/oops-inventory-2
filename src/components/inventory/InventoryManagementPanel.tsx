@@ -8,10 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ConversionResult } from "@/types/conversion";
 import { Material, MATERIAL_CATEGORIES, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { calculateCostForQuantity, calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials, getSuggestedUnits } from "@/utils/inventoryCalculations";
+import { calculateCostForQuantity, calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials, getSuggestedUnits, getDisplayQuantity } from "@/utils/inventoryCalculations";
 import { Edit, Filter, Package, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MenuItemBuilder } from "../menu/MenuBuilder";
@@ -209,7 +208,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                       </TableCell>
                       <TableCell>
                         {formatNumber(material.totalQuantityInBaseUnit)} {material.baseUnit}
-                        {material.unitType === 'package' && (
+                        {material.unitType === "package" && (
                           <Badge variant="outline" className="ml-2 text-xs">
                             Package
                           </Badge>
@@ -217,11 +216,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                       </TableCell>
                       <TableCell>
                         {formatCurrency(material.averageCostPerBaseUnit)}/{material.baseUnit}
-                        {material.unitType === 'package' && (
-                          <span className="text-xs text-muted-foreground ml-1">
-                            (per {material.baseUnit})
-                          </span>
-                        )}
+                        {material.unitType === "package" && <span className="text-xs text-muted-foreground ml-1">(per {material.baseUnit})</span>}
                       </TableCell>
                       <TableCell>{formatCurrency(material.totalValue)}</TableCell>
                       <TableCell>{material.stockEntries.length}</TableCell>
@@ -291,22 +286,30 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                         <TableRow key={entry.id}>
                           <TableCell className="font-medium">{material?.name || "Unknown Material"}</TableCell>
                           <TableCell>{entry.supplier}</TableCell>
-                          <TableCell>{formatNumber(entry.purchasedQuantity)}</TableCell>
                           <TableCell>
-                            {entry.purchasedUnit}
-                            {material?.unitType === 'package' && (
-                              <Badge variant="outline" className="ml-2 text-xs">
-                                Package
-                              </Badge>
-                            )}
+                            {(() => {
+                              const displayQty = getDisplayQuantity(entry, material!);
+                              return formatNumber(displayQty.quantity);
+                            })()} 
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const displayQty = getDisplayQuantity(entry, material!);
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span>{displayQty.unit}</span>
+                                  {displayQty.isConverted && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Package
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })()} 
                           </TableCell>
                           <TableCell>
                             {formatCurrency(entry.costPerPurchasedUnit)}
-                            {material?.unitType === 'package' && (
-                              <span className="text-xs text-muted-foreground ml-1">
-                                (per {entry.purchasedUnit})
-                              </span>
-                            )}
+                            {material?.unitType === "package" && <span className="text-xs text-muted-foreground ml-1">(per {entry.purchasedUnit})</span>}
                           </TableCell>
                           <TableCell>{formatCurrency(entry.totalCost)}</TableCell>
                           <TableCell>{entry.purchaseDate.toLocaleDateString()}</TableCell>
@@ -348,15 +351,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
         </TabsContent>
 
         <TabsContent value="menu" className="space-y-4">
-          <MenuItemBuilder 
-            materials={materials} 
-            stockEntries={stockEntries} 
-            sections={sections}
-            menuItems={menuItems}
-            onCreateMenuItem={onCreateMenuItem}
-            onUpdateMenuItem={onUpdateMenuItem}
-            onDeleteMenuItem={onDeleteMenuItem}
-          />
+          <MenuItemBuilder materials={materials} stockEntries={stockEntries} sections={sections} menuItems={menuItems} onCreateMenuItem={onCreateMenuItem} onUpdateMenuItem={onUpdateMenuItem} onDeleteMenuItem={onDeleteMenuItem} />
         </TabsContent>
 
         <TabsContent value="conversions" className="space-y-4">
@@ -430,9 +425,9 @@ function UnitConversionCalculator({ materials }: { materials: MaterialWithStock[
       });
     } catch (error) {
       console.error("Conversion error:", error);
-      setConversionResult({ 
+      setConversionResult({
         cost: 0,
-        error: "Conversion failed" 
+        error: "Conversion failed"
       });
     }
   };

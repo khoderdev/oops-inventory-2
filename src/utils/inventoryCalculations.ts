@@ -151,3 +151,23 @@ export function calculateInventoryTurnover(material: MaterialWithStock, usagePer
 
   return { turnoverRate, monthsOfStock };
 }
+
+// Convert package quantities to base units for display
+export function getDisplayQuantity(stockEntry: StockEntry, material: Material): { quantity: number; unit: string; isConverted: boolean } {
+  // For package units (box, pack, case), convert to base units (bottles, pieces)
+  if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+    const convertedQuantity = stockEntry.purchasedQuantity * material.packageQuantity;
+    return {
+      quantity: convertedQuantity,
+      unit: material.baseUnit,
+      isConverted: true
+    };
+  }
+  
+  // For non-package units, return as-is
+  return {
+    quantity: stockEntry.purchasedQuantity,
+    unit: stockEntry.purchasedUnit,
+    isConverted: false
+  };
+}
