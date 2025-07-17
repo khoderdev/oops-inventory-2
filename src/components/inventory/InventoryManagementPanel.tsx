@@ -209,9 +209,19 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                       </TableCell>
                       <TableCell>
                         {formatNumber(material.totalQuantityInBaseUnit)} {material.baseUnit}
+                        {material.unitType === 'package' && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            Package
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         {formatCurrency(material.averageCostPerBaseUnit)}/{material.baseUnit}
+                        {material.unitType === 'package' && (
+                          <span className="text-xs text-muted-foreground ml-1">
+                            (per {material.baseUnit})
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>{formatCurrency(material.totalValue)}</TableCell>
                       <TableCell>{material.stockEntries.length}</TableCell>
@@ -282,8 +292,22 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                           <TableCell className="font-medium">{material?.name || "Unknown Material"}</TableCell>
                           <TableCell>{entry.supplier}</TableCell>
                           <TableCell>{formatNumber(entry.purchasedQuantity)}</TableCell>
-                          <TableCell>{entry.purchasedUnit}</TableCell>
-                          <TableCell>{formatCurrency(entry.costPerPurchasedUnit)}</TableCell>
+                          <TableCell>
+                            {entry.purchasedUnit}
+                            {material?.unitType === 'package' && (
+                              <Badge variant="outline" className="ml-2 text-xs">
+                                Package
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(entry.costPerPurchasedUnit)}
+                            {material?.unitType === 'package' && (
+                              <span className="text-xs text-muted-foreground ml-1">
+                                (per {entry.purchasedUnit})
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell>{formatCurrency(entry.totalCost)}</TableCell>
                           <TableCell>{entry.purchaseDate.toLocaleDateString()}</TableCell>
                           <TableCell>
@@ -377,23 +401,39 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
   );
 }
 
+// Extended ConversionResult for the calculator
+interface CalculatorConversionResult {
+  cost: number;
+  steps?: string[];
+  warning?: string;
+  error?: string;
+}
+
 // Unit Conversion Calculator Component
 function UnitConversionCalculator({ materials }: { materials: MaterialWithStock[] }) {
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialWithStock | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [fromUnit, setFromUnit] = useState<string>("");
   const [toUnit, setToUnit] = useState<string>("");
-  const [conversionResult, setConversionResult] = useState<ConversionResult | null>(null);
+  const [conversionResult, setConversionResult] = useState<CalculatorConversionResult | null>(null);
 
   const handleCalculate = () => {
     if (!selectedMaterial || !quantity || !fromUnit || !toUnit) return;
 
     try {
       const result = calculateCostForQuantity(selectedMaterial, quantity, fromUnit, selectedMaterial.averageCostPerBaseUnit);
-      setConversionResult(result);
+      // Convert ConversionResult to CalculatorConversionResult
+      setConversionResult({
+        cost: result.cost,
+        steps: result.steps,
+        warning: undefined // Add warning logic if needed
+      });
     } catch (error) {
       console.error("Conversion error:", error);
-      setConversionResult({ error: "Conversion failed" });
+      setConversionResult({ 
+        cost: 0,
+        error: "Conversion failed" 
+      });
     }
   };
 

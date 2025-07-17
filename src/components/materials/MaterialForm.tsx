@@ -18,6 +18,7 @@ const materialSchema = z.object({
   unitType: z.string().min(1, "Unit type is required"),
   inputUnit: z.string().min(1, "Input unit is required"),
   inputCost: z.number().min(0, "Cost must be positive"),
+  packageQuantity: z.number().optional(),
   baseUnit: z.string().min(1, "Base unit is required"),
   costPerBaseUnit: z.number().min(0, "Cost must be positive"),
   description: z.string().optional()
@@ -40,6 +41,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       unitType: material?.unitType || "",
       inputUnit: material?.baseUnit || "",
       inputCost: material?.costPerBaseUnit || 0,
+      packageQuantity: 1,
       baseUnit: material?.baseUnit || "",
       costPerBaseUnit: material?.costPerBaseUnit || 0,
       description: material?.description || ""
@@ -49,7 +51,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   const watchedUnitType = form.watch("unitType");
   const watchedInputUnit = form.watch("inputUnit");
   const watchedInputCost = form.watch("inputCost");
-  const watchedBaseUnit = form.watch("baseUnit");
+  const watchedPackageQuantity = form.watch("packageQuantity");
 
   const suggestedUnits = getSuggestedUnits(watchedUnitType);
 
@@ -69,13 +71,55 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     }
   };
 
+  // Check if input unit is a package type
+  const isPackageUnit = (unit: string): boolean => {
+    return ['box', 'pack', 'case'].includes(unit);
+  };
+
+
+
   // Calculate conversion and costs
   const conversionData = useMemo(() => {
     if (!watchedInputUnit || !watchedInputCost || !watchedUnitType) {
       return null;
     }
 
+    // Get the base unit for package contents
+    const getPackageBaseUnit = (inputUnit: string): string => {
+      // For packages, the base unit is typically piece, bottle, or item
+      if (inputUnit === 'box' && watchedUnitType === 'package') {
+        return 'bottle'; // Default for boxes
+      }
+      if (inputUnit === 'pack' && watchedUnitType === 'package') {
+        return 'piece'; // Default for packs
+      }
+      return 'piece'; // Default fallback
+    };
+
     const baseUnit = getBaseUnitForType(watchedUnitType);
+    
+    // Handle package units differently
+    if (isPackageUnit(watchedInputUnit) && watchedUnitType === 'package') {
+      const packageQuantity = watchedPackageQuantity || 1;
+      const packageBaseUnit = getPackageBaseUnit(watchedInputUnit);
+      const costPerBaseUnit = watchedInputCost / packageQuantity;
+      
+      return {
+        inputUnit: watchedInputUnit,
+        inputCost: watchedInputCost,
+        baseUnit: packageBaseUnit,
+        conversionFactor: packageQuantity,
+        costPerBaseUnit,
+        packageQuantity,
+        isPackage: true,
+        examples: {
+          perInputUnit: watchedInputCost,
+          perBaseUnit: costPerBaseUnit
+        }
+      };
+    }
+
+    // Handle regular units
     const inputUnitDef = UNIT_DEFINITIONS[watchedInputUnit];
     const baseUnitDef = UNIT_DEFINITIONS[baseUnit];
 
@@ -93,12 +137,13 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       baseUnit,
       conversionFactor,
       costPerBaseUnit,
+      isPackage: false,
       examples: {
         perInputUnit: watchedInputCost,
         perBaseUnit: costPerBaseUnit
       }
     };
-  }, [watchedInputUnit, watchedInputCost, watchedUnitType]);
+  }, [watchedInputUnit, watchedInputCost, watchedUnitType, watchedPackageQuantity]);
 
   // Auto-update base unit and cost when conversion data changes
   useEffect(() => {
@@ -116,6 +161,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       unitType: data.unitType,
       baseUnit: data.baseUnit,
       costPerBaseUnit: data.costPerBaseUnit,
+      packageQuantity: data.unitType === 'package' ? data.packageQuantity : undefined,
       description: data.description
     };
     onSubmit(finalData);
@@ -232,6 +278,34 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                 )}
               />
 
+              {/* Package Quantity Field - Only show for package units */}
+              {watchedUnitType === 'package' && watchedInputUnit && isPackageUnit(watchedInputUnit) && (
+                <FormField
+                  control={form.control}
+                  name="packageQuantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {watchedInputUnit === 'pack' ? 'Pieces per Pack' : 
+                         watchedInputUnit === 'box' ? 'Bottles per Box' : 
+                         watchedInputUnit === 'case' ? 'Items per Case' :
+                         'Items per Package'}
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="1" 
+                          placeholder="1" 
+                          {...field} 
+                          onChange={e => field.onChange(parseInt(e.target.value) || 1)} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <FormField
                 control={form.control}
                 name="baseUnit"
@@ -280,9 +354,14 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-blue-700">Conversion Factor:</span>
+                      <span className="text-blue-700">
+                        {conversionData.isPackage ? 'Package Contents:' : 'Conversion Factor:'}
+                      </span>
                       <span className="font-medium">
-                        1 {conversionData.inputUnit} = {conversionData.conversionFactor.toFixed(2)} {conversionData.baseUnit}
+                        {conversionData.isPackage 
+                          ? `${conversionData.packageQuantity} ${conversionData.baseUnit} per ${conversionData.inputUnit}`
+                          : `1 ${conversionData.inputUnit} = ${conversionData.conversionFactor.toFixed(2)} ${conversionData.baseUnit}`
+                        }
                       </span>
                     </div>
                   </div>
@@ -295,6 +374,11 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                       <div>
                         • 1 {conversionData.baseUnit} costs {formatCurrency(conversionData.examples.perBaseUnit)}
                       </div>
+                      {conversionData.isPackage && conversionData.packageQuantity && (
+                        <div>
+                          • {conversionData.packageQuantity} {conversionData.baseUnit} cost {formatCurrency(conversionData.examples.perInputUnit)}
+                        </div>
+                      )}
                       {conversionData.inputUnit === "kg" && conversionData.baseUnit === "g" && (
                         <div>
                           • 1000 {conversionData.baseUnit} costs {formatCurrency(conversionData.examples.perInputUnit)}

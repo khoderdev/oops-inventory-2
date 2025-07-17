@@ -15,6 +15,7 @@ export interface Material {
   unitType: UnitType;
   costPerUnit: number;
   costPerBaseUnit?: number;
+  packageQuantity?: number;
   description?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -26,6 +27,7 @@ export interface CreateMaterialData {
   baseUnit: string;
   unitType: UnitType;
   costPerBaseUnit?: number;
+  packageQuantity?: number;
   description?: string;
 }
 
@@ -35,6 +37,7 @@ export interface UpdateMaterialData {
   baseUnit?: string;
   unitType?: UnitType;
   costPerBaseUnit?: number;
+  packageQuantity?: number;
   description?: string;
 }
 

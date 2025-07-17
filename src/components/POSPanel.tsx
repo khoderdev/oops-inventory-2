@@ -4,30 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Material, MenuItemSale, SaleRecord, Section, SectionAssignment, SoldItem, StockEntry } from "@/types/inventory";
+import { Material, MaterialWithStock, MenuItemSale, SaleRecord, Section, SectionAssignment, SoldItem, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { Tabs, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { Check, Minus, Package, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-interface POSScreenProps {
-  materials: Material[];
-  stockEntries: StockEntry[];
-  onUpdateAssignment: (assignmentId: string, newQuantity: number) => void;
-  onCompleteSale: (saleRecord: SaleRecord) => void;
-  menuItems: {
-    id: string;
-    name: string;
-    price: number;
-    ingredients: Array<{
-      materialId: string;
-      quantity: number;
-      unit: string;
-    }>;
-  }[];
+interface POSPanelProps {
+  materials: MaterialWithStock[];
+  sectionAssignments: SectionAssignment[];
 }
 
-export function POSScreen({ materials, stockEntries, onUpdateAssignment, onCompleteSale, menuItems }: POSScreenProps) {
+export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   const [cart, setCart] = useState<SoldItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -35,42 +23,39 @@ export function POSScreen({ materials, stockEntries, onUpdateAssignment, onCompl
   const [notes, setNotes] = useState("");
   const [saleType, setSaleType] = useState<"individual" | "menu">("individual");
   const [selectedMenuItems, setSelectedMenuItems] = useState<MenuItemSale[]>([]);
-  const [sections, setSections] = useState<Section[]>([]);
-  const [assignments, setAssignments] = useState<SectionAssignment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch sections and assignments from posAPI
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const sectionsResponse = await posAPI.getSections();
-        const assignmentsResponse = await posAPI.getAssignments();
-        setSections(sectionsResponse.data);
-        setAssignments(assignmentsResponse.data);
-      } catch (error) {
-        console.error("Failed to fetch sections and assignments:", error);
-      } finally {
-        setIsLoading(false);
+  // Derive sections from assignments
+  const sections = useMemo(() => {
+    const sectionMap = new Map<string, Section>();
+    sectionAssignments.forEach(assignment => {
+      if (assignment.section && !sectionMap.has(assignment.section.id)) {
+        sectionMap.set(assignment.section.id, assignment.section);
       }
-    };
+    });
+    return Array.from(sectionMap.values());
+  }, [sectionAssignments]);
 
-    fetchData();
-  }, []);
+  // Derive menu items from assignments
+  const menuItems = useMemo(() => {
+    return sectionAssignments
+      .filter(a => a.itemType === "menuItem" && a.menuItem)
+      .map(a => a.menuItem!)
+      .filter((item, index, self) => self.findIndex(i => i.id === item.id) === index); // Remove duplicates
+  }, [sectionAssignments]);
 
   // Get available items for the selected section
   // Get available items for the selected section
   const availableItems = useMemo(() => {
     if (!selectedSectionId) return [];
 
-    return assignments
-      .filter(a => a.sectionId.toString() === selectedSectionId) // Ensure string comparison
+    return sectionAssignments
+      .filter(a => a.sectionId.toString() === selectedSectionId && a.itemType === "stockEntry")
       .map(a => {
-        // Use the nested material data from the assignment if available
-        const material = a.material || materials.find(m => m.id === a.materialId);
+        // Find material and stock entry from materials with stock
+        const material = materials.find(m => m.id === String(a.materialId));
+        const stockEntry = material?.stockEntries.find(se => se.id === a.stockEntryId);
 
         return {
-          assignmentId: a.id.toString(), // Ensure string ID
+          assignmentId: a.id.toString(),
           materialId: material?.id.toString() || "",
           sectionId: a.sectionId.toString(),
           materialName: material?.name || "Unknown",
@@ -80,7 +65,7 @@ export function POSScreen({ materials, stockEntries, onUpdateAssignment, onCompl
         };
       })
       .filter(item => item.currentQuantity > 0);
-  }, [selectedSectionId, assignments, materials]);
+  }, [selectedSectionId, sectionAssignments, materials]);
 
   // Filter available items based on search term
   const filteredItems = useMemo(() => {
@@ -164,34 +149,9 @@ export function POSScreen({ materials, stockEntries, onUpdateAssignment, onCompl
         updatedAt: new Date()
       };
 
-      // Update inventory
-      if (saleType === "individual") {
-        cart.forEach(item => {
-          const assignment = assignments.find(a => a.id === item.assignmentId);
-          if (assignment) {
-            const newQuantity = assignment.assignedQuantity - item.quantity;
-            onUpdateAssignment(item.assignmentId, newQuantity);
-          }
-        });
-      } else {
-        selectedMenuItems.forEach(menuItem => {
-          menuItem.ingredients.forEach(ingredient => {
-            const assignment = assignments.find(a => {
-              const stockEntry = stockEntries.find(se => se.id === a.stockEntryId);
-              return stockEntry?.materialId === ingredient.materialId;
-            });
-
-            if (assignment) {
-              const newQuantity = assignment.assignedQuantity - ingredient.quantity * menuItem.quantity;
-              onUpdateAssignment(assignment.id, newQuantity);
-            }
-          });
-        });
-      }
-
       // Save sale to API
       const createdSale = await salesAPI.createSale(saleRecord);
-      onCompleteSale(createdSale.data);
+      console.log("Sale completed:", createdSale.data);
 
       // Reset form
       setCart([]);
@@ -208,9 +168,7 @@ export function POSScreen({ materials, stockEntries, onUpdateAssignment, onCompl
     return sections.find(s => s.id.toString() === sectionId)?.name || "Unknown";
   };
 
-  if (isLoading) {
-    return <div className="p-6">Loading sections and assignments...</div>;
-  }
+
 
   return (
     <div className="p-6 space-y-6">
@@ -410,7 +368,7 @@ export function POSScreen({ materials, stockEntries, onUpdateAssignment, onCompl
                             <div className="text-sm text-muted-foreground">
                               {item.ingredients.map((ing, idx) => (
                                 <div key={idx}>
-                                  {formatNumber(ing.quantity)} {ing.unit} {materials.find(m => m.id === ing.materialId)?.name}
+                                  {formatNumber(ing.quantity)} {ing.unit} {materials.find(m => m.id === String(ing.materialId))?.name}
                                 </div>
                               ))}
                             </div>

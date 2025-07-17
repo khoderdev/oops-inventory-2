@@ -1,14 +1,14 @@
 import { CostCalculationPanel } from "@/components/inventory/CostCalculationPanel";
 import { InventoryManagementPanel } from "@/components/inventory/InventoryManagementPanel";
 import { InventoryReportsPanel } from "@/components/inventory/InventoryReportsPanel";
+import { POSPanel } from "@/components/POSPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryCRUD } from "@/hooks/useInventoryCRUD";
 import { useInventoryData } from "@/hooks/useInventoryData";
 import { CreateMaterialData, CreateStockEntryData, MaterialWithStock, MenuItem, UpdateMaterialData, UpdateStockEntryData } from "@/types/inventory";
-import { unitConverter } from "@/utils/enhancedConversions";
 import { calculateMaterialInventory } from "@/utils/inventoryCalculations";
-import { BarChart3, Calculator, FileText, Loader2, Package } from "lucide-react";
+import { BarChart3, FileText, Loader2, Package } from "lucide-react";
 import { useMemo } from "react";
 
 export const InventoryManagementPage = () => {
@@ -16,34 +16,6 @@ export const InventoryManagementPage = () => {
   const { materials, stockEntries, menuItems, sections, sectionAssignments, loading, error, refetch } = useInventoryData();
   // CRUD operations
   const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, createMenuItem, updateMenuItem, deleteMenuItem, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
-
-  // Initialize packaging configurations
-  useMemo(() => {
-    // Add packaging configurations for demo materials
-    unitConverter.addMaterialPackaging("1", [
-      // Pickles
-      { materialId: "1", packageType: "jar", quantityPerPackage: 0.5, packageUnit: "kg", baseUnit: "kg" },
-      { materialId: "1", packageType: "case", quantityPerPackage: 12, packageUnit: "jar", baseUnit: "kg" }
-    ]);
-
-    unitConverter.addMaterialPackaging("2", [
-      // Beef Patties
-      { materialId: "2", packageType: "pack", quantityPerPackage: 8, packageUnit: "piece", baseUnit: "piece" },
-      { materialId: "2", packageType: "box", quantityPerPackage: 4, packageUnit: "pack", baseUnit: "piece" }
-    ]);
-
-    unitConverter.addMaterialPackaging("3", [
-      // Buns
-      { materialId: "3", packageType: "pack", quantityPerPackage: 8, packageUnit: "piece", baseUnit: "piece" },
-      { materialId: "3", packageType: "case", quantityPerPackage: 6, packageUnit: "pack", baseUnit: "piece" }
-    ]);
-
-    unitConverter.addMaterialPackaging("4", [
-      // Cheese
-      { materialId: "4", packageType: "pack", quantityPerPackage: 24, packageUnit: "piece", baseUnit: "piece" },
-      { materialId: "4", packageType: "case", quantityPerPackage: 12, packageUnit: "pack", baseUnit: "piece" }
-    ]);
-  }, []);
 
   // Calculate materials with stock information
   const materialsWithStock: MaterialWithStock[] = useMemo(() => {
@@ -171,20 +143,20 @@ export const InventoryManagementPage = () => {
       )}
 
       <Tabs defaultValue="inventory" className="">
-        <TabsList className="grid w-full grid-cols-4 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <TabsTrigger value="dashboard" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+        <TabsList className="grid w-full grid-cols-4 sticky top-0 bg-white">
+          <TabsTrigger value="pos" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <BarChart3 className="h-4 w-4" />
+            POS
+          </TabsTrigger>
+          <TabsTrigger value="dashboard" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <BarChart3 className="h-4 w-4" />
             Dashboard
           </TabsTrigger>
-          <TabsTrigger value="inventory" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsTrigger value="inventory" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Package className="h-4 w-4" />
             Inventory
           </TabsTrigger>
-          <TabsTrigger value="calculator" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Calculator className="h-4 w-4" />
-            Cost Calculator
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsTrigger value="reports" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <FileText className="h-4 w-4" />
             Reports
           </TabsTrigger>
@@ -213,10 +185,12 @@ export const InventoryManagementPage = () => {
           />
         </TabsContent>
 
+        <TabsContent value="pos" className="p-4">
+          <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
+        </TabsContent>
         <TabsContent value="calculator" className="p-4">
           <CostCalculationPanel materials={materials} stockEntries={stockEntries} materialsWithStock={materialsWithStock} />
         </TabsContent>
-
         <TabsContent value="reports" className="p-4">
           <InventoryReportsPanel materials={materials} stockEntries={stockEntries} menuItems={menuItems} sectionAssignments={sectionAssignments} />
         </TabsContent>

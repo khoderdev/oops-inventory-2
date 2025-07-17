@@ -21,15 +21,7 @@ interface MenuItemBuilderProps {
   onDeleteMenuItem?: (id: string) => void;
 }
 
-export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({
-  materials,
-  stockEntries,
-  sections,
-  menuItems,
-  onCreateMenuItem,
-  onUpdateMenuItem,
-  onDeleteMenuItem
-}) => {
+export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showMenuItemForm, setShowMenuItemForm] = useState(false);
   const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
@@ -85,7 +77,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({
           createdAt: new Date(),
           updatedAt: new Date()
         };
-        
+
         onCreateMenuItem(newMenuItem);
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
@@ -123,7 +115,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({
           ingredients: ingredientsWithCosts,
           updatedAt: new Date()
         };
-        
+
         onUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
@@ -136,18 +128,24 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({
     [editingMenuItem, materials, onUpdateMenuItem]
   );
 
-  const handleDeleteMenuItem = useCallback((id: string) => {
-    if (!onDeleteMenuItem) {
-      console.error("onDeleteMenuItem handler not provided");
-      return;
-    }
-    onDeleteMenuItem(id);
-  }, [onDeleteMenuItem]);
+  const handleDeleteMenuItem = useCallback(
+    (id: string) => {
+      if (!onDeleteMenuItem) {
+        console.error("onDeleteMenuItem handler not provided");
+        return;
+      }
+      onDeleteMenuItem(id);
+    },
+    [onDeleteMenuItem]
+  );
 
-  const getMaterialName = useCallback((id: string | number) => {
-    const material = materials.find(m => m.id === String(id));
-    return material?.name || "Unknown";
-  }, [materials]);
+  const getMaterialName = useCallback(
+    (id: string | number) => {
+      const material = materials.find(m => m.id === String(id));
+      return material?.name || "Unknown";
+    },
+    [materials]
+  );
 
   const handleCloseModal = useCallback(() => {
     setShowMenuItemForm(false);
@@ -295,4 +293,4 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({
       </Card>
     </div>
   );
-}
+};

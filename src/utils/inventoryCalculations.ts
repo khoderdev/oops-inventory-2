@@ -14,8 +14,23 @@ export function calculateStockConversion(stockEntry: StockEntry, material: Mater
     } else if (isVolumeUnit(stockEntry.purchasedUnit) && isVolumeUnit(material.baseUnit)) {
       convertedQuantity = convertVolume(stockEntry.purchasedQuantity, stockEntry.purchasedUnit, material.baseUnit);
       conversionFactor = convertedQuantity / stockEntry.purchasedQuantity;
+    } else if (material.unitType === 'package') {
+      // Handle package unit conversions using ONLY dynamic packageQuantity from material data
+      // This ensures all package conversions are user-defined and consistent
+      
+      if (material.packageQuantity && material.packageQuantity > 0) {
+        // Use the dynamic packageQuantity from the material
+        // Example: If user entered packageQuantity=6, then 1 pack = 6 pieces
+        convertedQuantity = stockEntry.purchasedQuantity * material.packageQuantity;
+        conversionFactor = material.packageQuantity;
+      } else {
+        // If no packageQuantity is set, log a warning and assume 1:1 conversion
+        console.warn(`Material "${material.name}" (ID: ${material.id}) is a package unit but has no packageQuantity set. Using 1:1 conversion.`);
+        // Assume 1:1 conversion as fallback
+        convertedQuantity = stockEntry.purchasedQuantity;
+        conversionFactor = 1;
+      }
     }
-    // For package units, we assume direct conversion (1:1) unless specified
   }
 
   // Calculate cost per base unit
