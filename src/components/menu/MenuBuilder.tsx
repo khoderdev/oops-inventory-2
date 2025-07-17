@@ -1,11 +1,13 @@
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Material, MenuItem, MenuItemIngredient } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { Edit, Package, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { MENU_CATEGORIES } from "../../types/inventory";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { MenuItemForm } from "./MenuItemForm";
 
 interface MenuBuilderProps {
@@ -19,12 +21,13 @@ interface MenuBuilderProps {
 }
 
 export function MenuBuilder({ menuItems, materialsWithStock, setEditingMenuItem, handleDeleteMenuItem, handleAddMenuItem, handleUpdateMenuItem, editingMenuItem }: MenuBuilderProps) {
+  const [dialogOpen, setDialogOpen] = useState(false);
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Menu Builder</CardTitle>
-          <Dialog>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" onClick={() => setEditingMenuItem(undefined)}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -88,6 +91,7 @@ export function MenuBuilder({ menuItems, materialsWithStock, setEditingMenuItem,
                           variant="outline"
                           onClick={() => {
                             setEditingMenuItem(item);
+                            setDialogOpen(true);
                           }}
                         >
                           <Edit className="h-4 w-4" />

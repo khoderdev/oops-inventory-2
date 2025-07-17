@@ -202,7 +202,7 @@ export function InventoryDashboard() {
       await materialsAPI.deleteMaterial(materialId);
       setMaterials(prev => prev.filter(m => m.id !== materialId));
       const stockToDelete = stockEntries.filter(s => s.materialId === materialId);
-      await Promise.all(stockToDelete.map(s => api.delete(`/stockEntries/${s.id}`)));
+      await Promise.all(stockToDelete.map(s => api.delete(`/stock-entries/${s.id}`)));
       setStockEntries(prev => prev.filter(s => s.materialId !== materialId));
     } catch (error: any) {
       setError(error.message || "Failed to delete material");
@@ -211,7 +211,7 @@ export function InventoryDashboard() {
 
   const handleAddStock = async (data: StockEntry) => {
     try {
-      const newStockEntry = await api.post("/stockEntries", data).then(res => res.data);
+      const newStockEntry = await api.post("/stock-entries", data).then(res => res.data);
       setStockEntries(prev => [...prev, newStockEntry]);
       setShowStockForm(false);
       setSelectedMaterialId("");
@@ -223,7 +223,7 @@ export function InventoryDashboard() {
   const handleEditStock = async (data: StockEntry) => {
     if (editingStock) {
       try {
-        const updatedStock = await api.put(`/stockEntries/${editingStock.id}`, data).then(res => res.data);
+        const updatedStock = await api.put(`/stock-entries/${editingStock.id}`, data).then(res => res.data);
         setStockEntries(prev => prev.map(entry => (entry.id === editingStock.id ? updatedStock : entry)));
         setEditingStock(undefined);
         setShowStockForm(false);
@@ -235,7 +235,7 @@ export function InventoryDashboard() {
 
   const handleDeleteStock = async (stockId: string) => {
     try {
-      await api.delete(`/stockEntries/${stockId}`);
+      await api.delete(`/stock-entries/${stockId}`);
       setStockEntries(prev => prev.filter(s => s.id !== stockId));
     } catch (error: any) {
       setError(error.message || "Failed to delete stock entry");
@@ -327,7 +327,7 @@ export function InventoryDashboard() {
     });
 
     try {
-      const newMenuItem = await api.post("/menuItems", { ...data, ingredients: ingredientsWithCosts }).then(res => res.data);
+      const newMenuItem = await api.post("/menu-items", { ...data, ingredients: ingredientsWithCosts }).then(res => res.data);
       setMenuItems(prev => [...prev, newMenuItem]);
     } catch (error: any) {
       setError(error.message || "Failed to add menu item");
@@ -346,7 +346,7 @@ export function InventoryDashboard() {
     });
 
     try {
-      const updatedMenuItem = await api.put(`/menuItems/${editingMenuItem?.id}`, { ...data, ingredients: ingredientsWithCosts }).then(res => res.data);
+      const updatedMenuItem = await api.put(`/menu-items/${editingMenuItem?.id}`, { ...data, ingredients: ingredientsWithCosts }).then(res => res.data);
       setMenuItems(prev => prev.map(item => (item.id === editingMenuItem?.id ? updatedMenuItem : item)));
       setEditingMenuItem(undefined);
     } catch (error: any) {
@@ -356,7 +356,7 @@ export function InventoryDashboard() {
 
   const handleDeleteMenuItem = async (id: string) => {
     try {
-      await api.delete(`/menuItems/${id}`);
+      await api.delete(`/menu-items/${id}`);
       setMenuItems(prev => prev.filter(item => item.id !== id));
     } catch (error: any) {
       setError(error.message || "Failed to delete menu item");

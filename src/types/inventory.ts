@@ -10,6 +10,7 @@ export interface Material {
   category: MaterialCategory;
   baseUnit: string;
   unitType: UnitType;
+  costPerUnit: number;
   costPerBaseUnit?: number;
   description?: string;
   createdAt?: Date;

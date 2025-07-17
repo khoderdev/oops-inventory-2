@@ -22,7 +22,7 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
   const [category, setCategory] = useState<MenuItemCategory | "">(menuItem?.category || "");
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
   const [ingredients, setIngredients] = useState<Omit<MenuItemIngredient, "cost">[]>(menuItem?.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit })) || []);
-  const [selectedMaterialId, setSelectedMaterialId] = useState("");
+  const [selectedMaterialId, setSelectedMaterialId] = useState(0);
   const [ingredientQuantity, setIngredientQuantity] = useState("");
   const [ingredientUnit, setIngredientUnit] = useState("");
   const [errors, setErrors] = useState<{
@@ -74,7 +74,7 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
     };
 
     setIngredients(prev => [...prev, newIngredient]);
-    setSelectedMaterialId("");
+    setSelectedMaterialId(0);
     setIngredientQuantity("");
     setIngredientUnit("");
     setErrors(prev => ({ ...prev, ingredientQuantity: undefined, ingredients: undefined }));
@@ -111,20 +111,35 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
     }
   }, [name, description, category, price, ingredients, onSubmit, onCancel, validateForm]);
 
-  const handleMaterialSelect = useCallback(
-    (materialId: string) => {
-      setSelectedMaterialId(materialId);
-      const material = materials.find(m => m.id === materialId);
-      if (material) {
-        setIngredientUnit(material.baseUnit);
-      }
-    },
-    [materials]
-  );
+  const handleMaterialSelect = (materialId: string) => {
+    console.log("Looking for material:", materialId);
+    console.log("Available materials:", materials);
+    setSelectedMaterialId(materialId);
+
+    const material = materials.find(m => m.id.toString() === materialId.toString());
+
+    if (!material) {
+      console.error(`Material ${materialId} not found`);
+      return;
+    }
+
+    const availableUnits = getAvailableUnits(material.id, materials);
+    console.log("Available units:", availableUnits);
+
+    if (availableUnits.length > 0) {
+      setIngredientUnit(availableUnits[0]);
+    } else {
+      setIngredientUnit("");
+    }
+  };
 
   const handleCancel = useCallback(() => {
     onCancel();
   }, [onCancel]);
+
+  useEffect(() => {
+    console.log("Current unit state:", ingredientUnit);
+  }, [ingredientUnit]);
 
   return (
     <div className="space-y-6 p-4">
@@ -202,7 +217,7 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
               </TableHeader>
               <TableBody>
                 {ingredients.map((ingredient, index) => {
-                  const material = materials.find(m => m.id === ingredient.materialId);
+                  const material = materials.find(m => m.id.toString() === ingredient.materialId.toString());
                   return (
                     <TableRow key={index}>
                       <TableCell>{material?.name || "Unknown"}</TableCell>
@@ -255,9 +270,9 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
             <label htmlFor="unit" className="block text-sm font-medium mb-1">
               Unit
             </label>
-            <select id="unit" value={ingredientUnit} onChange={e => setIngredientUnit(e.target.value)} className="w-full px-3 py-2 border border-input bg-background rounded-md" disabled={!selectedMaterialId}>
+            <select key={`unit-select-${selectedMaterialId}`} id="unit" value={ingredientUnit} onChange={e => setIngredientUnit(e.target.value)} disabled={!selectedMaterialId} className="w-full px-3 py-2 border border-input bg-background rounded-md">
               {selectedMaterialId ? (
-                getAvailableUnits(selectedMaterialId, materials).map(unit => (
+                getAvailableUnits(Number(selectedMaterialId), materials).map(unit => (
                   <option key={unit} value={unit}>
                     {unit}
                   </option>

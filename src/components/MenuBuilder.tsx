@@ -17,7 +17,7 @@ interface MenuItemBuilderProps {
   sections: Section[];
 }
 
-export function MenuItemBuilder({ materials, stockEntries, sections }: MenuItemBuilderProps) {
+export function MenuBuilder({ materials, stockEntries, sections }: MenuItemBuilderProps) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showMenuItemForm, setShowMenuItemForm] = useState(false);

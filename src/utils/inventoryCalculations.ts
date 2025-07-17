@@ -56,28 +56,65 @@ export function calculateMaterialInventory(material: Material, stockEntries: Sto
 }
 
 // Calculate cost for a specific quantity in any unit
-export function calculateCostForQuantity(material: Material, quantity: number, unit: string, averageCostPerBaseUnit: number): { cost: number; steps: string[] } {
+export function calculateCostForQuantity(material: Material, quantity: number, unit: string, averageCostPerBaseUnit: number): { cost: number; steps: string[]; warning?: string } {
   const steps: string[] = [];
+  let warning: string | undefined;
+
+  // Validate inputs
+  if (averageCostPerBaseUnit <= 0) {
+    warning = "Warning: Average cost is zero or negative - check material data";
+  }
+
+  // Category-specific cost validation
+  const category = material.category?.toLowerCase();
+  if (category === "meat" && averageCostPerBaseUnit < 10) {
+    // Example threshold
+    warning = "Warning: Meat cost seems unusually low - please verify";
+  }
+
   let convertedQuantity = quantity;
 
   // Convert to base unit if needed
   if (unit !== material.baseUnit) {
     if (isMassUnit(unit) && isMassUnit(material.baseUnit)) {
       convertedQuantity = convertMass(quantity, unit, material.baseUnit);
-      steps.push(`Convert ${quantity} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
+      steps.push(`Convert ${formatNumber(quantity)} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
     } else if (isVolumeUnit(unit) && isVolumeUnit(material.baseUnit)) {
       convertedQuantity = convertVolume(quantity, unit, material.baseUnit);
-      steps.push(`Convert ${quantity} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
+      steps.push(`Convert ${formatNumber(quantity)} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
     } else {
       steps.push(`Using ${quantity} ${unit} directly (no conversion available)`);
+      warning = warning || "Warning: Unit conversion not available - using direct quantity";
     }
   }
 
   const cost = convertedQuantity * averageCostPerBaseUnit;
   steps.push(`Cost calculation: ${formatNumber(convertedQuantity)} × ${formatCurrency(averageCostPerBaseUnit)} = ${formatCurrency(cost)}`);
 
-  return { cost, steps };
+  return { cost, steps, warning };
 }
+// export function calculateCostForQuantity(material: Material, quantity: number, unit: string, averageCostPerBaseUnit: number): { cost: number; steps: string[] } {
+//   const steps: string[] = [];
+//   let convertedQuantity = quantity;
+
+//   // Convert to base unit if needed
+//   if (unit !== material.baseUnit) {
+//     if (isMassUnit(unit) && isMassUnit(material.baseUnit)) {
+//       convertedQuantity = convertMass(quantity, unit, material.baseUnit);
+//       steps.push(`Convert ${quantity} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
+//     } else if (isVolumeUnit(unit) && isVolumeUnit(material.baseUnit)) {
+//       convertedQuantity = convertVolume(quantity, unit, material.baseUnit);
+//       steps.push(`Convert ${quantity} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
+//     } else {
+//       steps.push(`Using ${quantity} ${unit} directly (no conversion available)`);
+//     }
+//   }
+
+//   const cost = convertedQuantity * averageCostPerBaseUnit;
+//   steps.push(`Cost calculation: ${formatNumber(convertedQuantity)} × ${formatCurrency(averageCostPerBaseUnit)} = ${formatCurrency(cost)}`);
+
+//   return { cost, steps };
+// }
 
 // Validate unit compatibility
 export function isUnitCompatible(unit: string, materialUnitType: string): boolean {
