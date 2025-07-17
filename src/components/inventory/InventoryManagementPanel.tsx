@@ -237,7 +237,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                     <TableHead>Category</TableHead>
                     <TableHead>Available Quantity</TableHead>
                     <TableHead>Average Cost/Unit</TableHead>
-                    <TableHead>Total Value</TableHead>
+                    <TableHead>Total Cost</TableHead>
                     <TableHead>Stock Entries</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
