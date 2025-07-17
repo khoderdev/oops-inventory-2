@@ -172,16 +172,7 @@ export const InventoryManagementPage = () => {
         </TabsContent>
 
         <TabsContent value="inventory">
-          <InventoryManagementPanel 
-            materials={materials} 
-            stockEntries={stockEntries} 
-            onCreateMaterial={handleCreateMaterial}
-            onUpdateMaterial={handleUpdateMaterial}
-            onDeleteMaterial={handleDeleteMaterial}
-            onCreateStockEntry={handleCreateStockEntry}
-            onUpdateStockEntry={handleUpdateStockEntry}
-            onDeleteStockEntry={handleDeleteStockEntry}
-          />
+          <InventoryManagementPanel materials={materials} stockEntries={stockEntries} onCreateMaterial={handleCreateMaterial} onUpdateMaterial={handleUpdateMaterial} onDeleteMaterial={handleDeleteMaterial} onCreateStockEntry={handleCreateStockEntry} onUpdateStockEntry={handleUpdateStockEntry} onDeleteStockEntry={handleDeleteStockEntry} />
         </TabsContent>
 
         <TabsContent value="calculator">
@@ -191,99 +182,6 @@ export const InventoryManagementPage = () => {
         <TabsContent value="reports">
           <InventoryReportsPanel materials={materials} stockEntries={stockEntries} menuItems={menuItems} sectionAssignments={sectionAssignments} />
         </TabsContent>
-
-        {/* <TabsContent value="settings" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Unit Conversion Configuration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Supported Unit Types</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Badge variant="outline">Mass (kg, g, lb, oz)</Badge>
-                    <Badge variant="outline">Volume (L, ml, gal, cup)</Badge>
-                    <Badge variant="outline">Piece (piece, item, unit)</Badge>
-                    <Badge variant="outline">Package (box, pack, case)</Badge>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Packaging Hierarchy</h4>
-                  <div className="text-sm space-y-1">
-                    <p>• Case → Box → Pack → Piece</p>
-                    <p>• Jar/Bottle → Contents (kg/L)</p>
-                    <p>• Custom packaging per material</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Material Packaging Configuration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {materials.map(material => (
-                  <div key={material.id} className="border rounded p-3">
-                    <div className="font-medium">{material.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Base Unit: {material.baseUnit} ({material.unitType})
-                    </div>
-                    <div className="text-sm mt-1">Available Units: {unitConverter.getAvailableUnits(material).join(", ")}</div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Cost Calculation Rules</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Calculation Method</h4>
-                  <div className="text-sm space-y-1">
-                    <p>1. Convert all stock entries to base unit</p>
-                    <p>2. Calculate weighted average cost per base unit</p>
-                    <p>3. Convert requested quantity to base unit</p>
-                    <p>4. Apply average cost to converted quantity</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Packaging Cost Distribution</h4>
-                  <div className="text-sm space-y-1">
-                    <p>• Case cost distributed across all contained units</p>
-                    <p>• Pack cost distributed across individual pieces</p>
-                    <p>• Jar/bottle cost distributed by weight/volume</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Demo Data Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Sample Materials</h4>
-                  <div className="text-sm space-y-1">
-                    <p>• Pickles: 12-jar case (500g each) for $24.00</p>
-                    <p>• Beef Patties: 4-pack box (8 patties each) for $32.00</p>
-                    <p>• Buns: 6-pack case (8 buns each) for $18.00</p>
-                    <p>• Cheese: 12-pack case (24 slices each) for $15.00</p>
-                  </div>
-                </div>
-
-                <Alert>
-                  <AlertDescription>Try calculating costs for different quantities and units to see the conversion system in action!</AlertDescription>
-                </Alert>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent> */}
       </Tabs>
     </div>
   );
