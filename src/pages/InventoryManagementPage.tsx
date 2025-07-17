@@ -13,7 +13,7 @@ import { useMemo } from "react";
 
 export const InventoryManagementPage = () => {
   // Fetch data from backend
-  const { materials, stockEntries, menuItems, sectionAssignments, loading, error, refetch } = useInventoryData();
+  const { materials, stockEntries, menuItems, sections, sectionAssignments, loading, error, refetch } = useInventoryData();
 
   // CRUD operations
   const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
@@ -148,7 +148,7 @@ export const InventoryManagementPage = () => {
       )}
 
       <Tabs defaultValue="dashboard" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <TabsList className="grid w-full grid-cols-5 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <TabsTrigger value="dashboard" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <BarChart3 className="h-4 w-4" />
             Dashboard
@@ -172,7 +172,7 @@ export const InventoryManagementPage = () => {
         </TabsContent>
 
         <TabsContent value="inventory">
-          <InventoryManagementPanel materials={materials} stockEntries={stockEntries} onCreateMaterial={handleCreateMaterial} onUpdateMaterial={handleUpdateMaterial} onDeleteMaterial={handleDeleteMaterial} onCreateStockEntry={handleCreateStockEntry} onUpdateStockEntry={handleUpdateStockEntry} onDeleteStockEntry={handleDeleteStockEntry} />
+          <InventoryManagementPanel materials={materials} stockEntries={stockEntries} sections={sections} sectionAssignments={sectionAssignments} menuItems={menuItems} onCreateMaterial={handleCreateMaterial} onUpdateMaterial={handleUpdateMaterial} onDeleteMaterial={handleDeleteMaterial} onCreateStockEntry={handleCreateStockEntry} onUpdateStockEntry={handleUpdateStockEntry} onDeleteStockEntry={handleDeleteStockEntry} />
         </TabsContent>
 
         <TabsContent value="calculator">

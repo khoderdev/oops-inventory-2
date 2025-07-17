@@ -9,15 +9,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConversionResult } from "@/types/conversion";
-import { Material, MATERIAL_CATEGORIES, MaterialWithStock, StockEntry } from "@/types/inventory";
+import { Material, MATERIAL_CATEGORIES, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { calculateCostForQuantity, calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials, getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { AlertTriangle, DollarSign, Edit, Filter, Package, Plus, Search, Trash2, TrendingDown } from "lucide-react";
 import { useMemo, useState } from "react";
+import { SectionsManagementPanel } from "./SectionsManagementPanel";
 
 interface InventoryManagementPanelProps {
   materials: Material[];
   stockEntries: StockEntry[];
+  sections?: Section[];
+  sectionAssignments?: SectionAssignment[];
+  menuItems?: MenuItem[];
   onCreateMaterial: (data: Material) => void;
   onUpdateMaterial: (id: string, data: Material) => void;
   onDeleteMaterial: (id: string) => void;
@@ -26,7 +30,7 @@ interface InventoryManagementPanelProps {
   onDeleteStockEntry: (id: string) => void;
 }
 
-export function InventoryManagementPanel({ materials, stockEntries, onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry }: InventoryManagementPanelProps) {
+export function InventoryManagementPanel({ materials, stockEntries, sections = [], sectionAssignments = [], menuItems = [], onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry }: InventoryManagementPanelProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [showStockForm, setShowStockForm] = useState(false);
@@ -216,6 +220,7 @@ export function InventoryManagementPanel({ materials, stockEntries, onCreateMate
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="materials">Materials</TabsTrigger>
           <TabsTrigger value="stock">Stock Entries</TabsTrigger>
+          <TabsTrigger value="sections">Sections</TabsTrigger>
           <TabsTrigger value="conversions">Unit Conversions</TabsTrigger>
         </TabsList>
 
@@ -417,6 +422,10 @@ export function InventoryManagementPanel({ materials, stockEntries, onCreateMate
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="sections" className="space-y-4">
+          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materials} stockEntries={stockEntries} menuItems={menuItems} />
         </TabsContent>
 
         <TabsContent value="conversions" className="space-y-4">

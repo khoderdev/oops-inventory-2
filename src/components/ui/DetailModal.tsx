@@ -177,23 +177,46 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
             <h4 className="font-medium">Assigned Items</h4>
             <div className="space-y-2 mt-2">
               {sectionWithAssignments.assignments.map((assignment, index) => {
-                // Menu Item Assignment - check if menuItem property exists
-                if (assignment.menuItem != null) {
+                // Determine itemType if it's not set
+                let itemType = assignment.itemType;
+                if (!itemType) {
+                  if (assignment.menuItemId && assignment.menuItem?.id) {
+                    itemType = "menuItem";
+                  } else if (assignment.materialId && (assignment.material?.id || assignment.stockEntry?.id)) {
+                    itemType = "stockEntry";
+                  }
+                }
+
+                // Menu Item Assignment
+                if (itemType === "menuItem" && assignment.menuItem) {
                   return (
-                    <div key={index} className="p-2 bg-muted/50 rounded">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-medium">{assignment.menuItem?.name || "Menu Item"}</span>
-                          <span className="ml-2 text-sm text-muted-foreground">({assignment.menuItem?.category || "No category"})</span>
+                    <div key={index} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-blue-900">{assignment.menuItem.name}</span>
+                            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                              Menu Item
+                            </span>
+                          </div>
+                          <div className="text-sm text-blue-700 mt-1">
+                            Category: {assignment.menuItem.category || "No category"}
+                          </div>
+                          {assignment.menuItem.description && (
+                            <div className="text-sm text-blue-600 mt-1">
+                              {assignment.menuItem.description}
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span>1 item</span>
-                          <span className="font-medium">{formatCurrency(assignment.menuItem?.price || 0)}</span>
+                        <div className="text-right">
+                          <div className="text-sm text-blue-700">1 item</div>
+                          <div className="font-semibold text-blue-900">
+                            {formatCurrency(assignment.menuItem.price || 0)}
+                          </div>
                         </div>
                       </div>
-                      {assignment.menuItem?.description && <div className="text-sm text-muted-foreground mt-1">{assignment.menuItem.description}</div>}
                       {assignment.notes && (
-                        <div className="text-sm text-muted-foreground mt-1">
+                        <div className="text-sm text-blue-600 mt-2 pt-2 border-t border-blue-200">
                           <span className="font-medium">Notes:</span> {assignment.notes}
                         </div>
                       )}
@@ -201,27 +224,57 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                   );
                 }
 
-                // Material Assignment
-                return (
-                  <div key={index} className="p-2 bg-muted/50 rounded">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <span className="font-medium">{assignment.material?.name || "Material"}</span>
-                        {assignment.stockEntry?.supplier && <span className="ml-2 text-sm text-muted-foreground">({assignment.stockEntry.supplier})</span>}
+                // Material/Stock Entry Assignment
+                if (itemType === "stockEntry" && (assignment.material || assignment.stockEntry)) {
+                  const assignmentValue = (assignment.assignedQuantity || 0) * (assignment.stockEntry?.costPerPurchasedUnit || assignment.material?.costPerBaseUnit || 0);
+                  
+                  return (
+                    <div key={index} className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-green-900">
+                              {assignment.material?.name || assignment.stockEntry?.materialId || "Material"}
+                            </span>
+                            <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                              Material
+                            </span>
+                          </div>
+                          {assignment.stockEntry?.supplier && (
+                            <div className="text-sm text-green-700 mt-1">
+                              Supplier: {assignment.stockEntry.supplier}
+                            </div>
+                          )}
+                          {assignment.stockEntry?.batchNumber && (
+                            <div className="text-sm text-green-600 mt-1">
+                              Batch: {assignment.stockEntry.batchNumber}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-green-700">
+                            {formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}
+                          </div>
+                          <div className="font-semibold text-green-900">
+                            {formatCurrency(assignmentValue)}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span>
-                          {formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}
-                        </span>
-                        <span className="font-medium">{formatCurrency((assignment.assignedQuantity || 0) * (assignment.stockEntry?.costPerPurchasedUnit || 0))}</span>
-                      </div>
+                      {assignment.notes && (
+                        <div className="text-sm text-green-600 mt-2 pt-2 border-t border-green-200">
+                          <span className="font-medium">Notes:</span> {assignment.notes}
+                        </div>
+                      )}
                     </div>
-                    {assignment.stockEntry?.batchNumber && <div className="text-sm text-muted-foreground">Batch: {assignment.stockEntry.batchNumber}</div>}
-                    {assignment.notes && (
-                      <div className="text-sm text-muted-foreground mt-1">
-                        <span className="font-medium">Notes:</span> {assignment.notes}
-                      </div>
-                    )}
+                  );
+                }
+
+                // Fallback for unknown assignment types
+                return (
+                  <div key={index} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="text-sm text-gray-600">
+                      Unknown assignment type: {assignment.itemType || "undefined"}
+                    </div>
                   </div>
                 );
               })}

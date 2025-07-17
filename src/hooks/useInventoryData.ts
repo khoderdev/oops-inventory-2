@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { inventoryAPI } from "@/api/inventory.api";
-import { Material, StockEntry, MenuItem, Section, SectionAssignment } from "@/types/inventory";
+import { Material, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
+import { useEffect, useState } from "react";
 
 interface InventoryData {
   materials: Material[];
@@ -30,13 +30,7 @@ export const useInventoryData = () => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
 
-      const [materialsRes, stockRes, menuRes, sectionsRes, assignmentsRes] = await Promise.all([
-        inventoryAPI.materials.getMaterials(),
-        inventoryAPI.stock.getStockEntries(),
-        inventoryAPI.menu.getMenus(),
-        inventoryAPI.sections.getSections(),
-        inventoryAPI.assignments.getAssignments()
-      ]);
+      const [materialsRes, stockRes, menuRes, sectionsRes, assignmentsRes] = await Promise.all([inventoryAPI.materials.getMaterials(), inventoryAPI.stock.getStockEntries(), inventoryAPI.menu.getMenus(), inventoryAPI.sections.getSections(), inventoryAPI.assignments.getAssignments()]);
 
       setState(prev => ({
         ...prev,
