@@ -63,6 +63,20 @@ Assignment.belongsTo(StockEntry, {
   onUpdate: "CASCADE"
 });
 
+// MenuItem ↔ Assignment
+MenuItem.hasMany(Assignment, {
+  foreignKey: "menuItemId",
+  as: "assignments",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+Assignment.belongsTo(MenuItem, {
+  foreignKey: "menuItemId",
+  as: "menuItem",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
 // MenuItem ↔ Material (through MenuItemIngredient)
 MenuItem.belongsToMany(Material, {
   through: MenuItemIngredient,

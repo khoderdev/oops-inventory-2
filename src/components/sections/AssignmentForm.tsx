@@ -1,303 +1,67 @@
-// import { Button } from "@/components/ui/button";
-// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-// import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-// import { Input } from "@/components/ui/input";
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// import { Material, Section, SectionAssignment, StockEntry } from "@/types/inventory";
-// import { formatNumber } from "@/utils/conversionLogic";
-// import { getSuggestedUnits } from "@/utils/inventoryCalculations";
-// import { zodResolver } from "@hookform/resolvers/zod";
-// import { useForm } from "react-hook-form";
-// import { z } from "zod";
-// import { Textarea } from "../ui/textarea";
-
-// const assignmentSchema = z.object({
-//   sectionId: z.string().min(1, "Section is required"),
-//   stockEntryId: z.string().min(1, "Stock entry is required"),
-//   materialId: z.string().min(1, "Material is required"),
-//   assignedQuantity: z.number().min(0.0001, "Quantity must be positive"),
-//   assignedUnit: z.string().min(1, "Unit is required"),
-//   notes: z.string().optional()
-// });
-
-// type AssignmentFormData = z.infer<typeof assignmentSchema>;
-
-// interface AssignmentFormProps {
-//   sections: Section[];
-//   stockEntries: StockEntry[];
-//   materials: Material[];
-//   assignment?: SectionAssignment;
-//   onSubmit: (data: AssignmentFormData) => void;
-//   onCancel: () => void;
-// }
-
-// export function AssignmentForm({ sections, stockEntries, materials, assignment, onSubmit, onCancel }: AssignmentFormProps) {
-//   const form = useForm<AssignmentFormData>({
-//     resolver: zodResolver(assignmentSchema),
-//     defaultValues: {
-//       sectionId: assignment?.sectionId || "",
-//       stockEntryId: assignment?.stockEntryId || "",
-//       materialId: assignment?.materialId || "",
-//       assignedQuantity: assignment?.assignedQuantity || 0,
-//       assignedUnit: assignment?.assignedUnit || "",
-//       notes: assignment?.notes || ""
-//     }
-//   });
-//   console.log("Sections:", sections);
-//   console.log("Stock Entries:", stockEntries);
-//   console.log("Materials:", materials);
-//   console.log("Assignment:", assignment);
-//   const watchedStockEntryId = form.watch("stockEntryId");
-//   // const selectedStockEntry = stockEntries.find(entry => String(entry.id) === watchedStockEntryId);
-//   const selectedStockEntry = stockEntries.find(entry => String(entry.id) === String(watchedStockEntryId));
-//   const material = selectedStockEntry ? materials.find(m => m.id === selectedStockEntry.materialId) : null;
-//   const availableUnits = material ? getSuggestedUnits(material.unitType) : [];
-//   console.log("watchedStockEntryId:", watchedStockEntryId);
-//   console.log("selectedStockEntry:", selectedStockEntry);
-//   console.log("material:", material);
-//   console.log("availableUnits:", availableUnits);
-
-//   const handleSubmit = (data: AssignmentFormData) => {
-//     if (!selectedStockEntry) {
-//       console.error("No stock entry selected");
-//       form.setError("stockEntryId", { message: "Please select a stock entry" });
-//       return;
-//     }
-//     const submitData = {
-//       sectionId: String(data.sectionId),
-//       stockEntryId: String(data.stockEntryId),
-//       materialId: String(selectedStockEntry.materialId),
-//       assignedQuantity: data.assignedQuantity,
-//       assignedUnit: data.assignedUnit,
-//       notes: data.notes || ""
-//     };
-//     console.log("Submitting Data:", submitData);
-//     onSubmit(submitData);
-//   };
-
-//   return (
-//     <Card className="w-full max-w-2xl mx-auto">
-//       <CardHeader>
-//         <CardTitle>{assignment ? "Edit Assignment" : "Assign Stock to Section"}</CardTitle>
-//       </CardHeader>
-//       <CardContent>
-//         <Form {...form}>
-//           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//               <FormField
-//                 control={form.control}
-//                 name="sectionId"
-//                 render={({ field }) => (
-//                   <FormItem>
-//                     <FormLabel>Section</FormLabel>
-//                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-//                       <FormControl>
-//                         <SelectTrigger>
-//                           <SelectValue placeholder="Select section" />
-//                         </SelectTrigger>
-//                       </FormControl>
-//                       <SelectContent>
-//                         {sections.map(section => (
-//                           <SelectItem key={section.id} value={String(section.id)}>
-//                             {section.name}
-//                           </SelectItem>
-//                         ))}
-//                       </SelectContent>
-//                     </Select>
-//                     <FormMessage />
-//                   </FormItem>
-//                 )}
-//               />
-
-//               <FormField
-//                 control={form.control}
-//                 name="stockEntryId"
-//                 render={({ field }) => (
-//                   <FormItem>
-//                     <FormLabel>Stock Entry</FormLabel>
-//                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-//                       <FormControl>
-//                         <SelectTrigger>
-//                           <SelectValue placeholder="Select stock entry" />
-//                         </SelectTrigger>
-//                       </FormControl>
-//                       <SelectContent>
-//                         {stockEntries.map(entry => {
-//                           const material = materials.find(m => m.id === entry.materialId);
-//                           return (
-//                             <SelectItem key={entry.id} value={String(entry.id)}>
-//                               {material?.name} - {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit} (${formatNumber(entry.totalCost)})
-//                             </SelectItem>
-//                           );
-//                         })}
-//                       </SelectContent>
-//                     </Select>
-//                     <FormMessage />
-//                   </FormItem>
-//                 )}
-//               />
-
-//               <FormField
-//                 control={form.control}
-//                 name="assignedQuantity"
-//                 render={({ field }) => (
-//                   <FormItem>
-//                     <FormLabel>Quantity to Assign</FormLabel>
-//                     <FormControl>
-//                       <Input type="number" step="0.0001" placeholder="0" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
-//                     </FormControl>
-//                     <FormMessage />
-//                   </FormItem>
-//                 )}
-//               />
-
-//               <FormField
-//                 control={form.control}
-//                 name="assignedUnit"
-//                 render={({ field }) => (
-//                   <FormItem>
-//                     <FormLabel>Unit</FormLabel>
-//                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-//                       <FormControl>
-//                         <SelectTrigger>
-//                           <SelectValue placeholder="Select unit" />
-//                         </SelectTrigger>
-//                       </FormControl>
-//                       <SelectContent>
-//                         {availableUnits.map(unit => (
-//                           <SelectItem key={unit} value={unit}>
-//                             {unit}
-//                           </SelectItem>
-//                         ))}
-//                       </SelectContent>
-//                     </Select>
-//                     <FormMessage />
-//                   </FormItem>
-//                 )}
-//               />
-//             </div>
-
-//             <FormField
-//               control={form.control}
-//               name="notes"
-//               render={({ field }) => (
-//                 <FormItem>
-//                   <FormLabel>Notes (Optional)</FormLabel>
-//                   <FormControl>
-//                     <Textarea placeholder="Additional notes about this assignment..." className="resize-none" {...field} />
-//                   </FormControl>
-//                   <FormMessage />
-//                 </FormItem>
-//               )}
-//             />
-
-//             <div className="flex gap-3 justify-end">
-//               <Button type="button" variant="outline" onClick={onCancel}>
-//                 Cancel
-//               </Button>
-//               <Button type="submit">{assignment ? "Update Assignment" : "Assign to Section"}</Button>
-//             </div>
-//           </form>
-//         </Form>
-//       </CardContent>
-//     </Card>
-//   );
-// }
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Material, Section, SectionAssignment, StockEntry } from "@/types/inventory";
-import { formatNumber } from "@/utils/conversionLogic";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { AssignmentFormData, AssignmentFormProps, Material } from "@/types/inventory";
+import { formatStockEntryValue } from "@/utils/formatStockEntry";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Textarea } from "../ui/textarea";
+import { AssignmentSchema } from "./AssigmentSchema";
 
-const assignmentSchema = z.object({
-  sectionId: z.string().min(1, "Section is required"),
-  stockEntryId: z.string().min(1, "Stock entry is required"),
-  materialId: z.string().min(1, "Material is required"),
-  assignedQuantity: z.number().min(0.0001, "Quantity must be positive"),
-  assignedUnit: z.string().min(1, "Unit is required"),
-  notes: z.string().optional()
-});
-
-type AssignmentFormData = z.infer<typeof assignmentSchema>;
-
-interface AssignmentFormProps {
-  sections: Section[];
-  stockEntries: StockEntry[];
-  materials: Material[];
-  assignment?: SectionAssignment;
-  onSubmit: (data: AssignmentFormData) => void;
-  onCancel: () => void;
-}
-
-export function AssignmentForm({ sections, stockEntries, materials, assignment, onSubmit, onCancel }: AssignmentFormProps) {
+export function AssignmentForm({ sections, stockEntries, menuItems, materials, assignment, onSubmit, onCancel }: AssignmentFormProps) {
   const form = useForm<AssignmentFormData>({
-    resolver: zodResolver(assignmentSchema),
+    resolver: zodResolver(AssignmentSchema),
+    mode: "onChange", // live validation
     defaultValues: {
       sectionId: assignment?.sectionId ? String(assignment.sectionId) : "",
+      itemType: assignment?.menuItemId ? "menuItem" : "stockEntry",
       stockEntryId: assignment?.stockEntryId ? String(assignment.stockEntryId) : "",
+      menuItemId: assignment?.menuItemId ? String(assignment.menuItemId) : "",
       materialId: assignment?.materialId ? String(assignment.materialId) : "",
-      assignedQuantity: assignment?.assignedQuantity || 0,
-      assignedUnit: assignment?.assignedUnit || "",
-      notes: assignment?.notes || ""
+      assignedQuantity: assignment?.assignedQuantity || undefined,
+      assignedUnit: assignment?.assignedUnit || ""
     }
   });
 
+  const watchedItemType = form.watch("itemType");
   const watchedStockEntryId = form.watch("stockEntryId");
+  const watchedMenuItemId = form.watch("menuItemId");
   const selectedStockEntry = stockEntries.find(entry => String(entry.id) === String(watchedStockEntryId));
-  const material = selectedStockEntry ? materials.find(m => String(m.id) === String(selectedStockEntry.materialId)) : null;
+  const selectedMenuItem = menuItems.find(item => String(item.id) === String(watchedMenuItemId));
+
+  let material: Material | null | undefined = null;
+  if (watchedItemType === "stockEntry" && selectedStockEntry) {
+    material = materials.find(m => String(m.id) === String(selectedStockEntry.materialId));
+  } else if (watchedItemType === "menuItem" && selectedMenuItem) {
+    material = materials.find(m => String(m.id) === String(selectedMenuItem.materialId));
+  }
+
   const availableUnits = material ? getSuggestedUnits(material.unitType) : [];
 
-  // Debugging logs
-  console.log("Sections:", sections);
-  console.log("Stock Entries:", stockEntries);
-  console.log("Materials:", materials);
-  console.log("Assignment Prop:", assignment);
-  console.log("watchedStockEntryId:", watchedStockEntryId);
-  console.log("selectedStockEntry:", selectedStockEntry);
-  console.log("material:", material);
-  console.log("availableUnits:", availableUnits);
-  console.log("Form Values:", form.getValues());
-
   const handleSubmit = (data: AssignmentFormData) => {
-    if (!selectedStockEntry) {
-      console.error("No stock entry selected");
-      form.setError("stockEntryId", { message: "Please select a stock entry" });
-      return;
-    }
     if (!data.sectionId) {
       console.error("No section selected");
       form.setError("sectionId", { message: "Please select a section" });
       return;
     }
-    if (!data.assignedUnit) {
-      console.error("No unit selected");
-      form.setError("assignedUnit", { message: "Please select a unit" });
-      return;
-    }
     const submitData = {
       sectionId: String(data.sectionId),
-      stockEntryId: String(data.stockEntryId),
-      materialId: String(selectedStockEntry.materialId),
-      assignedQuantity: data.assignedQuantity,
-      assignedUnit: data.assignedUnit,
-      notes: data.notes || ""
+      itemType: data.itemType,
+      stockEntryId: data.itemType === "stockEntry" ? String(data.stockEntryId) : undefined,
+      menuItemId: data.itemType === "menuItem" ? String(data.menuItemId) : undefined,
+      materialId: material ? String(material.id) : "",
+      assignedQuantity: data.itemType === "stockEntry" ? data.assignedQuantity : undefined,
+      assignedUnit: data.itemType === "stockEntry" ? data.assignedUnit : undefined
     };
     console.log("Submitting Data:", submitData);
     onSubmit(submitData);
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>{assignment ? "Edit Assignment" : "Assign Stock to Section"}</CardTitle>
-      </CardHeader>
+    <Card className="w-full mx-auto">
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
@@ -310,7 +74,6 @@ export function AssignmentForm({ sections, stockEntries, materials, assignment, 
                     <FormLabel>Section</FormLabel>
                     <Select
                       onValueChange={value => {
-                        console.log("Selected sectionId:", value);
                         field.onChange(value);
                       }}
                       defaultValue={field.value}
@@ -349,101 +112,29 @@ export function AssignmentForm({ sections, stockEntries, materials, assignment, 
 
               <FormField
                 control={form.control}
-                name="stockEntryId"
+                name="itemType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stock Entry</FormLabel>
+                    <FormLabel>Item Type</FormLabel>
                     <Select
                       onValueChange={value => {
-                        console.log("Selected stockEntryId:", value);
-                        const selectedEntry = stockEntries.find(entry => String(entry.id) === value);
-                        if (selectedEntry) {
-                          form.setValue("materialId", String(selectedEntry.materialId));
-                        } else {
-                          form.setValue("materialId", "");
+                        field.onChange(value);
+                        form.resetField(value === "stockEntry" ? "menuItemId" : "stockEntryId");
+                        if (value === "menuItem") {
+                          form.resetField("assignedQuantity");
+                          form.resetField("assignedUnit");
                         }
-                        field.onChange(value);
                       }}
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={stockEntries.length ? "Select stock entry" : "No stock entries available"} />
+                          <SelectValue placeholder="Select item type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {stockEntries.length ? (
-                          stockEntries
-                            .map(entry => {
-                              if (!entry.id) {
-                                console.warn("Invalid stock entry ID:", entry);
-                                return null;
-                              }
-                              const material = materials.find(m => String(m.id) === String(entry.materialId));
-                              return (
-                                <SelectItem key={`stock-${entry.id}`} value={String(entry.id)}>
-                                  {(material?.name || "Unknown") + " - " + formatNumber(entry.purchasedQuantity) + " " + entry.purchasedUnit + " ($" + formatNumber(entry.totalCost) + ")"}
-                                </SelectItem>
-                              );
-                            })
-                            .filter(Boolean)
-                        ) : (
-                          <SelectItem value="" disabled>
-                            No stock entries available
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="assignedQuantity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quantity to Assign</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.0001" placeholder="0" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="assignedUnit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit</FormLabel>
-                    <Select
-                      onValueChange={value => {
-                        console.log("Selected unit:", value);
-                        field.onChange(value);
-                      }}
-                      defaultValue={field.value}
-                      disabled={!selectedStockEntry}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={selectedStockEntry ? "Select unit" : "Select a stock entry first"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableUnits.length ? (
-                          availableUnits.map(unit => (
-                            <SelectItem key={`unit-${unit}`} value={unit}>
-                              {unit}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-units" disabled>
-                            No units available
-                          </SelectItem>
-                        )}
+                        <SelectItem value="stockEntry">Stock Entry</SelectItem>
+                        <SelectItem value="menuItem">Menu Item</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -452,29 +143,186 @@ export function AssignmentForm({ sections, stockEntries, materials, assignment, 
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Additional notes about this assignment..." className="resize-none" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <Tabs value={watchedItemType} className="w-full">
+              <TabsContent value="stockEntry">
+                <FormField
+                  control={form.control}
+                  name="stockEntryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stock Entry</FormLabel>
+                      <Select
+                        onValueChange={value => {
+                          const selectedEntry = stockEntries.find(entry => String(entry.id) === value);
+                          if (selectedEntry) {
+                            form.setValue("materialId", String(selectedEntry.materialId));
+                          } else {
+                            form.setValue("materialId", "");
+                          }
+                          field.onChange(value);
+                        }}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={stockEntries.length ? "Select stock entry" : "No stock entries available"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {stockEntries.length ? (
+                            stockEntries
+                              .map(entry => {
+                                if (!entry.id) {
+                                  console.warn("Invalid stock entry ID:", entry);
+                                  return null;
+                                }
+                                const material = materials.find(m => String(m.id) === String(entry.materialId));
+                                return (
+                                  <SelectItem key={`stock-${entry.id}`} value={String(entry.id)}>
+                                    {(material?.name || "Unknown") + " - " + formatStockEntryValue(entry.purchasedQuantity, entry.purchasedUnit) + " " + entry.purchasedUnit + " ($" + formatStockEntryValue(entry.totalCost) + ")"}
+                                  </SelectItem>
+                                );
+                              })
+                              .filter(Boolean)
+                          ) : (
+                            <SelectItem value="" disabled>
+                              No stock entries available
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+              <TabsContent value="menuItem">
+                <FormField
+                  control={form.control}
+                  name="menuItemId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Menu Item</FormLabel>
+                      <Select
+                        onValueChange={value => {
+                          const selectedItem = menuItems.find(item => String(item.id) === value);
+                          if (selectedItem) {
+                            form.setValue("materialId", String(selectedItem.materialId));
+                          } else {
+                            form.setValue("materialId", "");
+                          }
+                          field.onChange(value);
+                        }}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={menuItems.length ? "Select menu item" : "No menu items available"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {menuItems.length ? (
+                            menuItems
+                              .map(item => {
+                                if (!item.id) {
+                                  console.warn("Invalid menu item ID:", item);
+                                  return null;
+                                }
+                                const material = materials.find(m => String(m.id) === String(item.materialId));
+                                return (
+                                  <SelectItem key={`menu-${item.id}`} value={String(item.id)}>
+                                    {item.name} {material ? `(${material.name})` : ""}
+                                  </SelectItem>
+                                );
+                              })
+                              .filter(Boolean)
+                          ) : (
+                            <SelectItem value="" disabled>
+                              No menu items available
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+            </Tabs>
+
+            {watchedItemType === "stockEntry" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="assignedQuantity"
+                  render={({ field }) => {
+                    const value = typeof field.value === "number" ? field.value : parseFloat(field.value) || 0;
+                    return (
+                      <FormItem>
+                        <FormLabel>Quantity to Assign</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.0001"
+                            placeholder="0"
+                            value={value}
+                            onChange={e => {
+                              const numValue = parseFloat(e.target.value);
+                              field.onChange(isNaN(numValue) ? 0 : numValue);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="assignedUnit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Unit</FormLabel>
+                      <Select
+                        onValueChange={value => {
+                          field.onChange(value);
+                        }}
+                        defaultValue={field.value}
+                        disabled={!material}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={material ? "Select unit" : "Select a stock entry first"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableUnits.length ? (
+                            availableUnits.map(unit => (
+                              <SelectItem key={`unit-${unit}`} value={unit}>
+                                {unit}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-units" disabled>
+                              No units available
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <div className="flex gap-3 justify-end">
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!form.formState.isValid}>
+              <Button type="submit" disabled={!form.formState.isValid || (form.watch("itemType") === "menuItem" && !form.watch("menuItemId")) || (form.watch("itemType") === "stockEntry" && !form.watch("stockEntryId"))}>
                 {assignment ? "Update Assignment" : "Assign to Section"}
-              </Button>
-              <Button type="button" onClick={() => console.log("Form Values:", form.getValues())}>
-                Log Form Values
               </Button>
             </div>
           </form>

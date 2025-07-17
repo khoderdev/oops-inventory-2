@@ -1,12 +1,26 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Material, MaterialWithStock, Section, SectionAssignment, SectionWithAssignments, StockEntry } from "@/types/inventory";
+import { Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAssignment, SectionWithAssignments, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
 
-export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectionAssignments, sectionsWithAssignments }: { isOpen: boolean; onClose: () => void; selectedItem: { type: "material" | "stock" | "section" | "assignment"; data: any } | null; materialsWithSectionAssignments: MaterialWithStock[]; sectionsWithAssignments: SectionWithAssignments[] }) => {
+interface DetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedItem: {
+    type: "material" | "stock" | "section" | "assignment";
+    data: MaterialWithSectionAssignments | StockEntry | Section | SectionAssignment;
+  } | null;
+  materialsWithSectionAssignments: MaterialWithSectionAssignments[];
+  sectionsWithAssignments: SectionWithAssignments[];
+}
+
+export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectionAssignments, sectionsWithAssignments }: DetailModalProps) => {
   if (!selectedItem) return null;
 
-  const renderMaterialDetails = (material: MaterialWithStock) => {
+  // Extract sections from sectionsWithAssignments for easy lookup
+  const sections = sectionsWithAssignments.map(s => ({ id: s.id, name: s.name, description: s.description }));
+
+  const renderMaterialDetails = (material: MaterialWithSectionAssignments) => {
     const materialWithAssignments = materialsWithSectionAssignments.find(m => m.id === material.id);
     const sectionAssignments = materialWithAssignments?.sectionAssignments || [];
 
@@ -100,7 +114,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           <div>
             <h4 className="font-medium">Quantity</h4>
             <p>
-              {formatNumber(parseFloat(stock.purchasedQuantity))} {stock.purchasedUnit}
+              {formatNumber(stock.purchasedQuantity)} {stock.purchasedUnit}
             </p>
           </div>
           <div>
@@ -162,18 +176,55 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           <div>
             <h4 className="font-medium">Assigned Items</h4>
             <div className="space-y-2 mt-2">
-              {sectionWithAssignments.assignments.map((assignment, index) => (
-                <div key={index} className="p-2 bg-muted/50 rounded">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">{assignment.material?.name}</span>
-                    <span>
-                      {formatNumber(assignment.assignedQuantity)} {assignment.assignedUnit}
-                    </span>
+              {sectionWithAssignments.assignments.map((assignment, index) => {
+                // Menu Item Assignment - check if menuItem property exists
+                if (assignment.menuItem != null) {
+                  return (
+                    <div key={index} className="p-2 bg-muted/50 rounded">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-medium">{assignment.menuItem?.name || "Menu Item"}</span>
+                          <span className="ml-2 text-sm text-muted-foreground">({assignment.menuItem?.category || "No category"})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span>1 item</span>
+                          <span className="font-medium">{formatCurrency(assignment.menuItem?.price || 0)}</span>
+                        </div>
+                      </div>
+                      {assignment.menuItem?.description && <div className="text-sm text-muted-foreground mt-1">{assignment.menuItem.description}</div>}
+                      {assignment.notes && (
+                        <div className="text-sm text-muted-foreground mt-1">
+                          <span className="font-medium">Notes:</span> {assignment.notes}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // Material Assignment
+                return (
+                  <div key={index} className="p-2 bg-muted/50 rounded">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="font-medium">{assignment.material?.name || "Material"}</span>
+                        {assignment.stockEntry?.supplier && <span className="ml-2 text-sm text-muted-foreground">({assignment.stockEntry.supplier})</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}
+                        </span>
+                        <span className="font-medium">{formatCurrency((assignment.assignedQuantity || 0) * (assignment.stockEntry?.costPerPurchasedUnit || 0))}</span>
+                      </div>
+                    </div>
+                    {assignment.stockEntry?.batchNumber && <div className="text-sm text-muted-foreground">Batch: {assignment.stockEntry.batchNumber}</div>}
+                    {assignment.notes && (
+                      <div className="text-sm text-muted-foreground mt-1">
+                        <span className="font-medium">Notes:</span> {assignment.notes}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-sm text-muted-foreground">Value: {formatCurrency(assignment.assignedQuantity * (assignment.stockEntry?.costPerPurchasedUnit || 0))}</div>
-                  {assignment.notes && <div className="text-sm text-muted-foreground mt-1">Notes: {assignment.notes}</div>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -181,43 +232,91 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
     );
   };
 
-  const renderAssignmentDetails = (assignment: SectionAssignment & { stockEntry?: StockEntry; material?: Material }) => {
+  const renderAssignmentDetails = (
+    assignment: SectionAssignment & {
+      stockEntry?: StockEntry;
+      material?: Material;
+      menuItem?: MenuItem;
+    }
+  ) => {
+    const isMenuItem = assignment.itemType === "menuItem";
+
+    if (isMenuItem) {
+      return (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold">{assignment.menuItem?.name || "Menu Item"}</h3>
+            <p className="text-muted-foreground">Assigned to: {sections.find(s => s.id === assignment.sectionId)?.name || "Unknown Section"}</p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground">Category</h4>
+                <p className="text-base">{assignment.menuItem?.category || "Unknown"}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground">Price</h4>
+                <p className="font-medium">{formatCurrency(assignment.menuItem?.price || 0)}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground">Description</h4>
+                <p>{assignment.menuItem?.description || "No description"}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground">Created</h4>
+                <p>{assignment.menuItem?.createdAt ? new Date(assignment.menuItem.createdAt).toLocaleDateString() : "Unknown"}</p>
+              </div>
+            </div>
+          </div>
+
+          {assignment.notes && (
+            <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-2">Assignment Notes</h4>
+              <p className="text-sm">{assignment.notes}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Material assignment rendering
     return (
       <div className="space-y-4">
         <div>
-          <h3 className="text-lg font-semibold">{assignment.material?.name || "Unknown Material"}</h3>
+          <h3 className="text-lg font-semibold">{assignment.material?.name || "Material"}</h3>
           <p className="text-muted-foreground">Assigned to: {sections.find(s => s.id === assignment.sectionId)?.name || "Unknown Section"}</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <h4 className="font-medium">Assigned Quantity</h4>
-            <p>
-              {formatNumber(assignment.assignedQuantity)} {assignment.assignedUnit}
-            </p>
-          </div>
-          <div>
-            <h4 className="font-medium">Original Quantity</h4>
-            <p>
-              {formatNumber(assignment.stockEntry?.purchasedQuantity || 0)} {assignment.stockEntry?.purchasedUnit}
-            </p>
-          </div>
-          <div>
-            <h4 className="font-medium">Unit Cost</h4>
-            <p>
-              {formatCurrency(assignment.stockEntry?.costPerPurchasedUnit || 0)}/{assignment.stockEntry?.purchasedUnit}
-            </p>
-          </div>
-          <div>
-            <h4 className="font-medium">Total Value</h4>
-            <p>{formatCurrency(assignment.assignedQuantity * (assignment.stockEntry?.costPerPurchasedUnit || 0))}</p>
+        <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Assigned Quantity</h4>
+              <p className="text-base">{formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Material Category</h4>
+              <p>{assignment.material?.category || "Unknown"}</p>
+            </div>
+            {assignment.stockEntry && (
+              <>
+                <div>
+                  <h4 className="text-sm font-semibold text-muted-foreground">Supplier</h4>
+                  <p>{assignment.stockEntry.supplier}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-muted-foreground">Batch Number</h4>
+                  <p>{assignment.stockEntry.batchNumber || "N/A"}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         {assignment.notes && (
-          <div>
-            <h4 className="font-medium">Notes</h4>
-            <p className="text-muted-foreground">{assignment.notes}</p>
+          <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm">
+            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Assignment Notes</h4>
+            <p className="text-sm">{assignment.notes}</p>
           </div>
         )}
       </div>
@@ -236,10 +335,10 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           </DialogTitle>
         </DialogHeader>
         <div className="py-4">
-          {selectedItem.type === "material" && renderMaterialDetails(selectedItem.data)}
-          {selectedItem.type === "stock" && renderStockDetails(selectedItem.data)}
-          {selectedItem.type === "section" && renderSectionDetails(selectedItem.data)}
-          {selectedItem.type === "assignment" && renderAssignmentDetails(selectedItem.data)}
+          {selectedItem.type === "material" && renderMaterialDetails(selectedItem.data as MaterialWithSectionAssignments)}
+          {selectedItem.type === "stock" && renderStockDetails(selectedItem.data as StockEntry)}
+          {selectedItem.type === "section" && renderSectionDetails(selectedItem.data as Section)}
+          {selectedItem.type === "assignment" && renderAssignmentDetails(selectedItem.data as SectionAssignment & { stockEntry?: StockEntry; material?: Material; menuItem?: MenuItem; })}
         </div>
       </DialogContent>
     </Dialog>

@@ -1,4 +1,4 @@
-import { Assignment, Material, Section, StockEntry } from "../models/index.js";
+import { Assignment, Material, MenuItem, Section, StockEntry } from "../models/index.js";
 
 const assignmentsController = {
   getAllAssignments: async (req, res, next) => {
@@ -7,7 +7,8 @@ const assignmentsController = {
         include: [
           { model: Section, as: "section" },
           { model: Material, as: "material" },
-          { model: StockEntry, as: "stockEntry" }
+          { model: StockEntry, as: "stockEntry" },
+          { model: MenuItem, as: "menuItem" }
         ]
       });
       res.status(200).json(assignments);
@@ -24,6 +25,7 @@ const assignmentsController = {
         include: [
           { model: Section, as: "section" },
           { model: Material, as: "material" },
+          { model: MenuItem, as: "menuItem" },
           { model: StockEntry, as: "stockEntry" }
         ]
       });
@@ -41,72 +43,97 @@ const assignmentsController = {
 
   createAssignments: async (req, res, next) => {
     try {
-      const { sectionId, materialId, stockEntryId, assignedQuantity, assignedUnit, notes } = req.body;
+      const { sectionId, itemType, materialId, stockEntryId, menuItemId, assignedQuantity, assignedUnit, notes } = req.body;
 
       console.log("Received body:", JSON.stringify(req.body, null, 2));
 
-      // Validate required fields
-      if (!sectionId || !materialId || !stockEntryId || !assignedQuantity) {
-        console.error("Missing fields:", { sectionId, materialId, stockEntryId, assignedQuantity });
-        return res.status(400).json({ error: "All fields are required" });
+      if (!sectionId || !itemType) {
+        return res.status(400).json({ error: "sectionId and itemType are required" });
       }
 
-      if (assignedQuantity <= 0) {
-        console.error("Invalid quantity:", assignedQuantity);
-        return res.status(400).json({ error: "Assigned quantity must be positive" });
-      }
-
-      // Validate references
       const section = await Section.findByPk(parseInt(sectionId));
-      const material = await Material.findByPk(parseInt(materialId));
-      let stockEntry;
-      try {
-        stockEntry = await StockEntry.findByPk(String(stockEntryId)); // Ensure string
-      } catch (error) {
-        console.error("StockEntry lookup failed:", { stockEntryId, error: error.message });
-        return res.status(400).json({ error: "Invalid stockEntryId" });
+      if (!section) {
+        return res.status(400).json({ error: "Invalid sectionId" });
       }
 
-      if (!section || !material || !stockEntry) {
-        console.error("Validation failed:", {
+      // Handle Stock Entry Assignment
+      if (itemType === "stockEntry") {
+        if (!materialId || !stockEntryId || !assignedQuantity) {
+          return res.status(400).json({
+            error: "materialId, stockEntryId, and assignedQuantity are required for stockEntry assignment"
+          });
+        }
+
+        if (assignedQuantity <= 0) {
+          return res.status(400).json({ error: "Assigned quantity must be positive" });
+        }
+
+        const material = await Material.findByPk(parseInt(materialId));
+        const stockEntry = await StockEntry.findByPk(String(stockEntryId));
+
+        if (!material || !stockEntry) {
+          return res.status(400).json({ error: "Invalid materialId or stockEntryId" });
+        }
+
+        if (String(stockEntry.materialId) !== String(materialId)) {
+          return res.status(400).json({ error: "Material ID does not match stock entry" });
+        }
+
+        const assignment = await Assignment.create({
           sectionId: parseInt(sectionId),
+          itemType,
           materialId: parseInt(materialId),
           stockEntryId: String(stockEntryId),
-          sectionExists: !!section,
-          materialExists: !!material,
-          stockEntryExists: !!stockEntry
+          assignedQuantity: Number(assignedQuantity),
+          assignedUnit: String(assignedUnit || ""),
+          notes: String(notes || "")
         });
-        return res.status(400).json({ error: "Invalid sectionId, materialId, or stockEntryId" });
+
+        const createdAssignment = await Assignment.findByPk(assignment.id, {
+          include: [
+            { model: Section, as: "section" },
+            { model: Material, as: "material" },
+            { model: StockEntry, as: "stockEntry" },
+            { model: MenuItem, as: "menuItem" }
+          ]
+        });
+
+        return res.status(201).json(createdAssignment);
       }
 
-      // Ensure materialId matches stockEntry.materialId
-      if (String(stockEntry.materialId) !== String(materialId)) {
-        console.error("Material ID mismatch:", {
-          stockEntryMaterialId: stockEntry.materialId,
-          submittedMaterialId: materialId
+      // Handle Menu Item Assignment
+      if (itemType === "menuItem") {
+        if (!menuItemId) {
+          return res.status(400).json({ error: "menuItemId is required for menuItem assignment" });
+        }
+
+        const menuItem = await MenuItem.findByPk(String(menuItemId));
+        if (!menuItem) {
+          return res.status(400).json({ error: "Invalid menuItemId" });
+        }
+
+        const assignment = await Assignment.create({
+          sectionId: parseInt(sectionId),
+          itemType,
+          menuItemId: parseInt(menuItemId),
+          materialId: null,
+          stockEntryId: null,
+          assignedQuantity: null,
+          assignedUnit: null,
+          notes: notes ? String(notes) : null
         });
-        return res.status(400).json({ error: "Material ID does not match stock entry" });
+
+        const createdAssignment = await Assignment.findByPk(assignment.id, {
+          include: [
+            { model: Section, as: "section" },
+            { model: MenuItem, as: "menuItem" }
+          ]
+        });
+
+        return res.status(201).json(createdAssignment);
       }
 
-      const assignment = await Assignment.create({
-        sectionId: parseInt(sectionId),
-        materialId: parseInt(materialId),
-        stockEntryId: String(stockEntryId),
-        assignedQuantity: Number(assignedQuantity),
-        assignedUnit: String(assignedUnit || ""),
-        notes: String(notes || "")
-      });
-
-      const createdAssignment = await Assignment.findByPk(assignment.id, {
-        include: [
-          { model: Section, as: "section" },
-          { model: Material, as: "material" },
-          { model: StockEntry, as: "stockEntry" }
-        ]
-      });
-
-      console.log("Created assignment:", JSON.stringify(createdAssignment, null, 2));
-      res.status(201).json(createdAssignment);
+      return res.status(400).json({ error: "Unsupported itemType" });
     } catch (error) {
       console.error("Create assignment error:", error.message, error.stack);
       res.status(500).json({ error: "An unexpected error occurred" });

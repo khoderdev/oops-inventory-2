@@ -2,7 +2,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Section, SectionAssignment, SectionWithAssignments } from "@/types/inventory";
+import { Material, Section, SectionAssignment, SectionWithAssignments, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Edit, Plus, Trash2 } from "lucide-react";
@@ -11,7 +11,7 @@ interface SectionsTableProps {
   sectionsWithAssignments: SectionWithAssignments[];
   selectedSectionId: string;
   sections: Section[];
-  setSelectedItem: (item: { type: string; data: SectionWithAssignments }) => void;
+  setSelectedItem: (item: { type: "material" | "stock" | "section" | "assignment"; data: Material | StockEntry | Section | SectionAssignment }) => void;
   setIsDetailModalOpen: (open: boolean) => void;
   setEditingSection: (section: Section | undefined) => void;
   setShowSectionForm: (show: boolean) => void;
@@ -124,7 +124,7 @@ export function SectionsTable({ sectionsWithAssignments, selectedSectionId, sect
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Material</TableHead>
+                  <TableHead>Item</TableHead>
                   <TableHead>Assigned Quantity</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Value</TableHead>
@@ -135,12 +135,31 @@ export function SectionsTable({ sectionsWithAssignments, selectedSectionId, sect
                 {sectionsWithAssignments
                   .find(s => s.id === selectedSectionId)
                   ?.assignments.map(assignment => {
-                    const costPerUnit = assignment.stockEntry?.costPerPurchasedUnit || 0;
-                    const fromUnit = assignment.assignedUnit || "unit"; // Fallback to "unit"
-                    const toUnit = assignment.stockEntry?.purchasedUnit || fromUnit; // Fallback to assignedUnit
-                    const unitType = assignment.material?.unitType || "piece"; // Fallback to "piece"
-                    const conversionFactor = getConversionFactor(fromUnit, toUnit, unitType);
-                    const value = assignment.assignedQuantity * costPerUnit * conversionFactor;
+                    // Detect assignment type based on populated properties
+                    const isMenuItem = assignment.menuItem != null;
+                    const isMaterialAssignment = assignment.material != null && assignment.stockEntry != null;
+
+                    let name = "Unknown";
+                    let quantity = assignment.assignedQuantity || 0;
+                    let unit = assignment.assignedUnit || "N/A";
+                    let value = 0;
+
+                    if (isMaterialAssignment) {
+                      const costPerUnit = assignment.stockEntry?.costPerPurchasedUnit || 0;
+                      const fromUnit = assignment.assignedUnit || "unit";
+                      const toUnit = assignment.stockEntry?.purchasedUnit || fromUnit;
+                      const unitType = assignment.material?.unitType || "piece";
+                      const conversionFactor = getConversionFactor(fromUnit, toUnit, unitType);
+                      value = quantity * costPerUnit * conversionFactor;
+                      name = assignment.material?.name || "Unknown";
+                    }
+
+                    if (isMenuItem) {
+                      name = assignment.menuItem?.name || "Unknown";
+                      value = assignment.menuItem?.price || 0;
+                      quantity = 1; // Menu items are typically counted as 1 item
+                      unit = "item";
+                    }
 
                     return (
                       <TableRow
@@ -155,11 +174,10 @@ export function SectionsTable({ sectionsWithAssignments, selectedSectionId, sect
                         className="cursor-pointer hover:bg-muted/50"
                       >
                         <TableCell>
-                          <div className="font-medium">{assignment.material?.name || "Unknown"}</div>
-                          <div className="text-sm text-muted-foreground">{assignment.notes}</div>
+                          <div className="font-medium">{name}</div>
                         </TableCell>
-                        <TableCell>{formatNumber(assignment.assignedQuantity)}</TableCell>
-                        <TableCell>{assignment.assignedUnit || "N/A"}</TableCell>
+                        <TableCell>{formatNumber(quantity)}</TableCell>
+                        <TableCell>{unit}</TableCell>
                         <TableCell>{formatCurrency(value)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
@@ -183,7 +201,7 @@ export function SectionsTable({ sectionsWithAssignments, selectedSectionId, sect
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Remove Assignment</AlertDialogTitle>
-                                  <AlertDialogDescription>This will remove this item from the section but won't delete the stock entry.</AlertDialogDescription>
+                                  <AlertDialogDescription>This will remove this item from the section but won't delete the stock entry or menu item.</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>

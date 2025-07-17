@@ -91,27 +91,37 @@ export function InventoryDashboard() {
   }, [materials, stockEntries]);
 
   const sectionsWithAssignments = useMemo(() => {
-    if (!Array.isArray(sections) || !Array.isArray(assignments) || !Array.isArray(stockEntries) || !Array.isArray(materials)) return [];
+    if (!Array.isArray(sections) || !Array.isArray(assignments) || !Array.isArray(stockEntries) || !Array.isArray(materials) || !Array.isArray(menuItems)) return [];
     return sections.map(section => {
       const sectionAssignments = assignments
         .filter(a => a.sectionId === section.id)
         .map(a => {
           const stockEntry = stockEntries.find(se => se.id === a.stockEntryId);
           const material = materials.find(m => stockEntry && m.id === stockEntry.materialId);
+          const menuItem = menuItems.find(mi => mi.id === a.menuItemId);
           return {
             ...a,
             stockEntry,
-            material
+            material,
+            menuItem
           };
         })
-        .filter(a => a.stockEntry && a.material);
+        // Include both material assignments (with stockEntry & material) and menu item assignments (with menuItem)
+        .filter(a => (a.stockEntry && a.material) || a.menuItem);
 
       const totalValue = sectionAssignments.reduce((sum, a) => {
-        if (!a.stockEntry || !a.material) return sum;
-        const costPerUnit = a.stockEntry.costPerPurchasedUnit;
-        const conversionFactor = getConversionFactor(a.assignedUnit, a.stockEntry.purchasedUnit, a.material.unitType);
-        const assignedValue = a.assignedQuantity * conversionFactor * costPerUnit;
-        return sum + assignedValue;
+        // Calculate value for material assignments
+        if (a.stockEntry && a.material) {
+          const costPerUnit = a.stockEntry.costPerPurchasedUnit;
+          const conversionFactor = getConversionFactor(a.assignedUnit, a.stockEntry.purchasedUnit, a.material.unitType);
+          const assignedValue = a.assignedQuantity * conversionFactor * costPerUnit;
+          return sum + assignedValue;
+        }
+        // Calculate value for menu item assignments
+        if (a.menuItem) {
+          return sum + (a.menuItem.price || 0);
+        }
+        return sum;
       }, 0);
 
       return {
@@ -120,7 +130,7 @@ export function InventoryDashboard() {
         totalValue
       };
     });
-  }, [sections, assignments, stockEntries, materials]);
+  }, [sections, assignments, stockEntries, materials, menuItems]);
 
   const materialsWithSectionAssignments = useMemo(() => {
     if (!Array.isArray(materialsWithStock) || !Array.isArray(assignments) || !Array.isArray(stockEntries) || !Array.isArray(sections)) return [];
@@ -555,6 +565,7 @@ export function InventoryDashboard() {
               <AssignmentForm
                 sections={sections}
                 stockEntries={stockEntries}
+                menuItems={menuItems}
                 materials={materials}
                 assignment={editingAssignment}
                 onSubmit={editingAssignment ? handleEditAssignment : handleAddAssignment}
