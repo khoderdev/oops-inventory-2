@@ -1,10 +1,11 @@
 // Core conversion types and interfaces
 
-export type MassUnit = 'kg' | 'gram' | 'lb';
-export type VolumeUnit = 'liter' | 'ml' | 'gallon';
-export type PackageUnit = 'box' | 'pack' | 'case' | 'piece' | 'bottle';
+export type MassUnit = "kg" | "gram" | "lb";
+export type VolumeUnit = "liter" | "ml" | "gallon";
+export type PackageUnit = "box" | "pack" | "case" | "piece" | "bottle";
 
 export interface ConversionResult {
+  steps: string[];
   value: number;
   unit: string;
   cost: number;

@@ -136,6 +136,28 @@ export interface SectionAssignment {
   section?: Section;
 }
 
+export interface CreateSectionAssignmentData {
+  sectionId: string;
+  itemType: "stockEntry" | "menuItem";
+  materialId?: string;
+  menuItemId?: string;
+  stockEntryId?: string;
+  assignedQuantity?: number;
+  assignedUnit?: string;
+  notes?: string;
+}
+
+export interface UpdateSectionAssignmentData {
+  sectionId?: string;
+  itemType?: "stockEntry" | "menuItem";
+  materialId?: string;
+  menuItemId?: string;
+  stockEntryId?: string;
+  assignedQuantity?: number;
+  assignedUnit?: string;
+  notes?: string;
+}
+
 export interface SectionWithAssignments extends Section {
   assignments: Array<
     SectionAssignment & {
