@@ -1,4 +1,4 @@
-import { Assignment, Material, Section, StockEntry } from "../models/index.js";
+import { Assignment, Material, MenuItem, Section, StockEntry } from "../models/index.js";
 import calculateStockConversion from "../utils/conversions.js";
 
 const sectionController = {
@@ -12,7 +12,8 @@ const sectionController = {
             as: "assignments",
             include: [
               { model: Material, as: "material" },
-              { model: StockEntry, as: "stockEntry" }
+              { model: StockEntry, as: "stockEntry" },
+              { model: MenuItem, as: "menuItem" }
             ]
           }
         ]
@@ -20,19 +21,53 @@ const sectionController = {
 
       const sectionsWithAssignments = sections.map(section => {
         const enrichedAssignments = section.assignments.map(assignment => {
-          const conversion = calculateStockConversion(assignment.stockEntry, assignment.material);
-          return {
+          const assignmentData = {
             ...assignment.get(),
             stockEntry: assignment.stockEntry,
-            material: assignment.material
+            material: assignment.material,
+            menuItem: assignment.menuItem,
+            section: section.get()
           };
+
+          // Handle package unit conversion for stock entries
+          if (assignment.stockEntry && assignment.material) {
+            const material = assignment.material;
+            const isPackageUnit = material.unitType === 'package' && 
+                                 (assignment.assignedUnit === 'box' || assignment.assignedUnit === 'pack' || assignment.assignedUnit === 'case');
+            
+            if (isPackageUnit && material.packageQuantity) {
+              // Convert package units to base units for POS display
+              const convertedQuantity = assignment.assignedQuantity * material.packageQuantity;
+              console.log(`Backend package conversion for ${material.name}:`, {
+                originalQuantity: assignment.assignedQuantity,
+                originalUnit: assignment.assignedUnit,
+                packageQuantity: material.packageQuantity,
+                convertedQuantity: convertedQuantity,
+                baseUnit: material.baseUnit
+              });
+              
+              // Keep original assignment data but add conversion info
+              assignmentData.originalQuantity = assignment.assignedQuantity;
+              assignmentData.originalUnit = assignment.assignedUnit;
+              assignmentData.convertedQuantity = convertedQuantity;
+              assignmentData.convertedUnit = material.baseUnit;
+              assignmentData.isPackageConverted = true;
+            }
+          }
+
+          return assignmentData;
         });
 
         const totalValue = enrichedAssignments.reduce((sum, assignment) => {
-          if (!assignment.stockEntry || !assignment.material) return sum;
-          const conversion = calculateStockConversion(assignment.stockEntry, assignment.material);
-          const costPerAssignedUnit = conversion.costPerBaseUnit * conversion.conversionFactor;
-          return sum + assignment.assignedQuantity * costPerAssignedUnit;
+          if (assignment.stockEntry && assignment.material) {
+            const conversion = calculateStockConversion(assignment.stockEntry, assignment.material);
+            const costPerAssignedUnit = conversion.costPerBaseUnit * conversion.conversionFactor;
+            return sum + assignment.assignedQuantity * costPerAssignedUnit;
+          }
+          if (assignment.menuItem) {
+            return sum + assignment.menuItem.price;
+          }
+          return sum;
         }, 0);
 
         return { ...section.get(), assignments: enrichedAssignments, totalValue };

@@ -1,4 +1,4 @@
-import { Material } from "../models/index.js";
+import { Material, StockEntry } from "../models/index.js";
 import calculateStockConversion from "../utils/conversions.js";
 
 const materialController = {
@@ -65,7 +65,7 @@ const materialController = {
       }
 
       // Validate package-specific fields
-      if (unitType === 'package') {
+      if (unitType === "package") {
         if (!packageQuantity || packageQuantity < 1) {
           return res.status(400).json({ error: "Package quantity must be at least 1 for package materials" });
         }
@@ -79,7 +79,7 @@ const materialController = {
         baseUnit,
         unitType,
         inputUnit,
-        packageQuantity: unitType === 'package' ? packageQuantity : null,
+        packageQuantity: unitType === "package" ? packageQuantity : null,
         costPerBaseUnit,
         category,
         description
@@ -110,10 +110,10 @@ const materialController = {
 
       // Validate package-specific fields if unitType is being changed to package
       const newUnitType = unitType !== undefined ? unitType : material.unitType;
-      if (newUnitType === 'package') {
+      if (newUnitType === "package") {
         const newPackageQuantity = packageQuantity !== undefined ? packageQuantity : material.packageQuantity;
         const newInputUnit = inputUnit !== undefined ? inputUnit : material.inputUnit;
-        
+
         if (!newPackageQuantity || newPackageQuantity < 1) {
           return res.status(400).json({ error: "Package quantity must be at least 1 for package materials" });
         }

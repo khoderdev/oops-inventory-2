@@ -47,15 +47,15 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
     console.log("=== SELECTED SECTION DATA ===");
     console.log("Selected Section ID:", selectedSectionId);
-    
+
     // Find the selected section
     const selectedSection = sections.find(s => s.id.toString() === selectedSectionId);
     console.log("Selected Section Object:", selectedSection);
-    
+
     // Filter assignments for this section
     const sectionAssignmentsForSection = sectionAssignments.filter(a => a.sectionId.toString() === selectedSectionId);
     console.log("All assignments for section:", sectionAssignmentsForSection);
-    
+
     // Filter stock entry assignments
     // Handle cases where itemType might be missing - infer from presence of stockEntry
     const stockEntryAssignments = sectionAssignmentsForSection.filter(a => {
@@ -64,33 +64,57 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       return hasStockEntry;
     });
     console.log("Stock entry assignments:", stockEntryAssignments);
-    
+
     const items = stockEntryAssignments.map(a => {
       // Find material and stock entry from materials with stock
       const material = materials.find(m => m.id === String(a.materialId));
       const stockEntry = material?.stockEntries.find(se => se.id === a.stockEntryId);
-      
+
       console.log(`Assignment ${a.id}:`, {
         assignment: a,
         foundMaterial: material,
         foundStockEntry: stockEntry
       });
 
+      // Check if this is a package unit (box/pack) that needs conversion
+      const isPackageUnit = material?.unitType === "package" && (a.assignedUnit === "box" || a.assignedUnit === "pack" || a.assignedUnit === "case");
+
+      let displayQuantity = a.assignedQuantity;
+      let displayUnit = a.assignedUnit;
+      let displayUnitPrice = material?.costPerBaseUnit || 0;
+
+      if (isPackageUnit && material?.packageQuantity) {
+        // Convert package units to base units
+        displayQuantity = a.assignedQuantity * material.packageQuantity;
+        displayUnit = material.baseUnit;
+        displayUnitPrice = material.costPerBaseUnit || 0;
+
+        console.log(`Package conversion for ${material.name}:`, {
+          originalQuantity: a.assignedQuantity,
+          originalUnit: a.assignedUnit,
+          packageQuantity: material.packageQuantity,
+          convertedQuantity: displayQuantity,
+          convertedUnit: displayUnit,
+          unitPrice: displayUnitPrice
+        });
+      }
+
       return {
         assignmentId: a.id.toString(),
         materialId: material?.id.toString() || "",
         sectionId: a.sectionId.toString(),
         materialName: material?.name || "Unknown",
-        currentQuantity: a.assignedQuantity,
-        unit: a.assignedUnit,
-        unitPrice: material?.costPerBaseUnit || 0
+        currentQuantity: displayQuantity,
+        unit: displayUnit,
+        unitPrice: displayUnitPrice,
+        isPackageConverted: isPackageUnit
       };
     });
-    
+
     const availableItems = items.filter(item => item.currentQuantity > 0);
     console.log("Available items (quantity > 0):", availableItems);
     console.log("=== END SECTION DATA ===");
-    
+
     return availableItems;
   }, [selectedSectionId, sectionAssignments, materials, sections]);
 

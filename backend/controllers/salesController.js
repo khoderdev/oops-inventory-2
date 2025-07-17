@@ -1,5 +1,5 @@
 import sequelize from "../config/database.js";
-import { Material, MenuItem, MenuItemIngredient, Sale } from "../models/index.js";
+import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, StockEntry } from "../models/index.js";
 
 const salesController = {
   // // Get all sales with associated menu items
@@ -127,6 +127,99 @@ const salesController = {
         return res.status(400).json({ error: "Invalid sale date" });
       }
 
+      // Process individual items and update section assignments AND stock entries
+      if (items && items.length > 0) {
+        for (const item of items) {
+          const assignment = await Assignment.findByPk(item.assignmentId, {
+            include: [
+              { model: Material, as: "material" },
+              { model: StockEntry, as: "stockEntry" }
+            ],
+            transaction
+          });
+
+          if (!assignment) {
+            await transaction.rollback();
+            return res.status(400).json({ error: `Assignment ${item.assignmentId} not found` });
+          }
+
+          const material = assignment.material;
+          const stockEntry = assignment.stockEntry;
+
+          if (!stockEntry) {
+            await transaction.rollback();
+            return res.status(400).json({ error: `Stock entry not found for assignment ${item.assignmentId}` });
+          }
+
+          // Handle package unit conversion for inventory deduction
+          let assignmentDeductionQuantity = item.quantity;
+          let stockEntryDeductionQuantity = item.quantity;
+
+          if (material && material.unitType === "package" && item.unit === material.baseUnit && (assignment.assignedUnit === "box" || assignment.assignedUnit === "pack" || assignment.assignedUnit === "case")) {
+            // Convert base units back to package units for assignment deduction
+            // e.g., selling 12 bottles should deduct 1 box from assignment
+            assignmentDeductionQuantity = item.quantity / material.packageQuantity;
+
+            // For stock entry, we need to convert based on the stock entry's purchased unit
+            if (stockEntry.purchasedUnit === assignment.assignedUnit) {
+              // Stock entry is in same unit as assignment (e.g., both in boxes)
+              stockEntryDeductionQuantity = assignmentDeductionQuantity;
+            } else if (stockEntry.purchasedUnit === material.baseUnit) {
+              // Stock entry is in base units (e.g., bottles)
+              stockEntryDeductionQuantity = item.quantity;
+            } else {
+              // Handle other unit conversions if needed
+              stockEntryDeductionQuantity = item.quantity;
+            }
+
+            console.log(`Package unit sale conversion for ${material.name}:`, {
+              soldQuantity: item.quantity,
+              soldUnit: item.unit,
+              packageQuantity: material.packageQuantity,
+              assignmentDeductionQuantity: assignmentDeductionQuantity,
+              stockEntryDeductionQuantity: stockEntryDeductionQuantity,
+              assignmentUnit: assignment.assignedUnit,
+              stockEntryUnit: stockEntry.purchasedUnit
+            });
+          }
+
+          // Check if sufficient quantity is available in assignment
+          if (assignment.assignedQuantity < assignmentDeductionQuantity) {
+            await transaction.rollback();
+            return res.status(400).json({
+              error: `Insufficient quantity in assignment for ${material?.name || "item"}. Available: ${assignment.assignedQuantity}, Requested: ${assignmentDeductionQuantity}`
+            });
+          }
+
+          // Check if sufficient quantity is available in stock entry
+          if (stockEntry.purchasedQuantity < stockEntryDeductionQuantity) {
+            await transaction.rollback();
+            return res.status(400).json({
+              error: `Insufficient quantity in stock entry for ${material?.name || "item"}. Available: ${stockEntry.purchasedQuantity}, Requested: ${stockEntryDeductionQuantity}`
+            });
+          }
+
+          // Update assignment quantity
+          await assignment.update(
+            {
+              assignedQuantity: assignment.assignedQuantity - assignmentDeductionQuantity
+            },
+            { transaction }
+          );
+
+          // Update stock entry quantity
+          await stockEntry.update(
+            {
+              purchasedQuantity: stockEntry.purchasedQuantity - stockEntryDeductionQuantity
+            },
+            { transaction }
+          );
+
+          console.log(`Updated assignment ${assignment.id}: ${assignment.assignedQuantity + assignmentDeductionQuantity} -> ${assignment.assignedQuantity}`);
+          console.log(`Updated stock entry ${stockEntry.id}: ${stockEntry.purchasedQuantity + stockEntryDeductionQuantity} -> ${stockEntry.purchasedQuantity}`);
+        }
+      }
+
       // Create the sale record
       const sale = await Sale.create(
         {
@@ -149,104 +242,6 @@ const salesController = {
       next(error);
     }
   },
-  // createSales: async (req, res, next) => {
-  //   const transaction = await sequelize.transaction();
-  //   try {
-  //     const { menuItemId, saleDate, totalAmount, items, sectionId, id, createdAt, updatedAt } = req.body;
-
-  //     if (!saleDate || totalAmount === undefined) {
-  //       await transaction.rollback();
-  //       return res.status(400).json({ error: "Sale date and total amount are required" });
-  //     }
-
-  //     if (totalAmount < 0) {
-  //       await transaction.rollback();
-  //       return res.status(400).json({ error: "Total amount cannot be negative" });
-  //     }
-
-  //     if (isNaN(Date.parse(saleDate))) {
-  //       await transaction.rollback();
-  //       return res.status(400).json({ error: "Invalid sale date" });
-  //     }
-
-  //     if (menuItemId) {
-  //       const menuItem = await MenuItem.findByPk(menuItemId, { transaction });
-  //       if (!menuItem) {
-  //         await transaction.rollback();
-  //         return res.status(404).json({ error: "Menu item not found" });
-  //       }
-
-  //       const sale = await Sale.create(
-  //         {
-  //           menuItemId,
-  //           saleDate: new Date(saleDate),
-  //           totalAmount,
-  //           sectionId,
-  //           createdAt,
-  //           updatedAt
-  //         },
-  //         { transaction }
-  //       );
-
-  //       const createdSale = await Sale.findByPk(sale.id, {
-  //         include: [
-  //           {
-  //             model: MenuItem,
-  //             as: "menuItem",
-  //             include: [
-  //               {
-  //                 model: MenuItemIngredient,
-  //                 as: "menuItemIngredients",
-  //                 include: [{ model: Material, as: "material" }]
-  //               }
-  //             ]
-  //           }
-  //         ],
-  //         transaction
-  //       });
-
-  //       const formattedSale = {
-  //         ...createdSale.get(),
-  //         menuItem: {
-  //           ...createdSale.menuItem.get(),
-  //           ingredients: createdSale.menuItem.menuItemIngredients.map(ingredient => ({
-  //             materialId: ingredient.materialId,
-  //             quantity: ingredient.quantity,
-  //             unit: ingredient.unit,
-  //             cost: ingredient.cost
-  //           }))
-  //         }
-  //       };
-
-  //       await transaction.commit();
-  //       return res.status(201).json(formattedSale);
-  //     }
-
-  //     // === CASE 2: DIRECT MATERIAL SALE ===
-  //     if (Array.isArray(items) && items.length > 0) {
-  //       const sale = await Sale.create(
-  //         {
-  //           saleDate: new Date(saleDate),
-  //           totalAmount,
-  //           sectionId,
-  //           createdAt,
-  //           updatedAt,
-  //           items // store as JSON or separate model if normalized
-  //         },
-  //         { transaction }
-  //       );
-
-  //       await transaction.commit();
-  //       return res.status(201).json(sale); // plain sale record
-  //     }
-
-  //     await transaction.rollback();
-  //     return;
-  //   } catch (error) {
-  //     await transaction.rollback();
-  //     next(error);
-  //   }
-  // },
 
   // Update sale
   updateSales: async (req, res, next) => {
