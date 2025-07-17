@@ -31,7 +31,7 @@ interface InventoryManagementPanelProps {
 }
 
 export function InventoryManagementPanel({ materials, stockEntries, sections = [], sectionAssignments = [], menuItems = [], onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry }: InventoryManagementPanelProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("material");
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [showStockForm, setShowStockForm] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
@@ -125,16 +125,6 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
           <h2 className="text-3xl font-bold tracking-tight">Inventory Management</h2>
           <p className="text-muted-foreground">Manage materials, stock entries, and track inventory with dynamic unit conversions</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowMaterialForm(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Material
-          </Button>
-          <Button variant="outline" onClick={() => setShowStockForm(true)}>
-            <Package className="h-4 w-4 mr-2" />
-            Add Stock
-          </Button>
-        </div>
       </div>
 
       {/* Summary Cards */}
@@ -186,30 +176,48 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search materials..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-64" />
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            {/* Filter Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1">
+              {/* Search Input */}
+              <div className="flex items-center space-x-2 min-w-0 flex-1 sm:flex-initial">
+                <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Input placeholder="Search materials..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full sm:w-64 min-w-0" />
+              </div>
+
+              {/* Category Filter */}
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {MATERIAL_CATEGORIES.map(category => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Low Stock Filter */}
+              <Button variant={lowStockFilter ? "default" : "outline"} onClick={() => setLowStockFilter(!lowStockFilter)} className="w-full sm:w-auto whitespace-nowrap">
+                <Filter className="h-4 w-4 mr-2" />
+                Low Stock Only
+              </Button>
             </div>
 
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {MATERIAL_CATEGORIES.map(category => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button variant={lowStockFilter ? "default" : "outline"} onClick={() => setLowStockFilter(!lowStockFilter)}>
-              <Filter className="h-4 w-4 mr-2" />
-              Low Stock Only
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
+              <Button onClick={() => setShowMaterialForm(true)} className="w-full sm:w-auto whitespace-nowrap">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Material
+              </Button>
+              <Button variant="outline" onClick={() => setShowStockForm(true)} className="w-full sm:w-auto whitespace-nowrap">
+                <Package className="h-4 w-4 mr-2" />
+                Add Stock
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -217,23 +225,23 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="materials">Materials</TabsTrigger>
+          <TabsTrigger value="material">Material</TabsTrigger>
           <TabsTrigger value="stock">Stock Entries</TabsTrigger>
           <TabsTrigger value="sections">Sections</TabsTrigger>
+          <TabsTrigger value="menu">Menu Builder</TabsTrigger>
           <TabsTrigger value="conversions">Unit Conversions</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
+        <TabsContent value="material" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Material Inventory Overview</CardTitle>
+              <CardTitle>Material Entries</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Material</TableHead>
+                    <TableHead>Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Available Quantity</TableHead>
                     <TableHead>Average Cost/Unit</TableHead>
@@ -264,69 +272,6 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => handleAddStock(material.id)}>
                             <Plus className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Material</AlertDialogTitle>
-                                <AlertDialogDescription>Are you sure you want to delete "{material.name}"? This action cannot be undone.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteMaterial(material.id)}>Delete</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="materials" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Materials Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Base Unit</TableHead>
-                    <TableHead>Unit Type</TableHead>
-                    <TableHead>Cost/Base Unit</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMaterials.map(material => (
-                    <TableRow key={material.id}>
-                      <TableCell className="font-medium">{material.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{MATERIAL_CATEGORIES.find(c => c.value === material.category)?.label}</Badge>
-                      </TableCell>
-                      <TableCell>{material.baseUnit}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{material.unitType}</Badge>
-                      </TableCell>
-                      <TableCell>{formatCurrency(material.averageCostPerBaseUnit || material.costPerBaseUnit || 0)}</TableCell>
-                      <TableCell className="max-w-xs truncate">{material.description || "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditMaterial(material)}>
-                            <Edit className="h-4 w-4" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -427,6 +372,10 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
         <TabsContent value="sections" className="space-y-4">
           <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materials} stockEntries={stockEntries} menuItems={menuItems} />
         </TabsContent>
+        {/* 
+        <TabsContent value="menu" className="space-y-4">
+          <MenuBuilder materials={materialsWithStock} stockEntries={stockEntries} sections={sections} />
+        </TabsContent> */}
 
         <TabsContent value="conversions" className="space-y-4">
           <UnitConversionCalculator materials={materialsWithStock} />

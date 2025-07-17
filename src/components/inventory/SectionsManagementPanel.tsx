@@ -34,9 +34,9 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
 
       // Enrich assignments with related data
       const enrichedAssignments = assignments.map(assignment => {
-        const material = materials.find(m => m.id === assignment.materialId) || {} as Material;
-        const stockEntry = stockEntries.find(s => s.id === assignment.stockEntryId) || {} as StockEntry;
-        const menuItem = menuItems.find(m => m.id === assignment.menuItemId) || {} as MenuItem;
+        const material = materials.find(m => m.id === assignment.materialId) || ({} as Material);
+        const stockEntry = stockEntries.find(s => s.id === assignment.stockEntryId) || ({} as StockEntry);
+        const menuItem = menuItems.find(m => m.id === assignment.menuItemId) || ({} as MenuItem);
 
         // Determine itemType if it's not set
         let itemType = assignment.itemType;
@@ -60,7 +60,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
       // Calculate total value for this section
       const totalValue = enrichedAssignments.reduce((sum, assignment) => {
         if (assignment.itemType === "stockEntry" && assignment.stockEntry && assignment.assignedQuantity) {
-          return sum + (assignment.stockEntry.costPerPurchasedUnit * assignment.assignedQuantity);
+          return sum + assignment.stockEntry.costPerPurchasedUnit * assignment.assignedQuantity;
         } else if (assignment.itemType === "menuItem" && assignment.menuItem) {
           // Menu items are typically assigned as single items, so use price directly
           return sum + assignment.menuItem.price;
@@ -182,7 +182,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 space-y-6">
       <SectionsTable
         sectionsWithAssignments={sectionsWithAssignments}
         selectedSectionId={selectedSectionId}

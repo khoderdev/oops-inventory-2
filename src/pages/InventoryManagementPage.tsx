@@ -14,7 +14,6 @@ import { useMemo } from "react";
 export const InventoryManagementPage = () => {
   // Fetch data from backend
   const { materials, stockEntries, menuItems, sections, sectionAssignments, loading, error, refetch } = useInventoryData();
-
   // CRUD operations
   const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
 
@@ -132,7 +131,7 @@ export const InventoryManagementPage = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <>
       {/* Show CRUD loading/error states */}
       {crudLoading && (
         <Alert>
@@ -147,15 +146,15 @@ export const InventoryManagementPage = () => {
         </Alert>
       )}
 
-      <Tabs defaultValue="dashboard" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <Tabs defaultValue="inventory" className="">
+        <TabsList className="grid w-full grid-cols-4 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <TabsTrigger value="dashboard" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <BarChart3 className="h-4 w-4" />
             Dashboard
           </TabsTrigger>
           <TabsTrigger value="inventory" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Package className="h-4 w-4" />
-            Inventory Management
+            Inventory
           </TabsTrigger>
           <TabsTrigger value="calculator" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Calculator className="h-4 w-4" />
@@ -167,22 +166,22 @@ export const InventoryManagementPage = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dashboard">
+        <TabsContent value="dashboard" className="p-4">
           <InventoryReportsPanel materials={materials} stockEntries={stockEntries} menuItems={menuItems} sectionAssignments={sectionAssignments} />
         </TabsContent>
 
-        <TabsContent value="inventory">
+        <TabsContent value="inventory" className="p-4">
           <InventoryManagementPanel materials={materials} stockEntries={stockEntries} sections={sections} sectionAssignments={sectionAssignments} menuItems={menuItems} onCreateMaterial={handleCreateMaterial} onUpdateMaterial={handleUpdateMaterial} onDeleteMaterial={handleDeleteMaterial} onCreateStockEntry={handleCreateStockEntry} onUpdateStockEntry={handleUpdateStockEntry} onDeleteStockEntry={handleDeleteStockEntry} />
         </TabsContent>
 
-        <TabsContent value="calculator">
+        <TabsContent value="calculator" className="p-4">
           <CostCalculationPanel materials={materials} stockEntries={stockEntries} materialsWithStock={materialsWithStock} />
         </TabsContent>
 
-        <TabsContent value="reports">
+        <TabsContent value="reports" className="p-4">
           <InventoryReportsPanel materials={materials} stockEntries={stockEntries} menuItems={menuItems} sectionAssignments={sectionAssignments} />
         </TabsContent>
       </Tabs>
-    </div>
+    </>
   );
 };

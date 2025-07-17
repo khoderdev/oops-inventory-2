@@ -18,8 +18,7 @@ interface InventoryReportsPanelProps {
 }
 
 export const InventoryReportsPanel: React.FC<InventoryReportsPanelProps> = ({ materials, stockEntries, menuItems = [], sectionAssignments = [] }) => {
-  const [selectedTimeRange, setSelectedTimeRange] = useState<"7d" | "30d" | "90d" | "1y">("30d");
-  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [selectedTimeRange] = useState<"7d" | "30d" | "90d" | "1y">("30d");
 
   // Generate comprehensive inventory report
   const inventoryReport = useMemo(() => {
