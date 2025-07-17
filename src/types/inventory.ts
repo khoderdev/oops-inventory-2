@@ -1,6 +1,3 @@
-import { AssignmentSchema } from "@/components/sections/AssigmentSchema";
-import { z } from "zod";
-
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "packaging" | "other";
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
@@ -13,9 +10,10 @@ export interface Material {
   category: MaterialCategory;
   baseUnit: string;
   unitType: UnitType;
+  inputUnit?: string; // Original input unit from MaterialForm (e.g., "box", "pack")
   costPerUnit: number;
   costPerBaseUnit?: number;
-  packageQuantity?: number;
+  packageQuantity?: number; // For package units: how many base units per package
   description?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -26,6 +24,7 @@ export interface CreateMaterialData {
   category: MaterialCategory;
   baseUnit: string;
   unitType: UnitType;
+  inputUnit?: string;
   costPerBaseUnit?: number;
   packageQuantity?: number;
   description?: string;
@@ -36,6 +35,7 @@ export interface UpdateMaterialData {
   category?: MaterialCategory;
   baseUnit?: string;
   unitType?: UnitType;
+  inputUnit?: string;
   costPerBaseUnit?: number;
   packageQuantity?: number;
   description?: string;
@@ -259,17 +259,17 @@ export interface UpdateMenuItemData {
 
 //---------------------------------------------------------------------------------
 
-export type AssignmentFormData = z.infer<typeof AssignmentSchema>;
+// export type AssignmentFormData = z.infer<typeof AssignmentSchema>;
 
-export interface AssignmentFormProps {
-  sections: Section[];
-  stockEntries: StockEntry[];
-  menuItems: MenuItem[];
-  materials: Material[];
-  assignment?: SectionAssignment;
-  onSubmit: (data: AssignmentFormData) => void;
-  onCancel: () => void;
-}
+// export interface AssignmentFormProps {
+//   sections: Section[];
+//   stockEntries: StockEntry[];
+//   menuItems: MenuItem[];
+//   materials: Material[];
+//   assignment?: SectionAssignment;
+//   onSubmit: (data: AssignmentFormData) => void;
+//   onCancel: () => void;
+// }
 
 //-----------------------------------------------------------------------------
 

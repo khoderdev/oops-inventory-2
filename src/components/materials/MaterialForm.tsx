@@ -39,9 +39,9 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       name: material?.name || "",
       category: material?.category || "",
       unitType: material?.unitType || "",
-      inputUnit: material?.baseUnit || "",
+      inputUnit: material?.inputUnit || material?.baseUnit || "",
       inputCost: material?.costPerBaseUnit || 0,
-      packageQuantity: 1,
+      packageQuantity: material?.packageQuantity || 1,
       baseUnit: material?.baseUnit || "",
       costPerBaseUnit: material?.costPerBaseUnit || 0,
       description: material?.description || ""
@@ -159,6 +159,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       name: data.name,
       category: data.category,
       unitType: data.unitType,
+      inputUnit: data.inputUnit, // Store original input unit for better UX
       baseUnit: data.baseUnit,
       costPerBaseUnit: data.costPerBaseUnit,
       packageQuantity: data.unitType === 'package' ? data.packageQuantity : undefined,
@@ -327,7 +328,12 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                   <FormItem>
                     <FormLabel>Cost per Base Unit (Auto-calculated)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.0001" {...field} disabled className="bg-gray-50" />
+                      <Input 
+                        type="text" 
+                        value={typeof field.value === 'number' ? field.value.toFixed(4) : field.value}
+                        disabled 
+                        className="bg-gray-50" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

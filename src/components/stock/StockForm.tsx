@@ -59,7 +59,31 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   const watchedQuantity = form.watch("purchasedQuantity");
   const watchedCostPerUnit = form.watch("costPerPurchasedUnit");
   const selectedMaterial = materials.find(m => m.id === watchedMaterialId);
-  const availableUnits = selectedMaterial ? getSuggestedUnits(selectedMaterial.unitType) : [];
+
+  // For package materials, prioritize inputUnit (e.g., "box") over baseUnit (e.g., "bottle")
+  const availableUnits = selectedMaterial
+    ? (() => {
+        const suggestedUnits = getSuggestedUnits(selectedMaterial.unitType);
+
+        if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit) {
+          // Move inputUnit to the front of the list
+          const filteredUnits = suggestedUnits.filter(unit => unit !== selectedMaterial.inputUnit);
+          return [selectedMaterial.inputUnit, ...filteredUnits];
+        }
+
+        return suggestedUnits;
+      })()
+    : [];
+
+  // Auto-select inputUnit for package materials
+  React.useEffect(() => {
+    if (selectedMaterial && selectedMaterial.unitType === "package" && selectedMaterial.inputUnit) {
+      // Auto-select the inputUnit (e.g., "box") for package materials
+      if (!form.getValues("purchasedUnit")) {
+        form.setValue("purchasedUnit", selectedMaterial.inputUnit);
+      }
+    }
+  }, [selectedMaterial, form]);
 
   // Auto-calculate total cost
   React.useEffect(() => {
@@ -92,11 +116,15 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {materials.map(material => (
-                          <SelectItem key={material.id} value={material.id}>
-                            {material.name} ({material.baseUnit})
-                          </SelectItem>
-                        ))}
+                        {materials.map(material => {
+                          // For package materials, show inputUnit (e.g., "box") instead of baseUnit (e.g., "bottle")
+                          const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
+                          return (
+                            <SelectItem key={material.id} value={material.id}>
+                              {material.name} ({displayUnit})
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormMessage />

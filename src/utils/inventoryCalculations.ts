@@ -14,19 +14,12 @@ export function calculateStockConversion(stockEntry: StockEntry, material: Mater
     } else if (isVolumeUnit(stockEntry.purchasedUnit) && isVolumeUnit(material.baseUnit)) {
       convertedQuantity = convertVolume(stockEntry.purchasedQuantity, stockEntry.purchasedUnit, material.baseUnit);
       conversionFactor = convertedQuantity / stockEntry.purchasedQuantity;
-    } else if (material.unitType === 'package') {
-      // Handle package unit conversions using ONLY dynamic packageQuantity from material data
-      // This ensures all package conversions are user-defined and consistent
-      
+    } else if (material.unitType === "package") {
       if (material.packageQuantity && material.packageQuantity > 0) {
-        // Use the dynamic packageQuantity from the material
-        // Example: If user entered packageQuantity=6, then 1 pack = 6 pieces
         convertedQuantity = stockEntry.purchasedQuantity * material.packageQuantity;
         conversionFactor = material.packageQuantity;
       } else {
-        // If no packageQuantity is set, log a warning and assume 1:1 conversion
         console.warn(`Material "${material.name}" (ID: ${material.id}) is a package unit but has no packageQuantity set. Using 1:1 conversion.`);
-        // Assume 1:1 conversion as fallback
         convertedQuantity = stockEntry.purchasedQuantity;
         conversionFactor = 1;
       }
@@ -108,28 +101,6 @@ export function calculateCostForQuantity(material: Material, quantity: number, u
 
   return { cost, steps, warning };
 }
-// export function calculateCostForQuantity(material: Material, quantity: number, unit: string, averageCostPerBaseUnit: number): { cost: number; steps: string[] } {
-//   const steps: string[] = [];
-//   let convertedQuantity = quantity;
-
-//   // Convert to base unit if needed
-//   if (unit !== material.baseUnit) {
-//     if (isMassUnit(unit) && isMassUnit(material.baseUnit)) {
-//       convertedQuantity = convertMass(quantity, unit, material.baseUnit);
-//       steps.push(`Convert ${quantity} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
-//     } else if (isVolumeUnit(unit) && isVolumeUnit(material.baseUnit)) {
-//       convertedQuantity = convertVolume(quantity, unit, material.baseUnit);
-//       steps.push(`Convert ${quantity} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
-//     } else {
-//       steps.push(`Using ${quantity} ${unit} directly (no conversion available)`);
-//     }
-//   }
-
-//   const cost = convertedQuantity * averageCostPerBaseUnit;
-//   steps.push(`Cost calculation: ${formatNumber(convertedQuantity)} × ${formatCurrency(averageCostPerBaseUnit)} = ${formatCurrency(cost)}`);
-
-//   return { cost, steps };
-// }
 
 // Validate unit compatibility
 export function isUnitCompatible(unit: string, materialUnitType: string): boolean {

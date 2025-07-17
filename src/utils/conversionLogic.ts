@@ -156,16 +156,6 @@ export function calculateIngredientCost(material: Material, quantity: number, un
   return normalizedQuantity * material.costPerUnit;
 }
 
-// export function isMassUnit(unit: string): boolean {
-//   const normalized = unit.toLowerCase();
-//   return ["kg", "kgs", "g", "gram", "grams", "lb", "lbs", "pound", "pounds", "oz", "ounce", "ounces"].includes(normalized);
-// }
-
-// export function isVolumeUnit(unit: string): boolean {
-//   const normalized = unit.toLowerCase();
-//   return ["l", "liter", "liters", "ml", "milliliter", "milliliters", "gal", "gallon", "gallons", "fl oz", "fluid ounce", "fluid ounces"].includes(normalized);
-// }
-
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -214,18 +204,6 @@ export function isVolumeUnit(unit: string): boolean {
   // Your implementation for volume units
   return ["l", "ml", "gal", "qt", "pt"].includes(unit.toLowerCase());
 }
-
-// export function formatNumber(num: number, unit?: string): string {
-//   if (typeof num !== "number" || isNaN(num)) {
-//     console.warn("formatNumber received invalid num:", num);
-//     return "";
-//   }
-//   if (unit && ["piece", "unit", "each", "dozen", "package", "box", "case"].includes(unit.toLowerCase())) {
-//     return Number.isInteger(num) ? num.toString() : num.toFixed(2);
-//   }
-//   const decimals = (unit && isMassUnit(unit)) || (unit && isVolumeUnit(unit)) ? 3 : 2;
-//   return num.toFixed(decimals).replace(/\.?0+$/, "");
-// }
 
 export function calculatePackagedGoodCost(packagedGood: PackagedGood, requestedQuantity: number, requestedUnit: string): CalculationBreakdown {
   const steps: string[] = [];
