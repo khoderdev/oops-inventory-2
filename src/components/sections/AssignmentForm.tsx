@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Material, Section, SectionAssignment, StockEntry } from "@/types/inventory";
+import { CreateSectionAssignmentData, Material, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatNumber } from "@/utils/conversionLogic";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +26,7 @@ interface AssignmentFormProps {
   stockEntries: StockEntry[];
   materials: Material[];
   assignment?: SectionAssignment;
-  onSubmit: (data: AssignmentFormData) => void;
+  onSubmit: (data: CreateSectionAssignmentData) => void;
   onCancel: () => void;
 }
 
@@ -48,7 +48,17 @@ export function AssignmentForm({ sections, stockEntries, materials, assignment, 
   const availableUnits = material ? getSuggestedUnits(material.unitType) : [];
 
   const handleSubmit = (data: AssignmentFormData) => {
-    onSubmit(data);
+    // Add required fields that backend expects
+    const submissionData: CreateSectionAssignmentData = {
+      sectionId: data.sectionId,
+      itemType: "stockEntry",
+      materialId: selectedStockEntry?.materialId || "",
+      stockEntryId: data.stockEntryId,
+      assignedQuantity: data.assignedQuantity,
+      assignedUnit: data.assignedUnit,
+      notes: data.notes
+    };
+    onSubmit(submissionData);
   };
 
   return (
