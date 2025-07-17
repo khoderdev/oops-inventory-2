@@ -2,6 +2,8 @@ export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spi
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
 
+//-----------------------------------------------------------------------------
+
 export interface Material {
   id: string;
   name: string;
@@ -31,6 +33,8 @@ export interface UpdateMaterialData {
   costPerBaseUnit?: number;
   description?: string;
 }
+
+//-----------------------------------------------------------------------------
 
 export interface StockEntry {
   id: string;
@@ -90,6 +94,8 @@ export interface ConversionData {
   conversionFactor: number;
 }
 
+//-----------------------------------------------------------------------------
+
 export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label: string }> = [
   { value: "meat", label: "Meat & Poultry" },
   { value: "dairy", label: "Dairy Products" },
@@ -107,6 +113,8 @@ export const UNIT_OPTIONS: Readonly<Record<UnitType, ReadonlyArray<string>>> = {
   piece: ["piece", "unit", "dozen"],
   package: ["box", "pack", "case", "bottle"]
 };
+
+//-----------------------------------------------------------------------------
 
 export interface Section {
   id: string;
@@ -157,6 +165,8 @@ export interface MaterialWithSectionAssignments extends MaterialWithStock {
   }>;
 }
 
+//-----------------------------------------------------------------------------
+
 export interface SoldItem {
   assignmentId: string;
   materialId: string;
@@ -170,12 +180,11 @@ export interface SoldItem {
 
 export interface SaleRecord {
   id: string;
-  date: Date;
+  saleDate: Date;
   items: SoldItem[];
+  menuItems: MenuItemSale[];
   totalAmount: number;
   sectionId: string;
-  customerName?: string;
-  notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -193,6 +202,8 @@ export interface MenuItemSale {
   createdAt: Date;
   updatedAt: Date;
 }
+
+//-----------------------------------------------------------------------------
 
 export type MenuItemCategory = "appetizers" | "mains" | "sides" | "desserts" | "beverages" | "other";
 

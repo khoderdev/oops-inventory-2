@@ -15,7 +15,11 @@ const sequelize = new Sequelize({
   username: "postgres",
   password: "postgres",
   port: 5432,
-  logging: customLogger,
+  // logging: customLogger,
+  logging: (sql, timing) => {
+    console.log(chalk.gray(`[${new Date().toLocaleTimeString()}]`), chalk.cyan(`[SQL]`), chalk.white(sql), chalk.green(timing ? `(${timing}ms)` : ""));
+    console.log(chalk.red("Full Error Details:"), sql); // Log full query details
+  },
   benchmark: true
 });
 

@@ -6,12 +6,12 @@ const StockEntry = sequelize.define(
   "StockEntry",
   {
     id: {
-      type: DataTypes.STRING,
+      type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true
     },
     materialId: {
-      type: DataTypes.STRING,
+      type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: Material,
@@ -23,7 +23,7 @@ const StockEntry = sequelize.define(
       allowNull: true
     },
     purchasedQuantity: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: true
     },
     purchasedUnit: {
@@ -31,11 +31,11 @@ const StockEntry = sequelize.define(
       allowNull: true
     },
     costPerPurchasedUnit: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: true
     },
     totalCost: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: true
     },
     purchaseDate: {

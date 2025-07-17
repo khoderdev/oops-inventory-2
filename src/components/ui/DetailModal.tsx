@@ -95,12 +95,12 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           </div>
           <div>
             <h4 className="font-medium">Purchase Date</h4>
-            <p>{stock.purchaseDate.toLocaleDateString()}</p>
+            <p>{new Date(stock.purchaseDate).toLocaleDateString()}</p>
           </div>
           <div>
             <h4 className="font-medium">Quantity</h4>
             <p>
-              {formatNumber(stock.purchasedQuantity)} {stock.purchasedUnit}
+              {formatNumber(parseFloat(stock.purchasedQuantity))} {stock.purchasedUnit}
             </p>
           </div>
           <div>
@@ -116,7 +116,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           {stock.expiryDate && (
             <div>
               <h4 className="font-medium">Expiry Date</h4>
-              <p>{stock.expiryDate.toLocaleDateString()}</p>
+              <p>{new Date(stock.expiryDate).toLocaleDateString()}</p>
             </div>
           )}
           {stock.batchNumber && (

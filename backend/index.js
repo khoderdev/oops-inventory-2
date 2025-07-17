@@ -5,6 +5,7 @@ import "./models/index.js";
 import assignmentsRoutes from "./routes/assignments.js";
 import materialRoutes from "./routes/materials.js";
 import menuItemsRoutes from "./routes/menuItems.js";
+import salesRoutes from "./routes/sales.js";
 import sectionRoutes from "./routes/sections.js";
 import stockEntriesRoutes from "./routes/stockEntries.js";
 import { errorHandler } from "./utils/logger.js";
@@ -20,8 +21,9 @@ app.use(express.json());
 app.use("/api/materials", materialRoutes);
 app.use("/api/sections", sectionRoutes);
 app.use("/api/assignments", assignmentsRoutes);
-app.use("/api/stockEntries", stockEntriesRoutes);
-app.use("/api/menuItems", menuItemsRoutes);
+app.use("/api/stock-entries", stockEntriesRoutes);
+app.use("/api/menu-items", menuItemsRoutes);
+app.use("/api/sales", salesRoutes);
 
 // Error handling middleware
 // IMPORTANT: app.use(errorHandler) should be the *last* middleware

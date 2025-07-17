@@ -39,6 +39,10 @@ const Assignment = sequelize.define(
     assignedQuantity: {
       type: DataTypes.FLOAT,
       allowNull: false
+    },
+    assignedUnit: {
+      type: DataTypes.STRING,
+      allowNull: false
     }
   },
   {

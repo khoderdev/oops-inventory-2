@@ -1,16 +1,17 @@
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Section, SectionAssignment } from "@/types/inventory";
+import { Section, SectionAssignment, SectionWithAssignments } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Edit, Plus, Trash2 } from "lucide-react";
 
 interface SectionsTableProps {
-  sectionsWithAssignments: any[];
+  sectionsWithAssignments: SectionWithAssignments[];
   selectedSectionId: string;
   sections: Section[];
-  setSelectedItem: (item: { type: string; data: any }) => void;
+  setSelectedItem: (item: { type: string; data: SectionWithAssignments }) => void;
   setIsDetailModalOpen: (open: boolean) => void;
   setEditingSection: (section: Section | undefined) => void;
   setShowSectionForm: (show: boolean) => void;
@@ -133,59 +134,68 @@ export function SectionsTable({ sectionsWithAssignments, selectedSectionId, sect
               <TableBody>
                 {sectionsWithAssignments
                   .find(s => s.id === selectedSectionId)
-                  ?.assignments.map(assignment => (
-                    <TableRow
-                      key={assignment.id}
-                      onClick={() => {
-                        setSelectedItem({
-                          type: "assignment",
-                          data: assignment
-                        });
-                        setIsDetailModalOpen(true);
-                      }}
-                      className="cursor-pointer hover:bg-muted/50"
-                    >
-                      <TableCell>
-                        <div className="font-medium">{assignment.material?.name}</div>
-                        <div className="text-sm text-muted-foreground">{assignment.notes}</div>
-                      </TableCell>
-                      <TableCell>{formatNumber(assignment.assignedQuantity)}</TableCell>
-                      <TableCell>{assignment.assignedUnit}</TableCell>
-                      <TableCell>{formatCurrency(assignment.assignedQuantity * (assignment.stockEntry?.costPerPurchasedUnit || 0) * getConversionFactor(assignment.assignedUnit, assignment.stockEntry?.purchasedUnit || assignment.assignedUnit, assignment.material?.unitType || "piece"))}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={e => {
-                              e.stopPropagation();
-                              setEditingAssignment(assignment);
-                              setShowAssignmentForm(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="outline">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Remove Assignment</AlertDialogTitle>
-                                <AlertDialogDescription>This will remove this item from the section but won't delete the stock entry.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteAssignment(assignment.id)}>Remove</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  ?.assignments.map(assignment => {
+                    const costPerUnit = assignment.stockEntry?.costPerPurchasedUnit || 0;
+                    const fromUnit = assignment.assignedUnit || "unit"; // Fallback to "unit"
+                    const toUnit = assignment.stockEntry?.purchasedUnit || fromUnit; // Fallback to assignedUnit
+                    const unitType = assignment.material?.unitType || "piece"; // Fallback to "piece"
+                    const conversionFactor = getConversionFactor(fromUnit, toUnit, unitType);
+                    const value = assignment.assignedQuantity * costPerUnit * conversionFactor;
+
+                    return (
+                      <TableRow
+                        key={assignment.id}
+                        onClick={() => {
+                          setSelectedItem({
+                            type: "assignment",
+                            data: assignment
+                          });
+                          setIsDetailModalOpen(true);
+                        }}
+                        className="cursor-pointer hover:bg-muted/50"
+                      >
+                        <TableCell>
+                          <div className="font-medium">{assignment.material?.name || "Unknown"}</div>
+                          <div className="text-sm text-muted-foreground">{assignment.notes}</div>
+                        </TableCell>
+                        <TableCell>{formatNumber(assignment.assignedQuantity)}</TableCell>
+                        <TableCell>{assignment.assignedUnit || "N/A"}</TableCell>
+                        <TableCell>{formatCurrency(value)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setEditingAssignment(assignment);
+                                setShowAssignmentForm(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remove Assignment</AlertDialogTitle>
+                                  <AlertDialogDescription>This will remove this item from the section but won't delete the stock entry.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteAssignment(assignment.id)}>Remove</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
               </TableBody>
             </Table>
           </CardContent>

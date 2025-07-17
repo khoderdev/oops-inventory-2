@@ -2,7 +2,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Material } from "@/types/inventory";
+import { Material, MaterialWithStock } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
 import { Edit, Plus, Trash2 } from "lucide-react";
@@ -10,8 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 interface MaterialsTableProps {
   filteredMaterials: Material[];
-  materialsWithSectionAssignments: Material[];
-  setSelectedItem: (item: { type: string; data: any }) => void;
+  materialsWithSectionAssignments: MaterialWithStock[];
+  setSelectedItem: (item: { type: string; data: Material }) => void;
   setIsDetailModalOpen: (open: boolean) => void;
   setSelectedMaterialId: (id: string) => void;
   setShowStockForm: (show: boolean) => void;
@@ -21,7 +21,7 @@ interface MaterialsTableProps {
   handleMaterialSelect: (id: string | number) => void;
 }
 
-export function MaterialsTable({ filteredMaterials, materialsWithSectionAssignments, setSelectedItem, setIsDetailModalOpen, setSelectedMaterialId, setShowStockForm, setEditingMaterial, setShowMaterialForm, handleDeleteMaterial, handleMaterialSelect }: MaterialsTableProps) {
+export function MaterialsTable({ filteredMaterials, materialsWithSectionAssignments, setSelectedItem, setIsDetailModalOpen, setShowStockForm, setEditingMaterial, setShowMaterialForm, handleDeleteMaterial, handleMaterialSelect }: MaterialsTableProps) {
   return (
     <Card>
       <CardHeader>
@@ -68,15 +68,8 @@ export function MaterialsTable({ filteredMaterials, materialsWithSectionAssignme
                       <Badge variant="secondary">{getCategoryLabel(material.category)}</Badge>
                     </TableCell>
                     <TableCell>
-                      <div>
-                        <div>
-                          Total: {formatNumber(material.totalQuantityInBaseUnit)} {material.baseUnit}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Available: {formatNumber(materialWithAssignments?.availableQuantity || material.totalQuantityInBaseUnit)} {material.baseUnit}
-                        </div>
-                        {sectionAssignments.length > 0 && <div className="text-sm text-muted-foreground mt-1">Assigned to: {sectionAssignments.map(a => `${a.sectionName} (${formatNumber(a.assignedQuantity)} ${a.assignedUnit})`).join(", ")}</div>}
-                      </div>
+                      {formatNumber(materialWithAssignments?.availableQuantity)} {material.baseUnit}
+                      {sectionAssignments.length > 0 && <div className="text-sm text-muted-foreground mt-1">Assigned to: {sectionAssignments.map(a => `${a.sectionName} (${formatNumber(a.assignedQuantity)} ${a.assignedUnit})`).join(", ")}</div>}
                     </TableCell>
                     <TableCell>
                       {formatCurrency(material.costPerBaseUnit)}/{material.baseUnit}

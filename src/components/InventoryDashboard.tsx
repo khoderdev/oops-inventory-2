@@ -52,7 +52,7 @@ export function InventoryDashboard() {
       try {
         setIsLoading(true);
 
-        const [materialsRes, stockRes, sectionsRes, assignmentsRes, menuItemsRes] = await Promise.all([materialsAPI.getMaterials(), api.get("/stockEntries").then(res => res.data), sectionAPI.getSections(), api.get("/assignments").then(res => res.data), api.get("/menuItems").then(res => res.data)]);
+        const [materialsRes, stockRes, sectionsRes, assignmentsRes, menuItemsRes] = await Promise.all([materialsAPI.getMaterials(), api.get("/stock-entries").then(res => res.data), sectionAPI.getSections(), api.get("/assignments").then(res => res.data), api.get("/menu-items").then(res => res.data)]);
 
         const parsedMaterials = Array.isArray(materialsRes.data)
           ? materialsRes.data.map(m => ({
@@ -279,11 +279,17 @@ export function InventoryDashboard() {
 
   const handleAddAssignment = async (data: SectionAssignment) => {
     try {
+      console.log("Sending assignment data:", data);
       const newAssignment = await api.post("/assignments", data).then(res => res.data);
       setAssignments(prev => [...prev, newAssignment]);
       setShowAssignmentForm(false);
     } catch (error: any) {
-      setError(error.message || "Failed to add assignment");
+      console.error("Failed to add assignment:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      setError(error.response?.data?.error || "Failed to add assignment");
     }
   };
 

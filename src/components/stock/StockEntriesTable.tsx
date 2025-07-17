@@ -37,15 +37,15 @@ export function StockEntriesTable({ stockEntries, materials, setSelectedItem, se
               </TableRow>
             </TableHeader>
             <TableBody>
-              {stockEntries.map(entry => {
-                const material = materials.find(m => m.id === entry.materialId);
+              {stockEntries.map(stockEntry => {
+                const material = materials.find(m => m.id === stockEntry.materialId);
                 return (
                   <TableRow
-                    key={entry.id}
+                    key={stockEntry.id}
                     onClick={() => {
                       setSelectedItem({
                         type: "stock",
-                        data: entry
+                        data: stockEntry
                       });
                       setIsDetailModalOpen(true);
                     }}
@@ -54,15 +54,15 @@ export function StockEntriesTable({ stockEntries, materials, setSelectedItem, se
                     <TableCell>
                       <div className="font-medium">{material?.name}</div>
                     </TableCell>
-                    <TableCell>{entry.supplier}</TableCell>
+                    <TableCell>{stockEntry.supplier}</TableCell>
                     <TableCell>
-                      {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit}
+                      {formatNumber(parseFloat(stockEntry.purchasedQuantity))} {stockEntry.purchasedUnit}
                     </TableCell>
                     <TableCell>
-                      {formatCurrency(entry.costPerPurchasedUnit)}/{entry.purchasedUnit}
+                      {formatCurrency(parseFloat(stockEntry.costPerPurchasedUnit))}/{stockEntry.purchasedUnit}
                     </TableCell>
-                    <TableCell>{formatCurrency(entry.totalCost)}</TableCell>
-                    <TableCell>{entry.purchaseDate ? new Date(entry.purchaseDate).toLocaleDateString() : "N/A"}</TableCell>
+                    <TableCell>{formatCurrency(parseFloat(stockEntry.totalCost))}</TableCell>
+                    <TableCell>{stockEntry.purchaseDate ? new Date(stockEntry.purchaseDate).toLocaleDateString() : "N/A"}</TableCell>
 
                     <TableCell>
                       <div className="flex gap-2">
@@ -71,7 +71,7 @@ export function StockEntriesTable({ stockEntries, materials, setSelectedItem, se
                           variant="outline"
                           onClick={e => {
                             e.stopPropagation();
-                            setEditingStock(entry);
+                            setEditingStock(stockEntry);
                             setShowStockForm(true);
                           }}
                         >
@@ -90,7 +90,7 @@ export function StockEntriesTable({ stockEntries, materials, setSelectedItem, se
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteStock(entry.id)}>Delete</AlertDialogAction>
+                              <AlertDialogAction onClick={() => handleDeleteStock(stockEntry.id)}>Delete</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

@@ -14,7 +14,11 @@ export const VOLUME_CONVERSIONS = {
 };
 
 // Convert between mass units
-export function convertMass(value: number, fromUnit: string, toUnit: string): number {
+export function convertMass(value: number, fromUnit: string | undefined, toUnit: string | undefined): number {
+  if (!fromUnit || !toUnit) {
+    console.warn(`Invalid mass units: fromUnit=${fromUnit}, toUnit=${toUnit}`);
+    return value; // Return original value if units are undefined
+  }
   if (fromUnit === toUnit) return value;
 
   // Normalize units
@@ -45,7 +49,8 @@ export function convertMass(value: number, fromUnit: string, toUnit: string): nu
       grams = value * 28.3495;
       break;
     default:
-      throw new Error(`Unknown mass unit: ${fromUnit}`);
+      console.error(`Unknown mass unit: ${fromUnit}`);
+      return value;
   }
 
   // Convert from grams to target unit
@@ -67,12 +72,17 @@ export function convertMass(value: number, fromUnit: string, toUnit: string): nu
     case "ounces":
       return grams / 28.3495;
     default:
-      throw new Error(`Unknown mass unit: ${toUnit}`);
+      console.error(`Unknown mass unit: ${toUnit}`);
+      return value;
   }
 }
 
 // Convert between volume units
-export function convertVolume(value: number, fromUnit: string, toUnit: string): number {
+export function convertVolume(value: number, fromUnit: string | undefined, toUnit: string | undefined): number {
+  if (!fromUnit || !toUnit) {
+    console.warn(`Invalid volume units: fromUnit=${fromUnit}, toUnit=${toUnit}`);
+    return value; // Return original value if units are undefined
+  }
   if (fromUnit === toUnit) return value;
 
   // Normalize units
@@ -103,7 +113,8 @@ export function convertVolume(value: number, fromUnit: string, toUnit: string): 
       ml = value * 29.5735;
       break;
     default:
-      throw new Error(`Unknown volume unit: ${fromUnit}`);
+      console.error(`Unknown volume unit: ${fromUnit}`);
+      return value;
   }
 
   // Convert from ml to target unit
@@ -125,7 +136,8 @@ export function convertVolume(value: number, fromUnit: string, toUnit: string): 
     case "fluid ounces":
       return ml / 29.5735;
     default:
-      throw new Error(`Unknown volume unit: ${toUnit}`);
+      console.error(`Unknown volume unit: ${toUnit}`);
+      return value;
   }
 }
 // Calculate cost per unit
@@ -212,23 +224,23 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatNumber(num: number, unit?: string): string {
-  // For piece/unit items, show no decimals if whole number
+  if (typeof num !== "number" || isNaN(num)) {
+    console.warn("formatNumber received invalid num:", num);
+    return "";
+  }
   if (unit && ["piece", "unit", "each", "dozen", "package", "box", "case"].includes(unit.toLowerCase())) {
     return Number.isInteger(num) ? num.toString() : num.toFixed(2);
   }
 
-  // For mass/volume, show 3 decimal places by default
   const decimals = (unit && isMassUnit(unit)) || (unit && isVolumeUnit(unit)) ? 3 : 2;
   return num.toFixed(decimals).replace(/\.?0+$/, "");
 }
 
-// Main conversion function with cost calculation
 export function performConversion(input: ConversionInput): CalculationBreakdown {
   const steps: string[] = [];
   let convertedValue: number;
   const conversionFactor: number = 1;
 
-  // Determine conversion type and perform conversion
   if (isMassUnit(input.fromUnit) && isMassUnit(input.toUnit)) {
     convertedValue = convertMass(input.value, input.fromUnit, input.toUnit);
     if (input.fromUnit !== input.toUnit) {

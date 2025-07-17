@@ -1,7 +1,11 @@
 import { UnitType } from "@/types/inventory";
 import { convertMass, convertVolume } from "./conversionLogic";
 
-export function getConversionFactor(fromUnit: string, toUnit: string, unitType: UnitType): number {
+export function getConversionFactor(fromUnit: string | undefined, toUnit: string | undefined, unitType: UnitType): number {
+  if (!fromUnit || !toUnit) {
+    console.warn(`Invalid units: fromUnit=${fromUnit}, toUnit=${toUnit}`);
+    return 1; // Return 1:1 if units are undefined or empty
+  }
   if (fromUnit === toUnit) return 1;
 
   try {
