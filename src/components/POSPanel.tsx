@@ -43,36 +43,18 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const availableItems = useMemo(() => {
     if (!selectedSectionId) return [];
 
-    console.log("=== SELECTED SECTION DATA ===");
-    console.log("Selected Section ID:", selectedSectionId);
-
-    // Find the selected section
-    const selectedSection = sections.find(s => s.id.toString() === selectedSectionId);
-    console.log("Selected Section Object:", selectedSection);
-
     // Filter assignments for this section
     const sectionAssignmentsForSection = sectionAssignments.filter(a => a.sectionId.toString() === selectedSectionId);
-    console.log("All assignments for section:", sectionAssignmentsForSection);
 
-    // Filter stock entry assignments
-    // Handle cases where itemType might be missing - infer from presence of stockEntry
     const stockEntryAssignments = sectionAssignmentsForSection.filter(a => {
       const hasStockEntry = a.itemType === "stockEntry" || (a.stockEntry && !a.menuItem);
-      console.log(`Assignment ${a.id} - itemType: ${a.itemType}, hasStockEntry: ${!!a.stockEntry}, hasMenuItems: ${!!a.menuItem}, filtered: ${hasStockEntry}`);
       return hasStockEntry;
     });
-    console.log("Stock entry assignments:", stockEntryAssignments);
 
     const items = stockEntryAssignments.map(a => {
       // Find material and stock entry from materials with stock
       const material = materials.find(m => m.id === String(a.materialId));
       const stockEntry = material?.stockEntries.find(se => se.id === a.stockEntryId);
-
-      console.log(`Assignment ${a.id}:`, {
-        assignment: a,
-        foundMaterial: material,
-        foundStockEntry: stockEntry
-      });
 
       // Check if this is a package unit (box/pack) that needs conversion
       const isPackageUnit = material?.unitType === "package" && (a.assignedUnit === "box" || a.assignedUnit === "pack" || a.assignedUnit === "case");
@@ -82,19 +64,9 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       let displayUnitPrice = material?.costPerBaseUnit || 0;
 
       if (isPackageUnit && material?.packageQuantity) {
-        // Convert package units to base units
         displayQuantity = a.assignedQuantity * material.packageQuantity;
         displayUnit = material.baseUnit;
         displayUnitPrice = material.costPerBaseUnit || 0;
-
-        console.log(`Package conversion for ${material.name}:`, {
-          originalQuantity: a.assignedQuantity,
-          originalUnit: a.assignedUnit,
-          packageQuantity: material.packageQuantity,
-          convertedQuantity: displayQuantity,
-          convertedUnit: displayUnit,
-          unitPrice: displayUnitPrice
-        });
       }
 
       return {
@@ -110,11 +82,8 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
     });
 
     const availableItems = items.filter(item => item.currentQuantity > 0);
-    console.log("Available items (quantity > 0):", availableItems);
-    console.log("=== END SECTION DATA ===");
-
     return availableItems;
-  }, [selectedSectionId, sectionAssignments, materials, sections]);
+  }, [selectedSectionId, sectionAssignments, materials]);
 
   // Filter available items based on search term
   const filteredItems = useMemo(() => {
@@ -128,7 +97,6 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
   // Add item to cart
   const addToCart = (item: (typeof availableItems)[0]) => {
-    console.log("Adding item to cart:", item);
     setCart(prevCart => {
       const existingItem = prevCart.find(cartItem => cartItem.assignmentId === item.assignmentId);
 
@@ -214,7 +182,6 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
   const getSectionName = (sectionId: string) => {
     const section = sections.find(s => s.id.toString() === sectionId);
-    console.log(`Getting section name for ID ${sectionId}:`, section);
     return section?.name || "Unknown";
   };
 
@@ -275,7 +242,35 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                               <TableRow key={item.assignmentId}>
                                 <TableCell className="font-medium">{item.materialName}</TableCell>
                                 <TableCell>
-                                  {formatNumber(item.currentQuantity)} {item.unit}
+                                  {(() => {
+                                    // Find the assignment and material for this item
+                                    const assignment = sectionAssignments.find(a => a.id.toString() === item.assignmentId);
+                                    const material = materials.find(m => m.id === item.materialId);
+
+                                    if (material?.unitType === "package" && material.packageQuantity && material.packageQuantity > 0 && assignment) {
+                                      // Use assignedIndividualQuantity if available, otherwise calculate
+                                      const assignedQty = assignment.assignedQuantity || 0;
+                                      const assignedUnit = assignment.assignedUnit || "";
+                                      const convertedQty = assignment.assignedIndividualQuantity || assignedQty * material.packageQuantity;
+
+                                      return (
+                                        <div className="text-sm">
+                                          <div>
+                                            {formatNumber(assignedQty)} {assignedUnit}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                            ({formatNumber(convertedQty)} {material.baseUnit})
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div className="text-sm">
+                                        {formatNumber(item.currentQuantity)} {item.unit}
+                                      </div>
+                                    );
+                                  })()}
                                 </TableCell>
                                 <TableCell>
                                   {formatCurrency(item.unitPrice)}/{item.unit}

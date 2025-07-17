@@ -266,20 +266,6 @@ export interface UpdateMenuItemData {
   ingredients?: MenuItemIngredient[];
 }
 
-//---------------------------------------------------------------------------------
-
-// export type AssignmentFormData = z.infer<typeof AssignmentSchema>;
-
-// export interface AssignmentFormProps {
-//   sections: Section[];
-//   stockEntries: StockEntry[];
-//   menuItems: MenuItem[];
-//   materials: Material[];
-//   assignment?: SectionAssignment;
-//   onSubmit: (data: AssignmentFormData) => void;
-//   onCancel: () => void;
-// }
-
 //-----------------------------------------------------------------------------
 
 export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label: string }> = [
