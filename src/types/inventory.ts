@@ -136,6 +136,7 @@ export interface SectionAssignment {
   stockEntryId: string | null;
   assignedQuantity: number | null;
   assignedUnit: string | null;
+  assignedIndividualQuantity?: number | null; // Integer - whole number of individual units for package materials
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -153,6 +154,7 @@ export interface CreateSectionAssignmentData {
   stockEntryId?: string;
   assignedQuantity?: number;
   assignedUnit?: string;
+  assignedIndividualQuantity?: number;
   notes?: string;
 }
 
@@ -164,6 +166,7 @@ export interface UpdateSectionAssignmentData {
   stockEntryId?: string;
   assignedQuantity?: number;
   assignedUnit?: string;
+  assignedIndividualQuantity?: number;
   notes?: string;
 }
 

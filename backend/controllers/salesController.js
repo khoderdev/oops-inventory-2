@@ -99,8 +99,8 @@ const salesController = {
             stockEntryDeductionQuantity = item.quantity;
           }
 
-          // Check if sufficient quantity is available in assignment (convert to individual units)
-          const assignmentIndividualQuantity = assignment.assignedQuantity * (material.packageQuantity || 1);
+          // Check if sufficient quantity is available in assignment (use assignedIndividualQuantity if available)
+          const assignmentIndividualQuantity = assignment.assignedIndividualQuantity || (assignment.assignedQuantity * (material.packageQuantity || 1));
           if (assignmentIndividualQuantity < assignmentDeductionQuantity) {
             await transaction.rollback();
             return res.status(400).json({
@@ -116,10 +116,11 @@ const salesController = {
             });
           }
 
-          // Update assignment quantity - deduct individual units from assignment
+          // Update assignment individual quantity - deduct individual units only
           const newAssignedIndividualQuantity = assignmentIndividualQuantity - assignmentDeductionQuantity;
-          const newAssignedQuantity = newAssignedIndividualQuantity / (material.packageQuantity || 1);
-          assignment.assignedQuantity = newAssignedQuantity;
+          
+          // Only update assignedIndividualQuantity, keep assignedQuantity unchanged
+          assignment.assignedIndividualQuantity = Math.round(newAssignedIndividualQuantity);
           await assignment.save();
 
           // Update stock entry quantities - deduct from individual quantity only
@@ -145,7 +146,7 @@ const salesController = {
           stockEntry.purchasedIndividualQuantity = Math.round(newIndividualQuantity);
           await stockEntry.save();
 
-          console.log(`Updated assignment ${assignment.id}: ${assignmentIndividualQuantity} -> ${newAssignedIndividualQuantity} individual units`);
+          console.log(`Updated assignment ${assignment.id}: assignedQuantity unchanged (${assignment.assignedQuantity}), individual quantity ${assignmentIndividualQuantity} -> ${newAssignedIndividualQuantity}`);
           console.log(`Updated stock entry ${stockEntry.id}: individual quantity ${stockEntry.purchasedIndividualQuantity + stockEntryDeductionQuantity} -> ${newIndividualQuantity}`);
         }
       }

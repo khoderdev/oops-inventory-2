@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Material, MATERIAL_CATEGORIES, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { calculateCostForQuantity, calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials, getSuggestedUnits, getDisplayQuantity } from "@/utils/inventoryCalculations";
+import { calculateCostForQuantity, calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials, getDisplayQuantity, getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { Edit, Filter, Package, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MenuItemBuilder } from "../menu/MenuBuilder";
@@ -259,9 +259,6 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
           <Card>
             <CardHeader>
               <CardTitle>Stock Entries</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Showing remaining quantities from individual purchases (updated after sales)
-              </p>
             </CardHeader>
             <CardContent>
               <Table>
@@ -293,7 +290,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                             {(() => {
                               const displayQty = getDisplayQuantity(entry, material!);
                               return formatNumber(displayQty.quantity);
-                            })()} 
+                            })()}
                           </TableCell>
                           <TableCell>
                             {(() => {
@@ -308,7 +305,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                                   )}
                                 </div>
                               );
-                            })()} 
+                            })()}
                           </TableCell>
                           <TableCell>
                             {formatCurrency(entry.costPerPurchasedUnit)}

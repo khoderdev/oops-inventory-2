@@ -52,6 +52,10 @@ const Assignment = sequelize.define(
     assignedUnit: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    assignedIndividualQuantity: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   },
   {

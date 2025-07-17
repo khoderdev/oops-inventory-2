@@ -220,7 +220,8 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                     const assignedUnit = assignment.assignedUnit || "";
 
                     if (material?.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-                      const convertedQty = assignedQty * material.packageQuantity;
+                      // Use assignedIndividualQuantity if available, otherwise calculate
+                      const convertedQty = assignment.assignedIndividualQuantity || (assignedQty * material.packageQuantity);
                       return (
                         <div className="text-sm text-green-700">
                           <div>
@@ -346,7 +347,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                 </div>
                 {assignment.material?.unitType === "package" && assignment.material.packageQuantity && assignment.material.packageQuantity > 0 && (
                   <div className="text-sm text-muted-foreground mt-1">
-                    ({formatNumber((assignment.assignedQuantity || 0) * assignment.material.packageQuantity)} {assignment.material.baseUnit})
+                    ({formatNumber(assignment.assignedIndividualQuantity || ((assignment.assignedQuantity || 0) * assignment.material.packageQuantity))} {assignment.material.baseUnit})
                   </div>
                 )}
               </div>

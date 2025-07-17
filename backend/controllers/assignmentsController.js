@@ -79,6 +79,12 @@ const assignmentsController = {
           return res.status(400).json({ error: "Material ID does not match stock entry" });
         }
 
+        // Calculate individual quantity for package units
+        let assignedIndividualQuantity = null;
+        if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+          assignedIndividualQuantity = Math.round(Number(assignedQuantity) * material.packageQuantity);
+        }
+
         const assignment = await Assignment.create({
           sectionId: parseInt(sectionId),
           itemType,
@@ -86,6 +92,7 @@ const assignmentsController = {
           stockEntryId: String(stockEntryId),
           assignedQuantity: Number(assignedQuantity),
           assignedUnit: String(assignedUnit || ""),
+          assignedIndividualQuantity: assignedIndividualQuantity,
           notes: String(notes || "")
         });
 
@@ -191,12 +198,22 @@ const assignmentsController = {
         }
       }
 
+      // Calculate new individual quantity if assignedQuantity is being updated
+      let newAssignedIndividualQuantity = assignment.assignedIndividualQuantity;
+      if (assignedQuantity !== undefined) {
+        const material = materialId ? await Material.findByPk(parseInt(materialId)) : await Material.findByPk(assignment.materialId);
+        if (material && material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+          newAssignedIndividualQuantity = Math.round(Number(assignedQuantity) * material.packageQuantity);
+        }
+      }
+
       await assignment.update({
         sectionId: sectionId ? parseInt(sectionId) : assignment.sectionId,
         materialId: materialId ? parseInt(materialId) : assignment.materialId,
         stockEntryId: stockEntryId ? String(stockEntryId) : assignment.stockEntryId,
         assignedQuantity: assignedQuantity !== undefined ? Number(assignedQuantity) : assignment.assignedQuantity,
         assignedUnit: assignedUnit !== undefined ? String(assignedUnit) : assignment.assignedUnit,
+        assignedIndividualQuantity: newAssignedIndividualQuantity,
         notes: notes !== undefined ? String(notes) : assignment.notes
       });
 
