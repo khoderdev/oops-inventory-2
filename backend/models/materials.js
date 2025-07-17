@@ -23,7 +23,8 @@ const Material = sequelize.define(
       validate: {
         notEmpty: { msg: "Base unit cannot be empty" },
         isValidBaseUnit(value) {
-          if (!this.unitType || !UNIT_OPTIONS[this.unitType].includes(value)) {
+          // Skip validation during table creation when unitType might not be set
+          if (this.unitType && UNIT_OPTIONS[this.unitType] && !UNIT_OPTIONS[this.unitType].includes(value)) {
             throw new Error(`Invalid base unit for unit type ${this.unitType}`);
           }
         }
@@ -41,12 +42,27 @@ const Material = sequelize.define(
       }
     },
 
+    inputUnit: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Original input unit from MaterialForm (e.g., 'box', 'pack')"
+    },
+
     costPerBaseUnit: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,
       validate: {
         isDecimal: { msg: "Cost per base unit must be a decimal number" }
       }
+    },
+
+    packageQuantity: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: { args: [1], msg: "Package quantity must be at least 1" }
+      },
+      comment: "For package units: how many base units per package"
     },
 
     category: {

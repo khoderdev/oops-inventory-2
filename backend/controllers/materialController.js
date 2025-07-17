@@ -52,7 +52,7 @@ const materialController = {
   // Create a new material
   createMaterial: async (req, res, next) => {
     try {
-      const { name, baseUnit, unitType } = req.body;
+      const { name, baseUnit, unitType, inputUnit, packageQuantity, costPerBaseUnit, category, description } = req.body;
 
       // Validate required fields
       if (!name || !baseUnit || !unitType) {
@@ -64,7 +64,28 @@ const materialController = {
         return res.status(400).json({ error: "Base unit cannot be empty" });
       }
 
-      const material = await Material.create(req.body);
+      // Validate package-specific fields
+      if (unitType === 'package') {
+        if (!packageQuantity || packageQuantity < 1) {
+          return res.status(400).json({ error: "Package quantity must be at least 1 for package materials" });
+        }
+        if (!inputUnit || inputUnit.trim() === "") {
+          return res.status(400).json({ error: "Input unit is required for package materials" });
+        }
+      }
+
+      const materialData = {
+        name,
+        baseUnit,
+        unitType,
+        inputUnit,
+        packageQuantity: unitType === 'package' ? packageQuantity : null,
+        costPerBaseUnit,
+        category,
+        description
+      };
+
+      const material = await Material.create(materialData);
       res.status(201).json(material);
     } catch (err) {
       next(err);
@@ -75,7 +96,7 @@ const materialController = {
   updateMaterial: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { name, baseUnit, unitType } = req.body;
+      const { name, baseUnit, unitType, inputUnit, packageQuantity, costPerBaseUnit, category, description } = req.body;
 
       const material = await Material.findByPk(id);
       if (!material) {
@@ -87,12 +108,29 @@ const materialController = {
         return res.status(400).json({ error: "Base unit cannot be empty" });
       }
 
+      // Validate package-specific fields if unitType is being changed to package
+      const newUnitType = unitType !== undefined ? unitType : material.unitType;
+      if (newUnitType === 'package') {
+        const newPackageQuantity = packageQuantity !== undefined ? packageQuantity : material.packageQuantity;
+        const newInputUnit = inputUnit !== undefined ? inputUnit : material.inputUnit;
+        
+        if (!newPackageQuantity || newPackageQuantity < 1) {
+          return res.status(400).json({ error: "Package quantity must be at least 1 for package materials" });
+        }
+        if (!newInputUnit || newInputUnit.trim() === "") {
+          return res.status(400).json({ error: "Input unit is required for package materials" });
+        }
+      }
+
       await material.update({
         name: name !== undefined ? name : material.name,
         baseUnit: baseUnit !== undefined ? baseUnit : material.baseUnit,
         unitType: unitType !== undefined ? unitType : material.unitType,
+        inputUnit: inputUnit !== undefined ? inputUnit : material.inputUnit,
+        packageQuantity: packageQuantity !== undefined ? packageQuantity : material.packageQuantity,
         costPerBaseUnit: costPerBaseUnit !== undefined ? costPerBaseUnit : material.costPerBaseUnit,
-        category: category !== undefined ? category : material.category
+        category: category !== undefined ? category : material.category,
+        description: description !== undefined ? description : material.description
       });
 
       res.status(200).json(material);

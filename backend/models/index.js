@@ -90,7 +90,7 @@ Material.belongsToMany(MenuItem, {
   through: MenuItemIngredient,
   foreignKey: "materialId",
   otherKey: "menuItemId",
-  as: "menuItems",
+  as: "menuItem",
   onDelete: "CASCADE",
   onUpdate: "CASCADE"
 });
@@ -126,7 +126,7 @@ MenuItemIngredient.belongsTo(Material, {
 // Sale ↔ SaleMenuItem
 Sale.hasMany(SaleMenuItem, {
   foreignKey: "saleId",
-  as: "menuItems",
+  as: "menuItem",
   onDelete: "CASCADE",
   onUpdate: "CASCADE"
 });
