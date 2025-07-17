@@ -1,14 +1,13 @@
-import { posAPI } from "@/api/pos.api";
 import { salesAPI } from "@/api/sales.api.ts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Material, MaterialWithStock, MenuItemSale, SaleRecord, Section, SectionAssignment, SoldItem, StockEntry } from "@/types/inventory";
+import { MaterialWithStock, MenuItemSale, SaleRecord, Section, SectionAssignment, SoldItem } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { Tabs, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { Check, Minus, Package, Plus, Search, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 interface POSPanelProps {
   materials: MaterialWithStock[];
@@ -43,29 +42,57 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   }, [sectionAssignments]);
 
   // Get available items for the selected section
-  // Get available items for the selected section
   const availableItems = useMemo(() => {
     if (!selectedSectionId) return [];
 
-    return sectionAssignments
-      .filter(a => a.sectionId.toString() === selectedSectionId && a.itemType === "stockEntry")
-      .map(a => {
-        // Find material and stock entry from materials with stock
-        const material = materials.find(m => m.id === String(a.materialId));
-        const stockEntry = material?.stockEntries.find(se => se.id === a.stockEntryId);
+    console.log("=== SELECTED SECTION DATA ===");
+    console.log("Selected Section ID:", selectedSectionId);
+    
+    // Find the selected section
+    const selectedSection = sections.find(s => s.id.toString() === selectedSectionId);
+    console.log("Selected Section Object:", selectedSection);
+    
+    // Filter assignments for this section
+    const sectionAssignmentsForSection = sectionAssignments.filter(a => a.sectionId.toString() === selectedSectionId);
+    console.log("All assignments for section:", sectionAssignmentsForSection);
+    
+    // Filter stock entry assignments
+    // Handle cases where itemType might be missing - infer from presence of stockEntry
+    const stockEntryAssignments = sectionAssignmentsForSection.filter(a => {
+      const hasStockEntry = a.itemType === "stockEntry" || (a.stockEntry && !a.menuItem);
+      console.log(`Assignment ${a.id} - itemType: ${a.itemType}, hasStockEntry: ${!!a.stockEntry}, hasMenuItems: ${!!a.menuItem}, filtered: ${hasStockEntry}`);
+      return hasStockEntry;
+    });
+    console.log("Stock entry assignments:", stockEntryAssignments);
+    
+    const items = stockEntryAssignments.map(a => {
+      // Find material and stock entry from materials with stock
+      const material = materials.find(m => m.id === String(a.materialId));
+      const stockEntry = material?.stockEntries.find(se => se.id === a.stockEntryId);
+      
+      console.log(`Assignment ${a.id}:`, {
+        assignment: a,
+        foundMaterial: material,
+        foundStockEntry: stockEntry
+      });
 
-        return {
-          assignmentId: a.id.toString(),
-          materialId: material?.id.toString() || "",
-          sectionId: a.sectionId.toString(),
-          materialName: material?.name || "Unknown",
-          currentQuantity: a.assignedQuantity,
-          unit: a.assignedUnit,
-          unitPrice: material?.costPerBaseUnit || 0
-        };
-      })
-      .filter(item => item.currentQuantity > 0);
-  }, [selectedSectionId, sectionAssignments, materials]);
+      return {
+        assignmentId: a.id.toString(),
+        materialId: material?.id.toString() || "",
+        sectionId: a.sectionId.toString(),
+        materialName: material?.name || "Unknown",
+        currentQuantity: a.assignedQuantity,
+        unit: a.assignedUnit,
+        unitPrice: material?.costPerBaseUnit || 0
+      };
+    });
+    
+    const availableItems = items.filter(item => item.currentQuantity > 0);
+    console.log("Available items (quantity > 0):", availableItems);
+    console.log("=== END SECTION DATA ===");
+    
+    return availableItems;
+  }, [selectedSectionId, sectionAssignments, materials, sections]);
 
   // Filter available items based on search term
   const filteredItems = useMemo(() => {
@@ -79,6 +106,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
   // Add item to cart
   const addToCart = (item: (typeof availableItems)[0]) => {
+    console.log("Adding item to cart:", item);
     setCart(prevCart => {
       const existingItem = prevCart.find(cartItem => cartItem.assignmentId === item.assignmentId);
 
@@ -165,10 +193,10 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   };
 
   const getSectionName = (sectionId: string) => {
-    return sections.find(s => s.id.toString() === sectionId)?.name || "Unknown";
+    const section = sections.find(s => s.id.toString() === sectionId);
+    console.log(`Getting section name for ID ${sectionId}:`, section);
+    return section?.name || "Unknown";
   };
-
-
 
   return (
     <div className="p-6 space-y-6">
