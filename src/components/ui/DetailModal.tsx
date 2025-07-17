@@ -195,31 +195,16 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-blue-900">{assignment.menuItem.name}</span>
-                            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
-                              Menu Item
-                            </span>
+                            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">Menu Item</span>
                           </div>
-                          <div className="text-sm text-blue-700 mt-1">
-                            Category: {assignment.menuItem.category || "No category"}
-                          </div>
-                          {assignment.menuItem.description && (
-                            <div className="text-sm text-blue-600 mt-1">
-                              {assignment.menuItem.description}
-                            </div>
-                          )}
+                          <div className="text-sm text-blue-700 mt-1">Category: {assignment.menuItem.category || "No category"}</div>
+                          {assignment.menuItem.description && <div className="text-sm text-blue-600 mt-1">{assignment.menuItem.description}</div>}
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-blue-700">1 item</div>
-                          <div className="font-semibold text-blue-900">
-                            {formatCurrency(assignment.menuItem.price || 0)}
-                          </div>
+                          <div className="font-semibold text-blue-900">{formatCurrency(assignment.menuItem.price || 0)}</div>
                         </div>
                       </div>
-                      {assignment.notes && (
-                        <div className="text-sm text-blue-600 mt-2 pt-2 border-t border-blue-200">
-                          <span className="font-medium">Notes:</span> {assignment.notes}
-                        </div>
-                      )}
                     </div>
                   );
                 }
@@ -227,63 +212,49 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                 // Material/Stock Entry Assignment
                 if (itemType === "stockEntry" && (assignment.material || assignment.stockEntry)) {
                   const assignmentValue = (assignment.assignedQuantity || 0) * (assignment.stockEntry?.costPerPurchasedUnit || assignment.material?.costPerBaseUnit || 0);
-                  
+
                   // Calculate converted quantity for package units
                   const getQuantityDisplay = () => {
                     const material = assignment.material;
                     const assignedQty = assignment.assignedQuantity || 0;
                     const assignedUnit = assignment.assignedUnit || "";
-                    
+
                     if (material?.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
                       const convertedQty = assignedQty * material.packageQuantity;
                       return (
                         <div className="text-sm text-green-700">
-                          <div>{formatNumber(assignedQty)} {assignedUnit}</div>
-                          <div className="text-xs text-green-600">({formatNumber(convertedQty)} {material.baseUnit})</div>
+                          <div>
+                            {formatNumber(assignedQty)} {assignedUnit}
+                          </div>
+                          <div className="text-xs text-green-600">
+                            ({formatNumber(convertedQty)} {material.baseUnit})
+                          </div>
                         </div>
                       );
                     }
-                    
+
                     return (
                       <div className="text-sm text-green-700">
                         {formatNumber(assignedQty)} {assignedUnit}
                       </div>
                     );
                   };
-                  
+
                   return (
                     <div key={index} className="p-3 bg-green-50 border border-green-200 rounded-lg">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-green-900">
-                              {assignment.material?.name || assignment.stockEntry?.materialId || "Material"}
-                            </span>
-                            <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
-                              Material
-                            </span>
-                            {assignment.material?.unitType === "package" && (
-                              <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">
-                                Package
-                              </span>
-                            )}
+                            <span className="font-medium text-green-900">{assignment.material?.name || assignment.stockEntry?.materialId || "Material"}</span>
+                            <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Material</span>
+                            {assignment.material?.unitType === "package" && <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">Package</span>}
                           </div>
-                          {assignment.stockEntry?.supplier && (
-                            <div className="text-sm text-green-700 mt-1">
-                              Supplier: {assignment.stockEntry.supplier}
-                            </div>
-                          )}
-                          {assignment.stockEntry?.batchNumber && (
-                            <div className="text-sm text-green-600 mt-1">
-                              Batch: {assignment.stockEntry.batchNumber}
-                            </div>
-                          )}
+                          {assignment.stockEntry?.supplier && <div className="text-sm text-green-700 mt-1">Supplier: {assignment.stockEntry.supplier}</div>}
+                          {assignment.stockEntry?.batchNumber && <div className="text-sm text-green-600 mt-1">Batch: {assignment.stockEntry.batchNumber}</div>}
                         </div>
                         <div className="text-right">
                           {getQuantityDisplay()}
-                          <div className="font-semibold text-green-900">
-                            {formatCurrency(assignmentValue)}
-                          </div>
+                          <div className="font-semibold text-green-900">{formatCurrency(assignmentValue)}</div>
                         </div>
                       </div>
                       {assignment.notes && (
@@ -298,9 +269,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                 // Fallback for unknown assignment types
                 return (
                   <div key={index} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="text-sm text-gray-600">
-                      Unknown assignment type: {assignment.itemType || "undefined"}
-                    </div>
+                    <div className="text-sm text-gray-600">Unknown assignment type: {assignment.itemType || "undefined"}</div>
                   </div>
                 );
               })}
@@ -372,7 +341,9 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
             <div>
               <h4 className="text-sm font-semibold text-muted-foreground">Assigned Quantity</h4>
               <div className="text-base">
-                <div>{formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}</div>
+                <div>
+                  {formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}
+                </div>
                 {assignment.material?.unitType === "package" && assignment.material.packageQuantity && assignment.material.packageQuantity > 0 && (
                   <div className="text-sm text-muted-foreground mt-1">
                     ({formatNumber((assignment.assignedQuantity || 0) * assignment.material.packageQuantity)} {assignment.material.baseUnit})
@@ -424,7 +395,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           {selectedItem.type === "material" && renderMaterialDetails(selectedItem.data as MaterialWithSectionAssignments)}
           {selectedItem.type === "stock" && renderStockDetails(selectedItem.data as StockEntry)}
           {selectedItem.type === "section" && renderSectionDetails(selectedItem.data as Section)}
-          {selectedItem.type === "assignment" && renderAssignmentDetails(selectedItem.data as SectionAssignment & { stockEntry?: StockEntry; material?: Material; menuItem?: MenuItem; })}
+          {selectedItem.type === "assignment" && renderAssignmentDetails(selectedItem.data as SectionAssignment & { stockEntry?: StockEntry; material?: Material; menuItem?: MenuItem })}
         </div>
       </DialogContent>
     </Dialog>

@@ -154,17 +154,27 @@ export function calculateInventoryTurnover(material: MaterialWithStock, usagePer
 
 // Convert package quantities to base units for display (shows remaining quantities after sales)
 export function getDisplayQuantity(stockEntry: StockEntry, material: Material): { quantity: number; unit: string; isConverted: boolean } {
-  // Note: purchasedQuantity is updated by sales controller to reflect remaining quantity
-  // For package units (box, pack, case), convert remaining quantity to base units (bottles, pieces)
-  if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-    const convertedQuantity = stockEntry.purchasedQuantity * material.packageQuantity;
-    return {
-      quantity: convertedQuantity,
-      unit: material.baseUnit,
-      isConverted: true
-    };
+  if (material.unitType === "package") {
+    // Use stored individual quantity if available (new backend implementation)
+    if (stockEntry.purchasedIndividualQuantity !== undefined && stockEntry.purchasedIndividualUnit) {
+      return {
+        quantity: stockEntry.purchasedIndividualQuantity,
+        unit: stockEntry.purchasedIndividualUnit,
+        isConverted: true
+      };
+    }
+
+    // Fallback to calculation for backward compatibility
+    if (material.packageQuantity && material.packageQuantity > 0) {
+      const convertedQuantity = stockEntry.purchasedQuantity * material.packageQuantity;
+      return {
+        quantity: convertedQuantity,
+        unit: material.baseUnit,
+        isConverted: true
+      };
+    }
   }
-  
+
   // For non-package units, return remaining quantity as-is
   return {
     quantity: stockEntry.purchasedQuantity,
@@ -176,20 +186,27 @@ export function getDisplayQuantity(stockEntry: StockEntry, material: Material): 
 // Get total available quantity for a material across all stock entries
 export function getTotalAvailableQuantity(material: Material, stockEntries: StockEntry[]): { quantity: number; unit: string } {
   const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
-  
+
   let totalQuantity = 0;
-  
+
   // Sum up all remaining quantities in base units
   materialStockEntries.forEach(entry => {
-    if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-      // Convert package quantities to base units
-      totalQuantity += entry.purchasedQuantity * material.packageQuantity;
+    if (material.unitType === "package") {
+      // Use stored individual quantity if available
+      if (entry.purchasedIndividualQuantity !== undefined) {
+        totalQuantity += entry.purchasedIndividualQuantity;
+      } else if (material.packageQuantity && material.packageQuantity > 0) {
+        // Fallback to calculation for backward compatibility
+        totalQuantity += entry.purchasedQuantity * material.packageQuantity;
+      } else {
+        totalQuantity += entry.purchasedQuantity;
+      }
     } else {
       // For non-package units, add directly (assuming same unit)
       totalQuantity += entry.purchasedQuantity;
     }
   });
-  
+
   return {
     quantity: totalQuantity,
     unit: material.baseUnit

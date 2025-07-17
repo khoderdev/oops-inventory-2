@@ -23,10 +23,18 @@ const StockEntry = sequelize.define(
       allowNull: true
     },
     purchasedQuantity: {
-      type: DataTypes.DECIMAL(10, 2),
+      type: DataTypes.INTEGER,
       allowNull: true
     },
     purchasedUnit: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    purchasedIndividualQuantity: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    purchasedIndividualUnit: {
       type: DataTypes.STRING,
       allowNull: true
     },
@@ -44,14 +52,6 @@ const StockEntry = sequelize.define(
     },
     expiryDate: {
       type: DataTypes.DATE,
-      allowNull: true
-    },
-    batchNumber: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    notes: {
-      type: DataTypes.TEXT,
       allowNull: true
     }
   },

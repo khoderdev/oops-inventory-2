@@ -49,6 +49,8 @@ export interface StockEntry {
   supplier: string;
   purchasedQuantity: number;
   purchasedUnit: string;
+  purchasedIndividualQuantity?: number; // Integer - whole number of individual units (bottles, pieces)
+  purchasedIndividualUnit?: string;
   costPerPurchasedUnit: number;
   totalCost: number;
   purchaseDate: Date;
@@ -64,6 +66,8 @@ export interface CreateStockEntryData {
   supplier: string;
   purchasedQuantity: number;
   purchasedUnit: string;
+  purchasedIndividualQuantity?: number;
+  purchasedIndividualUnit?: string;
   costPerPurchasedUnit: number;
   totalCost: number;
   purchaseDate: Date;
@@ -77,6 +81,8 @@ export interface UpdateStockEntryData {
   supplier?: string;
   purchasedQuantity?: number;
   purchasedUnit?: string;
+  purchasedIndividualQuantity?: number;
+  purchasedIndividualUnit?: string;
   costPerPurchasedUnit?: number;
   totalCost?: number;
   purchaseDate?: Date;

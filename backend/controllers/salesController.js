@@ -2,88 +2,6 @@ import sequelize from "../config/database.js";
 import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, StockEntry } from "../models/index.js";
 
 const salesController = {
-  // // Get all sales with associated menu items
-  // getAllSales: async (req, res, next) => {
-  //   try {
-  //     const sales = await Sale.findAll({
-  //       include: [
-  //         {
-  //           model: MenuItem,
-  //           as: "menuItem",
-  //           include: [
-  //             {
-  //               model: MenuItemIngredient,
-  //               as: "menuItemIngredients",
-  //               include: [{ model: Material, as: "material" }]
-  //             }
-  //           ]
-  //         }
-  //       ]
-  //     });
-
-  //     // Format response to match Sale interface
-  //     const formattedSales = sales.map(sale => ({
-  //       ...sale.get(),
-  //       menuItem: {
-  //         ...sale.menuItem.get(),
-  //         ingredients: sale.menuItem.menuItemIngredients.map(ingredient => ({
-  //           materialId: ingredient.materialId,
-  //           quantity: ingredient.quantity,
-  //           unit: ingredient.unit,
-  //           cost: ingredient.cost
-  //         }))
-  //       }
-  //     }));
-
-  //     res.status(200).json(formattedSales);
-  //   } catch (error) {
-  //     next(error);
-  //   }
-  // },
-
-  // // Get sale by ID with associated menu item
-  // getSalesById: async (req, res, next) => {
-  //   try {
-  //     const { id } = req.params;
-  //     const sale = await Sale.findByPk(id, {
-  //       include: [
-  //         {
-  //           model: MenuItem,
-  //           as: "menuItem",
-  //           include: [
-  //             {
-  //               model: MenuItemIngredient,
-  //               as: "menuItemIngredients",
-  //               include: [{ model: Material, as: "material" }]
-  //             }
-  //           ]
-  //         }
-  //       ]
-  //     });
-
-  //     if (!sale) {
-  //       return res.status(404).json({ error: "Sale not found" });
-  //     }
-
-  //     const formattedSale = {
-  //       ...sale.get(),
-  //       menuItem: {
-  //         ...sale.menuItem.get(),
-  //         ingredients: sale.menuItem.menuItemIngredients.map(ingredient => ({
-  //           materialId: ingredient.materialId,
-  //           quantity: ingredient.quantity,
-  //           unit: ingredient.unit,
-  //           cost: ingredient.cost
-  //         }))
-  //       }
-  //     };
-
-  //     res.status(200).json(formattedSale);
-  //   } catch (error) {
-  //     next(error);
-  //   }
-  // },
-
   getAllSales: async (req, res, next) => {
     try {
       const sales = await Sale.findAll();
@@ -151,72 +69,84 @@ const salesController = {
             return res.status(400).json({ error: `Stock entry not found for assignment ${item.assignmentId}` });
           }
 
-          // Handle package unit conversion for inventory deduction
-          let assignmentDeductionQuantity = item.quantity;
-          let stockEntryDeductionQuantity = item.quantity;
+          // Calculate deduction quantities - use individual units for both assignment and stock
+          let assignmentDeductionQuantity, stockEntryDeductionQuantity;
 
-          if (material && material.unitType === "package" && item.unit === material.baseUnit && (assignment.assignedUnit === "box" || assignment.assignedUnit === "pack" || assignment.assignedUnit === "case")) {
-            // Convert base units back to package units for assignment deduction
-            // e.g., selling 12 bottles should deduct 1 box from assignment
-            assignmentDeductionQuantity = item.quantity / material.packageQuantity;
-
-            // For stock entry, we need to convert based on the stock entry's purchased unit
-            if (stockEntry.purchasedUnit === assignment.assignedUnit) {
-              // Stock entry is in same unit as assignment (e.g., both in boxes)
-              stockEntryDeductionQuantity = assignmentDeductionQuantity;
-            } else if (stockEntry.purchasedUnit === material.baseUnit) {
-              // Stock entry is in base units (e.g., bottles)
+          if (material && material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+            // Package unit conversion logic - deduct individual units directly
+            if (item.unit === material.baseUnit) {
+              // Selling individual units (bottles) - deduct directly
+              assignmentDeductionQuantity = item.quantity;
               stockEntryDeductionQuantity = item.quantity;
             } else {
-              // Handle other unit conversions if needed
-              stockEntryDeductionQuantity = item.quantity;
+              // Selling package units (boxes) - convert to individual units
+              assignmentDeductionQuantity = item.quantity * material.packageQuantity;
+              stockEntryDeductionQuantity = item.quantity * material.packageQuantity;
             }
 
             console.log(`Package unit sale conversion for ${material.name}:`, {
               soldQuantity: item.quantity,
               soldUnit: item.unit,
               packageQuantity: material.packageQuantity,
-              assignmentDeductionQuantity: assignmentDeductionQuantity,
-              stockEntryDeductionQuantity: stockEntryDeductionQuantity,
+              assignmentDeductionQuantity,
+              stockEntryDeductionQuantity,
               assignmentUnit: assignment.assignedUnit,
               stockEntryUnit: stockEntry.purchasedUnit
             });
+          } else {
+            // Non-package units - direct deduction
+            assignmentDeductionQuantity = item.quantity;
+            stockEntryDeductionQuantity = item.quantity;
           }
 
-          // Check if sufficient quantity is available in assignment
-          if (assignment.assignedQuantity < assignmentDeductionQuantity) {
+          // Check if sufficient quantity is available in assignment (convert to individual units)
+          const assignmentIndividualQuantity = assignment.assignedQuantity * (material.packageQuantity || 1);
+          if (assignmentIndividualQuantity < assignmentDeductionQuantity) {
             await transaction.rollback();
             return res.status(400).json({
-              error: `Insufficient quantity in assignment for ${material?.name || "item"}. Available: ${assignment.assignedQuantity}, Requested: ${assignmentDeductionQuantity}`
+              error: `Insufficient quantity in assignment for ${material?.name || "item"}. Available: ${assignmentIndividualQuantity} ${material.baseUnit}, Required: ${assignmentDeductionQuantity}`
             });
           }
 
           // Check if sufficient quantity is available in stock entry
-          if (stockEntry.purchasedQuantity < stockEntryDeductionQuantity) {
+          if (stockEntry.purchasedIndividualQuantity < stockEntryDeductionQuantity) {
             await transaction.rollback();
             return res.status(400).json({
-              error: `Insufficient quantity in stock entry for ${material?.name || "item"}. Available: ${stockEntry.purchasedQuantity}, Requested: ${stockEntryDeductionQuantity}`
+              error: `Insufficient quantity in stock entry for ${material?.name || "item"}. Available: ${stockEntry.purchasedIndividualQuantity}, Requested: ${stockEntryDeductionQuantity}`
             });
           }
 
-          // Update assignment quantity
-          await assignment.update(
-            {
-              assignedQuantity: assignment.assignedQuantity - assignmentDeductionQuantity
-            },
-            { transaction }
-          );
+          // Update assignment quantity - deduct individual units from assignment
+          const newAssignedIndividualQuantity = assignmentIndividualQuantity - assignmentDeductionQuantity;
+          const newAssignedQuantity = newAssignedIndividualQuantity / (material.packageQuantity || 1);
+          assignment.assignedQuantity = newAssignedQuantity;
+          await assignment.save();
 
-          // Update stock entry quantity
-          await stockEntry.update(
-            {
-              purchasedQuantity: stockEntry.purchasedQuantity - stockEntryDeductionQuantity
-            },
-            { transaction }
-          );
+          // Update stock entry quantities - deduct from individual quantity only
+          const newIndividualQuantity = stockEntry.purchasedIndividualQuantity - stockEntryDeductionQuantity;
 
-          console.log(`Updated assignment ${assignment.id}: ${assignment.assignedQuantity + assignmentDeductionQuantity} -> ${assignment.assignedQuantity}`);
-          console.log(`Updated stock entry ${stockEntry.id}: ${stockEntry.purchasedQuantity + stockEntryDeductionQuantity} -> ${stockEntry.purchasedQuantity}`);
+          if (newIndividualQuantity < 0) {
+            await transaction.rollback();
+            return res.status(400).json({
+              error: `Insufficient individual quantity in stock. Available: ${stockEntry.purchasedIndividualQuantity}, Required: ${stockEntryDeductionQuantity}`
+            });
+          }
+
+          console.log("Stock entry update values:", {
+            stockEntryId: stockEntry.id,
+            oldPackageQuantity: stockEntry.purchasedQuantity,
+            newPackageQuantity: stockEntry.purchasedQuantity, // Keep package quantity unchanged
+            oldIndividualQuantity: stockEntry.purchasedIndividualQuantity,
+            newIndividualQuantity,
+            isInteger: Number.isInteger(newIndividualQuantity)
+          });
+
+          // Only update individual quantity, keep package quantity unchanged
+          stockEntry.purchasedIndividualQuantity = Math.round(newIndividualQuantity);
+          await stockEntry.save();
+
+          console.log(`Updated assignment ${assignment.id}: ${assignmentIndividualQuantity} -> ${newAssignedIndividualQuantity} individual units`);
+          console.log(`Updated stock entry ${stockEntry.id}: individual quantity ${stockEntry.purchasedIndividualQuantity + stockEntryDeductionQuantity} -> ${newIndividualQuantity}`);
         }
       }
 

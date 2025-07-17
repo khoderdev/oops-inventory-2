@@ -34,7 +34,7 @@ const stockEntriesController = {
   // Create new stock entry
   createStockEntries: async (req, res, next) => {
     try {
-      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, purchaseDate, expiryDate, batchNumber, notes } = req.body;
+      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, purchaseDate, expiryDate } = req.body;
 
       if (!materialId || !supplier || !purchasedQuantity || !purchasedUnit || !costPerPurchasedUnit || !totalCost || !purchaseDate) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -48,17 +48,41 @@ const stockEntriesController = {
         return res.status(400).json({ error: "Purchased unit cannot be empty" });
       }
 
+      // Get material to check if it's a package unit
+      const material = await Material.findByPk(materialId);
+      if (!material) {
+        return res.status(404).json({ error: "Material not found" });
+      }
+
+      // Calculate individual quantities for package units
+      let purchasedIndividualQuantity = purchasedQuantity;
+      let purchasedIndividualUnit = purchasedUnit;
+
+      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+        // For package units, calculate individual quantities (rounded to whole numbers)
+        purchasedIndividualQuantity = Math.round(purchasedQuantity * material.packageQuantity);
+        purchasedIndividualUnit = material.baseUnit;
+        
+        console.log(`Package unit conversion for ${material.name}:`, {
+          packageQuantity: purchasedQuantity,
+          packageUnit: purchasedUnit,
+          individualQuantity: purchasedIndividualQuantity,
+          individualUnit: purchasedIndividualUnit,
+          packageQuantityPerUnit: material.packageQuantity
+        });
+      }
+
       const stockEntry = await StockEntry.create({
         materialId,
         supplier,
         purchasedQuantity,
         purchasedUnit,
+        purchasedIndividualQuantity,
+        purchasedIndividualUnit,
         costPerPurchasedUnit,
         totalCost,
         purchaseDate,
-        expiryDate,
-        batchNumber,
-        notes
+        expiryDate
       });
 
       const createdStockEntry = await StockEntry.findByPk(stockEntry.id, {
@@ -75,7 +99,7 @@ const stockEntriesController = {
   updateStockEntries: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, purchaseDate, expiryDate, batchNumber, notes } = req.body;
+      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, purchaseDate, expiryDate } = req.body;
 
       const stockEntry = await StockEntry.findByPk(id);
       if (!stockEntry) {
@@ -98,17 +122,48 @@ const stockEntriesController = {
         return res.status(400).json({ error: "Purchased unit cannot be empty" });
       }
 
+      // Get material to recalculate individual quantities if needed
+      const material = await Material.findByPk(materialId ?? stockEntry.materialId);
+      if (!material) {
+        return res.status(404).json({ error: "Material not found" });
+      }
+
+      // Calculate individual quantities for package units
+      let updatedIndividualQuantity = stockEntry.purchasedIndividualQuantity;
+      let updatedIndividualUnit = stockEntry.purchasedIndividualUnit;
+
+      const finalPurchasedQuantity = purchasedQuantity ?? stockEntry.purchasedQuantity;
+      const finalPurchasedUnit = purchasedUnit ?? stockEntry.purchasedUnit;
+
+      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+        // Recalculate individual quantities for package units (rounded to whole numbers)
+        updatedIndividualQuantity = Math.round(finalPurchasedQuantity * material.packageQuantity);
+        updatedIndividualUnit = material.baseUnit;
+        
+        console.log(`Package unit update conversion for ${material.name}:`, {
+          packageQuantity: finalPurchasedQuantity,
+          packageUnit: finalPurchasedUnit,
+          individualQuantity: updatedIndividualQuantity,
+          individualUnit: updatedIndividualUnit,
+          packageQuantityPerUnit: material.packageQuantity
+        });
+      } else {
+        // For non-package units, individual quantities match package quantities
+        updatedIndividualQuantity = finalPurchasedQuantity;
+        updatedIndividualUnit = finalPurchasedUnit;
+      }
+
       await stockEntry.update({
         materialId: materialId ?? stockEntry.materialId,
         supplier: supplier ?? stockEntry.supplier,
-        purchasedQuantity: purchasedQuantity ?? stockEntry.purchasedQuantity,
-        purchasedUnit: purchasedUnit ?? stockEntry.purchasedUnit,
+        purchasedQuantity: finalPurchasedQuantity,
+        purchasedUnit: finalPurchasedUnit,
+        purchasedIndividualQuantity: updatedIndividualQuantity,
+        purchasedIndividualUnit: updatedIndividualUnit,
         costPerPurchasedUnit: costPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit,
         totalCost: totalCost ?? stockEntry.totalCost,
         purchaseDate: purchaseDate ?? stockEntry.purchaseDate,
-        expiryDate: expiryDate ?? stockEntry.expiryDate,
-        batchNumber: batchNumber ?? stockEntry.batchNumber,
-        notes: notes ?? stockEntry.notes
+        expiryDate: expiryDate ?? stockEntry.expiryDate
       });
 
       const updatedStockEntry = await StockEntry.findByPk(id, {
