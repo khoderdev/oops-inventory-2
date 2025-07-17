@@ -47,9 +47,26 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
   const materialsWithStock = useMemo(() => {
     return materials.map(material => {
       const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
-      return calculateMaterialInventory(material, materialStockEntries);
+      const materialInventory = calculateMaterialInventory(material, materialStockEntries);
+
+      // Calculate assigned individual quantities for this material
+      const materialAssignments = sectionAssignments.filter(assignment => assignment.materialId === material.id && assignment.itemType === "stockEntry");
+
+      const totalAssignedIndividualQuantity = materialAssignments.reduce((sum, assignment) => {
+        // Use assignedIndividualQuantity if available, otherwise calculate from assignedQuantity
+        const individualQty = assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * (material.packageQuantity || 1);
+        return sum + individualQty;
+      }, 0);
+
+      // Calculate available quantity (total - assigned)
+      const availableQuantity = Math.max(0, materialInventory.totalQuantityInBaseUnit - totalAssignedIndividualQuantity);
+
+      return {
+        ...materialInventory,
+        availableQuantity
+      };
     });
-  }, [materials, stockEntries]);
+  }, [materials, stockEntries, sectionAssignments]);
 
   // Filter materials based on search and filters
   const filteredMaterials = useMemo(() => {
@@ -192,7 +209,6 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Category</TableHead>
-                    <TableHead>Available Quantity</TableHead>
                     <TableHead>Average Cost/Unit</TableHead>
                     <TableHead>Total Cost</TableHead>
                     <TableHead>Stock Entries</TableHead>
@@ -205,14 +221,6 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                       <TableCell className="font-medium">{material.name}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{MATERIAL_CATEGORIES.find(c => c.value === material.category)?.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {formatNumber(material.totalQuantityInBaseUnit)} {material.baseUnit}
-                        {material.unitType === "package" && (
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            Package
-                          </Badge>
-                        )}
                       </TableCell>
                       <TableCell>
                         {formatCurrency(material.averageCostPerBaseUnit)}/{material.baseUnit}
