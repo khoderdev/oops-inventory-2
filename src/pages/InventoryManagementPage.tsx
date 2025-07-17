@@ -143,7 +143,7 @@ export const InventoryManagementPage = () => {
       )}
 
       <Tabs defaultValue="inventory" className="">
-        <TabsList className="grid w-full grid-cols-4 sticky top-0 bg-white">
+        <TabsList className="grid w-full grid-cols-4 sticky top-0 bg-white !z-50">
           <TabsTrigger value="pos" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <BarChart3 className="h-4 w-4" />
             POS

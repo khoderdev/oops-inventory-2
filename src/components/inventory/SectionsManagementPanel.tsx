@@ -12,9 +12,13 @@ interface SectionsManagementPanelProps {
   materials: Material[];
   stockEntries: StockEntry[];
   menuItems: MenuItem[];
+  onCreateSection?: (data: { name: string; description?: string }) => void;
+  onUpdateSection?: (id: string, data: { name: string; description?: string }) => void;
+  onDeleteSection?: (id: string) => void;
+  onEditSection?: (section: Section) => void;
 }
 
-export function SectionsManagementPanel({ sections, sectionAssignments, materials, stockEntries, menuItems }: SectionsManagementPanelProps) {
+export function SectionsManagementPanel({ sections, sectionAssignments, materials, stockEntries, menuItems, onCreateSection, onUpdateSection, onDeleteSection, onEditSection }: SectionsManagementPanelProps) {
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   const [showSectionForm, setShowSectionForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
@@ -24,8 +28,8 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
   const [detailModalItem, setDetailModalItem] = useState<{ type: "material" | "section" | "assignment" | "stock"; data: StockEntry | Section | SectionAssignment | MaterialWithSectionAssignments } | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  // Get CRUD operations - need to pass refetch function
-  const { createSection, updateSection, deleteSection, createAssignment, updateAssignment, deleteAssignment } = useInventoryCRUD(() => {}); // Empty refetch function for now
+  // Get CRUD operations from useInventoryCRUD hook for assignments only
+  const { createAssignment, updateAssignment, deleteAssignment } = useInventoryCRUD(() => {}); // Empty refetch function for now
 
   // Calculate sections with assignments
   const sectionsWithAssignments: SectionWithAssignments[] = useMemo(() => {
@@ -105,33 +109,40 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     });
   }, [materials, sectionAssignments, sections]);
 
-  const handleCreateSection = async (data: CreateSectionData) => {
-    try {
-      await createSection(data);
-      setShowSectionForm(false);
-      setEditingSection(undefined);
-    } catch (error) {
-      console.error("Failed to create section:", error);
+  const handleCreateSection = (data: CreateSectionData) => {
+    if (onCreateSection) {
+      onCreateSection(data);
+    }
+    setShowSectionForm(false);
+    setEditingSection(undefined);
+  };
+
+  const handleUpdateSection = (data: UpdateSectionData) => {
+    if (!editingSection || !onUpdateSection) return;
+
+    // Ensure data has required name property
+    const updateData = {
+      name: data.name || editingSection.name,
+      description: data.description
+    };
+    onUpdateSection(editingSection.id, updateData);
+    setShowSectionForm(false);
+    setEditingSection(undefined);
+  };
+
+  const handleDeleteSection = (sectionId: string) => {
+    if (onDeleteSection) {
+      onDeleteSection(sectionId);
     }
   };
 
-  const handleUpdateSection = async (data: UpdateSectionData) => {
-    if (!editingSection) return;
-
-    try {
-      await updateSection(editingSection.id, data);
-      setShowSectionForm(false);
-      setEditingSection(undefined);
-    } catch (error) {
-      console.error("Failed to update section:", error);
-    }
-  };
-
-  const handleDeleteSection = async (sectionId: string) => {
-    try {
-      await deleteSection(sectionId);
-    } catch (error) {
-      console.error("Failed to delete section:", error);
+  const handleEditSection = (section: Section) => {
+    if (onEditSection) {
+      onEditSection(section);
+    } else {
+      // Fallback to local editing
+      setEditingSection(section);
+      setShowSectionForm(true);
     }
   };
 
@@ -188,12 +199,12 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         selectedSectionId={selectedSectionId}
         sections={sections}
         setSelectedItem={item => {
-          setSelectedItem(item);
-          // Convert to DetailModal format
-          if (item.type === "section") {
+          // Only set if item.data is SectionWithAssignments
+          if (item.type === "section" && "assignments" in item.data) {
+            setSelectedItem(item as { type: string; data: SectionWithAssignments });
             setDetailModalItem({ type: "section", data: item.data as Section });
+            setIsDetailModalOpen(true);
           }
-          setIsDetailModalOpen(true);
         }}
         setIsDetailModalOpen={setIsDetailModalOpen}
         setEditingSection={setEditingSection}

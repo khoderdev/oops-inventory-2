@@ -1,17 +1,20 @@
 import { MaterialForm } from "@/components/materials/MaterialForm";
 import { StockForm } from "@/components/stock/StockForm";
+import { SectionForm } from "@/components/sections/SectionForm";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Material, MATERIAL_CATEGORIES, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { calculateCostForQuantity, calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials, getDisplayQuantity, getSuggestedUnits } from "@/utils/inventoryCalculations";
-import { Edit, Filter, Package, Plus, Search, Trash2 } from "lucide-react";
+import { Edit, Filter, Package, Plus, Search, Trash2, Building2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MenuItemBuilder } from "../menu/MenuBuilder";
 import { SectionsManagementPanel } from "./SectionsManagementPanel";
@@ -31,14 +34,19 @@ interface InventoryManagementPanelProps {
   onCreateMenuItem?: (data: MenuItem) => void;
   onUpdateMenuItem?: (id: string, data: MenuItem) => void;
   onDeleteMenuItem?: (id: string) => void;
+  onCreateSection?: (data: { name: string; description?: string }) => void;
+  onUpdateSection?: (id: string, data: { name: string; description?: string }) => void;
+  onDeleteSection?: (id: string) => void;
 }
 
-export function InventoryManagementPanel({ materials, stockEntries, sections = [], sectionAssignments = [], menuItems = [], onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps) {
+export function InventoryManagementPanel({ materials, stockEntries, sections = [], sectionAssignments = [], menuItems = [], onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps) {
   const [activeTab, setActiveTab] = useState("material");
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [showStockForm, setShowStockForm] = useState(false);
+  const [showSectionForm, setShowSectionForm] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [selectedStockEntry, setSelectedStockEntry] = useState<StockEntry | null>(null);
+  const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [lowStockFilter, setLowStockFilter] = useState(false);
@@ -136,6 +144,23 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
     setSelectedMaterial(materials.find(m => m.id === materialId) || null);
     setShowStockForm(true);
   };
+
+  const handleSectionSubmit = (data: { name: string; description?: string }) => {
+    if (selectedSection && onUpdateSection) {
+      onUpdateSection(selectedSection.id, data);
+    } else if (onCreateSection) {
+      onCreateSection(data);
+    }
+    setShowSectionForm(false);
+    setSelectedSection(null);
+  };
+
+  const handleEditSection = (section: Section) => {
+    setSelectedSection(section);
+    setShowSectionForm(true);
+  };
+
+  const existingSectionNames = sections.map(section => section.name);
 
   return (
     <div className="space-y-6">
@@ -355,7 +380,17 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
         </TabsContent>
 
         <TabsContent value="sections" className="space-y-4">
-          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materials} stockEntries={stockEntries} menuItems={menuItems} />
+          <SectionsManagementPanel 
+            sections={sections} 
+            sectionAssignments={sectionAssignments} 
+            materials={materials} 
+            stockEntries={stockEntries} 
+            menuItems={menuItems}
+            onCreateSection={onCreateSection}
+            onUpdateSection={onUpdateSection}
+            onDeleteSection={onDeleteSection}
+            onEditSection={handleEditSection}
+          />
         </TabsContent>
 
         <TabsContent value="menu" className="space-y-4">
@@ -400,6 +435,38 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
           </div>
         </div>
       )}
+
+      {/* Section Form Dialog */}
+      <Dialog open={showSectionForm} onOpenChange={setShowSectionForm}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Building2 className="h-5 w-5" />
+              {selectedSection ? "Edit Section" : "Create New Section"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedSection 
+                ? "Update the section details below" 
+                : "Create a new section to organize your inventory items"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[calc(90vh-120px)]">
+            <div className="px-6 py-4">
+              <SectionForm
+                section={selectedSection || undefined}
+                onSubmit={handleSectionSubmit}
+                onCancel={() => {
+                  setShowSectionForm(false);
+                  setSelectedSection(null);
+                }}
+                existingSectionNames={existingSectionNames}
+              />
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
