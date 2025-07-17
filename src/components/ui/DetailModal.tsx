@@ -228,6 +228,29 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                 if (itemType === "stockEntry" && (assignment.material || assignment.stockEntry)) {
                   const assignmentValue = (assignment.assignedQuantity || 0) * (assignment.stockEntry?.costPerPurchasedUnit || assignment.material?.costPerBaseUnit || 0);
                   
+                  // Calculate converted quantity for package units
+                  const getQuantityDisplay = () => {
+                    const material = assignment.material;
+                    const assignedQty = assignment.assignedQuantity || 0;
+                    const assignedUnit = assignment.assignedUnit || "";
+                    
+                    if (material?.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+                      const convertedQty = assignedQty * material.packageQuantity;
+                      return (
+                        <div className="text-sm text-green-700">
+                          <div>{formatNumber(assignedQty)} {assignedUnit}</div>
+                          <div className="text-xs text-green-600">({formatNumber(convertedQty)} {material.baseUnit})</div>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="text-sm text-green-700">
+                        {formatNumber(assignedQty)} {assignedUnit}
+                      </div>
+                    );
+                  };
+                  
                   return (
                     <div key={index} className="p-3 bg-green-50 border border-green-200 rounded-lg">
                       <div className="flex justify-between items-start">
@@ -239,6 +262,11 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                             <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
                               Material
                             </span>
+                            {assignment.material?.unitType === "package" && (
+                              <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">
+                                Package
+                              </span>
+                            )}
                           </div>
                           {assignment.stockEntry?.supplier && (
                             <div className="text-sm text-green-700 mt-1">
@@ -252,9 +280,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                           )}
                         </div>
                         <div className="text-right">
-                          <div className="text-sm text-green-700">
-                            {formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}
-                          </div>
+                          {getQuantityDisplay()}
                           <div className="font-semibold text-green-900">
                             {formatCurrency(assignmentValue)}
                           </div>
@@ -345,7 +371,14 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <div>
               <h4 className="text-sm font-semibold text-muted-foreground">Assigned Quantity</h4>
-              <p className="text-base">{formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}</p>
+              <div className="text-base">
+                <div>{formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}</div>
+                {assignment.material?.unitType === "package" && assignment.material.packageQuantity && assignment.material.packageQuantity > 0 && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    ({formatNumber((assignment.assignedQuantity || 0) * assignment.material.packageQuantity)} {assignment.material.baseUnit})
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <h4 className="text-sm font-semibold text-muted-foreground">Material Category</h4>

@@ -259,6 +259,9 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
           <Card>
             <CardHeader>
               <CardTitle>Stock Entries</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Showing remaining quantities from individual purchases (updated after sales)
+              </p>
             </CardHeader>
             <CardContent>
               <Table>
@@ -266,7 +269,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                   <TableRow>
                     <TableHead>Material</TableHead>
                     <TableHead>Supplier</TableHead>
-                    <TableHead>Quantity</TableHead>
+                    <TableHead>Remaining Qty</TableHead>
                     <TableHead>Unit</TableHead>
                     <TableHead>Cost/Unit</TableHead>
                     <TableHead>Total Cost</TableHead>

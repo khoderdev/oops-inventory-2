@@ -152,9 +152,10 @@ export function calculateInventoryTurnover(material: MaterialWithStock, usagePer
   return { turnoverRate, monthsOfStock };
 }
 
-// Convert package quantities to base units for display
+// Convert package quantities to base units for display (shows remaining quantities after sales)
 export function getDisplayQuantity(stockEntry: StockEntry, material: Material): { quantity: number; unit: string; isConverted: boolean } {
-  // For package units (box, pack, case), convert to base units (bottles, pieces)
+  // Note: purchasedQuantity is updated by sales controller to reflect remaining quantity
+  // For package units (box, pack, case), convert remaining quantity to base units (bottles, pieces)
   if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
     const convertedQuantity = stockEntry.purchasedQuantity * material.packageQuantity;
     return {
@@ -164,10 +165,33 @@ export function getDisplayQuantity(stockEntry: StockEntry, material: Material): 
     };
   }
   
-  // For non-package units, return as-is
+  // For non-package units, return remaining quantity as-is
   return {
     quantity: stockEntry.purchasedQuantity,
     unit: stockEntry.purchasedUnit,
     isConverted: false
+  };
+}
+
+// Get total available quantity for a material across all stock entries
+export function getTotalAvailableQuantity(material: Material, stockEntries: StockEntry[]): { quantity: number; unit: string } {
+  const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
+  
+  let totalQuantity = 0;
+  
+  // Sum up all remaining quantities in base units
+  materialStockEntries.forEach(entry => {
+    if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+      // Convert package quantities to base units
+      totalQuantity += entry.purchasedQuantity * material.packageQuantity;
+    } else {
+      // For non-package units, add directly (assuming same unit)
+      totalQuantity += entry.purchasedQuantity;
+    }
+  });
+  
+  return {
+    quantity: totalQuantity,
+    unit: material.baseUnit
   };
 }
