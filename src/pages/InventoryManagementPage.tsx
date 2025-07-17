@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryCRUD } from "@/hooks/useInventoryCRUD";
 import { useInventoryData } from "@/hooks/useInventoryData";
-import { CreateMaterialData, CreateStockEntryData, MaterialWithStock, UpdateMaterialData, UpdateStockEntryData } from "@/types/inventory";
+import { CreateMaterialData, CreateStockEntryData, MaterialWithStock, MenuItem, UpdateMaterialData, UpdateStockEntryData } from "@/types/inventory";
 import { unitConverter } from "@/utils/enhancedConversions";
 import { calculateMaterialInventory } from "@/utils/inventoryCalculations";
 import { BarChart3, Calculator, FileText, Loader2, Package } from "lucide-react";
@@ -15,7 +15,7 @@ export const InventoryManagementPage = () => {
   // Fetch data from backend
   const { materials, stockEntries, menuItems, sections, sectionAssignments, loading, error, refetch } = useInventoryData();
   // CRUD operations
-  const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
+  const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, createMenuItem, updateMenuItem, deleteMenuItem, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
 
   // Initialize packaging configurations
   useMemo(() => {
@@ -102,6 +102,30 @@ export const InventoryManagementPage = () => {
     }
   };
 
+  const handleCreateMenuItem = async (data: MenuItem) => {
+    try {
+      await createMenuItem(data);
+    } catch (error) {
+      console.error("Failed to create menu item:", error);
+    }
+  };
+
+  const handleUpdateMenuItem = async (id: string, data: MenuItem) => {
+    try {
+      await updateMenuItem(id, data);
+    } catch (error) {
+      console.error("Failed to update menu item:", error);
+    }
+  };
+
+  const handleDeleteMenuItem = async (id: string) => {
+    try {
+      await deleteMenuItem(id);
+    } catch (error) {
+      console.error("Failed to delete menu item:", error);
+    }
+  };
+
   // Show loading state
   if (loading) {
     return (
@@ -171,7 +195,22 @@ export const InventoryManagementPage = () => {
         </TabsContent>
 
         <TabsContent value="inventory" className="p-4">
-          <InventoryManagementPanel materials={materials} stockEntries={stockEntries} sections={sections} sectionAssignments={sectionAssignments} menuItems={menuItems} onCreateMaterial={handleCreateMaterial} onUpdateMaterial={handleUpdateMaterial} onDeleteMaterial={handleDeleteMaterial} onCreateStockEntry={handleCreateStockEntry} onUpdateStockEntry={handleUpdateStockEntry} onDeleteStockEntry={handleDeleteStockEntry} />
+          <InventoryManagementPanel
+            materials={materialsWithStock}
+            stockEntries={stockEntries}
+            sections={sections}
+            sectionAssignments={sectionAssignments}
+            menuItems={menuItems}
+            onCreateMaterial={handleCreateMaterial}
+            onUpdateMaterial={handleUpdateMaterial}
+            onDeleteMaterial={handleDeleteMaterial}
+            onCreateStockEntry={handleCreateStockEntry}
+            onUpdateStockEntry={handleUpdateStockEntry}
+            onDeleteStockEntry={handleDeleteStockEntry}
+            onCreateMenuItem={handleCreateMenuItem}
+            onUpdateMenuItem={handleUpdateMenuItem}
+            onDeleteMenuItem={handleDeleteMenuItem}
+          />
         </TabsContent>
 
         <TabsContent value="calculator" className="p-4">

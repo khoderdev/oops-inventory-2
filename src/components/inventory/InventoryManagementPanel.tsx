@@ -12,12 +12,13 @@ import { ConversionResult } from "@/types/conversion";
 import { Material, MATERIAL_CATEGORIES, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { calculateCostForQuantity, calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials, getSuggestedUnits } from "@/utils/inventoryCalculations";
-import { AlertTriangle, DollarSign, Edit, Filter, Package, Plus, Search, Trash2, TrendingDown } from "lucide-react";
+import { Edit, Filter, Package, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { MenuItemBuilder } from "../menu/MenuBuilder";
 import { SectionsManagementPanel } from "./SectionsManagementPanel";
 
 interface InventoryManagementPanelProps {
-  materials: Material[];
+  materials: MaterialWithStock[];
   stockEntries: StockEntry[];
   sections?: Section[];
   sectionAssignments?: SectionAssignment[];
@@ -28,9 +29,12 @@ interface InventoryManagementPanelProps {
   onCreateStockEntry: (data: StockEntry) => void;
   onUpdateStockEntry: (id: string, data: StockEntry) => void;
   onDeleteStockEntry: (id: string) => void;
+  onCreateMenuItem?: (data: MenuItem) => void;
+  onUpdateMenuItem?: (id: string, data: MenuItem) => void;
+  onDeleteMenuItem?: (id: string) => void;
 }
 
-export function InventoryManagementPanel({ materials, stockEntries, sections = [], sectionAssignments = [], menuItems = [], onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry }: InventoryManagementPanelProps) {
+export function InventoryManagementPanel({ materials, stockEntries, sections = [], sectionAssignments = [], menuItems = [], onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps) {
   const [activeTab, setActiveTab] = useState("material");
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [showStockForm, setShowStockForm] = useState(false);
@@ -119,62 +123,8 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Inventory Management</h2>
-          <p className="text-muted-foreground">Manage materials, stock entries, and track inventory with dynamic unit conversions</p>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Inventory Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(summaryStats.totalValue)}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Materials</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summaryStats.totalMaterials}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Stock Entries</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summaryStats.totalStockEntries}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{summaryStats.lowStockCount}</div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
+      <Card className="pt-6">
         <CardContent>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             {/* Filter Controls */}
@@ -372,10 +322,18 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
         <TabsContent value="sections" className="space-y-4">
           <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materials} stockEntries={stockEntries} menuItems={menuItems} />
         </TabsContent>
-        {/* 
+
         <TabsContent value="menu" className="space-y-4">
-          <MenuBuilder materials={materialsWithStock} stockEntries={stockEntries} sections={sections} />
-        </TabsContent> */}
+          <MenuItemBuilder 
+            materials={materials} 
+            stockEntries={stockEntries} 
+            sections={sections}
+            menuItems={menuItems}
+            onCreateMenuItem={onCreateMenuItem}
+            onUpdateMenuItem={onUpdateMenuItem}
+            onDeleteMenuItem={onDeleteMenuItem}
+          />
+        </TabsContent>
 
         <TabsContent value="conversions" className="space-y-4">
           <UnitConversionCalculator materials={materialsWithStock} />
