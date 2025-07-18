@@ -293,7 +293,7 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
       </Card>
 
       {/* Selected Section Assignments */}
-      {selectedSectionId && selectedSection && (
+      {/* {selectedSectionId && selectedSection && (
         <Card>
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -342,7 +342,7 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
             )}
           </CardContent>
         </Card>
-      )}
+      )} */}
     </div>
   );
 });
