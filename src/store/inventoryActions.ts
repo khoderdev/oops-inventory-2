@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 import { inventoryAPI } from '@/api/inventory.api';
-import { Material, MaterialWithStock, StockEntry, Section, SectionAssignment, MenuItem } from '@/types/inventory';
+import { Material, MaterialWithStock, StockEntry, CreateStockEntryData, Section, SectionAssignment, MenuItem } from '@/types/inventory';
 import {
   materialsAtom,
   stockEntriesAtom,
@@ -280,8 +280,47 @@ export const createStockEntryAction = atom(
     set(optimisticStockEntriesAtom, prev => [...prev, tempStockEntry]);
     
     try {
+      console.log('Creating stock entry with data:', data);
+      
+      // Convert StockEntry to CreateStockEntryData by removing id, createdAt, updatedAt
+      const createData = {
+        materialId: data.materialId,
+        supplier: data.supplier,
+        purchasedQuantity: data.purchasedQuantity,
+        purchasedUnit: data.purchasedUnit,
+        purchasedIndividualQuantity: data.purchasedIndividualQuantity,
+        purchasedIndividualUnit: data.purchasedIndividualUnit,
+        costPerPurchasedUnit: data.costPerPurchasedUnit,
+        totalCost: data.totalCost,
+        purchaseDate: data.purchaseDate,
+        expiryDate: data.expiryDate,
+        batchNumber: data.batchNumber,
+        notes: data.notes
+      };
+      
       // Make API call
-      // await inventoryAPI.stock.createStockEntry(data);
+      const response = await inventoryAPI.stock.createStockEntry(createData);
+      
+      console.log('Stock entry created successfully:', response.data);
+      
+      // Update with real data from server
+      const realStockEntry: StockEntry = {
+        ...response.data,
+        id: response.data.id.toString(),
+        createdAt: new Date(response.data.createdAt),
+        updatedAt: new Date(response.data.updatedAt),
+        purchaseDate: new Date(response.data.purchaseDate),
+        expiryDate: response.data.expiryDate ? new Date(response.data.expiryDate) : undefined
+      };
+      
+      // Replace temp entry with real entry
+      set(optimisticStockEntriesAtom, prev => 
+        prev.map(entry => entry.id === tempStockEntry.id ? realStockEntry : entry)
+      );
+      
+      // Update base atom as well
+      set(stockEntriesAtom, prev => [...prev, realStockEntry]);
+      
     } catch (error) {
       // Revert optimistic update
       set(optimisticStockEntriesAtom, get(stockEntriesAtom));

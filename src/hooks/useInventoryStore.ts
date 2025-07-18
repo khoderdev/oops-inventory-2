@@ -98,16 +98,17 @@ export function useInventoryStore() {
   );
 
   const handleStockSubmit = useCallback(
-    (data: StockEntry) => {
+    async (data: StockEntry) => {
       try {
         if (selectedStockEntry) {
           // await updateStockEntry({ id: selectedStockEntry.id, data });
         } else {
-          createStockEntry(data);
+          await createStockEntry(data);
         }
         setShowStockFormTyped(false);
         setSelectedStockEntryTyped(null);
       } catch (error) {
+        console.error('Failed to submit stock entry:', error);
         // Error is already handled in the action
       }
     },
