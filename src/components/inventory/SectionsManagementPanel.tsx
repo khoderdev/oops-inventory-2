@@ -257,6 +257,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
             sections={sections}
             stockEntries={stockEntries}
             materials={materials}
+            menuItems={menuItems}
             assignment={editingAssignment}
             onSubmit={handleAssignmentSubmit}
             onCancel={() => {
