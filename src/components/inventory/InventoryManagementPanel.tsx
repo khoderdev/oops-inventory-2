@@ -41,7 +41,13 @@ interface InventoryManagementPanelProps {
 }
 
 export function InventoryManagementPanel({ materials, stockEntries, sections = [], sectionAssignments = [], menuItems = [], onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps) {
-  const [activeTab, setActiveTab] = useState("material");
+  const [activeTab, setActiveTab] = useState(() => {
+    // Try to get the last active tab from localStorage, default to 'sections'
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('inventoryManagementActiveTab') || 'sections';
+    }
+    return 'sections';
+  });
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [showStockForm, setShowStockForm] = useState(false);
   const [showSectionForm, setShowSectionForm] = useState(false);
@@ -79,6 +85,15 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
     setOptimisticMaterials(materials);
     setOptimisticStockEntries(stockEntries);
   }, [materials, stockEntries]);
+
+  // Persist active tab to prevent unwanted resets
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    // Save to localStorage for persistence across re-renders
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('inventoryManagementActiveTab', value);
+    }
+  }, []);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -313,7 +328,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
       </Card>
 
       {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="material">Material</TabsTrigger>
           <TabsTrigger value="stock">Stock Entries</TabsTrigger>

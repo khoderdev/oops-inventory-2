@@ -280,11 +280,11 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     }
   };
 
-  const handleSectionSubmit = (data: CreateSectionData | UpdateSectionData) => {
+  const handleSectionSubmit = async (data: CreateSectionData | UpdateSectionData) => {
     if (editingSection) {
-      handleUpdateSection(data as UpdateSectionData);
+      await handleUpdateSection(data as UpdateSectionData);
     } else {
-      handleCreateSection(data as CreateSectionData);
+      await handleCreateSection(data as CreateSectionData);
     }
   };
 

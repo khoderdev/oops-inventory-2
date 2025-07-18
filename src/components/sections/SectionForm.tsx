@@ -7,7 +7,6 @@ import { Separator } from "@/components/ui/separator";
 import { Section } from "@/types/inventory";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Building2, Info } from "lucide-react";
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -16,18 +15,14 @@ const sectionSchema = z.object({
     .string()
     .min(1, "Section name is required")
     .max(100, "Section name must be 100 characters or less")
-    .regex(/^[a-zA-Z0-9\s\-_]+$/, "Section name can only contain letters, numbers, spaces, hyphens, and underscores"),
-  description: z
-    .string()
-    .optional()
-    .refine(val => !val || val.length <= 500, "Description must be 500 characters or less")
+    .regex(/^[a-zA-Z0-9\s\-_]+$/, "Section name can only contain letters, numbers, spaces, hyphens, and underscores")
 });
 
 type SectionFormData = z.infer<typeof sectionSchema>;
 
 interface SectionFormProps {
   section?: Section;
-  onSubmit: (data: SectionFormData) => void;
+  onSubmit: (data: SectionFormData) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
   existingSectionNames?: string[];
@@ -37,33 +32,17 @@ export function SectionForm({ section, onSubmit, onCancel, isLoading = false, ex
   const form = useForm<SectionFormData>({
     resolver: zodResolver(sectionSchema),
     defaultValues: {
-      name: section?.name || "",
-      description: section?.description || ""
+      name: section?.name || ""
     },
     mode: "onChange"
   });
 
   const watchedName = form.watch("name");
-  const watchedDescription = form.watch("description");
 
-  // Check for duplicate section names
   const isDuplicateName = existingSectionNames.filter(name => (section ? name !== section.name : true)).some(name => name.toLowerCase() === watchedName.toLowerCase());
 
-  // Set custom error for duplicate names
-  useEffect(() => {
-    if (isDuplicateName && watchedName) {
-      form.setError("name", {
-        type: "manual",
-        message: "A section with this name already exists"
-      });
-    } else if (!isDuplicateName) {
-      form.clearErrors("name");
-    }
-  }, [isDuplicateName, watchedName, form]);
-
-  const handleSubmit = (data: SectionFormData) => {
-    if (isLoading || isDuplicateName) return;
-    onSubmit(data);
+  const handleSubmit = async (data: SectionFormData) => {
+    await onSubmit(data);
   };
 
   return (
