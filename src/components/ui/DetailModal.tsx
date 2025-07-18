@@ -443,18 +443,36 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                     const assignedUnit = assignment.assignedUnit || "";
 
                     if (material?.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-                      // Use assignedIndividualQuantity if available, otherwise calculate
-                      const convertedQty = assignment.assignedIndividualQuantity || assignedQty * material.packageQuantity;
-                      return (
-                        <div className="text-sm text-green-700">
-                          <div>
-                            {formatNumber(assignedQty)} {assignedUnit}
+                      // Check if we're assigning in base units (bottles) or package units (boxes)
+                      const isAssigningInBaseUnit = assignedUnit === material.baseUnit;
+                      const isAssigningInPackageUnit = assignedUnit === material.inputUnit;
+                      
+                      if (isAssigningInBaseUnit) {
+                        // Assigning in base units (e.g., 10 bottles)
+                        // Use assignedIndividualQuantity if available, otherwise use assignedQty directly
+                        const individualQty = assignment.assignedIndividualQuantity || assignedQty;
+                        return (
+                          <div className="text-sm text-green-700">
+                            <div>
+                              {formatNumber(assignedQty)} {assignedUnit}
+                            </div>
                           </div>
-                          <div className="text-xs text-green-600">
-                            ({formatNumber(convertedQty)} {material.baseUnit})
+                        );
+                      } else if (isAssigningInPackageUnit) {
+                        // Assigning in package units (e.g., 2 boxes)
+                        // Calculate individual units: 2 boxes × 12 bottles/box = 24 bottles
+                        const individualQty = assignment.assignedIndividualQuantity || assignedQty * material.packageQuantity;
+                        return (
+                          <div className="text-sm text-green-700">
+                            <div>
+                              {formatNumber(assignedQty)} {assignedUnit}
+                            </div>
+                            <div className="text-xs text-green-600">
+                              ({formatNumber(individualQty)} {material.baseUnit})
+                            </div>
                           </div>
-                        </div>
-                      );
+                        );
+                      }
                     }
 
                     return (
@@ -570,7 +588,21 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                 </div>
                 {assignment.material?.unitType === "package" && assignment.material.packageQuantity && assignment.material.packageQuantity > 0 && (
                   <div className="text-sm text-muted-foreground mt-1">
-                    ({formatNumber(assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * assignment.material.packageQuantity)} {assignment.material.baseUnit})
+                    {(() => {
+                      const assignedUnit = assignment.assignedUnit || "";
+                      const isAssigningInBaseUnit = assignedUnit === assignment.material.baseUnit;
+                      const isAssigningInPackageUnit = assignedUnit === assignment.material.inputUnit;
+                      
+                      if (isAssigningInBaseUnit) {
+                        // Already in base units, no conversion needed
+                        return null;
+                      } else if (isAssigningInPackageUnit) {
+                        // Convert package units to base units
+                        const individualQty = assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * assignment.material.packageQuantity;
+                        return `(${formatNumber(individualQty)} ${assignment.material.baseUnit})`;
+                      }
+                      return null;
+                    })()}
                   </div>
                 )}
               </div>
@@ -828,11 +860,25 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                                   <div>
                                     {formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}
                                   </div>
-                                  {assignment.material?.unitType === "package" && assignment.material.packageQuantity && assignment.material.packageQuantity > 0 && (
-                                    <div className="text-xs text-muted-foreground">
-                                      ({formatNumber(assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * assignment.material.packageQuantity)} {assignment.material.baseUnit})
-                                    </div>
-                                  )}
+                                  {assignment.material?.unitType === "package" && assignment.material.packageQuantity && assignment.material.packageQuantity > 0 && (() => {
+                                    const assignedUnit = assignment.assignedUnit || "";
+                                    const isAssigningInBaseUnit = assignedUnit === assignment.material.baseUnit;
+                                    const isAssigningInPackageUnit = assignedUnit === assignment.material.inputUnit;
+                                    
+                                    if (isAssigningInBaseUnit) {
+                                      // Already in base units, no conversion display needed
+                                      return null;
+                                    } else if (isAssigningInPackageUnit) {
+                                      // Convert package units to base units
+                                      const individualQty = assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * assignment.material.packageQuantity;
+                                      return (
+                                        <div className="text-xs text-muted-foreground">
+                                          ({formatNumber(individualQty)} {assignment.material.baseUnit})
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                               )}
                             </TableCell>
