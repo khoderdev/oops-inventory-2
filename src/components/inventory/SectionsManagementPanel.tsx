@@ -2,6 +2,7 @@ import { AssignmentForm } from "@/components/sections/AssignmentForm";
 import { SectionForm } from "@/components/sections/SectionForm";
 import { SectionsTable } from "@/components/sections/SectionsTable";
 import { DetailModal } from "@/components/ui/DetailModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useInventoryCRUD } from "@/hooks/useInventoryCRUD";
 import { CreateSectionAssignmentData, CreateSectionData, Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAssignment, SectionWithAssignments, StockEntry, UpdateSectionAssignmentData, UpdateSectionData } from "@/types/inventory";
 import { useMemo, useState } from "react";
@@ -217,16 +218,28 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
       />
 
       {/* Section Form Modal */}
-      {showSectionForm && (
-        <SectionForm
-          section={editingSection}
-          onSubmit={handleSectionSubmit}
-          onCancel={() => {
-            setShowSectionForm(false);
-            setEditingSection(undefined);
-          }}
-        />
-      )}
+      <Dialog open={showSectionForm} onOpenChange={(open) => {
+        if (!open) {
+          setShowSectionForm(false);
+          setEditingSection(undefined);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingSection ? 'Edit Section' : 'Add New Section'}
+            </DialogTitle>
+          </DialogHeader>
+          <SectionForm
+            section={editingSection}
+            onSubmit={handleSectionSubmit}
+            onCancel={() => {
+              setShowSectionForm(false);
+              setEditingSection(undefined);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Assignment Form Modal */}
       {showAssignmentForm && (
