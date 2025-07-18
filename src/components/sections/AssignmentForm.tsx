@@ -11,7 +11,7 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, DollarSign, Info, Package } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -62,7 +62,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
       itemType: assignment?.itemType || "stockEntry",
       stockEntryId: assignment?.stockEntryId || "",
       menuItemId: assignment?.menuItemId || "",
-      assignedQuantity: assignment?.assignedQuantity || 0,
+      assignedQuantity: assignment?.assignedQuantity || undefined,
       assignedUnit: assignment?.assignedUnit || ""
     }
   });

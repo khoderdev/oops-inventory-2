@@ -1,4 +1,4 @@
-import { salesAPI } from "@/api/sales.api.ts";
+import { posAPI } from "@/api/pos.api.ts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,10 +39,27 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
   // Derive menu items from assignments
   const menuItems = useMemo(() => {
-    return sectionAssignments
-      .filter(a => a.itemType === "menuItem" && a.menuItem)
+    console.log('Section assignments for menu items:', sectionAssignments);
+    
+    const menuItemAssignments = sectionAssignments.filter(a => {
+      // Check if it's a menu item assignment by looking for menuItem data
+      const hasMenuItem = a.menuItem && a.menuItemId;
+      const isMenuItemType = a.itemType === "menuItem";
+      
+      console.log(`Assignment ${a.id}: itemType=${a.itemType}, hasMenuItem=${hasMenuItem}, menuItemId=${a.menuItemId}`);
+      
+      // Accept if either itemType is "menuItem" OR if it has menuItem data
+      return (isMenuItemType || hasMenuItem) && a.menuItem;
+    });
+    
+    console.log('Filtered menu item assignments:', menuItemAssignments);
+    
+    const items = menuItemAssignments
       .map(a => a.menuItem!)
       .filter((item, index, self) => self.findIndex(i => i.id === item.id) === index); // Remove duplicates
+    
+    console.log('Final menu items:', items);
+    return items;
   }, [sectionAssignments]);
 
   // Get available items for the selected section
@@ -206,7 +223,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       };
 
       // Save sale to API
-      const createdSale = await salesAPI.createSale(saleRecord);
+      const createdSale = await posAPI.createSale(saleRecord);
       console.log("Sale completed:", createdSale.data);
 
       // Reset form
@@ -628,15 +645,19 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                                 {formatCurrency(item.price)}
                               </div>
                             </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-muted-foreground">
-                              {item.ingredients.map((ing, idx) => (
-                                <div key={idx}>
-                                  {formatNumber(ing.quantity)} {ing.unit} {materials.find(m => m.id === String(ing.materialId))?.name}
-                                </div>
-                              ))}
-                            </div>
-                          </TableCell>
+                            <TableCell>
+                              <div className="text-sm text-muted-foreground">
+                                {item.ingredients && item.ingredients.length > 0 ? (
+                                  item.ingredients.map((ing, idx) => (
+                                    <div key={idx}>
+                                      {formatNumber(ing.quantity)} {ing.unit} {materials.find(m => m.id === String(ing.materialId))?.name}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">No ingredients</span>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <Button
                                 size="sm"
@@ -647,11 +668,11 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                                     quantity: 1,
                                     unitPrice: item.price,
                                     totalPrice: item.price,
-                                    ingredients: item.ingredients.map(ing => ({
+                                    ingredients: item.ingredients ? item.ingredients.map(ing => ({
                                       materialId: ing.materialId,
                                       quantity: ing.quantity,
                                       unit: ing.unit
-                                    })),
+                                    })) : [],
                                     createdAt: undefined,
                                     updatedAt: undefined
                                   };
