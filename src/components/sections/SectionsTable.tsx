@@ -291,58 +291,6 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
           )}
         </CardContent>
       </Card>
-
-      {/* Selected Section Assignments */}
-      {/* {selectedSectionId && selectedSection && (
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  {selectedSectionName} Inventory
-                </CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">{selectedSection.assignments.length} items assigned to this section</p>
-              </div>
-              <Button size="sm" onClick={() => setShowAssignmentForm(true)} className="shrink-0">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Assignment
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {selectedSection.assignments.length === 0 ? (
-              <div className="text-center py-12 px-4">
-                <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No assignments found</h3>
-                <p className="text-muted-foreground mb-4">Assign materials to this section to start tracking inventory.</p>
-                <Button onClick={() => setShowAssignmentForm(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Assignment
-                </Button>
-              </div>
-            ) : (
-              <ScrollArea className="h-[300px]">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-background">
-                    <TableRow>
-                      <TableHead className="w-[200px] sm:w-[300px]">Material</TableHead>
-                      <TableHead className="w-[150px] sm:w-[200px]">Quantity</TableHead>
-                      <TableHead className="w-[120px] text-right">Value</TableHead>
-                      <TableHead className="w-[120px] text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedSection.assignments.map(assignment => (
-                      <AssignmentRow key={assignment.id} assignment={assignment} onRowClick={() => handleAssignmentRowClick(assignment)} onEdit={() => handleEditAssignment(assignment)} onDelete={() => handleDeleteAssignment(assignment.id)} />
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
-      )} */}
     </div>
   );
 });

@@ -277,6 +277,9 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         selectedItem={detailModalItem}
         materialsWithSectionAssignments={materialsWithSectionAssignments}
         sectionsWithAssignments={sectionsWithAssignments}
+        onShowAssignmentForm={setShowAssignmentForm}
+        onEditAssignment={setEditingAssignment}
+        onDeleteAssignment={handleDeleteAssignment}
       />
     </div>
   );
