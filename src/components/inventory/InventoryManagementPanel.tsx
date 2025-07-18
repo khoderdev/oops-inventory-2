@@ -20,7 +20,6 @@ import { MenuItemBuilder } from "../menu/MenuBuilder";
 import { SectionsManagementPanel } from "../sections/SectionsManagementPanel";
 
 export function InventoryManagementPanel() {
-  // Use Jotai store for all state management
   const {
     materialsWithStock,
     filteredMaterials,
@@ -55,11 +54,7 @@ export function InventoryManagementPanel() {
     fetchTabData
   } = useInventoryStore();
 
-  // Section form handlers
   const handleSectionSubmit = (data: { name: string; description?: string }) => {
-    // Section creation/update will be handled by the Jotai store
-    // This is just a placeholder for now
-    console.log("Section submit:", data);
     setShowSectionForm(false);
   };
 
