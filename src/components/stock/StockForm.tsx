@@ -59,6 +59,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   const watchedQuantity = form.watch("purchasedQuantity");
   const watchedCostPerUnit = form.watch("costPerPurchasedUnit");
   const selectedMaterial = materials.find(m => m.id === watchedMaterialId);
+  
+  // Debug logs removed - feature working correctly
 
   // For package materials, prioritize inputUnit (e.g., "box") over baseUnit (e.g., "bottle")
   const availableUnits = selectedMaterial
@@ -88,25 +90,80 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   // Auto-populate cost per unit when material is selected (only for new stock entries)
   React.useEffect(() => {
     if (selectedMaterial && !stockEntry) {
+      console.log('DEBUG: Cost auto-populate triggered for:', selectedMaterial.name);
+      console.log('DEBUG: Material cost data:', {
+        costPerUnit: selectedMaterial.costPerUnit,
+        costPerBaseUnit: selectedMaterial.costPerBaseUnit,
+        unitType: selectedMaterial.unitType,
+        inputUnit: selectedMaterial.inputUnit,
+        baseUnit: selectedMaterial.baseUnit,
+        packageQuantity: selectedMaterial.packageQuantity
+      });
       // Only auto-populate if this is a new stock entry (not editing)
       const currentCostPerUnit = form.getValues("costPerPurchasedUnit");
+      
+
       
       // Only set if the field is empty or zero
       if (currentCostPerUnit === 0) {
         let suggestedCost = 0;
         
         if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit && selectedMaterial.packageQuantity) {
-          // For package materials, calculate cost per package unit
-          // Example: if averageCostPerBaseUnit is $0.50/bottle and packageQuantity is 12 bottles/box
-          // then cost per box = $0.50 × 12 = $6.00/box
-          suggestedCost = selectedMaterial.averageCostPerBaseUnit * selectedMaterial.packageQuantity;
+          // For package materials, use the material's original cost per input unit
+          // This is the cost per package unit (e.g., cost per box)
+          const packageCost = selectedMaterial.costPerUnit;
+          const numericPackageCost = typeof packageCost === 'string' ? parseFloat(packageCost) : packageCost;
+          suggestedCost = (typeof numericPackageCost === 'number' && !isNaN(numericPackageCost) && numericPackageCost > 0) ? numericPackageCost : 0;
+
         } else {
-          // For non-package materials, use the average cost per base unit directly
-          suggestedCost = selectedMaterial.averageCostPerBaseUnit;
+          // For non-package materials, we need to consider the purchasing unit
+          const purchasedUnit = form.getValues("purchasedUnit") || selectedMaterial.inputUnit;
+          console.log('DEBUG: Purchased unit vs base unit:', {
+            purchasedUnit,
+            inputUnit: selectedMaterial.inputUnit,
+            baseUnit: selectedMaterial.baseUnit
+          });
+          
+          if (purchasedUnit === selectedMaterial.inputUnit && selectedMaterial.unitType === 'mass') {
+            // If purchasing in input unit (kg), use the original cost per input unit
+            // We need to convert from cost per base unit back to cost per input unit
+            const baseCost = selectedMaterial.costPerBaseUnit || selectedMaterial.costPerUnit;
+            const numericBaseCost = typeof baseCost === 'string' ? parseFloat(baseCost) : baseCost;
+            
+            // Convert from cost per gram to cost per kg (multiply by 1000)
+            if (selectedMaterial.inputUnit === 'kg' && selectedMaterial.baseUnit === 'g') {
+              suggestedCost = numericBaseCost * 1000;
+            } else if (selectedMaterial.inputUnit === 'l' && selectedMaterial.baseUnit === 'ml') {
+              suggestedCost = numericBaseCost * 1000;
+            } else {
+              suggestedCost = numericBaseCost;
+            }
+            
+            console.log('DEBUG: Mass/Volume conversion:', {
+              baseCost: numericBaseCost,
+              convertedCost: suggestedCost,
+              conversion: `${selectedMaterial.baseUnit} to ${selectedMaterial.inputUnit}`
+            });
+          } else {
+            // For other cases, use the cost per base unit
+            const baseCost = selectedMaterial.costPerBaseUnit || selectedMaterial.costPerUnit;
+            const numericBaseCost = typeof baseCost === 'string' ? parseFloat(baseCost) : baseCost;
+            suggestedCost = (typeof numericBaseCost === 'number' && !isNaN(numericBaseCost) && numericBaseCost > 0) ? numericBaseCost : 0;
+          }
         }
         
-        // Round to 4 decimal places for precision
-        form.setValue("costPerPurchasedUnit", parseFloat(suggestedCost.toFixed(4)));
+        // Set the suggested cost (even if it's 0 for debugging)
+        console.log('DEBUG: Final cost calculation:', {
+          suggestedCost,
+          isValid: suggestedCost >= 0 && !isNaN(suggestedCost)
+        });
+        
+        if (suggestedCost >= 0 && !isNaN(suggestedCost)) {
+          // Round to 4 decimal places for precision
+          const finalCost = parseFloat(suggestedCost.toFixed(4));
+          console.log('DEBUG: Setting form cost to:', finalCost);
+          form.setValue("costPerPurchasedUnit", finalCost);
+        }
       }
     }
   }, [selectedMaterial, form, stockEntry]);
