@@ -1,5 +1,5 @@
 import sequelize from "../config/database.js";
-import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, StockEntry } from "../models/index.js";
+import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, StockEntry, Section } from "../models/index.js";
 
 const salesController = {
   getAllSales: async (req, res, next) => {
@@ -43,6 +43,48 @@ const salesController = {
       if (isNaN(Date.parse(saleDate))) {
         await transaction.rollback();
         return res.status(400).json({ error: "Invalid sale date" });
+      }
+
+      // Validate sectionId - required for individual items, optional for menu items
+      const hasIndividualItems = items && items.length > 0;
+      const hasMenuItems = menuItems && menuItems.length > 0;
+      
+      if (hasIndividualItems && (!sectionId || sectionId === "" || isNaN(parseInt(sectionId)))) {
+        await transaction.rollback();
+        return res.status(400).json({ error: "Valid section ID is required for individual item sales" });
+      }
+      
+      // For menu item only sales, assign a default section ID if none provided
+      let finalSectionId;
+      if (hasMenuItems && !hasIndividualItems && (!sectionId || sectionId === "" || sectionId === undefined)) {
+        // Find a suitable section for menu items (prefer Kitchen, or any available section)
+        const defaultSection = await Section.findOne({
+          where: {
+            name: ['Kitchen', 'kitchen', 'KITCHEN']
+          },
+          transaction
+        }) || await Section.findOne({ transaction });
+        
+        if (defaultSection) {
+          finalSectionId = defaultSection.id;
+          console.log(`Menu-only sale: assigning default section '${defaultSection.name}' (ID: ${finalSectionId})`);
+        } else {
+          await transaction.rollback();
+          return res.status(400).json({ error: "No sections available for menu item sales" });
+        }
+      } else if (sectionId && sectionId !== "" && sectionId !== undefined) {
+        finalSectionId = parseInt(sectionId);
+        console.log(`Using provided sectionId=${finalSectionId}`);
+      } else {
+        // Fallback: find any available section
+        const fallbackSection = await Section.findOne({ transaction });
+        if (fallbackSection) {
+          finalSectionId = fallbackSection.id;
+          console.log(`Fallback: assigning section '${fallbackSection.name}' (ID: ${finalSectionId})`);
+        } else {
+          await transaction.rollback();
+          return res.status(400).json({ error: "No sections available" });
+        }
       }
 
       // Process individual items and update section assignments AND stock entries
@@ -157,7 +199,7 @@ const salesController = {
           id: id,
           saleDate: new Date(saleDate),
           totalAmount,
-          sectionId,
+          sectionId: finalSectionId,
           items: items || [],
           menuItems: menuItems || [], // Store menuItems as JSON
           createdAt: createdAt || new Date(),

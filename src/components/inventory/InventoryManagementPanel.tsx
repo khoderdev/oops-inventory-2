@@ -396,7 +396,6 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
             onCreateSection={onCreateSection}
             onUpdateSection={onUpdateSection}
             onDeleteSection={onDeleteSection}
-            onEditSection={handleEditSection}
           />
         </TabsContent>
 

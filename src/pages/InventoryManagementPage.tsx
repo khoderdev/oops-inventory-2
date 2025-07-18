@@ -15,7 +15,7 @@ export const InventoryManagementPage = () => {
   // Fetch data from backend
   const { materials, stockEntries, menuItems, sections, sectionAssignments, loading, error, refetch } = useInventoryData();
   // CRUD operations
-  const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, createMenuItem, updateMenuItem, deleteMenuItem, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
+  const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, createMenuItem, updateMenuItem, deleteMenuItem, createSection, updateSection, deleteSection, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
 
   // Calculate materials with stock information
   const materialsWithStock: MaterialWithStock[] = useMemo(() => {
@@ -95,6 +95,30 @@ export const InventoryManagementPage = () => {
       await deleteMenuItem(id);
     } catch (error) {
       console.error("Failed to delete menu item:", error);
+    }
+  };
+
+  const handleCreateSection = async (data: { name: string; description?: string }) => {
+    try {
+      await createSection(data);
+    } catch (error) {
+      console.error("Failed to create section:", error);
+    }
+  };
+
+  const handleUpdateSection = async (id: string, data: { name: string; description?: string }) => {
+    try {
+      await updateSection(id, data);
+    } catch (error) {
+      console.error("Failed to update section:", error);
+    }
+  };
+
+  const handleDeleteSection = async (id: string) => {
+    try {
+      await deleteSection(id);
+    } catch (error) {
+      console.error("Failed to delete section:", error);
     }
   };
 
@@ -182,6 +206,9 @@ export const InventoryManagementPage = () => {
             onCreateMenuItem={handleCreateMenuItem}
             onUpdateMenuItem={handleUpdateMenuItem}
             onDeleteMenuItem={handleDeleteMenuItem}
+            onCreateSection={handleCreateSection}
+            onUpdateSection={handleUpdateSection}
+            onDeleteSection={handleDeleteSection}
           />
         </TabsContent>
 

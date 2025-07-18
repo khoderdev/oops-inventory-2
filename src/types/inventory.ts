@@ -228,6 +228,24 @@ export interface MenuItemSale {
   updatedAt: Date;
 }
 
+export type CartItem = {
+  id: string;
+  type: "individual" | "menu";
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  unit?: string;
+  assignmentId?: string;
+  menuItemId?: number;
+  ingredients?: { materialId: number; quantity: number; unit: string }[];
+};
+
+export interface POSPanelProps {
+  materials: MaterialWithStock[];
+  sectionAssignments: SectionAssignment[];
+}
+
 //-----------------------------------------------------------------------------
 
 export type MenuItemCategory = "appetizers" | "mains" | "sides" | "desserts" | "beverages" | "other";
