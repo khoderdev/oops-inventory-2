@@ -397,7 +397,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [cart, cartTotal, selectedSectionId, availableItems, materials, updateInventoryOptimistically, revertOptimisticUpdates, showError, showSuccess]);
+  }, [cart, cartTotal, selectedSectionId, availableItems, materials, sectionAssignments, updateInventoryOptimistically, revertOptimisticUpdates, showError, showSuccess]);
 
   // Refresh data function
   const refreshData = useCallback(async () => {

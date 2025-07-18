@@ -16,7 +16,6 @@ import { Material, MATERIAL_CATEGORIES, MaterialWithStock, MenuItem, StockEntry 
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { calculateCostForQuantity, getDisplayQuantity, getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { Building2, Edit, Filter, Package, Plus, Search, Trash2 } from "lucide-react";
-import { useState } from "react";
 import { MenuItemBuilder } from "../menu/MenuBuilder";
 import { SectionsManagementPanel } from "./SectionsManagementPanel";
 
@@ -36,15 +35,18 @@ interface InventoryManagementPanelProps {
   onDeleteSection?: (id: string) => void;
 }
 
-export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps) {
+export function InventoryManagementPanel({ onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps) {
   // Use Jotai store for all state management
   const {
+    // Data
     materialsWithStock,
     filteredMaterials,
     stockEntries,
     sections,
     sectionAssignments,
     menuItems,
+
+    // UI state
     activeTab,
     searchTerm,
     categoryFilter,
@@ -52,6 +54,8 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
     setSearchTerm,
     setCategoryFilter,
     setLowStockFilter,
+
+    // Form state
     showMaterialForm,
     showStockForm,
     showSectionForm,
@@ -61,13 +65,24 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
     setShowMaterialForm,
     setShowStockForm,
     setShowSectionForm,
+
+    // Messages
+    successMessage,
+    errorMessage,
+
+    // Loading states
     tabLoading,
+    tabError,
+
+    // Handlers
     handleTabChange,
     handleMaterialSubmit,
     handleStockSubmit,
     handleEditMaterial,
     handleEditStockEntry,
     handleAddStock,
+
+    // Actions
     fetchTabData
   } = useInventoryStore();
 
@@ -82,6 +97,27 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
   };
 
   const existingSectionNames = sections.map(section => section.name);
+
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
+  }, []);
+
+  // Function to get the current data to display (fetched data takes precedence over props)
+  const getCurrentData = useCallback(() => {
+    return {
+      materials: fetchedMaterials.length > 0 ? fetchedMaterials : materials,
+      stockEntries: fetchedStockEntries.length > 0 ? fetchedStockEntries : stockEntries,
+      sections: fetchedSections.length > 0 ? fetchedSections : sections,
+      sectionAssignments: fetchedSectionAssignments.length > 0 ? fetchedSectionAssignments : sectionAssignments,
+      menuItems: fetchedMenuItems.length > 0 ? fetchedMenuItems : menuItems
+    };
+  }, [fetchedMaterials, materials, fetchedStockEntries, stockEntries, fetchedSections, sections, fetchedSectionAssignments, sectionAssignments, fetchedMenuItems, menuItems]);
+
+  // Get current data to use in the component
+  const currentData = getCurrentData();
 
   return (
     <div className="space-y-6">
@@ -139,23 +175,23 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         <TabsList>
           <TabsTrigger value="material" className="relative">
             Material
-            {tabLoading.material}
+            {tabDataLoading.material}
           </TabsTrigger>
           <TabsTrigger value="stock" className="relative">
             Stock Entries
-            {tabLoading.stock}
+            {tabDataLoading.stock}
           </TabsTrigger>
           <TabsTrigger value="sections" className="relative">
             Sections
-            {tabLoading.sections}
+            {tabDataLoading.sections}
           </TabsTrigger>
           <TabsTrigger value="menu" className="relative">
             Menu Builder
-            {tabLoading.menu}
+            {tabDataLoading.menu}
           </TabsTrigger>
           <TabsTrigger value="conversions" className="relative">
             Unit Conversions
-            {tabLoading.conversions}
+            {tabDataLoading.conversions}
           </TabsTrigger>
         </TabsList>
 
@@ -186,6 +222,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
                       <TableCell>
                         {(() => {
                           const cost = material.averageCostPerBaseUnit;
+                          // For very small numbers (less than 0.01), show more decimal places
                           const formattedCost = cost < 0.01 && cost > 0 ? `$${cost.toFixed(6).replace(/\.?0+$/, "")}` : formatCurrency(cost);
                           return `${formattedCost}/${material.baseUnit}`;
                         })()}
@@ -214,7 +251,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteMaterial?.(material.id)}>Delete</AlertDialogAction>
+                                <AlertDialogAction onClick={() => onDeleteMaterial(material.id)}>Delete</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
@@ -248,13 +285,13 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockEntries
+                  {optimisticStockEntries
                     .filter(entry => {
-                      const material = materialsWithStock.find(m => m.id === entry.materialId);
+                      const material = optimisticMaterials.find(m => m.id === entry.materialId);
                       return !searchTerm || material?.name.toLowerCase().includes(searchTerm.toLowerCase());
                     })
                     .map(entry => {
-                      const material = materialsWithStock.find(m => m.id === entry.materialId);
+                      const material = optimisticMaterials.find(m => m.id === entry.materialId);
                       return (
                         <TableRow key={entry.id}>
                           <TableCell className="font-medium">{material?.name || "Unknown Material"}</TableCell>
@@ -304,7 +341,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onDeleteStockEntry?.(entry.id)}>Delete</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => onDeleteStockEntry(entry.id)}>Delete</AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
                               </AlertDialog>
@@ -320,11 +357,11 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         </TabsContent>
 
         <TabsContent value="sections" className="space-y-4">
-          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} />
+          <SectionsManagementPanel sections={currentData.sections} sectionAssignments={currentData.sectionAssignments} materials={currentData.materials} stockEntries={currentData.stockEntries} menuItems={currentData.menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} />
         </TabsContent>
 
         <TabsContent value="menu" className="space-y-4">
-          <MenuItemBuilder materials={materialsWithStock} stockEntries={stockEntries} sections={sections} menuItems={menuItems} onCreateMenuItem={onCreateMenuItem} onUpdateMenuItem={onUpdateMenuItem} onDeleteMenuItem={onDeleteMenuItem} />
+          <MenuItemBuilder materials={currentData.materials} stockEntries={currentData.stockEntries} sections={currentData.sections} menuItems={currentData.menuItems} onCreateMenuItem={onCreateMenuItem} onUpdateMenuItem={onUpdateMenuItem} onDeleteMenuItem={onDeleteMenuItem} />
         </TabsContent>
 
         <TabsContent value="conversions" className="space-y-4">
@@ -341,6 +378,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
               onSubmit={handleMaterialSubmit}
               onCancel={() => {
                 setShowMaterialForm(false);
+                setSelectedMaterial(null);
               }}
             />
           </div>
@@ -351,12 +389,14 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <StockForm
-              materials={materialsWithStock}
+              materials={materials}
               stockEntry={selectedStockEntry || undefined}
               selectedMaterialId={selectedMaterial?.id}
               onSubmit={handleStockSubmit}
               onCancel={() => {
                 setShowStockForm(false);
+                setSelectedStockEntry(null);
+                setSelectedMaterial(null);
               }}
             />
           </div>
@@ -381,6 +421,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
                 onSubmit={handleSectionSubmit}
                 onCancel={() => {
                   setShowSectionForm(false);
+                  setSelectedSection(null);
                 }}
                 existingSectionNames={existingSectionNames}
               />
@@ -413,10 +454,11 @@ function UnitConversionCalculator({ materials }: { materials: MaterialWithStock[
 
     try {
       const result = calculateCostForQuantity(selectedMaterial, quantity, fromUnit, selectedMaterial.averageCostPerBaseUnit);
+      // Convert ConversionResult to CalculatorConversionResult
       setConversionResult({
         cost: result.cost,
         steps: result.steps,
-        warning: undefined
+        warning: undefined // Add warning logic if needed
       });
     } catch (error) {
       console.error("Conversion error:", error);

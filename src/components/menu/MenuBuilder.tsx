@@ -154,28 +154,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, men
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Menu Item Builder</h1>
-          <p className="text-muted-foreground">Create and manage menu items with ingredients from inventory</p>
-        </div>
-
-        <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditingMenuItem(null)} aria-label="Add new menu item">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Menu Item
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
-            <DialogHeader>
-              <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
-            </DialogHeader>
-            <MenuItemForm menuItem={editingMenuItem} materials={materials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCloseModal} />
-          </DialogContent>
-        </Dialog>
-      </div>
-
       <div className="flex gap-4 items-center">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -194,7 +172,23 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, men
 
       <Card>
         <CardHeader>
-          <CardTitle>Menu Items</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>Menu Items</CardTitle>
+            <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditingMenuItem(null)} aria-label="Add new menu item">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Menu Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
+                <DialogHeader>
+                  <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
+                </DialogHeader>
+                <MenuItemForm menuItem={editingMenuItem} materials={materials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCloseModal} />
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>

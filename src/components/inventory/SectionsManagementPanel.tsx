@@ -2,12 +2,11 @@ import { AssignmentForm } from "@/components/sections/AssignmentForm";
 import { SectionForm } from "@/components/sections/SectionForm";
 import { SectionsTable } from "@/components/sections/SectionsTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { DetailModal } from "@/components/ui/DetailModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useInventoryCRUD } from "@/hooks/useInventoryCRUD";
 import { CreateSectionAssignmentData, CreateSectionData, Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAssignment, SectionWithAssignments, StockEntry, UpdateSectionAssignmentData, UpdateSectionData } from "@/types/inventory";
-import { AlertCircle, Check, RefreshCw } from "lucide-react";
+import { AlertCircle, Check } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface SectionsManagementPanelProps {
@@ -31,7 +30,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
   const [selectedItem, setSelectedItem] = useState<{ type: string; data: SectionWithAssignments } | null>(null);
   const [detailModalItem, setDetailModalItem] = useState<{ type: "material" | "section" | "assignment" | "stock"; data: StockEntry | Section | SectionAssignment | MaterialWithSectionAssignments } | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  
+
   // Optimistic state management
   const [optimisticSections, setOptimisticSections] = useState<Section[]>(sections);
   const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
@@ -171,12 +170,12 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
       const tempSection: Section = {
         id: `temp-${Date.now()}`,
         name: data.name,
-        description: data.description || '',
+        description: data.description || "",
         createdAt: new Date(),
         updatedAt: new Date()
       };
       setOptimisticSections(prev => [...prev, tempSection]);
-      
+
       if (onCreateSection) {
         await onCreateSection(data);
         showSuccess(`Section "${data.name}" created successfully`);
@@ -186,8 +185,8 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     } catch (error) {
       // Revert optimistic update on error
       setOptimisticSections(sections);
-      showError('Failed to create section');
-      console.error('Failed to create section:', error);
+      showError("Failed to create section");
+      console.error("Failed to create section:", error);
     }
   };
 
@@ -200,15 +199,9 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         name: data.name || editingSection.name,
         description: data.description
       };
-      
-      setOptimisticSections(prev => 
-        prev.map(section => 
-          section.id === editingSection.id 
-            ? { ...section, ...updateData, updatedAt: new Date() }
-            : section
-        )
-      );
-      
+
+      setOptimisticSections(prev => prev.map(section => (section.id === editingSection.id ? { ...section, ...updateData, updatedAt: new Date() } : section)));
+
       await onUpdateSection(editingSection.id, updateData);
       showSuccess(`Section "${updateData.name}" updated successfully`);
       setShowSectionForm(false);
@@ -216,27 +209,27 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     } catch (error) {
       // Revert optimistic update on error
       setOptimisticSections(sections);
-      showError('Failed to update section');
-      console.error('Failed to update section:', error);
+      showError("Failed to update section");
+      console.error("Failed to update section:", error);
     }
   };
 
   const handleDeleteSection = async (sectionId: string) => {
     try {
       const sectionToDelete = optimisticSections.find(s => s.id === sectionId);
-      
+
       // Optimistic update - remove section
       setOptimisticSections(prev => prev.filter(section => section.id !== sectionId));
-      
+
       if (onDeleteSection) {
         await onDeleteSection(sectionId);
-        showSuccess(`Section "${sectionToDelete?.name || 'Unknown'}" deleted successfully`);
+        showSuccess(`Section "${sectionToDelete?.name || "Unknown"}" deleted successfully`);
       }
     } catch (error) {
       // Revert optimistic update on error
       setOptimisticSections(sections);
-      showError('Failed to delete section');
-      console.error('Failed to delete section:', error);
+      showError("Failed to delete section");
+      console.error("Failed to delete section:", error);
     }
   };
 
@@ -297,7 +290,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
   };
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="space-y-6">
       {/* Messages */}
       {error && (
         <Alert variant="destructive">
@@ -313,20 +306,6 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         </Alert>
       )}
 
-      {/* Header with Refresh Button */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Sections Management</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={refreshData}
-          disabled={isRefreshing}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </Button>
-      </div>
       <SectionsTable
         sectionsWithAssignments={sectionsWithAssignments}
         selectedSectionId={selectedSectionId}
