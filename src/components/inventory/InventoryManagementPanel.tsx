@@ -1,12 +1,12 @@
+import { inventoryAPI } from "@/api/inventory.api";
 import { MaterialForm } from "@/components/materials/MaterialForm";
-import { StockForm } from "@/components/stock/StockForm";
 import { SectionForm } from "@/components/sections/SectionForm";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { StockForm } from "@/components/stock/StockForm";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,8 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Material, MATERIAL_CATEGORIES, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { calculateCostForQuantity, calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials, getDisplayQuantity, getSuggestedUnits } from "@/utils/inventoryCalculations";
-import { AlertCircle, Check, Edit, Filter, Package, Plus, RefreshCw, Search, Trash2, Building2 } from "lucide-react";
+import { calculateCostForQuantity, calculateMaterialInventory, getDisplayQuantity, getSuggestedUnits } from "@/utils/inventoryCalculations";
+import { Building2, Edit, Filter, Package, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MenuItemBuilder } from "../menu/MenuBuilder";
 import { SectionsManagementPanel } from "./SectionsManagementPanel";
@@ -42,11 +42,10 @@ interface InventoryManagementPanelProps {
 
 export function InventoryManagementPanel({ materials, stockEntries, sections = [], sectionAssignments = [], menuItems = [], onCreateMaterial, onUpdateMaterial, onDeleteMaterial, onCreateStockEntry, onUpdateStockEntry, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps) {
   const [activeTab, setActiveTab] = useState(() => {
-    // Try to get the last active tab from localStorage, default to 'sections'
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('inventoryManagementActiveTab') || 'sections';
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("inventoryManagementActiveTab") || "sections";
     }
-    return 'sections';
+    return "sections";
   });
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [showStockForm, setShowStockForm] = useState(false);
@@ -57,17 +56,13 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [lowStockFilter, setLowStockFilter] = useState(false);
-  
-  // Optimistic state management
   const [optimisticMaterials, setOptimisticMaterials] = useState<MaterialWithStock[]>(materials);
   const [optimisticStockEntries, setOptimisticStockEntries] = useState<StockEntry[]>(stockEntries);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
+  const [, setSuccessMessage] = useState<string | null>(null);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Enhanced message handling with auto-clear
   const showError = useCallback((message: string) => {
     setError(message);
     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
@@ -80,22 +75,74 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
     successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
   }, []);
 
-  // Update optimistic state when props change
   useEffect(() => {
     setOptimisticMaterials(materials);
     setOptimisticStockEntries(stockEntries);
   }, [materials, stockEntries]);
 
-  // Persist active tab to prevent unwanted resets
-  const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value);
-    // Save to localStorage for persistence across re-renders
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('inventoryManagementActiveTab', value);
-    }
-  }, []);
+  const [tabDataLoading, setTabDataLoading] = useState<Record<string, boolean>>({});
+  const [, setTabDataError] = useState<Record<string, string | null>>({});
 
-  // Cleanup timeouts on unmount
+  const fetchTabData = useCallback(
+    async (tabValue: string) => {
+      setTabDataLoading(prev => ({ ...prev, [tabValue]: true }));
+      setTabDataError(prev => ({ ...prev, [tabValue]: null }));
+      try {
+        switch (tabValue) {
+          case "material": {
+            const materialsRes = await inventoryAPI.materials.getMaterials();
+            console.log("Fetched materials data:", materialsRes.data);
+            break;
+          }
+          case "stock": {
+            const stockRes = await inventoryAPI.stock.getStockEntries();
+            console.log("Fetched stock entries data:", stockRes.data);
+            break;
+          }
+          case "sections": {
+            const [sectionsRes, assignmentsRes] = await Promise.all([inventoryAPI.sections.getSections(), inventoryAPI.assignments.getAssignments()]);
+            console.log("Fetched sections data:", sectionsRes.data);
+            console.log("Fetched assignments data:", assignmentsRes.data);
+            break;
+          }
+          case "menu": {
+            const menuRes = await inventoryAPI.menu.getMenus();
+            console.log("Fetched menu items data:", menuRes.data);
+            break;
+          }
+          case "conversions": {
+            const conversionMaterialsRes = await inventoryAPI.materials.getMaterials();
+            console.log("Fetched materials for conversions:", conversionMaterialsRes.data);
+            break;
+          }
+          default:
+            console.log(`No specific data fetching defined for tab: ${tabValue}`);
+        }
+
+        showSuccess(`${tabValue.charAt(0).toUpperCase() + tabValue.slice(1)} data refreshed successfully`);
+      } catch (error: unknown) {
+        console.error(`Failed to fetch data for ${tabValue} tab:`, error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+        setTabDataError(prev => ({ ...prev, [tabValue]: errorMessage }));
+        showError(`Failed to refresh ${tabValue} data: ${errorMessage}`);
+      } finally {
+        setTabDataLoading(prev => ({ ...prev, [tabValue]: false }));
+      }
+    },
+    [showSuccess, showError]
+  );
+
+  const handleTabChange = useCallback(
+    (value: string) => {
+      setActiveTab(value);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("inventoryManagementActiveTab", value);
+      }
+      fetchTabData(value);
+    },
+    [fetchTabData]
+  );
+
   useEffect(() => {
     return () => {
       if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
@@ -103,40 +150,23 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
     };
   }, []);
 
-  // Refresh data function
-  const refreshData = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      // Reset optimistic state to actual props
-      setOptimisticMaterials(materials);
-      setOptimisticStockEntries(stockEntries);
-      showSuccess("Data refreshed successfully");
-    } catch (error) {
-      console.error("Failed to refresh data:", error);
-      showError("Failed to refresh data");
-    } finally {
-      setIsRefreshing(false);
+  useEffect(() => {
+    if (activeTab) {
+      fetchTabData(activeTab);
     }
-  }, [materials, stockEntries, showError, showSuccess]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Calculate materials with stock data using optimistic state
   const materialsWithStock = useMemo(() => {
     return optimisticMaterials.map(material => {
       const materialStockEntries = optimisticStockEntries.filter(entry => entry.materialId === material.id);
       const materialInventory = calculateMaterialInventory(material, materialStockEntries);
-
-      // Calculate assigned individual quantities for this material
       const materialAssignments = sectionAssignments.filter(assignment => assignment.materialId === material.id && assignment.itemType === "stockEntry");
-
       const totalAssignedIndividualQuantity = materialAssignments.reduce((sum, assignment) => {
-        // Use assignedIndividualQuantity if available, otherwise calculate from assignedQuantity
         const individualQty = assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * (material.packageQuantity || 1);
         return sum + individualQty;
       }, 0);
-
-      // Calculate available quantity (total - assigned)
       const availableQuantity = Math.max(0, materialInventory.totalQuantityInBaseUnit - totalAssignedIndividualQuantity);
-
       return {
         ...materialInventory,
         availableQuantity
@@ -144,7 +174,6 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
     });
   }, [optimisticMaterials, optimisticStockEntries, sectionAssignments]);
 
-  // Filter materials based on search term, category, and low stock
   const filteredMaterials = useMemo(() => {
     return optimisticMaterials.filter(material => {
       const matchesSearch = !searchTerm || material.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -154,36 +183,13 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
     });
   }, [optimisticMaterials, searchTerm, categoryFilter, lowStockFilter]);
 
-  // Calculate summary statistics
-  const summaryStats = useMemo(() => {
-    const totalValue = calculateTotalInventoryValue(materialsWithStock);
-    const lowStockCount = findLowStockMaterials(materialsWithStock, 10).length;
-    const totalMaterials = materialsWithStock.length;
-    const totalStockEntries = stockEntries.length;
-
-    return {
-      totalValue,
-      lowStockCount,
-      totalMaterials,
-      totalStockEntries
-    };
-  }, [materialsWithStock, stockEntries]);
-
   const handleMaterialSubmit = async (data: Material) => {
     try {
       if (selectedMaterial) {
-        // Optimistic update for editing
-        setOptimisticMaterials(prev => 
-          prev.map(material => 
-            material.id === selectedMaterial.id 
-              ? { ...material, ...data, updatedAt: new Date() }
-              : material
-          )
-        );
+        setOptimisticMaterials(prev => prev.map(material => (material.id === selectedMaterial.id ? { ...material, ...data, updatedAt: new Date() } : material)));
         await onUpdateMaterial(selectedMaterial.id, data);
         showSuccess(`Material "${data.name}" updated successfully`);
       } else {
-        // Optimistic update for creating
         const tempMaterial: MaterialWithStock = {
           ...data,
           id: `temp-${Date.now()}`,
@@ -202,28 +208,19 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
       setShowMaterialForm(false);
       setSelectedMaterial(null);
     } catch (error) {
-      // Revert optimistic update on error
       setOptimisticMaterials(materials);
-      showError(selectedMaterial ? 'Failed to update material' : 'Failed to create material');
-      console.error('Material operation failed:', error);
+      showError(selectedMaterial ? "Failed to update material" : "Failed to create material");
+      console.error("Material operation failed:", error);
     }
   };
 
   const handleStockSubmit = async (data: StockEntry) => {
     try {
       if (selectedStockEntry) {
-        // Optimistic update for editing
-        setOptimisticStockEntries(prev => 
-          prev.map(entry => 
-            entry.id === selectedStockEntry.id 
-              ? { ...entry, ...data, updatedAt: new Date() }
-              : entry
-          )
-        );
+        setOptimisticStockEntries(prev => prev.map(entry => (entry.id === selectedStockEntry.id ? { ...entry, ...data, updatedAt: new Date() } : entry)));
         await onUpdateStockEntry(selectedStockEntry.id, data);
-        showSuccess('Stock entry updated successfully');
+        showSuccess("Stock entry updated successfully");
       } else {
-        // Optimistic update for creating
         const tempStockEntry: StockEntry = {
           ...data,
           id: `temp-${Date.now()}`,
@@ -232,15 +229,14 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
         };
         setOptimisticStockEntries(prev => [...prev, tempStockEntry]);
         await onCreateStockEntry(data);
-        showSuccess('Stock entry created successfully');
+        showSuccess("Stock entry created successfully");
       }
       setShowStockForm(false);
       setSelectedStockEntry(null);
     } catch (error) {
-      // Revert optimistic update on error
       setOptimisticStockEntries(stockEntries);
-      showError(selectedStockEntry ? 'Failed to update stock entry' : 'Failed to create stock entry');
-      console.error('Stock entry operation failed:', error);
+      showError(selectedStockEntry ? "Failed to update stock entry" : "Failed to create stock entry");
+      console.error("Stock entry operation failed:", error);
     }
   };
 
@@ -267,11 +263,6 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
     }
     setShowSectionForm(false);
     setSelectedSection(null);
-  };
-
-  const handleEditSection = (section: Section) => {
-    setSelectedSection(section);
-    setShowSectionForm(true);
   };
 
   const existingSectionNames = sections.map(section => section.name);
@@ -330,11 +321,26 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
-          <TabsTrigger value="material">Material</TabsTrigger>
-          <TabsTrigger value="stock">Stock Entries</TabsTrigger>
-          <TabsTrigger value="sections">Sections</TabsTrigger>
-          <TabsTrigger value="menu">Menu Builder</TabsTrigger>
-          <TabsTrigger value="conversions">Unit Conversions</TabsTrigger>
+          <TabsTrigger value="material" className="relative">
+            Material
+            {tabDataLoading.material}
+          </TabsTrigger>
+          <TabsTrigger value="stock" className="relative">
+            Stock Entries
+            {tabDataLoading.stock}
+          </TabsTrigger>
+          <TabsTrigger value="sections" className="relative">
+            Sections
+            {tabDataLoading.sections}
+          </TabsTrigger>
+          <TabsTrigger value="menu" className="relative">
+            Menu Builder
+            {tabDataLoading.menu}
+          </TabsTrigger>
+          <TabsTrigger value="conversions" className="relative">
+            Unit Conversions
+            {tabDataLoading.conversions}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="material" className="space-y-4">
@@ -365,11 +371,9 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                         {(() => {
                           const cost = material.averageCostPerBaseUnit;
                           // For very small numbers (less than 0.01), show more decimal places
-                          const formattedCost = cost < 0.01 && cost > 0 
-                            ? `$${cost.toFixed(6).replace(/\.?0+$/, '')}` 
-                            : formatCurrency(cost);
+                          const formattedCost = cost < 0.01 && cost > 0 ? `$${cost.toFixed(6).replace(/\.?0+$/, "")}` : formatCurrency(cost);
                           return `${formattedCost}/${material.baseUnit}`;
-                        })()} 
+                        })()}
                         {material.unitType === "package" && <span className="text-xs text-muted-foreground ml-1">(per {material.baseUnit})</span>}
                       </TableCell>
                       <TableCell>{formatCurrency(material.totalValue)}</TableCell>
@@ -501,16 +505,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
         </TabsContent>
 
         <TabsContent value="sections" className="space-y-4">
-          <SectionsManagementPanel 
-            sections={sections} 
-            sectionAssignments={sectionAssignments} 
-            materials={materials} 
-            stockEntries={stockEntries} 
-            menuItems={menuItems}
-            onCreateSection={onCreateSection}
-            onUpdateSection={onUpdateSection}
-            onDeleteSection={onDeleteSection}
-          />
+          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materials} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} />
         </TabsContent>
 
         <TabsContent value="menu" className="space-y-4">
@@ -564,14 +559,9 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
               <Building2 className="h-5 w-5" />
               {selectedSection ? "Edit Section" : "Create New Section"}
             </DialogTitle>
-            <DialogDescription>
-              {selectedSection 
-                ? "Update the section details below" 
-                : "Create a new section to organize your inventory items"
-              }
-            </DialogDescription>
+            <DialogDescription>{selectedSection ? "Update the section details below" : "Create a new section to organize your inventory items"}</DialogDescription>
           </DialogHeader>
-          
+
           <ScrollArea className="max-h-[calc(90vh-120px)]">
             <div className="px-6 py-4">
               <SectionForm
