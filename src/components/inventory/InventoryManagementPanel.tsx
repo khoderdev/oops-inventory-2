@@ -1,6 +1,7 @@
 import { MaterialForm } from "@/components/materials/MaterialForm";
 import { StockForm } from "@/components/stock/StockForm";
 import { SectionForm } from "@/components/sections/SectionForm";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,8 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Material, MATERIAL_CATEGORIES, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { calculateCostForQuantity, calculateMaterialInventory, calculateTotalInventoryValue, findLowStockMaterials, getDisplayQuantity, getSuggestedUnits } from "@/utils/inventoryCalculations";
-import { Edit, Filter, Package, Plus, Search, Trash2, Building2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertCircle, Check, Edit, Filter, Package, Plus, RefreshCw, Search, Trash2, Building2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MenuItemBuilder } from "../menu/MenuBuilder";
 import { SectionsManagementPanel } from "./SectionsManagementPanel";
 
@@ -50,11 +51,63 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [lowStockFilter, setLowStockFilter] = useState(false);
+  
+  // Optimistic state management
+  const [optimisticMaterials, setOptimisticMaterials] = useState<MaterialWithStock[]>(materials);
+  const [optimisticStockEntries, setOptimisticStockEntries] = useState<StockEntry[]>(stockEntries);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Calculate materials with stock data
+  // Enhanced message handling with auto-clear
+  const showError = useCallback((message: string) => {
+    setError(message);
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    errorTimeoutRef.current = setTimeout(() => setError(null), 5000);
+  }, []);
+
+  const showSuccess = useCallback((message: string) => {
+    setSuccessMessage(message);
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
+  // Update optimistic state when props change
+  useEffect(() => {
+    setOptimisticMaterials(materials);
+    setOptimisticStockEntries(stockEntries);
+  }, [materials, stockEntries]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
+  }, []);
+
+  // Refresh data function
+  const refreshData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // Reset optimistic state to actual props
+      setOptimisticMaterials(materials);
+      setOptimisticStockEntries(stockEntries);
+      showSuccess("Data refreshed successfully");
+    } catch (error) {
+      console.error("Failed to refresh data:", error);
+      showError("Failed to refresh data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [materials, stockEntries, showError, showSuccess]);
+
+  // Calculate materials with stock data using optimistic state
   const materialsWithStock = useMemo(() => {
-    return materials.map(material => {
-      const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
+    return optimisticMaterials.map(material => {
+      const materialStockEntries = optimisticStockEntries.filter(entry => entry.materialId === material.id);
       const materialInventory = calculateMaterialInventory(material, materialStockEntries);
 
       // Calculate assigned individual quantities for this material
@@ -74,26 +127,17 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
         availableQuantity
       };
     });
-  }, [materials, stockEntries, sectionAssignments]);
+  }, [optimisticMaterials, optimisticStockEntries, sectionAssignments]);
 
-  // Filter materials based on search and filters
+  // Filter materials based on search term, category, and low stock
   const filteredMaterials = useMemo(() => {
-    let filtered = materialsWithStock;
-
-    if (searchTerm) {
-      filtered = filtered.filter(material => material.name.toLowerCase().includes(searchTerm.toLowerCase()) || material.category.toLowerCase().includes(searchTerm.toLowerCase()));
-    }
-
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter(material => material.category === categoryFilter);
-    }
-
-    if (lowStockFilter) {
-      filtered = findLowStockMaterials(filtered, 10);
-    }
-
-    return filtered;
-  }, [materialsWithStock, searchTerm, categoryFilter, lowStockFilter]);
+    return optimisticMaterials.filter(material => {
+      const matchesSearch = !searchTerm || material.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = categoryFilter === "all" || material.category === categoryFilter;
+      const matchesLowStock = !lowStockFilter || material.availableQuantity < 10;
+      return matchesSearch && matchesCategory && matchesLowStock;
+    });
+  }, [optimisticMaterials, searchTerm, categoryFilter, lowStockFilter]);
 
   // Calculate summary statistics
   const summaryStats = useMemo(() => {
@@ -110,24 +154,79 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
     };
   }, [materialsWithStock, stockEntries]);
 
-  const handleMaterialSubmit = (data: Material) => {
-    if (selectedMaterial) {
-      onUpdateMaterial(selectedMaterial.id, data);
-    } else {
-      onCreateMaterial(data);
+  const handleMaterialSubmit = async (data: Material) => {
+    try {
+      if (selectedMaterial) {
+        // Optimistic update for editing
+        setOptimisticMaterials(prev => 
+          prev.map(material => 
+            material.id === selectedMaterial.id 
+              ? { ...material, ...data, updatedAt: new Date() }
+              : material
+          )
+        );
+        await onUpdateMaterial(selectedMaterial.id, data);
+        showSuccess(`Material "${data.name}" updated successfully`);
+      } else {
+        // Optimistic update for creating
+        const tempMaterial: MaterialWithStock = {
+          ...data,
+          id: `temp-${Date.now()}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          stockEntries: [],
+          totalQuantityInBaseUnit: 0,
+          totalValue: 0,
+          averageCostPerBaseUnit: 0,
+          availableQuantity: 0
+        };
+        setOptimisticMaterials(prev => [...prev, tempMaterial]);
+        await onCreateMaterial(data);
+        showSuccess(`Material "${data.name}" created successfully`);
+      }
+      setShowMaterialForm(false);
+      setSelectedMaterial(null);
+    } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticMaterials(materials);
+      showError(selectedMaterial ? 'Failed to update material' : 'Failed to create material');
+      console.error('Material operation failed:', error);
     }
-    setShowMaterialForm(false);
-    setSelectedMaterial(null);
   };
 
-  const handleStockSubmit = (data: StockEntry) => {
-    if (selectedStockEntry) {
-      onUpdateStockEntry(selectedStockEntry.id, data);
-    } else {
-      onCreateStockEntry(data);
+  const handleStockSubmit = async (data: StockEntry) => {
+    try {
+      if (selectedStockEntry) {
+        // Optimistic update for editing
+        setOptimisticStockEntries(prev => 
+          prev.map(entry => 
+            entry.id === selectedStockEntry.id 
+              ? { ...entry, ...data, updatedAt: new Date() }
+              : entry
+          )
+        );
+        await onUpdateStockEntry(selectedStockEntry.id, data);
+        showSuccess('Stock entry updated successfully');
+      } else {
+        // Optimistic update for creating
+        const tempStockEntry: StockEntry = {
+          ...data,
+          id: `temp-${Date.now()}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        setOptimisticStockEntries(prev => [...prev, tempStockEntry]);
+        await onCreateStockEntry(data);
+        showSuccess('Stock entry created successfully');
+      }
+      setShowStockForm(false);
+      setSelectedStockEntry(null);
+    } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticStockEntries(stockEntries);
+      showError(selectedStockEntry ? 'Failed to update stock entry' : 'Failed to create stock entry');
+      console.error('Stock entry operation failed:', error);
     }
-    setShowStockForm(false);
-    setSelectedStockEntry(null);
   };
 
   const handleEditMaterial = (material: Material) => {
@@ -315,13 +414,13 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockEntries
+                  {optimisticStockEntries
                     .filter(entry => {
-                      const material = materials.find(m => m.id === entry.materialId);
+                      const material = optimisticMaterials.find(m => m.id === entry.materialId);
                       return !searchTerm || material?.name.toLowerCase().includes(searchTerm.toLowerCase());
                     })
                     .map(entry => {
-                      const material = materials.find(m => m.id === entry.materialId);
+                      const material = optimisticMaterials.find(m => m.id === entry.materialId);
                       return (
                         <TableRow key={entry.id}>
                           <TableCell className="font-medium">{material?.name || "Unknown Material"}</TableCell>

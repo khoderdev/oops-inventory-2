@@ -3,19 +3,64 @@ import { InventoryManagementPanel } from "@/components/inventory/InventoryManage
 import { InventoryReportsPanel } from "@/components/inventory/InventoryReportsPanel";
 import { POSPanel } from "@/components/POSPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryCRUD } from "@/hooks/useInventoryCRUD";
 import { useInventoryData } from "@/hooks/useInventoryData";
 import { CreateMaterialData, CreateStockEntryData, MaterialWithStock, MenuItem, UpdateMaterialData, UpdateStockEntryData } from "@/types/inventory";
 import { calculateMaterialInventory } from "@/utils/inventoryCalculations";
-import { BarChart3, FileText, Loader2, Package } from "lucide-react";
-import { useMemo } from "react";
+import { BarChart3, FileText, Loader2, Package, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export const InventoryManagementPage = () => {
   // Fetch data from backend
   const { materials, stockEntries, menuItems, sections, sectionAssignments, loading, error, refetch } = useInventoryData();
   // CRUD operations
   const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, createMenuItem, updateMenuItem, deleteMenuItem, createSection, updateSection, deleteSection, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
+  
+  // Tab management and auto-refresh
+  const [activeTab, setActiveTab] = useState("inventory");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  // Auto-refresh data when switching tabs
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    // Refresh data when switching to POS or Dashboard tabs for real-time data
+    if (value === "pos" || value === "dashboard") {
+      const timeSinceLastRefresh = Date.now() - lastRefresh.getTime();
+      // Only refresh if it's been more than 30 seconds since last refresh
+      if (timeSinceLastRefresh > 30000) {
+        refetch();
+        setLastRefresh(new Date());
+      }
+    }
+  }, [refetch, lastRefresh]);
+
+  // Manual refresh function
+  const handleManualRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error('Failed to refresh data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetch]);
+
+  // Auto-refresh every 5 minutes when on POS tab
+  useEffect(() => {
+    if (activeTab === "pos") {
+      const interval = setInterval(() => {
+        refetch();
+        setLastRefresh(new Date());
+      }, 300000); // 5 minutes
+      
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, refetch]);
 
   // Calculate materials with stock information
   const materialsWithStock: MaterialWithStock[] = useMemo(() => {
@@ -166,8 +211,20 @@ export const InventoryManagementPage = () => {
         </Alert>
       )}
 
-      <Tabs defaultValue="inventory" className="">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="">
         <TabsList className="grid w-full grid-cols-4 sticky top-0 bg-white !z-50">
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing || loading}
+              className="h-8 w-8 p-0"
+              title="Refresh all data"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
           <TabsTrigger value="pos" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <BarChart3 className="h-4 w-4" />
             POS
