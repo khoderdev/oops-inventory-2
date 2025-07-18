@@ -218,17 +218,18 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
       />
 
       {/* Section Form Modal */}
-      <Dialog open={showSectionForm} onOpenChange={(open) => {
-        if (!open) {
-          setShowSectionForm(false);
-          setEditingSection(undefined);
-        }
-      }}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingSection ? 'Edit Section' : 'Add New Section'}
-            </DialogTitle>
+      <Dialog
+        open={showSectionForm}
+        onOpenChange={open => {
+          if (!open) {
+            setShowSectionForm(false);
+            setEditingSection(undefined);
+          }
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto p-6">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-lg font-semibold">{editingSection ? "Edit Section" : "Add New Section"}</DialogTitle>
           </DialogHeader>
           <SectionForm
             section={editingSection}
@@ -242,19 +243,29 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
       </Dialog>
 
       {/* Assignment Form Modal */}
-      {showAssignmentForm && (
-        <AssignmentForm
-          sections={sections}
-          stockEntries={stockEntries}
-          materials={materials}
-          assignment={editingAssignment}
-          onSubmit={handleAssignmentSubmit}
-          onCancel={() => {
+      <Dialog
+        open={showAssignmentForm}
+        onOpenChange={open => {
+          if (!open) {
             setShowAssignmentForm(false);
             setEditingAssignment(undefined);
-          }}
-        />
-      )}
+          }
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-[700px] max-h-[90vh] overflow-y-auto p-6 pt-10">
+          <AssignmentForm
+            sections={sections}
+            stockEntries={stockEntries}
+            materials={materials}
+            assignment={editingAssignment}
+            onSubmit={handleAssignmentSubmit}
+            onCancel={() => {
+              setShowAssignmentForm(false);
+              setEditingAssignment(undefined);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Detail Modal */}
       <DetailModal
