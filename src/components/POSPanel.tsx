@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CartItem, MenuItem, MenuItemSale, POSPanelProps, Section, SoldItem } from "@/types/inventory";
+import { CartItem, MenuItem, MenuItemSale, POSPanelProps, Section, SectionAssignment, SoldItem } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { AlertCircle, Check, Loader2, Minus, Package, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertCircle, Check, Loader2, Minus, Package, Plus, RefreshCw, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
@@ -18,8 +18,31 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [, setMenuItems] = useState<MenuItem[]>([]);
+  const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Enhanced message handling with auto-clear
+  const showError = useCallback((message: string) => {
+    setError(message);
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    errorTimeoutRef.current = setTimeout(() => setError(null), 5000);
+  }, []);
+
+  const showSuccess = useCallback((message: string) => {
+    setSuccessMessage(message);
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
+  // Update optimistic assignments when props change
+  useEffect(() => {
+    setOptimisticAssignments(sectionAssignments);
+  }, [sectionAssignments]);
+
+  // Fetch menu items
   useEffect(() => {
     const fetchMenuItems = async () => {
       try {
@@ -27,21 +50,29 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         setMenuItems(response.data);
       } catch (error) {
         console.error("Failed to fetch menu items:", error);
-        setError("Failed to load menu items");
+        showError("Failed to load menu items");
       }
     };
     fetchMenuItems();
+  }, [showError]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
   }, []);
 
   const sections = useMemo(() => {
     const sectionMap = new Map<string, Section>();
-    sectionAssignments.forEach(assignment => {
+    optimisticAssignments.forEach(assignment => {
       if (assignment.section && !sectionMap.has(assignment.section.id)) {
         sectionMap.set(assignment.section.id, assignment.section);
       }
     });
     return Array.from(sectionMap.values());
-  }, [sectionAssignments]);
+  }, [optimisticAssignments]);
 
   const availableItems = useMemo(() => {
     if (!selectedSectionId) return [];
@@ -56,7 +87,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       currentQuantity?: number;
       ingredients?: { materialId: number; quantity: number; unit: string }[];
     }> = [];
-    const sectionAssignmentsForSection = sectionAssignments.filter(a => {
+    const sectionAssignmentsForSection = optimisticAssignments.filter(a => {
       const matches = Number(a.sectionId) === Number(selectedSectionId);
       return matches;
     });
@@ -136,13 +167,52 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
     items.push(...individualItems, ...menuItemsInSection);
     return items;
-  }, [selectedSectionId, sectionAssignments]);
+  }, [selectedSectionId, optimisticAssignments]);
 
   const filteredItems = useMemo(() => {
     return availableItems.filter(item => {
       return item.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
   }, [availableItems, searchTerm]);
+
+  // Optimistic inventory update
+  const updateInventoryOptimistically = useCallback((soldItems: SoldItem[]) => {
+    setOptimisticAssignments(prevAssignments => {
+      return prevAssignments.map(assignment => {
+        const soldItem = soldItems.find(item => item.assignmentId === assignment.id.toString());
+        if (!soldItem) return assignment;
+
+        const material = assignment.material;
+        if (!material) return assignment;
+
+        // Calculate new quantities
+        let newAssignedQuantity = assignment.assignedQuantity || 0;
+        let newAssignedIndividualQuantity = assignment.assignedIndividualQuantity;
+
+        if (material.unitType === "package" && material.packageQuantity) {
+          // For package units, deduct from individual quantity
+          const currentIndividualQty = newAssignedIndividualQuantity || newAssignedQuantity * material.packageQuantity;
+          const newIndividualQty = Math.max(0, currentIndividualQty - soldItem.quantity);
+          newAssignedIndividualQuantity = newIndividualQty;
+          newAssignedQuantity = newIndividualQty / material.packageQuantity;
+        } else {
+          // For regular units, deduct directly
+          newAssignedQuantity = Math.max(0, newAssignedQuantity - soldItem.quantity);
+        }
+
+        return {
+          ...assignment,
+          assignedQuantity: newAssignedQuantity,
+          assignedIndividualQuantity: newAssignedIndividualQuantity
+        };
+      });
+    });
+  }, []);
+
+  // Revert optimistic updates on error
+  const revertOptimisticUpdates = useCallback(() => {
+    setOptimisticAssignments(sectionAssignments);
+  }, [sectionAssignments]);
 
   // Calculate cart total
   const cartTotal = useMemo(() => {
@@ -222,11 +292,10 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
     [availableItems]
   );
 
-  // Complete sale
+  // Complete sale with optimistic updates
   const completeSale = useCallback(async () => {
     if (cart.length === 0) {
-      setError("Cart is empty");
-      clearMessages();
+      showError("Cart is empty");
       return;
     }
 
@@ -235,8 +304,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
     const hasMenuItems = cart.some(item => item.type === "menu");
 
     if (hasIndividualItems && !selectedSectionId) {
-      setError("Please select a section for individual item sales");
-      clearMessages();
+      showError("Please select a section for individual item sales");
       return;
     }
 
@@ -307,19 +375,49 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         updatedAt: new Date()
       };
 
-      await posAPI.createSale(saleData);
+      // Apply optimistic updates before API call
+      updateInventoryOptimistically(individualItems);
 
-      setSuccessMessage(`Sale completed successfully! Total: ${formatCurrency(cartTotal)}`);
+      // Clear cart immediately for better UX
+      const currentCart = [...cart];
       setCart([]);
-      clearMessages();
+
+      try {
+        await posAPI.createSale(saleData);
+        showSuccess(`Sale completed successfully! Total: ${formatCurrency(cartTotal)}`);
+      } catch (apiError) {
+        // Revert optimistic updates on API failure
+        revertOptimisticUpdates();
+        setCart(currentCart); // Restore cart
+        throw apiError;
+      }
     } catch (error: any) {
       console.error("Sale failed:", error);
-      setError(error.response?.data?.error || "Failed to complete sale");
-      clearMessages();
+      showError(error.response?.data?.error || "Failed to complete sale");
     } finally {
       setIsLoading(false);
     }
-  }, [cart, cartTotal, selectedSectionId, availableItems, sectionAssignments, materials, clearMessages]);
+  }, [cart, cartTotal, selectedSectionId, availableItems, materials, updateInventoryOptimistically, revertOptimisticUpdates, showError, showSuccess]);
+
+  // Refresh data function
+  const refreshData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // Reset optimistic state to actual props
+      setOptimisticAssignments(sectionAssignments);
+
+      // Refetch menu items
+      const response = await menuAPI.getMenus();
+      setMenuItems(response.data);
+
+      showSuccess("Data refreshed successfully");
+    } catch (error) {
+      console.error("Failed to refresh data:", error);
+      showError("Failed to refresh data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [sectionAssignments, showError, showSuccess]);
 
   const getSectionName = (sectionId: string) => {
     const section = sections.find(s => s.id.toString() === sectionId);
@@ -348,9 +446,15 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         {/* Section Selection */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Section Selection
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Section Selection
+              </div>
+              <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing} className="flex items-center gap-2">
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                {isRefreshing ? "Refreshing..." : "Refresh"}
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -376,7 +480,14 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         {/* Available Items */}
         <Card>
           <CardHeader>
-            <CardTitle>Available Items</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <span>Available Items</span>
+              {selectedSectionId && (
+                <Badge variant="outline" className="text-xs">
+                  {filteredItems.length} items
+                </Badge>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {selectedSectionId ? (
