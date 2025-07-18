@@ -248,7 +248,14 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
                         <Badge variant="secondary">{MATERIAL_CATEGORIES.find(c => c.value === material.category)?.label}</Badge>
                       </TableCell>
                       <TableCell>
-                        {formatCurrency(material.averageCostPerBaseUnit)}/{material.baseUnit}
+                        {(() => {
+                          const cost = material.averageCostPerBaseUnit;
+                          // For very small numbers (less than 0.01), show more decimal places
+                          const formattedCost = cost < 0.01 && cost > 0 
+                            ? `$${cost.toFixed(6).replace(/\.?0+$/, '')}` 
+                            : formatCurrency(cost);
+                          return `${formattedCost}/${material.baseUnit}`;
+                        })()} 
                         {material.unitType === "package" && <span className="text-xs text-muted-foreground ml-1">(per {material.baseUnit})</span>}
                       </TableCell>
                       <TableCell>{formatCurrency(material.totalValue)}</TableCell>

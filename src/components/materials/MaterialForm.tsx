@@ -119,7 +119,24 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       };
     }
 
-    // Handle regular units
+    // Handle regular units - check if input unit is same as base unit
+    if (watchedInputUnit === baseUnit) {
+      // Direct conversion - no conversion needed
+      return {
+        inputUnit: watchedInputUnit,
+        inputCost: watchedInputCost,
+        baseUnit,
+        conversionFactor: 1,
+        costPerBaseUnit: watchedInputCost,
+        isPackage: false,
+        examples: {
+          perInputUnit: watchedInputCost,
+          perBaseUnit: watchedInputCost
+        }
+      };
+    }
+
+    // Handle regular units with conversion
     const inputUnitDef = UNIT_DEFINITIONS[watchedInputUnit];
     const baseUnitDef = UNIT_DEFINITIONS[baseUnit];
 

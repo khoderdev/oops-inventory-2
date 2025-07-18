@@ -122,7 +122,7 @@ export function isUnitCompatible(unit: string, materialUnitType: string): boolea
 export function getSuggestedUnits(unitType: string): string[] {
   switch (unitType) {
     case "mass":
-      return ["kg", "gram", "lb"];
+      return ["kg", "g", "lb"];
     case "volume":
       return ["liter", "ml", "gallon"];
     case "piece":
