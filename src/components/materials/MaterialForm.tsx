@@ -8,7 +8,7 @@ import { formatCurrency } from "@/utils/conversionLogic";
 import { UNIT_DEFINITIONS } from "@/utils/enhancedConversions";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -169,6 +169,26 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       form.setValue("costPerBaseUnit", conversionData.costPerBaseUnit);
     }
   }, [conversionData, form]);
+
+  // Prevent wheel scrolling on number inputs
+  React.useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      (e.target as HTMLInputElement).blur();
+    };
+
+    const numberInputs = document.querySelectorAll('input[type="number"]');
+    numberInputs.forEach(input => {
+      input.addEventListener("wheel", handleWheel, { passive: false });
+    });
+
+    return () => {
+      numberInputs.forEach(input => {
+        input.removeEventListener("wheel", handleWheel);
+      });
+    };
+  }, []);
 
   const handleSubmit = (data: MaterialFormData) => {
     // Only submit the final converted data, excluding input fields
