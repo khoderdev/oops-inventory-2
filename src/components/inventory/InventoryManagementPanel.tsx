@@ -82,6 +82,13 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
 
   const [tabDataLoading, setTabDataLoading] = useState<Record<string, boolean>>({});
   const [, setTabDataError] = useState<Record<string, string | null>>({});
+  
+  // State for fetched data to reflect in UI
+  const [fetchedMaterials, setFetchedMaterials] = useState<MaterialWithStock[]>([]);
+  const [fetchedStockEntries, setFetchedStockEntries] = useState<StockEntry[]>([]);
+  const [fetchedSections, setFetchedSections] = useState<Section[]>([]);
+  const [fetchedSectionAssignments, setFetchedSectionAssignments] = useState<SectionAssignment[]>([]);
+  const [fetchedMenuItems, setFetchedMenuItems] = useState<MenuItem[]>([]);
 
   const fetchTabData = useCallback(
     async (tabValue: string) => {
@@ -92,27 +99,105 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
           case "material": {
             const materialsRes = await inventoryAPI.materials.getMaterials();
             console.log("Fetched materials data:", materialsRes.data);
+            
+            // Transform API data to match MaterialWithStock interface
+            const transformedMaterials: MaterialWithStock[] = materialsRes.data.map(material => ({
+              ...material,
+              id: material.id.toString(),
+              createdAt: material.createdAt ? new Date(material.createdAt) : new Date(),
+              updatedAt: material.updatedAt ? new Date(material.updatedAt) : new Date(),
+              stockEntries: [],
+              totalQuantityInBaseUnit: 0,
+              totalValue: 0,
+              averageCostPerBaseUnit: 0,
+              availableQuantity: 0
+            }));
+            
+            setFetchedMaterials(transformedMaterials);
+            setOptimisticMaterials(transformedMaterials);
             break;
           }
           case "stock": {
             const stockRes = await inventoryAPI.stock.getStockEntries();
             console.log("Fetched stock entries data:", stockRes.data);
+            
+            // Transform API data to match StockEntry interface
+            const transformedStockEntries: StockEntry[] = stockRes.data.map(entry => ({
+              ...entry,
+              id: entry.id.toString(),
+              materialId: entry.materialId.toString(),
+              purchaseDate: new Date(entry.purchaseDate),
+              expiryDate: entry.expiryDate ? new Date(entry.expiryDate) : undefined,
+              createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date(),
+              updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : new Date()
+            }));
+            
+            setFetchedStockEntries(transformedStockEntries);
+            setOptimisticStockEntries(transformedStockEntries);
             break;
           }
           case "sections": {
             const [sectionsRes, assignmentsRes] = await Promise.all([inventoryAPI.sections.getSections(), inventoryAPI.assignments.getAssignments()]);
             console.log("Fetched sections data:", sectionsRes.data);
             console.log("Fetched assignments data:", assignmentsRes.data);
+            
+            // Transform API data to match Section interface
+            const transformedSections: Section[] = sectionsRes.data.map(section => ({
+              ...section,
+              id: section.id.toString(),
+              createdAt: section.createdAt ? new Date(section.createdAt) : new Date(),
+              updatedAt: section.updatedAt ? new Date(section.updatedAt) : new Date()
+            }));
+            
+            // Transform API data to match SectionAssignment interface
+            const transformedAssignments: SectionAssignment[] = assignmentsRes.data.map(assignment => ({
+              ...assignment,
+              id: assignment.id.toString(),
+              sectionId: assignment.sectionId.toString(),
+              materialId: assignment.materialId?.toString(),
+              menuItemId: assignment.menuItemId?.toString(),
+              stockEntryId: assignment.stockEntryId?.toString(),
+              createdAt: assignment.createdAt ? new Date(assignment.createdAt) : new Date(),
+              updatedAt: assignment.updatedAt ? new Date(assignment.updatedAt) : new Date()
+            }));
+            
+            setFetchedSections(transformedSections);
+            setFetchedSectionAssignments(transformedAssignments);
             break;
           }
           case "menu": {
             const menuRes = await inventoryAPI.menu.getMenus();
             console.log("Fetched menu items data:", menuRes.data);
+            
+            // Transform API data to match MenuItem interface
+            const transformedMenuItems: MenuItem[] = menuRes.data.map(item => ({
+              ...item,
+              id: item.id.toString(),
+              createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+              updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date()
+            }));
+            
+            setFetchedMenuItems(transformedMenuItems);
             break;
           }
           case "conversions": {
             const conversionMaterialsRes = await inventoryAPI.materials.getMaterials();
             console.log("Fetched materials for conversions:", conversionMaterialsRes.data);
+            
+            // Transform API data for conversions tab
+            const transformedMaterials: MaterialWithStock[] = conversionMaterialsRes.data.map(material => ({
+              ...material,
+              id: material.id.toString(),
+              createdAt: material.createdAt ? new Date(material.createdAt) : new Date(),
+              updatedAt: material.updatedAt ? new Date(material.updatedAt) : new Date(),
+              stockEntries: [],
+              totalQuantityInBaseUnit: 0,
+              totalValue: 0,
+              averageCostPerBaseUnit: 0,
+              availableQuantity: 0
+            }));
+            
+            setFetchedMaterials(transformedMaterials);
             break;
           }
           default:
@@ -157,11 +242,25 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Function to get the current data to display (fetched data takes precedence over props)
+  const getCurrentData = useCallback(() => {
+    return {
+      materials: fetchedMaterials.length > 0 ? fetchedMaterials : materials,
+      stockEntries: fetchedStockEntries.length > 0 ? fetchedStockEntries : stockEntries,
+      sections: fetchedSections.length > 0 ? fetchedSections : sections,
+      sectionAssignments: fetchedSectionAssignments.length > 0 ? fetchedSectionAssignments : sectionAssignments,
+      menuItems: fetchedMenuItems.length > 0 ? fetchedMenuItems : menuItems
+    };
+  }, [fetchedMaterials, materials, fetchedStockEntries, stockEntries, fetchedSections, sections, fetchedSectionAssignments, sectionAssignments, fetchedMenuItems, menuItems]);
+
+  // Get current data to use in the component
+  const currentData = getCurrentData();
+
   const materialsWithStock = useMemo(() => {
     return optimisticMaterials.map(material => {
       const materialStockEntries = optimisticStockEntries.filter(entry => entry.materialId === material.id);
       const materialInventory = calculateMaterialInventory(material, materialStockEntries);
-      const materialAssignments = sectionAssignments.filter(assignment => assignment.materialId === material.id && assignment.itemType === "stockEntry");
+      const materialAssignments = currentData.sectionAssignments.filter(assignment => assignment.materialId === material.id && assignment.itemType === "stockEntry");
       const totalAssignedIndividualQuantity = materialAssignments.reduce((sum, assignment) => {
         const individualQty = assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * (material.packageQuantity || 1);
         return sum + individualQty;
@@ -172,7 +271,7 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
         availableQuantity
       };
     });
-  }, [optimisticMaterials, optimisticStockEntries, sectionAssignments]);
+  }, [optimisticMaterials, optimisticStockEntries, currentData.sectionAssignments]);
 
   const filteredMaterials = useMemo(() => {
     return optimisticMaterials.filter(material => {
@@ -505,11 +604,28 @@ export function InventoryManagementPanel({ materials, stockEntries, sections = [
         </TabsContent>
 
         <TabsContent value="sections" className="space-y-4">
-          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materials} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} />
+          <SectionsManagementPanel 
+            sections={currentData.sections} 
+            sectionAssignments={currentData.sectionAssignments} 
+            materials={currentData.materials} 
+            stockEntries={currentData.stockEntries} 
+            menuItems={currentData.menuItems} 
+            onCreateSection={onCreateSection} 
+            onUpdateSection={onUpdateSection} 
+            onDeleteSection={onDeleteSection} 
+          />
         </TabsContent>
 
         <TabsContent value="menu" className="space-y-4">
-          <MenuItemBuilder materials={materials} stockEntries={stockEntries} sections={sections} menuItems={menuItems} onCreateMenuItem={onCreateMenuItem} onUpdateMenuItem={onUpdateMenuItem} onDeleteMenuItem={onDeleteMenuItem} />
+          <MenuItemBuilder 
+            materials={currentData.materials} 
+            stockEntries={currentData.stockEntries} 
+            sections={currentData.sections} 
+            menuItems={currentData.menuItems} 
+            onCreateMenuItem={onCreateMenuItem} 
+            onUpdateMenuItem={onUpdateMenuItem} 
+            onDeleteMenuItem={onDeleteMenuItem} 
+          />
         </TabsContent>
 
         <TabsContent value="conversions" className="space-y-4">
