@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { CreateSectionAssignmentData, Material, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
-import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
+import { formatCurrency, formatNumber, convertMass, convertVolume, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, DollarSign, Info, Package } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -87,19 +87,61 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
     }
   }, [formError, watchedItemType, watchedStockEntryId, watchedMenuItemId]);
 
-  // Calculate estimated cost
+  // Convert assigned quantity to same unit as available stock for comparison
+  const getConvertedQuantityForComparison = useCallback((assignedQty: number, assignedUnit: string, availableUnit: string): number => {
+    if (!assignedQty || !assignedUnit || !availableUnit || !material) return assignedQty;
+    
+    // If units are the same, no conversion needed
+    if (assignedUnit === availableUnit) return assignedQty;
+    
+    // Handle mass unit conversions
+    if (isMassUnit(assignedUnit) && isMassUnit(availableUnit)) {
+      return convertMass(assignedQty, assignedUnit, availableUnit);
+    }
+    
+    // Handle volume unit conversions
+    if (isVolumeUnit(assignedUnit) && isVolumeUnit(availableUnit)) {
+      return convertVolume(assignedQty, assignedUnit, availableUnit);
+    }
+    
+    // Handle package unit conversions
+    if (material?.unitType === "package" && material.packageQuantity) {
+      // If assigning in base unit but stock is in package unit
+      if (assignedUnit === material.baseUnit && availableUnit === material.inputUnit) {
+        return assignedQty / material.packageQuantity;
+      }
+      // If assigning in package unit but stock is in base unit
+      if (assignedUnit === material.inputUnit && availableUnit === material.baseUnit) {
+        return assignedQty * material.packageQuantity;
+      }
+    }
+    
+    // If no conversion possible, return original value
+    return assignedQty;
+  }, [material]);
+
+  // Calculate estimated cost with proper unit conversion
   const estimatedCost = useMemo(() => {
     if (watchedItemType === "stockEntry") {
       if (!selectedStockEntry || !watchedQuantity || !watchedUnit) return 0;
-      // Simple cost calculation - this could be enhanced with proper unit conversion
+      
       const costPerUnit = selectedStockEntry.costPerPurchasedUnit || 0;
-      return watchedQuantity * costPerUnit;
+      const purchasedUnit = selectedStockEntry.purchasedUnit;
+      
+      // If assigned unit is the same as purchased unit, simple multiplication
+      if (watchedUnit === purchasedUnit) {
+        return watchedQuantity * costPerUnit;
+      }
+      
+      // Convert assigned quantity to purchased unit for cost calculation
+      const convertedQuantity = getConvertedQuantityForComparison(watchedQuantity, watchedUnit, purchasedUnit);
+      return convertedQuantity * costPerUnit;
     } else if (watchedItemType === "menuItem") {
       if (!selectedMenuItem) return 0;
       return selectedMenuItem.price;
     }
     return 0;
-  }, [watchedItemType, selectedStockEntry, selectedMenuItem, watchedQuantity, watchedUnit]);
+  }, [watchedItemType, selectedStockEntry, selectedMenuItem, watchedQuantity, watchedUnit, getConvertedQuantityForComparison]);
 
   // Check if selected material is a package unit
   const isPackageUnit = material?.unitType === "package";
@@ -107,6 +149,14 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
   // Get available stock quantity
   const availableQuantity = selectedStockEntry?.purchasedQuantity || 0;
   const availableIndividualQuantity = selectedStockEntry?.purchasedIndividualQuantity;
+
+  // Get converted quantity for validation
+  const convertedAssignedQuantity = watchedQuantity && watchedUnit && selectedStockEntry
+    ? getConvertedQuantityForComparison(watchedQuantity, watchedUnit, selectedStockEntry.purchasedUnit)
+    : watchedQuantity || 0;
+
+  // Check if assigned quantity exceeds available stock (after conversion)
+  const exceedsAvailableStock = convertedAssignedQuantity > 0 && availableQuantity > 0 && convertedAssignedQuantity > availableQuantity;
 
   const handleSubmit = (data: AssignmentFormData) => {
     if (isLoading) return;
@@ -433,34 +483,9 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
               </div>
             )}
 
-            {/* Quantity and Unit Assignment - Only for Stock Entries */}
+            {/* Unit and Quantity Assignment - Only for Stock Entries */}
             {watchedItemType === "stockEntry" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="assignedQuantity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium">Quantity to Assign *</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input type="number" step="0.0001" placeholder="0.00" className="h-10 pr-12" disabled={isLoading} {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
-                          {watchedQuantity > 0 && availableQuantity > 0 && watchedQuantity > availableQuantity && <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-destructive" />}
-                        </div>
-                      </FormControl>
-                      {watchedQuantity > 0 && availableQuantity > 0 && watchedQuantity > availableQuantity && (
-                        <Alert variant="destructive" className="mt-2">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>
-                            Assigned quantity ({formatNumber(watchedQuantity)}) exceeds available stock ({formatNumber(availableQuantity)})
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <FormField
                   control={form.control}
                   name="assignedUnit"
@@ -470,7 +495,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading || !material}>
                         <FormControl>
                           <SelectTrigger className="h-10">
-                            <SelectValue placeholder="Select unit" />
+                            <SelectValue placeholder="Select unit first" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -490,6 +515,54 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                           )}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="assignedQuantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium">
+                        Quantity to Assign *
+                        {watchedUnit && (
+                          <span className="text-muted-foreground font-normal ml-1">({watchedUnit})</span>
+                        )}
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input 
+                            type="number" 
+                            step="0.0001" 
+                            placeholder={watchedUnit ? `Enter amount in ${watchedUnit}` : "Select unit first"} 
+                            className="h-10 pr-12" 
+                            disabled={isLoading || !watchedUnit} 
+                            {...field} 
+                            onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                          />
+                          {exceedsAvailableStock && <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-destructive" />}
+                        </div>
+                      </FormControl>
+                      {exceedsAvailableStock && (
+                        <Alert variant="destructive" className="mt-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            Assigned quantity ({formatNumber(watchedQuantity)} {watchedUnit}) exceeds available stock ({formatNumber(availableQuantity)} {selectedStockEntry?.purchasedUnit})
+                            {convertedAssignedQuantity !== watchedQuantity && (
+                              <div className="text-xs mt-1 opacity-75">
+                                Converted: {formatNumber(convertedAssignedQuantity)} {selectedStockEntry?.purchasedUnit} requested vs {formatNumber(availableQuantity)} {selectedStockEntry?.purchasedUnit} available
+                              </div>
+                            )}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      {!watchedUnit && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Please select a unit first to enable quantity input
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 import { inventoryAPI } from '@/api/inventory.api';
-import { Material, MaterialWithStock, StockEntry, CreateStockEntryData, Section, SectionAssignment, MenuItem } from '@/types/inventory';
+import { Material, MaterialWithStock, StockEntry, CreateStockEntryData, Section, SectionAssignment, MenuItem, StockEntryWithMaterial } from '@/types/inventory';
 import {
   materialsAtom,
   stockEntriesAtom,
@@ -55,14 +55,15 @@ export const fetchStockEntriesAction = atom(
     
     try {
       const response = await inventoryAPI.stock.getStockEntries();
-      const transformedStockEntries: StockEntry[] = response.data.map(entry => ({
+      const transformedStockEntries: StockEntryWithMaterial[] = response.data.map((entry: any) => ({
         ...entry,
         id: entry.id.toString(),
         materialId: entry.materialId.toString(),
         purchaseDate: new Date(entry.purchaseDate),
         expiryDate: entry.expiryDate ? new Date(entry.expiryDate) : undefined,
         createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date(),
-        updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : new Date()
+        updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : new Date(),
+        material: entry.material // Preserve the material property from API response
       }));
       
       set(stockEntriesAtom, transformedStockEntries);

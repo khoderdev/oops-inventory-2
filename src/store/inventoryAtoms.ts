@@ -1,6 +1,6 @@
 import { atom, WritableAtom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
-import { Material, MaterialWithStock, StockEntry, Section, SectionAssignment, MenuItem } from '@/types/inventory';
+import { Material, MaterialWithStock, StockEntry, Section, SectionAssignment, MenuItem, StockEntryWithMaterial } from '@/types/inventory';
 import { calculateMaterialInventory } from '@/utils/inventoryCalculations';
 
 // Base data atoms
@@ -12,7 +12,7 @@ export const menuItemsAtom = atom<MenuItem[]>([]);
 
 // Optimistic state atoms (for temporary updates before API confirmation)
 export const optimisticMaterialsAtom = atom<MaterialWithStock[]>([]);
-export const optimisticStockEntriesAtom = atom<StockEntry[]>([]);
+export const optimisticStockEntriesAtom = atom<StockEntryWithMaterial[]>([]);
 export const optimisticSectionsAtom = atom<Section[]>([]);
 export const optimisticAssignmentsAtom = atom<SectionAssignment[]>([]);
 

@@ -61,6 +61,10 @@ export interface StockEntry {
   updatedAt: Date;
 }
 
+export interface StockEntryWithMaterial extends StockEntry {
+  material?: Material;
+}
+
 export interface CreateStockEntryData {
   materialId: string;
   supplier: string;

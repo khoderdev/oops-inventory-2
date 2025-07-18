@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAssignment, SectionWithAssignments, StockEntry } from "@/types/inventory";
-import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
+import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
 import { AlertTriangle, Edit, Package, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -33,6 +33,74 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   const renderMaterialDetails = (material: MaterialWithSectionAssignments) => {
     const materialWithAssignments = materialsWithSectionAssignments.find(m => m.id === material.id);
     const sectionAssignments = materialWithAssignments?.sectionAssignments || [];
+
+    // Calculate correct total value using proper unit conversion
+    const calculateCorrectTotalValue = () => {
+      // Find all sections with assignments for this material
+      const allAssignments: SectionAssignment[] = [];
+
+      sectionsWithAssignments.forEach(section => {
+        section.assignments.forEach(assignment => {
+          if (assignment.materialId === material.id) {
+            allAssignments.push(assignment);
+          }
+        });
+      });
+
+      // Calculate total value from all assignments
+      let totalValue = 0;
+
+      allAssignments.forEach(assignment => {
+        if (!assignment.stockEntry || !assignment.assignedQuantity) return;
+
+        // Try multiple cost fields
+        let costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
+
+        // If costPerPurchasedUnit is 0, try alternative cost calculation
+        if (costPerUnit === 0 && assignment.stockEntry.totalCost && assignment.stockEntry.purchasedQuantity) {
+          costPerUnit = assignment.stockEntry.totalCost / assignment.stockEntry.purchasedQuantity;
+        }
+
+        const assignedUnit = assignment.assignedUnit || "";
+        const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
+        const assignedQuantity = assignment.assignedQuantity;
+
+        // If units are the same, simple multiplication
+        if (assignedUnit === purchasedUnit) {
+          totalValue += assignedQuantity * costPerUnit;
+          return;
+        }
+
+        // Convert assigned quantity to purchased unit for cost calculation
+        let convertedQuantity = assignedQuantity;
+
+        // Handle mass unit conversions
+        if (isMassUnit(assignedUnit) && isMassUnit(purchasedUnit)) {
+          convertedQuantity = convertMass(assignedQuantity, assignedUnit, purchasedUnit);
+        }
+        // Handle volume unit conversions
+        else if (isVolumeUnit(assignedUnit) && isVolumeUnit(purchasedUnit)) {
+          convertedQuantity = convertVolume(assignedQuantity, assignedUnit, purchasedUnit);
+        }
+        // Handle package unit conversions
+        else if (assignment.material?.unitType === "package" && assignment.material.packageQuantity) {
+          // If assigning in base unit but stock is in package unit
+          if (assignedUnit === assignment.material.baseUnit && purchasedUnit === assignment.material.inputUnit) {
+            convertedQuantity = assignedQuantity / assignment.material.packageQuantity;
+          }
+          // If assigning in package unit but stock is in base unit
+          else if (assignedUnit === assignment.material.inputUnit && purchasedUnit === assignment.material.baseUnit) {
+            convertedQuantity = assignedQuantity * assignment.material.packageQuantity;
+          }
+        }
+
+        totalValue += convertedQuantity * costPerUnit;
+      });
+
+      return totalValue;
+    };
+
+    const correctTotalValue = calculateCorrectTotalValue();
 
     return (
       <div className="space-y-6">
@@ -80,7 +148,10 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
             </div>
             <div>
               <h4 className="text-sm font-semibold text-muted-foreground">Total Value</h4>
-              <p className="font-semibold text-foreground">{formatCurrency(material.totalValue)}</p>
+              <p className="font-semibold text-foreground">
+                {formatCurrency(correctTotalValue)}
+                {correctTotalValue !== material.totalValue && <span className="text-xs text-muted-foreground ml-2">(Backend: {formatCurrency(material.totalValue)})</span>}
+              </p>
             </div>
           </div>
         </div>
@@ -164,6 +235,71 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   const renderSectionDetails = (section: Section) => {
     const sectionWithAssignments = sectionsWithAssignments.find(s => s.id === section.id);
 
+    // Calculate correct section total value using proper unit conversion
+    const calculateSectionTotalValue = () => {
+      if (!sectionWithAssignments?.assignments) return 0;
+
+      let totalValue = 0;
+
+      sectionWithAssignments.assignments.forEach(assignment => {
+        // Handle menu item assignments
+        if (assignment.itemType === "menuItem" && assignment.menuItem) {
+          totalValue += assignment.menuItem.price || 0;
+          return;
+        }
+
+        // Handle material assignments
+        if (!assignment.stockEntry || !assignment.assignedQuantity) return;
+
+        // Try multiple cost fields
+        let costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
+
+        // If costPerPurchasedUnit is 0, try alternative cost calculation
+        if (costPerUnit === 0 && assignment.stockEntry.totalCost && assignment.stockEntry.purchasedQuantity) {
+          costPerUnit = assignment.stockEntry.totalCost / assignment.stockEntry.purchasedQuantity;
+        }
+
+        const assignedUnit = assignment.assignedUnit || "";
+        const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
+        const assignedQuantity = assignment.assignedQuantity;
+
+        // If units are the same, simple multiplication
+        if (assignedUnit === purchasedUnit) {
+          totalValue += assignedQuantity * costPerUnit;
+          return;
+        }
+
+        // Convert assigned quantity to purchased unit for cost calculation
+        let convertedQuantity = assignedQuantity;
+
+        // Handle mass unit conversions
+        if (isMassUnit(assignedUnit) && isMassUnit(purchasedUnit)) {
+          convertedQuantity = convertMass(assignedQuantity, assignedUnit, purchasedUnit);
+        }
+        // Handle volume unit conversions
+        else if (isVolumeUnit(assignedUnit) && isVolumeUnit(purchasedUnit)) {
+          convertedQuantity = convertVolume(assignedQuantity, assignedUnit, purchasedUnit);
+        }
+        // Handle package unit conversions
+        else if (assignment.material?.unitType === "package" && assignment.material.packageQuantity) {
+          // If assigning in base unit but stock is in package unit
+          if (assignedUnit === assignment.material.baseUnit && purchasedUnit === assignment.material.inputUnit) {
+            convertedQuantity = assignedQuantity / assignment.material.packageQuantity;
+          }
+          // If assigning in package unit but stock is in base unit
+          else if (assignedUnit === assignment.material.inputUnit && purchasedUnit === assignment.material.baseUnit) {
+            convertedQuantity = assignedQuantity * assignment.material.packageQuantity;
+          }
+        }
+
+        totalValue += convertedQuantity * costPerUnit;
+      });
+
+      return totalValue;
+    };
+
+    const correctSectionTotalValue = calculateSectionTotalValue();
+
     return (
       <div className="space-y-4">
         <div>
@@ -178,7 +314,10 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           </div>
           <div>
             <h4 className="font-medium">Total Value</h4>
-            <p>{formatCurrency(sectionWithAssignments?.totalValue || 0)}</p>
+            <p>
+              {formatCurrency(correctSectionTotalValue)}
+              {correctSectionTotalValue !== (sectionWithAssignments?.totalValue || 0) && <span className="text-xs text-muted-foreground ml-2">(Backend: {formatCurrency(sectionWithAssignments?.totalValue || 0)})</span>}
+            </p>
           </div>
         </div>
 
@@ -234,7 +373,68 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
 
                 // Material/Stock Entry Assignment
                 if (itemType === "stockEntry" && (assignment.material || assignment.stockEntry)) {
-                  const assignmentValue = (assignment.assignedQuantity || 0) * (assignment.stockEntry?.costPerPurchasedUnit || assignment.material?.costPerBaseUnit || 0);
+                  // Calculate assignment value with proper unit conversion
+                  const calculateAssignmentValue = () => {
+                    if (!assignment.stockEntry || !assignment.assignedQuantity) return 0;
+
+                    // Try multiple cost fields
+                    let costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
+
+                    // If costPerPurchasedUnit is 0, try alternative cost calculation
+                    if (costPerUnit === 0 && assignment.stockEntry.totalCost && assignment.stockEntry.purchasedQuantity) {
+                      costPerUnit = assignment.stockEntry.totalCost / assignment.stockEntry.purchasedQuantity;
+                    }
+
+                    // Debug logging
+                    console.log("Assignment calculation:", {
+                      materialName: assignment.material?.name,
+                      assignedQuantity: assignment.assignedQuantity,
+                      assignedUnit: assignment.assignedUnit,
+                      stockEntry: {
+                        costPerPurchasedUnit: assignment.stockEntry.costPerPurchasedUnit,
+                        totalCost: assignment.stockEntry.totalCost,
+                        purchasedQuantity: assignment.stockEntry.purchasedQuantity,
+                        purchasedUnit: assignment.stockEntry.purchasedUnit
+                      },
+                      calculatedCostPerUnit: costPerUnit
+                    });
+
+                    const assignedUnit = assignment.assignedUnit || "";
+                    const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
+                    const assignedQuantity = assignment.assignedQuantity;
+
+                    // If units are the same, simple multiplication
+                    if (assignedUnit === purchasedUnit) {
+                      return assignedQuantity * costPerUnit;
+                    }
+
+                    // Convert assigned quantity to purchased unit for cost calculation
+                    let convertedQuantity = assignedQuantity;
+
+                    // Handle mass unit conversions
+                    if (isMassUnit(assignedUnit) && isMassUnit(purchasedUnit)) {
+                      convertedQuantity = convertMass(assignedQuantity, assignedUnit, purchasedUnit);
+                    }
+                    // Handle volume unit conversions
+                    else if (isVolumeUnit(assignedUnit) && isVolumeUnit(purchasedUnit)) {
+                      convertedQuantity = convertVolume(assignedQuantity, assignedUnit, purchasedUnit);
+                    }
+                    // Handle package unit conversions
+                    else if (assignment.material?.unitType === "package" && assignment.material.packageQuantity) {
+                      // If assigning in base unit but stock is in package unit
+                      if (assignedUnit === assignment.material.baseUnit && purchasedUnit === assignment.material.inputUnit) {
+                        convertedQuantity = assignedQuantity / assignment.material.packageQuantity;
+                      }
+                      // If assigning in package unit but stock is in base unit
+                      else if (assignedUnit === assignment.material.inputUnit && purchasedUnit === assignment.material.baseUnit) {
+                        convertedQuantity = assignedQuantity * assignment.material.packageQuantity;
+                      }
+                    }
+
+                    return convertedQuantity * costPerUnit;
+                  };
+
+                  const assignmentValue = calculateAssignmentValue();
 
                   // Calculate converted quantity for package units
                   const getQuantityDisplay = () => {
@@ -456,7 +656,72 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
               <>
                 <div className="flex justify-between items-center">
                   <div className="text-sm text-muted-foreground">
-                    Total Value: <span className="font-semibold text-foreground">{formatCurrency(selectedSectionForAssignments?.totalValue || 0)}</span>
+                    Total Value:{" "}
+                    <span className="font-semibold text-foreground">
+                      {formatCurrency(
+                        (() => {
+                          if (!selectedSectionForAssignments?.assignments) return 0;
+
+                          let totalValue = 0;
+
+                          selectedSectionForAssignments.assignments.forEach(assignment => {
+                            // Handle menu item assignments
+                            if (assignment.itemType === "menuItem" && assignment.menuItem) {
+                              totalValue += assignment.menuItem.price || 0;
+                              return;
+                            }
+
+                            // Handle material assignments
+                            if (!assignment.stockEntry || !assignment.assignedQuantity) return;
+
+                            // Try multiple cost fields
+                            let costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
+
+                            // If costPerPurchasedUnit is 0, try alternative cost calculation
+                            if (costPerUnit === 0 && assignment.stockEntry.totalCost && assignment.stockEntry.purchasedQuantity) {
+                              costPerUnit = assignment.stockEntry.totalCost / assignment.stockEntry.purchasedQuantity;
+                            }
+
+                            const assignedUnit = assignment.assignedUnit || "";
+                            const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
+                            const assignedQuantity = assignment.assignedQuantity;
+
+                            // If units are the same, simple multiplication
+                            if (assignedUnit === purchasedUnit) {
+                              totalValue += assignedQuantity * costPerUnit;
+                              return;
+                            }
+
+                            // Convert assigned quantity to purchased unit for cost calculation
+                            let convertedQuantity = assignedQuantity;
+
+                            // Handle mass unit conversions
+                            if (isMassUnit(assignedUnit) && isMassUnit(purchasedUnit)) {
+                              convertedQuantity = convertMass(assignedQuantity, assignedUnit, purchasedUnit);
+                            }
+                            // Handle volume unit conversions
+                            else if (isVolumeUnit(assignedUnit) && isVolumeUnit(purchasedUnit)) {
+                              convertedQuantity = convertVolume(assignedQuantity, assignedUnit, purchasedUnit);
+                            }
+                            // Handle package unit conversions
+                            else if (assignment.material?.unitType === "package" && assignment.material.packageQuantity) {
+                              // If assigning in base unit but stock is in package unit
+                              if (assignedUnit === assignment.material.baseUnit && purchasedUnit === assignment.material.inputUnit) {
+                                convertedQuantity = assignedQuantity / assignment.material.packageQuantity;
+                              }
+                              // If assigning in package unit but stock is in base unit
+                              else if (assignedUnit === assignment.material.inputUnit && purchasedUnit === assignment.material.baseUnit) {
+                                convertedQuantity = assignedQuantity * assignment.material.packageQuantity;
+                              }
+                            }
+
+                            totalValue += convertedQuantity * costPerUnit;
+                          });
+
+                          return totalValue;
+                        })()
+                      )}
+                    </span>
                   </div>
                   {onShowAssignmentForm && (
                     <Button
@@ -494,7 +759,51 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                           }
                         }
 
-                        const assignmentValue = itemType === "menuItem" ? assignment.menuItem?.price || 0 : (assignment.assignedQuantity || 0) * (assignment.stockEntry?.costPerPurchasedUnit || assignment.material?.costPerBaseUnit || 0);
+                        // Calculate assignment value with proper unit conversion
+                        const calculateAssignmentValue = () => {
+                          if (itemType === "menuItem") {
+                            return assignment.menuItem?.price || 0;
+                          }
+
+                          if (!assignment.stockEntry || !assignment.assignedQuantity) return 0;
+
+                          const costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
+                          const assignedUnit = assignment.assignedUnit || "";
+                          const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
+                          const assignedQuantity = assignment.assignedQuantity;
+
+                          // If units are the same, simple multiplication
+                          if (assignedUnit === purchasedUnit) {
+                            return assignedQuantity * costPerUnit;
+                          }
+
+                          // Convert assigned quantity to purchased unit for cost calculation
+                          let convertedQuantity = assignedQuantity;
+
+                          // Handle mass unit conversions
+                          if (isMassUnit(assignedUnit) && isMassUnit(purchasedUnit)) {
+                            convertedQuantity = convertMass(assignedQuantity, assignedUnit, purchasedUnit);
+                          }
+                          // Handle volume unit conversions
+                          else if (isVolumeUnit(assignedUnit) && isVolumeUnit(purchasedUnit)) {
+                            convertedQuantity = convertVolume(assignedQuantity, assignedUnit, purchasedUnit);
+                          }
+                          // Handle package unit conversions
+                          else if (assignment.material?.unitType === "package" && assignment.material.packageQuantity) {
+                            // If assigning in base unit but stock is in package unit
+                            if (assignedUnit === assignment.material.baseUnit && purchasedUnit === assignment.material.inputUnit) {
+                              convertedQuantity = assignedQuantity / assignment.material.packageQuantity;
+                            }
+                            // If assigning in package unit but stock is in base unit
+                            else if (assignedUnit === assignment.material.inputUnit && purchasedUnit === assignment.material.baseUnit) {
+                              convertedQuantity = assignedQuantity * assignment.material.packageQuantity;
+                            }
+                          }
+
+                          return convertedQuantity * costPerUnit;
+                        };
+
+                        const assignmentValue = calculateAssignmentValue();
 
                         return (
                           <TableRow key={assignment.id} className="hover:bg-muted/50">

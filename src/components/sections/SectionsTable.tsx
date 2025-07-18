@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Section, SectionAssignment, SectionWithAssignments } from "@/types/inventory";
-import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { getConversionFactor } from "@/utils/getConversionFactor";
+import { formatCurrency, formatNumber, convertMass, convertVolume, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { AlertTriangle, Edit, Package, Plus, Trash2 } from "lucide-react";
 import { memo, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
@@ -87,8 +86,42 @@ ActionButtons.displayName = "ActionButtons";
 // Memoized assignment row component
 const AssignmentRow = memo(({ assignment, onRowClick, onEdit, onDelete }: { assignment: SectionAssignment; onRowClick: () => void; onEdit: () => void; onDelete: () => void }) => {
   const calculatedValue = useMemo(() => {
-    const conversionFactor = getConversionFactor(assignment.assignedUnit, assignment.stockEntry?.purchasedUnit || assignment.assignedUnit, assignment.material?.unitType || "piece");
-    return assignment.assignedQuantity * (assignment.stockEntry?.costPerPurchasedUnit || 0) * conversionFactor;
+    if (!assignment.stockEntry || !assignment.assignedQuantity) return 0;
+    
+    const costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
+    const assignedUnit = assignment.assignedUnit;
+    const purchasedUnit = assignment.stockEntry.purchasedUnit;
+    const assignedQuantity = assignment.assignedQuantity;
+    
+    // If units are the same, simple multiplication
+    if (assignedUnit === purchasedUnit) {
+      return assignedQuantity * costPerUnit;
+    }
+    
+    // Convert assigned quantity to purchased unit for cost calculation
+    let convertedQuantity = assignedQuantity;
+    
+    // Handle mass unit conversions
+    if (isMassUnit(assignedUnit) && isMassUnit(purchasedUnit)) {
+      convertedQuantity = convertMass(assignedQuantity, assignedUnit, purchasedUnit);
+    }
+    // Handle volume unit conversions
+    else if (isVolumeUnit(assignedUnit) && isVolumeUnit(purchasedUnit)) {
+      convertedQuantity = convertVolume(assignedQuantity, assignedUnit, purchasedUnit);
+    }
+    // Handle package unit conversions
+    else if (assignment.material?.unitType === "package" && assignment.material.packageQuantity) {
+      // If assigning in base unit but stock is in package unit
+      if (assignedUnit === assignment.material.baseUnit && purchasedUnit === assignment.material.inputUnit) {
+        convertedQuantity = assignedQuantity / assignment.material.packageQuantity;
+      }
+      // If assigning in package unit but stock is in base unit
+      else if (assignedUnit === assignment.material.inputUnit && purchasedUnit === assignment.material.baseUnit) {
+        convertedQuantity = assignedQuantity * assignment.material.packageQuantity;
+      }
+    }
+    
+    return convertedQuantity * costPerUnit;
   }, [assignment]);
 
   const isPackageUnit = assignment.material?.unitType === "package";
