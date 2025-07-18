@@ -1,6 +1,6 @@
 import { activeTabAtom, categoryFilterAtom, filteredMaterialsAtom, lowStockFilterAtom, materialsWithStockAtom, menuItemsAtom, optimisticStockEntriesAtom, searchTermAtom, sectionAssignmentsAtom, sectionsAtom, selectedMaterialAtom, selectedSectionAtom, selectedStockEntryAtom, showMaterialFormAtom, showSectionFormAtom, showStockFormAtom, tabErrorAtom, tabLoadingAtom } from "@/store/inventoryAtoms";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 import { createMaterialAction, createStockEntryAction, deleteMaterialAction, fetchTabDataAction, updateMaterialAction } from "@/store/inventoryActions";
 import { MaterialCategory, MaterialWithStock, StockEntry, UnitType } from "@/types/inventory";
@@ -46,12 +46,18 @@ export function useInventoryStore() {
   const deleteMaterial = useSetAtom(deleteMaterialAction);
   const createStockEntry = useSetAtom(createStockEntryAction);
 
+  // Initialize data loading on mount and when active tab changes
+  useEffect(() => {
+    // Load data for the current active tab when component mounts or when tab changes
+    fetchTabData(activeTab);
+  }, [activeTab, fetchTabData]);
+
   const handleTabChange = useCallback(
     (value: string) => {
       setActiveTab(value);
-      fetchTabData(value);
+      // Data will be loaded automatically by the useEffect above
     },
-    [setActiveTab, fetchTabData]
+    [setActiveTab]
   );
 
   const handleMaterialSubmit = useCallback(

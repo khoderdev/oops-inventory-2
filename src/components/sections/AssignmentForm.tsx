@@ -11,7 +11,7 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, DollarSign, Info, Package } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -55,6 +55,8 @@ interface AssignmentFormProps {
 }
 
 export function AssignmentForm({ sections, stockEntries, materials, menuItems, assignment, onSubmit, onCancel, isLoading = false, selectedSectionId }: AssignmentFormProps) {
+  const [formError, setFormError] = useState<string | null>(null);
+  
   const form = useForm<AssignmentFormData>({
     resolver: zodResolver(assignmentSchema),
     defaultValues: {
@@ -77,6 +79,13 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
   const selectedMenuItem = menuItems.find(item => item.id === watchedMenuItemId);
   const material = selectedStockEntry ? materials.find(m => m.id === selectedStockEntry.materialId) : null;
   const availableUnits = material ? getSuggestedUnits(material.unitType) : [];
+
+  // Clear form error when user changes selections
+  useEffect(() => {
+    if (formError) {
+      setFormError(null);
+    }
+  }, [formError, watchedItemType, watchedStockEntryId, watchedMenuItemId]);
 
   // Calculate estimated cost
   const estimatedCost = useMemo(() => {
@@ -101,6 +110,30 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
 
   const handleSubmit = (data: AssignmentFormData) => {
     if (isLoading) return;
+
+    // Clear any previous form errors
+    setFormError(null);
+
+    // Validate that IDs are not temporary (optimistic update IDs)
+    const isTemporaryId = (id: string | undefined) => {
+      return id && (id.startsWith('temp-') || id.includes('temp'));
+    };
+
+    if (data.itemType === "stockEntry") {
+      if (isTemporaryId(data.stockEntryId)) {
+        const errorMsg = 'Cannot create assignment: Stock entry is not yet saved. Please wait for the stock entry to be created first.';
+        setFormError(errorMsg);
+        console.error('Cannot submit assignment with temporary stock entry ID:', data.stockEntryId);
+        return;
+      }
+    } else if (data.itemType === "menuItem") {
+      if (isTemporaryId(data.menuItemId)) {
+        const errorMsg = 'Cannot create assignment: Menu item is not yet saved. Please wait for the menu item to be created first.';
+        setFormError(errorMsg);
+        console.error('Cannot submit assignment with temporary menu item ID:', data.menuItemId);
+        return;
+      }
+    }
 
     // Add required fields that backend expects
     const submissionData: CreateSectionAssignmentData = {
@@ -132,6 +165,14 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            {/* Form Error Alert */}
+            {formError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            )}
+            
             {/* Section and Item Type Selection */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <FormField

@@ -68,8 +68,14 @@ const assignmentsController = {
           return res.status(400).json({ error: "Assigned quantity must be positive" });
         }
 
+        // Validate that stockEntryId is a valid integer (not a temporary ID)
+        const stockEntryIdInt = parseInt(stockEntryId);
+        if (isNaN(stockEntryIdInt) || String(stockEntryIdInt) !== String(stockEntryId)) {
+          return res.status(400).json({ error: "Invalid stockEntryId: must be a valid integer, not a temporary ID" });
+        }
+
         const material = await Material.findByPk(parseInt(materialId));
-        const stockEntry = await StockEntry.findByPk(String(stockEntryId));
+        const stockEntry = await StockEntry.findByPk(stockEntryIdInt);
 
         if (!material || !stockEntry) {
           return res.status(400).json({ error: "Invalid materialId or stockEntryId" });
@@ -89,7 +95,7 @@ const assignmentsController = {
           sectionId: parseInt(sectionId),
           itemType,
           materialId: parseInt(materialId),
-          stockEntryId: String(stockEntryId),
+          stockEntryId: stockEntryIdInt,
           assignedQuantity: Number(assignedQuantity),
           assignedUnit: String(assignedUnit || ""),
           assignedIndividualQuantity: assignedIndividualQuantity,
@@ -114,7 +120,13 @@ const assignmentsController = {
           return res.status(400).json({ error: "menuItemId is required for menuItem assignment" });
         }
 
-        const menuItem = await MenuItem.findByPk(String(menuItemId));
+        // Validate that menuItemId is a valid integer (not a temporary ID)
+        const menuItemIdInt = parseInt(menuItemId);
+        if (isNaN(menuItemIdInt) || String(menuItemIdInt) !== String(menuItemId)) {
+          return res.status(400).json({ error: "Invalid menuItemId: must be a valid integer, not a temporary ID" });
+        }
+
+        const menuItem = await MenuItem.findByPk(menuItemIdInt);
         if (!menuItem) {
           return res.status(400).json({ error: "Invalid menuItemId" });
         }
@@ -122,7 +134,7 @@ const assignmentsController = {
         const assignment = await Assignment.create({
           sectionId: parseInt(sectionId),
           itemType,
-          menuItemId: parseInt(menuItemId),
+          menuItemId: menuItemIdInt,
           materialId: null,
           stockEntryId: null,
           assignedQuantity: null,
