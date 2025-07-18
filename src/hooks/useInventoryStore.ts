@@ -1,68 +1,51 @@
-import {
-  // UI state atoms
-  activeTabAtom,
-  categoryFilterAtom,
-  filteredMaterialsAtom,
-  lowStockFilterAtom,
-  // Data atoms
-  materialsWithStockAtom,
-  menuItemsAtom,
-  optimisticStockEntriesAtom,
-  searchTermAtom,
-  sectionAssignmentsAtom,
-  sectionsAtom,
-  selectedMaterialAtom,
-  selectedSectionAtom,
-  selectedStockEntryAtom,
-  // Form state atoms
-  showMaterialFormAtom,
-  showSectionFormAtom,
-  showStockFormAtom,
-  // Loading atoms
-  tabLoadingAtom,
-  tabErrorAtom
-} from "@/store/inventoryAtoms";
+import { activeTabAtom, categoryFilterAtom, filteredMaterialsAtom, lowStockFilterAtom, materialsWithStockAtom, menuItemsAtom, optimisticStockEntriesAtom, searchTermAtom, sectionAssignmentsAtom, sectionsAtom, selectedMaterialAtom, selectedSectionAtom, selectedStockEntryAtom, showMaterialFormAtom, showSectionFormAtom, showStockFormAtom, tabErrorAtom, tabLoadingAtom } from "@/store/inventoryAtoms";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback } from "react";
 
-import { createMaterialAction, createStockEntryAction, fetchTabDataAction, updateMaterialAction } from "@/store/inventoryActions";
-import { MaterialWithStock, StockEntry } from "@/types/inventory";
+import { createMaterialAction, createStockEntryAction, deleteMaterialAction, fetchTabDataAction, updateMaterialAction } from "@/store/inventoryActions";
+import { MaterialCategory, MaterialWithStock, StockEntry, UnitType } from "@/types/inventory";
 
-// Main inventory store hook
+// Form data interface
+interface MaterialFormData {
+  name: string;
+  category: MaterialCategory;
+  baseUnit: string;
+  unitType: UnitType;
+  inputUnit: string;
+  costPerBaseUnit: number;
+  packageQuantity?: number;
+  description?: string;
+}
+
 export function useInventoryStore() {
-  // Data
   const materialsWithStock = useAtomValue(materialsWithStockAtom);
   const filteredMaterials = useAtomValue(filteredMaterialsAtom);
   const stockEntries = useAtomValue(optimisticStockEntriesAtom);
   const sections = useAtomValue(sectionsAtom);
   const sectionAssignments = useAtomValue(sectionAssignmentsAtom);
   const menuItems = useAtomValue(menuItemsAtom);
-
-  // UI state
   const [activeTab, setActiveTab] = useAtom(activeTabAtom);
   const [searchTerm, setSearchTerm] = useAtom(searchTermAtom);
   const [categoryFilter, setCategoryFilter] = useAtom(categoryFilterAtom);
   const [lowStockFilter, setLowStockFilter] = useAtom(lowStockFilterAtom);
-
-  // Form state
   const [showMaterialForm, setShowMaterialForm] = useAtom(showMaterialFormAtom);
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [showSectionForm, setShowSectionForm] = useAtom(showSectionFormAtom);
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom);
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom);
   const [selectedSection, setSelectedSection] = useAtom(selectedSectionAtom);
-
-  // Loading states
+  const setSelectedMaterialTyped = setSelectedMaterial as (value: MaterialWithStock | null) => void;
+  const setShowMaterialFormTyped = setShowMaterialForm as (value: boolean) => void;
+  const setSelectedStockEntryTyped = setSelectedStockEntry as (value: StockEntry | null) => void;
+  const setShowStockFormTyped = setShowStockForm as (value: boolean) => void;
   const tabLoading = useAtomValue(tabLoadingAtom);
   const tabError = useAtomValue(tabErrorAtom);
-
-  // Actions
   const fetchTabData = useSetAtom(fetchTabDataAction);
   const createMaterial = useSetAtom(createMaterialAction);
   const updateMaterial = useSetAtom(updateMaterialAction);
+  const deleteMaterial = useSetAtom(deleteMaterialAction);
   const createStockEntry = useSetAtom(createStockEntryAction);
 
-  // Tab change handler
   const handleTabChange = useCallback(
     (value: string) => {
       setActiveTab(value);
@@ -71,22 +54,41 @@ export function useInventoryStore() {
     [setActiveTab, fetchTabData]
   );
 
-  // Form handlers
   const handleMaterialSubmit = useCallback(
-    (data: MaterialWithStock) => {
+    async (data: MaterialFormData) => {
       try {
+        const materialData: MaterialWithStock = {
+          id: selectedMaterial?.id || "",
+          name: data.name,
+          category: data.category,
+          baseUnit: data.baseUnit,
+          unitType: data.unitType,
+          inputUnit: data.inputUnit,
+          costPerUnit: data.costPerBaseUnit,
+          costPerBaseUnit: data.costPerBaseUnit,
+          packageQuantity: data.packageQuantity,
+          description: data.description,
+          createdAt: selectedMaterial?.createdAt || new Date(),
+          updatedAt: new Date(),
+          stockEntries: selectedMaterial?.stockEntries || [],
+          totalQuantityInBaseUnit: selectedMaterial?.totalQuantityInBaseUnit || 0,
+          totalValue: selectedMaterial?.totalValue || 0,
+          averageCostPerBaseUnit: data.costPerBaseUnit || 0,
+          availableQuantity: selectedMaterial?.availableQuantity || 0
+        };
+
         if (selectedMaterial) {
-          updateMaterial({ id: selectedMaterial.id, data });
+          await updateMaterial({ id: selectedMaterial.id, data: materialData });
         } else {
-          createMaterial(data);
+          await createMaterial(materialData);
         }
-        setShowMaterialForm(false);
-        setSelectedMaterial(null);
+        setShowMaterialFormTyped(false);
+        setSelectedMaterialTyped(null);
       } catch (error) {
-        // Error is already handled in the action
+        console.error("Failed to submit material:", error);
       }
     },
-    [selectedMaterial, updateMaterial, createMaterial, setShowMaterialForm, setSelectedMaterial]
+    [selectedMaterial, updateMaterial, createMaterial, setShowMaterialFormTyped, setSelectedMaterialTyped]
   );
 
   const handleStockSubmit = useCallback(
@@ -97,50 +99,59 @@ export function useInventoryStore() {
         } else {
           createStockEntry(data);
         }
-        setShowStockForm(false);
-        setSelectedStockEntry(null);
+        setShowStockFormTyped(false);
+        setSelectedStockEntryTyped(null);
       } catch (error) {
         // Error is already handled in the action
       }
     },
-    [selectedStockEntry, createStockEntry, setShowStockForm, setSelectedStockEntry]
+    [selectedStockEntry, createStockEntry, setShowStockFormTyped, setSelectedStockEntryTyped]
   );
 
   const handleEditMaterial = useCallback(
     (material: MaterialWithStock) => {
-      setSelectedMaterial(material);
-      setShowMaterialForm(true);
+      setSelectedMaterialTyped(material);
+      setShowMaterialFormTyped(true);
     },
-    [setSelectedMaterial, setShowMaterialForm]
+    [setSelectedMaterialTyped, setShowMaterialFormTyped]
   );
 
   const handleEditStockEntry = useCallback(
     (stockEntry: StockEntry) => {
-      setSelectedStockEntry(stockEntry);
-      setShowStockForm(true);
+      setSelectedStockEntryTyped(stockEntry);
+      setShowStockFormTyped(true);
     },
-    [setSelectedStockEntry, setShowStockForm]
+    [setSelectedStockEntryTyped, setShowStockFormTyped]
   );
 
   const handleAddStock = useCallback(
     (materialId: string) => {
       const material = materialsWithStock.find(m => m.id === materialId);
-      setSelectedMaterial(material || null);
-      setShowStockForm(true);
+      setSelectedMaterialTyped(material || null);
+      setShowStockFormTyped(true);
     },
-    [materialsWithStock, setSelectedMaterial, setShowStockForm]
+    [materialsWithStock, setSelectedMaterialTyped, setShowStockFormTyped]
+  );
+
+  const handleDeleteMaterial = useCallback(
+    async (id: string) => {
+      try {
+        await deleteMaterial(id);
+      } catch (error) {
+        console.error('Failed to delete material:', error);
+        // Error handling is already done in the action
+      }
+    },
+    [deleteMaterial]
   );
 
   return {
-    // Data
     materialsWithStock,
     filteredMaterials,
     stockEntries,
     sections,
     sectionAssignments,
     menuItems,
-
-    // UI state
     activeTab,
     searchTerm,
     categoryFilter,
@@ -148,8 +159,6 @@ export function useInventoryStore() {
     setSearchTerm,
     setCategoryFilter,
     setLowStockFilter,
-
-    // Form state
     showMaterialForm,
     showStockForm,
     showSectionForm,
@@ -159,25 +168,19 @@ export function useInventoryStore() {
     setShowMaterialForm,
     setShowStockForm,
     setShowSectionForm,
-
-    // Loading states
     tabLoading,
     tabError,
-
-    // Handlers
     handleTabChange,
     handleMaterialSubmit,
     handleStockSubmit,
     handleEditMaterial,
     handleEditStockEntry,
     handleAddStock,
-
-    // Actions
+    handleDeleteMaterial,
     fetchTabData
   };
 }
 
-// Specialized hooks for specific components
 export function useInventoryFilters() {
   const [searchTerm, setSearchTerm] = useAtom(searchTermAtom);
   const [categoryFilter, setCategoryFilter] = useAtom(categoryFilterAtom);
@@ -192,8 +195,6 @@ export function useInventoryFilters() {
     setLowStockFilter
   };
 }
-
-
 
 export function useInventoryLoading() {
   const tabLoading = useAtomValue(tabLoadingAtom);

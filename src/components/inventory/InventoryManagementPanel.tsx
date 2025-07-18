@@ -261,13 +261,13 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
                           <TableCell>{entry.supplier}</TableCell>
                           <TableCell>
                             {(() => {
-                              const displayQty = getDisplayQuantity(entry, material!);
+                              const displayQty = getDisplayQuantity(entry, material);
                               return formatNumber(displayQty.quantity);
                             })()}
                           </TableCell>
                           <TableCell>
                             {(() => {
-                              const displayQty = getDisplayQuantity(entry, material!);
+                              const displayQty = getDisplayQuantity(entry, material);
                               return (
                                 <div className="flex items-center gap-2">
                                   <span>{displayQty.unit}</span>

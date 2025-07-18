@@ -167,11 +167,47 @@ export const createMaterialAction = atom(
     set(optimisticMaterialsAtom, prev => [...prev, tempMaterial]);
     
     try {
-      // Make API call (assuming you have this function)
-      // await inventoryAPI.materials.createMaterial(data);
+      // Convert MaterialWithStock to CreateMaterialData for API
+      const createData = {
+        name: data.name,
+        category: data.category,
+        baseUnit: data.baseUnit,
+        unitType: data.unitType,
+        inputUnit: data.inputUnit,
+        costPerBaseUnit: data.costPerBaseUnit,
+        packageQuantity: data.packageQuantity,
+        description: data.description
+      };
+      
+      console.log('Creating material with data:', createData);
+      
+      // Make API call
+      const response = await inventoryAPI.materials.createMaterial(createData);
+      
+      console.log('Material created successfully:', response.data);
+      
+      // Update optimistic state with real data from server
+      const realMaterial: MaterialWithStock = {
+        ...response.data,
+        id: response.data.id.toString(),
+        createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
+        updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date(),
+        stockEntries: [],
+        totalQuantityInBaseUnit: 0,
+        totalValue: 0,
+        averageCostPerBaseUnit: response.data.costPerBaseUnit || 0,
+        availableQuantity: 0
+      };
+      
+      // Replace temp material with real material
+      set(optimisticMaterialsAtom, prev => 
+        prev.map(m => m.id === tempMaterial.id ? realMaterial : m)
+      );
+      
     } catch (error) {
       // Revert optimistic update
       set(optimisticMaterialsAtom, currentMaterials);
+      console.error('Failed to create material:', error);
       throw error;
     }
   }
@@ -196,6 +232,35 @@ export const updateMaterialAction = atom(
     } catch (error) {
       // Revert optimistic update
       set(optimisticMaterialsAtom, currentMaterials);
+      throw error;
+    }
+  }
+);
+
+export const deleteMaterialAction = atom(
+  null,
+  async (get, set, id: string) => {
+    // Get current state before optimistic update
+    const currentMaterials = get(optimisticMaterialsAtom);
+    
+    // Optimistic update - remove material immediately
+    set(optimisticMaterialsAtom, prev => prev.filter(material => material.id !== id));
+    
+    try {
+      console.log('Deleting material with ID:', id);
+      
+      // Make API call
+      await inventoryAPI.materials.deleteMaterial(id);
+      
+      console.log('Material deleted successfully');
+      
+      // Update the base materials atom as well
+      set(materialsAtom, prev => prev.filter(material => material.id !== id));
+      
+    } catch (error) {
+      // Revert optimistic update
+      set(optimisticMaterialsAtom, currentMaterials);
+      console.error('Failed to delete material:', error);
       throw error;
     }
   }

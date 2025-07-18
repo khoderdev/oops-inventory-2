@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Material, StockEntry } from "@/types/inventory";
+import { Material, MaterialWithStock, StockEntry } from "@/types/inventory";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
@@ -31,7 +31,7 @@ const stockSchema = z.object({
 type StockFormData = z.infer<typeof stockSchema>;
 
 interface StockFormProps {
-  materials: Material[];
+  materials: MaterialWithStock[];
   stockEntry?: StockEntry;
   selectedMaterialId?: string;
   onSubmit: (data: StockFormData) => void;
@@ -75,7 +75,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       })()
     : [];
 
-  // Auto-select inputUnit for package materials
+  // Auto-select inputUnit for package materials and auto-populate cost
   React.useEffect(() => {
     if (selectedMaterial && selectedMaterial.unitType === "package" && selectedMaterial.inputUnit) {
       // Auto-select the inputUnit (e.g., "box") for package materials
@@ -84,6 +84,32 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       }
     }
   }, [selectedMaterial, form]);
+
+  // Auto-populate cost per unit when material is selected (only for new stock entries)
+  React.useEffect(() => {
+    if (selectedMaterial && !stockEntry) {
+      // Only auto-populate if this is a new stock entry (not editing)
+      const currentCostPerUnit = form.getValues("costPerPurchasedUnit");
+      
+      // Only set if the field is empty or zero
+      if (currentCostPerUnit === 0) {
+        let suggestedCost = 0;
+        
+        if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit && selectedMaterial.packageQuantity) {
+          // For package materials, calculate cost per package unit
+          // Example: if averageCostPerBaseUnit is $0.50/bottle and packageQuantity is 12 bottles/box
+          // then cost per box = $0.50 × 12 = $6.00/box
+          suggestedCost = selectedMaterial.averageCostPerBaseUnit * selectedMaterial.packageQuantity;
+        } else {
+          // For non-package materials, use the average cost per base unit directly
+          suggestedCost = selectedMaterial.averageCostPerBaseUnit;
+        }
+        
+        // Round to 4 decimal places for precision
+        form.setValue("costPerPurchasedUnit", parseFloat(suggestedCost.toFixed(4)));
+      }
+    }
+  }, [selectedMaterial, form, stockEntry]);
 
   // Auto-calculate total cost
   React.useEffect(() => {

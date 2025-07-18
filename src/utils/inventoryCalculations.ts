@@ -153,7 +153,16 @@ export function calculateInventoryTurnover(material: MaterialWithStock, usagePer
 }
 
 // Convert package quantities to base units for display (shows remaining quantities after sales)
-export function getDisplayQuantity(stockEntry: StockEntry, material: Material): { quantity: number; unit: string; isConverted: boolean } {
+export function getDisplayQuantity(stockEntry: StockEntry, material: Material | undefined): { quantity: number; unit: string; isConverted: boolean } {
+  // Handle undefined material gracefully
+  if (!material) {
+    return {
+      quantity: stockEntry.purchasedQuantity,
+      unit: stockEntry.purchasedUnit,
+      isConverted: false
+    };
+  }
+
   if (material.unitType === "package") {
     // Use stored individual quantity if available (new backend implementation)
     if (stockEntry.purchasedIndividualQuantity !== undefined && stockEntry.purchasedIndividualUnit) {

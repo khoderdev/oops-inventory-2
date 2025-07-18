@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryCRUD } from "@/hooks/useInventoryCRUD";
 import { useInventoryData } from "@/hooks/useInventoryData";
+import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { CreateMaterialData, CreateStockEntryData, MaterialWithStock, MenuItem, UpdateMaterialData, UpdateStockEntryData } from "@/types/inventory";
 import { calculateMaterialInventory } from "@/utils/inventoryCalculations";
 import { BarChart3, FileText, Loader2, Package, RefreshCw } from "lucide-react";
@@ -17,6 +18,8 @@ export const InventoryManagementPage = () => {
   const { materials, stockEntries, menuItems, sections, sectionAssignments, loading, error, refetch } = useInventoryData();
   // CRUD operations
   const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, createMenuItem, updateMenuItem, deleteMenuItem, createSection, updateSection, deleteSection, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
+  // Optimistic updates for instant UI changes
+  const { handleDeleteMaterial: optimisticDeleteMaterial } = useInventoryStore();
   
   // Tab management and auto-refresh
   const [activeTab, setActiveTab] = useState("inventory");
@@ -89,7 +92,8 @@ export const InventoryManagementPage = () => {
 
   const handleDeleteMaterial = async (id: string) => {
     try {
-      await deleteMaterial(id);
+      // Use optimistic delete for instant UI updates
+      await optimisticDeleteMaterial(id);
     } catch (error) {
       console.error("Failed to delete material:", error);
     }
@@ -249,16 +253,7 @@ export const InventoryManagementPage = () => {
 
         <TabsContent value="inventory" className="p-4">
           <InventoryManagementPanel
-            materials={materialsWithStock}
-            stockEntries={stockEntries}
-            sections={sections}
-            sectionAssignments={sectionAssignments}
-            menuItems={menuItems}
-            onCreateMaterial={handleCreateMaterial}
-            onUpdateMaterial={handleUpdateMaterial}
             onDeleteMaterial={handleDeleteMaterial}
-            onCreateStockEntry={handleCreateStockEntry}
-            onUpdateStockEntry={handleUpdateStockEntry}
             onDeleteStockEntry={handleDeleteStockEntry}
             onCreateMenuItem={handleCreateMenuItem}
             onUpdateMenuItem={handleUpdateMenuItem}
