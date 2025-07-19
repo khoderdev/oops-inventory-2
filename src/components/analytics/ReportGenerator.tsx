@@ -6,8 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, FileText, TrendingUp, Package, ShoppingCart, AlertTriangle, Users, ChefHat } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Download, FileText, TrendingUp, Package, ShoppingCart, AlertTriangle, Users, ChefHat, CalendarIcon } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
@@ -99,19 +103,17 @@ interface ReportGeneratorProps {
 }
 
 export function ReportGenerator({ className }: ReportGeneratorProps) {
-  // State management
   const [selectedReportType, setSelectedReportType] = useState<ReportType>("inventory-summary");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [reportData, setReportData] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isChangingReportType, setIsChangingReportType] = useState(false);
-
-  // Get current report config
+  const [dateFromOpen, setDateFromOpen] = useState(false);
+  const [dateToOpen, setDateToOpen] = useState(false);
   const currentReportConfig = REPORT_CONFIGS.find(config => config.id === selectedReportType);
 
-  // Clean up state when report type changes
   const handleReportTypeChange = (newReportType: ReportType) => {
     if (newReportType === selectedReportType) return;
 
@@ -122,32 +124,30 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     setHasGenerated(false);
     setIsLoading(false);
 
+    // Close any open popovers
+    setDateFromOpen(false);
+    setDateToOpen(false);
+
     // Get new report config
     const newConfig = REPORT_CONFIGS.find(config => config.id === newReportType);
 
     // Clear dates if new report doesn't require date range
     if (!newConfig?.requiresDateRange) {
-      setDateFrom("");
-      setDateTo("");
+      setDateFrom(undefined);
+      setDateTo(undefined);
     }
 
     // Set new report type with a small delay for smooth transition
-    setTimeout(() => {
-      setSelectedReportType(newReportType);
-      setIsChangingReportType(false);
-
-      // Show transition message
-      toast({
-        title: "Report Type Changed",
-        description: `Switched to ${newConfig?.name}. Ready to generate new report.`
-      });
-    }, 150);
+          setTimeout(() => {
+        setSelectedReportType(newReportType);
+        setIsChangingReportType(false);
+      }, 150);
   };
 
   // Date validation
   const isDateRangeValid = useMemo(() => {
     if (!currentReportConfig?.requiresDateRange) return true;
-    return dateFrom && dateTo && new Date(dateFrom) <= new Date(dateTo);
+    return dateFrom && dateTo && dateFrom <= dateTo;
   }, [dateFrom, dateTo, currentReportConfig]);
 
   // Generate report data
@@ -156,7 +156,8 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
       toast({
         title: "Invalid Date Range",
         description: "Please select a valid date range for this report.",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 1500
       });
       return;
     }
@@ -165,17 +166,15 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     setHasGenerated(false);
 
     try {
-      // Fetch required data based on report type
       const [materials, stockEntries, sales, menuItems, sections, assignments] = await Promise.all([materialsAPI.getMaterials(), stockAPI.getStockEntries(), salesAPI.getSales(), menuAPI.getMenus(), sectionAPI.getSections(), assignmentsAPI.getAssignments()]);
 
       let filteredData;
       let reportResults;
 
-      // Filter data based on date range if required
       if (currentReportConfig?.requiresDateRange && dateFrom && dateTo) {
         const fromDate = new Date(dateFrom);
         const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999); // Include full end date
+        toDate.setHours(23, 59, 59, 999);
 
         filteredData = {
           stockEntries: stockEntries.data.filter(entry => {
@@ -227,15 +226,17 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
       toast({
         title: "Report Generated",
-        description: `${currentReportConfig?.name} has been generated successfully.`
+        description: `${currentReportConfig?.name} has been generated successfully.`,
+        duration: 1500
       });
     } catch (error) {
       console.error("Error generating report:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate report. Please try again.",
-        variant: "destructive"
-      });
+              toast({
+          title: "Warning",
+          description: "Not Implemented.",
+          variant: "default",
+          duration: 1500
+        });
     } finally {
       setIsLoading(false);
     }
@@ -268,9 +269,9 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
   };
 
   return (
-    <div className={className}>
-      <Card>
-        <CardHeader>
+    <div className={cn("w-full", className)}>
+      <Card className="flex flex-col h-full">
+        <CardHeader className="flex-shrink-0">
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
@@ -284,26 +285,31 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="flex-1 flex flex-col space-y-4 sm:space-y-6 min-h-0">
           {/* Report Type Selection */}
           <div className="space-y-4">
             {/* Report Description */}
             {currentReportConfig && !isChangingReportType && (
-              <div className="p-3 bg-muted/50 rounded-md border-l-4 border-primary">
-                <div className="flex items-center gap-2 mb-1">
-                  {currentReportConfig.icon}
-                  <h4 className="font-medium">{currentReportConfig.name}</h4>
+              <div className="p-4 sm:p-3 bg-muted/50 rounded-lg border-l-4 border-primary">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-shrink-0">{currentReportConfig.icon}</div>
+                  <h4 className="font-medium text-sm sm:text-base truncate">{currentReportConfig.name}</h4>
                 </div>
-                <p className="text-sm text-muted-foreground">{currentReportConfig.description}</p>
-                {currentReportConfig.requiresDateRange && <p className="text-xs text-blue-600 mt-1">📅 Requires date range selection</p>}
+                <p className="text-sm text-muted-foreground leading-relaxed">{currentReportConfig.description}</p>
+                {currentReportConfig.requiresDateRange && (
+                  <div className="flex items-center gap-1 mt-2 text-xs text-blue-600">
+                    <span>📅</span>
+                    <span>Requires date range selection</span>
+                  </div>
+                )}
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                 <Label htmlFor="report-type">Report Type</Label>
                 <Select value={selectedReportType} onValueChange={handleReportTypeChange} disabled={isChangingReportType || isLoading}>
-                  <SelectTrigger id="report-type" className={isChangingReportType ? "opacity-60" : ""}>
+                  <SelectTrigger id="report-type" className={cn("h-10 w-full", isChangingReportType && "opacity-60")}>
                     <SelectValue placeholder="Select report type" />
                     {isChangingReportType && (
                       <div className="absolute right-8 top-1/2 transform -translate-y-1/2">
@@ -311,14 +317,16 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                       </div>
                     )}
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[90vw] sm:max-w-md">
                     {REPORT_CONFIGS.map(config => (
-                      <SelectItem key={config.id} value={config.id}>
-                        <div className="flex items-center gap-2">
-                          {config.icon}
-                          <div>
-                            <div className="font-medium">{config.name}</div>
-                            <div className="text-xs text-muted-foreground">{config.description}</div>
+                      <SelectItem key={config.id} value={config.id} className="cursor-pointer">
+                        <div className="flex items-start gap-3 py-1 min-w-0">
+                          <div className="flex-shrink-0 mt-0.5">{config.icon}</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-sm truncate">{config.name}</div>
+                            <div className="text-xs text-muted-foreground line-clamp-2 leading-tight">
+                              {config.description}
+                            </div>
                           </div>
                         </div>
                       </SelectItem>
@@ -331,12 +339,72 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
               {currentReportConfig?.requiresDateRange && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="date-from">From Date</Label>
-                    <Input id="date-from" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} disabled={isChangingReportType || isLoading} />
+                    <Label className="text-sm font-medium">From Date</Label>
+                    <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          className={cn(
+                            "w-full h-10 justify-start text-left font-normal px-3",
+                            !dateFrom && "text-muted-foreground",
+                            (isChangingReportType || isLoading) && "pointer-events-none opacity-50"
+                          )} 
+                          disabled={isChangingReportType || isLoading}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Pick a date"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">
+                        <Calendar 
+                          mode="single" 
+                          selected={dateFrom} 
+                          onSelect={date => {
+                            setDateFrom(date);
+                            setDateFromOpen(false);
+                          }} 
+                          initialFocus 
+                          className="p-3" 
+                          disabled={date => date > new Date()} 
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="date-to">To Date</Label>
-                    <Input id="date-to" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} disabled={isChangingReportType || isLoading} />
+                    <Label className="text-sm font-medium">To Date</Label>
+                    <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          className={cn(
+                            "w-full h-10 justify-start text-left font-normal px-3",
+                            !dateTo && "text-muted-foreground",
+                            (isChangingReportType || isLoading) && "pointer-events-none opacity-50"
+                          )} 
+                          disabled={isChangingReportType || isLoading}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {dateTo ? format(dateTo, "MMM d, yyyy") : "Pick a date"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">
+                        <Calendar 
+                          mode="single" 
+                          selected={dateTo} 
+                          onSelect={date => {
+                            setDateTo(date);
+                            setDateToOpen(false);
+                          }} 
+                          initialFocus 
+                          className="p-3" 
+                          disabled={date => date > new Date() || (dateFrom && date < dateFrom)} 
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </>
               )}
@@ -344,44 +412,59 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button onClick={generateReport} disabled={isLoading || !isDateRangeValid || isChangingReportType} className="flex items-center gap-2">
-                {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <TrendingUp className="h-4 w-4" />}
-                {isLoading ? "Generating..." : "Generate Report"}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <Button 
+                onClick={generateReport} 
+                disabled={isLoading || !isDateRangeValid || isChangingReportType} 
+                className="flex items-center justify-center gap-2 h-10 min-w-[140px]"
+              >
+                {isLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <TrendingUp className="h-4 w-4" />
+                )}
+                <span className="truncate">
+                  {isLoading ? "Generating..." : "Generate Report"}
+                </span>
               </Button>
 
               {hasGenerated && (
-                <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={exportReport} 
+                  disabled={isChangingReportType || isLoading} 
+                  className="flex items-center justify-center gap-2 h-10"
+                >
                   <Download className="h-4 w-4" />
-                  Export CSV
+                  <span>Export CSV</span>
                 </Button>
               )}
             </div>
 
             {hasGenerated && (
-              <Badge variant="secondary" className="flex items-center gap-1">
+              <Badge variant="secondary" className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1">
                 <FileText className="h-3 w-3" />
-                {reportData.length} records
+                <span className="text-sm">{reportData.length} records</span>
               </Badge>
             )}
           </div>
 
           {/* Report Display */}
           {isChangingReportType && (
-            <div className="space-y-4 animate-in fade-in-50 duration-200">
-              <div className="border rounded-lg p-8 text-center bg-muted/30">
-                <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
-                  <span>Switching report type...</span>
+            <div className="flex-1 flex flex-col animate-in fade-in-50 duration-200 min-h-0">
+              <div className="flex-1 flex items-center justify-center border rounded-lg bg-muted/30 min-h-[200px]">
+                <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                  <span className="text-sm">Switching report type...</span>
                 </div>
               </div>
             </div>
           )}
 
           {hasGenerated && !isChangingReportType && (
-            <div className="space-y-4 animate-in fade-in-50 duration-300">
-              <div className="border rounded-lg bg-card">
+            <div className="flex-1 flex flex-col space-y-4 animate-in fade-in-50 duration-300 min-h-0">
+              <div className="flex-1 border rounded-lg bg-card overflow-hidden min-h-0">
                 <ReportTable reportType={selectedReportType} data={reportData} />
               </div>
             </div>
@@ -402,31 +485,72 @@ function ReportTable({ reportType, data }: ReportTableProps) {
   const headers = getTableHeaders(reportType);
 
   if (data.length === 0) {
-    return <div className="p-8 text-center text-muted-foreground">No data available for the selected criteria.</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[200px] p-6 sm:p-8 text-center">
+        <div className="rounded-full bg-muted p-3 mb-4">
+          <FileText className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <h3 className="text-sm sm:text-base font-medium text-muted-foreground mb-2">
+          No Data Available
+        </h3>
+        <p className="text-xs sm:text-sm text-muted-foreground/80 max-w-md">
+          No records found for the selected criteria. Try adjusting your filters or date range.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="overflow-auto max-h-[500px]">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {headers.map(header => (
-              <TableHead key={header} className="font-semibold">
-                {header}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((row, index) => (
-            <TableRow key={index}>
+    <div className="flex flex-col h-full">
+      {/* Table Header - Sticky */}
+      <div className="flex-shrink-0 border-b bg-muted/50 rounded-t-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
               {headers.map(header => (
-                <TableCell key={header}>{formatCellValue(row, header, reportType)}</TableCell>
+                <TableHead key={header} className="font-semibold text-xs sm:text-sm py-3 px-2 sm:px-4">
+                  {header}
+                </TableHead>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+        </Table>
+      </div>
+      
+      {/* Scrollable Table Body */}
+      <div className="flex-1 overflow-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 min-h-0" 
+           style={{ 
+             maxHeight: 'calc(100vh - 300px)',
+             minHeight: '200px'
+           }}>
+        <Table>
+          <TableBody>
+            {data.map((row, index) => (
+              <TableRow 
+                key={index} 
+                className="hover:bg-muted/50 transition-colors border-b last:border-b-0"
+              >
+                {headers.map(header => (
+                  <TableCell 
+                    key={header} 
+                    className="text-xs sm:text-sm py-3 px-2 sm:px-4 align-top"
+                  >
+                    {formatCellValue(row, header, reportType)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {/* Footer with row count */}
+      <div className="flex-shrink-0 border-t bg-muted/30 px-4 py-2 rounded-b-lg">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Showing {data.length} {data.length === 1 ? 'record' : 'records'}</span>
+          <span className="hidden sm:inline">Scroll to view more data</span>
+        </div>
+      </div>
     </div>
   );
 }
