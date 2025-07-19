@@ -8,3 +8,4 @@ export const menuAPI = {
   updateMenuItem: (id: string, menuItemData: UpdateMenuItemData) => api.put<MenuItem, UpdateMenuItemData>(`/menu-items/${id}`, menuItemData),
   deleteMenuItem: (id: string) => api.delete<null>(`/menu-items/${id}`)
 };
+//
