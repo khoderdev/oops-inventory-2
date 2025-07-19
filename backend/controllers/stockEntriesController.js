@@ -1,5 +1,6 @@
 import { Material, StockEntry } from "../models/index.js";
 import sequelize from "../config/database.js";
+import { Op } from "sequelize";
 
 const stockEntriesController = {
   // Get all stock entries
@@ -273,6 +274,387 @@ const stockEntriesController = {
       await stockEntry.destroy();
       res.status(204).send();
     } catch (error) {
+      next(error);
+    }
+  },
+
+  // Add quantity to a specific stock entry
+  addToSpecificEntry: async (req, res, next) => {
+    try {
+      console.log('=== ADD TO SPECIFIC STOCK ENTRY ===');
+      const { id } = req.params;
+      const { additionalQuantity, unit, additionDate, notes } = req.body;
+
+      // Validation
+      if (!additionalQuantity || !unit) {
+        return res.status(400).json({ error: "Missing required fields: additionalQuantity, unit" });
+      }
+
+      const numericAdditionalQuantity = parseFloat(additionalQuantity);
+      if (isNaN(numericAdditionalQuantity) || numericAdditionalQuantity <= 0) {
+        return res.status(400).json({ error: "Additional quantity must be a positive number" });
+      }
+
+      // Get the specific stock entry
+      const stockEntry = await StockEntry.findByPk(id, {
+        include: { model: Material, as: "material" }
+      });
+      
+      if (!stockEntry) {
+        return res.status(404).json({ error: "Stock entry not found" });
+      }
+
+      const material = stockEntry.material;
+
+      // Calculate additional individual quantities
+      let additionalIndividualQuantity = numericAdditionalQuantity;
+      let additionalIndividualUnit = unit;
+
+      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+        additionalIndividualQuantity = Math.round(numericAdditionalQuantity * material.packageQuantity);
+        additionalIndividualUnit = material.baseUnit;
+      } else if (material.unitType === "mass") {
+        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+        const conversionFactor = massConversions[unit.toLowerCase()];
+        if (conversionFactor) {
+          additionalIndividualQuantity = Math.round(numericAdditionalQuantity * conversionFactor);
+          additionalIndividualUnit = material.baseUnit;
+        }
+      }
+
+      // Update the stock entry by adding to existing quantities
+      const newPurchasedQuantity = stockEntry.purchasedQuantity + numericAdditionalQuantity;
+      const newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + additionalIndividualQuantity;
+      
+      // Recalculate total cost (using existing cost per unit)
+      const newTotalCost = newPurchasedQuantity * stockEntry.costPerPurchasedUnit;
+
+      await stockEntry.update({
+        purchasedQuantity: newPurchasedQuantity,
+        purchasedIndividualQuantity: newIndividualQuantity,
+        totalCost: newTotalCost,
+        updatedAt: new Date(),
+        notes: notes ? `${stockEntry.notes || ''}\n[${new Date().toLocaleDateString()}] Added ${numericAdditionalQuantity} ${unit}. ${notes}`.trim() : stockEntry.notes
+      });
+
+      // Reload the updated entry
+      const updatedEntry = await StockEntry.findByPk(id, {
+        include: { model: Material, as: "material" }
+      });
+
+      console.log(`Successfully added ${numericAdditionalQuantity} ${unit} to stock entry ${id} for material ${material.name}`);
+      console.log(`Updated quantities: ${stockEntry.purchasedQuantity} -> ${newPurchasedQuantity}, Individual: ${stockEntry.purchasedIndividualQuantity} -> ${newIndividualQuantity}`);
+
+      res.status(200).json({
+        message: `Successfully added ${numericAdditionalQuantity} ${unit} to existing stock entry`,
+        stockEntry: updatedEntry
+      });
+    } catch (error) {
+      console.error('Error adding to specific stock entry:', error);
+      next(error);
+    }
+  },
+
+  // Record waste from a specific stock entry
+  wasteFromSpecificEntry: async (req, res, next) => {
+    try {
+      console.log('=== RECORD WASTE FROM SPECIFIC STOCK ENTRY ===');
+      const { id } = req.params;
+      const { wasteQuantity, unit, wasteReason, wasteDate, notes } = req.body;
+
+      // Validation
+      if (!wasteQuantity || !unit || !wasteReason) {
+        return res.status(400).json({ error: "Missing required fields: wasteQuantity, unit, wasteReason" });
+      }
+
+      const numericWasteQuantity = parseFloat(wasteQuantity);
+      if (isNaN(numericWasteQuantity) || numericWasteQuantity <= 0) {
+        return res.status(400).json({ error: "Waste quantity must be a positive number" });
+      }
+
+      // Get the specific stock entry
+      const stockEntry = await StockEntry.findByPk(id, {
+        include: { model: Material, as: "material" }
+      });
+      
+      if (!stockEntry) {
+        return res.status(404).json({ error: "Stock entry not found" });
+      }
+
+      const material = stockEntry.material;
+
+      // Calculate waste individual quantities
+      let wasteIndividualQuantity = numericWasteQuantity;
+      let wasteIndividualUnit = unit;
+
+      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+        wasteIndividualQuantity = Math.round(numericWasteQuantity * material.packageQuantity);
+        wasteIndividualUnit = material.baseUnit;
+      } else if (material.unitType === "mass") {
+        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+        const conversionFactor = massConversions[unit.toLowerCase()];
+        if (conversionFactor) {
+          wasteIndividualQuantity = Math.round(numericWasteQuantity * conversionFactor);
+          wasteIndividualUnit = material.baseUnit;
+        }
+      }
+
+      // Check if there's enough stock in this specific entry
+      if (numericWasteQuantity > stockEntry.purchasedQuantity) {
+        return res.status(400).json({ 
+          error: `Insufficient stock in this entry. Available: ${stockEntry.purchasedQuantity} ${stockEntry.purchasedUnit}, Requested: ${numericWasteQuantity} ${unit}` 
+        });
+      }
+
+      if (wasteIndividualQuantity > (stockEntry.purchasedIndividualQuantity || 0)) {
+        return res.status(400).json({ 
+          error: `Insufficient individual stock in this entry. Available: ${stockEntry.purchasedIndividualQuantity} ${wasteIndividualUnit}, Requested: ${wasteIndividualQuantity} ${wasteIndividualUnit}` 
+        });
+      }
+
+      // Update the stock entry by reducing existing quantities
+      const newPurchasedQuantity = Math.max(0, stockEntry.purchasedQuantity - numericWasteQuantity);
+      const newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - wasteIndividualQuantity);
+      
+      // Recalculate total cost (proportionally reduced)
+      const costReduction = numericWasteQuantity * stockEntry.costPerPurchasedUnit;
+      const newTotalCost = Math.max(0, stockEntry.totalCost - costReduction);
+
+      await stockEntry.update({
+        purchasedQuantity: newPurchasedQuantity,
+        purchasedIndividualQuantity: newIndividualQuantity,
+        totalCost: newTotalCost,
+        updatedAt: new Date(),
+        notes: notes ? `${stockEntry.notes || ''}\n[${new Date().toLocaleDateString()}] Waste: ${numericWasteQuantity} ${unit} (${wasteReason}). ${notes}`.trim() : stockEntry.notes
+      });
+
+      // Reload the updated entry
+      const updatedEntry = await StockEntry.findByPk(id, {
+        include: { model: Material, as: "material" }
+      });
+
+      console.log(`Successfully recorded waste of ${numericWasteQuantity} ${unit} from stock entry ${id} for material ${material.name}`);
+      console.log(`Updated quantities: ${stockEntry.purchasedQuantity} -> ${newPurchasedQuantity}, Individual: ${stockEntry.purchasedIndividualQuantity} -> ${newIndividualQuantity}`);
+
+      res.status(200).json({
+        message: `Successfully recorded waste of ${numericWasteQuantity} ${unit} from existing stock entry`,
+        stockEntry: updatedEntry,
+        wastedQuantity: numericWasteQuantity,
+        wastedUnit: unit,
+        reason: wasteReason
+      });
+    } catch (error) {
+      console.error('Error recording waste from specific stock entry:', error);
+      next(error);
+    }
+  },
+
+  // Add stock to existing inventory
+  addToStock: async (req, res, next) => {
+    try {
+      console.log('=== ADD TO STOCK REQUEST ===');
+      const { materialId, additionalQuantity, unit, additionDate, notes } = req.body;
+
+      // Validation
+      if (!materialId || !additionalQuantity || !unit) {
+        return res.status(400).json({ error: "Missing required fields: materialId, additionalQuantity, unit" });
+      }
+
+      const numericAdditionalQuantity = parseFloat(additionalQuantity);
+      if (isNaN(numericAdditionalQuantity) || numericAdditionalQuantity <= 0) {
+        return res.status(400).json({ error: "Additional quantity must be a positive number" });
+      }
+
+      // Get material information
+      const material = await Material.findByPk(materialId);
+      if (!material) {
+        return res.status(404).json({ error: "Material not found" });
+      }
+
+      // Find the most recent stock entry for this material to get cost information
+      const mostRecentEntry = await StockEntry.findOne({
+        where: { materialId },
+        order: [['createdAt', 'DESC']],
+        include: { model: Material, as: "material" }
+      });
+
+      // Calculate individual quantities based on material type
+      let additionalIndividualQuantity = numericAdditionalQuantity;
+      let additionalIndividualUnit = unit;
+
+      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+        additionalIndividualQuantity = Math.round(numericAdditionalQuantity * material.packageQuantity);
+        additionalIndividualUnit = material.baseUnit;
+      } else if (material.unitType === "mass") {
+        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+        const conversionFactor = massConversions[unit.toLowerCase()];
+        if (conversionFactor) {
+          additionalIndividualQuantity = Math.round(numericAdditionalQuantity * conversionFactor);
+          additionalIndividualUnit = material.baseUnit;
+        }
+      }
+
+      // Create a new stock entry for the addition (using default cost from material or recent entry)
+      const defaultCostPerUnit = mostRecentEntry?.costPerPurchasedUnit || material.costPerBaseUnit || material.costPerUnit || 0;
+      const totalAdditionCost = numericAdditionalQuantity * defaultCostPerUnit;
+
+      const additionEntry = await StockEntry.create({
+        materialId,
+        supplier: `Stock Addition - ${new Date().toLocaleDateString()}`,
+        purchasedQuantity: numericAdditionalQuantity,
+        purchasedUnit: unit,
+        purchasedIndividualQuantity: additionalIndividualQuantity,
+        purchasedIndividualUnit: additionalIndividualUnit,
+        costPerPurchasedUnit: defaultCostPerUnit,
+        totalCost: totalAdditionCost,
+        purchaseDate: additionDate ? new Date(additionDate) : new Date(),
+        notes: notes || `Added ${numericAdditionalQuantity} ${unit} to existing stock`
+      });
+
+      console.log(`Successfully added ${numericAdditionalQuantity} ${unit} to material ${material.name}`);
+      
+      // Return the created entry with material information
+      const createdEntry = await StockEntry.findByPk(additionEntry.id, {
+        include: { model: Material, as: "material" }
+      });
+
+      res.status(201).json({
+        message: `Successfully added ${numericAdditionalQuantity} ${unit} to ${material.name}`,
+        stockEntry: createdEntry
+      });
+    } catch (error) {
+      console.error('Error adding to stock:', error);
+      next(error);
+    }
+  },
+
+  // Record waste (reduce stock)
+  recordWaste: async (req, res, next) => {
+    try {
+      console.log('=== RECORD WASTE REQUEST ===');
+      const { materialId, wasteQuantity, unit, wasteReason, wasteDate, notes } = req.body;
+
+      // Validation
+      if (!materialId || !wasteQuantity || !unit || !wasteReason) {
+        return res.status(400).json({ error: "Missing required fields: materialId, wasteQuantity, unit, wasteReason" });
+      }
+
+      const numericWasteQuantity = parseFloat(wasteQuantity);
+      if (isNaN(numericWasteQuantity) || numericWasteQuantity <= 0) {
+        return res.status(400).json({ error: "Waste quantity must be a positive number" });
+      }
+
+      // Get material information
+      const material = await Material.findByPk(materialId);
+      if (!material) {
+        return res.status(404).json({ error: "Material not found" });
+      }
+
+      // Calculate individual waste quantities
+      let wasteIndividualQuantity = numericWasteQuantity;
+      let wasteIndividualUnit = unit;
+
+      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+        wasteIndividualQuantity = Math.round(numericWasteQuantity * material.packageQuantity);
+        wasteIndividualUnit = material.baseUnit;
+      } else if (material.unitType === "mass") {
+        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+        const conversionFactor = massConversions[unit.toLowerCase()];
+        if (conversionFactor) {
+          wasteIndividualQuantity = Math.round(numericWasteQuantity * conversionFactor);
+          wasteIndividualUnit = material.baseUnit;
+        }
+      }
+
+      // Get all stock entries for this material ordered by creation date (FIFO approach)
+      const stockEntries = await StockEntry.findAll({
+        where: { 
+          materialId,
+          purchasedIndividualQuantity: { [Op.gt]: 0 } // Only entries with remaining quantity
+        },
+        order: [['createdAt', 'ASC']], // FIFO - oldest first
+        include: { model: Material, as: "material" }
+      });
+
+      if (stockEntries.length === 0) {
+        return res.status(400).json({ error: "No stock available for this material" });
+      }
+
+      // Calculate total available stock in individual units
+      const totalAvailableIndividualQuantity = stockEntries.reduce((sum, entry) => sum + entry.purchasedIndividualQuantity, 0);
+
+      if (wasteIndividualQuantity > totalAvailableIndividualQuantity) {
+        return res.status(400).json({ 
+          error: `Insufficient stock. Available: ${totalAvailableIndividualQuantity} ${wasteIndividualUnit}, Requested: ${wasteIndividualQuantity} ${wasteIndividualUnit}` 
+        });
+      }
+
+      // Reduce stock using FIFO approach
+      let remainingWasteQuantity = wasteIndividualQuantity;
+      const updatedEntries = [];
+      const wasteEntries = [];
+
+      for (const entry of stockEntries) {
+        if (remainingWasteQuantity <= 0) break;
+
+        const entryAvailableQuantity = entry.purchasedIndividualQuantity;
+        const quantityToReduce = Math.min(remainingWasteQuantity, entryAvailableQuantity);
+
+        // Update the stock entry
+        const newIndividualQuantity = entryAvailableQuantity - quantityToReduce;
+        
+        // Calculate new purchased quantity (reverse conversion)
+        let newPurchasedQuantity = entry.purchasedQuantity;
+        if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+          newPurchasedQuantity = Math.max(0, newIndividualQuantity / material.packageQuantity);
+        } else if (material.unitType === "mass") {
+          const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+          const conversionFactor = massConversions[entry.purchasedUnit.toLowerCase()] || 1;
+          newPurchasedQuantity = Math.max(0, newIndividualQuantity / conversionFactor);
+        } else {
+          newPurchasedQuantity = newIndividualQuantity;
+        }
+
+        await entry.update({
+          purchasedQuantity: newPurchasedQuantity,
+          purchasedIndividualQuantity: newIndividualQuantity
+        });
+
+        updatedEntries.push({
+          id: entry.id,
+          originalQuantity: entryAvailableQuantity,
+          reducedBy: quantityToReduce,
+          newQuantity: newIndividualQuantity
+        });
+
+        remainingWasteQuantity -= quantityToReduce;
+      }
+
+      // Create a waste record (negative entry for tracking)
+      const wasteRecord = await StockEntry.create({
+        materialId,
+        supplier: `Waste Record - ${wasteReason}`,
+        purchasedQuantity: -numericWasteQuantity, // Negative to indicate waste
+        purchasedUnit: unit,
+        purchasedIndividualQuantity: -wasteIndividualQuantity,
+        purchasedIndividualUnit: wasteIndividualUnit,
+        costPerPurchasedUnit: 0,
+        totalCost: 0,
+        purchaseDate: wasteDate ? new Date(wasteDate) : new Date(),
+        notes: notes || `Waste recorded: ${wasteReason} - ${numericWasteQuantity} ${unit}`
+      });
+
+      console.log(`Successfully recorded waste of ${numericWasteQuantity} ${unit} for material ${material.name}`);
+      console.log('Updated entries:', updatedEntries);
+
+      res.status(201).json({
+        message: `Successfully recorded waste of ${numericWasteQuantity} ${unit} for ${material.name}`,
+        wasteRecord,
+        updatedEntries,
+        reason: wasteReason
+      });
+    } catch (error) {
+      console.error('Error recording waste:', error);
       next(error);
     }
   }

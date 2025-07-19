@@ -1,5 +1,6 @@
 import { inventoryAPI } from "@/api/inventory.api";
-import { Material, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
+import { stockAPI } from "@/api/stock.api.ts.tsx";
+import { Material, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry, StockEntryWithMaterial, AddStockData, RecordWasteData } from "@/types/inventory";
 import { atom } from "jotai";
 import { materialsAtom, menuItemsAtom, optimisticAssignmentsAtom, optimisticMaterialsAtom, optimisticSectionsAtom, optimisticStockEntriesAtom, sectionAssignmentsAtom, sectionsAtom, stockEntriesAtom, tabErrorAtom, tabLoadingAtom } from "./inventoryAtoms";
 
@@ -493,3 +494,232 @@ export const deleteMenuItemAction = atom(
     }
   }
 );
+
+// Add stock to existing inventory action
+export const addToStockAction = atom(null, async (get, set, data: AddStockData) => {
+  try {
+    console.log("Adding stock with data:", data);
+
+    // Make API call to add stock
+    const response = await stockAPI.addToStock(data);
+    
+    console.log("Stock added successfully:", response.data);
+
+    // Create a new stock entry from the response
+    const newStockEntry: StockEntry = {
+      ...response.data.stockEntry,
+      id: response.data.stockEntry.id.toString(),
+      materialId: response.data.stockEntry.materialId.toString(),
+      createdAt: new Date(response.data.stockEntry.createdAt),
+      updatedAt: new Date(response.data.stockEntry.updatedAt),
+      purchaseDate: new Date(response.data.stockEntry.purchaseDate),
+      expiryDate: response.data.stockEntry.expiryDate ? new Date(response.data.stockEntry.expiryDate) : undefined
+    };
+
+    // Add the new entry to both optimistic and base atoms
+    set(optimisticStockEntriesAtom, prev => [...prev, newStockEntry]);
+    set(stockEntriesAtom, prev => [...prev, newStockEntry]);
+
+    return response.data;
+  } catch (error) {
+    console.error('Failed to add stock:', error);
+    throw error;
+  }
+});
+
+// Record waste (reduce stock) action
+export const recordWasteAction = atom(null, async (get, set, data: RecordWasteData) => {
+  try {
+    console.log("Recording waste with data:", data);
+
+    // Make API call to record waste
+    const response = await stockAPI.recordWaste(data);
+    
+    console.log("Waste recorded successfully:", response.data);
+
+    // Create the waste record entry
+    const wasteRecord: StockEntry = {
+      ...response.data.wasteRecord,
+      id: response.data.wasteRecord.id.toString(),
+      materialId: response.data.wasteRecord.materialId.toString(),
+      createdAt: new Date(response.data.wasteRecord.createdAt),
+      updatedAt: new Date(response.data.wasteRecord.updatedAt),
+      purchaseDate: new Date(response.data.wasteRecord.purchaseDate),
+      expiryDate: response.data.wasteRecord.expiryDate ? new Date(response.data.wasteRecord.expiryDate) : undefined
+    };
+
+    // Add the waste record and update existing entries
+    set(optimisticStockEntriesAtom, prev => {
+      // Update existing entries based on the response
+      const updatedEntries = [...prev];
+      
+      // Update quantities for existing entries that were reduced
+      response.data.updatedEntries.forEach(update => {
+        const index = updatedEntries.findIndex(entry => entry.id === update.id);
+        if (index !== -1) {
+          updatedEntries[index] = {
+            ...updatedEntries[index],
+            purchasedIndividualQuantity: update.newQuantity,
+            // Recalculate purchased quantity based on unit type
+            purchasedQuantity: update.newQuantity, // This might need unit conversion
+            updatedAt: new Date()
+          };
+        }
+      });
+      
+      // Add the waste record (negative entry)
+      updatedEntries.push(wasteRecord);
+      
+      return updatedEntries;
+    });
+
+    // Update base atom as well
+    set(stockEntriesAtom, prev => {
+      const updatedEntries = [...prev];
+      
+      response.data.updatedEntries.forEach(update => {
+        const index = updatedEntries.findIndex(entry => entry.id === update.id);
+        if (index !== -1) {
+          updatedEntries[index] = {
+            ...updatedEntries[index],
+            purchasedIndividualQuantity: update.newQuantity,
+            purchasedQuantity: update.newQuantity,
+            updatedAt: new Date()
+          };
+        }
+      });
+      
+      updatedEntries.push(wasteRecord);
+      
+      return updatedEntries;
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Failed to record waste:', error);
+    throw error;
+  }
+});
+
+// Add quantity to a specific stock entry
+export const addToSpecificEntryAction = atom(null, async (get, set, data: { entryId: string; additionalQuantity: number; unit: string; additionDate?: Date; notes?: string }) => {
+  // Get current state before optimistic update
+  const currentStockEntries = get(optimisticStockEntriesAtom);
+  
+  try {
+    console.log("Adding to specific entry with data:", data);
+
+    // Optimistic update - update the specific entry immediately
+    set(optimisticStockEntriesAtom, prev => prev.map(entry => {
+      if (entry.id === data.entryId) {
+        // Simple optimistic update - we'll get the real data from server response
+        return {
+          ...entry,
+          purchasedQuantity: entry.purchasedQuantity + data.additionalQuantity,
+          purchasedIndividualQuantity: (entry.purchasedIndividualQuantity || 0) + data.additionalQuantity, // Simplified
+          updatedAt: new Date()
+        };
+      }
+      return entry;
+    }));
+
+    // Make API call
+    const response = await stockAPI.addToSpecificEntry(data.entryId, {
+      additionalQuantity: data.additionalQuantity,
+      unit: data.unit,
+      additionDate: data.additionDate,
+      notes: data.notes
+    });
+    
+    console.log("Successfully added to specific entry:", response.data);
+
+    // Transform response data
+    const updatedStockEntry: StockEntry = {
+      ...response.data.stockEntry,
+      id: response.data.stockEntry.id.toString(),
+      materialId: response.data.stockEntry.materialId.toString(),
+      createdAt: new Date(response.data.stockEntry.createdAt),
+      updatedAt: new Date(response.data.stockEntry.updatedAt),
+      purchaseDate: new Date(response.data.stockEntry.purchaseDate),
+      expiryDate: response.data.stockEntry.expiryDate ? new Date(response.data.stockEntry.expiryDate) : undefined
+    };
+
+    // Update both atoms with real data from server
+    set(optimisticStockEntriesAtom, prev => prev.map(entry => 
+      entry.id === data.entryId ? updatedStockEntry : entry
+    ));
+    
+    set(stockEntriesAtom, prev => prev.map(entry => 
+      entry.id === data.entryId ? updatedStockEntry : entry
+    ));
+
+    return response.data;
+  } catch (error) {
+    // Revert optimistic update
+    set(optimisticStockEntriesAtom, currentStockEntries);
+    console.error('Failed to add to specific entry:', error);
+    throw error;
+  }
+});
+
+// Record waste from a specific stock entry
+export const wasteFromSpecificEntryAction = atom(null, async (get, set, data: { entryId: string; wasteQuantity: number; unit: string; wasteReason: string; wasteDate?: Date; notes?: string }) => {
+  // Get current state before optimistic update
+  const currentStockEntries = get(optimisticStockEntriesAtom);
+  
+  try {
+    console.log("Recording waste from specific entry with data:", data);
+
+    // Optimistic update - update the specific entry immediately
+    set(optimisticStockEntriesAtom, prev => prev.map(entry => {
+      if (entry.id === data.entryId) {
+        // Simple optimistic update - we'll get the real data from server response
+        return {
+          ...entry,
+          purchasedQuantity: Math.max(0, entry.purchasedQuantity - data.wasteQuantity),
+          purchasedIndividualQuantity: Math.max(0, (entry.purchasedIndividualQuantity || 0) - data.wasteQuantity), // Simplified
+          updatedAt: new Date()
+        };
+      }
+      return entry;
+    }));
+
+    // Make API call
+    const response = await stockAPI.wasteFromSpecificEntry(data.entryId, {
+      wasteQuantity: data.wasteQuantity,
+      unit: data.unit,
+      wasteReason: data.wasteReason,
+      wasteDate: data.wasteDate,
+      notes: data.notes
+    });
+    
+    console.log("Successfully recorded waste from specific entry:", response.data);
+
+    // Transform response data
+    const updatedStockEntry: StockEntry = {
+      ...response.data.stockEntry,
+      id: response.data.stockEntry.id.toString(),
+      materialId: response.data.stockEntry.materialId.toString(),
+      createdAt: new Date(response.data.stockEntry.createdAt),
+      updatedAt: new Date(response.data.stockEntry.updatedAt),
+      purchaseDate: new Date(response.data.stockEntry.purchaseDate),
+      expiryDate: response.data.stockEntry.expiryDate ? new Date(response.data.stockEntry.expiryDate) : undefined
+    };
+
+    // Update both atoms with real data from server
+    set(optimisticStockEntriesAtom, prev => prev.map(entry => 
+      entry.id === data.entryId ? updatedStockEntry : entry
+    ));
+    
+    set(stockEntriesAtom, prev => prev.map(entry => 
+      entry.id === data.entryId ? updatedStockEntry : entry
+    ));
+
+    return response.data;
+  } catch (error) {
+    // Revert optimistic update
+    set(optimisticStockEntriesAtom, currentStockEntries);
+    console.error('Failed to record waste from specific entry:', error);
+    throw error;
+  }
+});

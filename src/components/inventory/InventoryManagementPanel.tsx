@@ -67,6 +67,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
     handleCreateMenuItem,
     handleUpdateMenuItem,
     handleDeleteMenuItem,
+    handleAddStockOperation,
+    handleRecordWasteOperation,
+    handleAddToSpecificEntryOperation,
+    handleWasteFromSpecificEntryOperation,
     fetchTabData
   } = useInventoryStore();
 
@@ -172,6 +176,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
               stockEntry={selectedStockEntry || undefined}
               selectedMaterialId={selectedMaterial?.id}
               onSubmit={handleStockSubmit}
+              onAddStock={handleAddStockOperation}
+              onRecordWaste={handleRecordWasteOperation}
+              onAddToSpecificEntry={handleAddToSpecificEntryOperation}
+              onWasteFromSpecificEntry={handleWasteFromSpecificEntryOperation}
               onCancel={() => {
                 setShowStockForm(false);
                 setSelectedMaterial(null);

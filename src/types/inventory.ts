@@ -1,3 +1,6 @@
+import { stockSchema } from "@/components/stock/stockSchema";
+import { z } from "zod";
+
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "packaging" | "other";
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
@@ -324,3 +327,70 @@ export const MENU_CATEGORIES = [
   { value: "beverages", label: "Beverages" },
   { value: "other", label: "Other" }
 ];
+
+//-----------------------------------------------------------------------------
+// Stock Operations Types
+
+export interface AddStockData {
+  materialId: string;
+  additionalQuantity: number;
+  unit: string;
+  additionDate?: Date;
+  notes?: string;
+}
+
+export interface RecordWasteData {
+  materialId: string;
+  wasteQuantity: number;
+  unit: string;
+  wasteReason: string;
+  wasteDate?: Date;
+  notes?: string;
+}
+
+export interface AddStockResponse {
+  message: string;
+  stockEntry: StockEntry;
+}
+
+export interface RecordWasteResponse {
+  message: string;
+  wasteRecord: StockEntry;
+  updatedEntries: Array<{
+    id: string;
+    originalQuantity: number;
+    reducedBy: number;
+    newQuantity: number;
+  }>;
+  reason: string;
+}
+
+
+export type StockFormData = z.infer<typeof stockSchema>;
+
+// Form interface with string types for inputs
+export interface StockFormInputs {
+  materialId: string;
+  supplier: string;
+  purchasedQuantity: string;
+  purchasedUnit: string;
+  costPerPurchasedUnit: string;
+  totalCost: string;
+  purchaseDate: Date;
+  expiryDate?: Date;
+  batchNumber?: string;
+  notes?: string;
+  stockEntryId?: string; // For specific entry operations
+}
+
+export interface StockFormProps {
+  materials: MaterialWithStock[];
+  stockEntry?: StockEntry;
+  selectedMaterialId?: string;
+  onSubmit: (data: StockFormData) => void;
+  onAddStock?: (data: StockFormData) => void;
+  onRecordWaste?: (data: StockFormData) => void;
+  onAddToSpecificEntry?: (data: StockFormData) => void;
+  onWasteFromSpecificEntry?: (data: StockFormData) => void;
+  onCancel: () => void;
+}

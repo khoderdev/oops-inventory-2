@@ -2,8 +2,8 @@ import { activeTabAtom, categoryFilterAtom, filteredMaterialsAtom, lowStockFilte
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 
-import { createMaterialAction, createMenuItemAction, createStockEntryAction, deleteMaterialAction, deleteMenuItemAction, deleteStockEntryAction, fetchTabDataAction, updateMaterialAction, updateMenuItemAction, updateStockEntryAction } from "@/store/inventoryActions";
-import { MaterialCategory, MaterialWithStock, MenuItem, Section, StockEntry, UnitType } from "@/types/inventory";
+import { createMaterialAction, createMenuItemAction, createStockEntryAction, deleteMaterialAction, deleteMenuItemAction, deleteStockEntryAction, fetchTabDataAction, updateMaterialAction, updateMenuItemAction, updateStockEntryAction, addToStockAction, recordWasteAction, addToSpecificEntryAction, wasteFromSpecificEntryAction } from "@/store/inventoryActions";
+import { MaterialCategory, MaterialWithStock, MenuItem, Section, StockEntry, UnitType, AddStockData, RecordWasteData, StockFormData } from "@/types/inventory";
 
 // Form data interface
 interface MaterialFormData {
@@ -46,6 +46,10 @@ export function useInventoryStore() {
   const updateMaterial = useSetAtom(updateMaterialAction);
   const deleteMaterial = useSetAtom(deleteMaterialAction);
   const createStockEntry = useSetAtom(createStockEntryAction);
+  const addToStock = useSetAtom(addToStockAction);
+  const recordWaste = useSetAtom(recordWasteAction);
+  const addToSpecificEntry = useSetAtom(addToSpecificEntryAction);
+  const wasteFromSpecificEntry = useSetAtom(wasteFromSpecificEntryAction);
   const updateStockEntry = useSetAtom(updateStockEntryAction);
   const deleteStockEntry = useSetAtom(deleteStockEntryAction);
   const createMenuItem = useSetAtom(createMenuItemAction);
@@ -209,6 +213,104 @@ export function useInventoryStore() {
     [deleteMenuItem]
   );
 
+  const handleAddStockOperation = useCallback(
+    async (data: { materialId: string; purchasedQuantity: number; purchasedUnit: string; purchaseDate: Date; notes?: string }) => {
+      try {
+        const addStockData: AddStockData = {
+          materialId: data.materialId,
+          additionalQuantity: data.purchasedQuantity,
+          unit: data.purchasedUnit,
+          additionDate: data.purchaseDate,
+          notes: data.notes
+        };
+        const result = await addToStock(addStockData);
+        setShowStockFormTyped(false);
+        setSelectedMaterialTyped(null);
+        return result;
+      } catch (error) {
+        console.error('Failed to add stock:', error);
+        throw error;
+      }
+    },
+    [addToStock, setShowStockFormTyped, setSelectedMaterialTyped]
+  );
+
+  const handleRecordWasteOperation = useCallback(
+    async (data: { materialId: string; purchasedQuantity: number; purchasedUnit: string; supplier: string; purchaseDate: Date; notes?: string }) => {
+      try {
+        const wasteData: RecordWasteData = {
+          materialId: data.materialId,
+          wasteQuantity: data.purchasedQuantity,
+          unit: data.purchasedUnit,
+          wasteReason: data.supplier, // Using supplier field for waste reason
+          wasteDate: data.purchaseDate,
+          notes: data.notes
+        };
+        const result = await recordWaste(wasteData);
+        setShowStockFormTyped(false);
+        setSelectedMaterialTyped(null);
+        return result;
+      } catch (error) {
+        console.error('Failed to record waste:', error);
+        throw error;
+      }
+    },
+    [recordWaste, setShowStockFormTyped, setSelectedMaterialTyped]
+  );
+
+  const handleAddToSpecificEntryOperation = useCallback(
+    async (data: StockFormData & { stockEntryId?: string }) => {
+      try {
+        if (!data.stockEntryId) {
+          throw new Error('Stock entry ID is required for specific entry operations');
+        }
+        
+        const result = await addToSpecificEntry({
+          entryId: data.stockEntryId,
+          additionalQuantity: data.purchasedQuantity,
+          unit: data.purchasedUnit,
+          additionDate: data.purchaseDate,
+          notes: data.notes
+        });
+        setShowStockFormTyped(false);
+        setSelectedStockEntryTyped(null);
+        setSelectedMaterialTyped(null);
+        return result;
+      } catch (error) {
+        console.error('Failed to add to specific entry:', error);
+        throw error;
+      }
+    },
+    [addToSpecificEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped]
+  );
+
+  const handleWasteFromSpecificEntryOperation = useCallback(
+    async (data: StockFormData & { stockEntryId?: string }) => {
+      try {
+        if (!data.stockEntryId) {
+          throw new Error('Stock entry ID is required for specific entry operations');
+        }
+        
+        const result = await wasteFromSpecificEntry({
+          entryId: data.stockEntryId,
+          wasteQuantity: data.purchasedQuantity,
+          unit: data.purchasedUnit,
+          wasteReason: data.supplier, // Using supplier field for waste reason
+          wasteDate: data.purchaseDate,
+          notes: data.notes
+        });
+        setShowStockFormTyped(false);
+        setSelectedStockEntryTyped(null);
+        setSelectedMaterialTyped(null);
+        return result;
+      } catch (error) {
+        console.error('Failed to record waste from specific entry:', error);
+        throw error;
+      }
+    },
+    [wasteFromSpecificEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped]
+  );
+
   return {
     materialsWithStock,
     filteredMaterials,
@@ -248,6 +350,10 @@ export function useInventoryStore() {
     handleCreateMenuItem,
     handleUpdateMenuItem,
     handleDeleteMenuItem,
+    handleAddStockOperation,
+    handleRecordWasteOperation,
+    handleAddToSpecificEntryOperation,
+    handleWasteFromSpecificEntryOperation,
     fetchTabData
   };
 }

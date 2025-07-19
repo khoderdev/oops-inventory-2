@@ -1,13 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useInventoryData } from "@/hooks/useInventoryData";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { AlertCircle, Edit, Plus, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StockEntry } from "@/types/inventory";
 import { useState } from "react";
@@ -131,56 +129,56 @@ export function StockEntriesTable() {
                 </TableHeader>
               </Table>
             </div>
-            
+
             {/* Scrollable Body */}
             <div className="flex-1 overflow-y-auto">
               <Table className="min-w-full">
                 <TableBody>
-              {stockEntriesWithMaterial
-                .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
-                .map(entry => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="font-medium min-w-[200px]">{entry.material?.name || `Unknown Material (ID: ${entry.materialId})`}</TableCell>
-                    <TableCell className="min-w-[150px]">{entry.supplier}</TableCell>
-                    <TableCell className="min-w-[150px]">{renderQuantityDisplay(entry)}</TableCell>
-                    <TableCell className="min-w-[120px]">{renderUnitDisplay(entry)}</TableCell>
-                    <TableCell className="min-w-[120px]">
-                      {formatCurrency(entry.costPerPurchasedUnit)}
-                      {entry.material?.unitType === "package" && <span className="text-xs text-muted-foreground ml-1">(per {entry.purchasedUnit})</span>}
-                    </TableCell>
-                    <TableCell className="min-w-[120px]">{formatCurrency(entry.totalCost)}</TableCell>
-                    <TableCell className="min-w-[140px]">{entry.purchaseDate.toLocaleDateString()}</TableCell>
-                    <TableCell className="min-w-[180px]">
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEditStockEntry(entry as StockEntry)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <Trash2 className="h-4 w-4" />
+                  {stockEntriesWithMaterial
+                    .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+                    .map(entry => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="font-medium min-w-[200px]">{entry.material?.name || `Unknown Material (ID: ${entry.materialId})`}</TableCell>
+                        <TableCell className="min-w-[150px]">{entry.supplier}</TableCell>
+                        <TableCell className="min-w-[150px]">{renderQuantityDisplay(entry)}</TableCell>
+                        <TableCell className="min-w-[120px]">{renderUnitDisplay(entry)}</TableCell>
+                        <TableCell className="min-w-[120px]">
+                          {formatCurrency(entry.costPerPurchasedUnit)}
+                          {entry.material?.unitType === "package" && <span className="text-xs text-muted-foreground ml-1">(per {entry.purchasedUnit})</span>}
+                        </TableCell>
+                        <TableCell className="min-w-[120px]">{formatCurrency(entry.totalCost)}</TableCell>
+                        <TableCell className="min-w-[140px]">{entry.purchaseDate.toLocaleDateString()}</TableCell>
+                        <TableCell className="min-w-[180px]">
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleEditStockEntry(entry as StockEntry)}>
+                              <Edit className="h-4 w-4" />
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Stock Entry</AlertDialogTitle>
-                              <AlertDialogDescription>Are you sure you want to delete this stock entry? This action cannot be undone.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteStockEntry(entry.id)}>Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Stock Entry</AlertDialogTitle>
+                                  <AlertDialogDescription>Are you sure you want to delete this stock entry? This action cannot be undone.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteStockEntry(entry.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </div>
-      </div>
       </CardContent>
     </Card>
   );
