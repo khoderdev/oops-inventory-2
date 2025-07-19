@@ -146,7 +146,6 @@ export const createMaterialAction = atom(null, async (get, set, data: MaterialWi
       baseUnit: data.baseUnit,
       unitType: data.unitType,
       inputUnit: data.inputUnit,
-      costPerBaseUnit: data.costPerBaseUnit,
       packageQuantity: data.packageQuantity,
       description: data.description
     };
@@ -194,7 +193,6 @@ export const updateMaterialAction = atom(null, async (get, set, { id, data }: { 
       baseUnit: data.baseUnit,
       unitType: data.unitType,
       inputUnit: data.inputUnit,
-      costPerBaseUnit: data.costPerBaseUnit,
       packageQuantity: data.packageQuantity,
       description: data.description
     };

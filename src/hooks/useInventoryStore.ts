@@ -12,7 +12,6 @@ interface MaterialFormData {
   baseUnit: string;
   unitType: UnitType;
   inputUnit: string;
-  costPerBaseUnit: number;
   packageQuantity?: number;
   description?: string;
 }
@@ -76,8 +75,8 @@ export function useInventoryStore() {
           baseUnit: data.baseUnit,
           unitType: data.unitType,
           inputUnit: data.inputUnit,
-          costPerUnit: data.costPerBaseUnit,
-          costPerBaseUnit: data.costPerBaseUnit,
+          costPerUnit: selectedMaterial?.costPerUnit || 0,
+          costPerBaseUnit: selectedMaterial?.costPerBaseUnit || 0,
           packageQuantity: data.packageQuantity,
           description: data.description,
           createdAt: selectedMaterial?.createdAt || new Date(),
@@ -85,7 +84,7 @@ export function useInventoryStore() {
           stockEntries: selectedMaterial?.stockEntries || [],
           totalQuantityInBaseUnit: selectedMaterial?.totalQuantityInBaseUnit || 0,
           totalValue: selectedMaterial?.totalValue || 0,
-          averageCostPerBaseUnit: data.costPerBaseUnit || 0,
+          averageCostPerBaseUnit: selectedMaterial?.averageCostPerBaseUnit || 0,
           availableQuantity: selectedMaterial?.availableQuantity || 0
         };
 

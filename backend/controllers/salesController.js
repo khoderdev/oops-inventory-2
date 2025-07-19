@@ -2,7 +2,86 @@ import sequelize from "../config/database.js";
 import { Op } from "sequelize";
 import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, StockEntry, Section } from "../models/index.js";
 
+/**
+ * NEGATIVE STOCK SUPPORT FEATURE
+ * 
+ * This sales controller has been modified to support selling menu items even when 
+ * ingredients are out of stock or have insufficient quantities. The system will:
+ * 
+ * 1. Allow sales to proceed without blocking when stock is insufficient
+ * 2. Deduct required ingredient quantities even if it results in negative stock values
+ * 3. Create virtual stock entries with negative quantities when no existing entries are found
+ * 4. Track and log all negative stock situations with detailed warnings
+ * 5. Return comprehensive information about stock shortages in the API response
+ * 
+ * Benefits:
+ * - Flexible selling without inventory constraints
+ * - Accurate inventory tracking including negative values
+ * - Proper audit trail for stock discrepancies
+ * - Clear visibility into stock shortages for reconciliation
+ * 
+ * Example: If a hamburger requires 3g of tomato but current stock is 0g, 
+ * the sale will proceed and tomato stock will be updated to -3g.
+ */
+
 const salesController = {
+  // Utility function to get negative stock report
+  getNegativeStockReport: async (req, res, next) => {
+    try {
+      console.log('=== GENERATING NEGATIVE STOCK REPORT ===');
+      
+      const negativeStockEntries = await StockEntry.findAll({
+        where: {
+          [Op.or]: [
+            { purchasedIndividualQuantity: { [Op.lt]: 0 } },
+            { purchasedQuantity: { [Op.lt]: 0 } }
+          ]
+        },
+        include: [{
+          model: Material,
+          as: 'material',
+          attributes: ['id', 'name', 'baseUnit', 'unitType', 'category']
+        }],
+        order: [['updatedAt', 'DESC']]
+      });
+
+      const report = {
+        totalNegativeEntries: negativeStockEntries.length,
+        negativeStockItems: negativeStockEntries.map(entry => ({
+          stockEntryId: entry.id,
+          materialId: entry.materialId,
+          materialName: entry.material?.name || 'Unknown',
+          category: entry.material?.category || 'unknown',
+          supplier: entry.supplier,
+          purchasedQuantity: entry.purchasedQuantity,
+          purchasedUnit: entry.purchasedUnit,
+          purchasedIndividualQuantity: entry.purchasedIndividualQuantity,
+          purchasedIndividualUnit: entry.purchasedIndividualUnit,
+          lastUpdated: entry.updatedAt,
+          isVirtualEntry: entry.supplier === "VIRTUAL - Negative Stock"
+        })),
+        summary: {
+          totalVirtualEntries: negativeStockEntries.filter(e => e.supplier === "VIRTUAL - Negative Stock").length,
+          categorySummary: negativeStockEntries.reduce((acc, entry) => {
+            const category = entry.material?.category || 'unknown';
+            acc[category] = (acc[category] || 0) + 1;
+            return acc;
+          }, {})
+        },
+        generatedAt: new Date(),
+        message: negativeStockEntries.length > 0 
+          ? `Found ${negativeStockEntries.length} stock entries with negative quantities requiring reconciliation`
+          : 'No negative stock entries found - all inventory is positive'
+      };
+
+      console.log(`Negative stock report generated: ${negativeStockEntries.length} entries found`);
+      res.status(200).json(report);
+    } catch (error) {
+      console.error('Error generating negative stock report:', error);
+      next(error);
+    }
+  },
+
   getAllSales: async (req, res, next) => {
     try {
       const sales = await Sale.findAll();
@@ -28,6 +107,7 @@ const salesController = {
   // Create new sale
   createSales: async (req, res, next) => {
     const transaction = await sequelize.transaction();
+    let negativeStockWarnings = []; // Track ingredients with negative stock across all processing
     try {
       const { saleDate, totalAmount, items, menuItems, sectionId, id, createdAt, updatedAt } = req.body;
 
@@ -49,23 +129,24 @@ const salesController = {
       // Validate sectionId - required for individual items, optional for menu items
       const hasIndividualItems = items && items.length > 0;
       const hasMenuItems = menuItems && menuItems.length > 0;
-      
+
       if (hasIndividualItems && (!sectionId || sectionId === "" || isNaN(parseInt(sectionId)))) {
         await transaction.rollback();
         return res.status(400).json({ error: "Valid section ID is required for individual item sales" });
       }
-      
+
       // For menu item only sales, assign a default section ID if none provided
       let finalSectionId;
       if (hasMenuItems && !hasIndividualItems && (!sectionId || sectionId === "" || sectionId === undefined)) {
         // Find a suitable section for menu items (prefer Kitchen, or any available section)
-        const defaultSection = await Section.findOne({
-          where: {
-            name: ['Kitchen', 'kitchen', 'KITCHEN']
-          },
-          transaction
-        }) || await Section.findOne({ transaction });
-        
+        const defaultSection =
+          (await Section.findOne({
+            where: {
+              name: ["Kitchen", "kitchen", "KITCHEN"]
+            },
+            transaction
+          })) || (await Section.findOne({ transaction }));
+
         if (defaultSection) {
           finalSectionId = defaultSection.id;
           console.log(`Menu-only sale: assigning default section '${defaultSection.name}' (ID: ${finalSectionId})`);
@@ -142,39 +223,46 @@ const salesController = {
             stockEntryDeductionQuantity = item.quantity;
           }
 
-          // Check if sufficient quantity is available in assignment (use assignedIndividualQuantity if available)
-          const assignmentIndividualQuantity = assignment.assignedIndividualQuantity || (assignment.assignedQuantity * (material.packageQuantity || 1));
+          // Log warnings but allow negative stock for individual items too
+          const assignmentIndividualQuantity = assignment.assignedIndividualQuantity || assignment.assignedQuantity * (material.packageQuantity || 1);
           if (assignmentIndividualQuantity < assignmentDeductionQuantity) {
-            await transaction.rollback();
-            return res.status(400).json({
-              error: `Insufficient quantity in assignment for ${material?.name || "item"}. Available: ${assignmentIndividualQuantity} ${material.baseUnit}, Required: ${assignmentDeductionQuantity}`
+            const shortage = assignmentDeductionQuantity - assignmentIndividualQuantity;
+            console.warn(`NEGATIVE STOCK WARNING (Assignment): ${material?.name || "item"} - Available: ${assignmentIndividualQuantity} ${material.baseUnit}, Required: ${assignmentDeductionQuantity}, Shortage: ${shortage}`);
+            negativeStockWarnings.push({
+              materialId: material.id,
+              materialName: material.name,
+              type: "assignment",
+              availableQuantity: assignmentIndividualQuantity,
+              requiredQuantity: assignmentDeductionQuantity,
+              shortageQuantity: shortage,
+              unit: material.baseUnit
             });
           }
 
-          // Check if sufficient quantity is available in stock entry
           if (stockEntry.purchasedIndividualQuantity < stockEntryDeductionQuantity) {
-            await transaction.rollback();
-            return res.status(400).json({
-              error: `Insufficient quantity in stock entry for ${material?.name || "item"}. Available: ${stockEntry.purchasedIndividualQuantity}, Requested: ${stockEntryDeductionQuantity}`
+            const shortage = stockEntryDeductionQuantity - stockEntry.purchasedIndividualQuantity;
+            console.warn(`NEGATIVE STOCK WARNING (Stock Entry): ${material?.name || "item"} - Available: ${stockEntry.purchasedIndividualQuantity}, Required: ${stockEntryDeductionQuantity}, Shortage: ${shortage}`);
+            negativeStockWarnings.push({
+              materialId: material.id,
+              materialName: material.name,
+              type: "stockEntry",
+              stockEntryId: stockEntry.id,
+              availableQuantity: stockEntry.purchasedIndividualQuantity,
+              requiredQuantity: stockEntryDeductionQuantity,
+              shortageQuantity: shortage,
+              unit: material.baseUnit
             });
           }
 
           // Update assignment individual quantity - deduct individual units only
           const newAssignedIndividualQuantity = assignmentIndividualQuantity - assignmentDeductionQuantity;
-          
+
           // Only update assignedIndividualQuantity, keep assignedQuantity unchanged
           assignment.assignedIndividualQuantity = Math.round(newAssignedIndividualQuantity);
           await assignment.save();
 
-          // Update stock entry quantities - deduct from individual quantity only
+          // Update stock entry quantities - deduct from individual quantity only (can go negative)
           const newIndividualQuantity = stockEntry.purchasedIndividualQuantity - stockEntryDeductionQuantity;
-
-          if (newIndividualQuantity < 0) {
-            await transaction.rollback();
-            return res.status(400).json({
-              error: `Insufficient individual quantity in stock. Available: ${stockEntry.purchasedIndividualQuantity}, Required: ${stockEntryDeductionQuantity}`
-            });
-          }
 
           console.log("Stock entry update values:", {
             stockEntryId: stockEntry.id,
@@ -188,6 +276,11 @@ const salesController = {
           // Only update individual quantity, keep package quantity unchanged
           stockEntry.purchasedIndividualQuantity = Math.round(newIndividualQuantity);
           await stockEntry.save();
+
+          // Log negative stock warning for individual item sales
+          if (Math.round(newIndividualQuantity) < 0) {
+            console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for ${material.name} now has negative individual quantity: ${Math.round(newIndividualQuantity)}`);
+          }
 
           console.log(`Updated assignment ${assignment.id}: assignedQuantity unchanged (${assignment.assignedQuantity}), individual quantity ${assignmentIndividualQuantity} -> ${newAssignedIndividualQuantity}`);
           console.log(`Updated stock entry ${stockEntry.id}: individual quantity ${stockEntry.purchasedIndividualQuantity + stockEntryDeductionQuantity} -> ${newIndividualQuantity}`);
@@ -214,7 +307,7 @@ const salesController = {
             return res.status(400).json({ error: `Menu item ${menuItemSale.menuItemId} not found` });
           }
 
-          console.log(`\n=== PROCESSING MENU ITEM SALE ===`);
+          console.log(`\n=== PROCESSING MENU ITEM SALE (NEGATIVE STOCK ENABLED) ===`);
           console.log(`Menu Item: ${menuItem.name} x${menuItemSale.quantity}`);
           console.log(`Ingredients to process: ${menuItem.menuItemIngredients.length}`);
 
@@ -223,33 +316,27 @@ const salesController = {
             const material = ingredient.material;
             const totalIngredientQuantity = ingredient.quantity * menuItemSale.quantity; // Total needed for all sold menu items
 
-            console.log(`\n--- PROCESSING INGREDIENT ---`);
+            console.log(`\n--- PROCESSING INGREDIENT (NEGATIVE STOCK ALLOWED) ---`);
             console.log(`Ingredient: ${material.name}`);
             console.log(`Required per item: ${ingredient.quantity} ${ingredient.unit}`);
             console.log(`Total needed for ${menuItemSale.quantity} items: ${totalIngredientQuantity} ${ingredient.unit}`);
             console.log(`Material base unit: ${material.baseUnit}`);
             console.log(`Material unit type: ${material.unitType}`);
 
-            // Find stock entries for this material (ordered by creation date - FIFO)
+            // Find ALL stock entries for this material (including those with zero or negative quantity)
+            // Remove the filter for positive quantity only - we now include all entries
             const stockEntries = await StockEntry.findAll({
               where: {
-                materialId: material.id,
-                purchasedIndividualQuantity: {
-                  [Op.gt]: 0 // Only entries with available quantity
-                }
+                materialId: material.id
+                // Removed: purchasedIndividualQuantity: { [Op.gt]: 0 }
               },
-              order: [['createdAt', 'ASC']], // FIFO - First In, First Out
+              order: [["createdAt", "ASC"]], // FIFO - First In, First Out
               transaction
             });
 
-            if (stockEntries.length === 0) {
-              await transaction.rollback();
-              return res.status(400).json({
-                error: `No stock available for ingredient: ${material.name}`
-              });
-            }
+            console.log(`Found ${stockEntries.length} stock entries for ${material.name} (including zero/negative)`);
 
-            // Calculate total available quantity in base units
+            // Calculate total available quantity in base units (can now be negative)
             const totalAvailableQuantity = stockEntries.reduce((sum, entry) => {
               return sum + (entry.purchasedIndividualQuantity || 0);
             }, 0);
@@ -271,37 +358,101 @@ const salesController = {
             console.log(`Required quantity in base units (${material.baseUnit}): ${requiredQuantityInBaseUnits}`);
             console.log(`Total available quantity: ${totalAvailableQuantity}`);
 
-            // Check if sufficient quantity is available
-            if (totalAvailableQuantity < requiredQuantityInBaseUnits) {
-              await transaction.rollback();
-              return res.status(400).json({
-                error: `Insufficient stock for ingredient: ${material.name}. Available: ${totalAvailableQuantity} ${material.baseUnit}, Required: ${requiredQuantityInBaseUnits} ${material.baseUnit}`
+            // REMOVED: Stock availability check - we now allow negative stock
+            // Log warning if going negative
+            const willResultInNegativeStock = totalAvailableQuantity < requiredQuantityInBaseUnits;
+            if (willResultInNegativeStock) {
+              const shortage = requiredQuantityInBaseUnits - totalAvailableQuantity;
+              const warningMessage = `NEGATIVE STOCK WARNING: ${material.name} - Available: ${totalAvailableQuantity} ${material.baseUnit}, Required: ${requiredQuantityInBaseUnits} ${material.baseUnit}, Shortage: ${shortage} ${material.baseUnit}`;
+              console.warn(warningMessage);
+              negativeStockWarnings.push({
+                materialId: material.id,
+                materialName: material.name,
+                availableQuantity: totalAvailableQuantity,
+                requiredQuantity: requiredQuantityInBaseUnits,
+                shortageQuantity: shortage,
+                unit: material.baseUnit
               });
             }
 
-            // Deduct quantities from stock entries using FIFO
-            let remainingToDeduct = requiredQuantityInBaseUnits;
-            for (const stockEntry of stockEntries) {
-              if (remainingToDeduct <= 0) break;
+            // Handle case where no stock entries exist - create a virtual negative entry
+            if (stockEntries.length === 0) {
+              console.log(`No existing stock entries for ${material.name}, creating virtual negative stock entry`);
 
-              const availableInThisEntry = stockEntry.purchasedIndividualQuantity;
-              const deductFromThisEntry = Math.min(remainingToDeduct, availableInThisEntry);
+              // Create a new stock entry with negative quantity
+              const virtualStockEntry = await StockEntry.create(
+                {
+                  materialId: material.id,
+                  supplier: "VIRTUAL - Negative Stock",
+                  purchasedQuantity: 0,
+                  purchasedUnit: material.baseUnit,
+                  purchasedIndividualQuantity: -requiredQuantityInBaseUnits, // Start with negative
+                  purchasedIndividualUnit: material.baseUnit,
+                  costPerPurchasedUnit: 0,
+                  totalCost: 0,
+                  purchaseDate: new Date(),
+                  expiryDate: null
+                },
+                { transaction }
+              );
 
-              console.log(`Deducting ${deductFromThisEntry} from stock entry ${stockEntry.id} (available: ${availableInThisEntry})`);
+              console.log(`Created virtual stock entry ${virtualStockEntry.id} with negative quantity: ${-requiredQuantityInBaseUnits}`);
 
-              // Update stock entry
-              stockEntry.purchasedIndividualQuantity = Math.round(availableInThisEntry - deductFromThisEntry);
-              await stockEntry.save({ transaction });
+              // Add to warnings
+              negativeStockWarnings.push({
+                materialId: material.id,
+                materialName: material.name,
+                availableQuantity: 0,
+                requiredQuantity: requiredQuantityInBaseUnits,
+                shortageQuantity: requiredQuantityInBaseUnits,
+                unit: material.baseUnit,
+                action: "Created virtual negative stock entry"
+              });
+            } else {
+              // Deduct quantities from stock entries using FIFO (now allows negative values)
+              let remainingToDeduct = requiredQuantityInBaseUnits;
+              for (const stockEntry of stockEntries) {
+                if (remainingToDeduct <= 0) break;
 
-              remainingToDeduct -= deductFromThisEntry;
+                const availableInThisEntry = stockEntry.purchasedIndividualQuantity;
+                // MODIFIED: Remove Math.min to allow negative deduction
+                const deductFromThisEntry = remainingToDeduct; // Deduct full remaining amount
 
-              console.log(`Stock entry ${stockEntry.id} updated: ${availableInThisEntry} -> ${stockEntry.purchasedIndividualQuantity}`);
+                console.log(`Deducting ${deductFromThisEntry} from stock entry ${stockEntry.id} (current: ${availableInThisEntry}, will become: ${availableInThisEntry - deductFromThisEntry})`);
+
+                // Update stock entry - can now go negative
+                const newQuantity = Math.round(availableInThisEntry - deductFromThisEntry);
+                stockEntry.purchasedIndividualQuantity = newQuantity;
+                await stockEntry.save({ transaction });
+
+                // Update remaining to deduct
+                remainingToDeduct = Math.max(0, remainingToDeduct - Math.max(0, availableInThisEntry));
+
+                console.log(`Stock entry ${stockEntry.id} updated: ${availableInThisEntry} -> ${newQuantity} (remaining to deduct: ${remainingToDeduct})`);
+
+                // Log negative stock entry
+                if (newQuantity < 0) {
+                  console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for ${material.name} now has negative quantity: ${newQuantity}`);
+                }
+
+                // If this entry handled all remaining deduction, break
+                if (remainingToDeduct <= 0) break;
+              }
             }
 
-            console.log(`Successfully deducted ${requiredQuantityInBaseUnits} ${material.baseUnit} of ${material.name}`);
+            console.log(`Successfully processed deduction of ${requiredQuantityInBaseUnits} ${material.baseUnit} of ${material.name}`);
           }
 
           console.log(`Completed processing menu item: ${menuItem.name}`);
+        }
+
+        // Log all negative stock warnings at the end
+        if (negativeStockWarnings.length > 0) {
+          console.log(`\n=== NEGATIVE STOCK SUMMARY ===`);
+          console.log(`${negativeStockWarnings.length} ingredients resulted in negative stock:`);
+          negativeStockWarnings.forEach(warning => {
+            console.log(`- ${warning.materialName}: ${warning.shortageQuantity} ${warning.unit} shortage${warning.action ? ` (${warning.action})` : ""}`);
+          });
         }
       }
 
@@ -321,36 +472,46 @@ const salesController = {
       );
 
       await transaction.commit();
-      
+
       // Fetch updated stock entries AFTER transaction commit to ensure fresh data
-      console.log('\n=== FETCHING FRESH STOCK ENTRIES ===');
+      console.log("\n=== FETCHING FRESH STOCK ENTRIES ===");
       const updatedStockEntries = await StockEntry.findAll({
         include: [
           {
             model: Material,
-            as: 'material'
+            as: "material"
           }
         ],
-        order: [['id', 'ASC']] // Order by ID for consistent ordering
+        order: [["id", "ASC"]] // Order by ID for consistent ordering
       });
 
       console.log(`Fetched ${updatedStockEntries.length} fresh stock entries`);
-      
+
       // Log a few sample entries to verify data
       if (updatedStockEntries.length > 0) {
-        console.log('Sample updated stock entry:', {
+        console.log("Sample updated stock entry:", {
           id: updatedStockEntries[0].id,
           materialId: updatedStockEntries[0].materialId,
           purchasedIndividualQuantity: updatedStockEntries[0].purchasedIndividualQuantity,
           updatedAt: updatedStockEntries[0].updatedAt
         });
       }
-      
-      // Return sale data with updated stock entries
+
+      // Prepare response message and warnings
+      let responseMessage = "Sale completed successfully with inventory deductions";
+      const hasNegativeStock = negativeStockWarnings && negativeStockWarnings.length > 0;
+
+      if (hasNegativeStock) {
+        responseMessage += ` (WARNING: ${negativeStockWarnings.length} ingredients resulted in negative stock)`;
+      }
+
+      // Return sale data with updated stock entries and negative stock warnings
       return res.status(201).json({
         sale: sale,
         updatedStockEntries: updatedStockEntries,
-        message: 'Sale completed successfully with inventory deductions'
+        message: responseMessage,
+        negativeStockWarnings: negativeStockWarnings || [],
+        hasNegativeStock: hasNegativeStock
       });
     } catch (error) {
       await transaction.rollback();
