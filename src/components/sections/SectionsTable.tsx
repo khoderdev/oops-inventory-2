@@ -89,9 +89,9 @@ const AssignmentRow = memo(({ assignment, onRowClick, onEdit, onDelete }: { assi
     if (!assignment.stockEntry || !assignment.assignedQuantity) return 0;
     
     const costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
-    const assignedUnit = assignment.assignedUnit;
-    const purchasedUnit = assignment.stockEntry.purchasedUnit;
-    const assignedQuantity = assignment.assignedQuantity;
+    const assignedUnit = assignment.assignedUnit || "";
+    const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
+    const assignedQuantity = assignment.assignedQuantity || 0;
     
     // If units are the same, simple multiplication
     if (assignedUnit === purchasedUnit) {
@@ -126,10 +126,15 @@ const AssignmentRow = memo(({ assignment, onRowClick, onEdit, onDelete }: { assi
 
   const isPackageUnit = assignment.material?.unitType === "package";
   const displayQuantity = useMemo(() => {
+    const assignedQty = assignment.assignedQuantity || 0;
+    const assignedUnit = assignment.assignedUnit || "";
+    
     if (isPackageUnit && assignment.assignedIndividualQuantity) {
-      return `${formatNumber(assignment.assignedQuantity)} ${assignment.assignedUnit} (${formatNumber(assignment.assignedIndividualQuantity)} ${assignment.material?.baseUnit})`;
+      const individualQty = assignment.assignedIndividualQuantity || 0;
+      const baseUnit = assignment.material?.baseUnit || "";
+      return `${formatNumber(assignedQty)} ${assignedUnit} (${formatNumber(individualQty)} ${baseUnit})`;
     }
-    return `${formatNumber(assignment.assignedQuantity)} ${assignment.assignedUnit}`;
+    return `${formatNumber(assignedQty)} ${assignedUnit}`;
   }, [assignment, isPackageUnit]);
 
   return (

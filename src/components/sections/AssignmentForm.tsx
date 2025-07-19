@@ -48,7 +48,7 @@ interface AssignmentFormProps {
   materials: Material[];
   menuItems: MenuItem[];
   assignment?: SectionAssignment;
-  onSubmit: (data: CreateSectionAssignmentData) => void;
+  onSubmit: (data: CreateSectionAssignmentData) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
   selectedSectionId?: string;
@@ -64,7 +64,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
       itemType: assignment?.itemType || "stockEntry",
       stockEntryId: assignment?.stockEntryId || "",
       menuItemId: assignment?.menuItemId || "",
-      assignedQuantity: assignment?.assignedQuantity || undefined,
+      assignedQuantity: assignment?.assignedQuantity || 0,
       assignedUnit: assignment?.assignedUnit || ""
     }
   });
@@ -94,7 +94,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
       itemType: assignment?.itemType || "stockEntry",
       stockEntryId: assignment?.stockEntryId || "",
       menuItemId: assignment?.menuItemId || "",
-      assignedQuantity: assignment?.assignedQuantity || undefined,
+      assignedQuantity: assignment?.assignedQuantity || 0,
       assignedUnit: assignment?.assignedUnit || ""
     });
   }, [assignment, selectedSectionId, form]);
@@ -170,7 +170,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
   // Check if assigned quantity exceeds available stock (after conversion)
   const exceedsAvailableStock = convertedAssignedQuantity > 0 && availableQuantity > 0 && convertedAssignedQuantity > availableQuantity;
 
-  const handleSubmit = (data: AssignmentFormData) => {
+  const handleSubmit = async (data: AssignmentFormData) => {
     if (isLoading) return;
 
     // Clear any previous form errors
@@ -212,7 +212,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
       submissionData.menuItemId = data.menuItemId;
     }
 
-    onSubmit(submissionData);
+    await onSubmit(submissionData);
   };
 
   return (
@@ -476,28 +476,28 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                       <div className="font-medium">{selectedMenuItem.description}</div>
                     </div>
                   )}
-                  {((selectedMenuItem.menuItemIngredients && selectedMenuItem.menuItemIngredients.length > 0) || (selectedMenuItem.ingredients && selectedMenuItem.ingredients.length > 0)) && (
+                  {((Array.isArray(selectedMenuItem.menuItemIngredients) && selectedMenuItem.menuItemIngredients.length > 0) || (Array.isArray(selectedMenuItem.ingredients) && selectedMenuItem.ingredients.length > 0)) && (
                     <div className="sm:col-span-2 lg:col-span-3">
                       <span className="text-muted-foreground">Ingredients:</span>
                       <div className="font-medium">
                         {/* Use menuItemIngredients if available (has nested material data) */}
-                        {selectedMenuItem.menuItemIngredients && selectedMenuItem.menuItemIngredients.length > 0 ? (
-                          selectedMenuItem.menuItemIngredients.map((ingredient, index) => (
+                        {Array.isArray(selectedMenuItem.menuItemIngredients) && selectedMenuItem.menuItemIngredients.length > 0 ? (
+                          selectedMenuItem.menuItemIngredients.map((ingredient, index, array) => (
                             <span key={index}>
-                              {ingredient.material?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < selectedMenuItem.menuItemIngredients.length - 1 ? ", " : ""}
+                              {ingredient.material?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < array.length - 1 ? ", " : ""}
                             </span>
                           ))
-                        ) : (
+                        ) : Array.isArray(selectedMenuItem.ingredients) ? (
                           /* Fallback to ingredients array with material lookup */
-                          selectedMenuItem.ingredients.map((ingredient, index) => {
+                          selectedMenuItem.ingredients.map((ingredient, index, array) => {
                             const ingredientMaterial = materials.find(m => String(m.id) === String(ingredient.materialId));
                             return (
                               <span key={index}>
-                                {ingredientMaterial?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < selectedMenuItem.ingredients.length - 1 ? ", " : ""}
+                                {ingredientMaterial?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < array.length - 1 ? ", " : ""}
                               </span>
                             );
                           })
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   )}

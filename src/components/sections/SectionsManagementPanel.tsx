@@ -19,9 +19,10 @@ interface SectionsManagementPanelProps {
   onUpdateSection?: (id: string, data: { name: string; description?: string }) => void;
   onDeleteSection?: (id: string) => void;
   onEditSection?: (section: Section) => void;
+  onDataRefresh?: () => void;
 }
 
-export function SectionsManagementPanel({ sections, sectionAssignments, materials, stockEntries, menuItems, onCreateSection, onUpdateSection, onDeleteSection, onEditSection }: SectionsManagementPanelProps) {
+export function SectionsManagementPanel({ sections, sectionAssignments, materials, stockEntries, menuItems, onCreateSection, onUpdateSection, onDeleteSection, onEditSection, onDataRefresh }: SectionsManagementPanelProps) {
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   const [showSectionForm, setShowSectionForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
@@ -68,7 +69,11 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
   }, []);
 
   // Get CRUD operations from useInventoryCRUD hook for assignments only
-  const { createAssignment, updateAssignment, deleteAssignment } = useInventoryCRUD(() => {}); // Empty refetch function for now
+  const { createAssignment, updateAssignment, deleteAssignment } = useInventoryCRUD(() => {
+    // Refresh optimistic state to sync with server data
+    setOptimisticSections(sections);
+    setOptimisticAssignments(sectionAssignments);
+  });
 
   // Refresh data function
   const refreshData = useCallback(async () => {
@@ -86,7 +91,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     }
   }, [sections, sectionAssignments, showError, showSuccess]);
 
-  // Calculate sections with assignments using optimistic state
+    // Calculate sections with assignments using optimistic state
   const sectionsWithAssignments: SectionWithAssignments[] = useMemo(() => {
     return optimisticSections.map(section => {
       const assignments = optimisticAssignments.filter(assignment => assignment.sectionId === section.id);
@@ -245,10 +250,46 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
 
   const handleCreateAssignment = async (data: CreateSectionAssignmentData) => {
     try {
-      await createAssignment(data);
-      setShowAssignmentForm(false);
-      setEditingAssignment(undefined);
+      // Optimistic update - add temporary assignment immediately
+      const tempAssignment: SectionAssignment = {
+        id: `temp-${Date.now()}`,
+        sectionId: data.sectionId,
+        itemType: data.itemType || "stockEntry",
+        materialId: data.materialId,
+        stockEntryId: data.stockEntryId,
+        menuItemId: data.menuItemId,
+        assignedQuantity: data.assignedQuantity || 0,
+        assignedUnit: data.assignedUnit || "",
+        assignedIndividualQuantity: data.assignedIndividualQuantity,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      setOptimisticAssignments(prev => [...prev, tempAssignment]);
+      showSuccess("Assignment created successfully");
+
+      // Make API call
+      const createdAssignment = await createAssignment(data);
+      
+      // Replace temp assignment with real assignment
+      setOptimisticAssignments(prev => 
+        prev.map(assignment => 
+          assignment.id === tempAssignment.id 
+            ? { ...createdAssignment, id: createdAssignment.id.toString() }
+            : assignment
+        )
+      );
+
+      // Refresh main store data
+      if (onDataRefresh) {
+        onDataRefresh();
+      }
     } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticAssignments(prev => 
+        prev.filter(assignment => !assignment.id.startsWith('temp-'))
+      );
+      showError("Failed to create assignment");
       console.error("Failed to create assignment:", error);
     }
   };
@@ -257,18 +298,54 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     if (!editingAssignment) return;
 
     try {
+      // Optimistic update - update assignment immediately
+      const updatedAssignment = {
+        ...editingAssignment,
+        ...data,
+        updatedAt: new Date()
+      };
+      
+      setOptimisticAssignments(prev =>
+        prev.map(assignment =>
+          assignment.id === editingAssignment.id ? updatedAssignment : assignment
+        )
+      );
+      showSuccess("Assignment updated successfully");
+
+      // Make API call
       await updateAssignment(editingAssignment.id, data);
-      setShowAssignmentForm(false);
-      setEditingAssignment(undefined);
+
+      // Refresh main store data
+      if (onDataRefresh) {
+        onDataRefresh();
+      }
     } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticAssignments(sectionAssignments);
+      showError("Failed to update assignment");
       console.error("Failed to update assignment:", error);
     }
   };
 
   const handleDeleteAssignment = async (assignmentId: string) => {
     try {
+      const assignmentToDelete = optimisticAssignments.find(a => a.id === assignmentId);
+      
+      // Optimistic update - remove assignment immediately
+      setOptimisticAssignments(prev => prev.filter(assignment => assignment.id !== assignmentId));
+      showSuccess(`Assignment deleted successfully`);
+
+      // Make API call
       await deleteAssignment(assignmentId);
+
+      // Refresh main store data
+      if (onDataRefresh) {
+        onDataRefresh();
+      }
     } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticAssignments(sectionAssignments);
+      showError("Failed to delete assignment");
       console.error("Failed to delete assignment:", error);
     }
   };
@@ -281,14 +358,22 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     }
   };
 
-  const handleAssignmentSubmit = (data: CreateSectionAssignmentData | UpdateSectionAssignmentData) => {
-    if (editingAssignment) {
-      handleUpdateAssignment(data as UpdateSectionAssignmentData);
-    } else {
-      handleCreateAssignment(data as CreateSectionAssignmentData);
+  const handleAssignmentSubmit = async (data: CreateSectionAssignmentData | UpdateSectionAssignmentData) => {
+    try {
+      if (editingAssignment) {
+        await handleUpdateAssignment(data as UpdateSectionAssignmentData);
+      } else {
+        await handleCreateAssignment(data as CreateSectionAssignmentData);
+      }
+      
+      // Close form and clear states after successful submission
+      setShowAssignmentForm(false);
+      setEditingAssignment(undefined);
+      setSelectedSectionId("");
+    } catch (error) {
+      // Error handling is already done in individual handlers
+      console.error("Assignment submission failed:", error);
     }
-    // Clear selection after submission
-    setSelectedSectionId("");
   };
 
   return (

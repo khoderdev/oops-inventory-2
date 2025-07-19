@@ -111,6 +111,11 @@ export function InventoryManagementPanel({
 
   const existingSectionNames = sections.map(section => section.name);
 
+  // Handler to refresh sections data
+  const handleDataRefresh = () => {
+    fetchTabData('sections');
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -196,7 +201,7 @@ export function InventoryManagementPanel({
         </TabsContent>
 
         <TabsContent value="sections" className="space-y-4">
-          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} />
+          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
         </TabsContent>
 
         <TabsContent value="menu" className="space-y-4">
