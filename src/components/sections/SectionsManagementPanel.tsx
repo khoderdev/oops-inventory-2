@@ -60,6 +60,17 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     setOptimisticAssignments(sectionAssignments);
   }, [sections, sectionAssignments]);
 
+  // Additional sync effect to ensure optimistic state stays in sync with props
+  useEffect(() => {
+    // Force sync after a short delay to handle async updates
+    const timeoutId = setTimeout(() => {
+      setOptimisticSections(sections);
+      setOptimisticAssignments(sectionAssignments);
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
+  }, [sections.length, sectionAssignments.length]);
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -143,12 +154,12 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     });
   }, [optimisticSections, optimisticAssignments, materials, stockEntries, menuItems]);
 
-  // Calculate materials with section assignments for detail modal
+  // Calculate materials with section assignments for detail modal using optimistic state
   const materialsWithSectionAssignments: MaterialWithSectionAssignments[] = useMemo(() => {
     return materials.map(material => {
-      const materialAssignments = sectionAssignments.filter(assignment => assignment.materialId === material.id);
+      const materialAssignments = optimisticAssignments.filter(assignment => assignment.materialId === material.id);
       const sectionAssignments_mapped = materialAssignments.map(assignment => {
-        const section = sections.find(s => s.id === assignment.sectionId);
+        const section = optimisticSections.find(s => s.id === assignment.sectionId);
         return {
           sectionId: assignment.sectionId,
           sectionName: section?.name || "Unknown",
@@ -167,7 +178,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         averageCostPerBaseUnit: 0
       };
     });
-  }, [materials, sectionAssignments, sections]);
+  }, [materials, optimisticAssignments, optimisticSections]);
 
   const handleCreateSection = async (data: CreateSectionData) => {
     try {
@@ -250,45 +261,34 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
 
   const handleCreateAssignment = async (data: CreateSectionAssignmentData) => {
     try {
-      // Optimistic update - add temporary assignment immediately
-      const tempAssignment: SectionAssignment = {
-        id: `temp-${Date.now()}`,
-        sectionId: data.sectionId,
-        itemType: data.itemType || "stockEntry",
-        materialId: data.materialId,
-        stockEntryId: data.stockEntryId,
-        menuItemId: data.menuItemId,
-        assignedQuantity: data.assignedQuantity || 0,
-        assignedUnit: data.assignedUnit || "",
-        assignedIndividualQuantity: data.assignedIndividualQuantity,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      
-      setOptimisticAssignments(prev => [...prev, tempAssignment]);
-      showSuccess("Assignment created successfully");
+      // Store current state for potential rollback
 
-      // Make API call
+      // Make API call first
       const createdAssignment = await createAssignment(data);
       
-      // Replace temp assignment with real assignment
-      setOptimisticAssignments(prev => 
-        prev.map(assignment => 
-          assignment.id === tempAssignment.id 
-            ? { ...createdAssignment, id: createdAssignment.id.toString() }
-            : assignment
-        )
-      );
+      // Add new assignment to optimistic state with server response
+      const newAssignment: SectionAssignment = {
+        ...createdAssignment,
+        id: createdAssignment.id.toString()
+      };
+      
+      setOptimisticAssignments(prev => [...prev, newAssignment]);
+      showSuccess("Assignment created successfully");
 
-      // Refresh main store data
+      // Refresh main store data to ensure full sync
       if (onDataRefresh) {
-        onDataRefresh();
+        await onDataRefresh();
       }
+
+      // Force sync optimistic state with fresh props data
+      setTimeout(() => {
+        setOptimisticSections(sections);
+        setOptimisticAssignments(sectionAssignments);
+      }, 100);
+
     } catch (error) {
-      // Revert optimistic update on error
-      setOptimisticAssignments(prev => 
-        prev.filter(assignment => !assignment.id.startsWith('temp-'))
-      );
+      // Revert to current server state on error
+      setOptimisticAssignments(sectionAssignments);
       showError("Failed to create assignment");
       console.error("Failed to create assignment:", error);
     }
@@ -298,29 +298,36 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     if (!editingAssignment) return;
 
     try {
-      // Optimistic update - update assignment immediately
-      const updatedAssignment = {
-        ...editingAssignment,
-        ...data,
-        updatedAt: new Date()
-      };
+      // Store current state for potential rollback
+      const currentAssignments = [...optimisticAssignments];
+
+      // Make API call first (no optimistic update to avoid conflicts)
+      const updatedAssignment = await updateAssignment(editingAssignment.id, data);
       
+      // Update optimistic state with server response
       setOptimisticAssignments(prev =>
         prev.map(assignment =>
-          assignment.id === editingAssignment.id ? updatedAssignment : assignment
+          assignment.id === editingAssignment.id 
+            ? { ...updatedAssignment, id: updatedAssignment.id.toString() }
+            : assignment
         )
       );
+      
       showSuccess("Assignment updated successfully");
 
-      // Make API call
-      await updateAssignment(editingAssignment.id, data);
-
-      // Refresh main store data
+      // Refresh main store data to ensure full sync
       if (onDataRefresh) {
-        onDataRefresh();
+        await onDataRefresh();
       }
+
+      // Force sync optimistic state with fresh props data
+      setTimeout(() => {
+        setOptimisticSections(sections);
+        setOptimisticAssignments(sectionAssignments);
+      }, 100);
+
     } catch (error) {
-      // Revert optimistic update on error
+      // Revert to current server state on error
       setOptimisticAssignments(sectionAssignments);
       showError("Failed to update assignment");
       console.error("Failed to update assignment:", error);
@@ -330,20 +337,28 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
   const handleDeleteAssignment = async (assignmentId: string) => {
     try {
       const assignmentToDelete = optimisticAssignments.find(a => a.id === assignmentId);
+      const currentAssignments = [...optimisticAssignments];
       
-      // Optimistic update - remove assignment immediately
+      // Make API call first
+      await deleteAssignment(assignmentId);
+      
+      // Update optimistic state after successful API call
       setOptimisticAssignments(prev => prev.filter(assignment => assignment.id !== assignmentId));
       showSuccess(`Assignment deleted successfully`);
 
-      // Make API call
-      await deleteAssignment(assignmentId);
-
-      // Refresh main store data
+      // Refresh main store data to ensure full sync
       if (onDataRefresh) {
-        onDataRefresh();
+        await onDataRefresh();
       }
+
+      // Force sync optimistic state with fresh props data
+      setTimeout(() => {
+        setOptimisticSections(sections);
+        setOptimisticAssignments(sectionAssignments);
+      }, 100);
+
     } catch (error) {
-      // Revert optimistic update on error
+      // Revert to current server state on error
       setOptimisticAssignments(sectionAssignments);
       showError("Failed to delete assignment");
       console.error("Failed to delete assignment:", error);
@@ -370,6 +385,12 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
       setShowAssignmentForm(false);
       setEditingAssignment(undefined);
       setSelectedSectionId("");
+      
+      // Additional cleanup - force refresh of form state
+      setTimeout(() => {
+        setEditingAssignment(undefined);
+      }, 100);
+      
     } catch (error) {
       // Error handling is already done in individual handlers
       console.error("Assignment submission failed:", error);

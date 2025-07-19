@@ -6,7 +6,7 @@ import { Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAss
 import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
 import { AlertTriangle, Edit, Package, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface DetailModalProps {
   isOpen: boolean;
@@ -25,6 +25,39 @@ interface DetailModalProps {
 export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectionAssignments, sectionsWithAssignments, onShowAssignmentForm, onEditAssignment, onDeleteAssignment }: DetailModalProps) => {
   const [showAssignmentDetails, setShowAssignmentDetails] = useState(false);
   const [selectedSectionForAssignments, setSelectedSectionForAssignments] = useState<SectionWithAssignments | null>(null);
+
+  // Force update when sectionsWithAssignments changes and modal is open for a section
+  useEffect(() => {
+    if (selectedItem && selectedItem.type === "section" && sectionsWithAssignments) {
+      // Find the updated section data
+      const currentSection = selectedItem.data as Section;
+      const updatedSection = sectionsWithAssignments.find(s => s.id === currentSection.id);
+
+      // Debug: Log when section assignments are updated
+      if (updatedSection) {
+        console.log("DetailModal: Section assignments updated", {
+          sectionId: currentSection.id,
+          assignmentCount: updatedSection.assignments.length,
+          assignments: updatedSection.assignments.map(a => ({
+            id: a.id,
+            materialName: a.material?.name,
+            assignedQuantity: a.assignedQuantity,
+            assignedUnit: a.assignedUnit,
+            updatedAt: a.updatedAt
+          }))
+        });
+      }
+
+      // If we have assignment details dialog open, update it too
+      if (showAssignmentDetails && selectedSectionForAssignments) {
+        const updatedSectionForAssignments = sectionsWithAssignments.find(s => s.id === selectedSectionForAssignments.id);
+        if (updatedSectionForAssignments) {
+          setSelectedSectionForAssignments(updatedSectionForAssignments);
+        }
+      }
+    }
+  }, [sectionsWithAssignments, selectedItem, showAssignmentDetails, selectedSectionForAssignments]);
+
   if (!selectedItem) return null;
 
   // Extract sections from sectionsWithAssignments for easy lookup
@@ -150,7 +183,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
               <h4 className="text-sm font-semibold text-muted-foreground">Total Value</h4>
               <p className="font-semibold text-foreground">
                 {formatCurrency(correctTotalValue)}
-                {correctTotalValue !== material.totalValue && <span className="text-xs text-muted-foreground ml-2">(Backend: {formatCurrency(material.totalValue)})</span>}
+                {correctTotalValue !== material.totalValue && <span className="text-xs text-muted-foreground ml-2"></span>}
               </p>
             </div>
           </div>
@@ -316,7 +349,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
             <h4 className="font-medium">Total Value</h4>
             <p>
               {formatCurrency(correctSectionTotalValue)}
-              {correctSectionTotalValue !== (sectionWithAssignments?.totalValue || 0) && <span className="text-xs text-muted-foreground ml-2">(Backend: {formatCurrency(sectionWithAssignments?.totalValue || 0)})</span>}
+              {correctSectionTotalValue !== (sectionWithAssignments?.totalValue || 0) && <span className="text-xs text-muted-foreground ml-2"></span>}
             </p>
           </div>
         </div>
@@ -352,7 +385,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                 // Menu Item Assignment
                 if (itemType === "menuItem" && assignment.menuItem) {
                   return (
-                    <div key={index} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div key={`${assignment.id}-${assignment.updatedAt?.getTime()}-menu`} className="group p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors relative">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
@@ -367,6 +400,19 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                           <div className="font-semibold text-blue-900">{formatCurrency(assignment.menuItem.price || 0)}</div>
                         </div>
                       </div>
+                      {onDeleteAssignment && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-100 hover:bg-red-200 text-red-600"
+                          onClick={e => {
+                            e.stopPropagation();
+                            onDeleteAssignment(assignment.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   );
                 }
@@ -384,21 +430,6 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                     if (costPerUnit === 0 && assignment.stockEntry.totalCost && assignment.stockEntry.purchasedQuantity) {
                       costPerUnit = assignment.stockEntry.totalCost / assignment.stockEntry.purchasedQuantity;
                     }
-
-                    // Debug logging
-                    console.log("Assignment calculation:", {
-                      materialName: assignment.material?.name,
-                      assignedQuantity: assignment.assignedQuantity,
-                      assignedUnit: assignment.assignedUnit,
-                      stockEntry: {
-                        costPerPurchasedUnit: assignment.stockEntry.costPerPurchasedUnit,
-                        totalCost: assignment.stockEntry.totalCost,
-                        purchasedQuantity: assignment.stockEntry.purchasedQuantity,
-                        purchasedUnit: assignment.stockEntry.purchasedUnit
-                      },
-                      calculatedCostPerUnit: costPerUnit
-                    });
-
                     const assignedUnit = assignment.assignedUnit || "";
                     const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
                     const assignedQuantity = assignment.assignedQuantity;
@@ -446,7 +477,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                       // Check if we're assigning in base units (bottles) or package units (boxes)
                       const isAssigningInBaseUnit = assignedUnit === material.baseUnit;
                       const isAssigningInPackageUnit = assignedUnit === material.inputUnit;
-                      
+
                       if (isAssigningInBaseUnit) {
                         // Assigning in base units (e.g., 10 bottles)
                         // Use assignedIndividualQuantity if available, otherwise use assignedQty directly
@@ -459,8 +490,6 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                           </div>
                         );
                       } else if (isAssigningInPackageUnit) {
-                        // Assigning in package units (e.g., 2 boxes)
-                        // Calculate individual units: 2 boxes × 12 bottles/box = 24 bottles
                         const individualQty = assignment.assignedIndividualQuantity || assignedQty * material.packageQuantity;
                         return (
                           <div className="text-sm text-green-700">
@@ -483,16 +512,10 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                   };
 
                   return (
-                    <div key={index} className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-green-900">{assignment.material?.name || assignment.stockEntry?.materialId || "Material"}</span>
-                            <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Material</span>
-                            {assignment.material?.unitType === "package" && <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">Package</span>}
-                          </div>
-                          {assignment.stockEntry?.supplier && <div className="text-sm text-green-700 mt-1">Supplier: {assignment.stockEntry.supplier}</div>}
-                          {assignment.stockEntry?.batchNumber && <div className="text-sm text-green-600 mt-1">Batch: {assignment.stockEntry.batchNumber}</div>}
+                    <div key={`${assignment.id}-${assignment.updatedAt?.getTime()}-${assignment.assignedQuantity}-${assignment.assignedUnit}`} className="group p-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors relative">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-lg text-green-900">{assignment.material?.name || assignment.stockEntry?.materialId || "Material"}</span>
                         </div>
                         <div className="text-right">
                           {getQuantityDisplay()}
@@ -504,14 +527,38 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                           <span className="font-medium">Notes:</span> {assignment.notes}
                         </div>
                       )}
+                      {onDeleteAssignment && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-100 hover:bg-red-200 text-red-600"
+                          onClick={e => {
+                            e.stopPropagation();
+                            onDeleteAssignment(assignment.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   );
                 }
-
-                // Fallback for unknown assignment types
                 return (
-                  <div key={index} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div key={`${assignment.id}-${assignment.updatedAt?.getTime()}-unknown`} className="group p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors relative">
                     <div className="text-sm text-gray-600">Unknown assignment type: {assignment.itemType || "undefined"}</div>
+                    {onDeleteAssignment && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-100 hover:bg-red-200 text-red-600"
+                        onClick={e => {
+                          e.stopPropagation();
+                          onDeleteAssignment(assignment.id);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 );
               })}
@@ -592,7 +639,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                       const assignedUnit = assignment.assignedUnit || "";
                       const isAssigningInBaseUnit = assignedUnit === assignment.material.baseUnit;
                       const isAssigningInPackageUnit = assignedUnit === assignment.material.inputUnit;
-                      
+
                       if (isAssigningInBaseUnit) {
                         // Already in base units, no conversion needed
                         return null;
@@ -838,7 +885,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                         const assignmentValue = calculateAssignmentValue();
 
                         return (
-                          <TableRow key={assignment.id} className="hover:bg-muted/50">
+                          <TableRow key={`${assignment.id}-${assignment.updatedAt?.getTime()}-${assignment.assignedQuantity}-${assignment.assignedUnit}-${assignment.itemType}`} className="hover:bg-muted/50">
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <div className="min-w-0 flex-1">
@@ -860,25 +907,28 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                                   <div>
                                     {formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}
                                   </div>
-                                  {assignment.material?.unitType === "package" && assignment.material.packageQuantity && assignment.material.packageQuantity > 0 && (() => {
-                                    const assignedUnit = assignment.assignedUnit || "";
-                                    const isAssigningInBaseUnit = assignedUnit === assignment.material.baseUnit;
-                                    const isAssigningInPackageUnit = assignedUnit === assignment.material.inputUnit;
-                                    
-                                    if (isAssigningInBaseUnit) {
-                                      // Already in base units, no conversion display needed
+                                  {assignment.material?.unitType === "package" &&
+                                    assignment.material.packageQuantity &&
+                                    assignment.material.packageQuantity > 0 &&
+                                    (() => {
+                                      const assignedUnit = assignment.assignedUnit || "";
+                                      const isAssigningInBaseUnit = assignedUnit === assignment.material.baseUnit;
+                                      const isAssigningInPackageUnit = assignedUnit === assignment.material.inputUnit;
+
+                                      if (isAssigningInBaseUnit) {
+                                        // Already in base units, no conversion display needed
+                                        return null;
+                                      } else if (isAssigningInPackageUnit) {
+                                        // Convert package units to base units
+                                        const individualQty = assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * assignment.material.packageQuantity;
+                                        return (
+                                          <div className="text-xs text-muted-foreground">
+                                            ({formatNumber(individualQty)} {assignment.material.baseUnit})
+                                          </div>
+                                        );
+                                      }
                                       return null;
-                                    } else if (isAssigningInPackageUnit) {
-                                      // Convert package units to base units
-                                      const individualQty = assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * assignment.material.packageQuantity;
-                                      return (
-                                        <div className="text-xs text-muted-foreground">
-                                          ({formatNumber(individualQty)} {assignment.material.baseUnit})
-                                        </div>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
+                                    })()}
                                 </div>
                               )}
                             </TableCell>

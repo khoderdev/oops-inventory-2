@@ -6,7 +6,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { CreateSectionAssignmentData, Material, MenuItem, Section, SectionAssignment, StockEntry } from "@/types/inventory";
+import { CreateSectionAssignmentData, Material, MenuItem, Section, SectionAssignment, StockEntry, UpdateSectionAssignmentData } from "@/types/inventory";
 import { formatCurrency, formatNumber, convertMass, convertVolume, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,13 +21,13 @@ const assignmentSchema = z
     itemType: z.enum(["stockEntry", "menuItem"], { required_error: "Item type is required" }),
     stockEntryId: z.string().optional(),
     menuItemId: z.string().optional(),
-    assignedQuantity: z.number().min(0.0001, "Quantity must be positive").max(999999, "Quantity is too large").optional(),
+    assignedQuantity: z.number().optional(),
     assignedUnit: z.string().optional()
   })
   .refine(
     data => {
       if (data.itemType === "stockEntry") {
-        return data.stockEntryId && data.assignedQuantity && data.assignedUnit;
+        return data.stockEntryId && data.assignedQuantity && data.assignedQuantity > 0.0001 && data.assignedQuantity <= 999999 && data.assignedUnit;
       }
       if (data.itemType === "menuItem") {
         return data.menuItemId;
@@ -48,7 +48,7 @@ interface AssignmentFormProps {
   materials: Material[];
   menuItems: MenuItem[];
   assignment?: SectionAssignment;
-  onSubmit: (data: CreateSectionAssignmentData) => void | Promise<void>;
+  onSubmit: (data: CreateSectionAssignmentData | UpdateSectionAssignmentData) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
   selectedSectionId?: string;
@@ -56,7 +56,7 @@ interface AssignmentFormProps {
 
 export function AssignmentForm({ sections, stockEntries, materials, menuItems, assignment, onSubmit, onCancel, isLoading = false, selectedSectionId }: AssignmentFormProps) {
   const [formError, setFormError] = useState<string | null>(null);
-  
+
   const form = useForm<AssignmentFormData>({
     resolver: zodResolver(assignmentSchema),
     defaultValues: {
@@ -64,7 +64,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
       itemType: assignment?.itemType || "stockEntry",
       stockEntryId: assignment?.stockEntryId || "",
       menuItemId: assignment?.menuItemId || "",
-      assignedQuantity: assignment?.assignedQuantity || 0,
+      assignedQuantity: assignment?.assignedQuantity || undefined,
       assignedUnit: assignment?.assignedUnit || ""
     }
   });
@@ -94,57 +94,60 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
       itemType: assignment?.itemType || "stockEntry",
       stockEntryId: assignment?.stockEntryId || "",
       menuItemId: assignment?.menuItemId || "",
-      assignedQuantity: assignment?.assignedQuantity || 0,
+      assignedQuantity: assignment?.assignedQuantity || undefined,
       assignedUnit: assignment?.assignedUnit || ""
     });
   }, [assignment, selectedSectionId, form]);
 
   // Convert assigned quantity to same unit as available stock for comparison
-  const getConvertedQuantityForComparison = useCallback((assignedQty: number, assignedUnit: string, availableUnit: string): number => {
-    if (!assignedQty || !assignedUnit || !availableUnit || !material) return assignedQty;
-    
-    // If units are the same, no conversion needed
-    if (assignedUnit === availableUnit) return assignedQty;
-    
-    // Handle mass unit conversions
-    if (isMassUnit(assignedUnit) && isMassUnit(availableUnit)) {
-      return convertMass(assignedQty, assignedUnit, availableUnit);
-    }
-    
-    // Handle volume unit conversions
-    if (isVolumeUnit(assignedUnit) && isVolumeUnit(availableUnit)) {
-      return convertVolume(assignedQty, assignedUnit, availableUnit);
-    }
-    
-    // Handle package unit conversions
-    if (material?.unitType === "package" && material.packageQuantity) {
-      // If assigning in base unit but stock is in package unit
-      if (assignedUnit === material.baseUnit && availableUnit === material.inputUnit) {
-        return assignedQty / material.packageQuantity;
+  const getConvertedQuantityForComparison = useCallback(
+    (assignedQty: number, assignedUnit: string, availableUnit: string): number => {
+      if (!assignedQty || !assignedUnit || !availableUnit || !material) return assignedQty;
+
+      // If units are the same, no conversion needed
+      if (assignedUnit === availableUnit) return assignedQty;
+
+      // Handle mass unit conversions
+      if (isMassUnit(assignedUnit) && isMassUnit(availableUnit)) {
+        return convertMass(assignedQty, assignedUnit, availableUnit);
       }
-      // If assigning in package unit but stock is in base unit
-      if (assignedUnit === material.inputUnit && availableUnit === material.baseUnit) {
-        return assignedQty * material.packageQuantity;
+
+      // Handle volume unit conversions
+      if (isVolumeUnit(assignedUnit) && isVolumeUnit(availableUnit)) {
+        return convertVolume(assignedQty, assignedUnit, availableUnit);
       }
-    }
-    
-    // If no conversion possible, return original value
-    return assignedQty;
-  }, [material]);
+
+      // Handle package unit conversions
+      if (material?.unitType === "package" && material.packageQuantity) {
+        // If assigning in base unit but stock is in package unit
+        if (assignedUnit === material.baseUnit && availableUnit === material.inputUnit) {
+          return assignedQty / material.packageQuantity;
+        }
+        // If assigning in package unit but stock is in base unit
+        if (assignedUnit === material.inputUnit && availableUnit === material.baseUnit) {
+          return assignedQty * material.packageQuantity;
+        }
+      }
+
+      // If no conversion possible, return original value
+      return assignedQty;
+    },
+    [material]
+  );
 
   // Calculate estimated cost with proper unit conversion
   const estimatedCost = useMemo(() => {
     if (watchedItemType === "stockEntry") {
       if (!selectedStockEntry || !watchedQuantity || !watchedUnit) return 0;
-      
+
       const costPerUnit = selectedStockEntry.costPerPurchasedUnit || 0;
       const purchasedUnit = selectedStockEntry.purchasedUnit;
-      
+
       // If assigned unit is the same as purchased unit, simple multiplication
       if (watchedUnit === purchasedUnit) {
         return watchedQuantity * costPerUnit;
       }
-      
+
       // Convert assigned quantity to purchased unit for cost calculation
       const convertedQuantity = getConvertedQuantityForComparison(watchedQuantity, watchedUnit, purchasedUnit);
       return convertedQuantity * costPerUnit;
@@ -162,13 +165,11 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
   const availableQuantity = selectedStockEntry?.purchasedQuantity || 0;
   const availableIndividualQuantity = selectedStockEntry?.purchasedIndividualQuantity;
 
-  // Get converted quantity for validation
-  const convertedAssignedQuantity = watchedQuantity && watchedUnit && selectedStockEntry
-    ? getConvertedQuantityForComparison(watchedQuantity, watchedUnit, selectedStockEntry.purchasedUnit)
-    : watchedQuantity || 0;
+  // Get converted quantity for validation (only for stock entries)
+  const convertedAssignedQuantity = watchedItemType === "stockEntry" && watchedQuantity && watchedUnit && selectedStockEntry ? getConvertedQuantityForComparison(watchedQuantity, watchedUnit, selectedStockEntry.purchasedUnit) : watchedQuantity || 0;
 
-  // Check if assigned quantity exceeds available stock (after conversion)
-  const exceedsAvailableStock = convertedAssignedQuantity > 0 && availableQuantity > 0 && convertedAssignedQuantity > availableQuantity;
+  // Check if assigned quantity exceeds available stock (after conversion) - only for stock entries
+  const exceedsAvailableStock = watchedItemType === "stockEntry" && convertedAssignedQuantity > 0 && availableQuantity > 0 && convertedAssignedQuantity > availableQuantity;
 
   const handleSubmit = async (data: AssignmentFormData) => {
     if (isLoading) return;
@@ -178,38 +179,74 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
 
     // Validate that IDs are not temporary (optimistic update IDs)
     const isTemporaryId = (id: string | undefined) => {
-      return id && (id.startsWith('temp-') || id.includes('temp'));
+      return id && (id.startsWith("temp-") || id.includes("temp"));
     };
 
     if (data.itemType === "stockEntry") {
       if (isTemporaryId(data.stockEntryId)) {
-        const errorMsg = 'Cannot create assignment: Stock entry is not yet saved. Please wait for the stock entry to be created first.';
+        const errorMsg = "Cannot create assignment: Stock entry is not yet saved. Please wait for the stock entry to be created first.";
         setFormError(errorMsg);
-        console.error('Cannot submit assignment with temporary stock entry ID:', data.stockEntryId);
+        console.error("Cannot submit assignment with temporary stock entry ID:", data.stockEntryId);
         return;
       }
     } else if (data.itemType === "menuItem") {
       if (isTemporaryId(data.menuItemId)) {
-        const errorMsg = 'Cannot create assignment: Menu item is not yet saved. Please wait for the menu item to be created first.';
+        const errorMsg = "Cannot create assignment: Menu item is not yet saved. Please wait for the menu item to be created first.";
         setFormError(errorMsg);
-        console.error('Cannot submit assignment with temporary menu item ID:', data.menuItemId);
+        console.error("Cannot submit assignment with temporary menu item ID:", data.menuItemId);
         return;
       }
     }
 
-    // Add required fields that backend expects
-    const submissionData: CreateSectionAssignmentData = {
-      sectionId: data.sectionId,
-      itemType: data.itemType
-    };
+    // Create submission data based on whether we're editing or creating
+    let submissionData: CreateSectionAssignmentData | UpdateSectionAssignmentData;
 
-    if (data.itemType === "stockEntry") {
-      submissionData.materialId = selectedStockEntry?.materialId || "";
-      submissionData.stockEntryId = data.stockEntryId;
-      submissionData.assignedQuantity = data.assignedQuantity;
-      submissionData.assignedUnit = data.assignedUnit;
-    } else if (data.itemType === "menuItem") {
-      submissionData.menuItemId = data.menuItemId;
+    if (assignment) {
+      // Editing existing assignment - use UpdateSectionAssignmentData (all fields optional)
+      submissionData = {} as UpdateSectionAssignmentData;
+
+      // Only include fields that have changed or are set
+      if (data.sectionId !== assignment.sectionId) {
+        submissionData.sectionId = data.sectionId;
+      }
+      if (data.itemType !== assignment.itemType) {
+        submissionData.itemType = data.itemType;
+      }
+
+      if (data.itemType === "stockEntry") {
+        const newMaterialId = selectedStockEntry?.materialId || "";
+        if (newMaterialId !== assignment.materialId) {
+          submissionData.materialId = newMaterialId;
+        }
+        if (data.stockEntryId !== assignment.stockEntryId) {
+          submissionData.stockEntryId = data.stockEntryId;
+        }
+        if (data.assignedQuantity !== assignment.assignedQuantity) {
+          submissionData.assignedQuantity = data.assignedQuantity;
+        }
+        if (data.assignedUnit !== assignment.assignedUnit) {
+          submissionData.assignedUnit = data.assignedUnit;
+        }
+      } else if (data.itemType === "menuItem") {
+        if (data.menuItemId !== assignment.menuItemId) {
+          submissionData.menuItemId = data.menuItemId;
+        }
+      }
+    } else {
+      // Creating new assignment - use CreateSectionAssignmentData (required fields)
+      submissionData = {
+        sectionId: data.sectionId,
+        itemType: data.itemType
+      } as CreateSectionAssignmentData;
+
+      if (data.itemType === "stockEntry") {
+        submissionData.materialId = selectedStockEntry?.materialId || "";
+        submissionData.stockEntryId = data.stockEntryId;
+        submissionData.assignedQuantity = data.assignedQuantity;
+        submissionData.assignedUnit = data.assignedUnit;
+      } else if (data.itemType === "menuItem") {
+        submissionData.menuItemId = data.menuItemId;
+      }
     }
 
     await onSubmit(submissionData);
@@ -234,7 +271,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                 <AlertDescription>{formError}</AlertDescription>
               </Alert>
             )}
-            
+
             {/* Section and Item Type Selection */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <FormField
@@ -481,23 +518,23 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                       <span className="text-muted-foreground">Ingredients:</span>
                       <div className="font-medium">
                         {/* Use menuItemIngredients if available (has nested material data) */}
-                        {Array.isArray(selectedMenuItem.menuItemIngredients) && selectedMenuItem.menuItemIngredients.length > 0 ? (
-                          selectedMenuItem.menuItemIngredients.map((ingredient, index, array) => (
-                            <span key={index}>
-                              {ingredient.material?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < array.length - 1 ? ", " : ""}
-                            </span>
-                          ))
-                        ) : Array.isArray(selectedMenuItem.ingredients) ? (
-                          /* Fallback to ingredients array with material lookup */
-                          selectedMenuItem.ingredients.map((ingredient, index, array) => {
-                            const ingredientMaterial = materials.find(m => String(m.id) === String(ingredient.materialId));
-                            return (
+                        {Array.isArray(selectedMenuItem.menuItemIngredients) && selectedMenuItem.menuItemIngredients.length > 0
+                          ? selectedMenuItem.menuItemIngredients.map((ingredient, index, array) => (
                               <span key={index}>
-                                {ingredientMaterial?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < array.length - 1 ? ", " : ""}
+                                {ingredient.material?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < array.length - 1 ? ", " : ""}
                               </span>
-                            );
-                          })
-                        ) : null}
+                            ))
+                          : Array.isArray(selectedMenuItem.ingredients)
+                            ? /* Fallback to ingredients array with material lookup */
+                              selectedMenuItem.ingredients.map((ingredient, index, array) => {
+                                const ingredientMaterial = materials.find(m => String(m.id) === String(ingredient.materialId));
+                                return (
+                                  <span key={index}>
+                                    {ingredientMaterial?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < array.length - 1 ? ", " : ""}
+                                  </span>
+                                );
+                              })
+                            : null}
                       </div>
                     </div>
                   )}
@@ -547,22 +584,21 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                   name="assignedQuantity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">
-                        Quantity to Assign *
-                        {watchedUnit && (
-                          <span className="text-muted-foreground font-normal ml-1">({watchedUnit})</span>
-                        )}
-                      </FormLabel>
+                      <FormLabel className="text-sm font-medium">Quantity to Assign *{watchedUnit && <span className="text-muted-foreground font-normal ml-1">({watchedUnit})</span>}</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            type="number" 
-                            step="0.0001" 
-                            placeholder={watchedUnit ? `Enter amount in ${watchedUnit}` : "Select unit first"} 
-                            className="h-10 pr-12" 
-                            disabled={isLoading || !watchedUnit} 
-                            {...field} 
-                            onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                          <Input
+                            type="number"
+                            step="0.0001"
+                            placeholder={watchedUnit ? `Enter amount in ${watchedUnit}` : "Select unit first"}
+                            className="h-10 pr-12"
+                            disabled={isLoading || !watchedUnit}
+                            {...field}
+                            value={field.value || ""}
+                            onChange={e => {
+                              const value = e.target.value;
+                              field.onChange(value === "" ? undefined : parseFloat(value) || undefined);
+                            }}
                           />
                           {exceedsAvailableStock && <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-destructive" />}
                         </div>
@@ -580,11 +616,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                           </AlertDescription>
                         </Alert>
                       )}
-                      {!watchedUnit && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Please select a unit first to enable quantity input
-                        </p>
-                      )}
+                      {!watchedUnit && <p className="text-xs text-muted-foreground mt-1">Please select a unit first to enable quantity input</p>}
                       <FormMessage />
                     </FormItem>
                   )}

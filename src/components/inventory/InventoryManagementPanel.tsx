@@ -112,8 +112,12 @@ export function InventoryManagementPanel({
   const existingSectionNames = sections.map(section => section.name);
 
   // Handler to refresh sections data
-  const handleDataRefresh = () => {
-    fetchTabData('sections');
+  const handleDataRefresh = async () => {
+    try {
+      await fetchTabData('sections');
+    } catch (error) {
+      console.error('Failed to refresh data:', error);
+    }
   };
 
   return (
