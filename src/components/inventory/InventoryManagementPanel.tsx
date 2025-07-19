@@ -153,7 +153,7 @@ export function InventoryManagementPanel() {
         </TabsContent>
 
         <TabsContent value="menu" className="space-y-4">
-          <MenuItemBuilder materials={materialsWithStock} stockEntries={stockEntries} sections={sections} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
+          <MenuItemBuilder stockEntries={stockEntries} materials={filteredMaterials} sections={sections} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
         </TabsContent>
 
         <TabsContent value="conversions" className="space-y-4">

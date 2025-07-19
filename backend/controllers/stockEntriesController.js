@@ -1,14 +1,53 @@
 import { Material, StockEntry } from "../models/index.js";
+import sequelize from "../config/database.js";
 
 const stockEntriesController = {
   // Get all stock entries
   getAllStockEntries: async (req, res, next) => {
     try {
-      const stockEntries = await StockEntry.findAll({
-        include: { model: Material, as: "material" }
+      console.log('=== FETCHING ALL STOCK ENTRIES WITH CACHE BUSTING ===');
+      
+      // Force fresh query with raw SQL to bypass any caching
+      const rawStockEntries = await sequelize.query(`
+        SELECT 
+          se.*,
+          m.id as "material.id",
+          m.name as "material.name",
+          m."baseUnit" as "material.baseUnit",
+          m."unitType" as "material.unitType",
+          m."inputUnit" as "material.inputUnit",
+          m."costPerBaseUnit" as "material.costPerBaseUnit",
+          m."packageQuantity" as "material.packageQuantity",
+          m.category as "material.category",
+          m.description as "material.description"
+        FROM "stockEntries" se
+        LEFT JOIN materials m ON se."materialId" = m.id
+        ORDER BY se.id ASC
+      `, {
+        type: sequelize.QueryTypes.SELECT,
+        nest: true
       });
-      res.status(200).json(stockEntries);
+      
+      console.log(`Found ${rawStockEntries.length} stock entries via raw query`);
+      
+      // Log sample entry to verify fresh data
+      if (rawStockEntries.length > 0) {
+        const sampleEntry = rawStockEntries.find(entry => entry.id === 28) || rawStockEntries[0];
+        console.log('Sample FRESH stock entry data:', {
+          id: sampleEntry.id,
+          materialId: sampleEntry.materialId,
+          materialName: sampleEntry.material?.name,
+          purchasedQuantity: sampleEntry.purchasedQuantity,
+          purchasedUnit: sampleEntry.purchasedUnit,
+          purchasedIndividualQuantity: sampleEntry.purchasedIndividualQuantity,
+          purchasedIndividualUnit: sampleEntry.purchasedIndividualUnit,
+          updatedAt: sampleEntry.updatedAt
+        });
+      }
+      
+      res.status(200).json(rawStockEntries);
     } catch (error) {
+      console.error('Error fetching stock entries:', error);
       next(error);
     }
   },
@@ -54,7 +93,7 @@ const stockEntriesController = {
         return res.status(404).json({ error: "Material not found" });
       }
 
-      // Calculate individual quantities for package units
+      // Calculate individual quantities for package units and mass units
       let purchasedIndividualQuantity = purchasedQuantity;
       let purchasedIndividualUnit = purchasedUnit;
 
@@ -70,6 +109,30 @@ const stockEntriesController = {
           individualUnit: purchasedIndividualUnit,
           packageQuantityPerUnit: material.packageQuantity
         });
+      } else if (material.unitType === "mass") {
+        // For mass units, convert to base unit (grams)
+        const massConversions = {
+          kg: 1000,
+          g: 1,
+          lb: 453.592,
+          oz: 28.3495
+        };
+        
+        const conversionFactor = massConversions[purchasedUnit.toLowerCase()];
+        if (conversionFactor) {
+          purchasedIndividualQuantity = Math.round(purchasedQuantity * conversionFactor);
+          purchasedIndividualUnit = material.baseUnit; // Should be 'g' for mass units
+          
+          console.log(`Mass unit conversion for ${material.name}:`, {
+            originalQuantity: purchasedQuantity,
+            originalUnit: purchasedUnit,
+            individualQuantity: purchasedIndividualQuantity,
+            individualUnit: purchasedIndividualUnit,
+            conversionFactor: conversionFactor
+          });
+        } else {
+          console.warn(`Unknown mass unit: ${purchasedUnit} for material: ${material.name}`);
+        }
       }
 
       const stockEntry = await StockEntry.create({

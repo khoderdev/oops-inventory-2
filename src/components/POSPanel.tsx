@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CartItem, MenuItem, MenuItemSale, POSPanelProps, Section, SectionAssignment, SoldItem } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { AlertCircle, Check, Loader2, Minus, Package, Plus, RefreshCw, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { AlertCircle, Check, Loader2, Minus, Package, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
@@ -451,10 +451,6 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                 <Package className="h-5 w-5" />
                 Section Selection
               </div>
-              <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing} className="flex items-center gap-2">
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                {isRefreshing ? "Refreshing..." : "Refresh"}
-              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>

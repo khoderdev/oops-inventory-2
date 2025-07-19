@@ -267,6 +267,7 @@ export interface MenuItem {
   category: MenuItemCategory;
   price: number;
   ingredients: MenuItemIngredient[];
+  menuItemIngredients: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -311,7 +312,7 @@ export const UNIT_OPTIONS: Readonly<Record<UnitType, ReadonlyArray<string>>> = {
   mass: ["kg", "g", "lb", "oz"],
   volume: ["l", "ml", "gal", "fl oz"],
   piece: ["piece", "unit", "dozen"],
-  package: ["box", "pack", "case", "bottle"]
+  package: ["box", "pack", "case", "bottle", "piece"]
 };
 
 // Menu categories

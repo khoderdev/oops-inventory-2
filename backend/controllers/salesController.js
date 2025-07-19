@@ -1,4 +1,5 @@
 import sequelize from "../config/database.js";
+import { Op } from "sequelize";
 import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, StockEntry, Section } from "../models/index.js";
 
 const salesController = {
@@ -193,6 +194,117 @@ const salesController = {
         }
       }
 
+      // Process menu items and deduct ingredient quantities from stock entries
+      if (menuItems && menuItems.length > 0) {
+        for (const menuItemSale of menuItems) {
+          // Fetch the menu item with its ingredients
+          const menuItem = await MenuItem.findByPk(menuItemSale.menuItemId, {
+            include: [
+              {
+                model: MenuItemIngredient,
+                as: "menuItemIngredients",
+                include: [{ model: Material, as: "material" }]
+              }
+            ],
+            transaction
+          });
+
+          if (!menuItem) {
+            await transaction.rollback();
+            return res.status(400).json({ error: `Menu item ${menuItemSale.menuItemId} not found` });
+          }
+
+          console.log(`\n=== PROCESSING MENU ITEM SALE ===`);
+          console.log(`Menu Item: ${menuItem.name} x${menuItemSale.quantity}`);
+          console.log(`Ingredients to process: ${menuItem.menuItemIngredients.length}`);
+
+          // Process each ingredient in the menu item
+          for (const ingredient of menuItem.menuItemIngredients) {
+            const material = ingredient.material;
+            const totalIngredientQuantity = ingredient.quantity * menuItemSale.quantity; // Total needed for all sold menu items
+
+            console.log(`\n--- PROCESSING INGREDIENT ---`);
+            console.log(`Ingredient: ${material.name}`);
+            console.log(`Required per item: ${ingredient.quantity} ${ingredient.unit}`);
+            console.log(`Total needed for ${menuItemSale.quantity} items: ${totalIngredientQuantity} ${ingredient.unit}`);
+            console.log(`Material base unit: ${material.baseUnit}`);
+            console.log(`Material unit type: ${material.unitType}`);
+
+            // Find stock entries for this material (ordered by creation date - FIFO)
+            const stockEntries = await StockEntry.findAll({
+              where: {
+                materialId: material.id,
+                purchasedIndividualQuantity: {
+                  [Op.gt]: 0 // Only entries with available quantity
+                }
+              },
+              order: [['createdAt', 'ASC']], // FIFO - First In, First Out
+              transaction
+            });
+
+            if (stockEntries.length === 0) {
+              await transaction.rollback();
+              return res.status(400).json({
+                error: `No stock available for ingredient: ${material.name}`
+              });
+            }
+
+            // Calculate total available quantity in base units
+            const totalAvailableQuantity = stockEntries.reduce((sum, entry) => {
+              return sum + (entry.purchasedIndividualQuantity || 0);
+            }, 0);
+
+            // Convert ingredient quantity to base units if needed
+            let requiredQuantityInBaseUnits = totalIngredientQuantity;
+            if (ingredient.unit !== material.baseUnit) {
+              // Handle unit conversion (simplified - you may need more complex conversion logic)
+              if (material.unitType === "mass") {
+                if (ingredient.unit === "kg" && material.baseUnit === "g") {
+                  requiredQuantityInBaseUnits = totalIngredientQuantity * 1000;
+                } else if (ingredient.unit === "g" && material.baseUnit === "kg") {
+                  requiredQuantityInBaseUnits = totalIngredientQuantity / 1000;
+                }
+              }
+              // Add more conversion logic as needed
+            }
+
+            console.log(`Required quantity in base units (${material.baseUnit}): ${requiredQuantityInBaseUnits}`);
+            console.log(`Total available quantity: ${totalAvailableQuantity}`);
+
+            // Check if sufficient quantity is available
+            if (totalAvailableQuantity < requiredQuantityInBaseUnits) {
+              await transaction.rollback();
+              return res.status(400).json({
+                error: `Insufficient stock for ingredient: ${material.name}. Available: ${totalAvailableQuantity} ${material.baseUnit}, Required: ${requiredQuantityInBaseUnits} ${material.baseUnit}`
+              });
+            }
+
+            // Deduct quantities from stock entries using FIFO
+            let remainingToDeduct = requiredQuantityInBaseUnits;
+            for (const stockEntry of stockEntries) {
+              if (remainingToDeduct <= 0) break;
+
+              const availableInThisEntry = stockEntry.purchasedIndividualQuantity;
+              const deductFromThisEntry = Math.min(remainingToDeduct, availableInThisEntry);
+
+              console.log(`Deducting ${deductFromThisEntry} from stock entry ${stockEntry.id} (available: ${availableInThisEntry})`);
+
+              // Update stock entry
+              stockEntry.purchasedIndividualQuantity = Math.round(availableInThisEntry - deductFromThisEntry);
+              await stockEntry.save({ transaction });
+
+              remainingToDeduct -= deductFromThisEntry;
+
+              console.log(`Stock entry ${stockEntry.id} updated: ${availableInThisEntry} -> ${stockEntry.purchasedIndividualQuantity}`);
+            }
+
+            console.log(`Successfully deducted ${requiredQuantityInBaseUnits} ${material.baseUnit} of ${material.name}`);
+          }
+
+          console.log(`Completed processing menu item: ${menuItem.name}`);
+        }
+      }
+
       // Create the sale record
       const sale = await Sale.create(
         {
@@ -209,7 +321,37 @@ const salesController = {
       );
 
       await transaction.commit();
-      return res.status(201).json(sale);
+      
+      // Fetch updated stock entries AFTER transaction commit to ensure fresh data
+      console.log('\n=== FETCHING FRESH STOCK ENTRIES ===');
+      const updatedStockEntries = await StockEntry.findAll({
+        include: [
+          {
+            model: Material,
+            as: 'material'
+          }
+        ],
+        order: [['id', 'ASC']] // Order by ID for consistent ordering
+      });
+
+      console.log(`Fetched ${updatedStockEntries.length} fresh stock entries`);
+      
+      // Log a few sample entries to verify data
+      if (updatedStockEntries.length > 0) {
+        console.log('Sample updated stock entry:', {
+          id: updatedStockEntries[0].id,
+          materialId: updatedStockEntries[0].materialId,
+          purchasedIndividualQuantity: updatedStockEntries[0].purchasedIndividualQuantity,
+          updatedAt: updatedStockEntries[0].updatedAt
+        });
+      }
+      
+      // Return sale data with updated stock entries
+      return res.status(201).json({
+        sale: sale,
+        updatedStockEntries: updatedStockEntries,
+        message: 'Sale completed successfully with inventory deductions'
+      });
     } catch (error) {
       await transaction.rollback();
       next(error);

@@ -464,18 +464,28 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                       <div className="font-medium">{selectedMenuItem.description}</div>
                     </div>
                   )}
-                  {selectedMenuItem.ingredients && selectedMenuItem.ingredients.length > 0 && (
+                  {((selectedMenuItem.menuItemIngredients && selectedMenuItem.menuItemIngredients.length > 0) || (selectedMenuItem.ingredients && selectedMenuItem.ingredients.length > 0)) && (
                     <div className="sm:col-span-2 lg:col-span-3">
                       <span className="text-muted-foreground">Ingredients:</span>
                       <div className="font-medium">
-                        {selectedMenuItem.ingredients.map((ingredient, index) => {
-                          const ingredientMaterial = materials.find(m => String(m.id) === String(ingredient.materialId));
-                          return (
+                        {/* Use menuItemIngredients if available (has nested material data) */}
+                        {selectedMenuItem.menuItemIngredients && selectedMenuItem.menuItemIngredients.length > 0 ? (
+                          selectedMenuItem.menuItemIngredients.map((ingredient, index) => (
                             <span key={index}>
-                              {ingredientMaterial?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < selectedMenuItem.ingredients.length - 1 ? ", " : ""}
+                              {ingredient.material?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < selectedMenuItem.menuItemIngredients.length - 1 ? ", " : ""}
                             </span>
-                          );
-                        })}
+                          ))
+                        ) : (
+                          /* Fallback to ingredients array with material lookup */
+                          selectedMenuItem.ingredients.map((ingredient, index) => {
+                            const ingredientMaterial = materials.find(m => String(m.id) === String(ingredient.materialId));
+                            return (
+                              <span key={index}>
+                                {ingredientMaterial?.name || "Unknown"} ({formatNumber(ingredient.quantity)} {ingredient.unit}){index < selectedMenuItem.ingredients.length - 1 ? ", " : ""}
+                              </span>
+                            );
+                          })
+                        )}
                       </div>
                     </div>
                   )}

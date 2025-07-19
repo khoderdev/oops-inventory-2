@@ -10,7 +10,7 @@ import { useInventoryData } from "@/hooks/useInventoryData";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { CreateMaterialData, CreateStockEntryData, MaterialWithStock, MenuItem, UpdateMaterialData, UpdateStockEntryData } from "@/types/inventory";
 import { calculateMaterialInventory } from "@/utils/inventoryCalculations";
-import { BarChart3, FileText, Loader2, Package, RefreshCw } from "lucide-react";
+import { BarChart3, Loader2, Package, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export const InventoryManagementPage = () => {
@@ -20,25 +20,28 @@ export const InventoryManagementPage = () => {
   const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, createMenuItem, updateMenuItem, deleteMenuItem, createSection, updateSection, deleteSection, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
   // Optimistic updates for instant UI changes
   const { handleDeleteMaterial: optimisticDeleteMaterial } = useInventoryStore();
-  
+
   // Tab management and auto-refresh
   const [activeTab, setActiveTab] = useState("inventory");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   // Auto-refresh data when switching tabs
-  const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value);
-    // Refresh data when switching to POS or Dashboard tabs for real-time data
-    if (value === "pos" || value === "dashboard") {
-      const timeSinceLastRefresh = Date.now() - lastRefresh.getTime();
-      // Only refresh if it's been more than 30 seconds since last refresh
-      if (timeSinceLastRefresh > 30000) {
-        refetch();
-        setLastRefresh(new Date());
+  const handleTabChange = useCallback(
+    (value: string) => {
+      setActiveTab(value);
+      // Refresh data when switching to POS or Dashboard tabs for real-time data
+      if (value === "pos" || value === "dashboard") {
+        const timeSinceLastRefresh = Date.now() - lastRefresh.getTime();
+        // Only refresh if it's been more than 30 seconds since last refresh
+        if (timeSinceLastRefresh > 30000) {
+          refetch();
+          setLastRefresh(new Date());
+        }
       }
-    }
-  }, [refetch, lastRefresh]);
+    },
+    [refetch, lastRefresh]
+  );
 
   // Manual refresh function
   const handleManualRefresh = useCallback(async () => {
@@ -47,7 +50,7 @@ export const InventoryManagementPage = () => {
       await refetch();
       setLastRefresh(new Date());
     } catch (error) {
-      console.error('Failed to refresh data:', error);
+      console.error("Failed to refresh data:", error);
     } finally {
       setIsRefreshing(false);
     }
@@ -60,7 +63,7 @@ export const InventoryManagementPage = () => {
         refetch();
         setLastRefresh(new Date());
       }, 300000); // 5 minutes
-      
+
       return () => clearInterval(interval);
     }
   }, [activeTab, refetch]);
@@ -218,14 +221,7 @@ export const InventoryManagementPage = () => {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="">
         <TabsList className="grid w-full grid-cols-4 sticky top-0 bg-white !z-50">
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleManualRefresh}
-              disabled={isRefreshing || loading}
-              className="h-8 w-8 p-0"
-              title="Refresh all data"
-            >
+            <Button variant="ghost" size="sm" onClick={handleManualRefresh} disabled={isRefreshing || loading} className="h-8 w-8 p-0" title="Refresh all data">
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
             </Button>
           </div>
@@ -233,18 +229,18 @@ export const InventoryManagementPage = () => {
             <BarChart3 className="h-4 w-4" />
             POS
           </TabsTrigger>
-          <TabsTrigger value="dashboard" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          {/* <TabsTrigger value="dashboard" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <BarChart3 className="h-4 w-4" />
             Dashboard
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger value="inventory" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Package className="h-4 w-4" />
             Inventory
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          {/* <TabsTrigger value="reports" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <FileText className="h-4 w-4" />
             Reports
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="dashboard" className="p-4">
@@ -252,16 +248,7 @@ export const InventoryManagementPage = () => {
         </TabsContent>
 
         <TabsContent value="inventory" className="p-4">
-          <InventoryManagementPanel
-            onDeleteMaterial={handleDeleteMaterial}
-            onDeleteStockEntry={handleDeleteStockEntry}
-            onCreateMenuItem={handleCreateMenuItem}
-            onUpdateMenuItem={handleUpdateMenuItem}
-            onDeleteMenuItem={handleDeleteMenuItem}
-            onCreateSection={handleCreateSection}
-            onUpdateSection={handleUpdateSection}
-            onDeleteSection={handleDeleteSection}
-          />
+          <InventoryManagementPanel onDeleteMaterial={handleDeleteMaterial} onDeleteStockEntry={handleDeleteStockEntry} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} onCreateSection={handleCreateSection} onUpdateSection={handleUpdateSection} onDeleteSection={handleDeleteSection} />
         </TabsContent>
 
         <TabsContent value="pos" className="p-4">

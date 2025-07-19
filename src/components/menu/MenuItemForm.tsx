@@ -136,11 +136,15 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
   const handleMaterialSelect = useCallback(
     (materialId: string) => {
       setSelectedMaterialId(materialId);
-      const material = materials.find(m => m.id === materialId);
+      // Handle both string and number IDs for compatibility
+      const material = materials.find(m => m.id === materialId || String(m.id) === materialId);
       if (material) {
-        console.log('Selected material:', material.name, 'Base unit:', material.baseUnit);
+        console.log('Selected material full object:', material);
+        console.log('Material unitType:', material.unitType);
+        console.log('Material baseUnit:', material.baseUnit);
         setIngredientUnit(material.baseUnit);
       } else {
+        console.log('Material not found for ID:', materialId);
         setIngredientUnit("");
       }
     },
@@ -220,7 +224,10 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
               </TableHeader>
               <TableBody>
                 {ingredients.map((ingredient, index) => {
-                  const material = materials.find(m => m.id === String(ingredient.materialId));
+                  console.log('Looking for ingredient material:', ingredient.materialId, 'Type:', typeof ingredient.materialId);
+                  console.log('Available materials:', materials.map(m => ({ id: m.id, name: m.name, idType: typeof m.id })));
+                  const material = materials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
+                  console.log('Found material for ingredient:', material?.name || 'Unknown');
                   return (
                     <TableRow key={index}>
                       <TableCell>{material?.name || "Unknown"}</TableCell>

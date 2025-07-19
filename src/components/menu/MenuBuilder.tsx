@@ -13,6 +13,7 @@ import { MenuItemForm } from "./MenuItemForm";
 
 interface MenuItemBuilderProps {
   stockEntries: StockEntryWithMaterial[];
+  materials?: Material[];
   sections: Section[];
   menuItems: MenuItem[];
   onCreateMenuItem?: (data: MenuItem) => void;
@@ -20,21 +21,23 @@ interface MenuItemBuilderProps {
   onDeleteMenuItem?: (id: string) => void;
 }
 
-export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
-  console.log("MenuBuilder - Received stock entries:", stockEntries?.length || 0, stockEntries);
+export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
 
-  // Derive available materials from stock entries
+  // Use materials prop if available, otherwise derive from stock entries
   const availableMaterials = useMemo(() => {
+    if (materials && materials.length > 0) {
+      return materials;
+    }
+
+    // Fallback: derive from stock entries
     const materialMap = new Map<string, Material>();
     stockEntries.forEach(entry => {
       if (entry.material && entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
         materialMap.set(entry.material.id.toString(), entry.material);
       }
     });
-    const materialsArray = Array.from(materialMap.values());
-    console.log("MenuBuilder - Available materials from stock:", materialsArray.length, materialsArray);
-    return materialsArray;
-  }, [stockEntries]);
+    return Array.from(materialMap.values());
+  }, [materials, stockEntries]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showMenuItemForm, setShowMenuItemForm] = useState(false);
@@ -74,7 +77,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
       try {
         const ingredientsWithCosts = data.ingredients.map(ingredient => {
-          const material = availableMaterials.find(m => m.id === String(ingredient.materialId));
+          const material = availableMaterials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
           if (!material) throw new Error(`Material not found: ${ingredient.materialId}`);
           const costPerUnit = material.costPerBaseUnit || 0;
           const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece");
@@ -113,7 +116,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
       try {
         const ingredientsWithCosts = data.ingredients.map(ingredient => {
-          const material = availableMaterials.find(m => m.id === String(ingredient.materialId));
+          const material = availableMaterials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
           if (!material) throw new Error(`Material not found: ${ingredient.materialId}`);
           const costPerUnit = material.costPerBaseUnit || 0;
           const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece");
@@ -155,13 +158,20 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   const getMaterialName = useCallback(
     (id: string | number) => {
-      const material = availableMaterials.find(m => m.id === String(id));
+      const material = availableMaterials.find(m => m.id === String(id) || String(m.id) === String(id));
       return material?.name || "Unknown";
     },
     [availableMaterials]
   );
 
-  const handleCloseModal = useCallback(() => {
+  const handleCloseModal = useCallback((open: boolean) => {
+    if (!open) {
+      setShowMenuItemForm(false);
+      setEditingMenuItem(null);
+    }
+  }, []);
+
+  const handleCancel = useCallback(() => {
     setShowMenuItemForm(false);
     setEditingMenuItem(null);
   }, []);
@@ -188,18 +198,23 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Menu Items</CardTitle>
+            <Button
+              onClick={() => {
+                setEditingMenuItem(null);
+                setShowMenuItemForm(true);
+              }}
+              aria-label="Add new menu item"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Menu Item
+            </Button>
+            
             <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
-              <DialogTrigger asChild>
-                <Button onClick={() => setEditingMenuItem(null)} aria-label="Add new menu item">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Menu Item
-                </Button>
-              </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
                 <DialogHeader>
                   <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCloseModal} />
+                <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} />
               </DialogContent>
             </Dialog>
           </div>

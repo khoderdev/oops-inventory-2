@@ -51,29 +51,42 @@ export function StockEntriesTable({ stockEntries, materialsWithStock, searchTerm
                   <TableCell>{entry.supplier}</TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      <div className="font-medium">
-                        {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit}
-                      </div>
                       {(() => {
-                        // For package units, show individual quantity (e.g., 24 pieces)
-                        if (material?.unitType === "package" && entry.purchasedIndividualQuantity && entry.purchasedIndividualUnit) {
+                        // For mass units, show individual quantity as main (remaining after deductions)
+                        if (material?.unitType === "mass" && entry.purchasedIndividualQuantity && entry.purchasedIndividualUnit) {
                           return (
-                            <div className="text-sm text-muted-foreground">
-                              ({formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit})
+                            <>
+                              <div className="font-medium">
+                                {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                (from {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit})
+                              </div>
+                            </>
+                          );
+                        }
+                        // For package units, show individual quantity as main (remaining after deductions)
+                        else if (material?.unitType === "package" && entry.purchasedIndividualQuantity && entry.purchasedIndividualUnit) {
+                          return (
+                            <>
+                              <div className="font-medium">
+                                {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                (from {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit})
+                              </div>
+                            </>
+                          );
+                        }
+                        // Fallback: show original quantity
+                        else {
+                          return (
+                            <div className="font-medium">
+                              {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit}
                             </div>
                           );
                         }
-                        // For mass units, show converted quantity (e.g., 1500 g)
-                        else if (entry.purchasedConvertedQuantity && entry.purchasedConvertedUnit && 
-                                 entry.purchasedConvertedUnit !== entry.purchasedUnit) {
-                          return (
-                            <div className="text-sm text-muted-foreground">
-                              ({formatNumber(entry.purchasedConvertedQuantity)} {entry.purchasedConvertedUnit})
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
+                      })()} 
                     </div>
                   </TableCell>
                   <TableCell>
