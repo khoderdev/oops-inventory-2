@@ -23,7 +23,7 @@ export const InventoryManagementPage = () => {
   const { handleDeleteMaterial: optimisticDeleteMaterial } = useInventoryStore();
 
   // Tab management and auto-refresh
-  const [activeTab, setActiveTab] = useState("inventory");
+  const [activeTab, setActiveTab] = useState("pos");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
