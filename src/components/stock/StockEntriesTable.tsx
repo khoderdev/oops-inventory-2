@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MaterialWithStock, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { getDisplayQuantity } from "@/utils/inventoryCalculations";
 import { Edit, Trash2 } from "lucide-react";
 
 interface StockEntriesTableProps {
@@ -18,7 +17,6 @@ interface StockEntriesTableProps {
 
 export function StockEntriesTable({ stockEntries, materialsWithStock, searchTerm, onEditStockEntry, onDeleteStockEntry }: StockEntriesTableProps) {
   const filteredStockEntries = stockEntries.filter(entry => {
-    // Use the material property directly from the stock entry if available
     const materialName = entry.material?.name || materialsWithStock.find(m => m.id === entry.materialId)?.name;
 
     return !searchTerm || materialName?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -45,7 +43,6 @@ export function StockEntriesTable({ stockEntries, materialsWithStock, searchTerm
           </TableHeader>
           <TableBody>
             {filteredStockEntries.map(entry => {
-              // Use the material property directly from the stock entry if available
               const material = entry.material || materialsWithStock.find(m => m.id === entry.materialId);
 
               return (
@@ -68,11 +65,7 @@ export function StockEntriesTable({ stockEntries, materialsWithStock, searchTerm
                     <div className="flex items-center gap-2">
                       <div className="space-y-1">
                         <div>{entry.purchasedUnit}</div>
-                        {entry.purchasedConvertedUnit && (
-                          <div className="text-sm text-muted-foreground">
-                            {entry.purchasedConvertedUnit}
-                          </div>
-                        )}
+                        {entry.purchasedConvertedUnit && <div className="text-sm text-muted-foreground">{entry.purchasedConvertedUnit}</div>}
                       </div>
                       {material?.unitType === "package" && (
                         <Badge variant="outline" className="text-xs">
