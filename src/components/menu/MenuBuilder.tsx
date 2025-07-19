@@ -22,7 +22,6 @@ interface MenuItemBuilderProps {
 }
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
-
   // Use materials prop if available, otherwise derive from stock entries
   const availableMaterials = useMemo(() => {
     if (materials && materials.length > 0) {
@@ -208,7 +207,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               <Plus className="h-4 w-4 mr-2" />
               Add Menu Item
             </Button>
-            
+
             <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
                 <DialogHeader>
@@ -220,98 +219,100 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Ingredients</TableHead>
-                <TableHead>Cost</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Profit</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMenuItems.length > 0 ? (
-                filteredMenuItems.map(item => {
-                  const totalCost = calculateMenuItemCost(item.ingredients);
-                  const profit = item.price - totalCost;
-                  const profitMargin = item.price ? (profit / item.price) * 100 : 0;
-
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        <div>{item.name}</div>
-                        {item.description && <div className="text-sm text-muted-foreground">{item.description}</div>}
-                      </TableCell>
-                      <TableCell>{MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {item.ingredients.map((ingredient, idx) => (
-                            <div key={idx} className="text-sm">
-                              {formatNumber(ingredient.quantity)} {ingredient.unit} {getMaterialName(ingredient.materialId)}
-                            </div>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatCurrency(totalCost)}</TableCell>
-                      <TableCell>{formatCurrency(item.price)}</TableCell>
-                      <TableCell className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                        {formatCurrency(profit)} ({formatNumber(profitMargin)}%)
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingMenuItem(item);
-                              setShowMenuItemForm(true);
-                            }}
-                            aria-label={`Edit ${item.name}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                                <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              ) : (
+          <div className="w-full h-[calc(100vh-240px)] overflow-auto border rounded-md">
+            <Table className="min-w-full">
+              <TableHeader className="sticky top-0 bg-background z-10 border-b">
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      <Package className="h-12 w-12 text-muted-foreground" />
-                      <p className="text-lg font-medium">No menu items found</p>
-                      <p className="text-sm text-muted-foreground">{searchTerm ? "Try a different search term" : "Create your first menu item"}</p>
-                      <Button className="mt-4" onClick={() => setShowMenuItemForm(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Menu Item
-                      </Button>
-                    </div>
-                  </TableCell>
+                  <TableHead className="min-w-[200px]">Name</TableHead>
+                  <TableHead className="min-w-[150px]">Category</TableHead>
+                  <TableHead className="min-w-[200px]">Ingredients</TableHead>
+                  <TableHead className="min-w-[120px]">Cost</TableHead>
+                  <TableHead className="min-w-[120px]">Price</TableHead>
+                  <TableHead className="min-w-[120px]">Profit</TableHead>
+                  <TableHead className="text-right min-w-[160px]">Actions</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredMenuItems.length > 0 ? (
+                  filteredMenuItems.map(item => {
+                    const totalCost = calculateMenuItemCost(item.ingredients);
+                    const profit = item.price - totalCost;
+                    const profitMargin = item.price ? (profit / item.price) * 100 : 0;
+
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium min-w-[200px]">
+                          <div>{item.name}</div>
+                          {item.description && <div className="text-sm text-muted-foreground">{item.description}</div>}
+                        </TableCell>
+                        <TableCell className="min-w-[150px]">{MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}</TableCell>
+                        <TableCell className="min-w-[200px]">
+                          <div className="space-y-1">
+                            {item.ingredients.map((ingredient, idx) => (
+                              <div key={idx} className="text-sm">
+                                {formatNumber(ingredient.quantity)} {ingredient.unit} {getMaterialName(ingredient.materialId)}
+                              </div>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="min-w-[120px]">{formatCurrency(totalCost)}</TableCell>
+                        <TableCell className="min-w-[120px]">{formatCurrency(item.price)}</TableCell>
+                        <TableCell className={`min-w-[120px] ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {formatCurrency(profit)} ({formatNumber(profitMargin)}%)
+                        </TableCell>
+                        <TableCell className="text-right min-w-[160px]">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingMenuItem(item);
+                                setShowMenuItemForm(true);
+                              }}
+                              aria-label={`Edit ${item.name}`}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                                  <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <Package className="h-12 w-12 text-muted-foreground" />
+                        <p className="text-lg font-medium">No menu items found</p>
+                        <p className="text-sm text-muted-foreground">{searchTerm ? "Try a different search term" : "Create your first menu item"}</p>
+                        <Button className="mt-4" onClick={() => setShowMenuItemForm(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Menu Item
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -11,10 +11,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { MATERIAL_CATEGORIES, MaterialWithStock, MenuItem } from "@/types/inventory";
+import { MaterialWithStock, MenuItem } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { calculateCostForQuantity, getSuggestedUnits } from "@/utils/inventoryCalculations";
-import { Building2, Filter, Package, Plus, Search } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useState } from "react";
 import { MenuItemBuilder } from "../menu/MenuBuilder";
 import { SectionsManagementPanel } from "../sections/SectionsManagementPanel";
@@ -30,16 +30,7 @@ interface InventoryManagementPanelProps {
   onDeleteSection?: (id: string) => void;
 }
 
-export function InventoryManagementPanel({ 
-  onDeleteMaterial,
-  onDeleteStockEntry,
-  onCreateMenuItem,
-  onUpdateMenuItem,
-  onDeleteMenuItem,
-  onCreateSection,
-  onUpdateSection,
-  onDeleteSection 
-}: InventoryManagementPanelProps = {}) {
+export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps = {}) {
   const {
     materialsWithStock,
     filteredMaterials,
@@ -71,8 +62,6 @@ export function InventoryManagementPanel({
     handleMaterialSubmit,
     handleStockSubmit,
     handleEditMaterial,
-    handleDeleteStockEntry,
-    handleEditStockEntry,
     handleAddStock,
     handleDeleteMaterial,
     handleCreateMenuItem,
@@ -97,80 +86,22 @@ export function InventoryManagementPanel({
       setShowSectionForm(false);
       setSelectedSection(null);
     } catch (error) {
-      console.error('Failed to submit section:', error);
+      console.error("Failed to submit section:", error);
     }
-  };
-
-  // Handler for the main "Add Stock" button - clears selection states to ensure create mode
-  const handleMainAddStock = () => {
-    // Clear any previously selected material and stock entry to ensure create mode
-    setSelectedMaterial(null);
-    setSelectedStockEntry(null);
-    setShowStockForm(true);
   };
 
   const existingSectionNames = sections.map(section => section.name);
 
-  // Handler to refresh sections data
   const handleDataRefresh = async () => {
     try {
-      await fetchTabData('sections');
+      await fetchTabData("sections");
     } catch (error) {
-      console.error('Failed to refresh data:', error);
+      console.error("Failed to refresh data:", error);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <Card className="pt-6">
-        <CardContent>
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            {/* Filter Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1">
-              {/* Search Input */}
-              <div className="flex items-center space-x-2 min-w-0 flex-1 sm:flex-initial">
-                <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <Input placeholder="Search materials..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full sm:w-64 min-w-0" />
-              </div>
-
-              {/* Category Filter */}
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {MATERIAL_CATEGORIES.map(category => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Low Stock Filter */}
-              <Button variant={lowStockFilter ? "default" : "outline"} onClick={() => setLowStockFilter(!lowStockFilter)} className="w-full sm:w-auto whitespace-nowrap">
-                <Filter className="h-4 w-4 mr-2" />
-                Low Stock Only
-              </Button>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
-              <Button onClick={() => setShowMaterialForm(true)} className="w-full sm:w-auto whitespace-nowrap">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Material
-              </Button>
-              <Button variant="outline" onClick={handleMainAddStock} className="w-full sm:w-auto whitespace-nowrap">
-                <Package className="h-4 w-4 mr-2" />
-                Add Stock
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
@@ -196,23 +127,23 @@ export function InventoryManagementPanel({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="material" className="space-y-4">
+        <TabsContent value="material">
           <MaterialTable filteredMaterials={filteredMaterials} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
         </TabsContent>
 
-        <TabsContent value="stock" className="space-y-4">
-          <StockEntriesTable stockEntries={stockEntries} materialsWithStock={materialsWithStock} searchTerm={searchTerm} onEditStockEntry={handleEditStockEntry} onDeleteStockEntry={handleDeleteStockEntry} />
+        <TabsContent value="stock">
+          <StockEntriesTable />
         </TabsContent>
 
-        <TabsContent value="sections" className="space-y-4">
+        <TabsContent value="sections">
           <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
         </TabsContent>
 
-        <TabsContent value="menu" className="space-y-4">
+        <TabsContent value="menu">
           <MenuItemBuilder stockEntries={stockEntries} materials={filteredMaterials} sections={sections} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
         </TabsContent>
 
-        <TabsContent value="conversions" className="space-y-4">
+        <TabsContent value="conversions">
           <UnitConversionCalculator materials={materialsWithStock} />
         </TabsContent>
       </Tabs>
