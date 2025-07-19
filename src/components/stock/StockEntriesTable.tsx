@@ -53,25 +53,38 @@ export function StockEntriesTable({ stockEntries, materialsWithStock, searchTerm
                   <TableCell className="font-medium">{material?.name || `Unknown Material (ID: ${entry.materialId})`}</TableCell>
                   <TableCell>{entry.supplier}</TableCell>
                   <TableCell>
-                    {(() => {
-                      const displayQty = getDisplayQuantity(entry, material);
-                      return formatNumber(displayQty.quantity);
-                    })()}
+                    <div className="space-y-1">
+                      <div className="font-medium">
+                        {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit}
+                      </div>
+                      {entry.purchasedConvertedQuantity && entry.purchasedConvertedUnit && (
+                        <div className="text-sm text-muted-foreground">
+                          ({formatNumber(entry.purchasedConvertedQuantity)} {entry.purchasedConvertedUnit})
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    {(() => {
-                      const displayQty = getDisplayQuantity(entry, material);
-                      return (
-                        <div className="flex items-center gap-2">
-                          <span>{displayQty.unit}</span>
-                          {displayQty.isConverted && (
-                            <Badge variant="outline" className="text-xs">
-                              Package
-                            </Badge>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    <div className="flex items-center gap-2">
+                      <div className="space-y-1">
+                        <div>{entry.purchasedUnit}</div>
+                        {entry.purchasedConvertedUnit && (
+                          <div className="text-sm text-muted-foreground">
+                            {entry.purchasedConvertedUnit}
+                          </div>
+                        )}
+                      </div>
+                      {material?.unitType === "package" && (
+                        <Badge variant="outline" className="text-xs">
+                          Package
+                        </Badge>
+                      )}
+                      {material?.unitType === "mass" && entry.purchasedConvertedQuantity && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                          Converted
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {formatCurrency(entry.costPerPurchasedUnit)}

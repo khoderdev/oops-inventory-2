@@ -51,6 +51,8 @@ export interface StockEntry {
   purchasedUnit: string;
   purchasedIndividualQuantity?: number;
   purchasedIndividualUnit?: string;
+  purchasedConvertedQuantity?: number;
+  purchasedConvertedUnit?: string;
   costPerPurchasedUnit: number;
   totalCost: number;
   purchaseDate: Date;
@@ -72,6 +74,8 @@ export interface CreateStockEntryData {
   purchasedUnit: string;
   purchasedIndividualQuantity?: number;
   purchasedIndividualUnit?: string;
+  purchasedConvertedQuantity?: number;
+  purchasedConvertedUnit?: string;
   costPerPurchasedUnit: number;
   totalCost: number;
   purchaseDate: Date;
@@ -87,6 +91,8 @@ export interface UpdateStockEntryData {
   purchasedUnit?: string;
   purchasedIndividualQuantity?: number;
   purchasedIndividualUnit?: string;
+  purchasedConvertedQuantity?: number;
+  purchasedConvertedUnit?: string;
   costPerPurchasedUnit?: number;
   totalCost?: number;
   purchaseDate?: Date;
