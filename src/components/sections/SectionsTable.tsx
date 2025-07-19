@@ -209,8 +209,16 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
 
   const handleAddAssignment = useCallback(
     (sectionId: string) => {
+      console.log("SectionsTable: handleAddAssignment called", {
+        sectionId,
+        setSelectedSectionIdExists: !!setSelectedSectionId,
+        setShowAssignmentFormExists: !!setShowAssignmentForm
+      });
+      
       setSelectedSectionId(sectionId);
       setShowAssignmentForm(true);
+      
+      console.log("SectionsTable: Set selectedSectionId and showAssignmentForm");
     },
     [setSelectedSectionId, setShowAssignmentForm]
   );

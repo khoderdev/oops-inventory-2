@@ -32,6 +32,20 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
   const [detailModalItem, setDetailModalItem] = useState<{ type: "material" | "section" | "assignment" | "stock"; data: StockEntry | Section | SectionAssignment | MaterialWithSectionAssignments } | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
+  // Add logging for selectedSectionId changes
+  const loggedSetSelectedSectionId = useCallback((newValue: string) => {
+    const oldValue = selectedSectionId;
+    console.log("SectionsManagementPanel: selectedSectionId changing", {
+      from: oldValue,
+      to: newValue,
+      caller: new Error().stack?.split('\n')[2]?.trim() // Get caller info
+    });
+    setSelectedSectionId(newValue);
+  }, [selectedSectionId]);
+
+  // Replace all setSelectedSectionId calls with logged version
+  const setSelectedSectionIdWithLogging = loggedSetSelectedSectionId;
+
   // Optimistic state management
   const [optimisticSections, setOptimisticSections] = useState<Section[]>(sections);
   const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
@@ -280,17 +294,21 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         await onDataRefresh();
       }
 
-      // Force sync optimistic state with fresh props data
-      setTimeout(() => {
-        setOptimisticSections(sections);
-        setOptimisticAssignments(sectionAssignments);
-      }, 100);
+      // Force sync optimistic state with fresh props data and wait a bit longer
+      await new Promise(resolve => {
+        setTimeout(() => {
+          setOptimisticSections(sections);
+          setOptimisticAssignments(sectionAssignments);
+          resolve(void 0);
+        }, 150);
+      });
 
     } catch (error) {
       // Revert to current server state on error
       setOptimisticAssignments(sectionAssignments);
       showError("Failed to create assignment");
       console.error("Failed to create assignment:", error);
+      throw error; // Re-throw to handle in submission handler
     }
   };
 
@@ -320,17 +338,21 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         await onDataRefresh();
       }
 
-      // Force sync optimistic state with fresh props data
-      setTimeout(() => {
-        setOptimisticSections(sections);
-        setOptimisticAssignments(sectionAssignments);
-      }, 100);
+      // Force sync optimistic state with fresh props data and wait a bit longer
+      await new Promise(resolve => {
+        setTimeout(() => {
+          setOptimisticSections(sections);
+          setOptimisticAssignments(sectionAssignments);
+          resolve(void 0);
+        }, 150);
+      });
 
     } catch (error) {
       // Revert to current server state on error
       setOptimisticAssignments(sectionAssignments);
       showError("Failed to update assignment");
       console.error("Failed to update assignment:", error);
+      throw error; // Re-throw to handle in submission handler
     }
   };
 
@@ -351,11 +373,14 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         await onDataRefresh();
       }
 
-      // Force sync optimistic state with fresh props data
-      setTimeout(() => {
-        setOptimisticSections(sections);
-        setOptimisticAssignments(sectionAssignments);
-      }, 100);
+      // Force sync optimistic state with fresh props data and wait a bit longer
+      await new Promise(resolve => {
+        setTimeout(() => {
+          setOptimisticSections(sections);
+          setOptimisticAssignments(sectionAssignments);
+          resolve(void 0);
+        }, 150);
+      });
 
     } catch (error) {
       // Revert to current server state on error
@@ -381,21 +406,42 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         await handleCreateAssignment(data as CreateSectionAssignmentData);
       }
       
-      // Close form and clear states after successful submission
+      // Wait an additional moment to ensure DetailModal has updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Close form and clear states after successful submission and state sync
       setShowAssignmentForm(false);
       setEditingAssignment(undefined);
-      setSelectedSectionId("");
+      setSelectedSectionIdWithLogging("");
       
       // Additional cleanup - force refresh of form state
       setTimeout(() => {
         setEditingAssignment(undefined);
-      }, 100);
+      }, 50);
       
     } catch (error) {
       // Error handling is already done in individual handlers
       console.error("Assignment submission failed:", error);
+      // Don't close the form if there was an error
     }
   };
+
+  // Handler for adding assignment from DetailModal - sets both selectedSectionId and shows form
+  const handleAddAssignmentFromModal = useCallback((sectionId: string) => {
+    console.log("SectionsManagementPanel: handleAddAssignmentFromModal called with sectionId:", sectionId);
+    
+    const targetSection = sectionsWithAssignments.find(s => s.id === sectionId);
+    console.log("SectionsManagementPanel: Target section found:", {
+      sectionId,
+      sectionName: targetSection?.name,
+      sectionExists: !!targetSection
+    });
+
+    setSelectedSectionIdWithLogging(sectionId);
+    setShowAssignmentForm(true);
+    
+    console.log("SectionsManagementPanel: Set selectedSectionId and showAssignmentForm to true");
+  }, [sectionsWithAssignments]);
 
   return (
     <div className="space-y-6">
@@ -430,7 +476,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         setEditingSection={setEditingSection}
         setShowSectionForm={setShowSectionForm}
         handleDeleteSection={handleDeleteSection}
-        setSelectedSectionId={setSelectedSectionId}
+        setSelectedSectionId={setSelectedSectionIdWithLogging}
         setShowAssignmentForm={setShowAssignmentForm}
         setEditingAssignment={setEditingAssignment}
         handleDeleteAssignment={handleDeleteAssignment}
@@ -465,10 +511,17 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
       <Dialog
         open={showAssignmentForm}
         onOpenChange={open => {
+          console.log("SectionsManagementPanel: Assignment Form Dialog onOpenChange", {
+            open,
+            selectedSectionId,
+            editingAssignment: editingAssignment?.id
+          });
+          
           if (!open) {
+            console.log("SectionsManagementPanel: Closing Assignment Form Dialog");
             setShowAssignmentForm(false);
             setEditingAssignment(undefined);
-            setSelectedSectionId("");
+            setSelectedSectionIdWithLogging("");
           }
         }}
       >
@@ -482,9 +535,10 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
             selectedSectionId={selectedSectionId}
             onSubmit={handleAssignmentSubmit}
             onCancel={() => {
+              console.log("SectionsManagementPanel: Assignment Form cancelled");
               setShowAssignmentForm(false);
               setEditingAssignment(undefined);
-              setSelectedSectionId("");
+              setSelectedSectionIdWithLogging("");
             }}
           />
         </DialogContent>
@@ -501,6 +555,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
         materialsWithSectionAssignments={materialsWithSectionAssignments}
         sectionsWithAssignments={sectionsWithAssignments}
         onShowAssignmentForm={setShowAssignmentForm}
+        onAddAssignment={handleAddAssignmentFromModal}
         onEditAssignment={setEditingAssignment}
         onDeleteAssignment={handleDeleteAssignment}
       />

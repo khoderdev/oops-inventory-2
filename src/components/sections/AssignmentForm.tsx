@@ -11,7 +11,7 @@ import { formatCurrency, formatNumber, convertMass, convertVolume, isMassUnit, i
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, DollarSign, Info, Package } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -57,6 +57,83 @@ interface AssignmentFormProps {
 export function AssignmentForm({ sections, stockEntries, materials, menuItems, assignment, onSubmit, onCancel, isLoading = false, selectedSectionId }: AssignmentFormProps) {
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Use refs to track previous values and reduce excessive logging
+  const prevSelectedSectionIdRef = useRef<string | undefined>();
+  const prevAssignmentRef = useRef<string | undefined>();
+  const renderCountRef = useRef(0);
+
+  renderCountRef.current += 1;
+
+  // Only log when key values change
+  const shouldLog = 
+    prevSelectedSectionIdRef.current !== selectedSectionId || 
+    prevAssignmentRef.current !== assignment?.id ||
+    renderCountRef.current === 1; // Always log first render
+
+  if (shouldLog) {
+    console.log(`AssignmentForm: Render #${renderCountRef.current}`, {
+      selectedSectionId,
+      selectedSectionIdChanged: prevSelectedSectionIdRef.current !== selectedSectionId,
+      assignment: assignment?.id,
+      assignmentChanged: prevAssignmentRef.current !== assignment?.id,
+      sectionsCount: sections.length,
+      isEditing: !!assignment
+    });
+
+    prevSelectedSectionIdRef.current = selectedSectionId;
+    prevAssignmentRef.current = assignment?.id;
+  }
+
+  // Determine if we're adding a new assignment to a specific section
+  const isAddingToSelectedSection = Boolean(!assignment && selectedSectionId);
+  
+  if (shouldLog) {
+    console.log("AssignmentForm: Mode determined", {
+      isAddingToSelectedSection,
+      assignment: !!assignment,
+      selectedSectionId
+    });
+  }
+
+  // Filter sections based on whether we're adding to a specific section
+  const availableSections = useMemo(() => {
+    if (shouldLog) {
+      console.log("AssignmentForm: Filtering sections", {
+        totalSections: sections.length,
+        isAddingToSelectedSection,
+        selectedSectionId
+      });
+    }
+
+    if (isAddingToSelectedSection) {
+      // When adding to a selected section, only show that section
+      const filteredSections = sections.filter(section => section.id === selectedSectionId);
+      if (shouldLog) {
+        console.log("AssignmentForm: Filtered to selected section", {
+          filteredCount: filteredSections.length,
+          selectedSection: filteredSections[0]?.name
+        });
+      }
+      return filteredSections;
+    }
+    // When editing or no specific section, show all sections
+    if (shouldLog) {
+      console.log("AssignmentForm: Using all sections");
+    }
+    return sections;
+  }, [sections, isAddingToSelectedSection, selectedSectionId, shouldLog]);
+
+  // Get the selected section name for display
+  const selectedSection = sections.find(s => s.id === selectedSectionId);
+  
+  if (shouldLog) {
+    console.log("AssignmentForm: Selected section lookup", {
+      selectedSectionId,
+      selectedSection: selectedSection?.name,
+      foundSection: !!selectedSection
+    });
+  }
+
   const form = useForm<AssignmentFormData>({
     resolver: zodResolver(assignmentSchema),
     defaultValues: {
@@ -98,6 +175,32 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
       assignedUnit: assignment?.assignedUnit || ""
     });
   }, [assignment, selectedSectionId, form]);
+
+  // Ensure sectionId field is properly set when adding to a specific section
+  useEffect(() => {
+    if (isAddingToSelectedSection && selectedSectionId) {
+      const currentSectionId = form.getValues("sectionId");
+      if (shouldLog) {
+        console.log("AssignmentForm: useEffect - Checking sectionId field", {
+          isAddingToSelectedSection,
+          selectedSectionId,
+          currentSectionId,
+          needsUpdate: currentSectionId !== selectedSectionId
+        });
+      }
+      
+      if (currentSectionId !== selectedSectionId) {
+        if (shouldLog) {
+          console.log("AssignmentForm: Setting sectionId field value", {
+            from: currentSectionId,
+            to: selectedSectionId,
+            selectedSectionName: selectedSection?.name
+          });
+        }
+        form.setValue("sectionId", selectedSectionId);
+      }
+    }
+  }, [isAddingToSelectedSection, selectedSectionId, selectedSection, form, shouldLog]);
 
   // Convert assigned quantity to same unit as available stock for comparison
   const getConvertedQuantityForComparison = useCallback(
@@ -257,9 +360,36 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
       <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5" />
-          <CardTitle className="text-lg sm:text-xl">{assignment ? "Edit Assignment" : "Assign Stock to Section"}</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">
+            {assignment 
+              ? "Edit Assignment" 
+              : isAddingToSelectedSection && selectedSection
+                ? `Add Item to ${selectedSection.name}`
+                : "Assign Item to Section"
+            }
+          </CardTitle>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">{assignment ? "Update the assignment details below" : "Select an item type and specify details to assign to a section"}</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {assignment 
+            ? "Update the assignment details below" 
+            : isAddingToSelectedSection && selectedSection
+              ? `Select an item type and specify details to add to the "${selectedSection.name}" section`
+              : "Select an item type and specify details to assign to a section"
+          }
+        </p>
+        {isAddingToSelectedSection && selectedSection && (
+          <div className="mt-3">
+            <Badge variant="secondary" className="text-sm">
+              <Package className="h-3 w-3 mr-1" />
+              Adding to: {selectedSection.name}
+              {selectedSection.description && (
+                <span className="text-xs text-muted-foreground ml-1">
+                  • {selectedSection.description}
+                </span>
+              )}
+            </Badge>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -280,27 +410,51 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium">Target Section *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
-                      <FormControl>
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="Choose a section" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {sections.length === 0 ? (
-                          <div className="p-2 text-sm text-muted-foreground text-center">No sections available</div>
-                        ) : (
-                          sections.map(section => (
-                            <SelectItem key={section.id} value={section.id}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{section.name}</span>
-                                {section.description && <span className="text-xs text-muted-foreground truncate">{section.description}</span>}
-                              </div>
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                    {isAddingToSelectedSection && selectedSection ? (
+                      <div>
+                        <div className="h-10 px-3 py-2 border border-input rounded-md bg-muted flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">{selectedSection.name}</span>
+                            {selectedSection.description && (
+                              <span className="text-xs text-muted-foreground">{selectedSection.description}</span>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            Pre-selected
+                          </Badge>
+                        </div>
+                        <input type="hidden" {...field} value={selectedSectionId} />
+                      </div>
+                    ) : (
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
+                        <FormControl>
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Choose a section" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableSections.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground text-center">No sections available</div>
+                          ) : (
+                            availableSections.map(section => {
+                              return (
+                                <SelectItem key={section.id} value={section.id}>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{section.name}</span>
+                                    {section.description && <span className="text-xs text-muted-foreground truncate">{section.description}</span>}
+                                  </div>
+                                </SelectItem>
+                              );
+                            })
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {isAddingToSelectedSection && selectedSection && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Section is pre-selected. To assign to a different section, use the main sections table.
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

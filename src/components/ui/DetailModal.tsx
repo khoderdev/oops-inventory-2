@@ -6,7 +6,7 @@ import { Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAss
 import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
 import { AlertTriangle, Edit, Package, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 
 interface DetailModalProps {
   isOpen: boolean;
@@ -18,34 +18,74 @@ interface DetailModalProps {
   materialsWithSectionAssignments: MaterialWithSectionAssignments[];
   sectionsWithAssignments: SectionWithAssignments[];
   onShowAssignmentForm?: (show: boolean) => void;
+  onAddAssignment?: (sectionId: string) => void;
   onEditAssignment?: (assignment: SectionAssignment) => void;
   onDeleteAssignment?: (assignmentId: string) => void;
 }
 
-export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectionAssignments, sectionsWithAssignments, onShowAssignmentForm, onEditAssignment, onDeleteAssignment }: DetailModalProps) => {
+export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectionAssignments, sectionsWithAssignments, onShowAssignmentForm, onAddAssignment, onEditAssignment, onDeleteAssignment }: DetailModalProps) => {
   const [showAssignmentDetails, setShowAssignmentDetails] = useState(false);
   const [selectedSectionForAssignments, setSelectedSectionForAssignments] = useState<SectionWithAssignments | null>(null);
+  const [forceUpdateKey, setForceUpdateKey] = useState(0);
+  const [lastAssignmentCount, setLastAssignmentCount] = useState(0);
+  const [lastAssignmentDataHash, setLastAssignmentDataHash] = useState("");
 
-  // Force update when sectionsWithAssignments changes and modal is open for a section
-  useEffect(() => {
-    if (selectedItem && selectedItem.type === "section" && sectionsWithAssignments) {
-      // Find the updated section data
+  // Memoize the current section data to ensure we always have the latest version
+  const currentSectionData = useMemo(() => {
+    if (selectedItem && selectedItem.type === "section") {
       const currentSection = selectedItem.data as Section;
-      const updatedSection = sectionsWithAssignments.find(s => s.id === currentSection.id);
+      return sectionsWithAssignments.find(s => s.id === currentSection.id) || null;
+    }
+    return null;
+  }, [selectedItem, sectionsWithAssignments]);
 
-      // Debug: Log when section assignments are updated
-      if (updatedSection) {
-        console.log("DetailModal: Section assignments updated", {
+  // Create a hash of assignment data to detect deep changes
+  const createAssignmentDataHash = useCallback((assignments: SectionAssignment[]) => {
+    try {
+      const hashData = assignments.map(a => ({
+        id: a.id,
+        materialName: a.material?.name || a.menuItem?.name,
+        assignedQuantity: a.assignedQuantity,
+        assignedUnit: a.assignedUnit,
+        itemType: a.itemType
+      }));
+      return JSON.stringify(hashData);
+    } catch {
+      return `${assignments.length}-${Date.now()}`;
+    }
+  }, []);
+
+  // Enhanced state synchronization effect with deep change detection
+  useEffect(() => {
+    if (selectedItem && selectedItem.type === "section" && sectionsWithAssignments && isOpen && currentSectionData) {
+      const currentSection = selectedItem.data as Section;
+      const currentAssignmentCount = currentSectionData.assignments.length;
+      const currentAssignmentHash = createAssignmentDataHash(currentSectionData.assignments);
+      
+      // Detect when assignments have been added, removed, or changed
+      const countChanged = currentAssignmentCount !== lastAssignmentCount;
+      const dataChanged = currentAssignmentHash !== lastAssignmentDataHash;
+      
+      if (countChanged || dataChanged) {
+        console.log("DetailModal: Assignment data changed", {
           sectionId: currentSection.id,
-          assignmentCount: updatedSection.assignments.length,
-          assignments: updatedSection.assignments.map(a => ({
+          previousCount: lastAssignmentCount,
+          currentCount: currentAssignmentCount,
+          countChanged,
+          dataChanged,
+          assignments: currentSectionData.assignments.map(a => ({
             id: a.id,
-            materialName: a.material?.name,
+            materialName: a.material?.name || a.menuItem?.name,
             assignedQuantity: a.assignedQuantity,
             assignedUnit: a.assignedUnit,
+            itemType: a.itemType,
             updatedAt: a.updatedAt
           }))
         });
+
+        setLastAssignmentCount(currentAssignmentCount);
+        setLastAssignmentDataHash(currentAssignmentHash);
+        setForceUpdateKey(prev => prev + 1);
       }
 
       // If we have assignment details dialog open, update it too
@@ -56,7 +96,83 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
         }
       }
     }
-  }, [sectionsWithAssignments, selectedItem, showAssignmentDetails, selectedSectionForAssignments]);
+  }, [selectedItem, sectionsWithAssignments, isOpen, currentSectionData, lastAssignmentCount, lastAssignmentDataHash, showAssignmentDetails, selectedSectionForAssignments, createAssignmentDataHash]);
+
+  // Initialize assignment data when modal opens
+  useEffect(() => {
+    if (isOpen && selectedItem && selectedItem.type === "section" && currentSectionData) {
+      const initialCount = currentSectionData.assignments.length;
+      const initialHash = createAssignmentDataHash(currentSectionData.assignments);
+      
+      setLastAssignmentCount(initialCount);
+      setLastAssignmentDataHash(initialHash);
+      setForceUpdateKey(0);
+    } else if (!isOpen) {
+      // Reset states when modal closes
+      setForceUpdateKey(0);
+      setLastAssignmentCount(0);
+      setLastAssignmentDataHash("");
+    }
+  }, [isOpen, selectedItem, currentSectionData, createAssignmentDataHash]);
+
+  // Additional effect to detect prop changes and force updates with multiple intervals
+  useEffect(() => {
+    if (isOpen && selectedItem && selectedItem.type === "section") {
+      // Use multiple timeouts to catch async updates at different intervals
+      const timeouts = [50, 100, 200, 300].map(delay => 
+        setTimeout(() => {
+          setForceUpdateKey(prev => prev + 1);
+        }, delay)
+      );
+
+      return () => timeouts.forEach(clearTimeout);
+    }
+  }, [sectionsWithAssignments, isOpen, selectedItem]);
+
+  // Handler for adding new assignments with state sync
+  const handleAddAssignment = useCallback(() => {
+    const currentSection = selectedItem?.data as Section;
+    console.log("DetailModal: Add Assignment button clicked", {
+      sectionId: currentSection?.id,
+      sectionName: currentSection?.name,
+      onShowAssignmentFormExists: !!onShowAssignmentForm,
+      onAddAssignmentExists: !!onAddAssignment,
+      selectedItem: selectedItem
+    });
+    
+    if (onAddAssignment && currentSection?.id) {
+      console.log("DetailModal: Using onAddAssignment with sectionId:", currentSection.id);
+      onAddAssignment(currentSection.id);
+      setShowAssignmentDetails(false);
+      // Force update after a short delay to catch any state changes
+      setTimeout(() => setForceUpdateKey(prev => prev + 1), 50);
+    } else if (onShowAssignmentForm) {
+      console.log("DetailModal: Falling back to onShowAssignmentForm(true)");
+      onShowAssignmentForm(true);
+      setShowAssignmentDetails(false);
+      // Force update after a short delay to catch any state changes
+      setTimeout(() => setForceUpdateKey(prev => prev + 1), 50);
+    } else {
+      console.log("DetailModal: No assignment form callbacks available");
+    }
+  }, [onShowAssignmentForm, onAddAssignment, selectedItem]);
+
+  // Handler for deleting assignments with immediate UI update
+  const handleDeleteAssignment = useCallback((assignmentId: string) => {
+    if (onDeleteAssignment) {
+      onDeleteAssignment(assignmentId);
+      // Force immediate update
+      setForceUpdateKey(prev => prev + 1);
+      // Update assignment count and hash to reflect deletion
+      if (currentSectionData) {
+        const newCount = Math.max(0, currentSectionData.assignments.length - 1);
+        setLastAssignmentCount(newCount);
+        // Update hash for remaining assignments
+        const remainingAssignments = currentSectionData.assignments.filter(a => a.id !== assignmentId);
+        setLastAssignmentDataHash(createAssignmentDataHash(remainingAssignments));
+      }
+    }
+  }, [onDeleteAssignment, currentSectionData, createAssignmentDataHash]);
 
   if (!selectedItem) return null;
 
@@ -266,7 +382,8 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   };
 
   const renderSectionDetails = (section: Section) => {
-    const sectionWithAssignments = sectionsWithAssignments.find(s => s.id === section.id);
+    // Use the memoized current section data to ensure we have the latest assignments
+    const sectionWithAssignments = currentSectionData || sectionsWithAssignments.find(s => s.id === section.id);
 
     // Calculate correct section total value using proper unit conversion
     const calculateSectionTotalValue = () => {
@@ -334,7 +451,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
     const correctSectionTotalValue = calculateSectionTotalValue();
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" key={`section-${section.id}-${forceUpdateKey}`}>
         <div>
           <h3 className="text-lg font-semibold">{section.name}</h3>
           <p className="text-muted-foreground">{section.description}</p>
@@ -358,17 +475,12 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           <div>
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-medium">Assigned Items</h4>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setSelectedSectionForAssignments(sectionWithAssignments);
-                  setShowAssignmentDetails(true);
-                }}
-              >
-                <Package className="h-4 w-4 mr-2" />
-                View All Assignments
-              </Button>
+              {onShowAssignmentForm && (
+                <Button onClick={handleAddAssignment}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Assignment
+                </Button>
+              )}
             </div>
             <div className="space-y-2 mt-2">
               {sectionWithAssignments.assignments.map((assignment, index) => {
@@ -381,11 +493,14 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                     itemType = "stockEntry";
                   }
                 }
-
+                
+                // Use a more reliable key that includes the force update key
+                const assignmentKey = `${assignment.id}-${index}-${forceUpdateKey}`;
+                
                 // Menu Item Assignment
                 if (itemType === "menuItem" && assignment.menuItem) {
                   return (
-                    <div key={`${assignment.id}-${assignment.updatedAt?.getTime()}-menu`} className="group p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors relative">
+                    <div key={assignmentKey} className="group p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors relative">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
@@ -407,7 +522,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                           className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-100 hover:bg-red-200 text-red-600"
                           onClick={e => {
                             e.stopPropagation();
-                            onDeleteAssignment(assignment.id);
+                            handleDeleteAssignment(assignment.id);
                           }}
                         >
                           <Trash2 className="h-3 w-3" />
@@ -512,7 +627,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                   };
 
                   return (
-                    <div key={`${assignment.id}-${assignment.updatedAt?.getTime()}-${assignment.assignedQuantity}-${assignment.assignedUnit}`} className="group p-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors relative">
+                    <div key={assignmentKey} className="group p-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors relative">
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-lg text-green-900">{assignment.material?.name || assignment.stockEntry?.materialId || "Material"}</span>
@@ -534,7 +649,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                           className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-100 hover:bg-red-200 text-red-600"
                           onClick={e => {
                             e.stopPropagation();
-                            onDeleteAssignment(assignment.id);
+                            handleDeleteAssignment(assignment.id);
                           }}
                         >
                           <Trash2 className="h-3 w-3" />
@@ -544,7 +659,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                   );
                 }
                 return (
-                  <div key={`${assignment.id}-${assignment.updatedAt?.getTime()}-unknown`} className="group p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors relative">
+                  <div key={assignmentKey} className="group p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors relative">
                     <div className="text-sm text-gray-600">Unknown assignment type: {assignment.itemType || "undefined"}</div>
                     {onDeleteAssignment && (
                       <Button
@@ -553,7 +668,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                         className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-100 hover:bg-red-200 text-red-600"
                         onClick={e => {
                           e.stopPropagation();
-                          onDeleteAssignment(assignment.id);
+                          handleDeleteAssignment(assignment.id);
                         }}
                       >
                         <Trash2 className="h-3 w-3" />
@@ -701,272 +816,6 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           {selectedItem.type === "assignment" && renderAssignmentDetails(selectedItem.data as SectionAssignment & { stockEntry?: StockEntry; material?: Material; menuItem?: MenuItem })}
         </div>
       </DialogContent>
-
-      {/* Assignment Details Dialog */}
-      <Dialog open={showAssignmentDetails} onOpenChange={setShowAssignmentDetails}>
-        <DialogContent className="w-[95vw] max-w-[900px] max-h-[90vh] overflow-y-auto p-6">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="text-lg font-semibold flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              {selectedSectionForAssignments?.name} Inventory
-            </DialogTitle>
-            <p className="text-sm text-muted-foreground mt-1">{selectedSectionForAssignments?.assignments.length || 0} items assigned to this section</p>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {selectedSectionForAssignments?.assignments.length === 0 ? (
-              <div className="text-center py-12 px-4">
-                <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No assignments found</h3>
-                <p className="text-muted-foreground mb-4">Assign materials to this section to start tracking inventory.</p>
-                {onShowAssignmentForm && (
-                  <Button
-                    onClick={() => {
-                      onShowAssignmentForm(true);
-                      setShowAssignmentDetails(false);
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Assignment
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center">
-                  <div className="text-sm text-muted-foreground">
-                    Total Value:{" "}
-                    <span className="font-semibold text-foreground">
-                      {formatCurrency(
-                        (() => {
-                          if (!selectedSectionForAssignments?.assignments) return 0;
-
-                          let totalValue = 0;
-
-                          selectedSectionForAssignments.assignments.forEach(assignment => {
-                            // Handle menu item assignments
-                            if (assignment.itemType === "menuItem" && assignment.menuItem) {
-                              totalValue += assignment.menuItem.price || 0;
-                              return;
-                            }
-
-                            // Handle material assignments
-                            if (!assignment.stockEntry || !assignment.assignedQuantity) return;
-
-                            // Try multiple cost fields
-                            let costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
-
-                            // If costPerPurchasedUnit is 0, try alternative cost calculation
-                            if (costPerUnit === 0 && assignment.stockEntry.totalCost && assignment.stockEntry.purchasedQuantity) {
-                              costPerUnit = assignment.stockEntry.totalCost / assignment.stockEntry.purchasedQuantity;
-                            }
-
-                            const assignedUnit = assignment.assignedUnit || "";
-                            const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
-                            const assignedQuantity = assignment.assignedQuantity;
-
-                            // If units are the same, simple multiplication
-                            if (assignedUnit === purchasedUnit) {
-                              totalValue += assignedQuantity * costPerUnit;
-                              return;
-                            }
-
-                            // Convert assigned quantity to purchased unit for cost calculation
-                            let convertedQuantity = assignedQuantity;
-
-                            // Handle mass unit conversions
-                            if (isMassUnit(assignedUnit) && isMassUnit(purchasedUnit)) {
-                              convertedQuantity = convertMass(assignedQuantity, assignedUnit, purchasedUnit);
-                            }
-                            // Handle volume unit conversions
-                            else if (isVolumeUnit(assignedUnit) && isVolumeUnit(purchasedUnit)) {
-                              convertedQuantity = convertVolume(assignedQuantity, assignedUnit, purchasedUnit);
-                            }
-                            // Handle package unit conversions
-                            else if (assignment.material?.unitType === "package" && assignment.material.packageQuantity) {
-                              // If assigning in base unit but stock is in package unit
-                              if (assignedUnit === assignment.material.baseUnit && purchasedUnit === assignment.material.inputUnit) {
-                                convertedQuantity = assignedQuantity / assignment.material.packageQuantity;
-                              }
-                              // If assigning in package unit but stock is in base unit
-                              else if (assignedUnit === assignment.material.inputUnit && purchasedUnit === assignment.material.baseUnit) {
-                                convertedQuantity = assignedQuantity * assignment.material.packageQuantity;
-                              }
-                            }
-
-                            totalValue += convertedQuantity * costPerUnit;
-                          });
-
-                          return totalValue;
-                        })()
-                      )}
-                    </span>
-                  </div>
-                  {onShowAssignmentForm && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        onShowAssignmentForm(true);
-                        setShowAssignmentDetails(false);
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Assignment
-                    </Button>
-                  )}
-                </div>
-
-                <ScrollArea className="h-[400px] rounded-md border">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow>
-                        <TableHead className="w-[200px] sm:w-[300px]">Material</TableHead>
-                        <TableHead className="w-[150px] sm:w-[200px]">Quantity</TableHead>
-                        <TableHead className="w-[120px] text-right">Value</TableHead>
-                        <TableHead className="w-[120px] text-center">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedSectionForAssignments?.assignments.map(assignment => {
-                        // Determine itemType if it's not set
-                        let itemType = assignment.itemType;
-                        if (!itemType) {
-                          if (assignment.menuItemId && assignment.menuItem?.id) {
-                            itemType = "menuItem";
-                          } else if (assignment.materialId && (assignment.material?.id || assignment.stockEntry?.id)) {
-                            itemType = "stockEntry";
-                          }
-                        }
-
-                        // Calculate assignment value with proper unit conversion
-                        const calculateAssignmentValue = () => {
-                          if (itemType === "menuItem") {
-                            return assignment.menuItem?.price || 0;
-                          }
-
-                          if (!assignment.stockEntry || !assignment.assignedQuantity) return 0;
-
-                          const costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
-                          const assignedUnit = assignment.assignedUnit || "";
-                          const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
-                          const assignedQuantity = assignment.assignedQuantity;
-
-                          // If units are the same, simple multiplication
-                          if (assignedUnit === purchasedUnit) {
-                            return assignedQuantity * costPerUnit;
-                          }
-
-                          // Convert assigned quantity to purchased unit for cost calculation
-                          let convertedQuantity = assignedQuantity;
-
-                          // Handle mass unit conversions
-                          if (isMassUnit(assignedUnit) && isMassUnit(purchasedUnit)) {
-                            convertedQuantity = convertMass(assignedQuantity, assignedUnit, purchasedUnit);
-                          }
-                          // Handle volume unit conversions
-                          else if (isVolumeUnit(assignedUnit) && isVolumeUnit(purchasedUnit)) {
-                            convertedQuantity = convertVolume(assignedQuantity, assignedUnit, purchasedUnit);
-                          }
-                          // Handle package unit conversions
-                          else if (assignment.material?.unitType === "package" && assignment.material.packageQuantity) {
-                            // If assigning in base unit but stock is in package unit
-                            if (assignedUnit === assignment.material.baseUnit && purchasedUnit === assignment.material.inputUnit) {
-                              convertedQuantity = assignedQuantity / assignment.material.packageQuantity;
-                            }
-                            // If assigning in package unit but stock is in base unit
-                            else if (assignedUnit === assignment.material.inputUnit && purchasedUnit === assignment.material.baseUnit) {
-                              convertedQuantity = assignedQuantity * assignment.material.packageQuantity;
-                            }
-                          }
-
-                          return convertedQuantity * costPerUnit;
-                        };
-
-                        const assignmentValue = calculateAssignmentValue();
-
-                        return (
-                          <TableRow key={`${assignment.id}-${assignment.updatedAt?.getTime()}-${assignment.assignedQuantity}-${assignment.assignedUnit}-${assignment.itemType}`} className="hover:bg-muted/50">
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <div className="font-medium truncate">{itemType === "menuItem" ? assignment.menuItem?.name : assignment.material?.name || "Unknown"}</div>
-                                  <div className="text-sm text-muted-foreground truncate">{itemType === "menuItem" ? assignment.menuItem?.category : assignment.material?.category || "Material"}</div>
-                                </div>
-                                <div className="flex gap-1">
-                                  {itemType === "menuItem" && <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">Menu</span>}
-                                  {itemType === "stockEntry" && <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Material</span>}
-                                  {assignment.material?.unitType === "package" && <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">Package</span>}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {itemType === "menuItem" ? (
-                                <div className="text-sm">1 item</div>
-                              ) : (
-                                <div className="text-sm">
-                                  <div>
-                                    {formatNumber(assignment.assignedQuantity || 0)} {assignment.assignedUnit}
-                                  </div>
-                                  {assignment.material?.unitType === "package" &&
-                                    assignment.material.packageQuantity &&
-                                    assignment.material.packageQuantity > 0 &&
-                                    (() => {
-                                      const assignedUnit = assignment.assignedUnit || "";
-                                      const isAssigningInBaseUnit = assignedUnit === assignment.material.baseUnit;
-                                      const isAssigningInPackageUnit = assignedUnit === assignment.material.inputUnit;
-
-                                      if (isAssigningInBaseUnit) {
-                                        // Already in base units, no conversion display needed
-                                        return null;
-                                      } else if (isAssigningInPackageUnit) {
-                                        // Convert package units to base units
-                                        const individualQty = assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * assignment.material.packageQuantity;
-                                        return (
-                                          <div className="text-xs text-muted-foreground">
-                                            ({formatNumber(individualQty)} {assignment.material.baseUnit})
-                                          </div>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right font-mono">{formatCurrency(assignmentValue)}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center justify-center gap-1">
-                                {onEditAssignment && onShowAssignmentForm && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      onEditAssignment(assignment);
-                                      onShowAssignmentForm(true);
-                                      setShowAssignmentDetails(false);
-                                    }}
-                                    className="h-8 w-8 p-0 hover:bg-muted"
-                                  >
-                                    <Edit className="h-3 w-3" />
-                                  </Button>
-                                )}
-                                {onDeleteAssignment && (
-                                  <Button size="sm" variant="ghost" onClick={() => onDeleteAssignment(assignment.id)} className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive">
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </Dialog>
   );
 };
