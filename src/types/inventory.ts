@@ -49,7 +49,7 @@ export interface StockEntry {
   supplier: string;
   purchasedQuantity: number;
   purchasedUnit: string;
-  purchasedIndividualQuantity?: number; // Integer - whole number of individual units (bottles, pieces)
+  purchasedIndividualQuantity?: number;
   purchasedIndividualUnit?: string;
   costPerPurchasedUnit: number;
   totalCost: number;

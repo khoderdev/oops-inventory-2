@@ -2,7 +2,7 @@ import { activeTabAtom, categoryFilterAtom, filteredMaterialsAtom, lowStockFilte
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 
-import { createMaterialAction, createStockEntryAction, deleteMaterialAction, fetchTabDataAction, updateMaterialAction } from "@/store/inventoryActions";
+import { createMaterialAction, createStockEntryAction, deleteMaterialAction, deleteStockEntryAction, fetchTabDataAction, updateMaterialAction, updateStockEntryAction } from "@/store/inventoryActions";
 import { MaterialCategory, MaterialWithStock, StockEntry, UnitType } from "@/types/inventory";
 
 // Form data interface
@@ -45,6 +45,8 @@ export function useInventoryStore() {
   const updateMaterial = useSetAtom(updateMaterialAction);
   const deleteMaterial = useSetAtom(deleteMaterialAction);
   const createStockEntry = useSetAtom(createStockEntryAction);
+  const updateStockEntry = useSetAtom(updateStockEntryAction);
+  const deleteStockEntry = useSetAtom(deleteStockEntryAction);
 
   // Initialize data loading on mount and when active tab changes
   useEffect(() => {
@@ -101,7 +103,7 @@ export function useInventoryStore() {
     async (data: StockEntry) => {
       try {
         if (selectedStockEntry) {
-          // await updateStockEntry({ id: selectedStockEntry.id, data });
+          await updateStockEntry({ id: selectedStockEntry.id, data });
         } else {
           await createStockEntry(data);
         }
@@ -112,7 +114,7 @@ export function useInventoryStore() {
         // Error is already handled in the action
       }
     },
-    [selectedStockEntry, createStockEntry, setShowStockFormTyped, setSelectedStockEntryTyped]
+    [selectedStockEntry, createStockEntry, updateStockEntry, setShowStockFormTyped, setSelectedStockEntryTyped]
   );
 
   const handleEditMaterial = useCallback(
@@ -152,6 +154,18 @@ export function useInventoryStore() {
     [deleteMaterial]
   );
 
+  const handleDeleteStockEntry = useCallback(
+    async (id: string) => {
+      try {
+        await deleteStockEntry(id);
+      } catch (error) {
+        console.error('Failed to delete stock entry:', error);
+        // Error handling is already done in the action
+      }
+    },
+    [deleteStockEntry]
+  );
+
   return {
     materialsWithStock,
     filteredMaterials,
@@ -184,6 +198,7 @@ export function useInventoryStore() {
     handleEditStockEntry,
     handleAddStock,
     handleDeleteMaterial,
+    handleDeleteStockEntry,
     fetchTabData
   };
 }

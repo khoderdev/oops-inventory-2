@@ -18,10 +18,37 @@ import { z } from "zod";
 const stockSchema = z.object({
   materialId: z.string().min(1, "Material is required"),
   supplier: z.string().min(1, "Supplier is required"),
-  purchasedQuantity: z.number().min(0.0001, "Quantity must be positive"),
+  purchasedQuantity: z
+    .union([
+      z.number(),
+      z.string().transform(val => {
+        const num = parseFloat(val);
+        if (isNaN(num)) throw new Error("Invalid number");
+        return num;
+      })
+    ])
+    .refine(val => val > 0.0001, "Quantity must be positive"),
   purchasedUnit: z.string().min(1, "Unit is required"),
-  costPerPurchasedUnit: z.number().min(0, "Cost must be positive"),
-  totalCost: z.number().min(0, "Total cost must be positive"),
+  costPerPurchasedUnit: z
+    .union([
+      z.number(),
+      z.string().transform(val => {
+        const num = parseFloat(val);
+        if (isNaN(num)) throw new Error("Invalid number");
+        return num;
+      })
+    ])
+    .refine(val => val >= 0, "Cost must be positive"),
+  totalCost: z
+    .union([
+      z.number(),
+      z.string().transform(val => {
+        const num = parseFloat(val);
+        if (isNaN(num)) throw new Error("Invalid number");
+        return num;
+      })
+    ])
+    .refine(val => val >= 0, "Total cost must be positive"),
   purchaseDate: z.date(),
   expiryDate: z.date().optional(),
   batchNumber: z.string().optional(),
@@ -29,6 +56,20 @@ const stockSchema = z.object({
 });
 
 type StockFormData = z.infer<typeof stockSchema>;
+
+// Form interface with string types for inputs
+interface StockFormInputs {
+  materialId: string;
+  supplier: string;
+  purchasedQuantity: string;
+  purchasedUnit: string;
+  costPerPurchasedUnit: string;
+  totalCost: string;
+  purchaseDate: Date;
+  expiryDate?: Date;
+  batchNumber?: string;
+  notes?: string;
+}
 
 interface StockFormProps {
   materials: MaterialWithStock[];
@@ -39,15 +80,15 @@ interface StockFormProps {
 }
 
 export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit, onCancel }: StockFormProps) {
-  const form = useForm<StockFormData>({
+  const form = useForm<StockFormInputs>({
     resolver: zodResolver(stockSchema),
     defaultValues: {
       materialId: stockEntry?.materialId || selectedMaterialId || "",
       supplier: stockEntry?.supplier || "",
-      purchasedQuantity: stockEntry?.purchasedQuantity || 0,
+      purchasedQuantity: stockEntry?.purchasedQuantity?.toString() || "0",
       purchasedUnit: stockEntry?.purchasedUnit || "",
-      costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit || 0,
-      totalCost: stockEntry?.totalCost || 0,
+      costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "0",
+      totalCost: stockEntry?.totalCost?.toString() || "0",
       purchaseDate: stockEntry?.purchaseDate || new Date(),
       expiryDate: stockEntry?.expiryDate,
       batchNumber: stockEntry?.batchNumber || "",
@@ -77,6 +118,24 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       })()
     : [];
 
+  // Reset form values when stockEntry changes (for editing)
+  React.useEffect(() => {
+    if (stockEntry) {
+      form.reset({
+        materialId: stockEntry.materialId || "",
+        supplier: stockEntry.supplier || "",
+        purchasedQuantity: stockEntry.purchasedQuantity?.toString() || "0",
+        purchasedUnit: stockEntry.purchasedUnit || "",
+        costPerPurchasedUnit: stockEntry.costPerPurchasedUnit?.toString() || "0",
+        totalCost: stockEntry.totalCost?.toString() || "0",
+        purchaseDate: stockEntry.purchaseDate || new Date(),
+        expiryDate: stockEntry.expiryDate,
+        batchNumber: stockEntry.batchNumber || "",
+        notes: stockEntry.notes || ""
+      });
+    }
+  }, [stockEntry, form]);
+
   // Auto-select inputUnit for package materials and auto-populate cost
   React.useEffect(() => {
     if (selectedMaterial && selectedMaterial.unitType === "package" && selectedMaterial.inputUnit) {
@@ -94,7 +153,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       const currentCostPerUnit = form.getValues("costPerPurchasedUnit");
 
       // Only set if the field is empty or zero
-      if (currentCostPerUnit === 0) {
+      const numericCurrentCost = typeof currentCostPerUnit === "string" ? parseFloat(currentCostPerUnit) : currentCostPerUnit;
+      if (numericCurrentCost === 0 || isNaN(numericCurrentCost)) {
         let suggestedCost = 0;
 
         if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit && selectedMaterial.packageQuantity) {
@@ -135,7 +195,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
           // Round to 4 decimal places for precision
           const finalCost = parseFloat(suggestedCost.toFixed(4));
 
-          form.setValue("costPerPurchasedUnit", finalCost);
+          form.setValue("costPerPurchasedUnit", finalCost.toString());
         }
       }
     }
@@ -144,8 +204,13 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   // Auto-calculate total cost
   React.useEffect(() => {
     if (watchedQuantity && watchedCostPerUnit) {
-      const totalCost = watchedQuantity * watchedCostPerUnit;
-      form.setValue("totalCost", parseFloat(totalCost.toFixed(4)));
+      const numQuantity = typeof watchedQuantity === "string" ? parseFloat(watchedQuantity) : watchedQuantity;
+      const numCostPerUnit = typeof watchedCostPerUnit === "string" ? parseFloat(watchedCostPerUnit) : watchedCostPerUnit;
+
+      if (!isNaN(numQuantity) && !isNaN(numCostPerUnit)) {
+        const totalCost = numQuantity * numCostPerUnit;
+        form.setValue("totalCost", parseFloat(totalCost.toFixed(4)).toString());
+      }
     }
   }, [watchedQuantity, watchedCostPerUnit, form]);
 
@@ -169,8 +234,10 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
     };
   }, []);
 
-  const handleSubmit = (data: StockFormData) => {
-    onSubmit(data);
+  const handleSubmit = (data: StockFormInputs) => {
+    // The zodResolver will transform the string inputs to numbers
+    // and the result will match StockFormData type
+    onSubmit(data as unknown as StockFormData);
   };
 
   return (
@@ -185,7 +252,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Material</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select material" />
@@ -229,7 +296,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                   <FormItem>
                     <FormLabel>Purchased Quantity</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.0001" placeholder="0" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="overflow-hidden" />
+                      <Input type="number" step="0.0001" placeholder="0" {...field} onChange={e => field.onChange(e.target.value)} className="overflow-hidden" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -242,7 +309,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Unit</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select unit" />
@@ -268,7 +335,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                   <FormItem>
                     <FormLabel>Cost per Unit ($)</FormLabel>
                     <FormControl>
-                      <Input onWheel={e => e.preventDefault()} type="number" step="0.0001" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="overflow-hidden" />
+                      <Input onWheel={e => e.preventDefault()} type="number" step="0.0001" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="overflow-hidden" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -282,7 +349,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                   <FormItem>
                     <FormLabel>Total Cost ($)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

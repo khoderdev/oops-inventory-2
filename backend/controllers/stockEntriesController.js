@@ -62,7 +62,7 @@ const stockEntriesController = {
         // For package units, calculate individual quantities (rounded to whole numbers)
         purchasedIndividualQuantity = Math.round(purchasedQuantity * material.packageQuantity);
         purchasedIndividualUnit = material.baseUnit;
-        
+
         console.log(`Package unit conversion for ${material.name}:`, {
           packageQuantity: purchasedQuantity,
           packageUnit: purchasedUnit,
@@ -101,20 +101,25 @@ const stockEntriesController = {
       const { id } = req.params;
       const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, purchaseDate, expiryDate } = req.body;
 
+      // Convert string values to numbers for validation and database storage
+      const numericPurchasedQuantity = purchasedQuantity ? parseFloat(purchasedQuantity) : undefined;
+      const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
+      const numericTotalCost = totalCost ? parseFloat(totalCost) : undefined;
+
       const stockEntry = await StockEntry.findByPk(id);
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
       }
 
-      if (purchasedQuantity !== undefined && purchasedQuantity <= 0) {
+      if (numericPurchasedQuantity !== undefined && numericPurchasedQuantity <= 0) {
         return res.status(400).json({ error: "Purchased quantity must be positive" });
       }
 
-      if (costPerPurchasedUnit !== undefined && costPerPurchasedUnit < 0) {
+      if (numericCostPerPurchasedUnit !== undefined && numericCostPerPurchasedUnit < 0) {
         return res.status(400).json({ error: "Unit cost cannot be negative" });
       }
 
-      if (totalCost !== undefined && totalCost < 0) {
+      if (numericTotalCost !== undefined && numericTotalCost < 0) {
         return res.status(400).json({ error: "Total cost cannot be negative" });
       }
 
@@ -132,14 +137,14 @@ const stockEntriesController = {
       let updatedIndividualQuantity = stockEntry.purchasedIndividualQuantity;
       let updatedIndividualUnit = stockEntry.purchasedIndividualUnit;
 
-      const finalPurchasedQuantity = purchasedQuantity ?? stockEntry.purchasedQuantity;
+      const finalPurchasedQuantity = numericPurchasedQuantity ?? stockEntry.purchasedQuantity;
       const finalPurchasedUnit = purchasedUnit ?? stockEntry.purchasedUnit;
 
       if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
         // Recalculate individual quantities for package units (rounded to whole numbers)
         updatedIndividualQuantity = Math.round(finalPurchasedQuantity * material.packageQuantity);
         updatedIndividualUnit = material.baseUnit;
-        
+
         console.log(`Package unit update conversion for ${material.name}:`, {
           packageQuantity: finalPurchasedQuantity,
           packageUnit: finalPurchasedUnit,
@@ -148,9 +153,26 @@ const stockEntriesController = {
           packageQuantityPerUnit: material.packageQuantity
         });
       } else {
-        // For non-package units, individual quantities match package quantities
-        updatedIndividualQuantity = finalPurchasedQuantity;
-        updatedIndividualUnit = finalPurchasedUnit;
+        if (material.unitType === "mass") {
+          const massConversions = {
+            kg: 1000,
+            g: 1,
+            lb: 453.592,
+            oz: 28.3495
+          };
+
+          const conversionFactor = massConversions[finalPurchasedUnit.toLowerCase()];
+          if (conversionFactor) {
+            updatedIndividualQuantity = Math.round(finalPurchasedQuantity * conversionFactor);
+            updatedIndividualUnit = material.baseUnit;
+          } else {
+            updatedIndividualQuantity = stockEntry.purchasedIndividualQuantity;
+            updatedIndividualUnit = stockEntry.purchasedIndividualUnit;
+          }
+        } else {
+          updatedIndividualQuantity = Math.round(finalPurchasedQuantity);
+          updatedIndividualUnit = finalPurchasedUnit;
+        }
       }
 
       await stockEntry.update({
@@ -160,8 +182,8 @@ const stockEntriesController = {
         purchasedUnit: finalPurchasedUnit,
         purchasedIndividualQuantity: updatedIndividualQuantity,
         purchasedIndividualUnit: updatedIndividualUnit,
-        costPerPurchasedUnit: costPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit,
-        totalCost: totalCost ?? stockEntry.totalCost,
+        costPerPurchasedUnit: numericCostPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit,
+        totalCost: numericTotalCost ?? stockEntry.totalCost,
         purchaseDate: purchaseDate ?? stockEntry.purchaseDate,
         expiryDate: expiryDate ?? stockEntry.expiryDate
       });

@@ -16,18 +16,11 @@ interface StockEntriesTableProps {
   onDeleteStockEntry?: (id: string) => void;
 }
 
-export function StockEntriesTable({
-  stockEntries,
-  materialsWithStock,
-  searchTerm,
-  onEditStockEntry,
-  onDeleteStockEntry
-}: StockEntriesTableProps) {
+export function StockEntriesTable({ stockEntries, materialsWithStock, searchTerm, onEditStockEntry, onDeleteStockEntry }: StockEntriesTableProps) {
   const filteredStockEntries = stockEntries.filter(entry => {
     // Use the material property directly from the stock entry if available
-    const materialName = entry.material?.name || 
-                        materialsWithStock.find(m => m.id === entry.materialId)?.name;
-    
+    const materialName = entry.material?.name || materialsWithStock.find(m => m.id === entry.materialId)?.name;
+
     return !searchTerm || materialName?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
@@ -53,14 +46,11 @@ export function StockEntriesTable({
           <TableBody>
             {filteredStockEntries.map(entry => {
               // Use the material property directly from the stock entry if available
-              const material = entry.material || 
-                              materialsWithStock.find(m => m.id === entry.materialId);
-              
+              const material = entry.material || materialsWithStock.find(m => m.id === entry.materialId);
+
               return (
                 <TableRow key={entry.id}>
-                  <TableCell className="font-medium">
-                    {material?.name || `Unknown Material (ID: ${entry.materialId})`}
-                  </TableCell>
+                  <TableCell className="font-medium">{material?.name || `Unknown Material (ID: ${entry.materialId})`}</TableCell>
                   <TableCell>{entry.supplier}</TableCell>
                   <TableCell>
                     {(() => {
@@ -85,21 +75,13 @@ export function StockEntriesTable({
                   </TableCell>
                   <TableCell>
                     {formatCurrency(entry.costPerPurchasedUnit)}
-                    {material?.unitType === "package" && (
-                      <span className="text-xs text-muted-foreground ml-1">
-                        (per {entry.purchasedUnit})
-                      </span>
-                    )}
+                    {material?.unitType === "package" && <span className="text-xs text-muted-foreground ml-1">(per {entry.purchasedUnit})</span>}
                   </TableCell>
                   <TableCell>{formatCurrency(entry.totalCost)}</TableCell>
                   <TableCell>{entry.purchaseDate.toLocaleDateString()}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => onEditStockEntry(entry)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => onEditStockEntry(entry)}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       {onDeleteStockEntry && (
@@ -112,15 +94,11 @@ export function StockEntriesTable({
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Stock Entry</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this stock entry? This action cannot be undone.
-                              </AlertDialogDescription>
+                              <AlertDialogDescription>Are you sure you want to delete this stock entry? This action cannot be undone.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => onDeleteStockEntry(entry.id)}>
-                                Delete
-                              </AlertDialogAction>
+                              <AlertDialogAction onClick={() => onDeleteStockEntry(entry.id)}>Delete</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

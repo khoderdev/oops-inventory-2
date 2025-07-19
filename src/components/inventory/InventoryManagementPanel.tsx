@@ -48,6 +48,7 @@ export function InventoryManagementPanel() {
     handleMaterialSubmit,
     handleStockSubmit,
     handleEditMaterial,
+    handleDeleteStockEntry,
     handleEditStockEntry,
     handleAddStock,
     handleDeleteMaterial,
@@ -141,7 +142,7 @@ export function InventoryManagementPanel() {
         </TabsContent>
 
         <TabsContent value="stock" className="space-y-4">
-          <StockEntriesTable stockEntries={stockEntries} materialsWithStock={materialsWithStock} searchTerm={searchTerm} onEditStockEntry={handleEditStockEntry} onDeleteStockEntry={id => console.log("Delete stock entry:", id)} />
+          <StockEntriesTable stockEntries={stockEntries} materialsWithStock={materialsWithStock} searchTerm={searchTerm} onEditStockEntry={handleEditStockEntry} onDeleteStockEntry={handleDeleteStockEntry} />
         </TabsContent>
 
         <TabsContent value="sections" className="space-y-4">
