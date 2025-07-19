@@ -43,6 +43,8 @@ export function InventoryManagementPanel() {
     setShowMaterialForm,
     setShowStockForm,
     setShowSectionForm,
+    setSelectedMaterial,
+    setSelectedStockEntry,
     tabLoading,
     handleTabChange,
     handleMaterialSubmit,
@@ -60,6 +62,14 @@ export function InventoryManagementPanel() {
 
   const handleSectionSubmit = (data: { name: string; description?: string }) => {
     setShowSectionForm(false);
+  };
+
+  // Handler for the main "Add Stock" button - clears selection states to ensure create mode
+  const handleMainAddStock = () => {
+    // Clear any previously selected material and stock entry to ensure create mode
+    setSelectedMaterial(null);
+    setSelectedStockEntry(null);
+    setShowStockForm(true);
   };
 
   const existingSectionNames = sections.map(section => section.name);
@@ -106,7 +116,7 @@ export function InventoryManagementPanel() {
                 <Plus className="h-4 w-4 mr-2" />
                 Add Material
               </Button>
-              <Button variant="outline" onClick={() => setShowStockForm(true)} className="w-full sm:w-auto whitespace-nowrap">
+              <Button variant="outline" onClick={handleMainAddStock} className="w-full sm:w-auto whitespace-nowrap">
                 <Package className="h-4 w-4 mr-2" />
                 Add Stock
               </Button>
@@ -170,6 +180,7 @@ export function InventoryManagementPanel() {
               onSubmit={handleMaterialSubmit}
               onCancel={() => {
                 setShowMaterialForm(false);
+                setSelectedMaterial(null);
               }}
             />
           </div>
@@ -186,6 +197,8 @@ export function InventoryManagementPanel() {
               onSubmit={handleStockSubmit}
               onCancel={() => {
                 setShowStockForm(false);
+                setSelectedMaterial(null);
+                setSelectedStockEntry(null);
               }}
             />
           </div>

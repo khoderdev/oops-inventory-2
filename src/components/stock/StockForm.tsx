@@ -118,23 +118,21 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       })()
     : [];
 
-  // Reset form values when stockEntry changes (for editing)
+  // Reset form values when stockEntry or selectedMaterialId changes
   React.useEffect(() => {
-    if (stockEntry) {
-      form.reset({
-        materialId: stockEntry.materialId || "",
-        supplier: stockEntry.supplier || "",
-        purchasedQuantity: stockEntry.purchasedQuantity?.toString() || "0",
-        purchasedUnit: stockEntry.purchasedUnit || "",
-        costPerPurchasedUnit: stockEntry.costPerPurchasedUnit?.toString() || "0",
-        totalCost: stockEntry.totalCost?.toString() || "0",
-        purchaseDate: stockEntry.purchaseDate || new Date(),
-        expiryDate: stockEntry.expiryDate,
-        batchNumber: stockEntry.batchNumber || "",
-        notes: stockEntry.notes || ""
-      });
-    }
-  }, [stockEntry, form]);
+    form.reset({
+      materialId: stockEntry?.materialId || selectedMaterialId || "",
+      supplier: stockEntry?.supplier || "",
+      purchasedQuantity: stockEntry?.purchasedQuantity?.toString() || "0",
+      purchasedUnit: stockEntry?.purchasedUnit || "",
+      costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "0",
+      totalCost: stockEntry?.totalCost?.toString() || "0",
+      purchaseDate: stockEntry?.purchaseDate || new Date(),
+      expiryDate: stockEntry?.expiryDate,
+      batchNumber: stockEntry?.batchNumber || "",
+      notes: stockEntry?.notes || ""
+    });
+  }, [stockEntry, selectedMaterialId, form]);
 
   // Auto-select inputUnit for package materials and auto-populate cost
   React.useEffect(() => {

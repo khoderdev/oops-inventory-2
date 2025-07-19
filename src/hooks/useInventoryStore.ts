@@ -112,12 +112,13 @@ export function useInventoryStore() {
         }
         setShowStockFormTyped(false);
         setSelectedStockEntryTyped(null);
+        setSelectedMaterialTyped(null);
       } catch (error) {
         console.error('Failed to submit stock entry:', error);
         // Error is already handled in the action
       }
     },
-    [selectedStockEntry, createStockEntry, updateStockEntry, setShowStockFormTyped, setSelectedStockEntryTyped]
+    [selectedStockEntry, createStockEntry, updateStockEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped]
   );
 
   const handleEditMaterial = useCallback(
@@ -130,10 +131,12 @@ export function useInventoryStore() {
 
   const handleEditStockEntry = useCallback(
     (stockEntry: StockEntry) => {
+      const material = materialsWithStock.find(m => m.id === stockEntry.materialId);
       setSelectedStockEntryTyped(stockEntry);
+      setSelectedMaterialTyped(material || null);
       setShowStockFormTyped(true);
     },
-    [setSelectedStockEntryTyped, setShowStockFormTyped]
+    [setSelectedStockEntryTyped, setSelectedMaterialTyped, setShowStockFormTyped, materialsWithStock]
   );
 
   const handleAddStock = useCallback(
@@ -228,6 +231,8 @@ export function useInventoryStore() {
     setShowMaterialForm,
     setShowStockForm,
     setShowSectionForm,
+    setSelectedMaterial: setSelectedMaterialTyped,
+    setSelectedStockEntry: setSelectedStockEntryTyped,
     tabLoading,
     tabError,
     handleTabChange,

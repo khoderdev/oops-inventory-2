@@ -362,7 +362,11 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
       await set(fetchMaterialsAction);
       break;
     case "stock":
-      await set(fetchStockEntriesAction);
+      // Stock tab needs both materials (for material names and editing) and stock entries
+      await Promise.all([
+        set(fetchMaterialsAction),
+        set(fetchStockEntriesAction)
+      ]);
       break;
     case "sections":
       await set(fetchSectionsAction);
