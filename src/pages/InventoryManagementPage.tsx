@@ -1,6 +1,7 @@
 import { CostCalculationPanel } from "@/components/inventory/CostCalculationPanel";
 import { InventoryManagementPanel } from "@/components/inventory/InventoryManagementPanel";
 import { InventoryReportsPanel } from "@/components/inventory/InventoryReportsPanel";
+import { ReportGenerator } from "@/components/analytics/ReportGenerator";
 import { POSPanel } from "@/components/POSPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { useInventoryData } from "@/hooks/useInventoryData";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { CreateMaterialData, CreateStockEntryData, MaterialWithStock, MenuItem, UpdateMaterialData, UpdateStockEntryData } from "@/types/inventory";
 import { calculateMaterialInventory } from "@/utils/inventoryCalculations";
-import { BarChart3, Loader2, Package, RefreshCw } from "lucide-react";
+import { BarChart3, Loader2, Package, RefreshCw, FileText } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export const InventoryManagementPage = () => {
@@ -30,8 +31,8 @@ export const InventoryManagementPage = () => {
   const handleTabChange = useCallback(
     (value: string) => {
       setActiveTab(value);
-      // Refresh data when switching to POS or Dashboard tabs for real-time data
-      if (value === "pos" || value === "dashboard") {
+      // Refresh data when switching to POS or Reports tabs for real-time data
+      if (value === "pos" || value === "reports") {
         const timeSinceLastRefresh = Date.now() - lastRefresh.getTime();
         // Only refresh if it's been more than 30 seconds since last refresh
         if (timeSinceLastRefresh > 30000) {
@@ -219,7 +220,7 @@ export const InventoryManagementPage = () => {
       )}
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="">
-        <TabsList className="grid w-full grid-cols-4 sticky top-0 bg-white !z-50">
+        <TabsList className="grid w-full grid-cols-3 sticky top-0 bg-white !z-50">
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
             <Button variant="ghost" size="sm" onClick={handleManualRefresh} disabled={isRefreshing || loading} className="h-8 w-8 p-0" title="Refresh all data">
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
@@ -229,23 +230,15 @@ export const InventoryManagementPage = () => {
             <BarChart3 className="h-4 w-4" />
             POS
           </TabsTrigger>
-          {/* <TabsTrigger value="dashboard" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <BarChart3 className="h-4 w-4" />
-            Dashboard
-          </TabsTrigger> */}
           <TabsTrigger value="inventory" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Package className="h-4 w-4" />
             Inventory
           </TabsTrigger>
-          {/* <TabsTrigger value="reports" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsTrigger value="reports" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <FileText className="h-4 w-4" />
             Reports
-          </TabsTrigger> */}
+          </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="dashboard" className="p-4">
-          <InventoryReportsPanel materials={materials} stockEntries={stockEntries} menuItems={menuItems} sectionAssignments={sectionAssignments} />
-        </TabsContent>
 
         <TabsContent value="inventory" className="p-4">
           <InventoryManagementPanel onDeleteMaterial={handleDeleteMaterial} onDeleteStockEntry={handleDeleteStockEntry} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} onCreateSection={handleCreateSection} onUpdateSection={handleUpdateSection} onDeleteSection={handleDeleteSection} />
@@ -254,11 +247,9 @@ export const InventoryManagementPage = () => {
         <TabsContent value="pos" className="p-4">
           <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
         </TabsContent>
-        <TabsContent value="calculator" className="p-4">
-          <CostCalculationPanel materials={materials} stockEntries={stockEntries} materialsWithStock={materialsWithStock} />
-        </TabsContent>
+
         <TabsContent value="reports" className="p-4">
-          <InventoryReportsPanel materials={materials} stockEntries={stockEntries} menuItems={menuItems} sectionAssignments={sectionAssignments} />
+          <ReportGenerator className="w-full" />
         </TabsContent>
       </Tabs>
     </>
