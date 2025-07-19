@@ -52,6 +52,9 @@ export function InventoryManagementPanel() {
     handleEditStockEntry,
     handleAddStock,
     handleDeleteMaterial,
+    handleCreateMenuItem,
+    handleUpdateMenuItem,
+    handleDeleteMenuItem,
     fetchTabData
   } = useInventoryStore();
 
@@ -150,7 +153,7 @@ export function InventoryManagementPanel() {
         </TabsContent>
 
         <TabsContent value="menu" className="space-y-4">
-          <MenuItemBuilder materials={materialsWithStock} stockEntries={stockEntries} sections={sections} menuItems={menuItems} onCreateMenuItem={data => console.log("Create menu item:", data)} onUpdateMenuItem={(id, data) => console.log("Update menu item:", id, data)} onDeleteMenuItem={id => console.log("Delete menu item:", id)} />
+          <MenuItemBuilder materials={materialsWithStock} stockEntries={stockEntries} sections={sections} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
         </TabsContent>
 
         <TabsContent value="conversions" className="space-y-4">

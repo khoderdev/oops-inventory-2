@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MATERIAL_CATEGORIES, MaterialWithStock } from "@/types/inventory";
-import { formatCurrency } from "@/utils/conversionLogic";
 import { Edit, Plus, Trash2 } from "lucide-react";
 
 interface MaterialTableProps {
@@ -26,9 +25,6 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Average Cost/Unit</TableHead>
-              <TableHead>Total Cost</TableHead>
-              <TableHead>Stock Entries</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -39,16 +35,6 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                 <TableCell>
                   <Badge variant="secondary">{MATERIAL_CATEGORIES.find(c => c.value === material.category)?.label}</Badge>
                 </TableCell>
-                <TableCell>
-                  {(() => {
-                    const cost = material.averageCostPerBaseUnit;
-                    const formattedCost = cost < 0.01 && cost > 0 ? `$${cost.toFixed(6).replace(/\.?0+$/, "")}` : formatCurrency(cost);
-                    return `${formattedCost}/${material.baseUnit}`;
-                  })()}
-                  {material.unitType === "package" && <span className="text-xs text-muted-foreground ml-1">(per {material.baseUnit})</span>}
-                </TableCell>
-                <TableCell>{formatCurrency(material.totalValue)}</TableCell>
-                <TableCell>{material.stockEntries.length}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => onEditMaterial(material)}>

@@ -368,7 +368,11 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
       await set(fetchSectionsAction);
       break;
     case "menu":
-      await set(fetchMenuItemsAction);
+      // Menu tab needs both stock entries (for available materials) and menu items
+      await Promise.all([
+        set(fetchStockEntriesAction),
+        set(fetchMenuItemsAction)
+      ]);
       break;
     case "conversions":
       await set(fetchMaterialsAction); // Reuse materials for conversions
@@ -377,3 +381,105 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
       console.log(`No specific data fetching defined for tab: ${tabValue}`);
   }
 });
+
+// Menu Item CRUD Actions
+export const createMenuItemAction = atom(
+  null,
+  async (get, set, data: MenuItem) => {
+    try {
+      console.log('Creating menu item with data:', data);
+      
+      // Optimistic update - add menu item immediately
+      set(menuItemsAtom, prev => [...prev, data]);
+      
+      // Make API call
+      const response = await inventoryAPI.menu.createMenuItem(data);
+      
+      console.log('Menu item created successfully:', response.data);
+      
+      // Update with server response
+      const transformedMenuItem: MenuItem = {
+        ...response.data,
+        id: response.data.id.toString(),
+        createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
+        updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
+      };
+      
+      set(menuItemsAtom, prev => prev.map(item => 
+        item.id === data.id ? transformedMenuItem : item
+      ));
+      
+    } catch (error) {
+      // Revert optimistic update
+      set(menuItemsAtom, prev => prev.filter(item => item.id !== data.id));
+      console.error('Failed to create menu item:', error);
+      throw error;
+    }
+  }
+);
+
+export const updateMenuItemAction = atom(
+  null,
+  async (get, set, { id, data }: { id: string; data: MenuItem }) => {
+    // Get current state before optimistic update
+    const currentMenuItems = get(menuItemsAtom);
+    
+    // Optimistic update
+    set(menuItemsAtom, prev => prev.map(item => 
+      item.id === id ? { ...item, ...data, updatedAt: new Date() } : item
+    ));
+    
+    try {
+      console.log('Updating menu item with ID:', id, 'data:', data);
+      
+      // Make API call
+      const response = await inventoryAPI.menu.updateMenuItem(id, data);
+      
+      console.log('Menu item updated successfully:', response.data);
+      
+      // Update with server response
+      const transformedMenuItem: MenuItem = {
+        ...response.data,
+        id: response.data.id.toString(),
+        createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
+        updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
+      };
+      
+      set(menuItemsAtom, prev => prev.map(item => 
+        item.id === id ? transformedMenuItem : item
+      ));
+      
+    } catch (error) {
+      // Revert optimistic update
+      set(menuItemsAtom, currentMenuItems);
+      console.error('Failed to update menu item:', error);
+      throw error;
+    }
+  }
+);
+
+export const deleteMenuItemAction = atom(
+  null,
+  async (get, set, id: string) => {
+    // Get current state before optimistic update
+    const currentMenuItems = get(menuItemsAtom);
+    
+    // Optimistic update - remove menu item immediately
+    set(menuItemsAtom, prev => prev.filter(item => item.id !== id));
+    
+    try {
+      console.log('Deleting menu item with ID:', id);
+      
+      // Make API call
+      await inventoryAPI.menu.deleteMenuItem(id);
+      
+      console.log('Menu item deleted successfully');
+      
+    } catch (error) {
+      // Revert optimistic update
+      set(menuItemsAtom, currentMenuItems);
+      console.error('Failed to delete menu item:', error);
+      throw error;
+    }
+  }
+);

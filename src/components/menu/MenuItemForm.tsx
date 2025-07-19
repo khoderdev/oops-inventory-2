@@ -34,7 +34,11 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
 
   const availableMaterials = useMemo(() => {
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
-    return materials.filter(m => !usedMaterialIds.has(m.id));
+    const filtered = materials.filter(m => !usedMaterialIds.has(m.id));
+    console.log('MenuItemForm - Total materials:', materials.length);
+    console.log('MenuItemForm - Used material IDs:', Array.from(usedMaterialIds));
+    console.log('MenuItemForm - Available materials:', filtered.length);
+    return filtered;
   }, [materials, ingredients]);
 
   const validateForm = useCallback(() => {
@@ -50,6 +54,27 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
   useEffect(() => {
     validateForm();
   }, [name, category, price, ingredients, validateForm]);
+
+  // Reset form when menuItem changes (for editing)
+  useEffect(() => {
+    if (menuItem) {
+      setName(menuItem.name || "");
+      setCategory(menuItem.category || "");
+      setPrice(menuItem.price.toString() || "");
+      setIngredients(menuItem.ingredients.map(i => ({ 
+        materialId: i.materialId, 
+        quantity: i.quantity, 
+        unit: i.unit 
+      })) || []);
+    } else {
+      // Reset form for new menu item
+      setName("");
+      setCategory("");
+      setPrice("");
+      setIngredients([]);
+    }
+    setErrors({});
+  }, [menuItem]);
 
   const handleAddIngredient = useCallback(() => {
     if (!selectedMaterialId || !ingredientQuantity || !ingredientUnit) {
@@ -113,7 +138,10 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
       setSelectedMaterialId(materialId);
       const material = materials.find(m => m.id === materialId);
       if (material) {
+        console.log('Selected material:', material.name, 'Base unit:', material.baseUnit);
         setIngredientUnit(material.baseUnit);
+      } else {
+        setIngredientUnit("");
       }
     },
     [materials]
@@ -247,11 +275,16 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
             </label>
             <select id="unit" value={ingredientUnit} onChange={e => setIngredientUnit(e.target.value)} className="w-full px-3 py-2 border border-input bg-background rounded-md" disabled={!selectedMaterialId}>
               {selectedMaterialId ? (
-                getAvailableUnits(selectedMaterialId, materials).map(unit => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))
+                (() => {
+                  const availableUnits = getAvailableUnits(selectedMaterialId, materials);
+                  console.log('Available units for material:', selectedMaterialId, availableUnits);
+                  console.log('Current ingredientUnit:', ingredientUnit);
+                  return availableUnits.map(unit => (
+                    <option key={unit} value={unit}>
+                      {unit}
+                    </option>
+                  ));
+                })()
               ) : (
                 <option value="">Select material first</option>
               )}

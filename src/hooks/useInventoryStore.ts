@@ -2,8 +2,8 @@ import { activeTabAtom, categoryFilterAtom, filteredMaterialsAtom, lowStockFilte
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 
-import { createMaterialAction, createStockEntryAction, deleteMaterialAction, deleteStockEntryAction, fetchTabDataAction, updateMaterialAction, updateStockEntryAction } from "@/store/inventoryActions";
-import { MaterialCategory, MaterialWithStock, StockEntry, UnitType } from "@/types/inventory";
+import { createMaterialAction, createMenuItemAction, createStockEntryAction, deleteMaterialAction, deleteMenuItemAction, deleteStockEntryAction, fetchTabDataAction, updateMaterialAction, updateMenuItemAction, updateStockEntryAction } from "@/store/inventoryActions";
+import { MaterialCategory, MaterialWithStock, MenuItem, StockEntry, UnitType } from "@/types/inventory";
 
 // Form data interface
 interface MaterialFormData {
@@ -47,6 +47,9 @@ export function useInventoryStore() {
   const createStockEntry = useSetAtom(createStockEntryAction);
   const updateStockEntry = useSetAtom(updateStockEntryAction);
   const deleteStockEntry = useSetAtom(deleteStockEntryAction);
+  const createMenuItem = useSetAtom(createMenuItemAction);
+  const updateMenuItem = useSetAtom(updateMenuItemAction);
+  const deleteMenuItem = useSetAtom(deleteMenuItemAction);
 
   // Initialize data loading on mount and when active tab changes
   useEffect(() => {
@@ -166,6 +169,42 @@ export function useInventoryStore() {
     [deleteStockEntry]
   );
 
+  const handleCreateMenuItem = useCallback(
+    async (data: MenuItem) => {
+      try {
+        await createMenuItem(data);
+      } catch (error) {
+        console.error('Failed to create menu item:', error);
+        // Error handling is already done in the action
+      }
+    },
+    [createMenuItem]
+  );
+
+  const handleUpdateMenuItem = useCallback(
+    async (id: string, data: MenuItem) => {
+      try {
+        await updateMenuItem({ id, data });
+      } catch (error) {
+        console.error('Failed to update menu item:', error);
+        // Error handling is already done in the action
+      }
+    },
+    [updateMenuItem]
+  );
+
+  const handleDeleteMenuItem = useCallback(
+    async (id: string) => {
+      try {
+        await deleteMenuItem(id);
+      } catch (error) {
+        console.error('Failed to delete menu item:', error);
+        // Error handling is already done in the action
+      }
+    },
+    [deleteMenuItem]
+  );
+
   return {
     materialsWithStock,
     filteredMaterials,
@@ -199,6 +238,9 @@ export function useInventoryStore() {
     handleAddStock,
     handleDeleteMaterial,
     handleDeleteStockEntry,
+    handleCreateMenuItem,
+    handleUpdateMenuItem,
+    handleDeleteMenuItem,
     fetchTabData
   };
 }

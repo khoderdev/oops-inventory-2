@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MaterialWithStock, MenuItem, MenuItemCategory, MenuItemIngredient, Section, StockEntry } from "@/types/inventory";
+import { Material, MenuItem, MenuItemCategory, MenuItemIngredient, Section, StockEntryWithMaterial } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Edit, Package, Plus, Search, Trash2 } from "lucide-react";
@@ -12,8 +12,7 @@ import { useCallback, useMemo, useState } from "react";
 import { MenuItemForm } from "./MenuItemForm";
 
 interface MenuItemBuilderProps {
-  materials: MaterialWithStock[];
-  stockEntries: StockEntry[];
+  stockEntries: StockEntryWithMaterial[];
   sections: Section[];
   menuItems: MenuItem[];
   onCreateMenuItem?: (data: MenuItem) => void;
@@ -21,7 +20,22 @@ interface MenuItemBuilderProps {
   onDeleteMenuItem?: (id: string) => void;
 }
 
-export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
+export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
+  console.log("MenuBuilder - Received stock entries:", stockEntries?.length || 0, stockEntries);
+
+  // Derive available materials from stock entries
+  const availableMaterials = useMemo(() => {
+    const materialMap = new Map<string, Material>();
+    stockEntries.forEach(entry => {
+      if (entry.material && entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
+        materialMap.set(entry.material.id.toString(), entry.material);
+      }
+    });
+    const materialsArray = Array.from(materialMap.values());
+    console.log("MenuBuilder - Available materials from stock:", materialsArray.length, materialsArray);
+    return materialsArray;
+  }, [stockEntries]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [showMenuItemForm, setShowMenuItemForm] = useState(false);
   const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
@@ -60,9 +74,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, men
 
       try {
         const ingredientsWithCosts = data.ingredients.map(ingredient => {
-          const material = materials.find(m => m.id === String(ingredient.materialId));
+          const material = availableMaterials.find(m => m.id === String(ingredient.materialId));
           if (!material) throw new Error(`Material not found: ${ingredient.materialId}`);
-          const costPerUnit = material.averageCostPerBaseUnit || 0;
+          const costPerUnit = material.costPerBaseUnit || 0;
           const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece");
           return {
             ...ingredient,
@@ -87,7 +101,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, men
         setEditingMenuItem(null);
       }
     },
-    [materials, onCreateMenuItem]
+    [availableMaterials, onCreateMenuItem]
   );
 
   const handleUpdateMenuItem = useCallback(
@@ -99,9 +113,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, men
 
       try {
         const ingredientsWithCosts = data.ingredients.map(ingredient => {
-          const material = materials.find(m => m.id === String(ingredient.materialId));
+          const material = availableMaterials.find(m => m.id === String(ingredient.materialId));
           if (!material) throw new Error(`Material not found: ${ingredient.materialId}`);
-          const costPerUnit = material.averageCostPerBaseUnit || 0;
+          const costPerUnit = material.costPerBaseUnit || 0;
           const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece");
           return {
             ...ingredient,
@@ -125,7 +139,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, men
         setEditingMenuItem(null);
       }
     },
-    [editingMenuItem, materials, onUpdateMenuItem]
+    [editingMenuItem, availableMaterials, onUpdateMenuItem]
   );
 
   const handleDeleteMenuItem = useCallback(
@@ -141,10 +155,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, men
 
   const getMaterialName = useCallback(
     (id: string | number) => {
-      const material = materials.find(m => m.id === String(id));
+      const material = availableMaterials.find(m => m.id === String(id));
       return material?.name || "Unknown";
     },
-    [materials]
+    [availableMaterials]
   );
 
   const handleCloseModal = useCallback(() => {
@@ -185,7 +199,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ materials, men
                 <DialogHeader>
                   <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm menuItem={editingMenuItem} materials={materials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCloseModal} />
+                <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCloseModal} />
               </DialogContent>
             </Dialog>
           </div>
