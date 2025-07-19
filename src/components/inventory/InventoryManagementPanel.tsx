@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { MATERIAL_CATEGORIES, MaterialWithStock } from "@/types/inventory";
+import { MATERIAL_CATEGORIES, MaterialWithStock, MenuItem } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { calculateCostForQuantity, getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { Building2, Filter, Package, Plus, Search } from "lucide-react";
@@ -19,7 +19,27 @@ import { useState } from "react";
 import { MenuItemBuilder } from "../menu/MenuBuilder";
 import { SectionsManagementPanel } from "../sections/SectionsManagementPanel";
 
-export function InventoryManagementPanel() {
+interface InventoryManagementPanelProps {
+  onDeleteMaterial?: (id: string) => void;
+  onDeleteStockEntry?: (id: string) => void;
+  onCreateMenuItem?: (data: MenuItem) => void;
+  onUpdateMenuItem?: (id: string, data: MenuItem) => void;
+  onDeleteMenuItem?: (id: string) => void;
+  onCreateSection?: (data: { name: string; description?: string }) => void;
+  onUpdateSection?: (id: string, data: { name: string; description?: string }) => void;
+  onDeleteSection?: (id: string) => void;
+}
+
+export function InventoryManagementPanel({ 
+  onDeleteMaterial,
+  onDeleteStockEntry,
+  onCreateMenuItem,
+  onUpdateMenuItem,
+  onDeleteMenuItem,
+  onCreateSection,
+  onUpdateSection,
+  onDeleteSection 
+}: InventoryManagementPanelProps = {}) {
   const {
     materialsWithStock,
     filteredMaterials,
@@ -45,6 +65,7 @@ export function InventoryManagementPanel() {
     setShowSectionForm,
     setSelectedMaterial,
     setSelectedStockEntry,
+    setSelectedSection,
     tabLoading,
     handleTabChange,
     handleMaterialSubmit,
@@ -60,8 +81,24 @@ export function InventoryManagementPanel() {
     fetchTabData
   } = useInventoryStore();
 
-  const handleSectionSubmit = (data: { name: string; description?: string }) => {
-    setShowSectionForm(false);
+  const handleSectionSubmit = async (data: { name: string; description?: string }) => {
+    try {
+      if (selectedSection) {
+        // Edit mode
+        if (onUpdateSection) {
+          await onUpdateSection(selectedSection.id, data);
+        }
+      } else {
+        // Create mode
+        if (onCreateSection) {
+          await onCreateSection(data);
+        }
+      }
+      setShowSectionForm(false);
+      setSelectedSection(null);
+    } catch (error) {
+      console.error('Failed to submit section:', error);
+    }
   };
 
   // Handler for the main "Add Stock" button - clears selection states to ensure create mode
@@ -159,7 +196,7 @@ export function InventoryManagementPanel() {
         </TabsContent>
 
         <TabsContent value="sections" className="space-y-4">
-          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={data => console.log("Create section:", data)} onUpdateSection={(id, data) => console.log("Update section:", id, data)} onDeleteSection={id => console.log("Delete section:", id)} />
+          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} />
         </TabsContent>
 
         <TabsContent value="menu" className="space-y-4">
@@ -223,6 +260,7 @@ export function InventoryManagementPanel() {
                 onSubmit={handleSectionSubmit}
                 onCancel={() => {
                   setShowSectionForm(false);
+                  setSelectedSection(null);
                 }}
                 existingSectionNames={existingSectionNames}
               />

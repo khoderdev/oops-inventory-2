@@ -369,7 +369,13 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
       ]);
       break;
     case "sections":
-      await set(fetchSectionsAction);
+      // Sections tab needs materials, stock entries, menu items, sections and assignments
+      await Promise.all([
+        set(fetchMaterialsAction),
+        set(fetchStockEntriesAction),
+        set(fetchMenuItemsAction),
+        set(fetchSectionsAction)
+      ]);
       break;
     case "menu":
       // Menu tab needs both stock entries (for available materials) and menu items

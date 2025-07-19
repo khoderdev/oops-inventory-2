@@ -287,6 +287,8 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     } else {
       handleCreateAssignment(data as CreateSectionAssignmentData);
     }
+    // Clear selection after submission
+    setSelectedSectionId("");
   };
 
   return (
@@ -360,6 +362,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
           if (!open) {
             setShowAssignmentForm(false);
             setEditingAssignment(undefined);
+            setSelectedSectionId("");
           }
         }}
       >
@@ -370,10 +373,12 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
             materials={materials}
             menuItems={menuItems}
             assignment={editingAssignment}
+            selectedSectionId={selectedSectionId}
             onSubmit={handleAssignmentSubmit}
             onCancel={() => {
               setShowAssignmentForm(false);
               setEditingAssignment(undefined);
+              setSelectedSectionId("");
             }}
           />
         </DialogContent>

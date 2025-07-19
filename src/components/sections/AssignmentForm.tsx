@@ -87,6 +87,18 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
     }
   }, [formError, watchedItemType, watchedStockEntryId, watchedMenuItemId]);
 
+  // Reset form when assignment or selectedSectionId changes
+  useEffect(() => {
+    form.reset({
+      sectionId: assignment?.sectionId || selectedSectionId || "",
+      itemType: assignment?.itemType || "stockEntry",
+      stockEntryId: assignment?.stockEntryId || "",
+      menuItemId: assignment?.menuItemId || "",
+      assignedQuantity: assignment?.assignedQuantity || undefined,
+      assignedUnit: assignment?.assignedUnit || ""
+    });
+  }, [assignment, selectedSectionId, form]);
+
   // Convert assigned quantity to same unit as available stock for comparison
   const getConvertedQuantityForComparison = useCallback((assignedQty: number, assignedUnit: string, availableUnit: string): number => {
     if (!assignedQty || !assignedUnit || !availableUnit || !material) return assignedQty;

@@ -3,7 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 
 import { createMaterialAction, createMenuItemAction, createStockEntryAction, deleteMaterialAction, deleteMenuItemAction, deleteStockEntryAction, fetchTabDataAction, updateMaterialAction, updateMenuItemAction, updateStockEntryAction } from "@/store/inventoryActions";
-import { MaterialCategory, MaterialWithStock, MenuItem, StockEntry, UnitType } from "@/types/inventory";
+import { MaterialCategory, MaterialWithStock, MenuItem, Section, StockEntry, UnitType } from "@/types/inventory";
 
 // Form data interface
 interface MaterialFormData {
@@ -34,6 +34,7 @@ export function useInventoryStore() {
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom);
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom);
   const [selectedSection, setSelectedSection] = useAtom(selectedSectionAtom);
+  const setSelectedSectionTyped = setSelectedSection as (value: Section | null) => void;
   const setSelectedMaterialTyped = setSelectedMaterial as (value: MaterialWithStock | null) => void;
   const setShowMaterialFormTyped = setShowMaterialForm as (value: boolean) => void;
   const setSelectedStockEntryTyped = setSelectedStockEntry as (value: StockEntry | null) => void;
@@ -233,6 +234,7 @@ export function useInventoryStore() {
     setShowSectionForm,
     setSelectedMaterial: setSelectedMaterialTyped,
     setSelectedStockEntry: setSelectedStockEntryTyped,
+    setSelectedSection: setSelectedSectionTyped,
     tabLoading,
     tabError,
     handleTabChange,
