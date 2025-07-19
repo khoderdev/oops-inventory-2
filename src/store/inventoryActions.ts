@@ -187,11 +187,47 @@ export const updateMaterialAction = atom(null, async (get, set, { id, data }: { 
   set(optimisticMaterialsAtom, prev => prev.map(material => (material.id === id ? { ...material, ...data, updatedAt: new Date() } : material)));
 
   try {
+    // Convert MaterialWithStock to UpdateMaterialData for API
+    const updateData = {
+      name: data.name,
+      category: data.category,
+      baseUnit: data.baseUnit,
+      unitType: data.unitType,
+      inputUnit: data.inputUnit,
+      costPerBaseUnit: data.costPerBaseUnit,
+      packageQuantity: data.packageQuantity,
+      description: data.description
+    };
+
+    console.log("Updating material with ID:", id, "and data:", updateData);
+
     // Make API call
-    // await inventoryAPI.materials.updateMaterial(id, data);
+    const response = await inventoryAPI.materials.updateMaterial(id, updateData);
+
+    console.log("Material updated successfully:", response.data);
+
+    // Update with real data from server
+    const realMaterial: MaterialWithStock = {
+      ...response.data,
+      id: response.data.id.toString(),
+      createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
+      updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date(),
+      stockEntries: data.stockEntries || [],
+      totalQuantityInBaseUnit: data.totalQuantityInBaseUnit || 0,
+      totalValue: data.totalValue || 0,
+      averageCostPerBaseUnit: response.data.costPerBaseUnit || 0,
+      availableQuantity: data.availableQuantity || 0
+    };
+
+    // Replace optimistic update with real data
+    set(optimisticMaterialsAtom, prev => prev.map(material => (material.id === id ? realMaterial : material)));
+
+    // Update the base materials atom as well
+    set(materialsAtom, prev => prev.map(material => (material.id === id ? realMaterial : material)));
   } catch (error) {
     // Revert optimistic update
     set(optimisticMaterialsAtom, currentMaterials);
+    console.error("Failed to update material:", error);
     throw error;
   }
 });
