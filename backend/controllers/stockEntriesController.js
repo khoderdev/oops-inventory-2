@@ -306,32 +306,50 @@ const stockEntriesController = {
 
       const material = stockEntry.material;
 
-      // Calculate additional individual quantities
-      let additionalIndividualQuantity = numericAdditionalQuantity;
-      let additionalIndividualUnit = unit;
+      // Update the stock entry by adding to existing quantities
+      const newPurchasedQuantity = stockEntry.purchasedQuantity + numericAdditionalQuantity;
+      
+      // Recalculate individual quantities based on the NEW TOTAL purchased quantity (not additive)
+      let newIndividualQuantity = newPurchasedQuantity;
+      let newIndividualUnit = unit;
 
       if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-        additionalIndividualQuantity = Math.round(numericAdditionalQuantity * material.packageQuantity);
-        additionalIndividualUnit = material.baseUnit;
+        newIndividualQuantity = Math.round(newPurchasedQuantity * material.packageQuantity);
+        newIndividualUnit = material.baseUnit;
       } else if (material.unitType === "mass") {
         const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
         const conversionFactor = massConversions[unit.toLowerCase()];
         if (conversionFactor) {
-          additionalIndividualQuantity = Math.round(numericAdditionalQuantity * conversionFactor);
-          additionalIndividualUnit = material.baseUnit;
+          newIndividualQuantity = Math.round(newPurchasedQuantity * conversionFactor);
+          newIndividualUnit = material.baseUnit;
         }
       }
-
-      // Update the stock entry by adding to existing quantities
-      const newPurchasedQuantity = stockEntry.purchasedQuantity + numericAdditionalQuantity;
-      const newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + additionalIndividualQuantity;
       
       // Recalculate total cost (using existing cost per unit)
       const newTotalCost = newPurchasedQuantity * stockEntry.costPerPurchasedUnit;
 
+      // Update converted quantities as well
+      let newPurchasedConvertedQuantity = newPurchasedQuantity;
+      let newPurchasedConvertedUnit = unit;
+
+      if (material.unitType === "package") {
+        // For package materials, converted quantity should match purchased quantity
+        newPurchasedConvertedQuantity = newPurchasedQuantity;
+        newPurchasedConvertedUnit = unit; // e.g., "pack"
+      } else if (material.unitType === "mass") {
+        // For mass units, convert to base unit
+        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+        const conversionFactor = massConversions[unit.toLowerCase()] || 1;
+        newPurchasedConvertedQuantity = newPurchasedQuantity * conversionFactor;
+        newPurchasedConvertedUnit = material.baseUnit;
+      }
+
       await stockEntry.update({
         purchasedQuantity: newPurchasedQuantity,
         purchasedIndividualQuantity: newIndividualQuantity,
+        purchasedIndividualUnit: newIndividualUnit,
+        purchasedConvertedQuantity: newPurchasedConvertedQuantity,
+        purchasedConvertedUnit: newPurchasedConvertedUnit,
         totalCost: newTotalCost,
         updatedAt: new Date(),
         notes: notes ? `${stockEntry.notes || ''}\n[${new Date().toLocaleDateString()}] Added ${numericAdditionalQuantity} ${unit}. ${notes}`.trim() : stockEntry.notes
@@ -343,7 +361,15 @@ const stockEntriesController = {
       });
 
       console.log(`Successfully added ${numericAdditionalQuantity} ${unit} to stock entry ${id} for material ${material.name}`);
-      console.log(`Updated quantities: ${stockEntry.purchasedQuantity} -> ${newPurchasedQuantity}, Individual: ${stockEntry.purchasedIndividualQuantity} -> ${newIndividualQuantity}`);
+      console.log(`Updated quantities:`, {
+        purchasedQuantity: `${stockEntry.purchasedQuantity} -> ${newPurchasedQuantity}`,
+        individualQuantity: `${stockEntry.purchasedIndividualQuantity} -> ${newIndividualQuantity}`,
+        individualUnit: `${stockEntry.purchasedIndividualUnit} -> ${newIndividualUnit}`,
+        convertedQuantity: `${stockEntry.purchasedConvertedQuantity} -> ${newPurchasedConvertedQuantity}`,
+        convertedUnit: `${stockEntry.purchasedConvertedUnit} -> ${newPurchasedConvertedUnit}`,
+        totalCost: `${stockEntry.totalCost} -> ${newTotalCost}`,
+        packageQuantity: material.packageQuantity
+      });
 
       res.status(200).json({
         message: `Successfully added ${numericAdditionalQuantity} ${unit} to existing stock entry`,
@@ -383,22 +409,6 @@ const stockEntriesController = {
 
       const material = stockEntry.material;
 
-      // Calculate waste individual quantities
-      let wasteIndividualQuantity = numericWasteQuantity;
-      let wasteIndividualUnit = unit;
-
-      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-        wasteIndividualQuantity = Math.round(numericWasteQuantity * material.packageQuantity);
-        wasteIndividualUnit = material.baseUnit;
-      } else if (material.unitType === "mass") {
-        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
-        const conversionFactor = massConversions[unit.toLowerCase()];
-        if (conversionFactor) {
-          wasteIndividualQuantity = Math.round(numericWasteQuantity * conversionFactor);
-          wasteIndividualUnit = material.baseUnit;
-        }
-      }
-
       // Check if there's enough stock in this specific entry
       if (numericWasteQuantity > stockEntry.purchasedQuantity) {
         return res.status(400).json({ 
@@ -406,23 +416,51 @@ const stockEntriesController = {
         });
       }
 
-      if (wasteIndividualQuantity > (stockEntry.purchasedIndividualQuantity || 0)) {
-        return res.status(400).json({ 
-          error: `Insufficient individual stock in this entry. Available: ${stockEntry.purchasedIndividualQuantity} ${wasteIndividualUnit}, Requested: ${wasteIndividualQuantity} ${wasteIndividualUnit}` 
-        });
-      }
-
       // Update the stock entry by reducing existing quantities
       const newPurchasedQuantity = Math.max(0, stockEntry.purchasedQuantity - numericWasteQuantity);
-      const newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - wasteIndividualQuantity);
+      
+      // Recalculate individual quantities based on the NEW TOTAL purchased quantity (not subtractive)
+      let newIndividualQuantity = newPurchasedQuantity;
+      let newIndividualUnit = stockEntry.purchasedUnit;
+
+      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+        newIndividualQuantity = Math.round(newPurchasedQuantity * material.packageQuantity);
+        newIndividualUnit = material.baseUnit;
+      } else if (material.unitType === "mass") {
+        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+        const conversionFactor = massConversions[stockEntry.purchasedUnit.toLowerCase()];
+        if (conversionFactor) {
+          newIndividualQuantity = Math.round(newPurchasedQuantity * conversionFactor);
+          newIndividualUnit = material.baseUnit;
+        }
+      }
       
       // Recalculate total cost (proportionally reduced)
       const costReduction = numericWasteQuantity * stockEntry.costPerPurchasedUnit;
       const newTotalCost = Math.max(0, stockEntry.totalCost - costReduction);
 
+      // Update converted quantities as well
+      let newPurchasedConvertedQuantity = newPurchasedQuantity;
+      let newPurchasedConvertedUnit = unit;
+
+      if (material.unitType === "package") {
+        // For package materials, converted quantity should match purchased quantity
+        newPurchasedConvertedQuantity = newPurchasedQuantity;
+        newPurchasedConvertedUnit = stockEntry.purchasedUnit; // Keep original unit
+      } else if (material.unitType === "mass") {
+        // For mass units, convert to base unit
+        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+        const conversionFactor = massConversions[stockEntry.purchasedUnit.toLowerCase()] || 1;
+        newPurchasedConvertedQuantity = newPurchasedQuantity * conversionFactor;
+        newPurchasedConvertedUnit = material.baseUnit;
+      }
+
       await stockEntry.update({
         purchasedQuantity: newPurchasedQuantity,
         purchasedIndividualQuantity: newIndividualQuantity,
+        purchasedIndividualUnit: newIndividualUnit,
+        purchasedConvertedQuantity: newPurchasedConvertedQuantity,
+        purchasedConvertedUnit: newPurchasedConvertedUnit,
         totalCost: newTotalCost,
         updatedAt: new Date(),
         notes: notes ? `${stockEntry.notes || ''}\n[${new Date().toLocaleDateString()}] Waste: ${numericWasteQuantity} ${unit} (${wasteReason}). ${notes}`.trim() : stockEntry.notes
@@ -434,7 +472,15 @@ const stockEntriesController = {
       });
 
       console.log(`Successfully recorded waste of ${numericWasteQuantity} ${unit} from stock entry ${id} for material ${material.name}`);
-      console.log(`Updated quantities: ${stockEntry.purchasedQuantity} -> ${newPurchasedQuantity}, Individual: ${stockEntry.purchasedIndividualQuantity} -> ${newIndividualQuantity}`);
+      console.log(`Updated quantities:`, {
+        purchasedQuantity: `${stockEntry.purchasedQuantity} -> ${newPurchasedQuantity}`,
+        individualQuantity: `${stockEntry.purchasedIndividualQuantity} -> ${newIndividualQuantity}`,
+        individualUnit: `${stockEntry.purchasedIndividualUnit} -> ${newIndividualUnit}`,
+        convertedQuantity: `${stockEntry.purchasedConvertedQuantity} -> ${newPurchasedConvertedQuantity}`,
+        convertedUnit: `${stockEntry.purchasedConvertedUnit} -> ${newPurchasedConvertedUnit}`,
+        totalCost: `${stockEntry.totalCost} -> ${newTotalCost}`,
+        packageQuantity: material.packageQuantity
+      });
 
       res.status(200).json({
         message: `Successfully recorded waste of ${numericWasteQuantity} ${unit} from existing stock entry`,
