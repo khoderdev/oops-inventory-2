@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SaleRecord } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
-import { AlertCircle, ArrowLeft, Calendar, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart } from "lucide-react";
+import { AlertCircle, ArrowRight, Calendar, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -159,19 +159,17 @@ export function SalesHistoryPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => navigate(-1)} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Sales History</h1>
-            <p className="text-muted-foreground">View and search through all completed sales</p>
-          </div>
+      <div className="flex items-center w-full justify-between p-4">
+        <div>
+          <h1 className="text-2xl font-bold">Sales History</h1>
+          <p className="text-muted-foreground">View all completed sales</p>
         </div>
+        <Button variant="outline" onClick={() => navigate(-1)} className="flex items-center gap-2 bg-white">
+          Back
+          <ArrowRight className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Error Alert */}
