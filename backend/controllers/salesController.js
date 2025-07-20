@@ -5,9 +5,87 @@ import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, StockEntry, S
 const salesController = {
   getAllSales: async (req, res, next) => {
     try {
-      const sales = await Sale.findAll();
-      res.status(200).json(sales);
+      const sales = await Sale.findAll({
+        include: [
+          {
+            model: Section,
+            as: "section",
+            attributes: ["id", "name"]
+          }
+        ],
+        order: [["saleDate", "DESC"]]
+      });
+
+      // Process sales to include menu item names
+      const processedSales = await Promise.all(
+        sales.map(async sale => {
+          const saleData = sale.toJSON();
+          
+          // Process menu items to include names
+          if (saleData.menuItems && Array.isArray(saleData.menuItems)) {
+            const enrichedMenuItems = await Promise.all(
+              saleData.menuItems.map(async menuItemSale => {
+                try {
+                  const menuItem = await MenuItem.findByPk(menuItemSale.menuItemId, {
+                    include: [
+                      {
+                        model: MenuItemIngredient,
+                        as: "menuItemIngredients",
+                        include: [
+                          {
+                            model: Material,
+                            as: "material",
+                            attributes: ["id", "name", "baseUnit"]
+                          }
+                        ]
+                      }
+                    ]
+                  });
+
+                  if (menuItem) {
+                    const ingredients = menuItem.menuItemIngredients?.map(ingredient => ({
+                      materialId: ingredient.materialId,
+                      materialName: ingredient.material?.name || "Unknown Material",
+                      quantity: ingredient.quantity,
+                      unit: ingredient.unit
+                    })) || [];
+
+                    return {
+                      ...menuItemSale,
+                      menuItemName: menuItem.name,
+                      menuItemDescription: menuItem.description,
+                      ingredients: ingredients
+                    };
+                  } else {
+                    return {
+                      ...menuItemSale,
+                      menuItemName: `Menu Item ${menuItemSale.menuItemId}`,
+                      menuItemDescription: "Item not found",
+                      ingredients: []
+                    };
+                  }
+                } catch (error) {
+                  console.error(`Error fetching menu item ${menuItemSale.menuItemId}:`, error);
+                  return {
+                    ...menuItemSale,
+                    menuItemName: `Menu Item ${menuItemSale.menuItemId}`,
+                    menuItemDescription: "Error loading item",
+                    ingredients: []
+                  };
+                }
+              })
+            );
+            
+            saleData.menuItems = enrichedMenuItems;
+          }
+
+          return saleData;
+        })
+      );
+
+      res.status(200).json(processedSales);
     } catch (error) {
+      console.error("Error fetching sales with menu item details:", error);
       next(error);
     }
   },

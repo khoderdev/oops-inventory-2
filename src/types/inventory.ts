@@ -229,11 +229,14 @@ export interface SaleRecord {
 
 export interface MenuItemSale {
   menuItemId: string;
+  menuItemName?: string;
+  menuItemDescription?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
   ingredients: Array<{
     materialId: string;
+    materialName?: string;
     quantity: number;
     unit: string;
   }>;
