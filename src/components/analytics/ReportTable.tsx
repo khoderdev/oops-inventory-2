@@ -1,63 +1,16 @@
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { ReportType } from "./configs";
-import { FileText, TrendingUp, GripVertical } from "lucide-react";
+import { FileText, TrendingUp } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { formatCellValue } from "./formatCellValue";
 import { cn } from "@/lib/utils";
 import React, { useState, useRef, useCallback } from "react";
+import { getColumnAlignment, getInitialWidth, getResponsiveColumnClasses } from "./columnFunctions";
 
 // Dynamic Report Table Component
 interface ReportTableProps {
   reportType: ReportType;
   data: Record<string, unknown>[];
-}
-
-// Helper function to determine column alignment based on header type
-function getColumnAlignment(header: string): string {
-  const rightAlignedHeaders = ["qty", "quantity", "cost", "value", "price", "profit", "revenue", "amount", "total", "avg", "average", "count", "entries", "threshold", "percentage", "margin", "volume", "utilization", "days"];
-
-  const centerAlignedHeaders = ["status", "urgency", "trend", "rating", "performance"];
-
-  const headerLower = header.toLowerCase();
-
-  if (rightAlignedHeaders.some(keyword => headerLower.includes(keyword)) || headerLower.includes("%")) {
-    return "text-right";
-  }
-
-  if (centerAlignedHeaders.some(keyword => headerLower.includes(keyword))) {
-    return "text-center";
-  }
-
-  return "text-left";
-}
-
-// Helper function to get responsive column CSS classes (for non-resizable styles)
-function getResponsiveColumnClasses(header: string): string {
-  const wideColumns = ["material", "supplier", "description", "name", "item"];
-  const narrowColumns = ["qty", "unit", "status", "entries", "count"];
-  const mediumColumns = ["category", "section", "date"];
-  const costColumns = ["cost", "value", "price", "profit", "revenue", "amount"];
-
-  const headerLower = header.toLowerCase();
-
-  // Return classes for mobile responsive behavior (when not in resizable table mode)
-  if (wideColumns.some(keyword => headerLower.includes(keyword))) {
-    return "min-w-[120px]";
-  }
-
-  if (costColumns.some(keyword => headerLower.includes(keyword))) {
-    return "min-w-[90px]";
-  }
-
-  if (narrowColumns.some(keyword => headerLower.includes(keyword))) {
-    return "min-w-[70px]";
-  }
-
-  if (mediumColumns.some(keyword => headerLower.includes(keyword))) {
-    return "min-w-[100px]";
-  }
-
-  return "min-w-[85px]";
 }
 
 export function ReportTable({ reportType, data }: ReportTableProps) {
@@ -68,36 +21,12 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
-  // Get initial column width
-  const getInitialWidth = useCallback((header: string): number => {
-    const wideColumns = ["material", "supplier", "description", "name", "item"];
-    const narrowColumns = ["qty", "unit", "status", "entries", "count"];
-    const costColumns = ["cost", "value", "price", "profit", "revenue", "amount"];
-    const mediumColumns = ["category", "section", "date"];
-
-    const headerLower = header.toLowerCase();
-
-    if (wideColumns.some(keyword => headerLower.includes(keyword))) {
-      return 200;
-    }
-    if (costColumns.some(keyword => headerLower.includes(keyword))) {
-      return 120;
-    }
-    if (narrowColumns.some(keyword => headerLower.includes(keyword))) {
-      return 90;
-    }
-    if (mediumColumns.some(keyword => headerLower.includes(keyword))) {
-      return 140;
-    }
-    return 130;
-  }, []);
-
   // Get current column width
   const getColumnWidth = useCallback(
     (header: string): number => {
       return columnWidths[header] || getInitialWidth(header);
     },
-    [columnWidths, getInitialWidth]
+    [columnWidths]
   );
 
   // Start resizing
@@ -162,11 +91,6 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
     }
   }, [isResizing, handleResize, handleResizeEnd]);
 
-  // Reset column widths
-  const resetColumnWidths = useCallback(() => {
-    setColumnWidths({});
-  }, []);
-
   // Mobile card view component for very small screens
   const MobileCardView = () => (
     <div className="block sm:hidden space-y-4 p-4">
@@ -195,7 +119,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] p-6 sm:p-8 text-center bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg border-2 border-dashed border-muted-foreground/20">
+      <div className="flex flex-col items-center justify-center min-h-[300px]  text-center bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg border-2 border-dashed border-muted-foreground/20">
         <div className="relative mb-6">
           <div className="rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 p-4 shadow-lg">
             <TrendingUp className="h-8 w-8 text-blue-600" />
@@ -221,17 +145,6 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
 
       {/* Responsive Table View for Medium+ Screens */}
       <div className="hidden sm:flex flex-col h-full">
-        {/* Table Controls */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-            <GripVertical className="h-4 w-4" />
-            <span>Drag column edges to resize</span>
-          </div>
-          <button onClick={resetColumnWidths} className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 rounded transition-colors">
-            Reset Widths
-          </button>
-        </div>
-
         {/* Resizable Table Container */}
         <div className={cn("flex-1 overflow-hidden relative", isResizing && "select-none")}>
           <div
@@ -268,10 +181,21 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                           "font-bold text-xs sm:text-sm lg:text-sm xl:text-base",
                           "text-slate-700 dark:text-slate-200",
                           "py-3 px-2 sm:py-4 sm:px-3 lg:px-4",
-                          "border-r border-slate-200 dark:border-slate-600 last:border-r-0",
+                          // Dynamic border styling for resize functionality with enhanced hover
+                          index < headers.length - 1 &&
+                            cn(
+                              "border-r-2 border-slate-300 dark:border-slate-600",
+                              // Enhanced hover state for better border visibility
+                              "hover:border-blue-400 dark:hover:border-blue-500 hover:border-r-[3px] transition-all duration-200",
+                              // Active resize state
+                              isResizing === header && "border-blue-500 dark:border-blue-400 border-r-4 shadow-sm",
+                              // Subtle shadow on hover for depth
+                              "hover:shadow-[2px_0_4px_rgba(59,130,246,0.1)] dark:hover:shadow-[2px_0_4px_rgba(96,165,250,0.15)]"
+                            ),
+                          index === headers.length - 1 && "border-r-0",
                           "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50",
                           "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800",
-                          "relative",
+                          "relative group/header",
                           // Responsive classes for mobile
                           getResponsiveColumnClasses(header),
                           // Alignment
@@ -285,15 +209,38 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                           textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                         }}
                       >
-                        <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px] relative">
+                        <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px] relative h-full">
                           <span className="truncate font-bold leading-tight flex-1">{header}</span>
                           {(header.toLowerCase().includes("qty") || header.toLowerCase().includes("cost") || header.toLowerCase().includes("value")) && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
 
-                          {/* Resize Handle */}
+                          {/* Precise Border Resize Zone */}
                           {index < headers.length - 1 && (
-                            <div className={cn("absolute right-0 top-0 h-full w-2 cursor-col-resize z-10", "hover:bg-blue-500/20 active:bg-blue-500/30 transition-colors", "flex items-center justify-center group", isResizing === header && "bg-blue-500/30")} onMouseDown={e => handleResizeStart(e, header)} onTouchStart={e => handleResizeStart(e, header)} title={`Resize ${header} column`}>
-                              <div className={cn("w-0.5 h-6 bg-slate-300 group-hover:bg-blue-500 transition-all duration-200", "group-hover:h-8 group-hover:w-1", isResizing === header && "bg-blue-500 h-8 w-1")} />
-                            </div>
+                            <>
+                              {/* Wider detection zone for easier targeting */}
+                              <div
+                                className={cn(
+                                  "absolute -right-1.5 top-0 w-3 h-full cursor-col-resize z-20",
+                                  "hover:bg-transparent" // Invisible but captures mouse events
+                                )}
+                                onMouseDown={e => handleResizeStart(e, header)}
+                                onTouchStart={e => handleResizeStart(e, header)}
+                                title={`Drag border to resize ${header} column`}
+                              />
+
+                              {/* Precise visual indicator exactly on the border */}
+                              <div
+                                className={cn(
+                                  // Positioned exactly on the border line
+                                  "absolute -right-px top-0 w-0.5 h-full z-30 pointer-events-none",
+                                  // Visual feedback when parent is hovered
+                                  "group-hover/header:bg-blue-400/40 group-hover/header:w-1 transition-all duration-150",
+                                  // Active state during resize
+                                  isResizing === header && "bg-blue-600/60 w-1.5 shadow-md",
+                                  // Smooth animations
+                                  "transform-gpu"
+                                )}
+                              />
+                            </>
                           )}
                         </div>
                       </TableHead>
@@ -315,7 +262,9 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                             // Base styles
                             "text-xs sm:text-sm lg:text-sm",
                             "py-3 px-2 sm:py-4 sm:px-3 lg:px-4",
-                            "border-r border-slate-100 dark:border-slate-600 last:border-r-0",
+                            // Match header border styling
+                            index < headers.length - 1 && "border-r-2 border-slate-200 dark:border-slate-600",
+                            index === headers.length - 1 && "border-r-0",
                             "transition-colors duration-200",
                             "group-hover:border-slate-200 dark:group-hover:border-slate-500",
                             // Responsive classes for mobile
