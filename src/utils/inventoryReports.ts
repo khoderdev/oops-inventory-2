@@ -58,10 +58,13 @@ export interface CostAnalysis {
   materialName: string;
   baseUnit: string;
   currentAverageCost: number;
+  previousAverageCost: number;
   historicalCosts: HistoricalCost[];
   costTrend: "increasing" | "decreasing" | "stable";
   costVariance: number;
   recommendedReorderPoint: number;
+  stockEntriesCount: number;
+  recommendation: string;
 }
 
 export interface HistoricalCost {
@@ -207,45 +210,129 @@ export class InventoryReportGenerator {
         .filter(entry => entry.materialId === material.id)
         .sort((a, b) => a.purchaseDate.getTime() - b.purchaseDate.getTime());
 
-      const historicalCosts: HistoricalCost[] = materialEntries.map(entry => ({
-        date: entry.purchaseDate,
-        costPerBaseUnit: entry.costPerPurchasedUnit, // Simplified - should convert to base unit
-        supplier: entry.supplier,
-        quantity: entry.purchasedQuantity
-      }));
+      // Calculate current cost per base unit from multiple sources
+      let currentAverageCost = 0;
+      let previousAverageCost = 0;
 
-      const currentAverageCost = materialEntries.length > 0 
-        ? materialEntries.reduce((sum, entry) => sum + entry.costPerPurchasedUnit, 0) / materialEntries.length
-        : 0;
-
-      // Simple trend analysis
-      let costTrend: "increasing" | "decreasing" | "stable" = "stable";
-      if (historicalCosts.length >= 2) {
-        const recent = historicalCosts.slice(-3).map(h => h.costPerBaseUnit);
-        const older = historicalCosts.slice(0, -3).map(h => h.costPerBaseUnit);
-        
-        if (recent.length > 0 && older.length > 0) {
-          const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
-          const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
-          
-          if (recentAvg > olderAvg * 1.05) costTrend = "increasing";
-          else if (recentAvg < olderAvg * 0.95) costTrend = "decreasing";
-        }
+      // Use material's costPerBaseUnit as primary source if available
+      if (material.costPerBaseUnit && material.costPerBaseUnit > 0) {
+        currentAverageCost = material.costPerBaseUnit;
       }
 
-      const costVariance = historicalCosts.length > 1 
-        ? this.calculateVariance(historicalCosts.map(h => h.costPerBaseUnit))
-        : 0;
+      // If no material cost or need stock-based calculation
+      if (materialEntries.length > 0) {
+        let totalCostInBaseUnit = 0;
+        let totalQuantityInBaseUnit = 0;
+        
+        const historicalCosts: HistoricalCost[] = [];
+        
+        materialEntries.forEach(entry => {
+          // Convert purchased cost to base unit cost
+          let costPerBaseUnit = entry.costPerPurchasedUnit || 0;
+          let convertedQuantity = entry.purchasedQuantity || 0;
+          
+          // Handle unit conversions to base unit
+          if (entry.purchasedUnit !== material.baseUnit) {
+            if (material.unitType === "package" && material.packageQuantity) {
+              // For package units: purchased in packages, convert to base unit
+              convertedQuantity = entry.purchasedQuantity * material.packageQuantity;
+              costPerBaseUnit = entry.costPerPurchasedUnit / material.packageQuantity;
+            } else if (material.unitType === "mass" && entry.totalCost > 0) {
+              // For mass units: calculate based on total cost
+              costPerBaseUnit = entry.totalCost / convertedQuantity;
+            } else if (entry.totalCost > 0) {
+              // Fallback: use total cost calculation
+              costPerBaseUnit = entry.totalCost / convertedQuantity;
+            }
+          }
+
+          totalCostInBaseUnit += entry.totalCost;
+          totalQuantityInBaseUnit += convertedQuantity;
+          
+          historicalCosts.push({
+            date: entry.purchaseDate,
+            costPerBaseUnit,
+            supplier: entry.supplier || "Unknown",
+            quantity: convertedQuantity
+          });
+        });
+
+        // Calculate weighted average cost from stock entries
+        const stockAverageCost = totalQuantityInBaseUnit > 0 ? totalCostInBaseUnit / totalQuantityInBaseUnit : 0;
+        
+        // Use stock average if no material cost set, otherwise blend them
+        if (!currentAverageCost || currentAverageCost === 0) {
+          currentAverageCost = stockAverageCost;
+        } else if (stockAverageCost > 0) {
+          // Use more recent stock cost if significantly different
+          const difference = Math.abs(currentAverageCost - stockAverageCost) / currentAverageCost;
+          if (difference > 0.1) { // 10% difference threshold
+            currentAverageCost = stockAverageCost;
+          }
+        }
+
+        // Calculate previous cost (from older entries)
+        if (historicalCosts.length >= 2) {
+          const older = historicalCosts.slice(0, Math.floor(historicalCosts.length / 2));
+          previousAverageCost = older.reduce((sum, h) => sum + h.costPerBaseUnit, 0) / older.length;
+        } else if (historicalCosts.length === 1) {
+          previousAverageCost = historicalCosts[0].costPerBaseUnit;
+        }
+      } else {
+        // No stock entries, set previous cost same as current
+        previousAverageCost = currentAverageCost;
+      }
+
+      // Enhanced trend analysis
+      let costTrend: "increasing" | "decreasing" | "stable" = "stable";
+      if (previousAverageCost > 0 && currentAverageCost > 0) {
+        const changePercent = ((currentAverageCost - previousAverageCost) / previousAverageCost) * 100;
+        if (changePercent > 5) costTrend = "increasing";
+        else if (changePercent < -5) costTrend = "decreasing";
+      }
+
+      // Calculate variance percentage
+      let costVariance = 0;
+      if (previousAverageCost > 0 && currentAverageCost > 0) {
+        costVariance = ((currentAverageCost - previousAverageCost) / previousAverageCost) * 100;
+      }
+
+      // Enhanced recommendations
+      const getRecommendation = (): string => {
+        const entriesCount = materialEntries.length;
+        
+        if (entriesCount === 0) {
+          return currentAverageCost > 0 ? "Add stock entries for better tracking" : "Set material cost and add stock entries";
+        }
+        
+        if (costTrend === "increasing") {
+          return costVariance > 10 ? "Consider alternative suppliers - high cost increase" : "Monitor costs - increasing trend";
+        } else if (costTrend === "decreasing") {
+          return costVariance < -10 ? "Good cost reduction - maintain supplier" : "Favorable cost trend";
+        } else {
+          return entriesCount < 3 ? "Need more purchase data for analysis" : "Current pricing stable";
+        }
+      };
+
+      const historicalCosts: HistoricalCost[] = materialEntries.map(entry => ({
+        date: entry.purchaseDate,
+        costPerBaseUnit: entry.costPerPurchasedUnit || 0,
+        supplier: entry.supplier || "Unknown",
+        quantity: entry.purchasedQuantity || 0
+      }));
 
       return {
         materialId: material.id,
         materialName: material.name,
         baseUnit: material.baseUnit,
         currentAverageCost,
+        previousAverageCost,
         historicalCosts,
         costTrend,
         costVariance,
-        recommendedReorderPoint: this.calculateReorderPoint(materialEntries)
+        recommendedReorderPoint: this.calculateReorderPoint(materialEntries),
+        stockEntriesCount: materialEntries.length,
+        recommendation: getRecommendation()
       };
     });
   }

@@ -97,11 +97,11 @@ export async function generateCostAnalysisReport(materials: Material[], stockEnt
   return reportGenerator.generateCostAnalysis(materials, stockEntries).map(analysis => ({
     material: analysis.materialName,
     currentcost: analysis.currentAverageCost,
-    previouscost: analysis.historicalCosts.length > 1 ? analysis.historicalCosts[analysis.historicalCosts.length - 2].costPerBaseUnit : analysis.currentAverageCost,
+    previouscost: analysis.previousAverageCost,
     trend: analysis.costTrend,
-    variance: (analysis.costVariance / analysis.currentAverageCost) * 100 || 0,
-    entries: analysis.historicalCosts.length,
-    recommendation: analysis.costTrend === "increasing" ? "Consider alternative suppliers" : "Current pricing stable"
+    "variance%": analysis.costVariance,
+    entries: analysis.stockEntriesCount,
+    recommendation: analysis.recommendation
   }));
 }
 

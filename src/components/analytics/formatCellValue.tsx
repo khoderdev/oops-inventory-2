@@ -8,6 +8,130 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
 
   if (value === null || value === undefined) return "-";
 
+  // Handle cost analysis specific headers
+  if (reportType === "cost-analysis") {
+    switch (header.toLowerCase()) {
+      case "material": {
+        return String(row.materialname || row.materialName || value);
+      }
+      
+      case "current cost": {
+        const currentCost = row.currentaveragecost || row.currentAverageCost || value;
+        const numCurrentCost = typeof currentCost === "number" ? currentCost : Number(currentCost);
+        return numCurrentCost > 0 ? formatCurrency(numCurrentCost) : "-";
+      }
+      
+      case "previous cost": {
+        const previousCost = row.previousaveragecost || row.previousAverageCost || value;
+        const numPreviousCost = typeof previousCost === "number" ? previousCost : Number(previousCost);
+        return numPreviousCost > 0 ? formatCurrency(numPreviousCost) : "-";
+      }
+      
+      case "trend": {
+        const trend = row.costtrend || row.costTrend || value;
+        const trendValue = String(trend);
+        let trendIcon = "";
+        let trendColor = "";
+        
+        switch (trendValue) {
+          case "increasing":
+            trendIcon = "📈";
+            trendColor = "text-red-600";
+            break;
+          case "decreasing":
+            trendIcon = "📉";
+            trendColor = "text-green-600";
+            break;
+          default:
+            trendIcon = "➡️";
+            trendColor = "text-gray-600";
+        }
+        
+        return (
+          <div className={`flex items-center gap-1 ${trendColor} font-medium`}>
+            <span>{trendIcon}</span>
+            <span className="capitalize">{trendValue}</span>
+          </div>
+        );
+      }
+      
+      case "variance %": {
+        const variance = row.costvariance || row.costVariance || value;
+        const numVariance = typeof variance === "number" ? variance : Number(variance);
+        
+        if (numVariance === 0) return "0%";
+        
+        const absVariance = Math.abs(numVariance);
+        const varianceColor = numVariance > 0 ? "text-red-600" : "text-green-600";
+        const varianceIcon = numVariance > 0 ? "↑" : "↓";
+        
+        return (
+          <div className={`flex items-center gap-1 ${varianceColor} font-medium`}>
+            <span>{varianceIcon}</span>
+            <span>{absVariance.toFixed(1)}%</span>
+          </div>
+        );
+      }
+      
+      case "entries": {
+        const entries = row.stockentriescount || row.stockEntriesCount || row.entries || value;
+        const numEntries = typeof entries === "number" ? entries : Number(entries);
+        
+        let entriesColor = "";
+        let entriesIcon = "";
+        
+        if (numEntries === 0) {
+          entriesColor = "text-red-500";
+          entriesIcon = "⚠️";
+        } else if (numEntries < 3) {
+          entriesColor = "text-yellow-600";
+          entriesIcon = "📊";
+        } else {
+          entriesColor = "text-green-600";
+          entriesIcon = "✅";
+        }
+        
+        return (
+          <div className={`flex items-center gap-1 ${entriesColor}`}>
+            <span>{entriesIcon}</span>
+            <span>{numEntries}</span>
+          </div>
+        );
+      }
+      
+      case "recommendation": {
+        const recommendation = row.recommendation || value;
+        const recText = String(recommendation);
+        
+        let recColor = "";
+        let recIcon = "";
+        
+        if (recText.toLowerCase().includes("critical") || recText.toLowerCase().includes("alternative")) {
+          recColor = "text-red-600";
+          recIcon = "🚨";
+        } else if (recText.toLowerCase().includes("monitor") || recText.toLowerCase().includes("increasing")) {
+          recColor = "text-yellow-600";
+          recIcon = "⚠️";
+        } else if (recText.toLowerCase().includes("good") || recText.toLowerCase().includes("favorable")) {
+          recColor = "text-green-600";
+          recIcon = "✅";
+        } else {
+          recColor = "text-blue-600";
+          recIcon = "💡";
+        }
+        
+        return (
+          <div className={`${recColor} text-sm`}>
+            <div className="flex items-start gap-1">
+              <span className="flex-shrink-0 mt-0.5">{recIcon}</span>
+              <span className="leading-tight">{recText}</span>
+            </div>
+          </div>
+        );
+      }
+    }
+  }
+
   // Currency formatting
   if (header.toLowerCase().includes("cost") || header.toLowerCase().includes("value") || header.toLowerCase().includes("revenue") || header.toLowerCase().includes("profit")) {
     const numValue = typeof value === "number" ? value : Number(value);
