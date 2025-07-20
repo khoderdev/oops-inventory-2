@@ -60,26 +60,35 @@ function convertVolume(value, fromUnit, toUnit) {
 }
 
 function calculateStockConversion(stockEntry, material) {
-  let convertedQuantity = stockEntry.purchasedQuantity;
+  // Use remaining individual quantity if available, otherwise fall back to purchased quantity
+  let convertedQuantity = stockEntry.purchasedIndividualQuantity !== undefined ? stockEntry.purchasedIndividualQuantity : stockEntry.purchasedQuantity;
+
   let conversionFactor = 1;
 
-  // Convert purchased quantity to base unit
-  if (stockEntry.purchasedUnit !== material.baseUnit) {
-    if (isMassUnit(stockEntry.purchasedUnit) && isMassUnit(material.baseUnit)) {
-      convertedQuantity = convertMass(stockEntry.purchasedQuantity, stockEntry.purchasedUnit, material.baseUnit);
-      conversionFactor = convertedQuantity / stockEntry.purchasedQuantity;
-    } else if (isVolumeUnit(stockEntry.purchasedUnit) && isVolumeUnit(material.baseUnit)) {
-      convertedQuantity = convertVolume(stockEntry.purchasedQuantity, stockEntry.purchasedUnit, material.baseUnit);
-      conversionFactor = convertedQuantity / stockEntry.purchasedQuantity;
-    } else if (material.unitType === 'package') {
-      // Handle package unit conversions using dynamic packageQuantity
-      if (material.packageQuantity && material.packageQuantity > 0) {
-        convertedQuantity = stockEntry.purchasedQuantity * material.packageQuantity;
-        conversionFactor = material.packageQuantity;
-      } else {
-        console.warn(`Material "${material.name}" (ID: ${material.id}) is a package unit but has no packageQuantity set. Using 1:1 conversion.`);
-        convertedQuantity = stockEntry.purchasedQuantity;
-        conversionFactor = 1;
+  // For individual quantities, they should already be in base units
+  if (stockEntry.purchasedIndividualQuantity !== undefined && stockEntry.purchasedIndividualUnit) {
+    // Individual quantities are already converted to base units
+    convertedQuantity = stockEntry.purchasedIndividualQuantity;
+    conversionFactor = 1;
+  } else {
+    // Legacy fallback: Convert purchased quantity to base unit
+    if (stockEntry.purchasedUnit !== material.baseUnit) {
+      if (isMassUnit(stockEntry.purchasedUnit) && isMassUnit(material.baseUnit)) {
+        convertedQuantity = convertMass(stockEntry.purchasedQuantity, stockEntry.purchasedUnit, material.baseUnit);
+        conversionFactor = convertedQuantity / stockEntry.purchasedQuantity;
+      } else if (isVolumeUnit(stockEntry.purchasedUnit) && isVolumeUnit(material.baseUnit)) {
+        convertedQuantity = convertVolume(stockEntry.purchasedQuantity, stockEntry.purchasedUnit, material.baseUnit);
+        conversionFactor = convertedQuantity / stockEntry.purchasedQuantity;
+      } else if (material.unitType === "package") {
+        // Handle package unit conversions using dynamic packageQuantity
+        if (material.packageQuantity && material.packageQuantity > 0) {
+          convertedQuantity = stockEntry.purchasedQuantity * material.packageQuantity;
+          conversionFactor = material.packageQuantity;
+        } else {
+          console.warn(`Material "${material.name}" (ID: ${material.id}) is a package unit but has no packageQuantity set. Using 1:1 conversion.`);
+          convertedQuantity = stockEntry.purchasedQuantity;
+          conversionFactor = 1;
+        }
       }
     }
   }
@@ -87,7 +96,7 @@ function calculateStockConversion(stockEntry, material) {
   const costPerBaseUnit = convertedQuantity > 0 ? stockEntry.totalCost / convertedQuantity : 0;
   return {
     convertedQuantity,
-    convertedUnit: material.baseUnit,
+    convertedUnit: stockEntry.purchasedIndividualUnit || material.baseUnit,
     costPerBaseUnit,
     totalCostInBaseUnit: stockEntry.totalCost,
     conversionFactor

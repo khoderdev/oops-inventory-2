@@ -1,7 +1,6 @@
 import { Material, MenuItem, SaleRecord, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 import { reportGenerator } from "@/utils/inventoryReports";
 
-
 // Report generation functions
 export async function generateInventorySummaryReport(materials: Material[], stockEntries: StockEntry[]) {
   const MIN_STOCK_THRESHOLD = 2;
@@ -9,13 +8,26 @@ export async function generateInventorySummaryReport(materials: Material[], stoc
 
   return materials.map(material => {
     const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
-    const totalQuantity = materialStockEntries.reduce((sum, entry) => sum + entry.purchasedQuantity, 0);
+
+    // Use purchasedIndividualQuantity (remaining) instead of purchasedQuantity (original purchase)
+    const totalQuantity = materialStockEntries.reduce((sum, entry) => {
+      // Always prefer purchasedIndividualQuantity (current remaining quantity)
+      if (entry.purchasedIndividualQuantity !== undefined) {
+        return sum + entry.purchasedIndividualQuantity;
+      }
+      // Legacy fallback: calculate from purchased quantity
+      if (material.unitType === "package" && material.packageQuantity) {
+        return sum + entry.purchasedQuantity * material.packageQuantity;
+      }
+      return sum + entry.purchasedQuantity;
+    }, 0);
+
     const totalValue = materialStockEntries.reduce((sum, entry) => sum + entry.totalCost, 0);
 
-    // Calculate average cost per unit
+    // Calculate average cost per unit based on remaining quantities
     const totalCost = materialStockEntries.reduce((sum, entry) => sum + entry.totalCost, 0);
-    const totalPurchasedQty = materialStockEntries.reduce((sum, entry) => sum + entry.purchasedQuantity, 0);
-    const avgCost = totalPurchasedQty > 0 ? totalCost / totalPurchasedQty : 0;
+    const totalRemainingQty = totalQuantity; // This is now the correct remaining quantity
+    const avgCost = totalRemainingQty > 0 ? totalCost / totalRemainingQty : 0;
 
     // Get last purchase date
     const lastPurchase = materialStockEntries.length > 0 ? materialStockEntries.sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())[0].purchaseDate : null;

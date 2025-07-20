@@ -3,7 +3,7 @@ import { ReportType } from "@/components/analytics/configs";
 // Get table headers based on report type
 export function getTableHeaders(reportType: ReportType): string[] {
   const headerMap: Record<ReportType, string[]> = {
-    "inventory-summary": ["Material", "Category", "Available Qty", "Unit", "Min Threshold", "Avg Cost", "Total Value", "Stock Entries", "Last Purchase", "Status"],
+    "inventory-summary": ["Material", "Category", "Available Qty", "Unit", "Avg Cost", "Total Value", "Stock Entries", "Last Purchase", "Status"],
     "stock-purchases": ["Date", "Material", "Supplier", "Quantity", "Unit", "Cost per Unit", "Total Cost", "Batch"],
     "sales-performance": ["Date", "Section", "Total Sales", "Items Sold", "Revenue", "Top Item", "Performance"],
     "cost-analysis": ["Material", "Current Cost", "Previous Cost", "Trend", "Variance %", "Entries", "Recommendation"],

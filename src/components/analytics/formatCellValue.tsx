@@ -181,7 +181,7 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
 
     // For available quantity, add visual indicators
     if (header.toLowerCase().includes("available")) {
-      const threshold = 2; // Min threshold
+      const threshold = 2;
       let colorClass = "";
       let indicator = "";
 
