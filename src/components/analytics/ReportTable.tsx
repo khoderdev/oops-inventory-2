@@ -196,14 +196,8 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
               minHeight: "250px"
             }}
           >
-            <Table
-              ref={tableRef}
-              className="w-full table-fixed min-w-[800px]"
-              style={{
-                tableLayout: "fixed"
-              }}
-            >
-              <TableHeader className="sticky top-0 z-20">
+            <Table ref={tableRef} className="w-full table-fixed min-w-[800px] relative" style={{ tableLayout: "fixed" }}>
+              <TableHeader className="sticky top-0 z-30 bg-white dark:bg-card shadow-sm backdrop-blur-sm">
                 <TableRow className="border-b-2 border-primary/20 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
                   {headers.map((header, index) => {
                     const alignment = getColumnAlignment(header);
@@ -271,7 +265,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                       return (
                         <TableCell
                           key={header}
-                          className={cn("text-xs sm:text-sm lg:text-sm", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", index < headers.length - 1 && "border-r-2 border-slate-200 dark:border-slate-600", index === headers.length - 1 && "border-r-0", "transition-colors duration-200", "group-hover:border-slate-200 dark:group-hover:border-slate-500", getResponsiveColumnClasses(header), alignment)}
+                          className={cn("text-xs sm:text-sm lg:text-sm", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", cellIndex < headers.length - 1 && "border-r-2 border-slate-200 dark:border-slate-600", cellIndex === headers.length - 1 && "border-r-0", "transition-colors duration-200", "group-hover:border-slate-200 dark:group-hover:border-slate-500", getResponsiveColumnClasses(header), alignment)}
                           style={{
                             width: `${getColumnWidth(header)}px`,
                             textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
