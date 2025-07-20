@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { stockSchema } from "./stockSchema";
+import { CostBreakdown } from "./CostBreakdown";
 
 export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit, onCancel, onAddStock, onRecordWaste, onAddToSpecificEntry, onWasteFromSpecificEntry }: StockFormProps) {
   const [activeTab, setActiveTab] = useState<string>(stockEntry ? "update-entry" : "new-stock");
@@ -176,6 +177,13 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
     } else {
       onSubmit(formData);
     }
+  };
+
+  const renderCostBreakdownIfNeeded = () => {
+    const costRelevantTabs = ["new-stock", "add-stock", "update-entry", "add-to-entry"];
+    if (!costRelevantTabs.includes(activeTab)) return null;
+
+    return <CostBreakdown selectedMaterial={selectedMaterial} purchasedQuantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />;
   };
 
   return (
@@ -358,6 +366,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                   />
                 </div>
 
+                {renderCostBreakdownIfNeeded()}
+
                 <div className="flex gap-3 justify-end">
                   <Button type="button" variant="outline" onClick={onCancel}>
                     Cancel
@@ -476,6 +486,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                     )}
                   />
                 </div>
+
+                {renderCostBreakdownIfNeeded()}
 
                 <div className="flex gap-3 justify-end">
                   <Button type="button" variant="outline" onClick={onCancel}>
@@ -659,7 +671,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
             </Form>
           </TabsContent>
 
-          {/* New tabs for editing existing entries */}
           <TabsContent value="update-entry" className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
               <div className="flex items-center gap-3 mb-4">
@@ -815,6 +826,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                   />
                 </div>
 
+                {renderCostBreakdownIfNeeded()}
+
                 <div className="flex gap-3 justify-end">
                   <Button type="button" variant="outline" onClick={onCancel}>
                     Cancel
@@ -953,6 +966,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                     )}
                   />
                 </div>
+
+                {renderCostBreakdownIfNeeded()}
 
                 <div className="flex gap-3 justify-end">
                   <Button type="button" variant="outline" onClick={onCancel}>
@@ -1142,6 +1157,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                     />
                   </div>
                 </div>
+
+                {renderCostBreakdownIfNeeded()}
 
                 <div className="flex gap-3 justify-end">
                   <Button type="button" variant="outline" onClick={onCancel}>
