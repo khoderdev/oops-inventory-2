@@ -1,3 +1,4 @@
+import { ReportType } from "@/components/analytics/configs";
 import { stockSchema } from "@/components/stock/stockSchema";
 import { z } from "zod";
 
@@ -12,7 +13,7 @@ export type UnitType = "mass" | "volume" | "piece" | "package";
 export interface NegativeStockWarning {
   materialId: string;
   materialName: string;
-  type?: 'assignment' | 'stockEntry' | string;
+  type?: "assignment" | "stockEntry" | string;
   stockEntryId?: string;
   availableQuantity: number;
   requiredQuantity: number;
@@ -464,4 +465,16 @@ export interface StockFormProps {
   onAddToSpecificEntry?: (data: StockFormData) => void;
   onWasteFromSpecificEntry?: (data: StockFormData) => void;
   onCancel: () => void;
+}
+
+export interface ReportConfig {
+  id: ReportType;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  requiresDateRange: boolean;
+}
+
+export interface ReportGeneratorProps {
+  className?: string;
 }

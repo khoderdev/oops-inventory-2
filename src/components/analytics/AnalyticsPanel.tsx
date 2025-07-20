@@ -1,12 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Material } from "@/types/inventory";
+import { MaterialWithStock } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { MATERIAL_CATEGORIES } from "../../types/inventory";
 
 interface AnalyticsPanelProps {
-  lowStockMaterials: Material[];
-  materialsWithStock: Material[];
+  lowStockMaterials: MaterialWithStock[];
+  materialsWithStock: MaterialWithStock[];
 }
 
 export function AnalyticsPanel({ lowStockMaterials, materialsWithStock }: AnalyticsPanelProps) {
