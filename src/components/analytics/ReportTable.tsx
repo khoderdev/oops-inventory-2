@@ -78,45 +78,97 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-card rounded-lg border shadow-sm">
-      {/* Enhanced Table Header - Sticky */}
-      <div className="flex-shrink-0 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 border-b-2 border-primary/20 rounded-t-lg sticky top-0 z-10">
-        <div className="px-1">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-none">
-                {headers.map((header, index) => (
-                  <TableHead key={header} className={cn("font-bold text-xs sm:text-sm py-4 px-3 sm:px-4", "text-slate-700 dark:text-slate-200", "bg-transparent border-r border-slate-200/50 dark:border-slate-600/50 last:border-r-0", getColumnAlignment(header), getColumnWidth(header), "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50", index === 0 && "rounded-tl-lg", index === headers.length - 1 && "rounded-tr-lg")}>
-                    <div className="flex items-center gap-2 justify-center">
-                      <span className="truncate">{header}</span>
-                      {(header.toLowerCase().includes("qty") || header.toLowerCase().includes("cost") || header.toLowerCase().includes("value")) && <div className="w-1 h-1 rounded-full bg-blue-500 flex-shrink-0" />}
-                    </div>
-                  </TableHead>
-                ))}
+    <div className="flex flex-col h-full bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden">
+      {/* Single Unified Table with Perfect Alignment */}
+      <div className="flex-1 overflow-hidden">
+        <div 
+          className="h-full overflow-auto scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600"
+          style={{
+            maxHeight: "calc(100vh - 280px)",
+            minHeight: "300px"
+          }}
+        >
+          <Table className="w-full table-fixed">
+            {/* Sticky Header - Same Table Structure */}
+            <TableHeader className="sticky top-0 z-10">
+              <TableRow className="border-b-2 border-primary/20 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
+                {headers.map((header, index) => {
+                  const alignment = getColumnAlignment(header);
+                  return (
+                    <TableHead 
+                      key={header} 
+                      className={cn(
+                        // Base styles - EXACT same as TableCell
+                        "font-bold text-xs sm:text-sm py-4 px-4",
+                        "text-slate-700 dark:text-slate-200",
+                        "border-r border-slate-200 dark:border-slate-600 last:border-r-0",
+                        "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50",
+                        "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800",
+                        // Width - EXACT same calculation
+                        getColumnWidth(header),
+                        // Alignment - EXACT same as cells
+                        alignment,
+                        // Corner rounding
+                        index === 0 && "rounded-tl-lg",
+                        index === headers.length - 1 && "rounded-tr-lg"
+                      )}
+                      style={{
+                        textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
+                      }}
+                    >
+                      <div className="flex items-center gap-2 min-h-[24px]">
+                        <span className="truncate font-bold">{header}</span>
+                        {(header.toLowerCase().includes("qty") || 
+                          header.toLowerCase().includes("cost") || 
+                          header.toLowerCase().includes("value")) && 
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                        }
+                      </div>
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             </TableHeader>
-          </Table>
-        </div>
-      </div>
 
-      {/* Enhanced Scrollable Table Body */}
-      <div
-        className="flex-1 overflow-auto scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600 min-h-0"
-        style={{
-          maxHeight: "calc(100vh - 320px)",
-          minHeight: "250px"
-        }}
-      >
-        <div className="px-1">
-          <Table>
+            {/* Table Body - Perfect Column Alignment */}
             <TableBody>
               {data.map((row, index) => (
-                <TableRow key={index} className={cn("group transition-all duration-200 ease-in-out", "hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/30", "dark:hover:from-blue-900/20 dark:hover:to-indigo-900/10", "border-b border-slate-100 dark:border-slate-700 last:border-b-0", index % 2 === 0 && "bg-slate-50/30 dark:bg-slate-800/30")}>
-                  {headers.map((header, cellIndex) => (
-                    <TableCell key={header} className={cn("text-xs sm:text-sm py-4 px-3 sm:px-4 align-middle", "border-r border-slate-100/50 dark:border-slate-700/50 last:border-r-0", getColumnAlignment(header), getColumnWidth(header), "transition-colors duration-200", "group-hover:border-slate-200/70 dark:group-hover:border-slate-600/70")}>
-                      <div className={cn("w-full", getColumnAlignment(header) === "text-center" && "flex justify-center", getColumnAlignment(header) === "text-right" && "flex justify-end")}>{formatCellValue(row, header, reportType)}</div>
-                    </TableCell>
-                  ))}
+                <TableRow 
+                  key={index} 
+                  className={cn(
+                    "group transition-all duration-200",
+                    "hover:bg-gradient-to-r hover:from-blue-50/60 hover:to-indigo-50/40",
+                    "dark:hover:from-blue-900/30 dark:hover:to-indigo-900/20",
+                    "border-b border-slate-100 dark:border-slate-700",
+                    index % 2 === 0 && "bg-slate-50/40 dark:bg-slate-800/40"
+                  )}
+                >
+                  {headers.map((header, cellIndex) => {
+                    const alignment = getColumnAlignment(header);
+                    return (
+                      <TableCell 
+                        key={header} 
+                        className={cn(
+                          // Base styles - EXACT same as TableHead
+                          "text-xs sm:text-sm py-4 px-4",
+                          "border-r border-slate-100 dark:border-slate-600 last:border-r-0",
+                          "transition-colors duration-200",
+                          "group-hover:border-slate-200 dark:group-hover:border-slate-500",
+                          // Width - EXACT same as header
+                          getColumnWidth(header),
+                          // Alignment - EXACT same as header
+                          alignment
+                        )}
+                        style={{
+                          textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
+                        }}
+                      >
+                        <div className="flex items-center min-h-[24px]">
+                          {formatCellValue(row, header, reportType)}
+                        </div>
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))}
             </TableBody>
@@ -124,7 +176,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
         </div>
       </div>
 
-      {/* Enhanced Footer with Statistics */}
+      {/* Enhanced Footer */}
       <div className="flex-shrink-0 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 border-t-2 border-primary/20 px-4 py-3 rounded-b-lg">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-4">
