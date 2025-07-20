@@ -73,11 +73,11 @@ export const useInventoryData = () => {
         })),
         loading: false
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       setState(prev => ({
         ...prev,
         loading: false,
-        error: error.message || "Failed to fetch inventory data"
+        error: error instanceof Error ? error.message : "Failed to fetch inventory data"
       }));
     }
   };

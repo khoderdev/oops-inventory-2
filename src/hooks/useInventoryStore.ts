@@ -4,6 +4,7 @@ import { useCallback, useEffect } from "react";
 
 import { createMaterialAction, createMenuItemAction, createStockEntryAction, deleteMaterialAction, deleteMenuItemAction, deleteStockEntryAction, fetchTabDataAction, updateMaterialAction, updateMenuItemAction, updateStockEntryAction, addToStockAction, recordWasteAction, addToSpecificEntryAction, wasteFromSpecificEntryAction } from "@/store/inventoryActions";
 import { MaterialCategory, MaterialWithStock, MenuItem, Section, StockEntry, UnitType, AddStockData, RecordWasteData, StockFormData } from "@/types/inventory";
+import { toast } from "./use-toast";
 
 // Form data interface
 interface MaterialFormData {
@@ -114,6 +115,15 @@ export function useInventoryStore() {
         } else {
           await createStockEntry(data);
         }
+        
+        // Refresh stock data to ensure materials are updated with new stock information
+        await fetchTabData('stock');
+        
+        toast({
+          title: selectedStockEntry ? "Stock Entry Updated" : "Stock Entry Created",
+          description: selectedStockEntry ? "Stock entry has been updated successfully" : "New stock entry has been created successfully",
+        });
+        
         setShowStockFormTyped(false);
         setSelectedStockEntryTyped(null);
         setSelectedMaterialTyped(null);
@@ -122,7 +132,7 @@ export function useInventoryStore() {
         // Error is already handled in the action
       }
     },
-    [selectedStockEntry, createStockEntry, updateStockEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped]
+    [selectedStockEntry, createStockEntry, updateStockEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped, fetchTabData]
   );
 
   const handleEditMaterial = useCallback(
@@ -168,12 +178,25 @@ export function useInventoryStore() {
     async (id: string) => {
       try {
         await deleteStockEntry(id);
+        
+        // Refresh stock data to ensure materials are updated with removed stock information
+        await fetchTabData('stock');
+        
+        toast({
+          title: "Stock Entry Deleted",
+          description: "Stock entry has been removed successfully",
+        });
       } catch (error) {
         console.error('Failed to delete stock entry:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete stock entry",
+          variant: "destructive"
+        });
         // Error handling is already done in the action
       }
     },
-    [deleteStockEntry]
+    [deleteStockEntry, fetchTabData]
   );
 
   const handleCreateMenuItem = useCallback(
@@ -223,6 +246,15 @@ export function useInventoryStore() {
           notes: data.notes
         };
         const result = await addToStock(addStockData);
+        
+        // Refresh stock data to ensure materials are updated with new stock information
+        await fetchTabData('stock');
+        
+        toast({
+          title: "Stock Added Successfully",
+          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to inventory`,
+        });
+        
         setShowStockFormTyped(false);
         setSelectedMaterialTyped(null);
         return result;
@@ -231,7 +263,7 @@ export function useInventoryStore() {
         throw error;
       }
     },
-    [addToStock, setShowStockFormTyped, setSelectedMaterialTyped]
+    [addToStock, setShowStockFormTyped, setSelectedMaterialTyped, fetchTabData]
   );
 
   const handleRecordWasteOperation = useCallback(
@@ -246,6 +278,15 @@ export function useInventoryStore() {
           notes: data.notes
         };
         const result = await recordWaste(wasteData);
+        
+        // Refresh stock data to ensure materials are updated with new stock information
+        await fetchTabData('stock');
+        
+        toast({
+          title: "Waste Recorded Successfully",
+          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from inventory`,
+        });
+        
         setShowStockFormTyped(false);
         setSelectedMaterialTyped(null);
         return result;
@@ -254,7 +295,7 @@ export function useInventoryStore() {
         throw error;
       }
     },
-    [recordWaste, setShowStockFormTyped, setSelectedMaterialTyped]
+    [recordWaste, setShowStockFormTyped, setSelectedMaterialTyped, fetchTabData]
   );
 
   const handleAddToSpecificEntryOperation = useCallback(
@@ -271,6 +312,15 @@ export function useInventoryStore() {
           additionDate: data.purchaseDate,
           notes: data.notes
         });
+        
+        // Refresh stock data to ensure materials are updated with new stock information
+        await fetchTabData('stock');
+        
+        toast({
+          title: "Quantity Added Successfully",
+          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to stock entry`,
+        });
+        
         setShowStockFormTyped(false);
         setSelectedStockEntryTyped(null);
         setSelectedMaterialTyped(null);
@@ -280,7 +330,7 @@ export function useInventoryStore() {
         throw error;
       }
     },
-    [addToSpecificEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped]
+    [addToSpecificEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped, fetchTabData]
   );
 
   const handleWasteFromSpecificEntryOperation = useCallback(
@@ -298,6 +348,15 @@ export function useInventoryStore() {
           wasteDate: data.purchaseDate,
           notes: data.notes
         });
+        
+        // Refresh stock data to ensure materials are updated with new stock information
+        await fetchTabData('stock');
+        
+        toast({
+          title: "Waste Recorded Successfully",
+          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from stock entry`,
+        });
+        
         setShowStockFormTyped(false);
         setSelectedStockEntryTyped(null);
         setSelectedMaterialTyped(null);
@@ -307,7 +366,7 @@ export function useInventoryStore() {
         throw error;
       }
     },
-    [wasteFromSpecificEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped]
+    [wasteFromSpecificEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped, fetchTabData]
   );
 
   return {

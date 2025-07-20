@@ -646,12 +646,13 @@ export const addToSpecificEntryAction = atom(null, async (get, set, data: { entr
     // Optimistic update - update the specific entry immediately
     set(optimisticStockEntriesAtom, prev => prev.map(entry => {
       if (entry.id === data.entryId) {
-        // Simple optimistic update - we'll get the real data from server response
+        // For optimistic updates, only update individual quantity for display
+        // The server will calculate the correct values and we'll get them back
         return {
           ...entry,
-          purchasedQuantity: entry.purchasedQuantity + data.additionalQuantity,
-          purchasedIndividualQuantity: (entry.purchasedIndividualQuantity || 0) + data.additionalQuantity, // Simplified
+          purchasedIndividualQuantity: (entry.purchasedIndividualQuantity || 0) + data.additionalQuantity,
           updatedAt: new Date()
+          // Don't modify purchasedQuantity optimistically - let server handle it
         };
       }
       return entry;
@@ -707,12 +708,13 @@ export const wasteFromSpecificEntryAction = atom(null, async (get, set, data: { 
     // Optimistic update - update the specific entry immediately
     set(optimisticStockEntriesAtom, prev => prev.map(entry => {
       if (entry.id === data.entryId) {
-        // Simple optimistic update - we'll get the real data from server response
+        // For optimistic updates, only update individual quantity for display
+        // The server will calculate the correct values and we'll get them back
         return {
           ...entry,
-          purchasedQuantity: Math.max(0, entry.purchasedQuantity - data.wasteQuantity),
-          purchasedIndividualQuantity: Math.max(0, (entry.purchasedIndividualQuantity || 0) - data.wasteQuantity), // Simplified
+          purchasedIndividualQuantity: Math.max(0, (entry.purchasedIndividualQuantity || 0) - data.wasteQuantity),
           updatedAt: new Date()
+          // Don't modify purchasedQuantity optimistically - let server handle it
         };
       }
       return entry;

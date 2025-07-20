@@ -3,7 +3,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useInventoryData } from "@/hooks/useInventoryData";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { Edit, Plus, Trash2, AlertTriangle, FileText, RefreshCw } from "lucide-react";
@@ -14,8 +13,8 @@ import { salesAPI } from "@/api/sales.api.ts.tsx";
 import { toast } from "@/hooks/use-toast";
 
 export function StockEntriesTable() {
-  const { stockEntries, materials } = useInventoryData();
-  const { handleEditStockEntry, handleDeleteStockEntry, setShowStockForm } = useInventoryStore();
+  const { stockEntries, materialsWithStock, handleEditStockEntry, handleDeleteStockEntry, setShowStockForm } = useInventoryStore();
+  const materials = materialsWithStock;
   const [searchTerm] = useState("");
   const [negativeStockReport, setNegativeStockReport] = useState<NegativeStockReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
@@ -32,17 +31,14 @@ export function StockEntriesTable() {
       return !searchTerm || materialName?.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
-  // Helper function to check if stock entry has negative quantity
   const hasNegativeStock = (entry: (typeof stockEntriesWithMaterial)[0]) => {
     return (entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity < 0) || (entry.purchasedQuantity && entry.purchasedQuantity < 0);
   };
 
-  // Helper function to check if it's a virtual negative stock entry
   const isVirtualEntry = (entry: (typeof stockEntriesWithMaterial)[0]) => {
     return entry.supplier === "VIRTUAL - Negative Stock";
   };
 
-  // Fetch negative stock report
   const fetchNegativeStockReport = async () => {
     setLoadingReport(true);
     try {
@@ -69,7 +65,6 @@ export function StockEntriesTable() {
     return (
       <div className="space-y-1">
         {(() => {
-          // For mass units, show individual quantity as main (remaining after deductions)
           if (material?.unitType === "mass" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
             return (
               <>
@@ -87,9 +82,7 @@ export function StockEntriesTable() {
                 </div>
               </>
             );
-          }
-          // For package units, show individual quantity as main (remaining after deductions)
-          else if (material?.unitType === "package" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
+          } else if (material?.unitType === "package" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
             return (
               <>
                 <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
@@ -107,8 +100,7 @@ export function StockEntriesTable() {
               </>
             );
           }
-          // Fallback: show original quantity
-          else {
+           else {
             return (
               <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
                 {isNegative && <AlertTriangle className="h-4 w-4" />}
@@ -154,7 +146,6 @@ export function StockEntriesTable() {
     );
   };
 
-  // Count negative stock entries for summary
   const negativeStockCount = stockEntriesWithMaterial.filter(hasNegativeStock).length;
   const virtualEntryCount = stockEntriesWithMaterial.filter(isVirtualEntry).length;
 
