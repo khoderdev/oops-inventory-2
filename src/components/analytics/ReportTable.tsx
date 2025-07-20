@@ -1,9 +1,10 @@
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { ReportType } from "./configs";
-import { FileText, TrendingUp } from "lucide-react";
+import { FileText, TrendingUp, GripVertical } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { formatCellValue } from "./formatCellValue";
 import { cn } from "@/lib/utils";
+import React, { useState, useRef, useCallback } from "react";
 
 // Dynamic Report Table Component
 interface ReportTableProps {
@@ -30,8 +31,8 @@ function getColumnAlignment(header: string): string {
   return "text-left";
 }
 
-// Helper function to get responsive column width classes
-function getColumnWidth(header: string): string {
+// Helper function to get responsive column CSS classes (for non-resizable styles)
+function getResponsiveColumnClasses(header: string): string {
   const wideColumns = ["material", "supplier", "description", "name", "item"];
   const narrowColumns = ["qty", "unit", "status", "entries", "count"];
   const mediumColumns = ["category", "section", "date"];
@@ -39,32 +40,132 @@ function getColumnWidth(header: string): string {
 
   const headerLower = header.toLowerCase();
 
-  // Wide columns (names, descriptions)
+  // Return classes for mobile responsive behavior (when not in resizable table mode)
   if (wideColumns.some(keyword => headerLower.includes(keyword))) {
-    return "w-[120px] sm:w-[150px] lg:w-[200px] xl:w-[250px] min-w-[120px] max-w-[300px]";
+    return "min-w-[120px]";
   }
 
-  // Cost/Value columns
   if (costColumns.some(keyword => headerLower.includes(keyword))) {
-    return "w-[90px] sm:w-[110px] lg:w-[130px] min-w-[90px] max-w-[150px]";
+    return "min-w-[90px]";
   }
 
-  // Narrow columns (status, qty, units)
   if (narrowColumns.some(keyword => headerLower.includes(keyword))) {
-    return "w-[70px] sm:w-[80px] lg:w-[100px] min-w-[70px] max-w-[120px]";
+    return "min-w-[70px]";
   }
 
-  // Medium columns (categories, dates)
   if (mediumColumns.some(keyword => headerLower.includes(keyword))) {
-    return "w-[100px] sm:w-[120px] lg:w-[150px] min-w-[100px] max-w-[180px]";
+    return "min-w-[100px]";
   }
 
-  // Default columns
-  return "w-[85px] sm:w-[100px] lg:w-[130px] min-w-[85px] max-w-[180px]";
+  return "min-w-[85px]";
 }
 
 export function ReportTable({ reportType, data }: ReportTableProps) {
   const headers = getTableHeaders(reportType);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [isResizing, setIsResizing] = useState<string | null>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
+
+  // Get initial column width
+  const getInitialWidth = useCallback((header: string): number => {
+    const wideColumns = ["material", "supplier", "description", "name", "item"];
+    const narrowColumns = ["qty", "unit", "status", "entries", "count"];
+    const costColumns = ["cost", "value", "price", "profit", "revenue", "amount"];
+    const mediumColumns = ["category", "section", "date"];
+
+    const headerLower = header.toLowerCase();
+
+    if (wideColumns.some(keyword => headerLower.includes(keyword))) {
+      return 200;
+    }
+    if (costColumns.some(keyword => headerLower.includes(keyword))) {
+      return 120;
+    }
+    if (narrowColumns.some(keyword => headerLower.includes(keyword))) {
+      return 90;
+    }
+    if (mediumColumns.some(keyword => headerLower.includes(keyword))) {
+      return 140;
+    }
+    return 130;
+  }, []);
+
+  // Get current column width
+  const getColumnWidth = useCallback(
+    (header: string): number => {
+      return columnWidths[header] || getInitialWidth(header);
+    },
+    [columnWidths, getInitialWidth]
+  );
+
+  // Start resizing
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent | React.TouchEvent, header: string) => {
+      e.preventDefault();
+      setIsResizing(header);
+
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      startXRef.current = clientX;
+      startWidthRef.current = getColumnWidth(header);
+
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [getColumnWidth]
+  );
+
+  // Handle resize
+  const handleResize = useCallback(
+    (e: MouseEvent | TouchEvent) => {
+      if (!isResizing) return;
+
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const deltaX = clientX - startXRef.current;
+      const newWidth = Math.max(60, startWidthRef.current + deltaX); // Minimum width of 60px
+
+      setColumnWidths(prev => ({
+        ...prev,
+        [isResizing]: newWidth
+      }));
+    },
+    [isResizing]
+  );
+
+  // End resizing
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(null);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  // Add event listeners
+  React.useEffect(() => {
+    if (isResizing) {
+      const handleMouseMove = (e: MouseEvent) => handleResize(e);
+      const handleMouseUp = () => handleResizeEnd();
+      const handleTouchMove = (e: TouchEvent) => handleResize(e);
+      const handleTouchEnd = () => handleResizeEnd();
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleTouchEnd);
+
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener("touchmove", handleTouchMove);
+        document.removeEventListener("touchend", handleTouchEnd);
+      };
+    }
+  }, [isResizing, handleResize, handleResizeEnd]);
+
+  // Reset column widths
+  const resetColumnWidths = useCallback(() => {
+    setColumnWidths({});
+  }, []);
 
   // Mobile card view component for very small screens
   const MobileCardView = () => (
@@ -120,8 +221,19 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
 
       {/* Responsive Table View for Medium+ Screens */}
       <div className="hidden sm:flex flex-col h-full">
-        {/* Single Unified Table with Perfect Alignment */}
-        <div className="flex-1 overflow-hidden relative">
+        {/* Table Controls */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <GripVertical className="h-4 w-4" />
+            <span>Drag column edges to resize</span>
+          </div>
+          <button onClick={resetColumnWidths} className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 rounded transition-colors">
+            Reset Widths
+          </button>
+        </div>
+
+        {/* Resizable Table Container */}
+        <div className={cn("flex-1 overflow-hidden relative", isResizing && "select-none")}>
           <div
             className={cn(
               "h-full overflow-auto",
@@ -137,13 +249,11 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
             }}
           >
             <Table
-              className={cn(
-                // Responsive table layout
-                "w-full",
-                "sm:table-auto lg:table-fixed",
-                // Minimum width to prevent cramping
-                "min-w-[600px] sm:min-w-[700px] md:min-w-[800px] lg:min-w-full"
-              )}
+              ref={tableRef}
+              className="w-full table-fixed min-w-[800px]"
+              style={{
+                tableLayout: "fixed"
+              }}
             >
               {/* Responsive Sticky Header */}
               <TableHeader className="sticky top-0 z-20">
@@ -154,16 +264,16 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                       <TableHead
                         key={header}
                         className={cn(
-                          // Responsive typography
+                          // Base styles
                           "font-bold text-xs sm:text-sm lg:text-sm xl:text-base",
                           "text-slate-700 dark:text-slate-200",
-                          // Responsive padding
                           "py-3 px-2 sm:py-4 sm:px-3 lg:px-4",
                           "border-r border-slate-200 dark:border-slate-600 last:border-r-0",
                           "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50",
                           "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800",
-                          // Responsive width
-                          getColumnWidth(header),
+                          "relative",
+                          // Responsive classes for mobile
+                          getResponsiveColumnClasses(header),
                           // Alignment
                           alignment,
                           // Corner rounding
@@ -171,12 +281,20 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                           index === headers.length - 1 && "rounded-tr-lg"
                         )}
                         style={{
+                          width: `${getColumnWidth(header)}px`,
                           textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                         }}
                       >
-                        <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px]">
-                          <span className="truncate font-bold leading-tight">{header}</span>
+                        <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px] relative">
+                          <span className="truncate font-bold leading-tight flex-1">{header}</span>
                           {(header.toLowerCase().includes("qty") || header.toLowerCase().includes("cost") || header.toLowerCase().includes("value")) && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
+
+                          {/* Resize Handle */}
+                          {index < headers.length - 1 && (
+                            <div className={cn("absolute right-0 top-0 h-full w-2 cursor-col-resize z-10", "hover:bg-blue-500/20 active:bg-blue-500/30 transition-colors", "flex items-center justify-center group", isResizing === header && "bg-blue-500/30")} onMouseDown={e => handleResizeStart(e, header)} onTouchStart={e => handleResizeStart(e, header)} title={`Resize ${header} column`}>
+                              <div className={cn("w-0.5 h-6 bg-slate-300 group-hover:bg-blue-500 transition-all duration-200", "group-hover:h-8 group-hover:w-1", isResizing === header && "bg-blue-500 h-8 w-1")} />
+                            </div>
+                          )}
                         </div>
                       </TableHead>
                     );
@@ -194,23 +312,23 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                         <TableCell
                           key={header}
                           className={cn(
-                            // Responsive typography
+                            // Base styles
                             "text-xs sm:text-sm lg:text-sm",
-                            // Responsive padding
                             "py-3 px-2 sm:py-4 sm:px-3 lg:px-4",
                             "border-r border-slate-100 dark:border-slate-600 last:border-r-0",
                             "transition-colors duration-200",
                             "group-hover:border-slate-200 dark:group-hover:border-slate-500",
-                            // Width matching header
-                            getColumnWidth(header),
+                            // Responsive classes for mobile
+                            getResponsiveColumnClasses(header),
                             // Alignment matching header
                             alignment
                           )}
                           style={{
+                            width: `${getColumnWidth(header)}px`,
                             textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                           }}
                         >
-                          <div className="flex items-center min-h-[20px] sm:min-h-[24px]">{formatCellValue(row, header, reportType)}</div>
+                          <div className="flex items-center min-h-[20px] sm:min-h-[24px] overflow-hidden">{formatCellValue(row, header, reportType)}</div>
                         </TableCell>
                       );
                     })}
