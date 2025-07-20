@@ -10,16 +10,14 @@ import { StockFormData, StockFormInputs, StockFormProps } from "@/types/inventor
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { CalendarIcon, Package, TrendingUp, Trash2, DollarSign, User, Hash, FileText, Plus } from "lucide-react";
+import { CalendarIcon, Package, TrendingUp, Trash2, FileText, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { stockSchema } from "./stockSchema";
 
 export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit, onCancel, onAddStock, onRecordWaste, onAddToSpecificEntry, onWasteFromSpecificEntry }: StockFormProps) {
-  // If editing an existing entry, start with update tab, otherwise new stock tab
   const [activeTab, setActiveTab] = useState<string>(stockEntry ? "update-entry" : "new-stock");
   const form = useForm<StockFormInputs>({
     resolver: zodResolver(stockSchema),
@@ -42,15 +40,11 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   const watchedCostPerUnit = form.watch("costPerPurchasedUnit");
   const selectedMaterial = materials.find(m => m.id === watchedMaterialId);
 
-  // Debug logs removed - feature working correctly
-
-  // For package materials, prioritize inputUnit (e.g., "box") over baseUnit (e.g., "bottle")
   const availableUnits = selectedMaterial
     ? (() => {
         const suggestedUnits = getSuggestedUnits(selectedMaterial.unitType);
 
         if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit) {
-          // Move inputUnit to the front of the list
           const filteredUnits = suggestedUnits.filter(unit => unit !== selectedMaterial.inputUnit);
           return [selectedMaterial.inputUnit, ...filteredUnits];
         }
@@ -59,13 +53,16 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       })()
     : [];
 
-  // Reset form values when stockEntry or selectedMaterialId changes
   React.useEffect(() => {
+    const isAddToEntry = activeTab === "add-to-entry";
+    const isWasteFromEntry = activeTab === "waste-from-entry";
+    const shouldClearQuantityFields = isAddToEntry || isWasteFromEntry;
+
     form.reset({
       materialId: stockEntry?.materialId || selectedMaterialId || "",
       supplier: stockEntry?.supplier || "",
-      purchasedQuantity: stockEntry?.purchasedQuantity?.toString() || "0",
-      purchasedUnit: stockEntry?.purchasedUnit || "",
+      purchasedQuantity: shouldClearQuantityFields ? "" : stockEntry?.purchasedQuantity?.toString() || "0",
+      purchasedUnit: shouldClearQuantityFields ? "" : stockEntry?.purchasedUnit || "",
       costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "0",
       totalCost: stockEntry?.totalCost?.toString() || "0",
       purchaseDate: stockEntry?.purchaseDate || new Date(),
@@ -73,46 +70,39 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       batchNumber: stockEntry?.batchNumber || "",
       notes: stockEntry?.notes || ""
     });
-  }, [stockEntry, selectedMaterialId, form]);
+  }, [stockEntry, selectedMaterialId, form, activeTab]);
 
-  // Auto-select inputUnit for package materials and auto-populate cost
   React.useEffect(() => {
-    if (selectedMaterial && selectedMaterial.unitType === "package" && selectedMaterial.inputUnit) {
-      // Auto-select the inputUnit (e.g., "box") for package materials
+    const isAddToEntry = activeTab === "add-to-entry";
+    const isWasteFromEntry = activeTab === "waste-from-entry";
+    const shouldClearQuantityFields = isAddToEntry || isWasteFromEntry;
+
+    if (selectedMaterial && selectedMaterial.unitType === "package" && selectedMaterial.inputUnit && !shouldClearQuantityFields) {
       if (!form.getValues("purchasedUnit")) {
         form.setValue("purchasedUnit", selectedMaterial.inputUnit);
       }
     }
-  }, [selectedMaterial, form]);
+  }, [selectedMaterial, form, activeTab]);
 
-  // Auto-populate cost per unit when material is selected (only for new stock entries)
   React.useEffect(() => {
     if (selectedMaterial && !stockEntry) {
-      // Only auto-populate if this is a new stock entry (not editing)
       const currentCostPerUnit = form.getValues("costPerPurchasedUnit");
 
-      // Only set if the field is empty or zero
       const numericCurrentCost = typeof currentCostPerUnit === "string" ? parseFloat(currentCostPerUnit) : currentCostPerUnit;
       if (numericCurrentCost === 0 || isNaN(numericCurrentCost)) {
         let suggestedCost = 0;
 
         if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit && selectedMaterial.packageQuantity) {
-          // For package materials, use the material's original cost per input unit
-          // This is the cost per package unit (e.g., cost per box)
           const packageCost = selectedMaterial.costPerUnit;
           const numericPackageCost = typeof packageCost === "string" ? parseFloat(packageCost) : packageCost;
           suggestedCost = typeof numericPackageCost === "number" && !isNaN(numericPackageCost) && numericPackageCost > 0 ? numericPackageCost : 0;
         } else {
-          // For non-package materials, we need to consider the purchasing unit
           const purchasedUnit = form.getValues("purchasedUnit") || selectedMaterial.inputUnit;
 
           if (purchasedUnit === selectedMaterial.inputUnit && selectedMaterial.unitType === "mass") {
-            // If purchasing in input unit (kg), use the original cost per input unit
-            // We need to convert from cost per base unit back to cost per input unit
             const baseCost = selectedMaterial.costPerBaseUnit || selectedMaterial.costPerUnit;
             const numericBaseCost = typeof baseCost === "string" ? parseFloat(baseCost) : baseCost;
 
-            // Convert from cost per gram to cost per kg (multiply by 1000)
             if (selectedMaterial.inputUnit === "kg" && selectedMaterial.baseUnit === "g") {
               suggestedCost = numericBaseCost * 1000;
             } else if (selectedMaterial.inputUnit === "l" && selectedMaterial.baseUnit === "ml") {
@@ -121,26 +111,19 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
               suggestedCost = numericBaseCost;
             }
           } else {
-            // For other cases, use the cost per base unit
             const baseCost = selectedMaterial.costPerBaseUnit || selectedMaterial.costPerUnit;
             const numericBaseCost = typeof baseCost === "string" ? parseFloat(baseCost) : baseCost;
             suggestedCost = typeof numericBaseCost === "number" && !isNaN(numericBaseCost) && numericBaseCost > 0 ? numericBaseCost : 0;
           }
         }
-
-        // Set the suggested cost (even if it's 0 for debugging)
-
         if (suggestedCost >= 0 && !isNaN(suggestedCost)) {
-          // Round to 4 decimal places for precision
           const finalCost = parseFloat(suggestedCost.toFixed(4));
-
           form.setValue("costPerPurchasedUnit", finalCost.toString());
         }
       }
     }
   }, [selectedMaterial, form, stockEntry]);
 
-  // Auto-calculate total cost
   React.useEffect(() => {
     if (watchedQuantity && watchedCostPerUnit) {
       const numQuantity = typeof watchedQuantity === "string" ? parseFloat(watchedQuantity) : watchedQuantity;
@@ -153,7 +136,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
     }
   }, [watchedQuantity, watchedCostPerUnit, form]);
 
-  // Prevent wheel scrolling on number inputs
   React.useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -174,33 +156,24 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   }, []);
 
   const handleSubmit = (data: StockFormInputs) => {
-    // The zodResolver will transform the string inputs to numbers
-    // and the result will match StockFormData type
     const formData = data as unknown as StockFormData;
-    
-    // Route to different handlers based on active tab
     if (activeTab === "add-stock" && onAddStock) {
-      // General add stock operation (any material)
       onAddStock(formData);
     } else if (activeTab === "add-to-entry" && onAddToSpecificEntry && stockEntry) {
-      // Add to specific entry operation
       const specificEntryData = {
         ...formData,
         stockEntryId: stockEntry.id
       };
       onAddToSpecificEntry(specificEntryData);
     } else if (activeTab === "record-waste" && onRecordWaste) {
-      // General record waste operation (FIFO from any entries)
       onRecordWaste(formData);
     } else if (activeTab === "waste-from-entry" && onWasteFromSpecificEntry && stockEntry) {
-      // Record waste from specific entry operation
       const specificEntryData = {
         ...formData,
         stockEntryId: stockEntry.id
       };
       onWasteFromSpecificEntry(specificEntryData);
     } else {
-      // Default: new stock entry or update existing entry (new-stock, update-entry)
       onSubmit(formData);
     }
   };
@@ -215,7 +188,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-gray-100 p-1 rounded-lg mb-6">
             {stockEntry ? (
-              // Editing existing entry mode
               <>
                 <TabsTrigger value="update-entry" className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200">
                   <Package className="h-4 w-4" />
@@ -231,7 +203,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                 </TabsTrigger>
               </>
             ) : (
-              // New entry mode
               <>
                 <TabsTrigger value="new-stock" className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200">
                   <Plus className="h-4 w-4" />
@@ -267,7 +238,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                           </FormControl>
                           <SelectContent>
                             {materials.map(material => {
-                              // For package materials, show inputUnit (e.g., "box") instead of baseUnit (e.g., "bottle")
                               const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
                               return (
                                 <SelectItem key={material.id} value={material.id}>
@@ -699,7 +669,12 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                 <h3 className="text-lg font-semibold text-blue-800">Update Stock Entry Details</h3>
               </div>
               <p className="text-sm text-blue-700 mb-4">
-                Modify the details of this stock entry. Current: <strong>{stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}</strong>
+                Modify the details of this stock entry. Current: <strong>{stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}` : `${stockEntry?.purchasedQuantity} ${stockEntry?.purchasedUnit}`}</strong>
+                {stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit && (
+                  <span className="text-xs text-blue-600 ml-1">
+                    (remaining from {stockEntry.purchasedQuantity} {stockEntry.purchasedUnit})
+                  </span>
+                )}
               </p>
             </div>
 
@@ -859,7 +834,12 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                 <h3 className="text-lg font-semibold text-green-800">Add Quantity to This Entry</h3>
               </div>
               <p className="text-sm text-green-700 mb-4">
-                Current stock: <strong>{stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}</strong>. Add additional quantity to this specific entry.
+                Current stock: <strong>{stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}` : `${stockEntry?.purchasedQuantity} ${stockEntry?.purchasedUnit}`}</strong>. Add additional quantity to this specific entry.
+                {stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit && (
+                  <span className="block text-xs text-green-600 mt-1">
+                    (remaining from original {stockEntry.purchasedQuantity} {stockEntry.purchasedUnit})
+                  </span>
+                )}
               </p>
             </div>
 
@@ -908,16 +888,11 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                           Additional Quantity
                         </FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            step="0.0001" 
-                            placeholder="Enter quantity to add (e.g., 1)" 
-                            {...field} 
-                            onChange={e => field.onChange(e.target.value)} 
-                            className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 overflow-hidden" 
-                          />
+                          <Input type="number" step="0.0001" placeholder="Enter quantity to add (e.g., 1)" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 overflow-hidden" />
                         </FormControl>
-                        <p className="text-xs text-green-600 mt-1">This will be added to the existing {stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}</p>
+                        <p className="text-xs text-green-600 mt-1">
+                          This will be added to the existing {stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1001,7 +976,12 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                 <h3 className="text-lg font-semibold text-red-800">Record Waste from This Entry</h3>
               </div>
               <p className="text-sm text-red-700 mb-4">
-                Current stock: <strong>{stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}</strong>. Record waste/spoilage from this specific entry.
+                Current stock: <strong>{stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}` : `${stockEntry?.purchasedQuantity} ${stockEntry?.purchasedUnit}`}</strong>. Record waste/spoilage from this specific entry.
+                {stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit && (
+                  <span className="block text-xs text-red-600 mt-1">
+                    (remaining from original {stockEntry.purchasedQuantity} {stockEntry.purchasedUnit})
+                  </span>
+                )}
               </p>
             </div>
 
@@ -1050,16 +1030,11 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                           Waste Quantity
                         </FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            step="0.0001" 
-                            placeholder="Enter quantity to remove (e.g., 0.5)" 
-                            {...field} 
-                            onChange={e => field.onChange(e.target.value)} 
-                            className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 overflow-hidden" 
-                          />
+                          <Input type="number" step="0.0001" placeholder="Enter quantity to remove (e.g., 0.5)" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 overflow-hidden" />
                         </FormControl>
-                        <p className="text-xs text-red-600 mt-1">This will be removed from the existing {stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}</p>
+                        <p className="text-xs text-red-600 mt-1">
+                          This will be removed from the existing {stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1159,11 +1134,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                             Notes (Optional)
                           </FormLabel>
                           <FormControl>
-                            <Textarea 
-                              placeholder="Additional details about the waste (e.g., batch number, expiry date, disposal method)..." 
-                              {...field} 
-                              className="border-gray-300 focus:border-red-500 focus:ring-red-500 min-h-[80px]"
-                            />
+                            <Textarea placeholder="Additional details about the waste (e.g., batch number, expiry date, disposal method)..." {...field} className="border-gray-300 focus:border-red-500 focus:ring-red-500 min-h-[80px]" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
