@@ -21,10 +21,10 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [, setMenuItems] = useState<MenuItem[]>([]);
   const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [, setIsRefreshing] = useState(false);
   const [negativeStockWarnings, setNegativeStockWarnings] = useState<NegativeStockWarning[]>([]);
   const [showNegativeStockDialog, setShowNegativeStockDialog] = useState(false);
-  
+
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -386,23 +386,23 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       const currentCart = [...cart];
       setCart([]);
 
-              try {
-          const response = await posAPI.createSale(saleData);
-          const saleResponse = response.data;
-          showSuccess(`Sale completed successfully! Total: ${formatCurrency(cartTotal)}`);
-          
-          // Handle negative stock warnings from the API response
-          const warnings = saleResponse.negativeStockWarnings || [];
-          setNegativeStockWarnings(warnings);
-          if (warnings.length > 0) {
-            setShowNegativeStockDialog(true);
-          }
-        } catch (apiError) {
-          // Revert optimistic updates on API failure
-          revertOptimisticUpdates();
-          setCart(currentCart); // Restore cart
-          throw apiError;
+      try {
+        const response = await posAPI.createSale(saleData);
+        const saleResponse = response.data;
+        showSuccess(`Sale completed successfully! Total: ${formatCurrency(cartTotal)}`);
+
+        // Handle negative stock warnings from the API response
+        const warnings = saleResponse.negativeStockWarnings || [];
+        setNegativeStockWarnings(warnings);
+        if (warnings.length > 0) {
+          setShowNegativeStockDialog(true);
         }
+      } catch (apiError) {
+        // Revert optimistic updates on API failure
+        revertOptimisticUpdates();
+        setCart(currentCart); // Restore cart
+        throw apiError;
+      }
     } catch (error: any) {
       console.error("Sale failed:", error);
       showError(error.response?.data?.error || "Failed to complete sale");
@@ -455,50 +455,42 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
           </Alert>
         )}
 
-                 {/* Negative Stock Warnings Dialog */}
-         <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
-           <DialogContent className="max-w-2xl">
-             <DialogHeader>
-               <DialogTitle className="flex items-center gap-2 text-red-600">
-                 <AlertTriangle className="h-5 w-5" />
-                 Negative Stock Warning
-               </DialogTitle>
-               <DialogDescription>
-                 The following items resulted in negative stock after this sale. The sale was completed, but these items may need restocking.
-               </DialogDescription>
-             </DialogHeader>
-             <div className="space-y-3">
-               {negativeStockWarnings.map((warning, index) => (
-                 <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                   <div className="flex items-start gap-2">
-                     <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                     <div className="flex-1 space-y-1">
-                       <div className="font-medium text-red-900">{warning.materialName}</div>
-                       <div className="text-sm text-red-800">
-                         Available: {formatNumber(warning.availableQuantity)} {warning.unit} | 
-                         Required: {formatNumber(warning.requiredQuantity)} {warning.unit} | 
-                         Shortage: {formatNumber(warning.shortageQuantity)} {warning.unit}
-                       </div>
-                       {warning.type && (
-                         <Badge variant="outline" className="text-xs">
-                           {warning.type}
-                         </Badge>
-                       )}
-                       {warning.action && (
-                         <div className="text-xs text-red-700 italic">{warning.action}</div>
-                       )}
-                     </div>
-                   </div>
-                 </div>
-               ))}
-               <div className="pt-2 border-t">
-                 <div className="text-sm text-muted-foreground">
-                   Total items with negative stock: {negativeStockWarnings.length}
-                 </div>
-               </div>
-             </div>
-           </DialogContent>
-         </Dialog>
+        {/* Negative Stock Warnings Dialog */}
+        <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+                Negative Stock Warning
+              </DialogTitle>
+              <DialogDescription>The following items resulted in negative stock after this sale. The sale was completed, but these items may need restocking.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              {negativeStockWarnings.map((warning, index) => (
+                <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 space-y-1">
+                      <div className="font-medium text-red-900">{warning.materialName}</div>
+                      <div className="text-sm text-red-800">
+                        Available: {formatNumber(warning.availableQuantity)} {warning.unit} | Required: {formatNumber(warning.requiredQuantity)} {warning.unit} | Shortage: {formatNumber(warning.shortageQuantity)} {warning.unit}
+                      </div>
+                      {warning.type && (
+                        <Badge variant="outline" className="text-xs">
+                          {warning.type}
+                        </Badge>
+                      )}
+                      {warning.action && <div className="text-xs text-red-700 italic">{warning.action}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="pt-2 border-t">
+                <div className="text-sm text-muted-foreground">Total items with negative stock: {negativeStockWarnings.length}</div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Section Selection */}
         <Card>
