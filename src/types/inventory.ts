@@ -223,6 +223,10 @@ export interface SaleRecord {
   menuItems: MenuItemSale[];
   totalAmount: number;
   sectionId: string;
+  section?: {
+    id: string;
+    name: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }

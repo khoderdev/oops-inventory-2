@@ -18,6 +18,7 @@ interface ItemSale {
   saleId: string;
   saleDate: Date;
   sectionId?: string;
+  sectionName?: string;
   itemName: string;
   itemType: "individual" | "menu";
   quantity: number;
@@ -33,6 +34,7 @@ export function SalesHistoryPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string>("all");
+  const [selectedSection, setSelectedSection] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState("");
   const navigate = useNavigate();
 
@@ -72,6 +74,7 @@ export function SalesHistoryPage() {
           saleId: sale.id || "",
           saleDate: new Date(sale.saleDate),
           sectionId: sale.sectionId,
+          sectionName: sale.section?.name,
           itemName: item.materialName || "Unknown Item",
           itemType: "individual",
           quantity: item.quantity,
@@ -89,6 +92,7 @@ export function SalesHistoryPage() {
           saleId: sale.id || "",
           saleDate: new Date(sale.saleDate),
           sectionId: sale.sectionId,
+          sectionName: sale.section?.name,
           itemName: menuItem.menuItemName || `Menu Item ${menuItem.menuItemId}`,
           itemType: "menu",
           quantity: menuItem.quantity,
@@ -108,13 +112,27 @@ export function SalesHistoryPage() {
     return Array.from(names).sort();
   }, [itemSales]);
 
-  // Filter item sales based on selected item and date
+  // Get unique section names for the filter dropdown
+  const uniqueSectionNames = useMemo(() => {
+    const sections = new Set(itemSales.map(item => item.sectionName || `Section ${item.sectionId}`).filter(Boolean));
+    return Array.from(sections).sort();
+  }, [itemSales]);
+
+  // Filter item sales based on selected item, section, and date
   const filteredItemSales = useMemo(() => {
     let filtered = [...itemSales];
 
     // Item filter
     if (selectedItem && selectedItem !== "all") {
       filtered = filtered.filter(item => item.itemName === selectedItem);
+    }
+
+    // Section filter
+    if (selectedSection && selectedSection !== "all") {
+      filtered = filtered.filter(item => {
+        const itemSectionName = item.sectionName || `Section ${item.sectionId}`;
+        return itemSectionName === selectedSection;
+      });
     }
 
     // Date filter
@@ -126,7 +144,7 @@ export function SalesHistoryPage() {
     }
 
     return filtered.sort((a, b) => b.saleDate.getTime() - a.saleDate.getTime());
-  }, [itemSales, selectedItem, dateFilter]);
+  }, [itemSales, selectedItem, selectedSection, dateFilter]);
 
   const totalSales = filteredItemSales.reduce((sum, item) => sum + item.totalPrice, 0);
   const totalQuantity = filteredItemSales.reduce((sum, item) => sum + item.quantity, 0);
@@ -186,7 +204,7 @@ export function SalesHistoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalQuantity}</div>
-              <p className="text-xs text-muted-foreground">{selectedItem !== "all" || dateFilter ? `Filtered from ${itemSales.length} total` : "Total quantity sold"}</p>
+              <p className="text-xs text-muted-foreground">{selectedItem !== "all" || selectedSection !== "all" || dateFilter ? `Filtered from ${itemSales.length} total` : "Total quantity sold"}</p>
             </CardContent>
           </Card>
 
@@ -204,7 +222,7 @@ export function SalesHistoryPage() {
 
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+            <div className="flex  justify-start items-center gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Item</label>
                 <Select value={selectedItem} onValueChange={setSelectedItem}>
@@ -221,7 +239,24 @@ export function SalesHistoryPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select Section</label>
+                <Select value={selectedSection} onValueChange={setSelectedSection}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a section to filter by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sections</SelectItem>
+                    {uniqueSectionNames.map(sectionName => (
+                      <SelectItem key={sectionName} value={sectionName}>
+                        {sectionName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
             <div className="flex items-center gap-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Date</label>
@@ -229,12 +264,13 @@ export function SalesHistoryPage() {
                   <Input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-auto" />
                 </div>
               </div>
-              {(selectedItem !== "all" || dateFilter) && (
+              {(selectedItem !== "all" || selectedSection !== "all" || dateFilter) && (
                 <div className="mt-8">
                   <Button
                     variant="outline"
                     onClick={() => {
                       setSelectedItem("all");
+                      setSelectedSection("all");
                       setDateFilter("");
                     }}
                   >
@@ -291,7 +327,7 @@ export function SalesHistoryPage() {
                           <span className="text-xs text-muted-foreground">{item.saleDate.toLocaleTimeString()}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{item.sectionId ? <Badge variant="outline">Section {item.sectionId}</Badge> : <span className="text-muted-foreground">-</span>}</TableCell>
+                      <TableCell>{item.sectionName ? <Badge variant="outline">{item.sectionName}</Badge> : item.sectionId ? <Badge variant="outline">Section {item.sectionId}</Badge> : <span className="text-muted-foreground">-</span>}</TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium">{item.quantity}</span>
