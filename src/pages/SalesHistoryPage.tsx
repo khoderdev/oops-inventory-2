@@ -6,28 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SaleRecord } from "@/types/inventory";
+import { ItemSale, SaleRecord } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
-import { AlertCircle, ArrowRight, Calendar, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart } from "lucide-react";
+import { AlertCircle, ArrowRight, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-interface ItemSale {
-  id: string;
-  saleId: string;
-  saleDate: Date;
-  sectionId?: string;
-  sectionName?: string;
-  itemName: string;
-  itemType: "individual" | "menu";
-  quantity: number;
-  unit?: string;
-  unitPrice: number;
-  totalPrice: number;
-  materialId?: string;
-  menuItemId?: string;
-}
 
 export function SalesHistoryPage() {
   const [sales, setSales] = useState<SaleRecord[]>([]);
@@ -183,37 +167,37 @@ export function SalesHistoryPage() {
       {/* Filters */}
       <Card className="rounded-none">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-4 py-2">
+          <Card className="py-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+              <CardTitle className="text-xs font-medium">Total Sales</CardTitle>
+              <DollarSign className="h-3 w-3 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalSales)}</div>
-              <p className="text-xs text-muted-foreground">From {filteredItemSales.length} item sales</p>
+            <CardContent className="pt-1 pb-3">
+              <div className="text-lg font-bold">{formatCurrency(totalSales)}</div>
+              <p className="text-[10px] text-muted-foreground">From {filteredItemSales.length} item sales</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Items Sold</CardTitle>
-              <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+          <Card className="py-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+              <CardTitle className="text-xs font-medium">Items Sold</CardTitle>
+              <ShoppingBag className="h-3 w-3 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalQuantity}</div>
-              <p className="text-xs text-muted-foreground">{selectedItem !== "all" || selectedSection !== "all" || dateFilter ? `Filtered from ${itemSales.length} total` : "Total quantity sold"}</p>
+            <CardContent className="pt-1 pb-3">
+              <div className="text-lg font-bold">{totalQuantity}</div>
+              <p className="text-[10px] text-muted-foreground">{selectedItem !== "all" || selectedSection !== "all" || dateFilter ? `Filtered from ${itemSales.length} total` : "Total quantity sold"}</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Price</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+          <Card className="py-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+              <CardTitle className="text-xs font-medium">Average Price</CardTitle>
+              <Package className="h-3 w-3 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalQuantity > 0 ? formatCurrency(totalSales / totalQuantity) : formatCurrency(0)}</div>
-              <p className="text-xs text-muted-foreground">Per item</p>
+            <CardContent className="pt-1 pb-3">
+              <div className="text-lg font-bold">{totalQuantity > 0 ? formatCurrency(totalSales / totalQuantity) : formatCurrency(0)}</div>
+              <p className="text-[10px] text-muted-foreground">Per item</p>
             </CardContent>
           </Card>
         </div>

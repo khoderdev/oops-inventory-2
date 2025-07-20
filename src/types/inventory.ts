@@ -266,6 +266,22 @@ export interface POSPanelProps {
   sectionAssignments: SectionAssignment[];
 }
 
+export interface ItemSale {
+  id: string;
+  saleId: string;
+  saleDate: Date;
+  sectionId?: string;
+  sectionName?: string;
+  itemName: string;
+  itemType: "individual" | "menu";
+  quantity: number;
+  unit?: string;
+  unitPrice: number;
+  totalPrice: number;
+  materialId?: string;
+  menuItemId?: string;
+}
+
 //-----------------------------------------------------------------------------
 
 export type MenuItemCategory = "appetizers" | "mains" | "sides" | "desserts" | "beverages" | "other";
@@ -371,7 +387,6 @@ export interface RecordWasteResponse {
   }>;
   reason: string;
 }
-
 
 export type StockFormData = z.infer<typeof stockSchema>;
 
