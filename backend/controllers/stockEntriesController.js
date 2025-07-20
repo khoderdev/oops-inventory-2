@@ -6,9 +6,6 @@ const stockEntriesController = {
   // Get all stock entries
   getAllStockEntries: async (req, res, next) => {
     try {
-      console.log("=== FETCHING ALL STOCK ENTRIES WITH CACHE BUSTING ===");
-
-      // Force fresh query with raw SQL to bypass any caching
       const rawStockEntries = await sequelize.query(
         `
         SELECT 
@@ -31,23 +28,6 @@ const stockEntriesController = {
           nest: true
         }
       );
-
-      console.log(`Found ${rawStockEntries.length} stock entries via raw query`);
-
-      // Log sample entry to verify fresh data
-      if (rawStockEntries.length > 0) {
-        const sampleEntry = rawStockEntries.find(entry => entry.id === 28) || rawStockEntries[0];
-        console.log("Sample FRESH stock entry data:", {
-          id: sampleEntry.id,
-          materialId: sampleEntry.materialId,
-          materialName: sampleEntry.material?.name,
-          purchasedQuantity: sampleEntry.purchasedQuantity,
-          purchasedUnit: sampleEntry.purchasedUnit,
-          purchasedIndividualQuantity: sampleEntry.purchasedIndividualQuantity,
-          purchasedIndividualUnit: sampleEntry.purchasedIndividualUnit,
-          updatedAt: sampleEntry.updatedAt
-        });
-      }
 
       res.status(200).json(rawStockEntries);
     } catch (error) {
@@ -106,13 +86,7 @@ const stockEntriesController = {
         purchasedIndividualQuantity = Math.round(purchasedQuantity * material.packageQuantity);
         purchasedIndividualUnit = material.baseUnit;
 
-        console.log(`Package unit conversion for ${material.name}:`, {
-          packageQuantity: purchasedQuantity,
-          packageUnit: purchasedUnit,
-          individualQuantity: purchasedIndividualQuantity,
-          individualUnit: purchasedIndividualUnit,
-          packageQuantityPerUnit: material.packageQuantity
-        });
+
       } else if (material.unitType === "mass") {
         // For mass units, convert to base unit (grams)
         const massConversions = {
@@ -125,17 +99,7 @@ const stockEntriesController = {
         const conversionFactor = massConversions[purchasedUnit.toLowerCase()];
         if (conversionFactor) {
           purchasedIndividualQuantity = Math.round(purchasedQuantity * conversionFactor);
-          purchasedIndividualUnit = material.baseUnit; // Should be 'g' for mass units
-
-          console.log(`Mass unit conversion for ${material.name}:`, {
-            originalQuantity: purchasedQuantity,
-            originalUnit: purchasedUnit,
-            individualQuantity: purchasedIndividualQuantity,
-            individualUnit: purchasedIndividualUnit,
-            conversionFactor: conversionFactor
-          });
-        } else {
-          console.warn(`Unknown mass unit: ${purchasedUnit} for material: ${material.name}`);
+          purchasedIndividualUnit = material.baseUnit; 
         }
       }
 
@@ -212,13 +176,6 @@ const stockEntriesController = {
         updatedIndividualQuantity = Math.round(finalPurchasedQuantity * material.packageQuantity);
         updatedIndividualUnit = material.baseUnit;
 
-        console.log(`Package unit update conversion for ${material.name}:`, {
-          packageQuantity: finalPurchasedQuantity,
-          packageUnit: finalPurchasedUnit,
-          individualQuantity: updatedIndividualQuantity,
-          individualUnit: updatedIndividualUnit,
-          packageQuantityPerUnit: material.packageQuantity
-        });
       } else {
         if (material.unitType === "mass") {
           const massConversions = {
@@ -284,7 +241,6 @@ const stockEntriesController = {
   // Add quantity to a specific stock entry
   addToSpecificEntry: async (req, res, next) => {
     try {
-      console.log("=== ADD TO SPECIFIC STOCK ENTRY ===");
       const { id } = req.params;
       const { additionalQuantity, unit, additionDate, notes } = req.body;
 
@@ -309,23 +265,10 @@ const stockEntriesController = {
 
       const material = stockEntry.material;
 
-      console.log("=== BEFORE ADDITION ===");
-      console.log(`Original entry:`, {
-        purchasedQuantity: stockEntry.purchasedQuantity,
-        purchasedUnit: stockEntry.purchasedUnit,
-        purchasedIndividualQuantity: stockEntry.purchasedIndividualQuantity,
-        purchasedIndividualUnit: stockEntry.purchasedIndividualUnit,
-        totalCost: stockEntry.totalCost
-      });
-      console.log(`Adding: ${numericAdditionalQuantity} ${unit}`);
-      console.log(`Material: ${material.name}, unitType: ${material.unitType}, baseUnit: ${material.baseUnit}`);
-
       // CRITICAL FIX: Convert additional quantity to the same unit as the original purchased quantity
       let additionalInOriginalUnit = numericAdditionalQuantity;
 
       if (stockEntry.purchasedUnit !== unit) {
-        console.log(`Unit conversion needed: ${unit} → ${stockEntry.purchasedUnit}`);
-
         if (material.unitType === "mass") {
           const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
           const originalUnitFactor = massConversions[stockEntry.purchasedUnit.toLowerCase()];
@@ -335,7 +278,6 @@ const stockEntriesController = {
             // Convert additional quantity to original unit
             // Example: 20g to kg = 20 * (1/1000) = 0.02kg
             additionalInOriginalUnit = numericAdditionalQuantity * (additionalUnitFactor / originalUnitFactor);
-            console.log(`Conversion: ${numericAdditionalQuantity} ${unit} = ${additionalInOriginalUnit} ${stockEntry.purchasedUnit}`);
           } else {
             return res.status(400).json({
               error: `Cannot convert between units: ${unit} and ${stockEntry.purchasedUnit}`
@@ -405,15 +347,6 @@ const stockEntriesController = {
         newPurchasedConvertedUnit = stockEntry.purchasedUnit;
       }
 
-      console.log("=== CALCULATED NEW VALUES ===");
-      console.log(`New quantities:`, {
-        purchasedQuantity: `${stockEntry.purchasedQuantity} → ${newPurchasedQuantity} ${stockEntry.purchasedUnit}`,
-        individualQuantity: `${stockEntry.purchasedIndividualQuantity} → ${newIndividualQuantity} ${newIndividualUnit}`,
-        convertedQuantity: `${stockEntry.purchasedConvertedQuantity} → ${newPurchasedConvertedQuantity} ${newPurchasedConvertedUnit}`,
-        totalCost: `${stockEntry.totalCost} → ${newTotalCost}`,
-        additionalInOriginalUnit: additionalInOriginalUnit
-      });
-
       // Update the stock entry
       await stockEntry.update({
         purchasedQuantity: newPurchasedQuantity,
@@ -431,17 +364,6 @@ const stockEntriesController = {
         include: { model: Material, as: "material" }
       });
 
-      console.log(`✅ Successfully added ${numericAdditionalQuantity} ${unit} to stock entry ${id} for material ${material.name}`);
-      console.log(`Final result:`, {
-        purchasedQuantity: updatedEntry.purchasedQuantity,
-        purchasedUnit: updatedEntry.purchasedUnit,
-        purchasedIndividualQuantity: updatedEntry.purchasedIndividualQuantity,
-        purchasedIndividualUnit: updatedEntry.purchasedIndividualUnit,
-        purchasedConvertedQuantity: updatedEntry.purchasedConvertedQuantity,
-        purchasedConvertedUnit: updatedEntry.purchasedConvertedUnit,
-        totalCost: updatedEntry.totalCost
-      });
-
       res.status(200).json({
         message: `Successfully added ${numericAdditionalQuantity} ${unit} to existing stock entry`,
         stockEntry: updatedEntry
@@ -455,7 +377,6 @@ const stockEntriesController = {
   // Record waste from a specific stock entry
   wasteFromSpecificEntry: async (req, res, next) => {
     try {
-      console.log("=== RECORD WASTE FROM SPECIFIC STOCK ENTRY ===");
       const { id } = req.params;
       const { wasteQuantity, unit, wasteReason, wasteDate, notes } = req.body;
 
@@ -480,23 +401,10 @@ const stockEntriesController = {
 
       const material = stockEntry.material;
 
-      console.log("=== BEFORE WASTE ===");
-      console.log(`Original entry:`, {
-        purchasedQuantity: stockEntry.purchasedQuantity,
-        purchasedUnit: stockEntry.purchasedUnit,
-        purchasedIndividualQuantity: stockEntry.purchasedIndividualQuantity,
-        purchasedIndividualUnit: stockEntry.purchasedIndividualUnit,
-        totalCost: stockEntry.totalCost
-      });
-      console.log(`Wasting: ${numericWasteQuantity} ${unit}`);
-      console.log(`Material: ${material.name}, unitType: ${material.unitType}, baseUnit: ${material.baseUnit}`);
-
       // CRITICAL FIX: Convert waste quantity to the same unit as the original purchased quantity
       let wasteInOriginalUnit = numericWasteQuantity;
 
       if (stockEntry.purchasedUnit !== unit) {
-        console.log(`Unit conversion needed: ${unit} → ${stockEntry.purchasedUnit}`);
-
         if (material.unitType === "mass") {
           const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
           const originalUnitFactor = massConversions[stockEntry.purchasedUnit.toLowerCase()];
@@ -506,7 +414,6 @@ const stockEntriesController = {
             // Convert waste quantity to original unit
             // Example: 5g to kg = 5 * (1/1000) = 0.005kg
             wasteInOriginalUnit = numericWasteQuantity * (wasteUnitFactor / originalUnitFactor);
-            console.log(`Conversion: ${numericWasteQuantity} ${unit} = ${wasteInOriginalUnit} ${stockEntry.purchasedUnit}`);
           } else {
             return res.status(400).json({
               error: `Cannot convert between units: ${unit} and ${stockEntry.purchasedUnit}`
@@ -584,15 +491,6 @@ const stockEntriesController = {
         newPurchasedConvertedUnit = stockEntry.purchasedUnit;
       }
 
-      console.log("=== CALCULATED NEW VALUES ===");
-      console.log(`New quantities:`, {
-        purchasedQuantity: `${stockEntry.purchasedQuantity} → ${newPurchasedQuantity} ${stockEntry.purchasedUnit}`,
-        individualQuantity: `${stockEntry.purchasedIndividualQuantity} → ${newIndividualQuantity} ${newIndividualUnit}`,
-        convertedQuantity: `${stockEntry.purchasedConvertedQuantity} → ${newPurchasedConvertedQuantity} ${newPurchasedConvertedUnit}`,
-        totalCost: `${stockEntry.totalCost} → ${newTotalCost}`,
-        wasteInOriginalUnit: wasteInOriginalUnit
-      });
-
       await stockEntry.update({
         purchasedQuantity: newPurchasedQuantity,
         purchasedIndividualQuantity: newIndividualQuantity,
@@ -607,17 +505,6 @@ const stockEntriesController = {
       // Reload the updated entry
       const updatedEntry = await StockEntry.findByPk(id, {
         include: { model: Material, as: "material" }
-      });
-
-      console.log(`✅ Successfully recorded waste of ${numericWasteQuantity} ${unit} from stock entry ${id} for material ${material.name}`);
-      console.log(`Final result:`, {
-        purchasedQuantity: updatedEntry.purchasedQuantity,
-        purchasedUnit: updatedEntry.purchasedUnit,
-        purchasedIndividualQuantity: updatedEntry.purchasedIndividualQuantity,
-        purchasedIndividualUnit: updatedEntry.purchasedIndividualUnit,
-        purchasedConvertedQuantity: updatedEntry.purchasedConvertedQuantity,
-        purchasedConvertedUnit: updatedEntry.purchasedConvertedUnit,
-        totalCost: updatedEntry.totalCost
       });
 
       res.status(200).json({
@@ -636,7 +523,6 @@ const stockEntriesController = {
   // Add stock to existing inventory
   addToStock: async (req, res, next) => {
     try {
-      console.log("=== ADD TO STOCK REQUEST ===");
       const { materialId, additionalQuantity, unit, additionDate, notes } = req.body;
 
       // Validation
@@ -695,8 +581,6 @@ const stockEntriesController = {
         notes: notes || `Added ${numericAdditionalQuantity} ${unit} to existing stock`
       });
 
-      console.log(`Successfully added ${numericAdditionalQuantity} ${unit} to material ${material.name}`);
-
       // Return the created entry with material information
       const createdEntry = await StockEntry.findByPk(additionEntry.id, {
         include: { model: Material, as: "material" }
@@ -715,7 +599,6 @@ const stockEntriesController = {
   // Record waste (reduce stock)
   recordWaste: async (req, res, next) => {
     try {
-      console.log("=== RECORD WASTE REQUEST ===");
       const { materialId, wasteQuantity, unit, wasteReason, wasteDate, notes } = req.body;
 
       // Validation
@@ -818,7 +701,7 @@ const stockEntriesController = {
       const wasteRecord = await StockEntry.create({
         materialId,
         supplier: `Waste Record - ${wasteReason}`,
-        purchasedQuantity: -numericWasteQuantity, // Negative to indicate waste
+        purchasedQuantity: -numericWasteQuantity, 
         purchasedUnit: unit,
         purchasedIndividualQuantity: -wasteIndividualQuantity,
         purchasedIndividualUnit: wasteIndividualUnit,
@@ -827,9 +710,6 @@ const stockEntriesController = {
         purchaseDate: wasteDate ? new Date(wasteDate) : new Date(),
         notes: notes || `Waste recorded: ${wasteReason} - ${numericWasteQuantity} ${unit}`
       });
-
-      console.log(`Successfully recorded waste of ${numericWasteQuantity} ${unit} for material ${material.name}`);
-      console.log("Updated entries:", updatedEntries);
 
       res.status(201).json({
         message: `Successfully recorded waste of ${numericWasteQuantity} ${unit} for ${material.name}`,

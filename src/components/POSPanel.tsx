@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CartItem, MenuItem, MenuItemSale, POSPanelProps, Section, SectionAssignment, SoldItem } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { AlertCircle, Check, Loader2, Minus, Package, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { AlertCircle, Check, History, Loader2, Minus, Package, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
@@ -20,11 +21,10 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [, setMenuItems] = useState<MenuItem[]>([]);
   const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const navigate = useNavigate();
 
-  // Enhanced message handling with auto-clear
   const showError = useCallback((message: string) => {
     setError(message);
     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
@@ -391,33 +391,16 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         setCart(currentCart); // Restore cart
         throw apiError;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Sale failed:", error);
-      showError(error.response?.data?.error || "Failed to complete sale");
+      const errorMessage = error && typeof error === 'object' && 'response' in error 
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error 
+        : undefined;
+      showError(errorMessage || "Failed to complete sale");
     } finally {
       setIsLoading(false);
     }
   }, [cart, cartTotal, selectedSectionId, availableItems, materials, sectionAssignments, updateInventoryOptimistically, revertOptimisticUpdates, showError, showSuccess]);
-
-  // Refresh data function
-  const refreshData = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      // Reset optimistic state to actual props
-      setOptimisticAssignments(sectionAssignments);
-
-      // Refetch menu items
-      const response = await menuAPI.getMenus();
-      setMenuItems(response.data);
-
-      showSuccess("Data refreshed successfully");
-    } catch (error) {
-      console.error("Failed to refresh data:", error);
-      showError("Failed to refresh data");
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [sectionAssignments, showError, showSuccess]);
 
   const getSectionName = (sectionId: string) => {
     const section = sections.find(s => s.id.toString() === sectionId);
@@ -451,6 +434,15 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                 <Package className="h-5 w-5" />
                 Section Selection
               </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate("/sales-history")}
+                className="flex items-center gap-2"
+              >
+                <History className="h-4 w-4" />
+                Show History
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -29,26 +29,12 @@ const sectionController = {
             section: section.get()
           };
 
-          // Handle package unit conversion for stock entries
           if (assignment.stockEntry && assignment.material) {
             const material = assignment.material;
             const isPackageUnit = material.unitType === "package" && (assignment.assignedUnit === "box" || assignment.assignedUnit === "pack" || assignment.assignedUnit === "case");
 
             if (isPackageUnit && material.packageQuantity) {
-              // Use actual individual quantity from stock entry if available, otherwise calculate
               const convertedQuantity = assignment.stockEntry?.purchasedIndividualQuantity || assignment.assignedQuantity * material.packageQuantity;
-
-              console.log(`Backend package conversion for ${material.name}:`, {
-                originalQuantity: assignment.assignedQuantity,
-                originalUnit: assignment.assignedUnit,
-                packageQuantity: material.packageQuantity,
-                actualIndividualQuantity: assignment.stockEntry?.purchasedIndividualQuantity,
-                convertedQuantity: convertedQuantity,
-                baseUnit: material.baseUnit,
-                usingActualQuantity: !!assignment.stockEntry?.purchasedIndividualQuantity
-              });
-
-              // Keep original assignment data but add conversion info
               assignmentData.originalQuantity = assignment.assignedQuantity;
               assignmentData.originalUnit = assignment.assignedUnit;
               assignmentData.convertedQuantity = convertedQuantity;

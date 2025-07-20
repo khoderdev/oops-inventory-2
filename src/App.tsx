@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { InventoryManagementPage } from "./pages/InventoryManagementPage";
+import { SalesHistoryPage } from "./pages/SalesHistoryPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -16,6 +17,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<InventoryManagementPage />} />
+          <Route path="/sales-history" element={<SalesHistoryPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

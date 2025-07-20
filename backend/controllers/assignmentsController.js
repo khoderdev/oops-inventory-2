@@ -45,8 +45,6 @@ const assignmentsController = {
     try {
       const { sectionId, itemType, materialId, stockEntryId, menuItemId, assignedQuantity, assignedUnit, notes } = req.body;
 
-      console.log("Received body:", JSON.stringify(req.body, null, 2));
-
       if (!sectionId || !itemType) {
         return res.status(400).json({ error: "sectionId and itemType are required" });
       }
@@ -237,7 +235,6 @@ const assignmentsController = {
         ]
       });
 
-      console.log("Updated assignment:", JSON.stringify(updatedAssignment, null, 2));
       res.status(200).json(updatedAssignment);
     } catch (error) {
       console.error("Update assignment error:", error.message, error.stack);
