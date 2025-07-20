@@ -69,7 +69,7 @@ export function SalesHistoryPage() {
     setFilteredSales(filtered);
   }, [sales, searchTerm, dateFilter]);
 
-  const totalSales = filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+  const totalSales = filteredSales.reduce((sum, sale) => sum + parseFloat(String(sale.totalAmount || 0)), 0);
   const totalTransactions = filteredSales.length;
 
   if (isLoading) {
@@ -215,7 +215,7 @@ export function SalesHistoryPage() {
                                 <div key={idx} className="text-sm">
                                   <span className="font-medium">{item.materialName}</span>
                                   <span className="text-muted-foreground ml-2">
-                                    {item.quantity} {item.unit} × {formatCurrency(item.unitPrice)}
+                                    {item.quantity} {item.unit} × {formatCurrency(parseFloat(String(item.unitPrice || 0)))}
                                   </span>
                                 </div>
                               ))
@@ -231,7 +231,7 @@ export function SalesHistoryPage() {
                                 <div key={idx} className="text-sm">
                                   <span className="font-medium">Menu Item {menuItem.menuItemId}</span>
                                   <span className="text-muted-foreground ml-2">
-                                    {menuItem.quantity}× × {formatCurrency(menuItem.unitPrice)}
+                                    {menuItem.quantity}× × {formatCurrency(parseFloat(String(menuItem.unitPrice || 0)))}
                                   </span>
                                 </div>
                               ))
@@ -240,7 +240,7 @@ export function SalesHistoryPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-bold">{formatCurrency(sale.totalAmount)}</TableCell>
+                        <TableCell className="text-right font-bold">{formatCurrency(parseFloat(String(sale.totalAmount || 0)))}</TableCell>
                       </TableRow>
                     ))
                 ) : (
