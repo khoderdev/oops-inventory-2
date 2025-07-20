@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CartItem, MenuItem, MenuItemSale, POSPanelProps, Section, SectionAssignment, SoldItem } from "@/types/inventory";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CartItem, MenuItem, MenuItemSale, POSPanelProps, Section, SectionAssignment, SoldItem, NegativeStockWarning } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { AlertCircle, Check, History, Loader2, Minus, Package, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
+import { AlertCircle, Check, History, Loader2, Minus, Package, Plus, Search, ShoppingCart, Trash2, X, AlertTriangle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -21,6 +22,9 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [, setMenuItems] = useState<MenuItem[]>([]);
   const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
+  const [, setIsRefreshing] = useState(false);
+  const [negativeStockWarnings, setNegativeStockWarnings] = useState<NegativeStockWarning[]>([]);
+  const [showNegativeStockDialog, setShowNegativeStockDialog] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
@@ -383,8 +387,16 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       setCart([]);
 
       try {
-        await posAPI.createSale(saleData);
+        const response = await posAPI.createSale(saleData);
+        const saleResponse = response.data;
         showSuccess(`Sale completed successfully! Total: ${formatCurrency(cartTotal)}`);
+
+        // Handle negative stock warnings from the API response
+        const warnings = saleResponse.negativeStockWarnings || [];
+        setNegativeStockWarnings(warnings);
+        if (warnings.length > 0) {
+          setShowNegativeStockDialog(true);
+        }
       } catch (apiError) {
         // Revert optimistic updates on API failure
         revertOptimisticUpdates();
@@ -425,6 +437,43 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
             <AlertDescription>{successMessage}</AlertDescription>
           </Alert>
         )}
+
+        {/* Negative Stock Warnings Dialog */}
+        <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+                Negative Stock Warning
+              </DialogTitle>
+              <DialogDescription>The following items resulted in negative stock after this sale. The sale was completed, but these items may need restocking.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              {negativeStockWarnings.map((warning, index) => (
+                <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 space-y-1">
+                      <div className="font-medium text-red-900">{warning.materialName}</div>
+                      <div className="text-sm text-red-800">
+                        Available: {formatNumber(warning.availableQuantity)} {warning.unit} | Required: {formatNumber(warning.requiredQuantity)} {warning.unit} | Shortage: {formatNumber(warning.shortageQuantity)} {warning.unit}
+                      </div>
+                      {warning.type && (
+                        <Badge variant="outline" className="text-xs">
+                          {warning.type}
+                        </Badge>
+                      )}
+                      {warning.action && <div className="text-xs text-red-700 italic">{warning.action}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="pt-2 border-t">
+                <div className="text-sm text-muted-foreground">Total items with negative stock: {negativeStockWarnings.length}</div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Section Selection */}
         <Card>

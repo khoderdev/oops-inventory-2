@@ -6,6 +6,55 @@ export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spi
 export type UnitType = "mass" | "volume" | "piece" | "package";
 
 //-----------------------------------------------------------------------------
+// Negative Stock Support Types
+//-----------------------------------------------------------------------------
+
+export interface NegativeStockWarning {
+  materialId: string;
+  materialName: string;
+  type?: 'assignment' | 'stockEntry' | string;
+  stockEntryId?: string;
+  availableQuantity: number;
+  requiredQuantity: number;
+  shortageQuantity: number;
+  unit: string;
+  action?: string;
+}
+
+export interface NegativeStockReportItem {
+  stockEntryId: string;
+  materialId: string;
+  materialName: string;
+  category: string;
+  supplier: string;
+  purchasedQuantity: number;
+  purchasedUnit: string;
+  purchasedIndividualQuantity: number;
+  purchasedIndividualUnit: string;
+  lastUpdated: Date;
+  isVirtualEntry: boolean;
+}
+
+export interface NegativeStockReport {
+  totalNegativeEntries: number;
+  negativeStockItems: NegativeStockReportItem[];
+  summary: {
+    totalVirtualEntries: number;
+    categorySummary: Record<string, number>;
+  };
+  generatedAt: Date;
+  message: string;
+}
+
+export interface SaleResponse {
+  sale: SaleRecord;
+  updatedStockEntries?: StockEntryWithMaterial[];
+  message: string;
+  negativeStockWarnings?: NegativeStockWarning[];
+  hasNegativeStock?: boolean;
+}
+
+//-----------------------------------------------------------------------------
 
 export interface Material {
   id: string;

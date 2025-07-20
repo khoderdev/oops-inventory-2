@@ -6,6 +6,9 @@ const stockEntriesController = {
   // Get all stock entries
   getAllStockEntries: async (req, res, next) => {
     try {
+      console.log("=== FETCHING ALL STOCK ENTRIES WITH CACHE BUSTING ===");
+
+      // Force fresh query with raw SQL to bypass any caching
       const rawStockEntries = await sequelize.query(
         `
         SELECT 
@@ -29,6 +32,34 @@ const stockEntriesController = {
         }
       );
 
+      console.log(`Found ${rawStockEntries.length} stock entries via raw query`);
+
+      // Log sample entry to verify fresh data and identify negative stock entries
+      if (rawStockEntries.length > 0) {
+        const sampleEntry = rawStockEntries.find(entry => entry.id === 28) || rawStockEntries[0];
+        console.log("Sample FRESH stock entry data:", {
+          id: sampleEntry.id,
+          materialId: sampleEntry.materialId,
+          materialName: sampleEntry.material?.name,
+          purchasedQuantity: sampleEntry.purchasedQuantity,
+          purchasedUnit: sampleEntry.purchasedUnit,
+          purchasedIndividualQuantity: sampleEntry.purchasedIndividualQuantity,
+          purchasedIndividualUnit: sampleEntry.purchasedIndividualUnit,
+          updatedAt: sampleEntry.updatedAt
+        });
+
+        // Count and log negative stock entries
+        const negativeStockEntries = rawStockEntries.filter(entry => entry.purchasedIndividualQuantity < 0 || entry.purchasedQuantity < 0);
+
+        if (negativeStockEntries.length > 0) {
+          console.log(`\n=== NEGATIVE STOCK ENTRIES DETECTED ===`);
+          console.log(`Found ${negativeStockEntries.length} entries with negative quantities:`);
+          negativeStockEntries.forEach(entry => {
+            console.log(`- ${entry.material?.name || "Unknown"} (ID: ${entry.id}): ${entry.purchasedIndividualQuantity} ${entry.purchasedIndividualUnit}`);
+          });
+          console.log(`=== END NEGATIVE STOCK SUMMARY ===\n`);
+        }
+      }
       res.status(200).json(rawStockEntries);
     } catch (error) {
       console.error("Error fetching stock entries:", error);
@@ -99,7 +130,17 @@ const stockEntriesController = {
         const conversionFactor = massConversions[purchasedUnit.toLowerCase()];
         if (conversionFactor) {
           purchasedIndividualQuantity = Math.round(purchasedQuantity * conversionFactor);
-          purchasedIndividualUnit = material.baseUnit; 
+          purchasedIndividualUnit = material.baseUnit; // Should be 'g' for mass units
+
+          console.log(`Mass unit conversion for ${material.name}:`, {
+            originalQuantity: purchasedQuantity,
+            originalUnit: purchasedUnit,
+            individualQuantity: purchasedIndividualQuantity,
+            individualUnit: purchasedIndividualUnit,
+            conversionFactor: conversionFactor
+          });
+        } else {
+          console.warn(`Unknown mass unit: ${purchasedUnit} for material: ${material.name}`);
         }
       }
 
