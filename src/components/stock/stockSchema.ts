@@ -12,7 +12,7 @@ export const stockSchema = z.object({
         return num;
       })
     ])
-    .refine(val => val > 0.0001, "Quantity must be positive"),
+    .refine(val => val > 0, "Quantity must be positive"),
   purchasedUnit: z.string().min(1, "Unit is required"),
   costPerPurchasedUnit: z
     .union([

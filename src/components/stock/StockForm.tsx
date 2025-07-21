@@ -5,18 +5,18 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { StockFormData, StockFormInputs, StockFormProps } from "@/types/inventory";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { CalendarIcon, Package, TrendingUp, Trash2, FileText, Plus } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
+import { CalendarIcon, FileText, Package, Plus, Trash2, TrendingUp } from "lucide-react";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { stockSchema } from "./stockSchema";
 import { CostBreakdown } from "./CostBreakdown";
+import { stockSchema } from "./stockSchema";
 
 export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit, onCancel, onAddStock, onRecordWaste, onAddToSpecificEntry, onWasteFromSpecificEntry }: StockFormProps) {
   const [activeTab, setActiveTab] = useState<string>(stockEntry ? "update-entry" : "new-stock");
@@ -281,7 +281,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                       <FormItem>
                         <FormLabel>Purchased Quantity</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.0001" placeholder="0" {...field} onChange={e => field.onChange(e.target.value)} className="overflow-hidden" />
+                          <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="overflow-hidden" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -423,7 +423,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                           Additional Quantity
                         </FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.0001" placeholder="Enter quantity to add (e.g., 200)" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 overflow-hidden" />
+                          <Input type="number" step="1" min="0" placeholder="Enter quantity to add (e.g., 200)" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 overflow-hidden" />
                         </FormControl>
                         <p className="text-xs text-green-600 mt-1">This amount will be added to your existing stock</p>
                         <FormMessage />
@@ -547,7 +547,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                           Waste Quantity
                         </FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.0001" placeholder="Enter quantity to remove (e.g., 50)" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 overflow-hidden" />
+                          <Input type="number" step="1" min="0" placeholder="Enter quantity to remove (e.g., 50)" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 overflow-hidden" />
                         </FormControl>
                         <p className="text-xs text-red-600 mt-1">This amount will be subtracted from your existing stock</p>
                         <FormMessage />
@@ -741,7 +741,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                       <FormItem>
                         <FormLabel>Quantity</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.0001" placeholder="0" {...field} onChange={e => field.onChange(e.target.value)} className="overflow-hidden" />
+                          <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="overflow-hidden" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -901,7 +901,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                           Additional Quantity
                         </FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.0001" placeholder="Enter quantity to add (e.g., 1)" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 overflow-hidden" />
+                          <Input type="number" step="1" min="0" placeholder="Enter quantity to add (e.g., 1)" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 overflow-hidden" />
                         </FormControl>
                         <p className="text-xs text-green-600 mt-1">
                           This will be added to the existing {stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}
@@ -1045,7 +1045,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                           Waste Quantity
                         </FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.0001" placeholder="Enter quantity to remove (e.g., 0.5)" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 overflow-hidden" />
+                          <Input type="number" step="1" min="0" placeholder="Enter quantity to remove (e.g., 1)" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 overflow-hidden" />
                         </FormControl>
                         <p className="text-xs text-red-600 mt-1">
                           This will be removed from the existing {stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}
