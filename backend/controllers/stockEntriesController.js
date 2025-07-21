@@ -1051,7 +1051,17 @@ const stockEntriesController = {
             });
           }
         } else if (material.unitType === "package") {
-          if (unit !== stockEntry.purchasedUnit) {
+          if (unit === stockEntry.purchasedUnit) {
+            additionalInOriginalUnit = numericAdditionalQuantity;
+          } else if (unit === "piece" && material.packageQuantity && material.packageQuantity > 0) {
+            // Convert pieces to packs
+            additionalInOriginalUnit = numericAdditionalQuantity / material.packageQuantity;
+            if (!Number.isInteger(numericAdditionalQuantity / material.packageQuantity)) {
+              return res.status(400).json({
+                error: `Quantity in pieces (${numericAdditionalQuantity}) must be divisible by package quantity (${material.packageQuantity})`
+              });
+            }
+          } else {
             return res.status(400).json({
               error: `Package unit mismatch: cannot add ${unit} to ${stockEntry.purchasedUnit}`
             });
