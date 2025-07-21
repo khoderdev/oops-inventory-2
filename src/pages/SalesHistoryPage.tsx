@@ -1,16 +1,16 @@
-import { salesAPI, StockRestorationItem } from "@/api/sales.api.ts.tsx";
+import { salesAPI } from "@/api/sales.api.ts.tsx";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ItemSale, SaleRecord } from "@/types/inventory";
+import { ItemSale, SaleRecord, StockRestorationItem } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
-import { AlertCircle, ArrowRight, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart, Undo2, Trash2, CheckCircle } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -59,25 +59,22 @@ export function SalesHistoryPage() {
 
     setIsReverting(true);
     setError(null);
-    
+
     try {
       const response = await salesAPI.revertSale(selectedSaleForRevert.id.toString());
-      
+
       // Update the sales list by removing the reverted sale
       setSales(prevSales => prevSales.filter(sale => sale.id !== selectedSaleForRevert.id));
-      
+
       // Show success message with restoration details
       setStockRestorationReport(response.data.stockRestorationReport);
       setRevertSuccess(`Sale #${selectedSaleForRevert.id} successfully reverted. ${response.data.totalItemsRestored} items restored to stock.`);
-      
+
       // Auto-hide success message after 5 seconds
       setTimeout(() => setRevertSuccess(null), 5000);
-      
     } catch (error: unknown) {
       console.error("Failed to revert sale:", error);
-      const errorMessage = error && typeof error === "object" && "response" in error 
-        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error 
-        : undefined;
+      const errorMessage = error && typeof error === "object" && "response" in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined;
       setError(errorMessage || "Failed to revert sale. Please try again.");
     } finally {
       setIsReverting(false);
@@ -217,9 +214,7 @@ export function SalesHistoryPage() {
       {revertSuccess && (
         <Alert className="border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            {revertSuccess}
-          </AlertDescription>
+          <AlertDescription className="text-green-800">{revertSuccess}</AlertDescription>
         </Alert>
       )}
 
@@ -435,10 +430,16 @@ export function SalesHistoryPage() {
                     {stockRestorationReport.map((item, index) => (
                       <div key={index} className="text-xs bg-green-100 p-2 rounded">
                         <strong>{item.materialName}</strong>: {item.quantityRestored} {item.unit} restored
-                        {item.type === 'individual_item' && (
-                          <span> (Assignment: {item.oldAssignmentQuantity} → {item.newAssignmentQuantity})</span>
+                        {item.type === "individual_item" && (
+                          <span>
+                            {" "}
+                            (Assignment: {item.oldAssignmentQuantity} → {item.newAssignmentQuantity})
+                          </span>
                         )}
-                        <span> (Stock: {item.oldStockQuantity} → {item.newStockQuantity})</span>
+                        <span>
+                          {" "}
+                          (Stock: {item.oldStockQuantity} → {item.newStockQuantity})
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -474,20 +475,14 @@ export function SalesHistoryPage() {
                 <li>Update stock levels accordingly</li>
               </ul>
               <br />
-              <span className="text-destructive font-medium">
-                This action cannot be undone.
-              </span>
+              <span className="text-destructive font-medium">This action cannot be undone.</span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={cancelRevert} disabled={isReverting}>
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={confirmRevertSale} 
-              disabled={isReverting}
-            >
+            <Button variant="destructive" onClick={confirmRevertSale} disabled={isReverting}>
               {isReverting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

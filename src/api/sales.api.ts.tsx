@@ -1,29 +1,5 @@
 import api from "@/lib/http";
-import { NegativeStockReport, SaleRecord, SaleResponse } from "@/types/inventory";
-
-export interface StockRestorationItem {
-  type: "individual_item" | "menu_item_ingredient";
-  materialId: number;
-  materialName: string;
-  assignmentId?: number;
-  stockEntryId: number;
-  menuItemId?: number;
-  menuItemName?: string;
-  quantityRestored: number;
-  unit: string;
-  oldAssignmentQuantity?: number;
-  newAssignmentQuantity?: number;
-  oldStockQuantity: number;
-  newStockQuantity: number;
-  action?: string;
-}
-
-export interface RevertSaleResponse {
-  message: string;
-  saleId: string;
-  stockRestorationReport: StockRestorationItem[];
-  totalItemsRestored: number;
-}
+import { NegativeStockReport, RevertSaleResponse, SaleRecord, SaleResponse } from "@/types/inventory";
 
 export const salesAPI = {
   getSales: () => api.get<SaleRecord[]>("/sales"),

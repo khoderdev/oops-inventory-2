@@ -47,6 +47,30 @@ export interface NegativeStockReport {
   message: string;
 }
 
+export interface StockRestorationItem {
+  type: "individual_item" | "menu_item_ingredient";
+  materialId: number;
+  materialName: string;
+  assignmentId?: number;
+  stockEntryId: number;
+  menuItemId?: number;
+  menuItemName?: string;
+  quantityRestored: number;
+  unit: string;
+  oldAssignmentQuantity?: number;
+  newAssignmentQuantity?: number;
+  oldStockQuantity: number;
+  newStockQuantity: number;
+  action?: string;
+}
+
+export interface RevertSaleResponse {
+  message: string;
+  saleId: string;
+  stockRestorationReport: StockRestorationItem[];
+  totalItemsRestored: number;
+}
+
 export interface SaleResponse {
   sale: SaleRecord;
   updatedStockEntries?: StockEntryWithMaterial[];
