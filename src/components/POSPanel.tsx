@@ -71,8 +71,11 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const sections = useMemo(() => {
     const sectionMap = new Map<string, Section>();
     optimisticAssignments.forEach(assignment => {
-      if (assignment.section && !sectionMap.has(assignment.section.id)) {
-        sectionMap.set(assignment.section.id, assignment.section);
+      if (assignment.section) {
+        const sectionId = String(assignment.section.id);
+        if (!sectionMap.has(sectionId)) {
+          sectionMap.set(sectionId, assignment.section);
+        }
       }
     });
     return Array.from(sectionMap.values());
@@ -131,6 +134,9 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
           // Last resort: use material's cost per base unit if available
           displayUnitPrice = parseFloat(String(material.costPerBaseUnit));
         }
+
+        // Ensure displayUnitPrice is a valid number
+        displayUnitPrice = isNaN(displayUnitPrice) || !isFinite(displayUnitPrice) ? 0 : displayUnitPrice;
 
         if (isPackageUnit) {
           // Use assignedIndividualQuantity if available, otherwise calculate
@@ -237,7 +243,11 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
   // Calculate cart total
   const cartTotal = useMemo(() => {
-    return cart.reduce((total, item) => total + item.totalPrice, 0);
+    const total = cart.reduce((total, item) => {
+      const itemTotal = isNaN(item.totalPrice) || !isFinite(item.totalPrice) ? 0 : item.totalPrice;
+      return total + itemTotal;
+    }, 0);
+    return isNaN(total) || !isFinite(total) ? 0 : total;
   }, [cart]);
 
   // Clear messages after timeout
@@ -250,21 +260,29 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
   // Add item to cart
   const addToCart = useCallback((item: (typeof availableItems)[0]) => {
+    // Validate unit price
+    const validUnitPrice = isNaN(item.unitPrice) || !isFinite(item.unitPrice) ? 0 : item.unitPrice;
+
     setCart(prevCart => {
       const existingItem = prevCart.find(cartItem => cartItem.id === item.id);
 
       if (existingItem) {
         const maxQuantity = item.type === "individual" ? item.currentQuantity || 1 : 999;
+        const newQuantity = Math.min(existingItem.quantity + 1, maxQuantity);
+        const newTotalPrice = validUnitPrice * newQuantity;
+
         return prevCart.map(cartItem =>
           cartItem.id === item.id
             ? {
                 ...cartItem,
-                quantity: Math.min(cartItem.quantity + 1, maxQuantity),
-                totalPrice: cartItem.unitPrice * Math.min(cartItem.quantity + 1, maxQuantity)
+                quantity: newQuantity,
+                unitPrice: validUnitPrice,
+                totalPrice: isNaN(newTotalPrice) || !isFinite(newTotalPrice) ? 0 : newTotalPrice
               }
             : cartItem
         );
       } else {
+        const totalPrice = validUnitPrice * 1;
         return [
           ...prevCart,
           {
@@ -272,8 +290,8 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
             type: item.type,
             name: item.name,
             quantity: 1,
-            unitPrice: item.unitPrice,
-            totalPrice: item.unitPrice,
+            unitPrice: validUnitPrice,
+            totalPrice: isNaN(totalPrice) || !isFinite(totalPrice) ? 0 : totalPrice,
             unit: item.unit,
             assignmentId: item.assignmentId,
             menuItemId: item.menuItemId,
@@ -299,15 +317,20 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       const clampedQuantity = Math.min(Math.max(newQuantity, 1), maxQuantity);
 
       setCart(prevCart =>
-        prevCart.map(cartItem =>
-          cartItem.id === itemId
-            ? {
-                ...cartItem,
-                quantity: clampedQuantity,
-                totalPrice: cartItem.unitPrice * clampedQuantity
-              }
-            : cartItem
-        )
+        prevCart.map(cartItem => {
+          if (cartItem.id === itemId) {
+            const validUnitPrice = isNaN(cartItem.unitPrice) || !isFinite(cartItem.unitPrice) ? 0 : cartItem.unitPrice;
+            const newTotalPrice = validUnitPrice * clampedQuantity;
+
+            return {
+              ...cartItem,
+              quantity: clampedQuantity,
+              unitPrice: validUnitPrice,
+              totalPrice: isNaN(newTotalPrice) || !isFinite(newTotalPrice) ? 0 : newTotalPrice
+            };
+          }
+          return cartItem;
+        })
       );
     },
     [availableItems]
@@ -430,7 +453,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   }, [cart, cartTotal, selectedSectionId, availableItems, materials, sectionAssignments, updateInventoryOptimistically, revertOptimisticUpdates, showError, showSuccess]);
 
   const getSectionName = (sectionId: string) => {
-    const section = sections.find(s => s.id.toString() === sectionId);
+    const section = sections.find(s => String(s.id) === String(sectionId));
     return section?.name || "Unknown Section";
   };
 
@@ -657,12 +680,12 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       </div>
 
       {/* Cart and Checkout */}
-      <div className="space-y-6">
-        <Card className="h-fit shadow-sm hover:shadow-md transition-shadow sticky top-6">
-          <CardHeader className="pb-3">
+      <div className="h-[calc(100vh-2rem)] flex flex-col">
+        <Card className="flex-1 shadow-sm hover:shadow-md transition-shadow flex flex-col overflow-hidden">
+          <CardHeader className="pb-3 flex-shrink-0">
             <CardTitle className="flex items-center gap-2 text-lg">
               <ShoppingCart className="h-5 w-5 text-primary" />
-              <span>Order Summary</span>
+              <span>Sale Summary</span>
             </CardTitle>
             {selectedSectionId && (
               <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -676,91 +699,101 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
               </div>
             )}
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex-1 flex flex-col overflow-hidden">
             {cart.length > 0 ? (
               <>
-                <div className="border rounded-xl overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-gray-50">
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="font-medium text-gray-700">Item</TableHead>
-                        <TableHead className="font-medium text-gray-700">Qty</TableHead>
-                        <TableHead className="text-right font-medium text-gray-700">Price</TableHead>
-                        <TableHead className="w-[40px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {cart.map(item => (
-                        <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span className="text-gray-900">{item.name}</span>
-                              <span className="text-xs text-gray-500">
-                                {formatCurrency(item.unitPrice)}
-                                {item.unit && `/${item.unit}`}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-destructive hover:text-white" onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>
-                                <Minus className="h-3 w-3" />
-                              </Button>
-                              <span className="min-w-[2rem] text-center font-medium text-gray-700">{item.quantity}</span>
-                              <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-primary hover:text-white" onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)}>
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-gray-900">{formatCurrency(item.totalPrice)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button size="sm" variant="ghost" onClick={() => removeFromCart(item.id)} className="h-7 w-7 p-0 hover:bg-destructive hover:text-white">
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </TableCell>
+                {/* Scrollable Cart Items */}
+                <div className="flex-1 overflow-hidden">
+                  <div className="border rounded-xl overflow-hidden h-full flex flex-col">
+                    <Table>
+                      <TableHeader className="bg-gray-50 flex-shrink-0">
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="font-medium text-gray-700">Item</TableHead>
+                          <TableHead className="font-medium text-gray-700">Qty</TableHead>
+                          <TableHead className="text-right font-medium text-gray-700">Price</TableHead>
+                          <TableHead className="w-[40px]"></TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                    </Table>
+                    <div className="flex-1 overflow-y-auto">
+                      <Table>
+                        <TableBody>
+                          {cart.map(item => (
+                            <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col">
+                                  <span className="text-gray-900">{item.name}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {formatCurrency(item.unitPrice)}
+                                    {item.unit && `/${item.unit}`}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-destructive hover:text-white" onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="min-w-[2rem] text-center font-medium text-gray-700">{item.quantity}</span>
+                                  <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-primary hover:text-white" onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)}>
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-gray-900">{formatCurrency(item.totalPrice)}</TableCell>
+                              <TableCell className="text-right">
+                                <Button size="sm" variant="ghost" onClick={() => removeFromCart(item.id)} className="h-7 w-7 p-0 hover:bg-destructive hover:text-white">
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-3 pt-4 border-t">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Subtotal</span>
-                    <span className="font-medium text-gray-900">{formatCurrency(cartTotal)}</span>
+                {/* Fixed Footer - Totals and Buttons */}
+                <div className="flex-shrink-0 space-y-4 pt-4">
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span className="font-medium text-gray-900">{formatCurrency(cartTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold">
+                      <span className="text-gray-900">Total</span>
+                      <span className="text-primary">{formatCurrency(cartTotal)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-lg font-bold">
-                    <span className="text-gray-900">Total</span>
-                    <span className="text-primary">{formatCurrency(cartTotal)}</span>
-                  </div>
-                </div>
 
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-11 border-gray-300 hover:bg-gray-50"
-                    onClick={() => {
-                      setCart([]);
-                      setSearchTerm("");
-                    }}
-                    disabled={isLoading}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Clear Cart
-                  </Button>
-                  <Button className="flex-1 h-11" onClick={completeSale} disabled={isLoading || cart.length === 0}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Complete Sale
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-11 border-gray-300 hover:bg-gray-50"
+                      onClick={() => {
+                        setCart([]);
+                        setSearchTerm("");
+                      }}
+                      disabled={isLoading}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Clear Cart
+                    </Button>
+                    <Button className="flex-1 h-11" onClick={completeSale} disabled={isLoading || cart.length === 0}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Complete Sale
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </>
             ) : (

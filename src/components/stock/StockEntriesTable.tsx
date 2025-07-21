@@ -21,6 +21,7 @@ export function StockEntriesTable() {
   const [negativeStockReport, setNegativeStockReport] = useState<NegativeStockReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const materialsMap = new Map(materials.map(m => [m.id, m]));
 
   const stockEntriesWithMaterial = stockEntries
@@ -75,11 +76,6 @@ export function StockEntriesTable() {
                 <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
                   {isNegative && <AlertTriangle className="h-4 w-4" />}
                   {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
-                  {isVirtual && (
-                    <Badge variant="destructive" className="text-xs">
-                      VIRTUAL
-                    </Badge>
-                  )}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   (from {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit})
@@ -92,11 +88,6 @@ export function StockEntriesTable() {
                 <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
                   {isNegative && <AlertTriangle className="h-4 w-4" />}
                   {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
-                  {isVirtual && (
-                    <Badge variant="destructive" className="text-xs">
-                      VIRTUAL
-                    </Badge>
-                  )}
                 </div>
                 {/* Only show "(from X pack)" if individual quantity is positive */}
                 {entry.purchasedIndividualQuantity > 0 && material?.packageQuantity && (
@@ -111,11 +102,6 @@ export function StockEntriesTable() {
               <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
                 {isNegative && <AlertTriangle className="h-4 w-4" />}
                 {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit}
-                {isVirtual && (
-                  <Badge variant="destructive" className="text-xs">
-                    VIRTUAL
-                  </Badge>
-                )}
               </div>
             );
           }
@@ -154,6 +140,10 @@ export function StockEntriesTable() {
 
   const negativeStockCount = stockEntriesWithMaterial.filter(hasNegativeStock).length;
   const virtualEntryCount = stockEntriesWithMaterial.filter(isVirtualEntry).length;
+
+  const handleRowClick = (entryId: string) => {
+    setSelectedRowId(selectedRowId === entryId ? null : entryId);
+  };
 
   return (
     <Card className="w-full">
@@ -320,9 +310,10 @@ export function StockEntriesTable() {
                     .map(entry => {
                       const isNegative = hasNegativeStock(entry);
                       const isVirtual = isVirtualEntry(entry);
+                      const isSelected = selectedRowId === entry.id;
 
                       return (
-                        <TableRow key={entry.id} className={`${isNegative ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" : ""} ${isVirtual ? "border-l-red-600" : ""}`}>
+                        <TableRow key={entry.id} onClick={() => handleRowClick(entry.id)} className={`transition-colors ${isSelected ? "bg-blue-100 border-l-4 border-l-blue-500 hover:bg-blue-150" : isNegative ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" : "hover:bg-gray-50"} ${isVirtual && !isSelected ? "border-l-red-600" : ""}`}>
                           <TableCell className="font-medium min-w-[200px]">
                             <div className="flex items-center gap-2">
                               {isNegative && <AlertTriangle className="h-4 w-4 text-red-600" />}
@@ -331,12 +322,7 @@ export function StockEntriesTable() {
                           </TableCell>
                           <TableCell className="min-w-[150px]">
                             <div className="flex items-center gap-2">
-                              <span className={isVirtual ? "text-red-600 font-medium" : ""}>{highlightText(entry.supplier || "", searchTerm)}</span>
-                              {isVirtual && (
-                                <Badge variant="destructive" className="text-xs">
-                                  AUTO-GENERATED
-                                </Badge>
-                              )}
+                              <span className={isVirtual ? "text-red-600 font-medium" : ""}>{isVirtual ? "" : highlightText(entry.supplier || "", searchTerm)}</span>
                             </div>
                           </TableCell>
                           <TableCell className="min-w-[150px]">{renderQuantityDisplay(entry)}</TableCell>
@@ -349,12 +335,12 @@ export function StockEntriesTable() {
                           <TableCell className="min-w-[140px]">{entry.purchaseDate.toLocaleDateString()}</TableCell>
                           <TableCell className="min-w-[180px]">
                             <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => handleEditStockEntry(entry as StockEntry)} disabled={isVirtual}>
+                              <Button variant="outline" size="sm" onClick={() => handleEditStockEntry(entry as StockEntry)}>
                                 <Edit className="h-4 w-4" />
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button variant="outline" size="sm" disabled={isVirtual}>
+                                  <Button variant="outline" size="sm">
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </AlertDialogTrigger>

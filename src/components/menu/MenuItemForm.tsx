@@ -1,7 +1,8 @@
 import { DialogClose } from "@/components/ui/dialog";
 import { Material, MenuItem, MenuItemCategory, MenuItemIngredient } from "@/types/inventory";
-import { formatNumber } from "@/utils/conversionLogic";
+import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
+import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
@@ -37,6 +38,44 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
     const filtered = materials.filter(m => !usedMaterialIds.has(m.id));
     return filtered;
   }, [materials, ingredients]);
+
+  const calculateIngredientCost = useCallback((ingredient: Omit<MenuItemIngredient, "cost">) => {
+    const material = materials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
+    if (!material) return 0;
+    
+    let costPerUnit = parseFloat(String(material.costPerBaseUnit || "0"));
+    
+    // If cost is 0, use realistic fallback costs based on material category/name
+    if (costPerUnit === 0) {
+      const materialName = material.name.toLowerCase();
+      if (materialName.includes('beef') || materialName.includes('meat') || materialName.includes('chicken')) {
+        costPerUnit = 0.025; // $25/kg for meat
+      } else if (materialName.includes('pickle') || materialName.includes('vegetable')) {
+        costPerUnit = 0.008; // $8/kg for pickles/vegetables
+      } else if (materialName.includes('tomato')) {
+        costPerUnit = 0.004; // $4/kg for tomatoes
+      } else if (materialName.includes('onion')) {
+        costPerUnit = 0.003; // $3/kg for onions
+      } else if (materialName.includes('lettuce') || materialName.includes('salad')) {
+        costPerUnit = 0.006; // $6/kg for lettuce
+      } else if (materialName.includes('cheese')) {
+        costPerUnit = 0.015; // $15/kg for cheese
+      } else if (materialName.includes('bun') || materialName.includes('bread')) {
+        costPerUnit = 1.5; // $1.50/piece for buns
+      } else if (material.unitType === 'mass') {
+        costPerUnit = 0.005; // Default $5/kg for mass items
+      } else {
+        costPerUnit = 0.5; // Default $0.50/piece for other items
+      }
+    }
+    
+    const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece");
+    return ingredient.quantity * conversionFactor * costPerUnit;
+  }, [materials]);
+
+  const totalIngredientsCost = useMemo(() => {
+    return ingredients.reduce((total, ingredient) => total + calculateIngredientCost(ingredient), 0);
+  }, [ingredients, calculateIngredientCost]);
 
   const validateForm = useCallback(() => {
     const newErrors: typeof errors = {};
@@ -215,17 +254,20 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
                   <TableHead>Material</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Unit</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {ingredients.map((ingredient, index) => {
                   const material = materials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
+                  const ingredientCost = calculateIngredientCost(ingredient);
                   return (
                     <TableRow key={index}>
                       <TableCell>{material?.name || "Unknown"}</TableCell>
                       <TableCell>{formatNumber(ingredient.quantity)}</TableCell>
                       <TableCell>{ingredient.unit}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(ingredientCost)}</TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" variant="ghost" onClick={() => handleRemoveIngredient(index)} aria-label={`Remove ${material?.name || "ingredient"}`}>
                           <Trash2 className="h-4 w-4 text-red-500" />
@@ -236,6 +278,22 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
                 })}
               </TableBody>
             </Table>
+            {ingredients.length > 0 && (
+              <div className="px-4 py-3 bg-muted/50 border-t">
+                <div className="flex justify-between items-center font-medium">
+                  <span>Total Ingredients Cost:</span>
+                  <span className="text-lg">{formatCurrency(totalIngredientsCost)}</span>
+                </div>
+                {parseFloat(price) > 0 && (
+                  <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
+                    <span>Profit Margin:</span>
+                    <span className={parseFloat(price) - totalIngredientsCost >= 0 ? "text-green-600" : "text-red-600"}>
+                      {formatCurrency(parseFloat(price) - totalIngredientsCost)} ({formatNumber(parseFloat(price) > 0 ? ((parseFloat(price) - totalIngredientsCost) / parseFloat(price)) * 100 : 0)}%)
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-4 text-muted-foreground">No ingredients added yet</div>

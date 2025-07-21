@@ -3,7 +3,7 @@ import { assignmentSchema } from "@/components/sections/assignmentSchema";
 import { stockSchema } from "@/components/stock/stockSchema";
 import { z } from "zod";
 
-export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "packaging" | "other";
+export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "packaging" | "other" | "sweets";
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
 
@@ -382,7 +382,7 @@ export interface ItemSale {
 
 //-----------------------------------------------------------------------------
 
-export type MenuItemCategory = "appetizers" | "mains" | "sides" | "desserts" | "beverages" | "other";
+export type MenuItemCategory = "appetizers" | "mains" | "sides" | "desserts" | "beverages" | "sweets" | "other";
 
 export interface MenuItem {
   id: string;
@@ -435,6 +435,7 @@ export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label
   { value: "meat", label: "Meat & Poultry" },
   { value: "dairy", label: "Dairy Products" },
   { value: "vegetables", label: "Vegetables & Fruits" },
+  { value: "sweets", label: "Sweets" },
   { value: "grains", label: "Grains & Cereals" },
   { value: "spices", label: "Spices & Seasonings" },
   { value: "beverages", label: "Beverages" },
@@ -456,6 +457,7 @@ export const MENU_CATEGORIES = [
   { value: "sides", label: "Sides" },
   { value: "desserts", label: "Desserts" },
   { value: "beverages", label: "Beverages" },
+  { value: "sweets", label: "Sweets" },
   { value: "other", label: "Other" }
 ];
 

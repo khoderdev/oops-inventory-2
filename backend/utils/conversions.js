@@ -2,6 +2,7 @@ export const MATERIAL_CATEGORIES = [
   { value: "meat", label: "Meat & Poultry" },
   { value: "dairy", label: "Dairy Products" },
   { value: "vegetables", label: "Vegetables & Fruits" },
+  { value: "sweets", label: "Sweets" },
   { value: "grains", label: "Grains & Cereals" },
   { value: "spices", label: "Spices & Seasonings" },
   { value: "beverages", label: "Beverages" },

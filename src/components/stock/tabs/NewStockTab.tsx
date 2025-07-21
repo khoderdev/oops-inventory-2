@@ -83,7 +83,36 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                 <FormItem>
                   <FormLabel>Purchased Quantity</FormLabel>
                   <FormControl>
-                    <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="overflow-hidden" />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
+                        onClick={() => {
+                          const currentValue = parseInt(field.value) || 0;
+                          const newValue = Math.max(0, currentValue - 1);
+                          field.onChange(newValue.toString());
+                        }}
+                        disabled={parseInt(field.value) <= 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-green-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
+                        onClick={() => {
+                          const currentValue = parseInt(field.value) || 0;
+                          const newValue = currentValue + 1;
+                          field.onChange(newValue.toString());
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
