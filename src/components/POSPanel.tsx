@@ -605,7 +605,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                           {/* Header */}
                           <div className="flex justify-between items-start gap-3 mb-4">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 text-2xl leading-tight truncate group-hover:text-primary transition-colors">{item.name}</h3>
+                              <h3 className="font-semibold text-gray-900 text-2xl text-wrap leading-tight truncate group-hover:text-primary transition-colors">{item.name}</h3>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge variant={item.type === "individual" ? "default" : "secondary"} className={`text-[0.55rem] font-medium ${item.type === "individual" ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-purple-100 text-purple-800 hover:bg-purple-200"}`}>
                                   {item.type === "individual" ? "Individual Item" : "Menu Item"}
