@@ -171,13 +171,13 @@ const dayOperationsController = {
       const { openingCash = 0, openedBy = "System", notes } = req.body;
       const today = new Date().toISOString().split("T")[0];
 
-      // Check if day is already opened
+      // Check if day is already opened (not just if it exists)
       const existingDay = await DayOperation.findOne({
         where: { date: today },
         transaction
       });
 
-      if (existingDay) {
+      if (existingDay && existingDay.status === "opened") {
         await transaction.rollback();
         return res.status(400).json({
           error: "Day is already opened",
@@ -209,28 +209,60 @@ const dayOperationsController = {
         snapshotTime: new Date()
       }));
 
-      // Create new day operation
-      const newDay = await DayOperation.create(
-        {
-          date: today,
-          status: "opened",
-          openedAt: new Date(),
-          openedBy,
-          openingCash: parseFloat(openingCash),
-          expectedCash: parseFloat(openingCash),
-          openingStockSnapshot,
-          notes,
-          totalSales: 0,
-          totalTransactions: 0,
-          averageTicket: 0
-        },
-        { transaction }
-      );
+      let dayOperation;
+
+      if (existingDay && existingDay.status === "closed") {
+        // Update existing closed day to reopen it
+        dayOperation = await existingDay.update(
+          {
+            status: "opened",
+            openedAt: new Date(),
+            openedBy,
+            openingCash: parseFloat(openingCash),
+            expectedCash: parseFloat(openingCash),
+            openingStockSnapshot,
+            notes: notes ? `${existingDay.notes}\n[REOPENED] ${notes}` : existingDay.notes,
+            totalSales: 0,
+            totalTransactions: 0,
+            averageTicket: 0,
+            // Reset closing data
+            closedAt: null,
+            closedBy: null,
+            closingCash: null,
+            cashVariance: 0,
+            closingStockSnapshot: [],
+            stockVariances: [],
+            autoReportGenerated: false,
+            reportData: {},
+            activityLogs: [],
+            lastActivity: null
+          },
+          { transaction }
+        );
+      } else {
+        // Create new day operation (for first time opening)
+        dayOperation = await DayOperation.create(
+          {
+            date: today,
+            status: "opened",
+            openedAt: new Date(),
+            openedBy,
+            openingCash: parseFloat(openingCash),
+            expectedCash: parseFloat(openingCash),
+            openingStockSnapshot,
+            notes,
+            totalSales: 0,
+            totalTransactions: 0,
+            averageTicket: 0
+          },
+          { transaction }
+        );
+      }
 
       await transaction.commit();
       res.status(201).json({
-        message: "Day successfully opened",
-        dayOperation: newDay,
+        message: existingDay ? "Day successfully reopened" : "Day successfully opened",
+        dayOperation,
         stockItemsCaptured: openingStockSnapshot.length
       });
     } catch (error) {

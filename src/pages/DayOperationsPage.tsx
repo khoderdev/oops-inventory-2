@@ -1,10 +1,10 @@
-import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Home, Minus, Plus, TrendingUp, XCircle } from "lucide-react";
+import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Home, Minus, Plus, RefreshCw, TrendingUp, XCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { closeDay, getCurrentDayActivities, getCurrentDayOperation, getDayOperations, openDay } from "../api/dayOperations.api";
 import DailyReports from "../components/analytics/DailyReports";
 import ViewReportButton from "../components/ui/ViewReportButton";
 import { useDailyReports } from "../hooks/useDailyReports";
-import { closeDay, getCurrentDayActivities, getCurrentDayOperation, getDayOperations, openDay } from "../api/dayOperations.api";
 import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
 
 const DayOperationsPage: React.FC = () => {
@@ -32,7 +32,7 @@ const DayOperationsPage: React.FC = () => {
   // Modal states
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
-  
+
   // Daily reports hook
   const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
 
@@ -75,10 +75,20 @@ const DayOperationsPage: React.FC = () => {
       setError(null);
 
       const response = await openDay(openDayForm);
+
+      // Immediately update the current day state with the response
+      if (response.dayOperation) {
+        setCurrentDay(response.dayOperation);
+      }
+
       setSuccess(`Day opened successfully! ${response.stockItemsCaptured} stock items captured.`);
       setShowOpenModal(false);
       setOpenDayForm({ openingCash: 0, openedBy: "", notes: "" });
-      await loadData();
+
+      // Add a small delay then refresh to ensure backend consistency
+      setTimeout(async () => {
+        await loadData();
+      }, 500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to open day");
     } finally {
@@ -92,18 +102,26 @@ const DayOperationsPage: React.FC = () => {
       setError(null);
 
       const response = await closeDay(closeDayForm);
+
+      // Immediately update the current day state with the response
+      if (response.dayOperation) {
+        setCurrentDay(response.dayOperation);
+      }
+
       setSuccess(`Day closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
       setShowCloseModal(false);
       setCloseDayForm({ closingCash: 0, closedBy: "", notes: "" });
-      await loadData();
+
+      // Add a small delay then refresh to ensure backend consistency
+      setTimeout(async () => {
+        await loadData();
+      }, 500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to close day");
     } finally {
       setActionLoading(false);
     }
   };
-
-
 
   const formatCurrency = (amount: number | null | undefined) => {
     const numAmount = Number(amount) || 0;
@@ -154,7 +172,7 @@ const DayOperationsPage: React.FC = () => {
           </button>
         </div>
       )}
-      
+
       {reportError && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
           <XCircle className="h-5 w-5 text-red-500 mr-3" />
@@ -189,20 +207,35 @@ const DayOperationsPage: React.FC = () => {
 
             {currentDay ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-6 w-6 text-green-500 mr-3" />
-                    <div>
-                      <p className="font-medium text-green-900">Day is Open</p>
-                      <p className="text-sm text-green-700">
-                        Opened at {formatDateTime(currentDay.openedAt)} by {currentDay.openedBy}
-                      </p>
+                {currentDay.status === "opened" ? (
+                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+                    <div className="flex items-center">
+                      <CheckCircle className="h-6 w-6 text-green-500 mr-3" />
+                      <div>
+                        <p className="font-medium text-green-900">Day is Open</p>
+                        <p className="text-sm text-green-700">
+                          Opened at {formatDateTime(currentDay.openedAt)} by {currentDay.openedBy}
+                        </p>
+                      </div>
                     </div>
+                    <button onClick={() => setShowCloseModal(true)} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                      Close Day
+                    </button>
                   </div>
-                  <button onClick={() => setShowCloseModal(true)} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
-                    Close Day
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center">
+                      <XCircle className="h-6 w-6 text-gray-500 mr-3" />
+                      <div>
+                        <p className="font-medium text-gray-900">Day is Closed</p>
+                        <p className="text-sm text-gray-700">{currentDay.closedAt ? `Closed at ${formatDateTime(currentDay.closedAt)} by ${currentDay.closedBy}` : "Day was closed"}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setShowOpenModal(true)} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                      Open New Day
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
@@ -263,14 +296,21 @@ const DayOperationsPage: React.FC = () => {
                   Open Day
                 </button>
               )}
-              {currentDay && (
+              {currentDay && currentDay.status === "opened" && (
                 <button onClick={() => setShowCloseModal(true)} className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center">
                   <Minus className="h-4 w-4 mr-2" />
                   Close Day
                 </button>
               )}
-              <button onClick={loadData} className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">
-                Refresh Data
+              {currentDay && currentDay.status === "closed" && (
+                <button onClick={() => setShowOpenModal(true)} className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Open New Day
+                </button>
+              )}
+              <button onClick={loadData} disabled={loading} className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center justify-center">
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                {loading ? "Refreshing..." : "Refresh Data"}
               </button>
             </div>
           </div>
@@ -331,15 +371,7 @@ const DayOperationsPage: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={`${day.cashVariance === 0 ? "text-gray-900" : day.cashVariance > 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(day.cashVariance)}</span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {day.autoReportGenerated && (
-                      <ViewReportButton 
-                        date={day.date} 
-                        onClick={handleViewReport}
-                        loading={reportLoading}
-                      />
-                    )}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{day.autoReportGenerated && <ViewReportButton date={day.date} onClick={handleViewReport} loading={reportLoading} />}</td>
                 </tr>
               ))}
             </tbody>
@@ -570,15 +602,9 @@ const DayOperationsPage: React.FC = () => {
           </div>
         </div>
       )}
-      
+
       {/* Daily Reports Modal */}
-      <DailyReports
-        showReportModal={showReportModal}
-        setShowReportModal={setShowReportModal}
-        selectedReport={selectedReport}
-        error={reportError}
-        setError={setReportError}
-      />
+      <DailyReports showReportModal={showReportModal} setShowReportModal={setShowReportModal} selectedReport={selectedReport} error={reportError} setError={setReportError} />
     </div>
   );
 };
