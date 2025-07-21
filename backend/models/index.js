@@ -156,7 +156,7 @@ SaleMenuItem.belongsTo(MenuItem, {
 Sale.belongsTo(Section, {
   foreignKey: "sectionId",
   as: "section",
-  onDelete: "RESTRICT",
+  onDelete: "CASCADE",
   onUpdate: "CASCADE"
 });
 Section.hasMany(Sale, {
