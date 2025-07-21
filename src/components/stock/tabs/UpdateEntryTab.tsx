@@ -5,11 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { Material, StockEntry, StockFormData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { CalendarIcon, Minus, Package, Plus } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
-import { StockFormData, StockFormInputs } from "@/types/inventory";
-import { Material } from "@/types/inventory";
 import { CostBreakdown } from "../CostBreakdown";
 
 interface UpdateEntryTabProps {
@@ -19,22 +18,12 @@ interface UpdateEntryTabProps {
   selectedMaterial: Material | undefined;
   watchedQuantity: string;
   watchedCostPerUnit: string;
-  stockEntry: any;
+  stockEntry: StockEntry;
   onSubmit: (data: StockFormData) => void;
   onCancel: () => void;
 }
 
-export function UpdateEntryTab({
-  form,
-  materials,
-  availableUnits,
-  selectedMaterial,
-  watchedQuantity,
-  watchedCostPerUnit,
-  stockEntry,
-  onSubmit,
-  onCancel
-}: UpdateEntryTabProps) {
+export function UpdateEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onSubmit, onCancel }: UpdateEntryTabProps) {
   const handleSubmit = (data: StockFormInputs) => {
     const formData = data as unknown as StockFormData;
     onSubmit(formData);
@@ -165,16 +154,7 @@ export function UpdateEntryTab({
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input
-                        onWheel={e => e.preventDefault()}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        {...field}
-                        onChange={e => field.onChange(e.target.value)}
-                        className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
+                      <Input onWheel={e => e.preventDefault()} type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <Button
                         type="button"
                         variant="outline"
@@ -217,15 +197,7 @@ export function UpdateEntryTab({
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        {...field}
-                        onChange={e => field.onChange(e.target.value)}
-                        className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
+                      <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <Button
                         type="button"
                         variant="outline"
@@ -271,13 +243,7 @@ export function UpdateEntryTab({
             />
           </div>
 
-          <CostBreakdown 
-            selectedMaterial={selectedMaterial} 
-            purchasedQuantity={watchedQuantity} 
-            purchasedUnit={form.watch("purchasedUnit")} 
-            costPerPurchasedUnit={watchedCostPerUnit} 
-            totalCost={form.watch("totalCost")} 
-          />
+          <CostBreakdown selectedMaterial={selectedMaterial} purchasedQuantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

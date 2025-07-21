@@ -6,11 +6,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { Material, StockEntry, StockFormData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { CalendarIcon, FileText, Minus, Package, Plus, Trash2 } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
-import { StockFormData, StockFormInputs } from "@/types/inventory";
-import { Material } from "@/types/inventory";
 import { CostBreakdown } from "../CostBreakdown";
 
 interface WasteFromEntryTabProps {
@@ -20,22 +19,12 @@ interface WasteFromEntryTabProps {
   selectedMaterial: Material | undefined;
   watchedQuantity: string;
   watchedCostPerUnit: string;
-  stockEntry: any;
+  stockEntry: StockEntry;
   onWasteFromSpecificEntry: (data: StockFormData & { stockEntryId: string }) => void;
   onCancel: () => void;
 }
 
-export function WasteFromEntryTab({
-  form,
-  materials,
-  availableUnits,
-  selectedMaterial,
-  watchedQuantity,
-  watchedCostPerUnit,
-  stockEntry,
-  onWasteFromSpecificEntry,
-  onCancel
-}: WasteFromEntryTabProps) {
+export function WasteFromEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onWasteFromSpecificEntry, onCancel }: WasteFromEntryTabProps) {
   const handleSubmit = (data: StockFormInputs) => {
     const formData = data as unknown as StockFormData;
     const specificEntryData = {
@@ -124,15 +113,7 @@ export function WasteFromEntryTab({
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input
-                        type="number"
-                        step="1"
-                        min="0"
-                        placeholder="0"
-                        {...field}
-                        onChange={e => field.onChange(parseInt(e.target.value) || 0)}
-                        className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
+                      <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <Button
                         type="button"
                         variant="outline"
@@ -259,13 +240,7 @@ export function WasteFromEntryTab({
             </div>
           </div>
 
-          <CostBreakdown 
-            selectedMaterial={selectedMaterial} 
-            purchasedQuantity={watchedQuantity} 
-            purchasedUnit={form.watch("purchasedUnit")} 
-            costPerPurchasedUnit={watchedCostPerUnit} 
-            totalCost={form.watch("totalCost")} 
-          />
+          <CostBreakdown selectedMaterial={selectedMaterial} purchasedQuantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

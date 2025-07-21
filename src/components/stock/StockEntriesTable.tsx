@@ -1,16 +1,16 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { Edit, Plus, Trash2, AlertTriangle, FileText, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { StockEntry, NegativeStockReport } from "@/types/inventory";
-import { useState } from "react";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
+import { useInventoryStore } from "@/hooks/useInventoryStore";
+import { NegativeStockReport, StockEntry } from "@/types/inventory";
+import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
+import { AlertTriangle, Edit, FileText, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 export function StockEntriesTable() {
   const { stockEntries, materialsWithStock, handleEditStockEntry, handleDeleteStockEntry, setShowStockForm } = useInventoryStore();
@@ -102,8 +102,7 @@ export function StockEntriesTable() {
                 )}
               </>
             );
-          }
-           else {
+          } else {
             return (
               <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
                 {isNegative && <AlertTriangle className="h-4 w-4" />}

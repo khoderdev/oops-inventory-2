@@ -6,11 +6,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { Material, StockFormData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { CalendarIcon, FileText, Minus, Package, Plus, Trash2 } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
-import { StockFormData, StockFormInputs } from "@/types/inventory";
-import { Material } from "@/types/inventory";
 
 interface RecordWasteTabProps {
   form: UseFormReturn<StockFormInputs>;
@@ -20,13 +19,7 @@ interface RecordWasteTabProps {
   onCancel: () => void;
 }
 
-export function RecordWasteTab({
-  form,
-  materials,
-  availableUnits,
-  onRecordWaste,
-  onCancel
-}: RecordWasteTabProps) {
+export function RecordWasteTab({ form, materials, availableUnits, onRecordWaste, onCancel }: RecordWasteTabProps) {
   const handleSubmit = (data: StockFormInputs) => {
     const formData = data as unknown as StockFormData;
     onRecordWaste(formData);
@@ -93,15 +86,7 @@ export function RecordWasteTab({
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input
-                        type="number"
-                        step="1"
-                        min="0"
-                        placeholder="0"
-                        {...field}
-                        onChange={e => field.onChange(parseInt(e.target.value) || 0)}
-                        className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
+                      <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <Button
                         type="button"
                         variant="outline"
