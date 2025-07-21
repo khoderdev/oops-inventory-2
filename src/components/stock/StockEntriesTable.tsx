@@ -94,9 +94,12 @@ export function StockEntriesTable() {
                     </Badge>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  (from {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit})
-                </div>
+                {/* Only show "(from X pack)" if individual quantity is positive */}
+                {entry.purchasedIndividualQuantity > 0 && material?.packageQuantity && (
+                  <div className="text-sm text-muted-foreground">
+                    (from {formatNumber(Math.ceil(entry.purchasedIndividualQuantity / material.packageQuantity))} {entry.purchasedUnit})
+                  </div>
+                )}
               </>
             );
           }
