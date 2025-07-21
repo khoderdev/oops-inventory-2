@@ -1,5 +1,6 @@
 import sequelize from "../config/database.js";
 import Assignment from "./Assignment.js";
+import DayOperation from "./dayOperation.js";
 import Material from "./materials.js";
 import { MenuItem, MenuItemIngredient } from "./menuItems.js";
 import Sale from "./sale.js";
@@ -165,4 +166,4 @@ Section.hasMany(Sale, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, Material, MenuItem, MenuItemIngredient, Sale, SaleMenuItem, Section, sequelize, StockEntry };
+export { Assignment, DayOperation, Material, MenuItem, MenuItemIngredient, Sale, SaleMenuItem, Section, sequelize, StockEntry };

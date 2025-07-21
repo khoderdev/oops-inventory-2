@@ -3,6 +3,7 @@ import express from "express";
 import sequelize from "./config/database.js";
 import "./models/index.js";
 import assignmentsRoutes from "./routes/assignments.js";
+import dayOperationsRoutes from "./routes/dayOperations.js";
 import materialRoutes from "./routes/materials.js";
 import menuItemsRoutes from "./routes/menuItems.js";
 import salesRoutes from "./routes/sales.js";
@@ -24,6 +25,7 @@ app.use("/api/assignments", assignmentsRoutes);
 app.use("/api/stock-entries", stockEntriesRoutes);
 app.use("/api/menu-items", menuItemsRoutes);
 app.use("/api/sales", salesRoutes);
+app.use("/api/day-operations", dayOperationsRoutes);
 
 // Error handling middleware
 // IMPORTANT: app.use(errorHandler) should be the *last* middleware

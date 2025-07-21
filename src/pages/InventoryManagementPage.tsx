@@ -1,7 +1,5 @@
-import { CostCalculationPanel } from "@/components/inventory/CostCalculationPanel";
-import { InventoryManagementPanel } from "@/components/inventory/InventoryManagementPanel";
-import { InventoryReportsPanel } from "@/components/inventory/InventoryReportsPanel";
 import { ReportGenerator } from "@/components/analytics/ReportGenerator";
+import { InventoryManagementPanel } from "@/components/inventory/InventoryManagementPanel";
 import { POSPanel } from "@/components/POSPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,10 +9,12 @@ import { useInventoryData } from "@/hooks/useInventoryData";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { CreateMaterialData, CreateStockEntryData, MaterialWithStock, MenuItem, UpdateMaterialData, UpdateStockEntryData } from "@/types/inventory";
 import { calculateMaterialInventory } from "@/utils/inventoryCalculations";
-import { BarChart3, Loader2, Package, RefreshCw, FileText } from "lucide-react";
+import { BarChart3, Calendar, FileText, Loader2, Package, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export const InventoryManagementPage = () => {
+  const navigate = useNavigate();
   // Fetch data from backend
   const { materials, stockEntries, menuItems, sections, sectionAssignments, loading, error, refetch } = useInventoryData();
   // CRUD operations
@@ -221,7 +221,15 @@ export const InventoryManagementPage = () => {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="">
         <TabsList className="grid w-full grid-cols-3 sticky top-0 bg-white !z-50">
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/day-operations")} className="h-8 px-3 text-xs" title="Day Operations">
+              <Calendar className="h-4 w-4 mr-1" />
+              Day Ops
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/sales-history")} className="h-8 px-3 text-xs" title="Sales History">
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Sales
+            </Button>
             <Button variant="ghost" size="sm" onClick={handleManualRefresh} disabled={isRefreshing || loading} className="h-8 w-8 p-0" title="Refresh all data">
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
             </Button>

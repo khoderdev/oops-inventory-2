@@ -503,3 +503,138 @@ export interface ReportConfig {
 export interface ReportGeneratorProps {
   className?: string;
 }
+
+//-----------------------------------------------------------------------------
+// Day Operations Types
+
+export interface StockSnapshot {
+  stockEntryId: number;
+  materialId: number;
+  materialName: string;
+  materialCategory: string;
+  quantity: number;
+  unit: string;
+  supplier: string;
+  costPerUnit: number;
+  snapshotTime: Date;
+}
+
+export interface StockVariance {
+  stockEntryId: number;
+  materialId: number;
+  materialName: string;
+  openingQuantity: number;
+  closingQuantity: number;
+  variance: number;
+  unit: string;
+  varianceType: 'gain' | 'loss';
+}
+
+export interface DailyReportData {
+  date: string;
+  operationalHours: number;
+  sales: {
+    totalAmount: number;
+    totalTransactions: number;
+    averageTicket: number;
+    salesBySection: Record<string, { count: number; total: number }>;
+  };
+  cash: {
+    opening: number;
+    expected: number;
+    actual: number;
+    variance: number;
+    variancePercentage: number;
+  };
+  inventory: {
+    totalVariances: number;
+    gains: number;
+    losses: number;
+    significantVariances: StockVariance[];
+  };
+  generatedAt: Date;
+}
+
+export interface ActivityLog {
+  timestamp: Date;
+  type: 'SALE' | 'STOCK' | 'INVENTORY' | 'OTHER';
+  userId: string;
+  details: {
+    method: string;
+    endpoint: string;
+    body?: Record<string, unknown>;
+    params?: Record<string, string>;
+    query?: Record<string, string>;
+  };
+}
+
+export interface DayOperation {
+  id: number;
+  date: string;
+  status: 'opened' | 'closed';
+  openedAt: Date;
+  closedAt?: Date;
+  openedBy: string;
+  closedBy?: string;
+  openingCash: number;
+  closingCash?: number;
+  expectedCash: number;
+  cashVariance: number;
+  totalSales: number;
+  totalTransactions: number;
+  averageTicket: number;
+  openingStockSnapshot: StockSnapshot[];
+  closingStockSnapshot: StockSnapshot[];
+  stockVariances: StockVariance[];
+  autoReportGenerated: boolean;
+  reportData: DailyReportData;
+  notes?: string;
+  activityLogs?: ActivityLog[];
+  lastActivity?: Date;
+  realTimeUpdate?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface OpenDayRequest {
+  openingCash?: number;
+  openedBy?: string;
+  notes?: string;
+}
+
+export interface CloseDayRequest {
+  closingCash: number;
+  closedBy?: string;
+  notes?: string;
+}
+
+export interface DayOperationResponse {
+  message: string;
+  dayOperation: DayOperation;
+  stockItemsCaptured?: number;
+  dailyReport?: DailyReportData;
+  summary?: {
+    totalSales: number;
+    totalTransactions: number;
+    averageTicket: number;
+    cashVariance: number;
+    stockVariances: number;
+  };
+}
+
+export interface DayOperationsListResponse {
+  dayOperations: DayOperation[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
+}
+
+export interface DayActivitiesResponse {
+  activities: ActivityLog[];
+  totalActivities: number;
+  lastActivity?: Date;
+  dayStatus: 'opened' | 'closed';
+}
