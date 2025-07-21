@@ -1,12 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAssignment, SectionWithAssignments, StockEntry } from "@/types/inventory";
 import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
-import { AlertTriangle, Edit, Package, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface DetailModalProps {
   isOpen: boolean;
@@ -61,28 +59,12 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
       const currentSection = selectedItem.data as Section;
       const currentAssignmentCount = currentSectionData.assignments.length;
       const currentAssignmentHash = createAssignmentDataHash(currentSectionData.assignments);
-      
+
       // Detect when assignments have been added, removed, or changed
       const countChanged = currentAssignmentCount !== lastAssignmentCount;
       const dataChanged = currentAssignmentHash !== lastAssignmentDataHash;
-      
-      if (countChanged || dataChanged) {
-        console.log("DetailModal: Assignment data changed", {
-          sectionId: currentSection.id,
-          previousCount: lastAssignmentCount,
-          currentCount: currentAssignmentCount,
-          countChanged,
-          dataChanged,
-          assignments: currentSectionData.assignments.map(a => ({
-            id: a.id,
-            materialName: a.material?.name || a.menuItem?.name,
-            assignedQuantity: a.assignedQuantity,
-            assignedUnit: a.assignedUnit,
-            itemType: a.itemType,
-            updatedAt: a.updatedAt
-          }))
-        });
 
+      if (countChanged || dataChanged) {
         setLastAssignmentCount(currentAssignmentCount);
         setLastAssignmentDataHash(currentAssignmentHash);
         setForceUpdateKey(prev => prev + 1);
@@ -103,7 +85,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
     if (isOpen && selectedItem && selectedItem.type === "section" && currentSectionData) {
       const initialCount = currentSectionData.assignments.length;
       const initialHash = createAssignmentDataHash(currentSectionData.assignments);
-      
+
       setLastAssignmentCount(initialCount);
       setLastAssignmentDataHash(initialHash);
       setForceUpdateKey(0);
@@ -119,7 +101,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   useEffect(() => {
     if (isOpen && selectedItem && selectedItem.type === "section") {
       // Use multiple timeouts to catch async updates at different intervals
-      const timeouts = [50, 100, 200, 300].map(delay => 
+      const timeouts = [50, 100, 200, 300].map(delay =>
         setTimeout(() => {
           setForceUpdateKey(prev => prev + 1);
         }, delay)
@@ -132,47 +114,38 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   // Handler for adding new assignments with state sync
   const handleAddAssignment = useCallback(() => {
     const currentSection = selectedItem?.data as Section;
-    console.log("DetailModal: Add Assignment button clicked", {
-      sectionId: currentSection?.id,
-      sectionName: currentSection?.name,
-      onShowAssignmentFormExists: !!onShowAssignmentForm,
-      onAddAssignmentExists: !!onAddAssignment,
-      selectedItem: selectedItem
-    });
-    
     if (onAddAssignment && currentSection?.id) {
-      console.log("DetailModal: Using onAddAssignment with sectionId:", currentSection.id);
       onAddAssignment(currentSection.id);
       setShowAssignmentDetails(false);
       // Force update after a short delay to catch any state changes
       setTimeout(() => setForceUpdateKey(prev => prev + 1), 50);
     } else if (onShowAssignmentForm) {
-      console.log("DetailModal: Falling back to onShowAssignmentForm(true)");
       onShowAssignmentForm(true);
       setShowAssignmentDetails(false);
       // Force update after a short delay to catch any state changes
       setTimeout(() => setForceUpdateKey(prev => prev + 1), 50);
-    } else {
-      console.log("DetailModal: No assignment form callbacks available");
     }
   }, [onShowAssignmentForm, onAddAssignment, selectedItem]);
 
   // Handler for deleting assignments with immediate UI update
-  const handleDeleteAssignment = useCallback((assignmentId: string) => {
-    if (onDeleteAssignment) {
-      onDeleteAssignment(assignmentId);
-      // Force immediate update
-      setForceUpdateKey(prev => prev + 1);
-      // Update assignment count and hash to reflect deletion
-      if (currentSectionData) {
-        const newCount = Math.max(0, currentSectionData.assignments.length - 1);
-        setLastAssignmentCount(newCount);
-        // Update hash for remaining assignments
-        const remainingAssignments = currentSectionData.assignments.filter(a => a.id !== assignmentId);
-        setLastAssignmentDataHash(createAssignmentDataHash(remainingAssignments));
+  const handleDeleteAssignment = useCallback(
+    (assignmentId: string) => {
+      if (onDeleteAssignment) {
+        onDeleteAssignment(assignmentId);
+        // Force immediate update
+        setForceUpdateKey(prev => prev + 1);
+        // Update assignment count and hash to reflect deletion
+        if (currentSectionData) {
+          const newCount = Math.max(0, currentSectionData.assignments.length - 1);
+          setLastAssignmentCount(newCount);
+          // Update hash for remaining assignments
+          const remainingAssignments = currentSectionData.assignments.filter(a => a.id !== assignmentId);
+          setLastAssignmentDataHash(createAssignmentDataHash(remainingAssignments));
+        }
       }
-    }
-  }, [onDeleteAssignment, currentSectionData, createAssignmentDataHash]);
+    },
+    [onDeleteAssignment, currentSectionData, createAssignmentDataHash]
+  );
 
   if (!selectedItem) return null;
 
@@ -493,10 +466,10 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                     itemType = "stockEntry";
                   }
                 }
-                
+
                 // Use a more reliable key that includes the force update key
                 const assignmentKey = `${assignment.id}-${index}-${forceUpdateKey}`;
-                
+
                 // Menu Item Assignment
                 if (itemType === "menuItem" && assignment.menuItem) {
                   return (

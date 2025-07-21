@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Section, SectionAssignment, SectionWithAssignments } from "@/types/inventory";
-import { formatCurrency, formatNumber, convertMass, convertVolume, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
+import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { AlertTriangle, Edit, Package, Plus, Trash2 } from "lucide-react";
 import { memo, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
@@ -209,16 +209,8 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
 
   const handleAddAssignment = useCallback(
     (sectionId: string) => {
-      console.log("SectionsTable: handleAddAssignment called", {
-        sectionId,
-        setSelectedSectionIdExists: !!setSelectedSectionId,
-        setShowAssignmentFormExists: !!setShowAssignmentForm
-      });
-
       setSelectedSectionId(sectionId);
       setShowAssignmentForm(true);
-
-      console.log("SectionsTable: Set selectedSectionId and showAssignmentForm");
     },
     [setSelectedSectionId, setShowAssignmentForm]
   );

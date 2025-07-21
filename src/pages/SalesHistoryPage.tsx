@@ -128,11 +128,6 @@ export function SalesHistoryPage() {
   // Convert sales data to item-level sales
   const itemSales = useMemo<ItemSale[]>(() => {
     const items: ItemSale[] = [];
-
-    if (sales.length > 0) {
-      console.log("Processing sales data with menu items:", sales[0]?.menuItems);
-    }
-
     sales.forEach(sale => {
       // Add individual items
       sale.items?.forEach((item, index) => {

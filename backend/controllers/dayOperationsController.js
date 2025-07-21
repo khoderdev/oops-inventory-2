@@ -185,10 +185,6 @@ const dayOperationsController = {
         });
       }
 
-      console.log(`\n=== OPENING DAY ${today} ===`);
-      console.log(`Opening cash: $${openingCash}`);
-      console.log(`Opened by: ${openedBy}`);
-
       // Create stock snapshot for opening
       const stockSnapshot = await StockEntry.findAll({
         include: [
@@ -232,11 +228,6 @@ const dayOperationsController = {
       );
 
       await transaction.commit();
-
-      console.log(`\n=== DAY ${today} SUCCESSFULLY OPENED ===`);
-      console.log(`Day Operation ID: ${newDay.id}`);
-      console.log(`Stock items captured: ${openingStockSnapshot.length}`);
-
       res.status(201).json({
         message: "Day successfully opened",
         dayOperation: newDay,
@@ -272,9 +263,6 @@ const dayOperationsController = {
           error: "No open day operation found for today"
         });
       }
-
-      console.log(`\n=== CLOSING DAY ${today} ===`);
-      console.log(`Day Operation ID: ${currentDay.id}`);
 
       // Calculate sales data for the day
       const dayStart = new Date(currentDay.openedAt);
@@ -411,12 +399,6 @@ const dayOperationsController = {
       );
 
       await transaction.commit();
-
-      console.log(`\n=== DAY ${today} SUCCESSFULLY CLOSED ===`);
-      console.log(`Total Sales: $${totalSales.toFixed(2)}`);
-      console.log(`Total Transactions: ${totalTransactions}`);
-      console.log(`Cash Variance: $${cashVariance.toFixed(2)}`);
-      console.log(`Stock Variances: ${stockVariances.length}`);
 
       res.status(200).json({
         message: "Day successfully closed",

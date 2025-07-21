@@ -6,7 +6,7 @@ import { DetailModal } from "@/components/ui/DetailModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useInventoryCRUD } from "@/hooks/useInventoryCRUD";
 import { CreateSectionAssignmentData, CreateSectionData, Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAssignment, SectionWithAssignments, StockEntry, UpdateSectionAssignmentData, UpdateSectionData } from "@/types/inventory";
-import { AlertCircle, Check } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface SectionsManagementPanelProps {
@@ -67,7 +67,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     }, 50);
 
     return () => clearTimeout(timeoutId);
-  }, [sections.length, sectionAssignments.length]);
+  }, [sections, sectionAssignments]);
 
   useEffect(() => {
     return () => {
@@ -320,11 +320,10 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
 
   const handleAddAssignmentFromModal = useCallback(
     (sectionId: string) => {
-      const targetSection = sectionsWithAssignments.find(s => s.id === sectionId);
       setSelectedSectionIdWithLogging(sectionId);
       setShowAssignmentForm(true);
     },
-    [sectionsWithAssignments]
+    [setSelectedSectionIdWithLogging, setShowAssignmentForm]
   );
 
   return (
@@ -384,14 +383,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
       <Dialog
         open={showAssignmentForm}
         onOpenChange={open => {
-          console.log("SectionsManagementPanel: Assignment Form Dialog onOpenChange", {
-            open,
-            selectedSectionId,
-            editingAssignment: editingAssignment?.id
-          });
-
           if (!open) {
-            console.log("SectionsManagementPanel: Closing Assignment Form Dialog");
             setShowAssignmentForm(false);
             setEditingAssignment(undefined);
             setSelectedSectionIdWithLogging("");
@@ -408,7 +400,6 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
             selectedSectionId={selectedSectionId}
             onSubmit={handleAssignmentSubmit}
             onCancel={() => {
-              console.log("SectionsManagementPanel: Assignment Form cancelled");
               setShowAssignmentForm(false);
               setEditingAssignment(undefined);
               setSelectedSectionIdWithLogging("");

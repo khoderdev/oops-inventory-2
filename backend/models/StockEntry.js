@@ -69,12 +69,10 @@ const StockEntry = sequelize.define(
     hooks: {
       // Hook to automatically calculate converted values before creating
       beforeCreate: async (stockEntry, options) => {
-        console.log("🔥 beforeCreate hook triggered for stockEntry:", stockEntry.id || "NEW");
         await calculateConvertedValues(stockEntry);
       },
       // Hook to automatically calculate converted values before updating
       beforeUpdate: async (stockEntry, options) => {
-        console.log("🔥 beforeUpdate hook triggered for stockEntry:", stockEntry.id);
         await calculateConvertedValues(stockEntry);
       }
     }
@@ -107,13 +105,6 @@ function convertMassToGrams(value, fromUnit) {
 // Helper function to calculate converted values
 async function calculateConvertedValues(stockEntry) {
   try {
-    console.log("=== CONVERSION DEBUG START ===");
-    console.log("StockEntry data:", {
-      materialId: stockEntry.materialId,
-      purchasedQuantity: stockEntry.purchasedQuantity,
-      purchasedUnit: stockEntry.purchasedUnit
-    });
-
     // Get the associated material
     const material = await Material.findByPk(stockEntry.materialId);
     if (!material) {
@@ -124,48 +115,18 @@ async function calculateConvertedValues(stockEntry) {
       return;
     }
 
-    console.log("Material data:", {
-      id: material.id,
-      name: material.name,
-      baseUnit: material.baseUnit,
-      unitType: material.unitType,
-      packageQuantity: material.packageQuantity
-    });
-
     // Check if this is a mass unit that needs conversion
     const isMassMaterial = material.unitType === "mass" && isMassUnit(stockEntry.purchasedUnit);
 
     if (!isMassMaterial) {
-      console.log(`Skipping conversion for ${material.name} - not a mass unit`);
-      console.log(`Material unitType: ${material.unitType}, purchasedUnit: ${stockEntry.purchasedUnit}`);
-
       // No conversion needed - set values as-is
       stockEntry.purchasedConvertedQuantity = stockEntry.purchasedQuantity;
       stockEntry.purchasedConvertedUnit = stockEntry.purchasedUnit;
-
-      console.log(`No conversion applied for ${material.name}:`, {
-        original: `${stockEntry.purchasedQuantity} ${stockEntry.purchasedUnit}`,
-        converted: `${stockEntry.purchasedConvertedQuantity} ${stockEntry.purchasedConvertedUnit}`
-      });
-      console.log("=== CONVERSION DEBUG END ===");
       return;
     }
-
-    // For mass units, always convert to grams (g) as the standard base unit
-    console.log(`Performing mass unit conversion for ${material.name} - converting to grams`);
     const convertedQuantity = convertMassToGrams(stockEntry.purchasedQuantity, stockEntry.purchasedUnit);
-
-    // Set the converted values (always to grams for mass units)
-    // Round to whole number since grams are typically whole numbers
     stockEntry.purchasedConvertedQuantity = Math.round(convertedQuantity);
     stockEntry.purchasedConvertedUnit = "g";
-
-    console.log(`Final conversion for ${material.name}:`, {
-      original: `${stockEntry.purchasedQuantity} ${stockEntry.purchasedUnit}`,
-      converted: `${stockEntry.purchasedConvertedQuantity} ${stockEntry.purchasedConvertedUnit}`,
-      conversionFactor: convertedQuantity / stockEntry.purchasedQuantity
-    });
-    console.log("=== CONVERSION DEBUG END ===");
   } catch (error) {
     console.error("Error calculating converted values:", error);
     console.error("Stack trace:", error.stack);

@@ -1,13 +1,11 @@
-import { Material, StockEntry } from "../models/index.js";
-import sequelize from "../config/database.js";
 import { Op } from "sequelize";
+import sequelize from "../config/database.js";
+import { Material, StockEntry } from "../models/index.js";
 
 const stockEntriesController = {
   // Get all stock entries
   getAllStockEntries: async (req, res, next) => {
     try {
-      console.log("=== FETCHING ALL STOCK ENTRIES WITH CACHE BUSTING ===");
-
       // Force fresh query with raw SQL to bypass any caching
       const rawStockEntries = await sequelize.query(
         `
@@ -31,33 +29,13 @@ const stockEntriesController = {
           nest: true
         }
       );
-
-      console.log(`Found ${rawStockEntries.length} stock entries via raw query`);
-
       // Log sample entry to verify fresh data and identify negative stock entries
       if (rawStockEntries.length > 0) {
-        const sampleEntry = rawStockEntries.find(entry => entry.id === 28) || rawStockEntries[0];
-        console.log("Sample FRESH stock entry data:", {
-          id: sampleEntry.id,
-          materialId: sampleEntry.materialId,
-          materialName: sampleEntry.material?.name,
-          purchasedQuantity: sampleEntry.purchasedQuantity,
-          purchasedUnit: sampleEntry.purchasedUnit,
-          purchasedIndividualQuantity: sampleEntry.purchasedIndividualQuantity,
-          purchasedIndividualUnit: sampleEntry.purchasedIndividualUnit,
-          updatedAt: sampleEntry.updatedAt
-        });
-
         // Count and log negative stock entries
         const negativeStockEntries = rawStockEntries.filter(entry => entry.purchasedIndividualQuantity < 0 || entry.purchasedQuantity < 0);
 
         if (negativeStockEntries.length > 0) {
-          console.log(`\n=== NEGATIVE STOCK ENTRIES DETECTED ===`);
-          console.log(`Found ${negativeStockEntries.length} entries with negative quantities:`);
-          negativeStockEntries.forEach(entry => {
-            console.log(`- ${entry.material?.name || "Unknown"} (ID: ${entry.id}): ${entry.purchasedIndividualQuantity} ${entry.purchasedIndividualUnit}`);
-          });
-          console.log(`=== END NEGATIVE STOCK SUMMARY ===\n`);
+          negativeStockEntries.forEach(entry => {});
         }
       }
       res.status(200).json(rawStockEntries);
@@ -116,8 +94,6 @@ const stockEntriesController = {
         // For package units, calculate individual quantities (rounded to whole numbers)
         purchasedIndividualQuantity = Math.round(purchasedQuantity * material.packageQuantity);
         purchasedIndividualUnit = material.baseUnit;
-
-
       } else if (material.unitType === "mass") {
         // For mass units, convert to base unit (grams)
         const massConversions = {
@@ -131,14 +107,6 @@ const stockEntriesController = {
         if (conversionFactor) {
           purchasedIndividualQuantity = Math.round(purchasedQuantity * conversionFactor);
           purchasedIndividualUnit = material.baseUnit; // Should be 'g' for mass units
-
-          console.log(`Mass unit conversion for ${material.name}:`, {
-            originalQuantity: purchasedQuantity,
-            originalUnit: purchasedUnit,
-            individualQuantity: purchasedIndividualQuantity,
-            individualUnit: purchasedIndividualUnit,
-            conversionFactor: conversionFactor
-          });
         } else {
           console.warn(`Unknown mass unit: ${purchasedUnit} for material: ${material.name}`);
         }
@@ -156,11 +124,9 @@ const stockEntriesController = {
         purchaseDate,
         expiryDate
       });
-
       const createdStockEntry = await StockEntry.findByPk(stockEntry.id, {
         include: { model: Material, as: "material" }
       });
-
       res.status(201).json(createdStockEntry);
     } catch (error) {
       next(error);
@@ -216,7 +182,6 @@ const stockEntriesController = {
         // Recalculate individual quantities for package units (rounded to whole numbers)
         updatedIndividualQuantity = Math.round(finalPurchasedQuantity * material.packageQuantity);
         updatedIndividualUnit = material.baseUnit;
-
       } else {
         if (material.unitType === "mass") {
           const massConversions = {
@@ -742,7 +707,7 @@ const stockEntriesController = {
       const wasteRecord = await StockEntry.create({
         materialId,
         supplier: `Waste Record - ${wasteReason}`,
-        purchasedQuantity: -numericWasteQuantity, 
+        purchasedQuantity: -numericWasteQuantity,
         purchasedUnit: unit,
         purchasedIndividualQuantity: -wasteIndividualQuantity,
         purchasedIndividualUnit: wasteIndividualUnit,

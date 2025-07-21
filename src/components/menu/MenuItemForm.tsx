@@ -35,9 +35,6 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
   const availableMaterials = useMemo(() => {
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
     const filtered = materials.filter(m => !usedMaterialIds.has(m.id));
-    console.log('MenuItemForm - Total materials:', materials.length);
-    console.log('MenuItemForm - Used material IDs:', Array.from(usedMaterialIds));
-    console.log('MenuItemForm - Available materials:', filtered.length);
     return filtered;
   }, [materials, ingredients]);
 
@@ -61,11 +58,13 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
       setName(menuItem.name || "");
       setCategory(menuItem.category || "");
       setPrice(menuItem.price.toString() || "");
-      setIngredients(menuItem.ingredients.map(i => ({ 
-        materialId: i.materialId, 
-        quantity: i.quantity, 
-        unit: i.unit 
-      })) || []);
+      setIngredients(
+        menuItem.ingredients.map(i => ({
+          materialId: i.materialId,
+          quantity: i.quantity,
+          unit: i.unit
+        })) || []
+      );
     } else {
       // Reset form for new menu item
       setName("");
@@ -118,7 +117,8 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
         name: name.trim(),
         category: category as MenuItemCategory,
         price: parseFloat(price),
-        ingredients
+        ingredients,
+        menuItemIngredients: false
       });
       // Reset form state
       setName("");
@@ -139,12 +139,8 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
       // Handle both string and number IDs for compatibility
       const material = materials.find(m => m.id === materialId || String(m.id) === materialId);
       if (material) {
-        console.log('Selected material full object:', material);
-        console.log('Material unitType:', material.unitType);
-        console.log('Material baseUnit:', material.baseUnit);
         setIngredientUnit(material.baseUnit);
       } else {
-        console.log('Material not found for ID:', materialId);
         setIngredientUnit("");
       }
     },
@@ -224,10 +220,7 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
               </TableHeader>
               <TableBody>
                 {ingredients.map((ingredient, index) => {
-                  console.log('Looking for ingredient material:', ingredient.materialId, 'Type:', typeof ingredient.materialId);
-                  console.log('Available materials:', materials.map(m => ({ id: m.id, name: m.name, idType: typeof m.id })));
                   const material = materials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
-                  console.log('Found material for ingredient:', material?.name || 'Unknown');
                   return (
                     <TableRow key={index}>
                       <TableCell>{material?.name || "Unknown"}</TableCell>
@@ -284,8 +277,6 @@ export function MenuItemForm({ menuItem, materials, categories, onSubmit, onCanc
               {selectedMaterialId ? (
                 (() => {
                   const availableUnits = getAvailableUnits(selectedMaterialId, materials);
-                  console.log('Available units for material:', selectedMaterialId, availableUnits);
-                  console.log('Current ingredientUnit:', ingredientUnit);
                   return availableUnits.map(unit => (
                     <option key={unit} value={unit}>
                       {unit}

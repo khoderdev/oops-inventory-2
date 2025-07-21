@@ -104,8 +104,6 @@ const logActivityAsync = async (req, activityType, responseData) => {
         activityLogs: existingLogs,
         lastActivity: currentTime
       });
-
-      console.log(`📝 Logged ${activityType} activity for day ${today}`);
     }
   } catch (error) {
     console.error("Error in logActivityAsync:", error);

@@ -5,8 +5,6 @@ import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, Stoc
 const salesController = {
   getNegativeStockReport: async (req, res, next) => {
     try {
-      console.log("=== GENERATING NEGATIVE STOCK REPORT ===");
-
       const negativeStockEntries = await StockEntry.findAll({
         where: {
           [Op.or]: [{ purchasedIndividualQuantity: { [Op.lt]: 0 } }, { purchasedQuantity: { [Op.lt]: 0 } }]
@@ -46,8 +44,6 @@ const salesController = {
         generatedAt: new Date(),
         message: negativeStockEntries.length > 0 ? `Found ${negativeStockEntries.length} stock entries with negative quantities requiring reconciliation` : "No negative stock entries found - all inventory is positive"
       };
-
-      console.log(`Negative stock report generated: ${negativeStockEntries.length} entries found`);
       res.status(200).json(report);
     } catch (error) {
       console.error("Error generating negative stock report:", error);
@@ -295,26 +291,13 @@ const salesController = {
               unit: material.baseUnit
             });
           }
-
           // Update assignment individual quantity - deduct individual units only
           const newAssignedIndividualQuantity = assignmentIndividualQuantity - assignmentDeductionQuantity;
-
           // Only update assignedIndividualQuantity, keep assignedQuantity unchanged
           assignment.assignedIndividualQuantity = Math.round(newAssignedIndividualQuantity);
           await assignment.save();
-
           // Update stock entry quantities - deduct from individual quantity only (can go negative)
           const newIndividualQuantity = stockEntry.purchasedIndividualQuantity - stockEntryDeductionQuantity;
-
-          console.log("Stock entry update values:", {
-            stockEntryId: stockEntry.id,
-            oldPackageQuantity: stockEntry.purchasedQuantity,
-            newPackageQuantity: stockEntry.purchasedQuantity, // Keep package quantity unchanged
-            oldIndividualQuantity: stockEntry.purchasedIndividualQuantity,
-            newIndividualQuantity,
-            isInteger: Number.isInteger(newIndividualQuantity)
-          });
-
           // Only update individual quantity, keep package quantity unchanged
           stockEntry.purchasedIndividualQuantity = Math.round(newIndividualQuantity);
           await stockEntry.save();
@@ -323,9 +306,6 @@ const salesController = {
           if (Math.round(newIndividualQuantity) < 0) {
             console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for ${material.name} now has negative individual quantity: ${Math.round(newIndividualQuantity)}`);
           }
-
-          console.log(`Updated assignment ${assignment.id}: assignedQuantity unchanged (${assignment.assignedQuantity}), individual quantity ${assignmentIndividualQuantity} -> ${newAssignedIndividualQuantity}`);
-          console.log(`Updated stock entry ${stockEntry.id}: individual quantity ${stockEntry.purchasedIndividualQuantity + stockEntryDeductionQuantity} -> ${newIndividualQuantity}`);
         }
       }
 
@@ -349,33 +329,19 @@ const salesController = {
             return res.status(400).json({ error: `Menu item ${menuItemSale.menuItemId} not found` });
           }
 
-          console.log(`\n=== PROCESSING MENU ITEM SALE (NEGATIVE STOCK ENABLED) ===`);
-          console.log(`Menu Item: ${menuItem.name} x${menuItemSale.quantity}`);
-          console.log(`Ingredients to process: ${menuItem.menuItemIngredients.length}`);
           // Process each ingredient in the menu item
           for (const ingredient of menuItem.menuItemIngredients) {
             const material = ingredient.material;
             const totalIngredientQuantity = ingredient.quantity * menuItemSale.quantity; // Total needed for all sold menu items
-
-            console.log(`\n--- PROCESSING INGREDIENT (NEGATIVE STOCK ALLOWED) ---`);
-            console.log(`Ingredient: ${material.name}`);
-            console.log(`Required per item: ${ingredient.quantity} ${ingredient.unit}`);
-            console.log(`Total needed for ${menuItemSale.quantity} items: ${totalIngredientQuantity} ${ingredient.unit}`);
-            console.log(`Material base unit: ${material.baseUnit}`);
-            console.log(`Material unit type: ${material.unitType}`);
-
             // Find ALL stock entries for this material (including those with zero or negative quantity)
             // Remove the filter for positive quantity only - we now include all entries
             const stockEntries = await StockEntry.findAll({
               where: {
                 materialId: material.id
-                // Removed: purchasedIndividualQuantity: { [Op.gt]: 0 }
               },
               order: [["createdAt", "ASC"]], // FIFO - First In, First Out
               transaction
             });
-
-            console.log(`Found ${stockEntries.length} stock entries for ${material.name} (including zero/negative)`);
 
             // Calculate total available quantity in base units (can now be negative)
             const totalAvailableQuantity = stockEntries.reduce((sum, entry) => {
@@ -395,10 +361,6 @@ const salesController = {
               }
             }
 
-            console.log(`Required quantity in base units (${material.baseUnit}): ${requiredQuantityInBaseUnits}`);
-            console.log(`Total available quantity: ${totalAvailableQuantity}`);
-
-            // REMOVED: Stock availability check - we now allow negative stock
             // Log warning if going negative
             const willResultInNegativeStock = totalAvailableQuantity < requiredQuantityInBaseUnits;
             if (willResultInNegativeStock) {
@@ -417,8 +379,6 @@ const salesController = {
 
             // Handle case where no stock entries exist - create a virtual negative entry
             if (stockEntries.length === 0) {
-              console.log(`No existing stock entries for ${material.name}, creating virtual negative stock entry`);
-
               // Create a new stock entry with negative quantity
               const virtualStockEntry = await StockEntry.create(
                 {
@@ -435,9 +395,6 @@ const salesController = {
                 },
                 { transaction }
               );
-
-              console.log(`Created virtual stock entry ${virtualStockEntry.id} with negative quantity: ${-requiredQuantityInBaseUnits}`);
-
               // Add to warnings
               negativeStockWarnings.push({
                 materialId: material.id,
@@ -457,9 +414,6 @@ const salesController = {
                 const availableInThisEntry = stockEntry.purchasedIndividualQuantity;
                 // MODIFIED: Remove Math.min to allow negative deduction
                 const deductFromThisEntry = remainingToDeduct; // Deduct full remaining amount
-
-                console.log(`Deducting ${deductFromThisEntry} from stock entry ${stockEntry.id} (current: ${availableInThisEntry}, will become: ${availableInThisEntry - deductFromThisEntry})`);
-
                 // Update stock entry - can now go negative
                 const newQuantity = Math.round(availableInThisEntry - deductFromThisEntry);
                 stockEntry.purchasedIndividualQuantity = newQuantity;
@@ -467,9 +421,6 @@ const salesController = {
 
                 // Update remaining to deduct
                 remainingToDeduct = Math.max(0, remainingToDeduct - Math.max(0, availableInThisEntry));
-
-                console.log(`Stock entry ${stockEntry.id} updated: ${availableInThisEntry} -> ${newQuantity} (remaining to deduct: ${remainingToDeduct})`);
-
                 // Log negative stock entry
                 if (newQuantity < 0) {
                   console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for ${material.name} now has negative quantity: ${newQuantity}`);
@@ -479,18 +430,7 @@ const salesController = {
                 if (remainingToDeduct <= 0) break;
               }
             }
-
-            console.log(`Successfully processed deduction of ${requiredQuantityInBaseUnits} ${material.baseUnit} of ${material.name}`);
           }
-        }
-
-        // Log all negative stock warnings at the end
-        if (negativeStockWarnings.length > 0) {
-          console.log(`\n=== NEGATIVE STOCK SUMMARY ===`);
-          console.log(`${negativeStockWarnings.length} ingredients resulted in negative stock:`);
-          negativeStockWarnings.forEach(warning => {
-            console.log(`- ${warning.materialName}: ${warning.shortageQuantity} ${warning.unit} shortage${warning.action ? ` (${warning.action})` : ""}`);
-          });
         }
       }
 
@@ -512,7 +452,6 @@ const salesController = {
       await transaction.commit();
 
       // Fetch updated stock entries AFTER transaction commit to ensure fresh data
-      console.log("\n=== FETCHING FRESH STOCK ENTRIES ===");
       const updatedStockEntries = await StockEntry.findAll({
         include: [
           {
@@ -522,19 +461,6 @@ const salesController = {
         ],
         order: [["id", "ASC"]] // Order by ID for consistent ordering
       });
-
-      console.log(`Fetched ${updatedStockEntries.length} fresh stock entries`);
-
-      // Log a few sample entries to verify data
-      if (updatedStockEntries.length > 0) {
-        console.log("Sample updated stock entry:", {
-          id: updatedStockEntries[0].id,
-          materialId: updatedStockEntries[0].materialId,
-          purchasedIndividualQuantity: updatedStockEntries[0].purchasedIndividualQuantity,
-          updatedAt: updatedStockEntries[0].updatedAt
-        });
-      }
-
       // Prepare response message and warnings
       let responseMessage = "Sale completed successfully with inventory deductions";
       const hasNegativeStock = negativeStockWarnings && negativeStockWarnings.length > 0;
@@ -673,14 +599,8 @@ const salesController = {
         await transaction.rollback();
         return res.status(404).json({ error: "Sale not found" });
       }
-      console.log(`\n=== REVERTING SALE ${id} ===`);
-      console.log(`Sale Date: ${sale.saleDate}`);
-      console.log(`Total Amount: ${sale.totalAmount}`);
-      console.log(`Items: ${JSON.stringify(sale.items)}`);
-      console.log(`Menu Items: ${JSON.stringify(sale.menuItems)}`);
       // Revert individual items
       if (sale.items && sale.items.length > 0) {
-        console.log(`\n--- REVERTING ${sale.items.length} INDIVIDUAL ITEMS ---`);
         for (const item of sale.items) {
           const assignment = await Assignment.findByPk(item.assignmentId, {
             include: [
@@ -739,14 +659,10 @@ const salesController = {
             oldStockQuantity,
             newStockQuantity: Math.round(newStockQuantity)
           });
-          console.log(`Restored individual item: ${material.name}`);
-          console.log(`  Assignment: ${oldAssignmentQuantity} -> ${Math.round(newAssignmentQuantity)}`);
-          console.log(`  Stock: ${oldStockQuantity} -> ${Math.round(newStockQuantity)}`);
         }
       }
       // Revert menu items
       if (sale.menuItems && sale.menuItems.length > 0) {
-        console.log(`\n--- REVERTING ${sale.menuItems.length} MENU ITEMS ---`);
         for (const menuItemSale of sale.menuItems) {
           // Fetch the menu item with its ingredients
           const menuItem = await MenuItem.findByPk(menuItemSale.menuItemId, {
@@ -763,14 +679,10 @@ const salesController = {
             console.warn(`Menu item ${menuItemSale.menuItemId} not found during revert`);
             continue;
           }
-          console.log(`\nReverting menu item: ${menuItem.name} x${menuItemSale.quantity}`);
           // Restore each ingredient
           for (const ingredient of menuItem.menuItemIngredients) {
             const material = ingredient.material;
             const totalIngredientQuantity = ingredient.quantity * menuItemSale.quantity;
-            console.log(`\n--- RESTORING INGREDIENT ---`);
-            console.log(`Ingredient: ${material.name}`);
-            console.log(`Quantity to restore: ${totalIngredientQuantity} ${ingredient.unit}`);
             // Convert ingredient quantity to base units if needed
             let restorationQuantityInBaseUnits = totalIngredientQuantity;
             if (ingredient.unit !== material.baseUnit) {
@@ -782,7 +694,6 @@ const salesController = {
                 }
               }
             }
-            console.log(`Restoration quantity in base units (${material.baseUnit}): ${restorationQuantityInBaseUnits}`);
             // Find stock entries for this material (prioritize most recent entries for restoration)
             const stockEntries = await StockEntry.findAll({
               where: {
@@ -791,7 +702,6 @@ const salesController = {
               order: [["createdAt", "DESC"]], // LIFO for restoration - restore to most recent entries first
               transaction
             });
-            console.log(`Found ${stockEntries.length} stock entries for ${material.name}`);
             if (stockEntries.length === 0) {
               const newStockEntry = await StockEntry.create(
                 {
@@ -822,8 +732,6 @@ const salesController = {
                 oldStockQuantity: 0,
                 newStockQuantity: restorationQuantityInBaseUnits
               });
-
-              console.log(`Created new stock entry ${newStockEntry.id} with restored quantity: ${restorationQuantityInBaseUnits}`);
             } else {
               // Restore quantities to existing stock entries (LIFO - most recent first)
               let remainingToRestore = restorationQuantityInBaseUnits;
@@ -832,7 +740,6 @@ const salesController = {
                 const oldQuantity = stockEntry.purchasedIndividualQuantity || 0;
                 const restorationAmount = remainingToRestore; // Restore full remaining amount to this entry
                 const newQuantity = Math.round(oldQuantity + restorationAmount);
-                console.log(`Restoring ${restorationAmount} to stock entry ${stockEntry.id} (${oldQuantity} -> ${newQuantity})`);
                 stockEntry.purchasedIndividualQuantity = newQuantity;
                 await stockEntry.save({ transaction });
                 stockRestorationReport.push({
@@ -848,7 +755,6 @@ const salesController = {
                   newStockQuantity: newQuantity
                 });
                 remainingToRestore = 0; // All restored to this entry
-                console.log(`Stock entry ${stockEntry.id} updated: ${oldQuantity} -> ${newQuantity}`);
               }
             }
           }
@@ -857,8 +763,6 @@ const salesController = {
       // Delete the sale record
       await sale.destroy({ transaction });
       await transaction.commit();
-      console.log(`\n=== SALE ${id} SUCCESSFULLY REVERTED ===`);
-      console.log(`Stock restoration report: ${JSON.stringify(stockRestorationReport, null, 2)}`);
       res.status(200).json({
         message: "Sale successfully reverted",
         saleId: id,
@@ -888,15 +792,9 @@ const salesController = {
         await transaction.rollback();
         return res.status(400).json({ error: "Sale is already inactive" });
       }
-      console.log(`\n=== SOFT DELETING SALE ${id} ===`);
-      console.log(`Sale Date: ${sale.saleDate}`);
-      console.log(`Total Amount: ${sale.totalAmount}`);
-      console.log(`Setting isActive to false - sale will be hidden from frontend`);
       // Mark sale as inactive (soft delete)
       await sale.update({ isActive: false }, { transaction });
       await transaction.commit();
-      console.log(`\n=== SALE ${id} SUCCESSFULLY SOFT DELETED ===`);
-      console.log(`Sale is now hidden from frontend but preserved in database`);
       res.status(200).json({
         message: "Sale successfully hidden",
         saleId: id,

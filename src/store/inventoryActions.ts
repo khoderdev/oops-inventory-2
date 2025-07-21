@@ -1,6 +1,6 @@
 import { inventoryAPI } from "@/api/inventory.api";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
-import { Material, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry, StockEntryWithMaterial, AddStockData, RecordWasteData } from "@/types/inventory";
+import { AddStockData, Material, MaterialWithStock, MenuItem, RecordWasteData, Section, SectionAssignment, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
 import { atom } from "jotai";
 import { materialsAtom, menuItemsAtom, optimisticAssignmentsAtom, optimisticMaterialsAtom, optimisticSectionsAtom, optimisticStockEntriesAtom, sectionAssignmentsAtom, sectionsAtom, stockEntriesAtom, tabErrorAtom, tabLoadingAtom } from "./inventoryAtoms";
 
@@ -151,13 +151,8 @@ export const createMaterialAction = atom(null, async (get, set, data: MaterialWi
       description: data.description
     };
 
-    console.log("Creating material with data:", createData);
-
     // Make API call
     const response = await inventoryAPI.materials.createMaterial(createData);
-
-    console.log("Material created successfully:", response.data);
-
     // Update optimistic state with real data from server
     const realMaterial: MaterialWithStock = {
       ...response.data,
@@ -198,13 +193,8 @@ export const updateMaterialAction = atom(null, async (get, set, { id, data }: { 
       description: data.description
     };
 
-    console.log("Updating material with ID:", id, "and data:", updateData);
-
     // Make API call
     const response = await inventoryAPI.materials.updateMaterial(id, updateData);
-
-    console.log("Material updated successfully:", response.data);
-
     // Update with real data from server
     const realMaterial: MaterialWithStock = {
       ...response.data,
@@ -239,13 +229,8 @@ export const deleteMaterialAction = atom(null, async (get, set, id: string) => {
   set(optimisticMaterialsAtom, prev => prev.filter(material => material.id !== id));
 
   try {
-    console.log("Deleting material with ID:", id);
-
     // Make API call
     await inventoryAPI.materials.deleteMaterial(id);
-
-    console.log("Material deleted successfully");
-
     // Update the base materials atom as well
     set(materialsAtom, prev => prev.filter(material => material.id !== id));
   } catch (error) {
@@ -264,13 +249,8 @@ export const deleteStockEntryAction = atom(null, async (get, set, id: string) =>
   set(optimisticStockEntriesAtom, prev => prev.filter(stockEntry => stockEntry.id !== id));
 
   try {
-    console.log("Deleting stock entry with ID:", id);
-
     // Make API call
     await inventoryAPI.stock.deleteStockEntry(id);
-
-    console.log("Stock entry deleted successfully");
-
     // Update the base stock entries atom as well
     set(stockEntriesAtom, prev => prev.filter(stockEntry => stockEntry.id !== id));
   } catch (error) {
@@ -293,8 +273,6 @@ export const createStockEntryAction = atom(null, async (get, set, data: StockEnt
   set(optimisticStockEntriesAtom, prev => [...prev, tempStockEntry]);
 
   try {
-    console.log("Creating stock entry with data:", data);
-
     // Convert StockEntry to CreateStockEntryData by removing id, createdAt, updatedAt
     const createData = {
       materialId: data.materialId,
@@ -313,8 +291,6 @@ export const createStockEntryAction = atom(null, async (get, set, data: StockEnt
 
     // Make API call
     const response = await inventoryAPI.stock.createStockEntry(createData);
-
-    console.log("Stock entry created successfully:", response.data);
 
     // Update with real data from server
     const realStockEntry: StockEntry = {
@@ -344,8 +320,6 @@ export const updateStockEntryAction = atom(null, async (get, set, { id, data }: 
   set(optimisticStockEntriesAtom, prev => prev.map(entry => (entry.id === id ? { ...entry, ...data, updatedAt: new Date() } : entry)));
 
   try {
-    console.log("Updating stock entry with ID:", id, "and data:", data);
-
     // Convert StockEntry to update data format
     const updateData = {
       materialId: data.materialId,
@@ -364,9 +338,6 @@ export const updateStockEntryAction = atom(null, async (get, set, { id, data }: 
 
     // Make API call
     const response = await inventoryAPI.stock.updateStockEntry(id, updateData);
-
-    console.log("Stock entry updated successfully:", response.data);
-
     // Update with real data from server
     const realStockEntry: StockEntry = {
       ...response.data,
@@ -398,146 +369,101 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
       break;
     case "stock":
       // Stock tab needs both materials (for material names and editing) and stock entries
-      await Promise.all([
-        set(fetchMaterialsAction),
-        set(fetchStockEntriesAction)
-      ]);
+      await Promise.all([set(fetchMaterialsAction), set(fetchStockEntriesAction)]);
       break;
     case "sections":
       // Sections tab needs materials, stock entries, menu items, sections and assignments
-      await Promise.all([
-        set(fetchMaterialsAction),
-        set(fetchStockEntriesAction),
-        set(fetchMenuItemsAction),
-        set(fetchSectionsAction)
-      ]);
+      await Promise.all([set(fetchMaterialsAction), set(fetchStockEntriesAction), set(fetchMenuItemsAction), set(fetchSectionsAction)]);
       break;
     case "menu":
       // Menu tab needs both stock entries (for available materials) and menu items
-      await Promise.all([
-        set(fetchStockEntriesAction),
-        set(fetchMenuItemsAction)
-      ]);
+      await Promise.all([set(fetchStockEntriesAction), set(fetchMenuItemsAction)]);
       break;
     case "conversions":
       await set(fetchMaterialsAction); // Reuse materials for conversions
       break;
     default:
-      console.log(`No specific data fetching defined for tab: ${tabValue}`);
+      console.error(`No specific data fetching defined for tab: ${tabValue}`);
   }
 });
 
 // Menu Item CRUD Actions
-export const createMenuItemAction = atom(
-  null,
-  async (get, set, data: MenuItem) => {
-    try {
-      console.log('Creating menu item with data:', data);
-      
-      // Optimistic update - add menu item immediately
-      set(menuItemsAtom, prev => [...prev, data]);
-      
-      // Make API call
-      const response = await inventoryAPI.menu.createMenuItem(data);
-      
-      console.log('Menu item created successfully:', response.data);
-      
-      // Update with server response
-      const transformedMenuItem: MenuItem = {
-        ...response.data,
-        id: response.data.id.toString(),
-        createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
-        updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
-      };
-      
-      set(menuItemsAtom, prev => prev.map(item => 
-        item.id === data.id ? transformedMenuItem : item
-      ));
-      
-    } catch (error) {
-      // Revert optimistic update
-      set(menuItemsAtom, prev => prev.filter(item => item.id !== data.id));
-      console.error('Failed to create menu item:', error);
-      throw error;
-    }
-  }
-);
+export const createMenuItemAction = atom(null, async (get, set, data: MenuItem) => {
+  try {
+    // Optimistic update - add menu item immediately
+    set(menuItemsAtom, prev => [...prev, data]);
 
-export const updateMenuItemAction = atom(
-  null,
-  async (get, set, { id, data }: { id: string; data: MenuItem }) => {
-    // Get current state before optimistic update
-    const currentMenuItems = get(menuItemsAtom);
-    
-    // Optimistic update
-    set(menuItemsAtom, prev => prev.map(item => 
-      item.id === id ? { ...item, ...data, updatedAt: new Date() } : item
-    ));
-    
-    try {
-      console.log('Updating menu item with ID:', id, 'data:', data);
-      
-      // Make API call
-      const response = await inventoryAPI.menu.updateMenuItem(id, data);
-      
-      console.log('Menu item updated successfully:', response.data);
-      
-      // Update with server response
-      const transformedMenuItem: MenuItem = {
-        ...response.data,
-        id: response.data.id.toString(),
-        createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
-        updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
-      };
-      
-      set(menuItemsAtom, prev => prev.map(item => 
-        item.id === id ? transformedMenuItem : item
-      ));
-      
-    } catch (error) {
-      // Revert optimistic update
-      set(menuItemsAtom, currentMenuItems);
-      console.error('Failed to update menu item:', error);
-      throw error;
-    }
-  }
-);
+    // Make API call
+    const response = await inventoryAPI.menu.createMenuItem(data);
 
-export const deleteMenuItemAction = atom(
-  null,
-  async (get, set, id: string) => {
-    // Get current state before optimistic update
-    const currentMenuItems = get(menuItemsAtom);
-    
-    // Optimistic update - remove menu item immediately
-    set(menuItemsAtom, prev => prev.filter(item => item.id !== id));
-    
-    try {
-      console.log('Deleting menu item with ID:', id);
-      
-      // Make API call
-      await inventoryAPI.menu.deleteMenuItem(id);
-      
-      console.log('Menu item deleted successfully');
-      
-    } catch (error) {
-      // Revert optimistic update
-      set(menuItemsAtom, currentMenuItems);
-      console.error('Failed to delete menu item:', error);
-      throw error;
-    }
+    // Update with server response
+    const transformedMenuItem: MenuItem = {
+      ...response.data,
+      id: response.data.id.toString(),
+      createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
+      updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
+    };
+
+    set(menuItemsAtom, prev => prev.map(item => (item.id === data.id ? transformedMenuItem : item)));
+  } catch (error) {
+    // Revert optimistic update
+    set(menuItemsAtom, prev => prev.filter(item => item.id !== data.id));
+    console.error("Failed to create menu item:", error);
+    throw error;
   }
-);
+});
+
+export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { id: string; data: MenuItem }) => {
+  // Get current state before optimistic update
+  const currentMenuItems = get(menuItemsAtom);
+
+  // Optimistic update
+  set(menuItemsAtom, prev => prev.map(item => (item.id === id ? { ...item, ...data, updatedAt: new Date() } : item)));
+
+  try {
+    // Make API call
+    const response = await inventoryAPI.menu.updateMenuItem(id, data);
+
+    // Update with server response
+    const transformedMenuItem: MenuItem = {
+      ...response.data,
+      id: response.data.id.toString(),
+      createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
+      updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
+    };
+
+    set(menuItemsAtom, prev => prev.map(item => (item.id === id ? transformedMenuItem : item)));
+  } catch (error) {
+    // Revert optimistic update
+    set(menuItemsAtom, currentMenuItems);
+    console.error("Failed to update menu item:", error);
+    throw error;
+  }
+});
+
+export const deleteMenuItemAction = atom(null, async (get, set, id: string) => {
+  // Get current state before optimistic update
+  const currentMenuItems = get(menuItemsAtom);
+
+  // Optimistic update - remove menu item immediately
+  set(menuItemsAtom, prev => prev.filter(item => item.id !== id));
+
+  try {
+    // Make API call
+    await inventoryAPI.menu.deleteMenuItem(id);
+  } catch (error) {
+    // Revert optimistic update
+    set(menuItemsAtom, currentMenuItems);
+    console.error("Failed to delete menu item:", error);
+    throw error;
+  }
+});
 
 // Add stock to existing inventory action
 export const addToStockAction = atom(null, async (get, set, data: AddStockData) => {
   try {
-    console.log("Adding stock with data:", data);
-
     // Make API call to add stock
     const response = await stockAPI.addToStock(data);
-    
-    console.log("Stock added successfully:", response.data);
 
     // Create a new stock entry from the response
     const newStockEntry: StockEntry = {
@@ -556,7 +482,7 @@ export const addToStockAction = atom(null, async (get, set, data: AddStockData) 
 
     return response.data;
   } catch (error) {
-    console.error('Failed to add stock:', error);
+    console.error("Failed to add stock:", error);
     throw error;
   }
 });
@@ -564,12 +490,8 @@ export const addToStockAction = atom(null, async (get, set, data: AddStockData) 
 // Record waste (reduce stock) action
 export const recordWasteAction = atom(null, async (get, set, data: RecordWasteData) => {
   try {
-    console.log("Recording waste with data:", data);
-
     // Make API call to record waste
     const response = await stockAPI.recordWaste(data);
-    
-    console.log("Waste recorded successfully:", response.data);
 
     // Create the waste record entry
     const wasteRecord: StockEntry = {
@@ -586,7 +508,7 @@ export const recordWasteAction = atom(null, async (get, set, data: RecordWasteDa
     set(optimisticStockEntriesAtom, prev => {
       // Update existing entries based on the response
       const updatedEntries = [...prev];
-      
+
       // Update quantities for existing entries that were reduced
       response.data.updatedEntries.forEach(update => {
         const index = updatedEntries.findIndex(entry => entry.id === update.id);
@@ -600,17 +522,17 @@ export const recordWasteAction = atom(null, async (get, set, data: RecordWasteDa
           };
         }
       });
-      
+
       // Add the waste record (negative entry)
       updatedEntries.push(wasteRecord);
-      
+
       return updatedEntries;
     });
 
     // Update base atom as well
     set(stockEntriesAtom, prev => {
       const updatedEntries = [...prev];
-      
+
       response.data.updatedEntries.forEach(update => {
         const index = updatedEntries.findIndex(entry => entry.id === update.id);
         if (index !== -1) {
@@ -622,15 +544,15 @@ export const recordWasteAction = atom(null, async (get, set, data: RecordWasteDa
           };
         }
       });
-      
+
       updatedEntries.push(wasteRecord);
-      
+
       return updatedEntries;
     });
 
     return response.data;
   } catch (error) {
-    console.error('Failed to record waste:', error);
+    console.error("Failed to record waste:", error);
     throw error;
   }
 });
@@ -639,24 +561,24 @@ export const recordWasteAction = atom(null, async (get, set, data: RecordWasteDa
 export const addToSpecificEntryAction = atom(null, async (get, set, data: { entryId: string; additionalQuantity: number; unit: string; additionDate?: Date; notes?: string }) => {
   // Get current state before optimistic update
   const currentStockEntries = get(optimisticStockEntriesAtom);
-  
-  try {
-    console.log("Adding to specific entry with data:", data);
 
+  try {
     // Optimistic update - update the specific entry immediately
-    set(optimisticStockEntriesAtom, prev => prev.map(entry => {
-      if (entry.id === data.entryId) {
-        // For optimistic updates, only update individual quantity for display
-        // The server will calculate the correct values and we'll get them back
-        return {
-          ...entry,
-          purchasedIndividualQuantity: (entry.purchasedIndividualQuantity || 0) + data.additionalQuantity,
-          updatedAt: new Date()
-          // Don't modify purchasedQuantity optimistically - let server handle it
-        };
-      }
-      return entry;
-    }));
+    set(optimisticStockEntriesAtom, prev =>
+      prev.map(entry => {
+        if (entry.id === data.entryId) {
+          // For optimistic updates, only update individual quantity for display
+          // The server will calculate the correct values and we'll get them back
+          return {
+            ...entry,
+            purchasedIndividualQuantity: (entry.purchasedIndividualQuantity || 0) + data.additionalQuantity,
+            updatedAt: new Date()
+            // Don't modify purchasedQuantity optimistically - let server handle it
+          };
+        }
+        return entry;
+      })
+    );
 
     // Make API call
     const response = await stockAPI.addToSpecificEntry(data.entryId, {
@@ -665,8 +587,6 @@ export const addToSpecificEntryAction = atom(null, async (get, set, data: { entr
       additionDate: data.additionDate,
       notes: data.notes
     });
-    
-    console.log("Successfully added to specific entry:", response.data);
 
     // Transform response data
     const updatedStockEntry: StockEntry = {
@@ -680,19 +600,15 @@ export const addToSpecificEntryAction = atom(null, async (get, set, data: { entr
     };
 
     // Update both atoms with real data from server
-    set(optimisticStockEntriesAtom, prev => prev.map(entry => 
-      entry.id === data.entryId ? updatedStockEntry : entry
-    ));
-    
-    set(stockEntriesAtom, prev => prev.map(entry => 
-      entry.id === data.entryId ? updatedStockEntry : entry
-    ));
+    set(optimisticStockEntriesAtom, prev => prev.map(entry => (entry.id === data.entryId ? updatedStockEntry : entry)));
+
+    set(stockEntriesAtom, prev => prev.map(entry => (entry.id === data.entryId ? updatedStockEntry : entry)));
 
     return response.data;
   } catch (error) {
     // Revert optimistic update
     set(optimisticStockEntriesAtom, currentStockEntries);
-    console.error('Failed to add to specific entry:', error);
+    console.error("Failed to add to specific entry:", error);
     throw error;
   }
 });
@@ -701,24 +617,24 @@ export const addToSpecificEntryAction = atom(null, async (get, set, data: { entr
 export const wasteFromSpecificEntryAction = atom(null, async (get, set, data: { entryId: string; wasteQuantity: number; unit: string; wasteReason: string; wasteDate?: Date; notes?: string }) => {
   // Get current state before optimistic update
   const currentStockEntries = get(optimisticStockEntriesAtom);
-  
-  try {
-    console.log("Recording waste from specific entry with data:", data);
 
+  try {
     // Optimistic update - update the specific entry immediately
-    set(optimisticStockEntriesAtom, prev => prev.map(entry => {
-      if (entry.id === data.entryId) {
-        // For optimistic updates, only update individual quantity for display
-        // The server will calculate the correct values and we'll get them back
-        return {
-          ...entry,
-          purchasedIndividualQuantity: Math.max(0, (entry.purchasedIndividualQuantity || 0) - data.wasteQuantity),
-          updatedAt: new Date()
-          // Don't modify purchasedQuantity optimistically - let server handle it
-        };
-      }
-      return entry;
-    }));
+    set(optimisticStockEntriesAtom, prev =>
+      prev.map(entry => {
+        if (entry.id === data.entryId) {
+          // For optimistic updates, only update individual quantity for display
+          // The server will calculate the correct values and we'll get them back
+          return {
+            ...entry,
+            purchasedIndividualQuantity: Math.max(0, (entry.purchasedIndividualQuantity || 0) - data.wasteQuantity),
+            updatedAt: new Date()
+            // Don't modify purchasedQuantity optimistically - let server handle it
+          };
+        }
+        return entry;
+      })
+    );
 
     // Make API call
     const response = await stockAPI.wasteFromSpecificEntry(data.entryId, {
@@ -728,8 +644,6 @@ export const wasteFromSpecificEntryAction = atom(null, async (get, set, data: { 
       wasteDate: data.wasteDate,
       notes: data.notes
     });
-    
-    console.log("Successfully recorded waste from specific entry:", response.data);
 
     // Transform response data
     const updatedStockEntry: StockEntry = {
@@ -743,19 +657,15 @@ export const wasteFromSpecificEntryAction = atom(null, async (get, set, data: { 
     };
 
     // Update both atoms with real data from server
-    set(optimisticStockEntriesAtom, prev => prev.map(entry => 
-      entry.id === data.entryId ? updatedStockEntry : entry
-    ));
-    
-    set(stockEntriesAtom, prev => prev.map(entry => 
-      entry.id === data.entryId ? updatedStockEntry : entry
-    ));
+    set(optimisticStockEntriesAtom, prev => prev.map(entry => (entry.id === data.entryId ? updatedStockEntry : entry)));
+
+    set(stockEntriesAtom, prev => prev.map(entry => (entry.id === data.entryId ? updatedStockEntry : entry)));
 
     return response.data;
   } catch (error) {
     // Revert optimistic update
     set(optimisticStockEntriesAtom, currentStockEntries);
-    console.error('Failed to record waste from specific entry:', error);
+    console.error("Failed to record waste from specific entry:", error);
     throw error;
   }
 });
