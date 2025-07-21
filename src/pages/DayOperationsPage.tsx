@@ -362,7 +362,12 @@ const DayOperationsPage: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {recentDays.map(day => (
                 <tr key={day.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(day.date).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div>
+                      <div className="font-bold">{new Date(day.date).toLocaleDateString("en-US", { weekday: "long" })}</div>
+                      <div className="text-xs text-gray-500">{new Date(day.date).toLocaleDateString()}</div>
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${day.status === "opened" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{day.status}</span>
                   </td>
