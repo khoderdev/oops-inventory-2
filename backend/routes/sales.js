@@ -8,5 +8,6 @@ router.get("/:id", salesController.getSalesById);
 router.post("/", salesController.createSales);
 router.put("/:id", salesController.updateSales);
 router.delete("/:id", salesController.deleteSales);
+router.post("/:id/revert", salesController.revertSale);
 
 export default router;

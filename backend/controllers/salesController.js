@@ -1,57 +1,32 @@
-import sequelize from "../config/database.js";
 import { Op } from "sequelize";
-import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, StockEntry, Section } from "../models/index.js";
-
-/**
- * NEGATIVE STOCK SUPPORT FEATURE
- * 
- * This sales controller has been modified to support selling menu items even when 
- * ingredients are out of stock or have insufficient quantities. The system will:
- * 
- * 1. Allow sales to proceed without blocking when stock is insufficient
- * 2. Deduct required ingredient quantities even if it results in negative stock values
- * 3. Create virtual stock entries with negative quantities when no existing entries are found
- * 4. Track and log all negative stock situations with detailed warnings
- * 5. Return comprehensive information about stock shortages in the API response
- * 
- * Benefits:
- * - Flexible selling without inventory constraints
- * - Accurate inventory tracking including negative values
- * - Proper audit trail for stock discrepancies
- * - Clear visibility into stock shortages for reconciliation
- * 
- * Example: If a hamburger requires 3g of tomato but current stock is 0g, 
- * the sale will proceed and tomato stock will be updated to -3g.
- */
+import sequelize from "../config/database.js";
+import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, StockEntry } from "../models/index.js";
 
 const salesController = {
-  // Utility function to get negative stock report
   getNegativeStockReport: async (req, res, next) => {
     try {
-      console.log('=== GENERATING NEGATIVE STOCK REPORT ===');
-      
+      console.log("=== GENERATING NEGATIVE STOCK REPORT ===");
+
       const negativeStockEntries = await StockEntry.findAll({
         where: {
-          [Op.or]: [
-            { purchasedIndividualQuantity: { [Op.lt]: 0 } },
-            { purchasedQuantity: { [Op.lt]: 0 } }
-          ]
+          [Op.or]: [{ purchasedIndividualQuantity: { [Op.lt]: 0 } }, { purchasedQuantity: { [Op.lt]: 0 } }]
         },
-        include: [{
-          model: Material,
-          as: 'material',
-          attributes: ['id', 'name', 'baseUnit', 'unitType', 'category']
-        }],
-        order: [['updatedAt', 'DESC']]
+        include: [
+          {
+            model: Material,
+            as: "material",
+            attributes: ["id", "name", "baseUnit", "unitType", "category"]
+          }
+        ],
+        order: [["updatedAt", "DESC"]]
       });
-
       const report = {
         totalNegativeEntries: negativeStockEntries.length,
         negativeStockItems: negativeStockEntries.map(entry => ({
           stockEntryId: entry.id,
           materialId: entry.materialId,
-          materialName: entry.material?.name || 'Unknown',
-          category: entry.material?.category || 'unknown',
+          materialName: entry.material?.name || "Unknown",
+          category: entry.material?.category || "unknown",
           supplier: entry.supplier,
           purchasedQuantity: entry.purchasedQuantity,
           purchasedUnit: entry.purchasedUnit,
@@ -63,21 +38,19 @@ const salesController = {
         summary: {
           totalVirtualEntries: negativeStockEntries.filter(e => e.supplier === "VIRTUAL - Negative Stock").length,
           categorySummary: negativeStockEntries.reduce((acc, entry) => {
-            const category = entry.material?.category || 'unknown';
+            const category = entry.material?.category || "unknown";
             acc[category] = (acc[category] || 0) + 1;
             return acc;
           }, {})
         },
         generatedAt: new Date(),
-        message: negativeStockEntries.length > 0 
-          ? `Found ${negativeStockEntries.length} stock entries with negative quantities requiring reconciliation`
-          : 'No negative stock entries found - all inventory is positive'
+        message: negativeStockEntries.length > 0 ? `Found ${negativeStockEntries.length} stock entries with negative quantities requiring reconciliation` : "No negative stock entries found - all inventory is positive"
       };
 
       console.log(`Negative stock report generated: ${negativeStockEntries.length} entries found`);
       res.status(200).json(report);
     } catch (error) {
-      console.error('Error generating negative stock report:', error);
+      console.error("Error generating negative stock report:", error);
       next(error);
     }
   },
@@ -99,7 +72,7 @@ const salesController = {
       const processedSales = await Promise.all(
         sales.map(async sale => {
           const saleData = sale.toJSON();
-          
+
           // Process menu items to include names
           if (saleData.menuItems && Array.isArray(saleData.menuItems)) {
             const enrichedMenuItems = await Promise.all(
@@ -122,12 +95,13 @@ const salesController = {
                   });
 
                   if (menuItem) {
-                    const ingredients = menuItem.menuItemIngredients?.map(ingredient => ({
-                      materialId: ingredient.materialId,
-                      materialName: ingredient.material?.name || "Unknown Material",
-                      quantity: ingredient.quantity,
-                      unit: ingredient.unit
-                    })) || [];
+                    const ingredients =
+                      menuItem.menuItemIngredients?.map(ingredient => ({
+                        materialId: ingredient.materialId,
+                        materialName: ingredient.material?.name || "Unknown Material",
+                        quantity: ingredient.quantity,
+                        unit: ingredient.unit
+                      })) || [];
 
                     return {
                       ...menuItemSale,
@@ -154,7 +128,7 @@ const salesController = {
                 }
               })
             );
-            
+
             saleData.menuItems = enrichedMenuItems;
           }
 
@@ -664,25 +638,233 @@ const salesController = {
     }
   },
 
-  // Delete sale
+  // Delete sale (simple deletion without stock reversion)
   deleteSales: async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
       const sale = await Sale.findByPk(id, { transaction });
-
       if (!sale) {
         await transaction.rollback();
         return res.status(404).json({ error: "Sale not found" });
       }
-
       // Delete sale
       await sale.destroy({ transaction });
-
       await transaction.commit();
       res.status(204).send();
     } catch (error) {
       await transaction.rollback();
+      next(error);
+    }
+  },
+
+  // Revert sale with stock restoration
+  revertSale: async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    let stockRestorationReport = [];
+    try {
+      const { id } = req.params;
+      // Fetch the sale with all necessary data
+      const sale = await Sale.findByPk(id, { transaction });
+      if (!sale) {
+        await transaction.rollback();
+        return res.status(404).json({ error: "Sale not found" });
+      }
+      console.log(`\n=== REVERTING SALE ${id} ===`);
+      console.log(`Sale Date: ${sale.saleDate}`);
+      console.log(`Total Amount: ${sale.totalAmount}`);
+      console.log(`Items: ${JSON.stringify(sale.items)}`);
+      console.log(`Menu Items: ${JSON.stringify(sale.menuItems)}`);
+      // Revert individual items
+      if (sale.items && sale.items.length > 0) {
+        console.log(`\n--- REVERTING ${sale.items.length} INDIVIDUAL ITEMS ---`);
+        for (const item of sale.items) {
+          const assignment = await Assignment.findByPk(item.assignmentId, {
+            include: [
+              { model: Material, as: "material" },
+              { model: StockEntry, as: "stockEntry" }
+            ],
+            transaction
+          });
+          if (!assignment) {
+            console.warn(`Assignment ${item.assignmentId} not found during revert`);
+            continue;
+          }
+          const material = assignment.material;
+          const stockEntry = assignment.stockEntry;
+          if (!stockEntry) {
+            console.warn(`Stock entry not found for assignment ${item.assignmentId} during revert`);
+            continue;
+          }
+          // Calculate restoration quantities (reverse of deduction logic)
+          let assignmentRestorationQuantity, stockEntryRestorationQuantity;
+          if (material && material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+            if (item.unit === material.baseUnit) {
+              // Restore individual units directly
+              assignmentRestorationQuantity = item.quantity;
+              stockEntryRestorationQuantity = item.quantity;
+            } else {
+              // Restore package units converted to individual units
+              assignmentRestorationQuantity = item.quantity * material.packageQuantity;
+              stockEntryRestorationQuantity = item.quantity * material.packageQuantity;
+            }
+          } else {
+            // Non-package units - direct restoration
+            assignmentRestorationQuantity = item.quantity;
+            stockEntryRestorationQuantity = item.quantity;
+          }
+          // Restore assignment quantities
+          const oldAssignmentQuantity = assignment.assignedIndividualQuantity || 0;
+          const newAssignmentQuantity = oldAssignmentQuantity + assignmentRestorationQuantity;
+          assignment.assignedIndividualQuantity = Math.round(newAssignmentQuantity);
+          await assignment.save({ transaction });
+          // Restore stock entry quantities
+          const oldStockQuantity = stockEntry.purchasedIndividualQuantity || 0;
+          const newStockQuantity = oldStockQuantity + stockEntryRestorationQuantity;
+          stockEntry.purchasedIndividualQuantity = Math.round(newStockQuantity);
+          await stockEntry.save({ transaction });
+          stockRestorationReport.push({
+            type: "individual_item",
+            materialId: material.id,
+            materialName: material.name,
+            assignmentId: assignment.id,
+            stockEntryId: stockEntry.id,
+            quantityRestored: assignmentRestorationQuantity,
+            unit: material.baseUnit,
+            oldAssignmentQuantity,
+            newAssignmentQuantity: Math.round(newAssignmentQuantity),
+            oldStockQuantity,
+            newStockQuantity: Math.round(newStockQuantity)
+          });
+          console.log(`Restored individual item: ${material.name}`);
+          console.log(`  Assignment: ${oldAssignmentQuantity} -> ${Math.round(newAssignmentQuantity)}`);
+          console.log(`  Stock: ${oldStockQuantity} -> ${Math.round(newStockQuantity)}`);
+        }
+      }
+      // Revert menu items
+      if (sale.menuItems && sale.menuItems.length > 0) {
+        console.log(`\n--- REVERTING ${sale.menuItems.length} MENU ITEMS ---`);
+        for (const menuItemSale of sale.menuItems) {
+          // Fetch the menu item with its ingredients
+          const menuItem = await MenuItem.findByPk(menuItemSale.menuItemId, {
+            include: [
+              {
+                model: MenuItemIngredient,
+                as: "menuItemIngredients",
+                include: [{ model: Material, as: "material" }]
+              }
+            ],
+            transaction
+          });
+          if (!menuItem) {
+            console.warn(`Menu item ${menuItemSale.menuItemId} not found during revert`);
+            continue;
+          }
+          console.log(`\nReverting menu item: ${menuItem.name} x${menuItemSale.quantity}`);
+          // Restore each ingredient
+          for (const ingredient of menuItem.menuItemIngredients) {
+            const material = ingredient.material;
+            const totalIngredientQuantity = ingredient.quantity * menuItemSale.quantity;
+            console.log(`\n--- RESTORING INGREDIENT ---`);
+            console.log(`Ingredient: ${material.name}`);
+            console.log(`Quantity to restore: ${totalIngredientQuantity} ${ingredient.unit}`);
+            // Convert ingredient quantity to base units if needed
+            let restorationQuantityInBaseUnits = totalIngredientQuantity;
+            if (ingredient.unit !== material.baseUnit) {
+              if (material.unitType === "mass") {
+                if (ingredient.unit === "kg" && material.baseUnit === "g") {
+                  restorationQuantityInBaseUnits = totalIngredientQuantity * 1000;
+                } else if (ingredient.unit === "g" && material.baseUnit === "kg") {
+                  restorationQuantityInBaseUnits = totalIngredientQuantity / 1000;
+                }
+              }
+            }
+            console.log(`Restoration quantity in base units (${material.baseUnit}): ${restorationQuantityInBaseUnits}`);
+            // Find stock entries for this material (prioritize most recent entries for restoration)
+            const stockEntries = await StockEntry.findAll({
+              where: {
+                materialId: material.id
+              },
+              order: [["createdAt", "DESC"]], // LIFO for restoration - restore to most recent entries first
+              transaction
+            });
+            console.log(`Found ${stockEntries.length} stock entries for ${material.name}`);
+            if (stockEntries.length === 0) {
+              const newStockEntry = await StockEntry.create(
+                {
+                  materialId: material.id,
+                  supplier: "RESTORED - From Sale Revert",
+                  purchasedQuantity: 0,
+                  purchasedUnit: material.baseUnit,
+                  purchasedIndividualQuantity: restorationQuantityInBaseUnits,
+                  purchasedIndividualUnit: material.baseUnit,
+                  costPerPurchasedUnit: 0,
+                  totalCost: 0,
+                  purchaseDate: new Date(),
+                  expiryDate: null
+                },
+                { transaction }
+              );
+
+              stockRestorationReport.push({
+                type: "menu_item_ingredient",
+                materialId: material.id,
+                materialName: material.name,
+                menuItemId: menuItem.id,
+                menuItemName: menuItem.name,
+                stockEntryId: newStockEntry.id,
+                quantityRestored: restorationQuantityInBaseUnits,
+                unit: material.baseUnit,
+                action: "Created new stock entry",
+                oldStockQuantity: 0,
+                newStockQuantity: restorationQuantityInBaseUnits
+              });
+
+              console.log(`Created new stock entry ${newStockEntry.id} with restored quantity: ${restorationQuantityInBaseUnits}`);
+            } else {
+              // Restore quantities to existing stock entries (LIFO - most recent first)
+              let remainingToRestore = restorationQuantityInBaseUnits;
+              for (const stockEntry of stockEntries) {
+                if (remainingToRestore <= 0) break;
+                const oldQuantity = stockEntry.purchasedIndividualQuantity || 0;
+                const restorationAmount = remainingToRestore; // Restore full remaining amount to this entry
+                const newQuantity = Math.round(oldQuantity + restorationAmount);
+                console.log(`Restoring ${restorationAmount} to stock entry ${stockEntry.id} (${oldQuantity} -> ${newQuantity})`);
+                stockEntry.purchasedIndividualQuantity = newQuantity;
+                await stockEntry.save({ transaction });
+                stockRestorationReport.push({
+                  type: "menu_item_ingredient",
+                  materialId: material.id,
+                  materialName: material.name,
+                  menuItemId: menuItem.id,
+                  menuItemName: menuItem.name,
+                  stockEntryId: stockEntry.id,
+                  quantityRestored: restorationAmount,
+                  unit: material.baseUnit,
+                  oldStockQuantity: oldQuantity,
+                  newStockQuantity: newQuantity
+                });
+                remainingToRestore = 0; // All restored to this entry
+                console.log(`Stock entry ${stockEntry.id} updated: ${oldQuantity} -> ${newQuantity}`);
+              }
+            }
+          }
+        }
+      }
+      // Delete the sale record
+      await sale.destroy({ transaction });
+      await transaction.commit();
+      console.log(`\n=== SALE ${id} SUCCESSFULLY REVERTED ===`);
+      console.log(`Stock restoration report: ${JSON.stringify(stockRestorationReport, null, 2)}`);
+      res.status(200).json({
+        message: "Sale successfully reverted",
+        saleId: id,
+        stockRestorationReport,
+        totalItemsRestored: stockRestorationReport.length
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error(`Error reverting sale ${id}:`, error);
       next(error);
     }
   }

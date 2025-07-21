@@ -1,4 +1,4 @@
-import { salesAPI } from "@/api/sales.api.ts.tsx";
+import { salesAPI, StockRestorationItem } from "@/api/sales.api.ts.tsx";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ItemSale, SaleRecord } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
-import { AlertCircle, ArrowRight, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart } from "lucide-react";
+import { AlertCircle, ArrowRight, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart, Undo2, Trash2, CheckCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -20,6 +21,11 @@ export function SalesHistoryPage() {
   const [selectedItem, setSelectedItem] = useState<string>("all");
   const [selectedSection, setSelectedSection] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState("");
+  const [revertDialogOpen, setRevertDialogOpen] = useState(false);
+  const [selectedSaleForRevert, setSelectedSaleForRevert] = useState<SaleRecord | null>(null);
+  const [isReverting, setIsReverting] = useState(false);
+  const [revertSuccess, setRevertSuccess] = useState<string | null>(null);
+  const [stockRestorationReport, setStockRestorationReport] = useState<StockRestorationItem[]>([]);
   const navigate = useNavigate();
 
   const fetchSales = useCallback(async () => {
@@ -41,6 +47,49 @@ export function SalesHistoryPage() {
   useEffect(() => {
     fetchSales();
   }, [fetchSales]);
+
+  // Handle revert sale
+  const handleRevertSale = useCallback(async (sale: SaleRecord) => {
+    setSelectedSaleForRevert(sale);
+    setRevertDialogOpen(true);
+  }, []);
+
+  const confirmRevertSale = useCallback(async () => {
+    if (!selectedSaleForRevert) return;
+
+    setIsReverting(true);
+    setError(null);
+    
+    try {
+      const response = await salesAPI.revertSale(selectedSaleForRevert.id.toString());
+      
+      // Update the sales list by removing the reverted sale
+      setSales(prevSales => prevSales.filter(sale => sale.id !== selectedSaleForRevert.id));
+      
+      // Show success message with restoration details
+      setStockRestorationReport(response.data.stockRestorationReport);
+      setRevertSuccess(`Sale #${selectedSaleForRevert.id} successfully reverted. ${response.data.totalItemsRestored} items restored to stock.`);
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => setRevertSuccess(null), 5000);
+      
+    } catch (error: unknown) {
+      console.error("Failed to revert sale:", error);
+      const errorMessage = error && typeof error === "object" && "response" in error 
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error 
+        : undefined;
+      setError(errorMessage || "Failed to revert sale. Please try again.");
+    } finally {
+      setIsReverting(false);
+      setRevertDialogOpen(false);
+      setSelectedSaleForRevert(null);
+    }
+  }, [selectedSaleForRevert]);
+
+  const cancelRevert = useCallback(() => {
+    setRevertDialogOpen(false);
+    setSelectedSaleForRevert(null);
+  }, []);
 
   // Convert sales data to item-level sales
   const itemSales = useMemo<ItemSale[]>(() => {
@@ -161,6 +210,16 @@ export function SalesHistoryPage() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Success Alert */}
+      {revertSuccess && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            {revertSuccess}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -287,6 +346,7 @@ export function SalesHistoryPage() {
                   <TableHead>Quantity</TableHead>
                   <TableHead>Unit Price</TableHead>
                   <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="w-32">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -318,11 +378,27 @@ export function SalesHistoryPage() {
                       </TableCell>
                       <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
                       <TableCell className="text-right font-bold">{formatCurrency(item.totalPrice)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const sale = sales.find(s => s.id === item.saleId);
+                              if (sale) handleRevertSale(sale);
+                            }}
+                            className="h-8 w-8 p-0"
+                            title="Revert Sale"
+                          >
+                            <Undo2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={9} className="text-center py-8">
                       {itemSales.length === 0 ? (
                         <div className="flex flex-col items-center gap-2">
                           <ShoppingCart className="h-12 w-12 text-muted-foreground opacity-50" />
@@ -344,6 +420,89 @@ export function SalesHistoryPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Success Alert */}
+      {revertSuccess && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            {revertSuccess}
+            {stockRestorationReport.length > 0 && (
+              <div className="mt-2">
+                <details className="text-sm">
+                  <summary className="cursor-pointer font-medium">View Stock Restoration Details</summary>
+                  <div className="mt-2 space-y-1">
+                    {stockRestorationReport.map((item, index) => (
+                      <div key={index} className="text-xs bg-green-100 p-2 rounded">
+                        <strong>{item.materialName}</strong>: {item.quantityRestored} {item.unit} restored
+                        {item.type === 'individual_item' && (
+                          <span> (Assignment: {item.oldAssignmentQuantity} → {item.newAssignmentQuantity})</span>
+                        )}
+                        <span> (Stock: {item.oldStockQuantity} → {item.newStockQuantity})</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Revert Confirmation Dialog */}
+      <Dialog open={revertDialogOpen} onOpenChange={setRevertDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revert Sale</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to revert sale #{selectedSaleForRevert?.id}?
+              <br />
+              <br />
+              <strong>This action will:</strong>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Permanently delete the sale record</li>
+                <li>Restore all sold items back to inventory</li>
+                <li>Restore ingredient quantities for menu items</li>
+                <li>Update stock levels accordingly</li>
+              </ul>
+              <br />
+              <span className="text-destructive font-medium">
+                This action cannot be undone.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelRevert} disabled={isReverting}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmRevertSale} 
+              disabled={isReverting}
+            >
+              {isReverting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Reverting...
+                </>
+              ) : (
+                <>
+                  <Undo2 className="mr-2 h-4 w-4" />
+                  Revert Sale
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
