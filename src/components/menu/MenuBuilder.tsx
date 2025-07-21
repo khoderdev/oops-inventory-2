@@ -155,7 +155,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         onCreateMenuItem(menuItemWithCosts);
       }
     },
-    [availableMaterials, editingMenuItem, onUpdateMenuItem, onCreateMenuItem, calculateMaterialCostPerUnit]
+    [availableMaterials, editingMenuItem, onUpdateMenuItem, onCreateMenuItem, stockEntries, calculateMaterialCostPerUnit]
   );
 
   const handleUpdateMenuItem = useCallback(
@@ -194,7 +194,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         setEditingMenuItem(null);
       }
     },
-    [editingMenuItem, availableMaterials, onUpdateMenuItem, calculateMaterialCostPerUnit]
+    [editingMenuItem, availableMaterials, onUpdateMenuItem, stockEntries, calculateMaterialCostPerUnit]
   );
 
   const handleDeleteMenuItem = useCallback(

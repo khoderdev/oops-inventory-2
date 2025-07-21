@@ -318,7 +318,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
                   <TableHead>Material</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Unit</TableHead>
-                  <TableHead className="text-right">Cost Per Base Unit</TableHead>
                   <TableHead className="text-right">Total Cost</TableHead>
                   <TableHead className="text-right"></TableHead>
                 </TableRow>
@@ -333,7 +332,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
                       <TableCell>{material?.name || "Unknown"}</TableCell>
                       <TableCell>{formatNumber(ingredient.quantity)}</TableCell>
                       <TableCell>{ingredient.unit}</TableCell>
-                      <TableCell className="text-right">{costPerBaseUnit > 0 ? formatCurrency(costPerBaseUnit) : <span className="text-red-500">No cost data</span>}</TableCell>
                       <TableCell className="text-right">{ingredientCost > 0 ? formatCurrency(ingredientCost) : <span className="text-red-500">No cost data</span>}</TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" variant="ghost" onClick={() => handleRemoveIngredient(index)} aria-label={`Remove ${material?.name || "ingredient"}`}>
