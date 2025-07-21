@@ -17,8 +17,7 @@ const materialSchema = z.object({
   unitType: z.string().min(1, "Unit type is required"),
   inputUnit: z.string().min(1, "Input unit is required"),
   packageQuantity: z.number().optional(),
-  baseUnit: z.string().min(1, "Base unit is required"),
-  description: z.string().optional()
+  baseUnit: z.string().min(1, "Base unit is required")
 });
 
 type MaterialFormData = z.infer<typeof materialSchema>;
@@ -38,8 +37,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       unitType: material?.unitType || "",
       inputUnit: material?.inputUnit || material?.baseUnit || "",
       packageQuantity: material?.packageQuantity || 1,
-      baseUnit: material?.baseUnit || "",
-      description: material?.description || ""
+      baseUnit: material?.baseUnit || ""
     }
   });
 
@@ -56,8 +54,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
         return "g";
       case "volume":
         return "ml";
-      case "piece":
-        return "piece";
       case "package":
         return "piece";
       default:
@@ -67,7 +63,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
 
   // Check if input unit is a package type
   const isPackageUnit = (unit: string): boolean => {
-    return ['box', 'pack', 'case'].includes(unit);
+    return ["box", "pack", "bag"].includes(unit);
   };
 
   // Calculate conversion information (without cost)
@@ -79,22 +75,22 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     // Get the base unit for package contents
     const getPackageBaseUnit = (inputUnit: string): string => {
       // For packages, the base unit is typically piece, bottle, or item
-      if (inputUnit === 'box' && watchedUnitType === 'package') {
-        return 'bottle'; // Default for boxes
+      if (inputUnit === "box" && watchedUnitType === "package") {
+        return "bottle"; // Default for boxes
       }
-      if (inputUnit === 'pack' && watchedUnitType === 'package') {
-        return 'piece'; // Default for packs
+      if (inputUnit === "pack" && watchedUnitType === "package") {
+        return "piece"; // Default for packs
       }
-      return 'piece'; // Default fallback
+      return "piece"; // Default fallback
     };
 
     const baseUnit = getBaseUnitForType(watchedUnitType);
-    
+
     // Handle package units differently
-    if (isPackageUnit(watchedInputUnit) && watchedUnitType === 'package') {
+    if (isPackageUnit(watchedInputUnit) && watchedUnitType === "package") {
       const packageQuantity = watchedPackageQuantity || 1;
       const packageBaseUnit = getPackageBaseUnit(watchedInputUnit);
-      
+
       return {
         inputUnit: watchedInputUnit,
         baseUnit: packageBaseUnit,
@@ -168,8 +164,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       unitType: data.unitType,
       inputUnit: data.inputUnit,
       baseUnit: data.baseUnit,
-      packageQuantity: data.unitType === 'package' ? data.packageQuantity : undefined,
-      description: data.description
+      packageQuantity: data.unitType === "package" ? data.packageQuantity : undefined
     };
     onSubmit(finalData);
   };
@@ -235,10 +230,9 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="mass">Mass (kg, gram, lb)</SelectItem>
-                        <SelectItem value="volume">Volume (liter, ml, gallon)</SelectItem>
-                        <SelectItem value="piece">Piece Count</SelectItem>
-                        <SelectItem value="package">Package (box, pack, case)</SelectItem>
+                        <SelectItem value="package">Package (box, pack, bag)</SelectItem>
+                        <SelectItem value="mass">Mass (kg, gram)</SelectItem>
+                        <SelectItem value="volume">Volume (liter, ml)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -272,26 +266,15 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
               />
 
               {/* Package Quantity Field - Only show for package units */}
-              {watchedUnitType === 'package' && watchedInputUnit && isPackageUnit(watchedInputUnit) && (
+              {watchedUnitType === "package" && watchedInputUnit && isPackageUnit(watchedInputUnit) && (
                 <FormField
                   control={form.control}
                   name="packageQuantity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        {watchedInputUnit === 'pack' ? 'Pieces per Pack' : 
-                         watchedInputUnit === 'box' ? 'Bottles per Box' : 
-                         watchedInputUnit === 'case' ? 'Items per Case' :
-                         'Items per Package'}
-                      </FormLabel>
+                      <FormLabel>{watchedInputUnit === "pack" ? "How many Pieces per 1 Pack?" : watchedInputUnit === "box" ? "How many Bottles per 1 Box?" : watchedInputUnit === "bag" ? "How many Items per 1 Bag?" : "How many Items per Package?"}</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          step="1" 
-                          placeholder="1" 
-                          {...field} 
-                          onChange={e => field.onChange(parseInt(e.target.value) || 1)} 
-                        />
+                        <Input type="number" step="1" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 1)} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -307,20 +290,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                     <FormLabel>Base Unit (Auto-calculated)</FormLabel>
                     <FormControl>
                       <Input {...field} disabled className="bg-gray-50" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Additional notes about this material" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -343,15 +312,8 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                       <span className="font-medium">{conversionData.baseUnit}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-blue-700">
-                        {conversionData.isPackage ? 'Package Contents:' : 'Conversion Factor:'}
-                      </span>
-                      <span className="font-medium">
-                        {conversionData.isPackage 
-                          ? `${conversionData.packageQuantity} ${conversionData.baseUnit} per ${conversionData.inputUnit}`
-                          : `1 ${conversionData.inputUnit} = ${conversionData.conversionFactor.toFixed(2)} ${conversionData.baseUnit}`
-                        }
-                      </span>
+                      <span className="text-blue-700">{conversionData.isPackage ? "Package Contents:" : "Conversion Factor:"}</span>
+                      <span className="font-medium">{conversionData.isPackage ? `${conversionData.packageQuantity} ${conversionData.baseUnit} per ${conversionData.inputUnit}` : `1 ${conversionData.inputUnit} = ${conversionData.conversionFactor.toFixed(2)} ${conversionData.baseUnit}`}</span>
                     </div>
                   </div>
                   <div className="space-y-2">

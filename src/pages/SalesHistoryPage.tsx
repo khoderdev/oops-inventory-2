@@ -73,13 +73,16 @@ export function SalesHistoryPage() {
 
     try {
       const response = await salesAPI.revertSale(selectedSaleForRevert.id.toString());
-      // Update the sales list by removing the reverted sale
+      // Update the sales list by removing the reverted sale immediately
       setSales(prevSales => prevSales.filter(sale => sale.id !== selectedSaleForRevert.id));
       // Show success message with restoration details
       setStockRestorationReport(response.data.stockRestorationReport);
       setRevertSuccess(`Sale #${selectedSaleForRevert.id} successfully reverted. ${response.data.totalItemsRestored} items restored to stock.`);
-      // Auto-hide success message after 1.5 seconds
-      setTimeout(() => setRevertSuccess(null), 1500);
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => {
+        setRevertSuccess(null);
+        setStockRestorationReport([]);
+      }, 3000);
     } catch (error: unknown) {
       console.error("Failed to revert sale:", error);
       const errorMessage = error && typeof error === "object" && "response" in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined;
@@ -110,12 +113,12 @@ export function SalesHistoryPage() {
 
     try {
       const response = await salesAPI.softDeleteSale(selectedSaleForDelete.id.toString());
-      // Update the sales list by removing the soft deleted sale
+      // Update the sales list by removing the soft deleted sale immediately
       setSales(prevSales => prevSales.filter(sale => sale.id !== selectedSaleForDelete.id));
       // Show success message
       setDeleteSuccess(`Sale #${selectedSaleForDelete.id} successfully hidden from view. ${response.data.note}`);
-      // Auto-hide success message after 1.5 seconds
-      setTimeout(() => setDeleteSuccess(null), 1500);
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => setDeleteSuccess(null), 3000);
     } catch (error: unknown) {
       console.error("Failed to soft delete sale:", error);
       const errorMessage = error && typeof error === "object" && "response" in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined;
@@ -291,17 +294,17 @@ export function SalesHistoryPage() {
 
       await Promise.all(deletePromises);
 
-      // Update the sales list by removing the soft deleted sales
+      // Update the sales list by removing the soft deleted sales immediately
       setSales(prevSales => prevSales.filter(sale => !selectedSaleIds.has(sale.id.toString())));
 
       // Show success message
       setDeleteSuccess(`Successfully hidden ${selectedSaleIds.size} sales from view.`);
 
-      // Clear selection
+      // Clear selection immediately
       setSelectedSaleIds(new Set());
 
-      // Auto-hide success message after 2 seconds
-      setTimeout(() => setDeleteSuccess(null), 2000);
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => setDeleteSuccess(null), 3000);
     } catch (error: unknown) {
       console.error("Failed to bulk delete sales:", error);
       const errorMessage = error && typeof error === "object" && "response" in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined;
@@ -331,18 +334,21 @@ export function SalesHistoryPage() {
       const allRestorationReports = results.flatMap(result => result.data.stockRestorationReport || []);
       const totalItemsRestored = results.reduce((sum, result) => sum + (result.data.totalItemsRestored || 0), 0);
 
-      // Update the sales list by removing the reverted sales
+      // Update the sales list by removing the reverted sales immediately
       setSales(prevSales => prevSales.filter(sale => !selectedSaleIds.has(sale.id.toString())));
 
       // Show success message with restoration details
       setBulkStockRestorationReport(allRestorationReports);
       setBulkRevertSuccess(`Successfully reverted ${selectedSaleIds.size} sales. ${totalItemsRestored} items restored to stock.`);
 
-      // Clear selection
+      // Clear selection immediately
       setSelectedSaleIds(new Set());
 
-      // Auto-hide success message after 2 seconds
-      setTimeout(() => setBulkRevertSuccess(null), 2000);
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => {
+        setBulkRevertSuccess(null);
+        setBulkStockRestorationReport([]);
+      }, 3000);
     } catch (error: unknown) {
       console.error("Failed to bulk revert sales:", error);
       const errorMessage = error && typeof error === "object" && "response" in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined;
@@ -391,25 +397,50 @@ export function SalesHistoryPage() {
         </Alert>
       )}
 
-      {/* Success Alert */}
+      {/* Individual Success Alerts */}
       {revertSuccess && (
-        <Alert className="border-green-200 bg-green-50">
+        <Alert className="border-green-200 bg-green-50 mb-4">
           <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">{revertSuccess}</AlertDescription>
+          <AlertDescription className="text-green-800">
+            {revertSuccess}
+            {stockRestorationReport.length > 0 && (
+              <div className="mt-2">
+                <details className="text-sm">
+                  <summary className="cursor-pointer font-medium">View Stock Restoration Details</summary>
+                  <div className="mt-2 space-y-1">
+                    {stockRestorationReport.map((item, index) => (
+                      <div key={index} className="text-xs bg-green-100 p-2 rounded">
+                        <strong>{item.materialName}</strong>: {item.quantityRestored} {item.unit} restored
+                        {item.type === "individual_item" && (
+                          <span>
+                            {" "}
+                            (Assignment: {item.oldAssignmentQuantity} → {item.newAssignmentQuantity})
+                          </span>
+                        )}
+                        <span>
+                          {" "}
+                          (Stock: {item.oldStockQuantity} → {item.newStockQuantity})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              </div>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 
-      {/* Delete Success Alert */}
       {deleteSuccess && (
-        <Alert className="border-blue-200 bg-blue-50">
+        <Alert className="border-blue-200 bg-blue-50 mb-4">
           <CheckCircle className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800">{deleteSuccess}</AlertDescription>
         </Alert>
       )}
 
-      {/* Bulk Revert Success Alert */}
+      {/* Bulk Success Alert */}
       {bulkRevertSuccess && (
-        <Alert className="border-green-200 bg-green-50">
+        <Alert className="border-green-200 bg-green-50 mb-4">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
             {bulkRevertSuccess}
@@ -603,7 +634,7 @@ export function SalesHistoryPage() {
                           {selectedSaleIds.has(item.saleId) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
                         </Button>
                       </TableCell>
-                      <TableCell className=" text-muted-foreground">#{item.saleId}</TableCell>
+                      <TableCell className="text-muted-foreground">#{item.saleId}</TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           {item.itemType === "individual" ? <Package className="h-4 w-4 text-blue-500" /> : <ShoppingBag className="h-4 w-4 text-green-500" />}
@@ -683,47 +714,7 @@ export function SalesHistoryPage() {
         </CardContent>
       </Card>
 
-      {/* Success Alert */}
-      {revertSuccess && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            {revertSuccess}
-            {stockRestorationReport.length > 0 && (
-              <div className="mt-2">
-                <details className="text-sm">
-                  <summary className="cursor-pointer font-medium">View Stock Restoration Details</summary>
-                  <div className="mt-2 space-y-1">
-                    {stockRestorationReport.map((item, index) => (
-                      <div key={index} className="text-xs bg-green-100 p-2 rounded">
-                        <strong>{item.materialName}</strong>: {item.quantityRestored} {item.unit} restored
-                        {item.type === "individual_item" && (
-                          <span>
-                            {" "}
-                            (Assignment: {item.oldAssignmentQuantity} → {item.newAssignmentQuantity})
-                          </span>
-                        )}
-                        <span>
-                          {" "}
-                          (Stock: {item.oldStockQuantity} → {item.newStockQuantity})
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              </div>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
 
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
 
       {/* Revert Confirmation Dialog */}
       <Dialog open={revertDialogOpen} onOpenChange={setRevertDialogOpen}>

@@ -121,7 +121,7 @@ export function isUnitCompatible(unit: string, materialUnitType: string): boolea
     case "piece":
       return ["piece", "unit"].includes(unit.toLowerCase());
     case "package":
-      return ["box", "pack", "case", "bottle"].includes(unit.toLowerCase());
+      return ["box", "pack", "bag"].includes(unit.toLowerCase());
     default:
       return false;
   }
@@ -131,13 +131,13 @@ export function isUnitCompatible(unit: string, materialUnitType: string): boolea
 export function getSuggestedUnits(unitType: string): string[] {
   switch (unitType) {
     case "mass":
-      return ["kg", "g", "lb"];
+      return ["kg", "g"];
     case "volume":
-      return ["liter", "ml", "gallon"];
+      return ["liter", "ml"];
     case "piece":
       return ["piece", "unit"];
     case "package":
-      return ["box", "pack", "case", "bottle"];
+      return ["box", "pack", "bag"];
     default:
       return [];
   }
