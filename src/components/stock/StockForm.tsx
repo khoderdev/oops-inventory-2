@@ -83,11 +83,9 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   React.useEffect(() => {
     if (selectedMaterial && !stockEntry) {
       const currentCostPerUnit = form.getValues("costPerPurchasedUnit");
-
       const numericCurrentCost = typeof currentCostPerUnit === "string" ? parseFloat(currentCostPerUnit) : currentCostPerUnit;
       if (numericCurrentCost === 0 || isNaN(numericCurrentCost)) {
         let suggestedCost = 0;
-
         if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit && selectedMaterial.packageQuantity) {
           const packageCost = selectedMaterial.costPerUnit;
           const numericPackageCost = typeof packageCost === "string" ? parseFloat(packageCost) : packageCost;

@@ -27,13 +27,11 @@
 //           nest: true
 //         }
 //       );
-//       // Log sample entry to verify fresh data and identify negative stock entries
 //       if (rawStockEntries.length > 0) {
-//         // Count and log negative stock entries
+//         console.log("Sample stock entry:", rawStockEntries[0]);
 //         const negativeStockEntries = rawStockEntries.filter(entry => entry.purchasedIndividualQuantity < 0 || entry.purchasedQuantity < 0);
-
 //         if (negativeStockEntries.length > 0) {
-//           negativeStockEntries.forEach(entry => {});
+//           console.warn("Negative stock entries found:", negativeStockEntries);
 //         }
 //       }
 //       res.status(200).json(rawStockEntries);
@@ -57,6 +55,7 @@
 
 //       res.status(200).json(stockEntry);
 //     } catch (error) {
+//       console.error("Error fetching stock entry by ID:", error);
 //       next(error);
 //     }
 //   },
@@ -64,13 +63,28 @@
 //   // Create new stock entry
 //   createStockEntries: async (req, res, next) => {
 //     try {
-//       const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, purchaseDate, expiryDate } = req.body;
+//       const {
+//         materialId,
+//         supplier,
+//         purchasedQuantity,
+//         purchasedUnit,
+//         costPerPurchasedUnit,
+//         totalCost,
+//         costPerBaseUnit, // Add costPerBaseUnit from request
+//         purchaseDate,
+//         expiryDate
+//       } = req.body;
 
 //       if (!materialId || !supplier || !purchasedQuantity || !purchasedUnit || !costPerPurchasedUnit || !totalCost || !purchaseDate) {
 //         return res.status(400).json({ error: "Missing required fields" });
 //       }
 
-//       if (purchasedQuantity <= 0 || costPerPurchasedUnit < 0 || totalCost < 0) {
+//       const numericPurchasedQuantity = parseFloat(purchasedQuantity);
+//       const numericCostPerPurchasedUnit = parseFloat(costPerPurchasedUnit);
+//       const numericTotalCost = parseFloat(totalCost);
+//       const numericCostPerBaseUnit = costPerBaseUnit ? parseFloat(costPerBaseUnit) : undefined;
+
+//       if (isNaN(numericPurchasedQuantity) || numericPurchasedQuantity <= 0 || numericCostPerPurchasedUnit < 0 || numericTotalCost < 0) {
 //         return res.status(400).json({ error: "Invalid numeric values" });
 //       }
 
@@ -78,57 +92,59 @@
 //         return res.status(400).json({ error: "Purchased unit cannot be empty" });
 //       }
 
-//       // Get material to check if it's a package unit
 //       const material = await Material.findByPk(materialId);
 //       if (!material) {
 //         return res.status(404).json({ error: "Material not found" });
 //       }
 
-//       // Calculate individual quantities for package units and mass units
-//       let purchasedIndividualQuantity = purchasedQuantity;
+//       let purchasedIndividualQuantity = numericPurchasedQuantity;
 //       let purchasedIndividualUnit = purchasedUnit;
 
 //       if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-//         // For package units, calculate individual quantities (rounded to whole numbers)
-//         purchasedIndividualQuantity = Math.round(purchasedQuantity * material.packageQuantity);
+//         purchasedIndividualQuantity = Math.round(numericPurchasedQuantity * material.packageQuantity);
 //         purchasedIndividualUnit = material.baseUnit;
 //       } else if (material.unitType === "mass") {
-//         // For mass units, convert to base unit (grams)
 //         const massConversions = {
 //           kg: 1000,
 //           g: 1,
 //           lb: 453.592,
 //           oz: 28.3495
 //         };
-
 //         const conversionFactor = massConversions[purchasedUnit.toLowerCase()];
 //         if (conversionFactor) {
-//           purchasedIndividualQuantity = Math.round(purchasedQuantity * conversionFactor);
-//           purchasedIndividualUnit = material.baseUnit; // Should be 'g' for mass units
+//           purchasedIndividualQuantity = Math.round(numericPurchasedQuantity * conversionFactor);
+//           purchasedIndividualUnit = material.baseUnit;
 //         } else {
 //           console.warn(`Unknown mass unit: ${purchasedUnit} for material: ${material.name}`);
+//           purchasedIndividualQuantity = numericPurchasedQuantity;
+//           purchasedIndividualUnit = purchasedUnit;
 //         }
 //       }
-//       // Calculate cost per base unit
-//       const costPerBaseUnit = purchasedIndividualQuantity > 0 ? totalCost / purchasedIndividualQuantity : 0;
+
+//       // Use provided costPerBaseUnit if available, otherwise calculate
+//       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : purchasedIndividualQuantity > 0 ? parseFloat((numericTotalCost / purchasedIndividualQuantity).toFixed(6)) : 0;
+
 //       const stockEntry = await StockEntry.create({
 //         materialId,
 //         supplier,
-//         purchasedQuantity,
+//         purchasedQuantity: numericPurchasedQuantity,
 //         purchasedUnit,
 //         purchasedIndividualQuantity,
 //         purchasedIndividualUnit,
-//         costPerPurchasedUnit,
-//         costPerBaseUnit,
-//         totalCost,
+//         costPerPurchasedUnit: numericCostPerPurchasedUnit,
+//         costPerBaseUnit: finalCostPerBaseUnit,
+//         totalCost: numericTotalCost,
 //         purchaseDate,
 //         expiryDate
 //       });
+
 //       const createdStockEntry = await StockEntry.findByPk(stockEntry.id, {
 //         include: { model: Material, as: "material" }
 //       });
+
 //       res.status(201).json(createdStockEntry);
 //     } catch (error) {
+//       console.error("Error creating stock entry:", error);
 //       next(error);
 //     }
 //   },
@@ -137,12 +153,22 @@
 //   updateStockEntries: async (req, res, next) => {
 //     try {
 //       const { id } = req.params;
-//       const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, purchaseDate, expiryDate } = req.body;
+//       const {
+//         materialId,
+//         supplier,
+//         purchasedQuantity,
+//         purchasedUnit,
+//         costPerPurchasedUnit,
+//         totalCost,
+//         costPerBaseUnit, // Add costPerBaseUnit from request
+//         purchaseDate,
+//         expiryDate
+//       } = req.body;
 
-//       // Convert string values to numbers for validation and database storage
 //       const numericPurchasedQuantity = purchasedQuantity ? parseFloat(purchasedQuantity) : undefined;
 //       const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
 //       const numericTotalCost = totalCost ? parseFloat(totalCost) : undefined;
+//       const numericCostPerBaseUnit = costPerBaseUnit ? parseFloat(costPerBaseUnit) : undefined;
 
 //       const stockEntry = await StockEntry.findByPk(id);
 //       if (!stockEntry) {
@@ -165,48 +191,41 @@
 //         return res.status(400).json({ error: "Purchased unit cannot be empty" });
 //       }
 
-//       // Get material to recalculate individual quantities if needed
 //       const material = await Material.findByPk(materialId ?? stockEntry.materialId);
 //       if (!material) {
 //         return res.status(404).json({ error: "Material not found" });
 //       }
 
-//       // Calculate individual quantities for package units
+//       const finalPurchasedQuantity = numericPurchasedQuantity ?? stockEntry.purchasedQuantity;
+//       const finalPurchasedUnit = purchasedUnit ?? stockEntry.purchasedUnit;
+//       const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit;
+//       const finalTotalCost = numericTotalCost ?? stockEntry.totalCost;
+
 //       let updatedIndividualQuantity = stockEntry.purchasedIndividualQuantity;
 //       let updatedIndividualUnit = stockEntry.purchasedIndividualUnit;
 
-//       const finalPurchasedQuantity = numericPurchasedQuantity ?? stockEntry.purchasedQuantity;
-//       const finalPurchasedUnit = purchasedUnit ?? stockEntry.purchasedUnit;
-
-//       // Calculate new cost per base unit
-//       const newCostPerBaseUnit = updatedIndividualQuantity > 0 ? numericTotalCost / updatedIndividualQuantity : 0;
-
 //       if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-//         // Recalculate individual quantities for package units (rounded to whole numbers)
 //         updatedIndividualQuantity = Math.round(finalPurchasedQuantity * material.packageQuantity);
 //         updatedIndividualUnit = material.baseUnit;
-//       } else {
-//         if (material.unitType === "mass") {
-//           const massConversions = {
-//             kg: 1000,
-//             g: 1,
-//             lb: 453.592,
-//             oz: 28.3495
-//           };
-
-//           const conversionFactor = massConversions[finalPurchasedUnit.toLowerCase()];
-//           if (conversionFactor) {
-//             updatedIndividualQuantity = Math.round(finalPurchasedQuantity * conversionFactor);
-//             updatedIndividualUnit = material.baseUnit;
-//           } else {
-//             updatedIndividualQuantity = stockEntry.purchasedIndividualQuantity;
-//             updatedIndividualUnit = stockEntry.purchasedIndividualUnit;
-//           }
-//         } else {
-//           updatedIndividualQuantity = Math.round(finalPurchasedQuantity);
-//           updatedIndividualUnit = finalPurchasedUnit;
+//       } else if (material.unitType === "mass") {
+//         const massConversions = {
+//           kg: 1000,
+//           g: 1,
+//           lb: 453.592,
+//           oz: 28.3495
+//         };
+//         const conversionFactor = massConversions[finalPurchasedUnit.toLowerCase()];
+//         if (conversionFactor) {
+//           updatedIndividualQuantity = Math.round(finalPurchasedQuantity * conversionFactor);
+//           updatedIndividualUnit = material.baseUnit;
 //         }
+//       } else {
+//         updatedIndividualQuantity = Math.round(finalPurchasedQuantity);
+//         updatedIndividualUnit = finalPurchasedUnit;
 //       }
+
+//       // Use provided costPerBaseUnit if available, otherwise calculate
+//       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : updatedIndividualQuantity > 0 ? parseFloat((finalTotalCost / updatedIndividualQuantity).toFixed(6)) : 0;
 
 //       await stockEntry.update({
 //         materialId: materialId ?? stockEntry.materialId,
@@ -215,9 +234,9 @@
 //         purchasedUnit: finalPurchasedUnit,
 //         purchasedIndividualQuantity: updatedIndividualQuantity,
 //         purchasedIndividualUnit: updatedIndividualUnit,
-//         costPerPurchasedUnit: numericCostPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit,
-//         costPerBaseUnit: newCostPerBaseUnit,
-//         totalCost: numericTotalCost ?? stockEntry.totalCost,
+//         costPerPurchasedUnit: finalCostPerPurchasedUnit,
+//         costPerBaseUnit: finalCostPerBaseUnit,
+//         totalCost: finalTotalCost,
 //         purchaseDate: purchaseDate ?? stockEntry.purchaseDate,
 //         expiryDate: expiryDate ?? stockEntry.expiryDate
 //       });
@@ -228,6 +247,7 @@
 
 //       res.status(200).json(updatedStockEntry);
 //     } catch (error) {
+//       console.error("Error updating stock entry:", error);
 //       next(error);
 //     }
 //   },
@@ -244,6 +264,7 @@
 //       await stockEntry.destroy();
 //       res.status(204).send();
 //     } catch (error) {
+//       console.error("Error deleting stock entry:", error);
 //       next(error);
 //     }
 //   },
@@ -254,7 +275,6 @@
 //       const { id } = req.params;
 //       const { additionalQuantity, unit, additionDate, notes } = req.body;
 
-//       // Validation
 //       if (!additionalQuantity || !unit) {
 //         return res.status(400).json({ error: "Missing required fields: additionalQuantity, unit" });
 //       }
@@ -264,7 +284,6 @@
 //         return res.status(400).json({ error: "Additional quantity must be a positive number" });
 //       }
 
-//       // Get the specific stock entry
 //       const stockEntry = await StockEntry.findByPk(id, {
 //         include: { model: Material, as: "material" }
 //       });
@@ -275,7 +294,6 @@
 
 //       const material = stockEntry.material;
 
-//       // CRITICAL FIX: Convert additional quantity to the same unit as the original purchased quantity
 //       let additionalInOriginalUnit = numericAdditionalQuantity;
 
 //       if (stockEntry.purchasedUnit !== unit) {
@@ -285,8 +303,6 @@
 //           const additionalUnitFactor = massConversions[unit.toLowerCase()];
 
 //           if (originalUnitFactor && additionalUnitFactor) {
-//             // Convert additional quantity to original unit
-//             // Example: 20g to kg = 20 * (1/1000) = 0.02kg
 //             additionalInOriginalUnit = numericAdditionalQuantity * (additionalUnitFactor / originalUnitFactor);
 //           } else {
 //             return res.status(400).json({
@@ -294,8 +310,17 @@
 //             });
 //           }
 //         } else if (material.unitType === "package") {
-//           // For package units, ensure both units are compatible
-//           if (unit !== stockEntry.purchasedUnit) {
+//           if (unit === stockEntry.purchasedUnit) {
+//             additionalInOriginalUnit = numericAdditionalQuantity;
+//           } else if (unit === "piece" && material.packageQuantity && material.packageQuantity > 0) {
+//             // Convert pieces to packs
+//             additionalInOriginalUnit = numericAdditionalQuantity / material.packageQuantity;
+//             if (!Number.isInteger(numericAdditionalQuantity / material.packageQuantity)) {
+//               return res.status(400).json({
+//                 error: `Quantity in pieces (${numericAdditionalQuantity}) must be divisible by package quantity (${material.packageQuantity})`
+//               });
+//             }
+//           } else {
 //             return res.status(400).json({
 //               error: `Package unit mismatch: cannot add ${unit} to ${stockEntry.purchasedUnit}`
 //             });
@@ -307,57 +332,46 @@
 //         }
 //       }
 
-//       // Add the converted additional quantity to existing purchased quantity
 //       const newPurchasedQuantity = parseFloat(stockEntry.purchasedQuantity) + additionalInOriginalUnit;
 
-//       // Calculate new individual quantities based on material type
 //       let newIndividualQuantity;
 //       let newIndividualUnit;
 
 //       if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-//         // For package units: add proportionally to individual quantity
 //         const additionalIndividualQuantity = Math.round(additionalInOriginalUnit * material.packageQuantity);
 //         newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + additionalIndividualQuantity;
 //         newIndividualUnit = material.baseUnit;
 //       } else if (material.unitType === "mass") {
-//         // For mass units: add the additional quantity directly to existing individual quantity
 //         if (unit === material.baseUnit) {
-//           // Adding in base unit (e.g., adding grams to grams)
 //           newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + numericAdditionalQuantity;
 //         } else {
-//           // Convert additional quantity to base unit and add
 //           const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
 //           const additionalUnitFactor = massConversions[unit.toLowerCase()] || 1;
 //           const additionalInBaseUnit = Math.round(numericAdditionalQuantity * additionalUnitFactor);
 //           newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + additionalInBaseUnit;
 //         }
-//         newIndividualUnit = material.baseUnit; // Should be 'g' for mass
+//         newIndividualUnit = material.baseUnit;
 //       } else {
-//         // For other units: add directly
 //         newIndividualQuantity = Math.round((stockEntry.purchasedIndividualQuantity || 0) + numericAdditionalQuantity);
 //         newIndividualUnit = stockEntry.purchasedIndividualUnit || stockEntry.purchasedUnit;
 //       }
 
-//       // Recalculate total cost (using existing cost per unit)
 //       const newTotalCost = newPurchasedQuantity * stockEntry.costPerPurchasedUnit;
-//       const newCostPerBaseUnit = newIndividualQuantity > 0 ? newTotalCost / newIndividualQuantity : 0;
-//       // Update converted quantities for mass units
+//       const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
+
 //       let newPurchasedConvertedQuantity = newPurchasedQuantity;
 //       let newPurchasedConvertedUnit = stockEntry.purchasedUnit;
 
 //       if (material.unitType === "mass") {
-//         // For mass units, convert to base unit (grams) for converted quantities
 //         const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
 //         const conversionFactor = massConversions[stockEntry.purchasedUnit.toLowerCase()] || 1;
 //         newPurchasedConvertedQuantity = Math.round(newPurchasedQuantity * conversionFactor);
-//         newPurchasedConvertedUnit = material.baseUnit; // Should be 'g'
+//         newPurchasedConvertedUnit = material.baseUnit;
 //       } else if (material.unitType === "package") {
-//         // For package materials, keep purchased quantities as-is
 //         newPurchasedConvertedQuantity = newPurchasedQuantity;
 //         newPurchasedConvertedUnit = stockEntry.purchasedUnit;
 //       }
 
-//       // Update the stock entry
 //       await stockEntry.update({
 //         purchasedQuantity: newPurchasedQuantity,
 //         purchasedIndividualQuantity: newIndividualQuantity,
@@ -370,7 +384,6 @@
 //         notes: notes ? `${stockEntry.notes || ""}\n[${new Date().toLocaleDateString()}] Added ${numericAdditionalQuantity} ${unit}. ${notes}`.trim() : stockEntry.notes
 //       });
 
-//       // Reload the updated entry
 //       const updatedEntry = await StockEntry.findByPk(id, {
 //         include: { model: Material, as: "material" }
 //       });
@@ -391,7 +404,6 @@
 //       const { id } = req.params;
 //       const { wasteQuantity, unit, wasteReason, wasteDate, notes } = req.body;
 
-//       // Validation
 //       if (!wasteQuantity || !unit || !wasteReason) {
 //         return res.status(400).json({ error: "Missing required fields: wasteQuantity, unit, wasteReason" });
 //       }
@@ -401,7 +413,6 @@
 //         return res.status(400).json({ error: "Waste quantity must be a positive number" });
 //       }
 
-//       // Get the specific stock entry
 //       const stockEntry = await StockEntry.findByPk(id, {
 //         include: { model: Material, as: "material" }
 //       });
@@ -412,7 +423,6 @@
 
 //       const material = stockEntry.material;
 
-//       // CRITICAL FIX: Convert waste quantity to the same unit as the original purchased quantity
 //       let wasteInOriginalUnit = numericWasteQuantity;
 
 //       if (stockEntry.purchasedUnit !== unit) {
@@ -422,8 +432,6 @@
 //           const wasteUnitFactor = massConversions[unit.toLowerCase()];
 
 //           if (originalUnitFactor && wasteUnitFactor) {
-//             // Convert waste quantity to original unit
-//             // Example: 5g to kg = 5 * (1/1000) = 0.005kg
 //             wasteInOriginalUnit = numericWasteQuantity * (wasteUnitFactor / originalUnitFactor);
 //           } else {
 //             return res.status(400).json({
@@ -431,7 +439,6 @@
 //             });
 //           }
 //         } else if (material.unitType === "package") {
-//           // For package units, ensure both units are compatible
 //           if (unit !== stockEntry.purchasedUnit) {
 //             return res.status(400).json({
 //               error: `Package unit mismatch: cannot waste ${unit} from ${stockEntry.purchasedUnit}`
@@ -444,60 +451,49 @@
 //         }
 //       }
 
-//       // Check if there's enough stock in this specific entry (now comparing same units)
 //       if (wasteInOriginalUnit > stockEntry.purchasedQuantity) {
 //         return res.status(400).json({
 //           error: `Insufficient stock in this entry. Available: ${stockEntry.purchasedQuantity} ${stockEntry.purchasedUnit}, Requested: ${wasteInOriginalUnit.toFixed(3)} ${stockEntry.purchasedUnit}`
 //         });
 //       }
 
-//       // Subtract the converted waste quantity from existing purchased quantity
 //       const newPurchasedQuantity = Math.max(0, parseFloat(stockEntry.purchasedQuantity) - wasteInOriginalUnit);
-//       const newCostPerBaseUnit = newIndividualQuantity > 0 ? newTotalCost / newIndividualQuantity : 0;
-//       // Calculate new individual quantities based on material type (SUBTRACTIVE LOGIC)
+
 //       let newIndividualQuantity;
 //       let newIndividualUnit;
 
 //       if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-//         // For package units: subtract proportionally from individual quantity
 //         const wasteIndividualQuantity = Math.round(wasteInOriginalUnit * material.packageQuantity);
 //         newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - wasteIndividualQuantity);
 //         newIndividualUnit = material.baseUnit;
 //       } else if (material.unitType === "mass") {
-//         // For mass units: subtract the waste quantity directly from existing individual quantity
 //         if (unit === material.baseUnit) {
-//           // Wasting in base unit (e.g., wasting grams from grams)
 //           newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - numericWasteQuantity);
 //         } else {
-//           // Convert waste quantity to base unit and subtract
 //           const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
 //           const wasteUnitFactor = massConversions[unit.toLowerCase()] || 1;
 //           const wasteInBaseUnit = Math.round(numericWasteQuantity * wasteUnitFactor);
 //           newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - wasteInBaseUnit);
 //         }
-//         newIndividualUnit = material.baseUnit; // Should be 'g' for mass
+//         newIndividualUnit = material.baseUnit;
 //       } else {
-//         // For other units: subtract directly
 //         newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - numericWasteQuantity);
 //         newIndividualUnit = stockEntry.purchasedIndividualUnit || stockEntry.purchasedUnit;
 //       }
 
-//       // Recalculate total cost (proportionally reduced)
 //       const costReduction = wasteInOriginalUnit * stockEntry.costPerPurchasedUnit;
 //       const newTotalCost = Math.max(0, stockEntry.totalCost - costReduction);
+//       const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
 
-//       // Update converted quantities for mass units
 //       let newPurchasedConvertedQuantity = newPurchasedQuantity;
 //       let newPurchasedConvertedUnit = stockEntry.purchasedUnit;
 
 //       if (material.unitType === "mass") {
-//         // For mass units, convert to base unit (grams) for converted quantities
 //         const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
 //         const conversionFactor = massConversions[stockEntry.purchasedUnit.toLowerCase()] || 1;
 //         newPurchasedConvertedQuantity = Math.round(newPurchasedQuantity * conversionFactor);
-//         newPurchasedConvertedUnit = material.baseUnit; // Should be 'g'
+//         newPurchasedConvertedUnit = material.baseUnit;
 //       } else if (material.unitType === "package") {
-//         // For package materials, keep purchased quantities as-is
 //         newPurchasedConvertedQuantity = newPurchasedQuantity;
 //         newPurchasedConvertedUnit = stockEntry.purchasedUnit;
 //       }
@@ -514,7 +510,6 @@
 //         notes: notes ? `${stockEntry.notes || ""}\n[${new Date().toLocaleDateString()}] Waste: ${numericWasteQuantity} ${unit} (${wasteReason}). ${notes}`.trim() : stockEntry.notes
 //       });
 
-//       // Reload the updated entry
 //       const updatedEntry = await StockEntry.findByPk(id, {
 //         include: { model: Material, as: "material" }
 //       });
@@ -535,32 +530,31 @@
 //   // Add stock to existing inventory
 //   addToStock: async (req, res, next) => {
 //     try {
-//       const { materialId, additionalQuantity, unit, additionDate, notes } = req.body;
+//       const { materialId, additionalQuantity, unit, additionDate, notes, costPerPurchasedUnit, costPerBaseUnit } = req.body;
 
-//       // Validation
 //       if (!materialId || !additionalQuantity || !unit) {
 //         return res.status(400).json({ error: "Missing required fields: materialId, additionalQuantity, unit" });
 //       }
 
 //       const numericAdditionalQuantity = parseFloat(additionalQuantity);
+//       const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
+//       const numericCostPerBaseUnit = costPerBaseUnit ? parseFloat(costPerBaseUnit) : undefined;
+
 //       if (isNaN(numericAdditionalQuantity) || numericAdditionalQuantity <= 0) {
 //         return res.status(400).json({ error: "Additional quantity must be a positive number" });
 //       }
 
-//       // Get material information
 //       const material = await Material.findByPk(materialId);
 //       if (!material) {
 //         return res.status(404).json({ error: "Material not found" });
 //       }
 
-//       // Find the most recent stock entry for this material to get cost information
 //       const mostRecentEntry = await StockEntry.findOne({
 //         where: { materialId },
 //         order: [["createdAt", "DESC"]],
 //         include: { model: Material, as: "material" }
 //       });
 
-//       // Calculate individual quantities based on material type
 //       let additionalIndividualQuantity = numericAdditionalQuantity;
 //       let additionalIndividualUnit = unit;
 
@@ -576,9 +570,9 @@
 //         }
 //       }
 
-//       // Create a new stock entry for the addition (using default cost from material or recent entry)
-//       const defaultCostPerUnit = mostRecentEntry?.costPerPurchasedUnit || material.costPerBaseUnit || material.costPerUnit || 0;
+//       const defaultCostPerUnit = numericCostPerPurchasedUnit ?? mostRecentEntry?.costPerPurchasedUnit ?? material.costPerBaseUnit ?? material.costPerUnit ?? 0;
 //       const totalAdditionCost = numericAdditionalQuantity * defaultCostPerUnit;
+//       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : additionalIndividualQuantity > 0 ? parseFloat((totalAdditionCost / additionalIndividualQuantity).toFixed(6)) : 0;
 
 //       const additionEntry = await StockEntry.create({
 //         materialId,
@@ -588,12 +582,12 @@
 //         purchasedIndividualQuantity: additionalIndividualQuantity,
 //         purchasedIndividualUnit: additionalIndividualUnit,
 //         costPerPurchasedUnit: defaultCostPerUnit,
+//         costPerBaseUnit: finalCostPerBaseUnit,
 //         totalCost: totalAdditionCost,
 //         purchaseDate: additionDate ? new Date(additionDate) : new Date(),
 //         notes: notes || `Added ${numericAdditionalQuantity} ${unit} to existing stock`
 //       });
 
-//       // Return the created entry with material information
 //       const createdEntry = await StockEntry.findByPk(additionEntry.id, {
 //         include: { model: Material, as: "material" }
 //       });
@@ -613,7 +607,6 @@
 //     try {
 //       const { materialId, wasteQuantity, unit, wasteReason, wasteDate, notes } = req.body;
 
-//       // Validation
 //       if (!materialId || !wasteQuantity || !unit || !wasteReason) {
 //         return res.status(400).json({ error: "Missing required fields: materialId, wasteQuantity, unit, wasteReason" });
 //       }
@@ -623,13 +616,11 @@
 //         return res.status(400).json({ error: "Waste quantity must be a positive number" });
 //       }
 
-//       // Get material information
 //       const material = await Material.findByPk(materialId);
 //       if (!material) {
 //         return res.status(404).json({ error: "Material not found" });
 //       }
 
-//       // Calculate individual waste quantities
 //       let wasteIndividualQuantity = numericWasteQuantity;
 //       let wasteIndividualUnit = unit;
 
@@ -645,13 +636,12 @@
 //         }
 //       }
 
-//       // Get all stock entries for this material ordered by creation date (FIFO approach)
 //       const stockEntries = await StockEntry.findAll({
 //         where: {
 //           materialId,
-//           purchasedIndividualQuantity: { [Op.gt]: 0 } // Only entries with remaining quantity
+//           purchasedIndividualQuantity: { [Op.gt]: 0 }
 //         },
-//         order: [["createdAt", "ASC"]], // FIFO - oldest first
+//         order: [["createdAt", "ASC"]],
 //         include: { model: Material, as: "material" }
 //       });
 
@@ -659,7 +649,6 @@
 //         return res.status(400).json({ error: "No stock available for this material" });
 //       }
 
-//       // Calculate total available stock in individual units
 //       const totalAvailableIndividualQuantity = stockEntries.reduce((sum, entry) => sum + entry.purchasedIndividualQuantity, 0);
 
 //       if (wasteIndividualQuantity > totalAvailableIndividualQuantity) {
@@ -668,10 +657,8 @@
 //         });
 //       }
 
-//       // Reduce stock using FIFO approach
 //       let remainingWasteQuantity = wasteIndividualQuantity;
 //       const updatedEntries = [];
-//       const wasteEntries = [];
 
 //       for (const entry of stockEntries) {
 //         if (remainingWasteQuantity <= 0) break;
@@ -679,10 +666,6 @@
 //         const entryAvailableQuantity = entry.purchasedIndividualQuantity;
 //         const quantityToReduce = Math.min(remainingWasteQuantity, entryAvailableQuantity);
 
-//         // Update the stock entry
-//         const newIndividualQuantity = entryAvailableQuantity - quantityToReduce;
-
-//         // Calculate new purchased quantity (reverse conversion)
 //         let newPurchasedQuantity = entry.purchasedQuantity;
 //         if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
 //           newPurchasedQuantity = Math.max(0, newIndividualQuantity / material.packageQuantity);
@@ -694,9 +677,16 @@
 //           newPurchasedQuantity = newIndividualQuantity;
 //         }
 
+//         const newIndividualQuantity = entryAvailableQuantity - quantityToReduce;
+//         const costReduction = (quantityToReduce / entry.purchasedIndividualQuantity) * entry.totalCost;
+//         const newTotalCost = Math.max(0, entry.totalCost - costReduction);
+//         const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
+
 //         await entry.update({
 //           purchasedQuantity: newPurchasedQuantity,
-//           purchasedIndividualQuantity: newIndividualQuantity
+//           purchasedIndividualQuantity: newIndividualQuantity,
+//           totalCost: newTotalCost,
+//           costPerBaseUnit: newCostPerBaseUnit
 //         });
 
 //         updatedEntries.push({
@@ -709,7 +699,6 @@
 //         remainingWasteQuantity -= quantityToReduce;
 //       }
 
-//       // Create a waste record (negative entry for tracking)
 //       const wasteRecord = await StockEntry.create({
 //         materialId,
 //         supplier: `Waste Record - ${wasteReason}`,
@@ -804,17 +793,7 @@ const stockEntriesController = {
   // Create new stock entry
   createStockEntries: async (req, res, next) => {
     try {
-      const {
-        materialId,
-        supplier,
-        purchasedQuantity,
-        purchasedUnit,
-        costPerPurchasedUnit,
-        totalCost,
-        costPerBaseUnit, // Add costPerBaseUnit from request
-        purchaseDate,
-        expiryDate
-      } = req.body;
+      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate } = req.body;
 
       if (!materialId || !supplier || !purchasedQuantity || !purchasedUnit || !costPerPurchasedUnit || !totalCost || !purchaseDate) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -862,7 +841,6 @@ const stockEntriesController = {
         }
       }
 
-      // Use provided costPerBaseUnit if available, otherwise calculate
       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : purchasedIndividualQuantity > 0 ? parseFloat((numericTotalCost / purchasedIndividualQuantity).toFixed(6)) : 0;
 
       const stockEntry = await StockEntry.create({
@@ -894,17 +872,7 @@ const stockEntriesController = {
   updateStockEntries: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const {
-        materialId,
-        supplier,
-        purchasedQuantity,
-        purchasedUnit,
-        costPerPurchasedUnit,
-        totalCost,
-        costPerBaseUnit, // Add costPerBaseUnit from request
-        purchaseDate,
-        expiryDate
-      } = req.body;
+      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate } = req.body;
 
       const numericPurchasedQuantity = purchasedQuantity ? parseFloat(purchasedQuantity) : undefined;
       const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
@@ -965,7 +933,6 @@ const stockEntriesController = {
         updatedIndividualUnit = finalPurchasedUnit;
       }
 
-      // Use provided costPerBaseUnit if available, otherwise calculate
       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : updatedIndividualQuantity > 0 ? parseFloat((finalTotalCost / updatedIndividualQuantity).toFixed(6)) : 0;
 
       await stockEntry.update({
@@ -1014,15 +981,21 @@ const stockEntriesController = {
   addToSpecificEntry: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { additionalQuantity, unit, additionDate, notes } = req.body;
+      const { additionalQuantity, unit, additionDate, notes, costPerPurchasedUnit } = req.body;
 
       if (!additionalQuantity || !unit) {
         return res.status(400).json({ error: "Missing required fields: additionalQuantity, unit" });
       }
 
       const numericAdditionalQuantity = parseFloat(additionalQuantity);
+      const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
+
       if (isNaN(numericAdditionalQuantity) || numericAdditionalQuantity <= 0) {
         return res.status(400).json({ error: "Additional quantity must be a positive number" });
+      }
+
+      if (numericCostPerPurchasedUnit !== undefined && numericCostPerPurchasedUnit < 0) {
+        return res.status(400).json({ error: "Cost per unit cannot be negative" });
       }
 
       const stockEntry = await StockEntry.findByPk(id, {
@@ -1034,6 +1007,16 @@ const stockEntriesController = {
       }
 
       const material = stockEntry.material;
+
+      // Validate costPerPurchasedUnit for piece units
+      if (unit === "piece" && material.unitType === "package" && numericCostPerPurchasedUnit) {
+        const expectedCostPerPiece = material.costPerUnit / material.packageQuantity;
+        if (Math.abs(numericCostPerPurchasedUnit - expectedCostPerPiece) / expectedCostPerPiece > 0.5) {
+          return res.status(400).json({
+            error: `Cost per piece ($${numericCostPerPurchasedUnit.toFixed(4)}) deviates significantly from expected ($${expectedCostPerPiece.toFixed(4)})`
+          });
+        }
+      }
 
       let additionalInOriginalUnit = numericAdditionalQuantity;
 
@@ -1054,13 +1037,7 @@ const stockEntriesController = {
           if (unit === stockEntry.purchasedUnit) {
             additionalInOriginalUnit = numericAdditionalQuantity;
           } else if (unit === "piece" && material.packageQuantity && material.packageQuantity > 0) {
-            // Convert pieces to packs
             additionalInOriginalUnit = numericAdditionalQuantity / material.packageQuantity;
-            if (!Number.isInteger(numericAdditionalQuantity / material.packageQuantity)) {
-              return res.status(400).json({
-                error: `Quantity in pieces (${numericAdditionalQuantity}) must be divisible by package quantity (${material.packageQuantity})`
-              });
-            }
           } else {
             return res.status(400).json({
               error: `Package unit mismatch: cannot add ${unit} to ${stockEntry.purchasedUnit}`
@@ -1079,8 +1056,7 @@ const stockEntriesController = {
       let newIndividualUnit;
 
       if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-        const additionalIndividualQuantity = Math.round(additionalInOriginalUnit * material.packageQuantity);
-        newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + additionalIndividualQuantity;
+        newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + (unit === "piece" ? Math.round(numericAdditionalQuantity) : Math.round(numericAdditionalQuantity * material.packageQuantity));
         newIndividualUnit = material.baseUnit;
       } else if (material.unitType === "mass") {
         if (unit === material.baseUnit) {
@@ -1097,7 +1073,8 @@ const stockEntriesController = {
         newIndividualUnit = stockEntry.purchasedIndividualUnit || stockEntry.purchasedUnit;
       }
 
-      const newTotalCost = newPurchasedQuantity * stockEntry.costPerPurchasedUnit;
+      const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit;
+      const newTotalCost = newPurchasedQuantity * finalCostPerPurchasedUnit;
       const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
 
       let newPurchasedConvertedQuantity = newPurchasedQuantity;
@@ -1119,6 +1096,7 @@ const stockEntriesController = {
         purchasedIndividualUnit: newIndividualUnit,
         purchasedConvertedQuantity: newPurchasedConvertedQuantity,
         purchasedConvertedUnit: newPurchasedConvertedUnit,
+        costPerPurchasedUnit: finalCostPerPurchasedUnit,
         costPerBaseUnit: newCostPerBaseUnit,
         totalCost: newTotalCost,
         updatedAt: new Date(),
