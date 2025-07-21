@@ -152,10 +152,9 @@ export function RecordWasteTab({ form, materials, availableUnits, onRecordWaste,
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="staff">🧑‍💼 Staff Use</SelectItem>
                       <SelectItem value="expired">🗓️ Expired</SelectItem>
                       <SelectItem value="damaged">💔 Damaged</SelectItem>
-                      <SelectItem value="spoiled">🦠 Spoiled</SelectItem>
-                      <SelectItem value="contaminated">⚠️ Contaminated</SelectItem>
                       <SelectItem value="other">❓ Other</SelectItem>
                     </SelectContent>
                   </Select>
