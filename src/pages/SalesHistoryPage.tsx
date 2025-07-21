@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSalesOperations } from "@/hooks/useSalesOperations";
-import { dateFilterAtom, filteredItemSalesAtom, itemSalesAtom, selectedItemFilterAtom, selectedSectionFilterAtom, totalQuantityAtom, totalSalesAtom, uniqueItemNamesAtom, uniqueSectionNamesAtom } from "@/store/salesAtoms";
+import { dateFilterAtom, itemSalesAtom, selectedItemFilterAtom, selectedSectionFilterAtom, totalQuantityAtom, totalSalesAtom, uniqueItemNamesAtom, uniqueSectionNamesAtom } from "@/store/salesAtoms";
 import { ItemSale, SaleRecord } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
@@ -18,11 +18,9 @@ import { useNavigate } from "react-router-dom";
 
 export function SalesHistoryPage() {
   const navigate = useNavigate();
-
   const [selectedItem, setSelectedItem] = useAtom(selectedItemFilterAtom);
   const [selectedSection, setSelectedSection] = useAtom(selectedSectionFilterAtom);
   const [dateFilter, setDateFilter] = useAtom(dateFilterAtom);
-
   const {
     sales,
     isLoading,
@@ -56,17 +54,11 @@ export function SalesHistoryPage() {
     bulkRevertSales
   } = useSalesOperations();
 
-  const filteredItemSales = useAtomValue(filteredItemSalesAtom);
-
-  // State for individual item selection
   const [selectedItemIds, setSelectedItemIds] = React.useState<Set<string>>(new Set());
 
-  // Create local filtered sales from hook data for immediate updates
   const localFilteredSales = React.useMemo(() => {
     const items: ItemSale[] = [];
-
     sales.forEach(sale => {
-      // Add individual items
       sale.items?.forEach((item: any, index: number) => {
         items.push({
           id: `${sale.id}-item-${index}`,
@@ -83,8 +75,6 @@ export function SalesHistoryPage() {
           materialId: item.materialId
         });
       });
-
-      // Add menu items
       sale.menuItems?.forEach((menuItem: any, index: number) => {
         items.push({
           id: `${sale.id}-menu-${index}`,
@@ -102,32 +92,27 @@ export function SalesHistoryPage() {
       });
     });
 
-    // Apply filters
     let filtered = [...items];
-
     if (selectedItem && selectedItem !== "all") {
       filtered = filtered.filter(item => item.itemName === selectedItem);
     }
-
     if (selectedSection && selectedSection !== "all") {
       filtered = filtered.filter(item => {
         const itemSectionName = item.sectionName || `Section ${item.sectionId}`;
         return itemSectionName === selectedSection;
       });
     }
-
     if (dateFilter) {
       filtered = filtered.filter(item => {
         const itemDate = item.saleDate.toISOString().split("T")[0];
         return itemDate === dateFilter;
       });
     }
-
     return filtered.sort((a, b) => b.saleDate.getTime() - a.saleDate.getTime());
   }, [sales, selectedItem, selectedSection, dateFilter]);
+
   const uniqueItemNames = useAtomValue(uniqueItemNamesAtom);
   const uniqueSectionNames = useAtomValue(uniqueSectionNamesAtom);
-  // Calculate visible item IDs and selection states
   const visibleItemIds = React.useMemo(() => {
     return new Set(localFilteredSales.map(item => item.id));
   }, [localFilteredSales]);
@@ -143,32 +128,32 @@ export function SalesHistoryPage() {
   const totalQuantity = useAtomValue(totalQuantityAtom);
   const itemSales = useAtomValue(itemSalesAtom);
 
-  // Simple callback functions for actions
-  const toggleItemSelection = useCallback((itemId: string) => {
-    setSelectedItemIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  }, [setSelectedItemIds]);
+  const toggleItemSelection = useCallback(
+    (itemId: string) => {
+      setSelectedItemIds(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(itemId)) {
+          newSet.delete(itemId);
+        } else {
+          newSet.add(itemId);
+        }
+        return newSet;
+      });
+    },
+    [setSelectedItemIds]
+  );
 
   const toggleSelectAll = useCallback(() => {
     const visibleIds = Array.from(visibleItemIds);
     const allSelected = visibleIds.every(id => selectedItemIds.has(id));
 
     if (allSelected) {
-      // Deselect all visible
       setSelectedItemIds(prev => {
         const newSet = new Set(prev);
         visibleIds.forEach(id => newSet.delete(id));
         return newSet;
       });
     } else {
-      // Select all visible
       setSelectedItemIds(prev => {
         const newSet = new Set(prev);
         visibleIds.forEach(id => newSet.add(id));
@@ -181,13 +166,6 @@ export function SalesHistoryPage() {
     setSelectedItemIds(new Set());
   }, [setSelectedItemIds]);
 
-  const clearFilters = useCallback(() => {
-    setSelectedItem("all");
-    setSelectedSection("all");
-    setDateFilter("");
-  }, [setSelectedItem, setSelectedSection, setDateFilter]);
-
-  // Handler functions for operations
   const handleRevertSale = useCallback(
     (sale: SaleRecord) => {
       setSelectedSaleForRevert(sale);
@@ -248,7 +226,6 @@ export function SalesHistoryPage() {
 
   const confirmBulkRevert = useCallback(async () => {
     if (bulkRevertSales && setBulkRevertDialogOpen) {
-      // Convert selected item IDs to unique sale IDs
       const selectedSaleIds = new Set(
         Array.from(selectedItemIds)
           .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
@@ -262,7 +239,6 @@ export function SalesHistoryPage() {
 
   const confirmBulkDelete = useCallback(async () => {
     if (bulkDeleteSales && setBulkDeleteDialogOpen) {
-      // Convert selected item IDs to unique sale IDs
       const selectedSaleIds = new Set(
         Array.from(selectedItemIds)
           .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
@@ -584,13 +560,18 @@ export function SalesHistoryPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              console.log('Revert clicked for saleId:', item.saleId, 'Available sales:', sales.map(s => s.id));
+                              console.log(
+                                "Revert clicked for saleId:",
+                                item.saleId,
+                                "Available sales:",
+                                sales.map(s => s.id)
+                              );
                               const sale = sales.find(s => s.id.toString() === item.saleId);
                               if (sale) {
-                                console.log('Found sale:', sale);
+                                console.log("Found sale:", sale);
                                 handleRevertSale(sale);
                               } else {
-                                console.log('Sale not found!');
+                                console.log("Sale not found!");
                               }
                             }}
                             className="h-8 w-8 p-0"
@@ -602,13 +583,18 @@ export function SalesHistoryPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              console.log('Delete clicked for saleId:', item.saleId, 'Available sales:', sales.map(s => s.id));
+                              console.log(
+                                "Delete clicked for saleId:",
+                                item.saleId,
+                                "Available sales:",
+                                sales.map(s => s.id)
+                              );
                               const sale = sales.find(s => s.id.toString() === item.saleId);
                               if (sale) {
-                                console.log('Found sale:', sale);
+                                console.log("Found sale:", sale);
                                 handleSoftDeleteSale(sale);
                               } else {
-                                console.log('Sale not found!');
+                                console.log("Sale not found!");
                               }
                             }}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"

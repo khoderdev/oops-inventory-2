@@ -156,12 +156,21 @@ export function calculateIngredientCost(material: Material, quantity: number, un
   return normalizedQuantity * material.costPerUnit;
 }
 
+// export function formatCurrency(amount: number): string {
+//   return new Intl.NumberFormat("en-US", {
+//     style: "currency",
+//     currency: "USD",
+//     minimumFractionDigits: 2,
+//     maximumFractionDigits: 6
+//   }).format(amount);
+// }
 export function formatCurrency(amount: number): string {
+  const fractionDigits = amount < 0.01 ? 6 : 4; // Use 6 decimals for small values
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4
+    maximumFractionDigits: fractionDigits
   }).format(amount);
 }
 

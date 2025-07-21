@@ -6,7 +6,7 @@ export const getIngredientCost = (ingredient: Omit<MenuItemIngredient, "cost">, 
   const material = materials.find(m => m.id === ingredient.materialId);
   if (!material) return 0;
   const costPerUnit = material.costPerBaseUnit || 0;
-  const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType);
+  const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType, material);
   return ingredient.quantity * conversionFactor * costPerUnit;
 };
 

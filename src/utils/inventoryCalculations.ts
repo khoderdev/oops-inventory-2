@@ -121,7 +121,7 @@ export function isUnitCompatible(unit: string, materialUnitType: string): boolea
     case "piece":
       return ["piece", "unit"].includes(unit.toLowerCase());
     case "package":
-      return ["box", "pack", "bag"].includes(unit.toLowerCase());
+      return ["box", "pack", "bag", "piece"].includes(unit.toLowerCase());
     default:
       return false;
   }
@@ -137,7 +137,7 @@ export function getSuggestedUnits(unitType: string): string[] {
     case "piece":
       return ["piece", "unit"];
     case "package":
-      return ["box", "pack", "bag"];
+      return ["box", "pack", "bag", "piece"];
     default:
       return [];
   }

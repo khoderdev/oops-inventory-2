@@ -90,7 +90,6 @@ export interface Material {
   unitType: UnitType;
   inputUnit?: string; // Original input unit from MaterialForm (e.g., "box", "pack")
   costPerUnit: number;
-  costPerBaseUnit?: number;
   packageQuantity?: number; // For package units: how many base units per package
   description?: string;
   createdAt?: Date;
@@ -103,7 +102,6 @@ export interface CreateMaterialData {
   baseUnit: string;
   unitType: UnitType;
   inputUnit?: string;
-  costPerBaseUnit?: number;
   packageQuantity?: number;
   description?: string;
 }
@@ -114,7 +112,6 @@ export interface UpdateMaterialData {
   baseUnit?: string;
   unitType?: UnitType;
   inputUnit?: string;
-  costPerBaseUnit?: number;
   packageQuantity?: number;
   description?: string;
 }
@@ -140,6 +137,7 @@ export interface StockEntry {
   purchasedConvertedUnit?: string;
   costPerPurchasedUnit: number;
   totalCost: number;
+  costPerBaseUnit?: number;
   purchaseDate: Date;
   expiryDate?: Date;
   batchNumber?: string;

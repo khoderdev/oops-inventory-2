@@ -13,7 +13,7 @@ export const CostBreakdown = ({ selectedMaterial, purchasedQuantity, purchasedUn
   }
   let costPerBaseUnit = 0;
   if (purchasedUnit && selectedMaterial?.baseUnit) {
-    const conversionFactor = getConversionFactor(purchasedUnit, selectedMaterial.baseUnit, selectedMaterial.unitType);
+    const conversionFactor = getConversionFactor(purchasedUnit, selectedMaterial.baseUnit, selectedMaterial.unitType, selectedMaterial);
     if (conversionFactor > 0) {
       costPerBaseUnit = numCostPerUnit / conversionFactor;
     }

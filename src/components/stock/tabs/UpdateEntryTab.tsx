@@ -100,7 +100,36 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                 <FormItem>
                   <FormLabel>Quantity</FormLabel>
                   <FormControl>
-                    <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="overflow-hidden" />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
+                        onClick={() => {
+                          const currentValue = parseInt(field.value) || 0;
+                          const newValue = Math.max(0, currentValue - 1);
+                          field.onChange(newValue.toString());
+                        }}
+                        disabled={parseInt(field.value) <= 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-green-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
+                        onClick={() => {
+                          const currentValue = parseInt(field.value) || 0;
+                          const newValue = currentValue + 1;
+                          field.onChange(newValue.toString());
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -144,26 +173,26 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                        className="h-11 w-11 border-blue-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 0.01);
-                          field.onChange(newValue.toFixed(2));
+                          const newValue = Math.max(0, currentValue - 0.0001);
+                          field.onChange(newValue.toFixed(4));
                         }}
                         disabled={parseFloat(field.value) <= 0}
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input onWheel={e => e.preventDefault()} type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input onWheel={e => e.preventDefault()} type="number" step="0.0001" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                        className="h-11 w-11 border-blue-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = currentValue + 0.01;
-                          field.onChange(newValue.toFixed(2));
+                          const newValue = currentValue + 0.0001;
+                          field.onChange(newValue.toFixed(4));
                         }}
                       >
                         <Plus className="h-4 w-4" />
@@ -187,26 +216,26 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                        className="h-11 w-11 border-blue-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 0.01);
-                          field.onChange(newValue.toFixed(2));
+                          const newValue = Math.max(0, currentValue - 0.0001);
+                          field.onChange(newValue.toFixed(4));
                         }}
                         disabled={parseFloat(field.value) <= 0}
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input type="number" step="0.0001" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                        className="h-11 w-11 border-blue-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = currentValue + 0.01;
-                          field.onChange(newValue.toFixed(2));
+                          const newValue = currentValue + 0.0001;
+                          field.onChange(newValue.toFixed(4));
                         }}
                       >
                         <Plus className="h-4 w-4" />

@@ -96,7 +96,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
           const purchasedUnit = form.getValues("purchasedUnit") || selectedMaterial.inputUnit;
 
           if (purchasedUnit === selectedMaterial.inputUnit && selectedMaterial.unitType === "mass") {
-            const baseCost = selectedMaterial.costPerBaseUnit || selectedMaterial.costPerUnit;
+            const baseCost = selectedMaterial.costPerUnit;
             const numericBaseCost = typeof baseCost === "string" ? parseFloat(baseCost) : baseCost;
 
             if (selectedMaterial.inputUnit === "kg" && selectedMaterial.baseUnit === "g") {
@@ -107,7 +107,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
               suggestedCost = numericBaseCost;
             }
           } else {
-            const baseCost = selectedMaterial.costPerBaseUnit || selectedMaterial.costPerUnit;
+            const baseCost = selectedMaterial.costPerUnit;
             const numericBaseCost = typeof baseCost === "string" ? parseFloat(baseCost) : baseCost;
             suggestedCost = typeof numericBaseCost === "number" && !isNaN(numericBaseCost) && numericBaseCost > 0 ? numericBaseCost : 0;
           }
