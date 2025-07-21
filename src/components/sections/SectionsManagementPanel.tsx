@@ -318,6 +318,50 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
     }
   };
 
+  const handleAssignAll = async (sectionId: string, itemType: "stockEntry" | "menuItem", items: StockEntry[] | MenuItem[]) => {
+    try {
+      const assignmentPromises = items.map(async item => {
+        const assignmentData: CreateSectionAssignmentData = {
+          sectionId,
+          itemType
+        };
+
+        if (itemType === "stockEntry") {
+          const stockEntry = item as StockEntry;
+          const material = materials.find(m => m.id === stockEntry.materialId);
+          assignmentData.materialId = stockEntry.materialId;
+          assignmentData.stockEntryId = stockEntry.id;
+          // Assign the full available quantity
+          assignmentData.assignedQuantity = stockEntry.purchasedQuantity;
+          assignmentData.assignedUnit = stockEntry.purchasedUnit;
+        } else if (itemType === "menuItem") {
+          const menuItem = item as MenuItem;
+          assignmentData.menuItemId = menuItem.id;
+        }
+
+        return createAssignment(assignmentData);
+      });
+
+      // Execute all assignments in parallel
+      await Promise.all(assignmentPromises);
+
+      // Update optimistic state
+      if (onDataRefresh) {
+        await onDataRefresh();
+      }
+
+      // Show success message
+      showSuccess(`Successfully assigned ${items.length} ${itemType === "stockEntry" ? "stock entries" : "menu items"} to section`);
+
+      // Close the form
+      setShowAssignmentForm(false);
+      setSelectedSectionIdWithLogging("");
+    } catch (error) {
+      console.error("Failed to assign all items:", error);
+      showError(`Failed to assign all items: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
+
   const handleAddAssignmentFromModal = useCallback(
     (sectionId: string) => {
       setSelectedSectionIdWithLogging(sectionId);
@@ -399,6 +443,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
             assignment={editingAssignment}
             selectedSectionId={selectedSectionId}
             onSubmit={handleAssignmentSubmit}
+            onAssignAll={handleAssignAll}
             onCancel={() => {
               setShowAssignmentForm(false);
               setEditingAssignment(undefined);

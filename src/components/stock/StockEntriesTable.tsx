@@ -4,18 +4,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { NegativeStockReport, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { AlertTriangle, Edit, FileText, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { highlightText } from "@/utils/highlightText";
+import { AlertTriangle, Edit, FileText, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export function StockEntriesTable() {
   const { stockEntries, materialsWithStock, handleEditStockEntry, handleDeleteStockEntry, setShowStockForm } = useInventoryStore();
   const materials = materialsWithStock;
-  const [searchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [negativeStockReport, setNegativeStockReport] = useState<NegativeStockReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -28,7 +30,9 @@ export function StockEntriesTable() {
     }))
     .filter(entry => {
       const materialName = entry.material?.name;
-      return !searchTerm || materialName?.toLowerCase().includes(searchTerm.toLowerCase());
+      const supplier = entry.supplier;
+      const searchLower = searchTerm.toLowerCase();
+      return !searchTerm || materialName?.toLowerCase().includes(searchLower) || supplier?.toLowerCase().includes(searchLower);
     });
 
   const hasNegativeStock = (entry: (typeof stockEntriesWithMaterial)[0]) => {
@@ -265,6 +269,19 @@ export function StockEntriesTable() {
             </Button>
           </div>
         </div>
+
+        {/* Search Input */}
+        <div className="mt-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search by material name or supplier..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+          </div>
+          {searchTerm && (
+            <div className="mt-2 text-sm text-muted-foreground">
+              Showing {stockEntriesWithMaterial.length} of {stockEntries.length} entries
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="w-full h-[calc(100vh-240px)] border rounded-md overflow-x-auto">
@@ -309,12 +326,12 @@ export function StockEntriesTable() {
                           <TableCell className="font-medium min-w-[200px]">
                             <div className="flex items-center gap-2">
                               {isNegative && <AlertTriangle className="h-4 w-4 text-red-600" />}
-                              {entry.material?.name || `Unknown Material (ID: ${entry.materialId})`}
+                              {entry.material?.name ? highlightText(entry.material.name, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}
                             </div>
                           </TableCell>
                           <TableCell className="min-w-[150px]">
                             <div className="flex items-center gap-2">
-                              <span className={isVirtual ? "text-red-600 font-medium" : ""}>{entry.supplier}</span>
+                              <span className={isVirtual ? "text-red-600 font-medium" : ""}>{highlightText(entry.supplier || "", searchTerm)}</span>
                               {isVirtual && (
                                 <Badge variant="destructive" className="text-xs">
                                   AUTO-GENERATED

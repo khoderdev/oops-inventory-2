@@ -4,12 +4,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CartItem, MenuItem, MenuItemSale, POSPanelProps, Section, SectionAssignment, SoldItem, NegativeStockWarning } from "@/types/inventory";
+import { CartItem, MenuItem, MenuItemSale, NegativeStockWarning, POSPanelProps, Section, SectionAssignment, SoldItem } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { AlertCircle, Check, History, Loader2, Minus, Package, Plus, Search, ShoppingCart, Trash2, X, AlertTriangle } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, History, Loader2, Minus, Package, PackageSearch, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -113,7 +113,24 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         const isPackageUnit = material.unitType === "package";
         let displayQuantity = a.assignedQuantity || 0;
         let displayUnit = a.assignedUnit || material.baseUnit;
-        const displayUnitPrice = parseFloat(String(material.costPerBaseUnit || "0"));
+
+        // Calculate unit price from stock entry cost data
+        let displayUnitPrice = 0;
+        if (stockEntry.costPerPurchasedUnit && stockEntry.purchasedQuantity) {
+          if (isPackageUnit && material.packageQuantity) {
+            // For package units, calculate cost per individual piece
+            displayUnitPrice = stockEntry.costPerPurchasedUnit / material.packageQuantity;
+          } else {
+            // For regular units, use cost per purchased unit
+            displayUnitPrice = stockEntry.costPerPurchasedUnit;
+          }
+        } else if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
+          // Fallback: calculate from total cost and individual quantity
+          displayUnitPrice = stockEntry.totalCost / stockEntry.purchasedIndividualQuantity;
+        } else if (material.costPerBaseUnit) {
+          // Last resort: use material's cost per base unit if available
+          displayUnitPrice = parseFloat(String(material.costPerBaseUnit));
+        }
 
         if (isPackageUnit) {
           // Use assignedIndividualQuantity if available, otherwise calculate
@@ -405,9 +422,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       }
     } catch (error: unknown) {
       console.error("Sale failed:", error);
-      const errorMessage = error && typeof error === 'object' && 'response' in error 
-        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error 
-        : undefined;
+      const errorMessage = error && typeof error === "object" && "response" in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined;
       showError(errorMessage || "Failed to complete sale");
     } finally {
       setIsLoading(false);
@@ -420,82 +435,94 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-6">
       {/* Section Selection and Items */}
-      <div className="lg:col-span-2 space-y-4">
+      <div className="lg:col-span-2 space-y-6">
         {/* Messages */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        <div className="space-y-3">
+          {error && (
+            <Alert variant="destructive" className="animate-fade-in">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="font-medium">{error}</AlertDescription>
+            </Alert>
+          )}
 
-        {successMessage && (
-          <Alert className="border-green-200 bg-green-50 text-green-800">
-            <Check className="h-4 w-4" />
-            <AlertDescription>{successMessage}</AlertDescription>
-          </Alert>
-        )}
+          {successMessage && (
+            <Alert className="border-green-300 bg-green-50 text-green-800 animate-fade-in">
+              <Check className="h-4 w-4" />
+              <AlertDescription className="font-medium">{successMessage}</AlertDescription>
+            </Alert>
+          )}
+        </div>
 
         {/* Negative Stock Warnings Dialog */}
         <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl rounded-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-600">
                 <AlertTriangle className="h-5 w-5" />
                 Negative Stock Warning
               </DialogTitle>
-              <DialogDescription>The following items resulted in negative stock after this sale. The sale was completed, but these items may need restocking.</DialogDescription>
+              <DialogDescription className="text-gray-600">The following items resulted in negative stock after this sale. The sale was completed, but these items may need restocking.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
               {negativeStockWarnings.map((warning, index) => (
-                <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 space-y-1">
+                <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
                       <div className="font-medium text-red-900">{warning.materialName}</div>
-                      <div className="text-sm text-red-800">
-                        Available: {formatNumber(warning.availableQuantity)} {warning.unit} | Required: {formatNumber(warning.requiredQuantity)} {warning.unit} | Shortage: {formatNumber(warning.shortageQuantity)} {warning.unit}
+                      <div className="text-sm text-red-800 grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <span>
+                          Available: {formatNumber(warning.availableQuantity)} {warning.unit}
+                        </span>
+                        <span>
+                          Required: {formatNumber(warning.requiredQuantity)} {warning.unit}
+                        </span>
+                        <span className="font-semibold">
+                          Shortage: {formatNumber(warning.shortageQuantity)} {warning.unit}
+                        </span>
                       </div>
-                      {warning.type && (
-                        <Badge variant="outline" className="text-xs">
-                          {warning.type}
-                        </Badge>
-                      )}
-                      {warning.action && <div className="text-xs text-red-700 italic">{warning.action}</div>}
+                      <div className="flex gap-2 items-center">
+                        {warning.type && (
+                          <Badge variant="outline" className="text-xs bg-white">
+                            {warning.type}
+                          </Badge>
+                        )}
+                        {warning.action && <div className="text-xs text-red-700 italic">{warning.action}</div>}
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
-              <div className="pt-2 border-t">
-                <div className="text-sm text-muted-foreground">Total items with negative stock: {negativeStockWarnings.length}</div>
+              <div className="pt-3 border-t">
+                <div className="text-sm text-gray-500 font-medium">Total items with negative stock: {negativeStockWarnings.length}</div>
               </div>
             </div>
+            <DialogFooter>
+              <Button onClick={() => setShowNegativeStockDialog(false)} className="mt-4">
+                Close
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* Section Selection */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Section Selection
+              <div className="flex items-center  gap-2 text-lg">
+                <Package className="h-5 w-5 text-primary" />
+                <span>Section Selection</span>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => navigate("/sales-history")}
-                className="flex items-center gap-2"
-              >
+              <Button variant="outline" size="sm" onClick={() => navigate("/sales-history")} className="flex items-center gap-2 border-gray-300 hover:bg-gray-50">
                 <History className="h-4 w-4" />
-                Sales History
+                <span>Sales History</span>
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 items-center">
               {sections.map(section => (
                 <Button
                   key={section.id}
@@ -505,9 +532,9 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                     setCart([]);
                     setSearchTerm("");
                   }}
-                  className="text-left justify-start"
+                  className={`h-16 justify-center text-center transition-all ${selectedSectionId === section.id ? "shadow-md" : "hover:border-primary/50"}`}
                 >
-                  {section.name}
+                  <span className="truncate">{section.name}</span>
                 </Button>
               ))}
             </div>
@@ -515,13 +542,13 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         </Card>
 
         {/* Available Items */}
-        <Card>
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Available Items</span>
+              <span className="text-lg">Available Items</span>
               {selectedSectionId && (
-                <Badge variant="outline" className="text-xs">
-                  {filteredItems.length} items
+                <Badge variant="outline" className="text-xs bg-gray-50">
+                  {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
                 </Badge>
               )}
             </CardTitle>
@@ -530,86 +557,99 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
             {selectedSectionId ? (
               <>
                 {/* Search */}
-                <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input placeholder="Search items..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+                <div className="relative mb-6">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <Input placeholder="Search items..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 h-11 rounded-lg bg-gray-50 focus:bg-white" />
                 </div>
 
-                {/* Items Table */}
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Available/Price</TableHead>
-                        <TableHead className="w-[100px]">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredItems.length > 0 ? (
-                        filteredItems.map(item => {
-                          const cartItem = cart.find(cartItem => cartItem.id === item.id);
-                          const availableQuantity = item.type === "individual" ? (item.currentQuantity || 0) - (cartItem?.quantity || 0) : 999;
+                {/* Items Grid */}
+                {filteredItems.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {filteredItems.map(item => {
+                      const cartItem = cart.find(cartItem => cartItem.id === item.id);
+                      const availableQuantity = item.type === "individual" ? (item.currentQuantity || 0) - (cartItem?.quantity || 0) : 999;
+                      const isOutOfStock = item.type === "individual" && availableQuantity <= 0;
+                      const isLowStock = item.type === "individual" && availableQuantity > 0 && availableQuantity <= 5;
 
-                          return (
-                            <TableRow key={item.id}>
-                              <TableCell>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{item.name}</span>
-                                  {item.type === "menu" && item.ingredients && item.ingredients.length > 0 && (
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      <span className="font-medium">Ingredients:</span>
-                                      {item.ingredients.map((ing, idx) => (
-                                        <div key={idx}>
-                                          {formatNumber(ing.quantity)} {ing.unit} {materials.find(m => m.id === String(ing.materialId))?.name}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
+                      return (
+                        <div key={item.id} onClick={() => !isOutOfStock && addToCart(item)} className={`group relative bg-white border-2 rounded-xl p-5 transition-all duration-200 ${isOutOfStock ? "border-red-200 bg-red-50/30 opacity-75 cursor-not-allowed" : isLowStock ? "border-orange-200 hover:border-orange-300 cursor-pointer hover:shadow-lg" : "border-gray-200 hover:border-primary/40 hover:shadow-lg cursor-pointer"}`}>
+                          {/* Stock Status Indicator */}
+                          {isOutOfStock && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[0.60rem] font-bold px-2 py-1 rounded-full shadow-sm">Out of Stock</div>}
+                          {isLowStock && <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-[0.60rem] font-bold px-2 py-1 rounded-full shadow-sm">Low Stock</div>}
+
+                          {/* Header */}
+                          <div className="flex justify-between items-start gap-3 mb-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900 text-2xl leading-tight truncate group-hover:text-primary transition-colors">{item.name}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant={item.type === "individual" ? "default" : "secondary"} className={`text-[0.55rem] font-medium ${item.type === "individual" ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-purple-100 text-purple-800 hover:bg-purple-200"}`}>
+                                  {item.type === "individual" ? "Individual Item" : "Menu Item"}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <div className="text-right flex-shrink-0">
+                              <div className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors">{formatCurrency(item.unitPrice)}</div>
+                              {item.type === "individual" && (
+                                <div className={`text-xs font-medium mt-1 ${isOutOfStock ? "text-red-600" : isLowStock ? "text-orange-600" : "text-gray-600"}`}>
+                                  {formatNumber(availableQuantity)} {item.unit} left
                                 </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant={item.type === "individual" ? "default" : "secondary"}>{item.type === "individual" ? "Individual" : "Menu Item"}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                {item.type === "individual" ? (
-                                  <div className="flex flex-col">
-                                    <span className={availableQuantity <= 0 ? "text-red-500" : ""}>
-                                      {formatNumber(availableQuantity)} {item.unit}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground">
-                                      {formatCurrency(item.unitPrice)}/{item.unit}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="font-medium">{formatCurrency(item.unitPrice)}</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <Button size="sm" variant="outline" onClick={() => addToCart(item)} disabled={item.type === "individual" && (item.currentQuantity || 0) <= 0} className="hover:bg-primary hover:text-primary-foreground transition-colors">
-                                  <Plus className="h-4 w-4" />
-                                  <span className="sr-only">Add to cart</span>
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-4">
-                            {searchTerm ? "No matching items found" : "No items available in this section"}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Menu Item Ingredients */}
+                          {item.type === "menu" && item.ingredients && item.ingredients.length > 0 && (
+                            <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Package className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm font-medium text-gray-700">Ingredients</span>
+                              </div>
+                              <div className="grid grid-cols-1 gap-1.5 max-h-24 overflow-y-auto">
+                                {item.ingredients.slice(0, 4).map((ing, idx) => {
+                                  const material = materials.find(m => m.id === String(ing.materialId));
+                                  return (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                      <span className="text-gray-700 truncate flex-1 mr-2">{material?.name || `Material ${ing.materialId}`}</span>
+                                      <span className="text-gray-600 font-medium flex-shrink-0">
+                                        {formatNumber(ing.quantity)} {ing.unit}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                                {item.ingredients.length > 4 && <div className="text-xs text-gray-500 italic text-center pt-1 border-t">+{item.ingredients.length - 4} more ingredients</div>}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Quick Add Indicator */}
+                          {!isOutOfStock && <div className="absolute inset-0 rounded-xl bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-16 text-gray-500">
+                    <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+                      <PackageSearch className="h-12 w-12 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{searchTerm ? "No matching items found" : "No items available"}</h3>
+                    <p className="text-gray-500 mb-4">{searchTerm ? "Try adjusting your search terms" : "This section doesn't have any items yet"}</p>
+                    {searchTerm && (
+                      <Button variant="outline" size="sm" onClick={() => setSearchTerm("")} className="border-primary text-primary hover:bg-primary hover:text-white">
+                        <X className="h-4 w-4 mr-2" />
+                        Clear search
+                      </Button>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Please select a section to view available items</p>
+              <div className="text-center py-12 text-gray-500">
+                <Package className="h-14 w-14 mx-auto mb-4 opacity-40" />
+                <p className="font-medium">Please select a section to view available items</p>
               </div>
             )}
           </CardContent>
@@ -617,43 +657,45 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       </div>
 
       {/* Cart and Checkout */}
-      <div className="space-y-4">
-        <Card className="h-fit">
+      <div className="space-y-6">
+        <Card className="h-fit shadow-sm hover:shadow-md transition-shadow sticky top-6">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5" />
-              Order Summary
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              <span>Order Summary</span>
             </CardTitle>
             {selectedSectionId && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Badge variant="secondary" className="text-xs">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Badge variant="secondary" className="text-xs bg-gray-100">
                   {getSectionName(selectedSectionId)}
                 </Badge>
                 <span>•</span>
-                <span>{cart.length} items</span>
+                <span>
+                  {cart.length} {cart.length === 1 ? "item" : "items"}
+                </span>
               </div>
             )}
           </CardHeader>
           <CardContent className="space-y-4">
             {cart.length > 0 ? (
               <>
-                <div className="border rounded-lg overflow-hidden">
+                <div className="border rounded-xl overflow-hidden">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Qty</TableHead>
-                        <TableHead className="text-right">Price</TableHead>
-                        <TableHead></TableHead>
+                    <TableHeader className="bg-gray-50">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="font-medium text-gray-700">Item</TableHead>
+                        <TableHead className="font-medium text-gray-700">Qty</TableHead>
+                        <TableHead className="text-right font-medium text-gray-700">Price</TableHead>
+                        <TableHead className="w-[40px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {cart.map(item => (
-                        <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
+                        <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors">
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
-                              <span>{item.name}</span>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-gray-900">{item.name}</span>
+                              <span className="text-xs text-gray-500">
                                 {formatCurrency(item.unitPrice)}
                                 {item.unit && `/${item.unit}`}
                               </span>
@@ -661,18 +703,18 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground" onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>
+                              <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-destructive hover:text-white" onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>
                                 <Minus className="h-3 w-3" />
                               </Button>
-                              <span className="min-w-[2rem] text-center font-medium">{item.quantity}</span>
-                              <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-primary hover:text-primary-foreground" onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)}>
+                              <span className="min-w-[2rem] text-center font-medium text-gray-700">{item.quantity}</span>
+                              <Button size="sm" variant="outline" className="h-7 w-7 p-0 hover:bg-primary hover:text-white" onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)}>
                                 <Plus className="h-3 w-3" />
                               </Button>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(item.totalPrice)}</TableCell>
+                          <TableCell className="text-right font-medium text-gray-900">{formatCurrency(item.totalPrice)}</TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" variant="ghost" onClick={() => removeFromCart(item.id)} className="h-7 w-7 p-0 hover:bg-destructive hover:text-destructive-foreground">
+                            <Button size="sm" variant="ghost" onClick={() => removeFromCart(item.id)} className="h-7 w-7 p-0 hover:bg-destructive hover:text-white">
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           </TableCell>
@@ -684,19 +726,19 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
                 <div className="space-y-3 pt-4 border-t">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">{formatCurrency(cartTotal)}</span>
+                    <span className="text-gray-500">Subtotal</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(cartTotal)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
+                    <span className="text-gray-900">Total</span>
                     <span className="text-primary">{formatCurrency(cartTotal)}</span>
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex gap-3 pt-4">
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 h-11 border-gray-300 hover:bg-gray-50"
                     onClick={() => {
                       setCart([]);
                       setSearchTerm("");
@@ -706,7 +748,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                     <X className="h-4 w-4 mr-2" />
                     Clear Cart
                   </Button>
-                  <Button className="flex-1" onClick={completeSale} disabled={isLoading || cart.length === 0}>
+                  <Button className="flex-1 h-11" onClick={completeSale} disabled={isLoading || cart.length === 0}>
                     {isLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -722,10 +764,10 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                 </div>
               </>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Your cart is empty</p>
-                <p className="text-sm">Add items to start a sale</p>
+              <div className="text-center py-10 text-gray-500">
+                <ShoppingCart className="h-14 w-14 mx-auto mb-4 opacity-40" />
+                <p className="font-medium">Your cart is empty</p>
+                <p className="text-sm mt-1">Add items to start a sale</p>
               </div>
             )}
           </CardContent>

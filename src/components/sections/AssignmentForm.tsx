@@ -6,87 +6,36 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { CreateSectionAssignmentData, Material, MenuItem, Section, SectionAssignment, StockEntry, UpdateSectionAssignmentData } from "@/types/inventory";
+import { AssignmentFormData, AssignmentFormProps, CreateSectionAssignmentData, UpdateSectionAssignmentData } from "@/types/inventory";
 import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, DollarSign, Info, Package } from "lucide-react";
+import { AlertCircle, DollarSign, Info, Package, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { assignmentSchema } from "./assignmentSchema";
 
-const assignmentSchema = z
-  .object({
-    sectionId: z.string().min(1, "Section is required"),
-    itemType: z.enum(["stockEntry", "menuItem"], { required_error: "Item type is required" }),
-    stockEntryId: z.string().optional(),
-    menuItemId: z.string().optional(),
-    assignedQuantity: z.number().optional(),
-    assignedUnit: z.string().optional()
-  })
-  .refine(
-    data => {
-      if (data.itemType === "stockEntry") {
-        return data.stockEntryId && data.assignedQuantity && data.assignedQuantity > 0.0001 && data.assignedQuantity <= 999999 && data.assignedUnit;
-      }
-      if (data.itemType === "menuItem") {
-        return data.menuItemId;
-      }
-      return false;
-    },
-    {
-      message: "Please fill in all required fields for the selected item type",
-      path: ["root"]
-    }
-  );
-
-type AssignmentFormData = z.infer<typeof assignmentSchema>;
-
-interface AssignmentFormProps {
-  sections: Section[];
-  stockEntries: StockEntry[];
-  materials: Material[];
-  menuItems: MenuItem[];
-  assignment?: SectionAssignment;
-  onSubmit: (data: CreateSectionAssignmentData | UpdateSectionAssignmentData) => void | Promise<void>;
-  onCancel: () => void;
-  isLoading?: boolean;
-  selectedSectionId?: string;
-}
-
-export function AssignmentForm({ sections, stockEntries, materials, menuItems, assignment, onSubmit, onCancel, isLoading = false, selectedSectionId }: AssignmentFormProps) {
+export function AssignmentForm({ sections, stockEntries, materials, menuItems, assignment, onSubmit, onCancel, isLoading = false, selectedSectionId, onAssignAll }: AssignmentFormProps) {
   const [formError, setFormError] = useState<string | null>(null);
-
-  // Use refs to track previous values and reduce excessive logging
+  const [isAssigningAll, setIsAssigningAll] = useState(false);
   const prevSelectedSectionIdRef = useRef<string | undefined>();
   const prevAssignmentRef = useRef<string | undefined>();
   const renderCountRef = useRef(0);
-
   renderCountRef.current += 1;
-
-  // Only log when key values change
-  const shouldLog = prevSelectedSectionIdRef.current !== selectedSectionId || prevAssignmentRef.current !== assignment?.id || renderCountRef.current === 1; // Always log first render
-
+  const shouldLog = prevSelectedSectionIdRef.current !== selectedSectionId || prevAssignmentRef.current !== assignment?.id || renderCountRef.current === 1;
   if (shouldLog) {
     prevSelectedSectionIdRef.current = selectedSectionId;
     prevAssignmentRef.current = assignment?.id;
   }
-
-  // Determine if we're adding a new assignment to a specific section
   const isAddingToSelectedSection = Boolean(!assignment && selectedSectionId);
-
-  // Filter sections based on whether we're adding to a specific section
   const availableSections = useMemo(() => {
     if (isAddingToSelectedSection) {
-      // When adding to a selected section, only show that section
       const filteredSections = sections.filter(section => section.id === selectedSectionId);
       return filteredSections;
     }
-    // When editing or no specific section, show all sections
     return sections;
   }, [sections, isAddingToSelectedSection, selectedSectionId]);
 
-  // Get the selected section name for display
   const selectedSection = sections.find(s => s.id === selectedSectionId);
 
   const form = useForm<AssignmentFormData>({
@@ -102,6 +51,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
   });
 
   const watchedItemType = form.watch("itemType");
+  const watchedSectionId = form.watch("sectionId");
   const watchedStockEntryId = form.watch("stockEntryId");
   const watchedMenuItemId = form.watch("menuItemId");
   const watchedQuantity = form.watch("assignedQuantity");
@@ -112,14 +62,12 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
   const material = selectedStockEntry ? materials.find(m => m.id === selectedStockEntry.materialId) : null;
   const availableUnits = material ? getSuggestedUnits(material.unitType) : [];
 
-  // Clear form error when user changes selections
   useEffect(() => {
     if (formError) {
       setFormError(null);
     }
   }, [formError, watchedItemType, watchedStockEntryId, watchedMenuItemId]);
 
-  // Reset form when assignment or selectedSectionId changes
   useEffect(() => {
     form.reset({
       sectionId: assignment?.sectionId || selectedSectionId || "",
@@ -131,7 +79,6 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
     });
   }, [assignment, selectedSectionId, form]);
 
-  // Ensure sectionId field is properly set when adding to a specific section
   useEffect(() => {
     if (isAddingToSelectedSection && selectedSectionId) {
       const currentSectionId = form.getValues("sectionId");
@@ -141,56 +88,37 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
     }
   }, [isAddingToSelectedSection, selectedSectionId, form]);
 
-  // Convert assigned quantity to same unit as available stock for comparison
   const getConvertedQuantityForComparison = useCallback(
     (assignedQty: number, assignedUnit: string, availableUnit: string): number => {
       if (!assignedQty || !assignedUnit || !availableUnit || !material) return assignedQty;
-
-      // If units are the same, no conversion needed
       if (assignedUnit === availableUnit) return assignedQty;
-
-      // Handle mass unit conversions
       if (isMassUnit(assignedUnit) && isMassUnit(availableUnit)) {
         return convertMass(assignedQty, assignedUnit, availableUnit);
       }
-
-      // Handle volume unit conversions
       if (isVolumeUnit(assignedUnit) && isVolumeUnit(availableUnit)) {
         return convertVolume(assignedQty, assignedUnit, availableUnit);
       }
-
-      // Handle package unit conversions
       if (material?.unitType === "package" && material.packageQuantity) {
-        // If assigning in base unit but stock is in package unit
         if (assignedUnit === material.baseUnit && availableUnit === material.inputUnit) {
           return assignedQty / material.packageQuantity;
         }
-        // If assigning in package unit but stock is in base unit
         if (assignedUnit === material.inputUnit && availableUnit === material.baseUnit) {
           return assignedQty * material.packageQuantity;
         }
       }
-
-      // If no conversion possible, return original value
       return assignedQty;
     },
     [material]
   );
 
-  // Calculate estimated cost with proper unit conversion
   const estimatedCost = useMemo(() => {
     if (watchedItemType === "stockEntry") {
       if (!selectedStockEntry || !watchedQuantity || !watchedUnit) return 0;
-
       const costPerUnit = selectedStockEntry.costPerPurchasedUnit || 0;
       const purchasedUnit = selectedStockEntry.purchasedUnit;
-
-      // If assigned unit is the same as purchased unit, simple multiplication
       if (watchedUnit === purchasedUnit) {
         return watchedQuantity * costPerUnit;
       }
-
-      // Convert assigned quantity to purchased unit for cost calculation
       const convertedQuantity = getConvertedQuantityForComparison(watchedQuantity, watchedUnit, purchasedUnit);
       return convertedQuantity * costPerUnit;
     } else if (watchedItemType === "menuItem") {
@@ -199,27 +127,36 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
     }
     return 0;
   }, [watchedItemType, selectedStockEntry, selectedMenuItem, watchedQuantity, watchedUnit, getConvertedQuantityForComparison]);
-
-  // Check if selected material is a package unit
   const isPackageUnit = material?.unitType === "package";
-
-  // Get available stock quantity
   const availableQuantity = selectedStockEntry?.purchasedQuantity || 0;
   const availableIndividualQuantity = selectedStockEntry?.purchasedIndividualQuantity;
-
-  // Get converted quantity for validation (only for stock entries)
   const convertedAssignedQuantity = watchedItemType === "stockEntry" && watchedQuantity && watchedUnit && selectedStockEntry ? getConvertedQuantityForComparison(watchedQuantity, watchedUnit, selectedStockEntry.purchasedUnit) : watchedQuantity || 0;
-
-  // Check if assigned quantity exceeds available stock (after conversion) - only for stock entries
   const exceedsAvailableStock = watchedItemType === "stockEntry" && convertedAssignedQuantity > 0 && availableQuantity > 0 && convertedAssignedQuantity > availableQuantity;
+  const availableItemsForAssignAll = useMemo(() => {
+    if (watchedItemType === "stockEntry") {
+      return stockEntries.filter(entry => entry.purchasedQuantity > 0);
+    } else if (watchedItemType === "menuItem") {
+      return menuItems;
+    }
+    return [];
+  }, [watchedItemType, stockEntries, menuItems]);
+  const showAssignAllButton = !assignment && watchedSectionId && onAssignAll && availableItemsForAssignAll.length > 0;
+  const handleAssignAll = async () => {
+    if (!watchedSectionId || !onAssignAll || isAssigningAll) return;
+
+    setIsAssigningAll(true);
+    try {
+      await onAssignAll(watchedSectionId, watchedItemType, availableItemsForAssignAll);
+    } catch (error) {
+      console.error("Error assigning all items:", error);
+    } finally {
+      setIsAssigningAll(false);
+    }
+  };
 
   const handleSubmit = async (data: AssignmentFormData) => {
     if (isLoading) return;
-
-    // Clear any previous form errors
     setFormError(null);
-
-    // Validate that IDs are not temporary (optimistic update IDs)
     const isTemporaryId = (id: string | undefined) => {
       return id && (id.startsWith("temp-") || id.includes("temp"));
     };
@@ -239,15 +176,9 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
         return;
       }
     }
-
-    // Create submission data based on whether we're editing or creating
     let submissionData: CreateSectionAssignmentData | UpdateSectionAssignmentData;
-
     if (assignment) {
-      // Editing existing assignment - use UpdateSectionAssignmentData (all fields optional)
       submissionData = {} as UpdateSectionAssignmentData;
-
-      // Only include fields that have changed or are set
       if (data.sectionId !== assignment.sectionId) {
         submissionData.sectionId = data.sectionId;
       }
@@ -275,7 +206,6 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
         }
       }
     } else {
-      // Creating new assignment - use CreateSectionAssignmentData (required fields)
       submissionData = {
         sectionId: data.sectionId,
         itemType: data.itemType
@@ -406,6 +336,38 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                   </FormItem>
                 )}
               />
+
+              {/* Assign All Button */}
+              {showAssignAllButton && (
+                <div className="lg:col-span-2 mb-4">
+                  <div className="rounded-lg border bg-blue-50 dark:bg-blue-950/20 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-blue-600" />
+                        <div>
+                          <h3 className="font-medium text-sm text-blue-800 dark:text-blue-200">Bulk Assignment</h3>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                            Assign all {availableItemsForAssignAll.length} {watchedItemType === "stockEntry" ? "stock entries" : "menu items"} to the selected section at once
+                          </p>
+                        </div>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={handleAssignAll} disabled={isAssigningAll || isLoading} className="border-blue-200 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900/50">
+                        {isAssigningAll ? (
+                          <div className="flex items-center gap-2">
+                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            Assigning...
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-3 w-3" />
+                            Assign All ({availableItemsForAssignAll.length})
+                          </div>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Stock Entry Selection */}
@@ -586,7 +548,6 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                     <div className="sm:col-span-2 lg:col-span-3">
                       <span className="text-muted-foreground">Ingredients:</span>
                       <div className="font-medium">
-                        {/* Use menuItemIngredients if available (has nested material data) */}
                         {Array.isArray(selectedMenuItem.menuItemIngredients) && selectedMenuItem.menuItemIngredients.length > 0
                           ? selectedMenuItem.menuItemIngredients.map((ingredient, index, array) => (
                               <span key={index}>

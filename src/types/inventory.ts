@@ -1,4 +1,5 @@
 import { ReportType } from "@/components/analytics/configs";
+import { assignmentSchema } from "@/components/sections/assignmentSchema";
 import { stockSchema } from "@/components/stock/stockSchema";
 import { z } from "zod";
 
@@ -116,6 +117,13 @@ export interface UpdateMaterialData {
   costPerBaseUnit?: number;
   packageQuantity?: number;
   description?: string;
+}
+
+export interface MaterialTableProps {
+  filteredMaterials: MaterialWithStock[];
+  onEditMaterial: (material: MaterialWithStock) => void;
+  onAddStock: (materialId: string) => void;
+  onDeleteMaterial: (materialId: string) => void;
 }
 
 //-----------------------------------------------------------------------------
@@ -277,6 +285,21 @@ export interface MaterialWithSectionAssignments extends MaterialWithStock {
   }>;
 }
 
+export type AssignmentFormData = z.infer<typeof assignmentSchema>;
+
+export interface AssignmentFormProps {
+  sections: Section[];
+  stockEntries: StockEntry[];
+  materials: Material[];
+  menuItems: MenuItem[];
+  assignment?: SectionAssignment;
+  onSubmit: (data: CreateSectionAssignmentData | UpdateSectionAssignmentData) => void | Promise<void>;
+  onCancel: () => void;
+  isLoading?: boolean;
+  selectedSectionId?: string;
+  onAssignAll?: (sectionId: string, itemType: "stockEntry" | "menuItem", items: StockEntry[] | MenuItem[]) => void | Promise<void>;
+}
+
 //-----------------------------------------------------------------------------
 
 export interface SoldItem {
@@ -394,6 +417,16 @@ export interface UpdateMenuItemData {
   category?: MenuItemCategory;
   price?: number;
   ingredients?: MenuItemIngredient[];
+}
+
+export interface MenuItemBuilderProps {
+  stockEntries: StockEntryWithMaterial[];
+  materials?: Material[];
+  sections: Section[];
+  menuItems: MenuItem[];
+  onCreateMenuItem?: (data: MenuItem) => void;
+  onUpdateMenuItem?: (id: string, data: MenuItem) => void;
+  onDeleteMenuItem?: (id: string) => void;
 }
 
 //-----------------------------------------------------------------------------

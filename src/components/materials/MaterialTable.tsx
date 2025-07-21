@@ -2,20 +2,20 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MATERIAL_CATEGORIES, MaterialWithStock } from "@/types/inventory";
-import { Edit, Plus, Trash2 } from "lucide-react";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-
-interface MaterialTableProps {
-  filteredMaterials: MaterialWithStock[];
-  onEditMaterial: (material: MaterialWithStock) => void;
-  onAddStock: (materialId: string) => void;
-  onDeleteMaterial: (materialId: string) => void;
-}
+import { MATERIAL_CATEGORIES, MaterialTableProps } from "@/types/inventory";
+import { highlightText } from "@/utils/highlightText";
+import { Edit, Plus, Search, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
   const { setShowMaterialForm } = useInventoryStore();
+  const [searchTerm, setSearchTerm] = useState("");
+  const searchFilteredMaterials = filteredMaterials.filter(material => {
+    return !searchTerm || material.name.toLowerCase().includes(searchTerm.toLowerCase());
+  });
   return (
     <Card>
       <CardHeader>
@@ -25,6 +25,19 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
             <Plus className="h-4 w-4 mr-2" />
             Add Material
           </Button>
+        </div>
+
+        {/* Search Input */}
+        <div className="mt-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search by material name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+          </div>
+          {searchTerm && (
+            <div className="mt-2 text-sm text-muted-foreground">
+              Showing {searchFilteredMaterials.length} of {filteredMaterials.length} materials
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -41,9 +54,9 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
           <div className="h-[calc(100%-53px)] overflow-y-auto">
             <Table>
               <TableBody>
-                {filteredMaterials.map(material => (
+                {searchFilteredMaterials.map(material => (
                   <TableRow key={material.id}>
-                    <TableCell className="font-medium">{material.name}</TableCell>
+                    <TableCell className="font-medium">{highlightText(material.name, searchTerm)}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{MATERIAL_CATEGORIES.find(c => c.value === material.category)?.label}</Badge>
                     </TableCell>
