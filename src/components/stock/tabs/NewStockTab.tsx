@@ -202,14 +202,14 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 0.01);
-                          field.onChange(newValue.toFixed(2));
+                          const newValue = Math.max(0, currentValue - 0.0001);
+                          field.onChange(newValue.toFixed(4));
                         }}
                         disabled={parseFloat(field.value) <= 0}
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input type="number" step="0.0001" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <Button
                         type="button"
                         variant="outline"
@@ -217,8 +217,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = currentValue + 0.01;
-                          field.onChange(newValue.toFixed(2));
+                          const newValue = currentValue + 0.0001;
+                          field.onChange(newValue.toFixed(4));
                         }}
                       >
                         <Plus className="h-4 w-4" />
