@@ -47,6 +47,11 @@ const Sale = sequelize.define(
       allowNull: true,
       defaultValue: []
     },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,

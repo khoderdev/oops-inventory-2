@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ItemSale, SaleRecord, StockRestorationItem } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
-import { AlertCircle, ArrowRight, CheckCircle, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart, Undo2 } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart, Trash2, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -26,6 +26,10 @@ export function SalesHistoryPage() {
   const [isReverting, setIsReverting] = useState(false);
   const [revertSuccess, setRevertSuccess] = useState<string | null>(null);
   const [stockRestorationReport, setStockRestorationReport] = useState<StockRestorationItem[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedSaleForDelete, setSelectedSaleForDelete] = useState<SaleRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const fetchSales = useCallback(async () => {
@@ -62,16 +66,13 @@ export function SalesHistoryPage() {
 
     try {
       const response = await salesAPI.revertSale(selectedSaleForRevert.id.toString());
-
       // Update the sales list by removing the reverted sale
       setSales(prevSales => prevSales.filter(sale => sale.id !== selectedSaleForRevert.id));
-
       // Show success message with restoration details
       setStockRestorationReport(response.data.stockRestorationReport);
       setRevertSuccess(`Sale #${selectedSaleForRevert.id} successfully reverted. ${response.data.totalItemsRestored} items restored to stock.`);
-
-      // Auto-hide success message after 5 seconds
-      setTimeout(() => setRevertSuccess(null), 5000);
+      // Auto-hide success message after 1.5 seconds
+      setTimeout(() => setRevertSuccess(null), 1500);
     } catch (error: unknown) {
       console.error("Failed to revert sale:", error);
       const errorMessage = error && typeof error === "object" && "response" in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined;
@@ -86,6 +87,42 @@ export function SalesHistoryPage() {
   const cancelRevert = useCallback(() => {
     setRevertDialogOpen(false);
     setSelectedSaleForRevert(null);
+  }, []);
+
+  // Handle soft delete sale
+  const handleSoftDeleteSale = useCallback(async (sale: SaleRecord) => {
+    setSelectedSaleForDelete(sale);
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const confirmSoftDeleteSale = useCallback(async () => {
+    if (!selectedSaleForDelete) return;
+
+    setIsDeleting(true);
+    setError(null);
+
+    try {
+      const response = await salesAPI.softDeleteSale(selectedSaleForDelete.id.toString());
+      // Update the sales list by removing the soft deleted sale
+      setSales(prevSales => prevSales.filter(sale => sale.id !== selectedSaleForDelete.id));
+      // Show success message
+      setDeleteSuccess(`Sale #${selectedSaleForDelete.id} successfully hidden from view. ${response.data.note}`);
+      // Auto-hide success message after 1.5 seconds
+      setTimeout(() => setDeleteSuccess(null), 1500);
+    } catch (error: unknown) {
+      console.error("Failed to soft delete sale:", error);
+      const errorMessage = error && typeof error === "object" && "response" in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined;
+      setError(errorMessage || "Failed to hide sale. Please try again.");
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setSelectedSaleForDelete(null);
+    }
+  }, [selectedSaleForDelete]);
+
+  const cancelSoftDelete = useCallback(() => {
+    setDeleteDialogOpen(false);
+    setSelectedSaleForDelete(null);
   }, []);
 
   // Convert sales data to item-level sales
@@ -215,6 +252,14 @@ export function SalesHistoryPage() {
         <Alert className="border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">{revertSuccess}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Delete Success Alert */}
+      {deleteSuccess && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <CheckCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">{deleteSuccess}</AlertDescription>
         </Alert>
       )}
 
@@ -387,6 +432,18 @@ export function SalesHistoryPage() {
                           >
                             <Undo2 className="h-3 w-3" />
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const sale = sales.find(s => s.id === item.saleId);
+                              if (sale) handleSoftDeleteSale(sale);
+                            }}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Hide Sale"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -492,6 +549,47 @@ export function SalesHistoryPage() {
                 <>
                   <Undo2 className="mr-2 h-4 w-4" />
                   Revert Sale
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Soft Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hide Sale</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to hide sale #{selectedSaleForDelete?.id}?
+              <br />
+              <br />
+              <strong>This action will:</strong>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Hide the sale from the sales history view</li>
+                <li>Preserve the sale record in the database</li>
+                <li>Keep all stock levels unchanged</li>
+                <li>Allow the sale to be restored later if needed</li>
+              </ul>
+              <br />
+              <span className="text-blue-600 font-medium">This is a "soft delete" - the sale data is preserved but hidden from view.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelSoftDelete} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmSoftDeleteSale} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Hiding...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Hide Sale
                 </>
               )}
             </Button>

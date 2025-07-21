@@ -9,5 +9,6 @@ router.post("/", salesController.createSales);
 router.put("/:id", salesController.updateSales);
 router.delete("/:id", salesController.deleteSales);
 router.post("/:id/revert", salesController.revertSale);
+router.post("/:id/soft-delete", salesController.softDeleteSale);
 
 export default router;

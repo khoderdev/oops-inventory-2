@@ -58,6 +58,9 @@ const salesController = {
   getAllSales: async (req, res, next) => {
     try {
       const sales = await Sale.findAll({
+        where: {
+          isActive: true // Only return active sales (soft delete filter)
+        },
         include: [
           {
             model: Section,
@@ -865,6 +868,44 @@ const salesController = {
     } catch (error) {
       await transaction.rollback();
       console.error(`Error reverting sale ${id}:`, error);
+      next(error);
+    }
+  },
+
+  // Soft delete sale (mark as inactive without actually deleting)
+  softDeleteSale: async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      // Find the sale
+      const sale = await Sale.findByPk(id, { transaction });
+      if (!sale) {
+        await transaction.rollback();
+        return res.status(404).json({ error: "Sale not found" });
+      }
+      // Check if sale is already inactive
+      if (!sale.isActive) {
+        await transaction.rollback();
+        return res.status(400).json({ error: "Sale is already inactive" });
+      }
+      console.log(`\n=== SOFT DELETING SALE ${id} ===`);
+      console.log(`Sale Date: ${sale.saleDate}`);
+      console.log(`Total Amount: ${sale.totalAmount}`);
+      console.log(`Setting isActive to false - sale will be hidden from frontend`);
+      // Mark sale as inactive (soft delete)
+      await sale.update({ isActive: false }, { transaction });
+      await transaction.commit();
+      console.log(`\n=== SALE ${id} SUCCESSFULLY SOFT DELETED ===`);
+      console.log(`Sale is now hidden from frontend but preserved in database`);
+      res.status(200).json({
+        message: "Sale successfully hidden",
+        saleId: id,
+        action: "soft_delete",
+        note: "Sale record preserved in database but hidden from frontend"
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error(`Error soft deleting sale ${id}:`, error);
       next(error);
     }
   }
