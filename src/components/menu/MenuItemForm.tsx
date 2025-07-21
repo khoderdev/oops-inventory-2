@@ -318,7 +318,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
                   <TableHead>Material</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Unit</TableHead>
-                  <TableHead className="text-right">Total Cost</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right"></TableHead>
                 </TableRow>
               </TableHeader>
