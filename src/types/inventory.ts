@@ -293,6 +293,7 @@ export interface AssignmentFormProps {
   materials: Material[];
   menuItems: MenuItem[];
   assignment?: SectionAssignment;
+  existingAssignments?: SectionAssignment[];
   onSubmit: (data: CreateSectionAssignmentData | UpdateSectionAssignmentData) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;

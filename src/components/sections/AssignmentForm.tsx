@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { assignmentSchema } from "./assignmentSchema";
 
-export function AssignmentForm({ sections, stockEntries, materials, menuItems, assignment, onSubmit, onCancel, isLoading = false, selectedSectionId, onAssignAll }: AssignmentFormProps) {
+export function AssignmentForm({ sections, stockEntries, materials, menuItems, assignment, existingAssignments = [], onSubmit, onCancel, isLoading = false, selectedSectionId, onAssignAll }: AssignmentFormProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [isAssigningAll, setIsAssigningAll] = useState(false);
   const prevSelectedSectionIdRef = useRef<string | undefined>();
@@ -132,14 +132,51 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
   const availableIndividualQuantity = selectedStockEntry?.purchasedIndividualQuantity;
   const convertedAssignedQuantity = watchedItemType === "stockEntry" && watchedQuantity && watchedUnit && selectedStockEntry ? getConvertedQuantityForComparison(watchedQuantity, watchedUnit, selectedStockEntry.purchasedUnit) : watchedQuantity || 0;
   const exceedsAvailableStock = watchedItemType === "stockEntry" && convertedAssignedQuantity > 0 && availableQuantity > 0 && convertedAssignedQuantity > availableQuantity;
+  // Get already assigned items for the selected section to prevent duplications
+  const assignedStockEntryIds = useMemo(() => {
+    if (!watchedSectionId) return new Set();
+    // Filter assignments that have stockEntryId (indicating they are stock entry assignments)
+    const stockEntryAssignments = existingAssignments.filter(assignmentItem => 
+      assignmentItem.sectionId === watchedSectionId && 
+      assignmentItem.stockEntryId && // Has stockEntryId means it's a stock entry assignment
+      (!assignment || assignmentItem.id !== assignment.id) // Allow editing current assignment
+    );
+    const stockEntryIds = stockEntryAssignments.map(assignment => assignment.stockEntryId);
+    return new Set(stockEntryIds);
+  }, [existingAssignments, watchedSectionId, assignment?.id]);
+
+  const assignedMenuItemIds = useMemo(() => {
+    if (!watchedSectionId) return new Set();
+    // Filter assignments that have menuItemId (indicating they are menu item assignments)
+    const menuItemAssignments = existingAssignments.filter(assignmentItem => 
+      assignmentItem.sectionId === watchedSectionId && 
+      assignmentItem.menuItemId && // Has menuItemId means it's a menu item assignment
+      (!assignment || assignmentItem.id !== assignment.id) // Allow editing current assignment
+    );
+    const menuItemIds = menuItemAssignments.map(assignment => assignment.menuItemId);
+    return new Set(menuItemIds);
+  }, [existingAssignments, watchedSectionId, assignment?.id]);
+
+  // Filtered lists for dropdowns (prevent duplications in individual selection)
+  const availableStockEntries = useMemo(() => {
+    return stockEntries.filter(entry => 
+      entry.purchasedQuantity > 0 && 
+      !assignedStockEntryIds.has(entry.id)
+    );
+  }, [stockEntries, assignedStockEntryIds]);
+
+  const availableMenuItems = useMemo(() => {
+    return menuItems.filter(item => !assignedMenuItemIds.has(item.id));
+  }, [menuItems, assignedMenuItemIds]);
+
   const availableItemsForAssignAll = useMemo(() => {
     if (watchedItemType === "stockEntry") {
-      return stockEntries.filter(entry => entry.purchasedQuantity > 0);
+      return availableStockEntries;
     } else if (watchedItemType === "menuItem") {
-      return menuItems;
+      return availableMenuItems;
     }
     return [];
-  }, [watchedItemType, stockEntries, menuItems]);
+  }, [watchedItemType, availableStockEntries, availableMenuItems]);
   const showAssignAllButton = !assignment && watchedSectionId && onAssignAll && availableItemsForAssignAll.length > 0;
   const handleAssignAll = async () => {
     if (!watchedSectionId || !onAssignAll || isAssigningAll) return;
@@ -385,10 +422,10 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {stockEntries.length === 0 ? (
-                          <div className="p-2 text-sm text-muted-foreground text-center">No stock entries available</div>
+                        {availableStockEntries.length === 0 ? (
+                          <div className="p-2 text-sm text-muted-foreground text-center">{stockEntries.length === 0 ? "No stock entries available" : "No unassigned stock entries available for this section"}</div>
                         ) : (
-                          stockEntries.map(entry => {
+                          availableStockEntries.map(entry => {
                             const entryMaterial = materials.find(m => m.id === entry.materialId);
                             const isPackage = entryMaterial?.unitType === "package";
                             return (
@@ -437,10 +474,10 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {menuItems.length === 0 ? (
-                          <div className="p-2 text-sm text-muted-foreground text-center">No menu items available</div>
+                        {availableMenuItems.length === 0 ? (
+                          <div className="p-2 text-sm text-muted-foreground text-center">{menuItems.length === 0 ? "No menu items available" : "No unassigned menu items available for this section"}</div>
                         ) : (
-                          menuItems.map(item => (
+                          availableMenuItems.map(item => (
                             <SelectItem key={item.id} value={item.id}>
                               <div className="flex items-center justify-between w-full">
                                 <div className="flex flex-col min-w-0 flex-1">

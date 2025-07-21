@@ -441,6 +441,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
             materials={materials}
             menuItems={menuItems}
             assignment={editingAssignment}
+            existingAssignments={optimisticAssignments}
             selectedSectionId={selectedSectionId}
             onSubmit={handleAssignmentSubmit}
             onAssignAll={handleAssignAll}
