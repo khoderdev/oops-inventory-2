@@ -1,8 +1,11 @@
-import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, FileText, Home, Minus, Plus, TrendingUp, XCircle } from "lucide-react";
+import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Home, Minus, Plus, TrendingUp, XCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { closeDay, getCurrentDayActivities, getCurrentDayOperation, getDailyReport, getDayOperations, openDay } from "../api/dayOperations.api";
-import { ActivityLog, CloseDayRequest, DailyReportData, DayOperation, OpenDayRequest } from "../types/inventory";
+import DailyReports from "../components/analytics/DailyReports";
+import ViewReportButton from "../components/ui/ViewReportButton";
+import { useDailyReports } from "../hooks/useDailyReports";
+import { closeDay, getCurrentDayActivities, getCurrentDayOperation, getDayOperations, openDay } from "../api/dayOperations.api";
+import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
 
 const DayOperationsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,8 +32,9 @@ const DayOperationsPage: React.FC = () => {
   // Modal states
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<DailyReportData | null>(null);
+  
+  // Daily reports hook
+  const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
 
   useEffect(() => {
     loadData();
@@ -99,15 +103,7 @@ const DayOperationsPage: React.FC = () => {
     }
   };
 
-  const handleViewReport = async (date: string) => {
-    try {
-      const reportResponse = await getDailyReport(date);
-      setSelectedReport(reportResponse.report);
-      setShowReportModal(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load daily report");
-    }
-  };
+
 
   const formatCurrency = (amount: number | null | undefined) => {
     const numAmount = Number(amount) || 0;
@@ -154,6 +150,16 @@ const DayOperationsPage: React.FC = () => {
           <XCircle className="h-5 w-5 text-red-500 mr-3" />
           <span className="text-red-700">{error}</span>
           <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700">
+            ×
+          </button>
+        </div>
+      )}
+      
+      {reportError && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+          <XCircle className="h-5 w-5 text-red-500 mr-3" />
+          <span className="text-red-700">{reportError}</span>
+          <button onClick={() => setReportError(null)} className="ml-auto text-red-500 hover:text-red-700">
             ×
           </button>
         </div>
@@ -327,10 +333,11 @@ const DayOperationsPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     {day.autoReportGenerated && (
-                      <button onClick={() => handleViewReport(day.date)} className="text-blue-600 hover:text-blue-900 flex items-center">
-                        <FileText className="h-4 w-4 mr-1" />
-                        View Report
-                      </button>
+                      <ViewReportButton 
+                        date={day.date} 
+                        onClick={handleViewReport}
+                        loading={reportLoading}
+                      />
                     )}
                   </td>
                 </tr>
@@ -563,6 +570,15 @@ const DayOperationsPage: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {/* Daily Reports Modal */}
+      <DailyReports
+        showReportModal={showReportModal}
+        setShowReportModal={setShowReportModal}
+        selectedReport={selectedReport}
+        error={reportError}
+        setError={setReportError}
+      />
     </div>
   );
 };

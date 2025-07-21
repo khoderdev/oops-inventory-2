@@ -1,5 +1,5 @@
-import { FileText, TrendingUp, Package, ShoppingCart, AlertTriangle, Users, ChefHat } from "lucide-react";
-import { ReportConfig } from "./ReportGenerator";
+import { ReportConfig } from "@/types/inventory";
+import { AlertTriangle, ChefHat, FileText, Package, ShoppingCart, TrendingUp, Users } from "lucide-react";
 
 export type ReportType = "inventory-summary" | "stock-purchases" | "sales-performance" | "cost-analysis" | "supplier-performance" | "expiry-alerts" | "category-analysis" | "menu-profitability" | "section-performance";
 

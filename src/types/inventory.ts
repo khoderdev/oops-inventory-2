@@ -492,6 +492,8 @@ export interface StockFormProps {
   onCancel: () => void;
 }
 
+//-----------------------------------------------------------------------------
+
 export interface ReportConfig {
   id: ReportType;
   name: string;
@@ -502,6 +504,18 @@ export interface ReportConfig {
 
 export interface ReportGeneratorProps {
   className?: string;
+}
+
+export interface DailyReportsProps {
+  className?: string;
+}
+
+export interface DailyReportsModalProps {
+  showReportModal: boolean;
+  setShowReportModal: (show: boolean) => void;
+  selectedReport: DailyReportData | null;
+  error?: string | null;
+  setError?: (error: string | null) => void;
 }
 
 //-----------------------------------------------------------------------------
@@ -527,7 +541,7 @@ export interface StockVariance {
   closingQuantity: number;
   variance: number;
   unit: string;
-  varianceType: 'gain' | 'loss';
+  varianceType: "gain" | "loss";
 }
 
 export interface DailyReportData {
@@ -557,7 +571,7 @@ export interface DailyReportData {
 
 export interface ActivityLog {
   timestamp: Date;
-  type: 'SALE' | 'STOCK' | 'INVENTORY' | 'OTHER';
+  type: "SALE" | "STOCK" | "INVENTORY" | "OTHER";
   userId: string;
   details: {
     method: string;
@@ -571,7 +585,7 @@ export interface ActivityLog {
 export interface DayOperation {
   id: number;
   date: string;
-  status: 'opened' | 'closed';
+  status: "opened" | "closed";
   openedAt: Date;
   closedAt?: Date;
   openedBy: string;
@@ -636,5 +650,5 @@ export interface DayActivitiesResponse {
   activities: ActivityLog[];
   totalActivities: number;
   lastActivity?: Date;
-  dayStatus: 'opened' | 'closed';
+  dayStatus: "opened" | "closed";
 }
