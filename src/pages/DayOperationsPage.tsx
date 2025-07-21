@@ -1,4 +1,4 @@
-import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Home, Minus, Plus, RefreshCw, TrendingUp, XCircle } from "lucide-react";
+import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Home, Minus, Plus, RefreshCw, ToggleLeft, ToggleRight, TrendingUp, XCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { closeDay, getCurrentDayActivities, getCurrentDayOperation, getDayOperations, openDay } from "../api/dayOperations.api";
@@ -16,6 +16,7 @@ const DayOperationsPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showTotalSales, setShowTotalSales] = useState(true);
 
   // Form states
   const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({
@@ -236,7 +237,7 @@ const DayOperationsPage: React.FC = () => {
                     </button>
                   </div>
                 )}
-
+                // In the metrics grid section, replace the relevant part with:
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <div className="flex items-center">
@@ -246,13 +247,37 @@ const DayOperationsPage: React.FC = () => {
                     <p className="text-lg font-semibold text-blue-900">{formatCurrency(currentDay?.openingCash)}</p>
                   </div>
 
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <div className="flex items-center">
-                      <TrendingUp className="h-5 w-5 text-green-600 mr-2" />
-                      <span className="text-sm text-green-700">Total Sales</span>
+                  {/* Total Sales - conditionally shown based on toggle */}
+                  {showTotalSales && (
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <TrendingUp className="h-5 w-5 text-green-600 mr-2" />
+                          <span className="text-sm text-green-700">Total Sales</span>
+                        </div>
+                        <button onClick={() => setShowTotalSales(false)} className="text-gray-500 hover:text-gray-700" title="Show Expected Cash">
+                          <ToggleRight className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <p className="text-lg font-semibold text-green-900">{formatCurrency(currentDay?.totalSales)}</p>
                     </div>
-                    <p className="text-lg font-semibold text-green-900">{formatCurrency(currentDay?.totalSales)}</p>
-                  </div>
+                  )}
+
+                  {/* Expected Cash - conditionally shown based on toggle */}
+                  {!showTotalSales && (
+                    <div className="bg-orange-50 p-4 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Clock className="h-5 w-5 text-orange-600 mr-2" />
+                          <span className="text-sm text-orange-700">Expected Cash</span>
+                        </div>
+                        <button onClick={() => setShowTotalSales(true)} className="text-gray-500 hover:text-gray-700" title="Show Total Sales">
+                          <ToggleLeft className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <p className="text-lg font-semibold text-orange-900">{formatCurrency(currentDay?.expectedCash)}</p>
+                    </div>
+                  )}
 
                   <div className="bg-purple-50 p-4 rounded-lg">
                     <div className="flex items-center">
@@ -262,12 +287,12 @@ const DayOperationsPage: React.FC = () => {
                     <p className="text-lg font-semibold text-purple-900">{currentDay?.totalTransactions || 0}</p>
                   </div>
 
-                  <div className="bg-orange-50 p-4 rounded-lg">
+                  <div className="bg-red-50 p-4 rounded-lg">
                     <div className="flex items-center">
-                      <Clock className="h-5 w-5 text-orange-600 mr-2" />
-                      <span className="text-sm text-orange-700">Expected Cash</span>
+                      <DollarSign className="h-5 w-5 text-red-600 mr-2" />
+                      <span className="text-sm text-red-700">Cash Variance</span>
                     </div>
-                    <p className="text-lg font-semibold text-orange-900">{formatCurrency(currentDay?.expectedCash)}</p>
+                    <p className="text-lg font-semibold text-red-900">{formatCurrency(currentDay?.status === "closed" ? currentDay?.cashVariance : (currentDay?.expectedCash || 0) - (currentDay?.openingCash || 0))}</p>
                   </div>
                 </div>
               </div>
