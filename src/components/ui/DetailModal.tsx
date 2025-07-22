@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAssignment, SectionWithAssignments, StockEntry } from "@/types/inventory";
+import { InnerSection, Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAssignment, SectionWithAssignments, StockEntry, Tables } from "@/types/inventory";
 import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
 import { Plus, Trash2 } from "lucide-react";
@@ -10,8 +10,8 @@ interface DetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedItem: {
-    type: "material" | "stock" | "section" | "assignment";
-    data: MaterialWithSectionAssignments | StockEntry | Section | SectionAssignment;
+    type: "material" | "stock" | "section" | "assignment" | "innerSection" | "table";
+    data: MaterialWithSectionAssignments | StockEntry | Section | SectionAssignment | InnerSection | Tables;
   } | null;
   materialsWithSectionAssignments: MaterialWithSectionAssignments[];
   sectionsWithAssignments: SectionWithAssignments[];
@@ -150,7 +150,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   if (!selectedItem) return null;
 
   // Extract sections from sectionsWithAssignments for easy lookup
-  const sections = sectionsWithAssignments.map(s => ({ id: s.id, name: s.name, description: s.description }));
+  const sections = sectionsWithAssignments.map(s => ({ id: s.id, name: s.name }));
 
   const renderMaterialDetails = (material: MaterialWithSectionAssignments) => {
     const materialWithAssignments = materialsWithSectionAssignments.find(m => m.id === material.id);
@@ -248,7 +248,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
             <div>
               <h4 className="text-sm font-semibold text-muted-foreground">Cost per Unit</h4>
               <p className="font-medium">
-                {formatCurrency(material.costPerBaseUnit)} / {material.baseUnit}
+                {formatCurrency(material.costPerUnit)} / {material.baseUnit}
               </p>
             </div>
           </div>
@@ -427,7 +427,6 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
       <div className="space-y-4" key={`section-${section.id}-${forceUpdateKey}`}>
         <div>
           <h3 className="text-lg font-semibold">{section.name}</h3>
-          <p className="text-muted-foreground">{section.description}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -684,14 +683,6 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                 <h4 className="text-sm font-semibold text-muted-foreground">Price</h4>
                 <p className="font-medium">{formatCurrency(assignment.menuItem?.price || 0)}</p>
               </div>
-              <div>
-                <h4 className="text-sm font-semibold text-muted-foreground">Description</h4>
-                <p>{assignment.menuItem?.description || "No description"}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-muted-foreground">Created</h4>
-                <p>{assignment.menuItem?.createdAt ? new Date(assignment.menuItem.createdAt).toLocaleDateString() : "Unknown"}</p>
-              </div>
             </div>
           </div>
 
@@ -771,6 +762,91 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
     );
   };
 
+  const renderInnerSectionDetails = (innerSection: InnerSection) => {
+    const parentSection = sections.find(s => s.id.toString() === innerSection.sectionId.toString());
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-xl font-bold text-foreground">{innerSection.name}</h3>
+        </div>
+
+        <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Type</h4>
+              <p className="text-base capitalize">{innerSection.type || "Unknown"}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Parent Section</h4>
+              <p className="text-base">{parentSection?.name || "Unknown"}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Number of Tables</h4>
+              <p className="text-base">{(innerSection.tables || []).length}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Status</h4>
+              <p className="text-base capitalize">{innerSection.status || "Active"}</p>
+            </div>
+          </div>
+        </div>
+
+        {innerSection.tables && innerSection.tables.length > 0 && (
+          <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-2">
+            <h4 className="text-sm font-semibold text-muted-foreground">Tables</h4>
+            <div className="space-y-2">
+              {innerSection.tables.map(table => (
+                <div key={table.id} className="rounded-md bg-accent/30 px-4 py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-primary">{table.tableNumber}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${table.isReserved ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>{table.isReserved ? "Reserved" : "Available"}</span>
+                  </div>
+                  <span className="text-sm">Capacity: {table.capacity}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderTableDetails = (table: Tables) => {
+    const parentInnerSection = sections.flatMap(s => s.innerSections || []).find(is => is.id.toString() === table.innerSectionId.toString());
+
+    const parentSection = parentInnerSection ? sections.find(s => s.id.toString() === parentInnerSection.sectionId.toString()) : null;
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-xl font-bold text-foreground">Table {table.tableNumber}</h3>
+        </div>
+
+        <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Capacity</h4>
+              <p className="text-base">{table.capacity} people</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Status</h4>
+              <p className={`text-base ${table.isReserved ? "text-red-600" : "text-green-600"}`}>{table.isReserved ? "Reserved" : "Available"}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Inner Section</h4>
+              <p className="text-base">{parentInnerSection?.name || "Unknown"}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Parent Section</h4>
+              <p className="text-base">{parentSection?.name || "Unknown"}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -780,6 +856,8 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
             {selectedItem.type === "stock" && "Stock Entry Details"}
             {selectedItem.type === "section" && "Section Details"}
             {selectedItem.type === "assignment" && "Assignment Details"}
+            {selectedItem.type === "innerSection" && "Inner Section Details"}
+            {selectedItem.type === "table" && "Table Details"}
           </DialogTitle>
         </DialogHeader>
         <div className="py-4">
@@ -787,6 +865,8 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
           {selectedItem.type === "stock" && renderStockDetails(selectedItem.data as StockEntry)}
           {selectedItem.type === "section" && renderSectionDetails(selectedItem.data as Section)}
           {selectedItem.type === "assignment" && renderAssignmentDetails(selectedItem.data as SectionAssignment & { stockEntry?: StockEntry; material?: Material; menuItem?: MenuItem })}
+          {selectedItem.type === "innerSection" && renderInnerSectionDetails(selectedItem.data as InnerSection)}
+          {selectedItem.type === "table" && renderTableDetails(selectedItem.data as Tables)}
         </div>
       </DialogContent>
     </Dialog>

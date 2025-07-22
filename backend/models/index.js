@@ -1,6 +1,7 @@
 import sequelize from "../config/database.js";
 import Assignment from "./Assignment.js";
 import DayOperation from "./dayOperation.js";
+import { InnerSection, Table } from "./InnerSection.js";
 import Material from "./materials.js";
 import { MenuItem, MenuItemIngredient } from "./menuItems.js";
 import Sale from "./sale.js";
@@ -166,4 +167,43 @@ Section.hasMany(Sale, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, DayOperation, Material, MenuItem, MenuItemIngredient, Sale, SaleMenuItem, Section, sequelize, StockEntry };
+Section.hasMany(InnerSection, {
+  foreignKey: "sectionId",
+  as: "innerSections",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+InnerSection.belongsTo(Section, {
+  foreignKey: "sectionId",
+  as: "section",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+InnerSection.hasMany(Table, {
+  foreignKey: "innerSectionId",
+  as: "tables",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+Table.belongsTo(InnerSection, {
+  foreignKey: "innerSectionId",
+  as: "innerSection",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+Table.hasMany(Sale, {
+  foreignKey: "tableId",
+  as: "sales",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Sale.belongsTo(Table, {
+  foreignKey: "tableId",
+  as: "table",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+export { Assignment, DayOperation, InnerSection, Material, MenuItem, MenuItemIngredient, Sale, SaleMenuItem, Section, sequelize, StockEntry, Table };

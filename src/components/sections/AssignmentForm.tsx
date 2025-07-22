@@ -136,10 +136,11 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
   const assignedStockEntryIds = useMemo(() => {
     if (!watchedSectionId) return new Set();
     // Filter assignments that have stockEntryId (indicating they are stock entry assignments)
-    const stockEntryAssignments = existingAssignments.filter(assignmentItem => 
-      assignmentItem.sectionId === watchedSectionId && 
-      assignmentItem.stockEntryId && // Has stockEntryId means it's a stock entry assignment
-      (!assignment || assignmentItem.id !== assignment.id) // Allow editing current assignment
+    const stockEntryAssignments = existingAssignments.filter(
+      assignmentItem =>
+        assignmentItem.sectionId === watchedSectionId &&
+        assignmentItem.stockEntryId && // Has stockEntryId means it's a stock entry assignment
+        (!assignment || assignmentItem.id !== assignment.id) // Allow editing current assignment
     );
     const stockEntryIds = stockEntryAssignments.map(assignment => assignment.stockEntryId);
     return new Set(stockEntryIds);
@@ -148,10 +149,11 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
   const assignedMenuItemIds = useMemo(() => {
     if (!watchedSectionId) return new Set();
     // Filter assignments that have menuItemId (indicating they are menu item assignments)
-    const menuItemAssignments = existingAssignments.filter(assignmentItem => 
-      assignmentItem.sectionId === watchedSectionId && 
-      assignmentItem.menuItemId && // Has menuItemId means it's a menu item assignment
-      (!assignment || assignmentItem.id !== assignment.id) // Allow editing current assignment
+    const menuItemAssignments = existingAssignments.filter(
+      assignmentItem =>
+        assignmentItem.sectionId === watchedSectionId &&
+        assignmentItem.menuItemId && // Has menuItemId means it's a menu item assignment
+        (!assignment || assignmentItem.id !== assignment.id) // Allow editing current assignment
     );
     const menuItemIds = menuItemAssignments.map(assignment => assignment.menuItemId);
     return new Set(menuItemIds);
@@ -159,10 +161,7 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
 
   // Filtered lists for dropdowns (prevent duplications in individual selection)
   const availableStockEntries = useMemo(() => {
-    return stockEntries.filter(entry => 
-      entry.purchasedQuantity > 0 && 
-      !assignedStockEntryIds.has(entry.id)
-    );
+    return stockEntries.filter(entry => entry.purchasedQuantity > 0 && !assignedStockEntryIds.has(entry.id));
   }, [stockEntries, assignedStockEntryIds]);
 
   const availableMenuItems = useMemo(() => {
@@ -274,7 +273,6 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
             <Badge variant="secondary" className="text-sm">
               <Package className="h-3 w-3 mr-1" />
               Adding to: {selectedSection.name}
-              {selectedSection.description && <span className="text-xs text-muted-foreground ml-1">• {selectedSection.description}</span>}
             </Badge>
           </div>
         )}
@@ -303,7 +301,6 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                         <div className="h-10 px-3 py-2 border border-input rounded-md bg-muted flex items-center justify-between">
                           <div className="flex flex-col">
                             <span className="font-medium text-foreground">{selectedSection.name}</span>
-                            {selectedSection.description && <span className="text-xs text-muted-foreground">{selectedSection.description}</span>}
                           </div>
                           <Badge variant="outline" className="text-xs">
                             Pre-selected
@@ -327,7 +324,6 @@ export function AssignmentForm({ sections, stockEntries, materials, menuItems, a
                                 <SelectItem key={section.id} value={section.id}>
                                   <div className="flex flex-col">
                                     <span className="font-medium">{section.name}</span>
-                                    {section.description && <span className="text-xs text-muted-foreground truncate">{section.description}</span>}
                                   </div>
                                 </SelectItem>
                               );

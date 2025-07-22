@@ -36,6 +36,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
     filteredMaterials,
     stockEntries,
     sections,
+    innerSections,
     sectionAssignments,
     menuItems,
     activeTab,
@@ -140,11 +141,11 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         </TabsContent>
 
         <TabsContent value="sections">
-          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
+          <SectionsManagementPanel innerSections={innerSections} sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onDataRefresh={handleDataRefresh} />
         </TabsContent>
 
         <TabsContent value="menu">
-          <MenuItemBuilder stockEntries={stockEntries} materials={filteredMaterials} sections={sections} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
+          <MenuItemBuilder stockEntries={stockEntries} materials={filteredMaterials} sections={sections} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} innerSections={[]} tables={[]} />
         </TabsContent>
 
         <TabsContent value="conversions">

@@ -3,10 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Section, SectionAssignment, SectionWithAssignments } from "@/types/inventory";
-import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
+import { CreateSectionAssignmentData, Section, SectionAssignment, SectionWithAssignments } from "@/types/inventory";
+import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertTriangle, Edit, Package, Plus, Trash2 } from "lucide-react";
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 interface SectionsTableProps {
@@ -20,9 +20,12 @@ interface SectionsTableProps {
   handleDeleteSection: (sectionId: string) => void;
   setSelectedSectionId: (id: string) => void;
   setShowAssignmentForm: (show: boolean) => void;
+  handleCreateAssignment: (data: CreateSectionAssignmentData) => Promise<void>;
   setEditingAssignment: (assignment: SectionAssignment | undefined) => void;
   handleDeleteAssignment: (assignmentId: string) => void;
   isLoading?: boolean;
+  createAssignment: (data: CreateSectionAssignmentData) => Promise<SectionAssignment>;
+  sectionAssignments: SectionAssignment[];
 }
 
 // Memoized action buttons component for better performance
@@ -83,98 +86,6 @@ const ActionButtons = memo(({ onEdit, onDelete, onAdd, deleteTitle, deleteDescri
 
 ActionButtons.displayName = "ActionButtons";
 
-// Memoized assignment row component
-const AssignmentRow = memo(({ assignment, onRowClick, onEdit, onDelete }: { assignment: SectionAssignment; onRowClick: () => void; onEdit: () => void; onDelete: () => void }) => {
-  const calculatedValue = useMemo(() => {
-    if (!assignment.stockEntry || !assignment.assignedQuantity) return 0;
-
-    const costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
-    const assignedUnit = assignment.assignedUnit || "";
-    const purchasedUnit = assignment.stockEntry.purchasedUnit || "";
-    const assignedQuantity = assignment.assignedQuantity || 0;
-
-    // If units are the same, simple multiplication
-    if (assignedUnit === purchasedUnit) {
-      return assignedQuantity * costPerUnit;
-    }
-
-    // Convert assigned quantity to purchased unit for cost calculation
-    let convertedQuantity = assignedQuantity;
-
-    // Handle mass unit conversions
-    if (isMassUnit(assignedUnit) && isMassUnit(purchasedUnit)) {
-      convertedQuantity = convertMass(assignedQuantity, assignedUnit, purchasedUnit);
-    }
-    // Handle volume unit conversions
-    else if (isVolumeUnit(assignedUnit) && isVolumeUnit(purchasedUnit)) {
-      convertedQuantity = convertVolume(assignedQuantity, assignedUnit, purchasedUnit);
-    }
-    // Handle package unit conversions
-    else if (assignment.material?.unitType === "package" && assignment.material.packageQuantity) {
-      // If assigning in base unit but stock is in package unit
-      if (assignedUnit === assignment.material.baseUnit && purchasedUnit === assignment.material.inputUnit) {
-        convertedQuantity = assignedQuantity / assignment.material.packageQuantity;
-      }
-      // If assigning in package unit but stock is in base unit
-      else if (assignedUnit === assignment.material.inputUnit && purchasedUnit === assignment.material.baseUnit) {
-        convertedQuantity = assignedQuantity * assignment.material.packageQuantity;
-      }
-    }
-
-    return convertedQuantity * costPerUnit;
-  }, [assignment]);
-
-  const isPackageUnit = assignment.material?.unitType === "package";
-  const displayQuantity = useMemo(() => {
-    const assignedQty = assignment.assignedQuantity || 0;
-    const assignedUnit = assignment.assignedUnit || "";
-
-    if (isPackageUnit && assignment.assignedIndividualQuantity) {
-      const individualQty = assignment.assignedIndividualQuantity || 0;
-      const baseUnit = assignment.material?.baseUnit || "";
-      return `${formatNumber(assignedQty)} ${assignedUnit} (${formatNumber(individualQty)} ${baseUnit})`;
-    }
-    return `${formatNumber(assignedQty)} ${assignedUnit}`;
-  }, [assignment, isPackageUnit]);
-
-  return (
-    <TableRow
-      onClick={onRowClick}
-      className="cursor-pointer hover:bg-muted/50 transition-colors"
-      role="button"
-      tabIndex={0}
-      onKeyDown={e => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onRowClick();
-        }
-      }}
-    >
-      <TableCell className="min-w-0">
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="font-medium truncate">{assignment.material?.name || "Unknown Material"}</div>
-            {assignment.notes && <div className="text-sm text-muted-foreground truncate mt-1">{assignment.notes}</div>}
-          </div>
-          {isPackageUnit && (
-            <Badge variant="secondary" className="shrink-0">
-              <Package className="h-3 w-3 mr-1" />
-              Package
-            </Badge>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="font-mono text-sm">{displayQuantity}</TableCell>
-      <TableCell className="font-medium">{formatCurrency(calculatedValue)}</TableCell>
-      <TableCell className="w-24">
-        <ActionButtons onEdit={() => onEdit()} onDelete={onDelete} deleteTitle="Remove Assignment" deleteDescription="This will remove this item from the section but won't delete the stock entry." itemName={assignment.material?.name || "assignment"} />
-      </TableCell>
-    </TableRow>
-  );
-});
-
-AssignmentRow.displayName = "AssignmentRow";
-
 export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId, sections, setSelectedItem, setIsDetailModalOpen, setEditingSection, setShowSectionForm, handleDeleteSection, setSelectedSectionId, setShowAssignmentForm, setEditingAssignment, handleDeleteAssignment, isLoading = false }: SectionsTableProps) => {
   // Memoized callbacks for better performance
   const handleSectionRowClick = useCallback(
@@ -182,17 +93,6 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
       setSelectedItem({
         type: "section",
         data: section
-      });
-      setIsDetailModalOpen(true);
-    },
-    [setSelectedItem, setIsDetailModalOpen]
-  );
-
-  const handleAssignmentRowClick = useCallback(
-    (assignment: SectionAssignment) => {
-      setSelectedItem({
-        type: "assignment",
-        data: assignment
       });
       setIsDetailModalOpen(true);
     },
@@ -214,22 +114,6 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
     },
     [setSelectedSectionId, setShowAssignmentForm]
   );
-
-  const handleEditAssignment = useCallback(
-    (assignment: SectionAssignment) => {
-      setEditingAssignment(assignment);
-      setShowAssignmentForm(true);
-    },
-    [setEditingAssignment, setShowAssignmentForm]
-  );
-
-  const selectedSection = useMemo(() => {
-    return selectedSectionId ? sectionsWithAssignments.find(s => s.id === selectedSectionId) : null;
-  }, [selectedSectionId, sectionsWithAssignments]);
-
-  const selectedSectionName = useMemo(() => {
-    return sections.find(s => s.id === selectedSectionId)?.name || "Unknown Section";
-  }, [sections, selectedSectionId]);
 
   if (isLoading) {
     return (
@@ -305,11 +189,8 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
                     >
                       <TableCell className="min-w-0">
                         <div className="font-medium truncate">{section.name}</div>
-                        <div className="text-sm text-muted-foreground truncate md:hidden">{section.description}</div>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="text-sm text-muted-foreground max-w-[200px] truncate">{section.description || "No description"}</div>
-                      </TableCell>
+                      <TableCell className="hidden md:table-cell"></TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline" className="font-mono">
                           {section.assignments.length}
@@ -327,57 +208,6 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
           )}
         </CardContent>
       </Card>
-
-      {/* Selected Section Details */}
-      {selectedSection && (
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg sm:text-xl">{selectedSectionName} - Items</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {selectedSection.assignments.length} items • Total value: {formatCurrency(selectedSection.totalValue)}
-                </p>
-              </div>
-              <Button size="sm" onClick={() => handleAddAssignment(selectedSectionId)} className="shrink-0">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Item
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {selectedSection.assignments.length === 0 ? (
-              <div className="text-center py-12 px-4">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No items assigned</h3>
-                <p className="text-muted-foreground mb-4">Add items to this section to start organizing your inventory.</p>
-                <Button onClick={() => handleAddAssignment(selectedSectionId)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Item
-                </Button>
-              </div>
-            ) : (
-              <ScrollArea className="h-[300px]">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-background">
-                    <TableRow>
-                      <TableHead className="w-[200px] sm:w-[250px]">Material</TableHead>
-                      <TableHead className="w-[150px] text-center">Quantity</TableHead>
-                      <TableHead className="w-[120px] text-right">Value</TableHead>
-                      <TableHead className="w-[100px] text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedSection.assignments.map(assignment => (
-                      <AssignmentRow key={assignment.id} assignment={assignment} onRowClick={() => handleAssignmentRowClick(assignment)} onEdit={() => handleEditAssignment(assignment)} onDelete={() => handleDeleteAssignment(assignment.id)} />
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </>
   );
 });

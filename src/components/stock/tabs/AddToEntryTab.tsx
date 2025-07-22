@@ -90,7 +90,6 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       costPerPurchasedUnit: parseFloat(data.costPerPurchasedUnit) || 0,
       totalCost: parseFloat(data.totalCost) || 0
     };
-    console.log("Submitting:", specificEntryData);
     onAddToSpecificEntry(specificEntryData);
   };
 

@@ -560,18 +560,9 @@ export function SalesHistoryPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              console.log(
-                                "Revert clicked for saleId:",
-                                item.saleId,
-                                "Available sales:",
-                                sales.map(s => s.id)
-                              );
                               const sale = sales.find(s => s.id.toString() === item.saleId);
                               if (sale) {
-                                console.log("Found sale:", sale);
                                 handleRevertSale(sale);
-                              } else {
-                                console.log("Sale not found!");
                               }
                             }}
                             className="h-8 w-8 p-0"
@@ -583,18 +574,9 @@ export function SalesHistoryPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              console.log(
-                                "Delete clicked for saleId:",
-                                item.saleId,
-                                "Available sales:",
-                                sales.map(s => s.id)
-                              );
                               const sale = sales.find(s => s.id.toString() === item.saleId);
                               if (sale) {
-                                console.log("Found sale:", sale);
                                 handleSoftDeleteSale(sale);
-                              } else {
-                                console.log("Sale not found!");
                               }
                             }}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"

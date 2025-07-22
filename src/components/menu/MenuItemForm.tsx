@@ -46,8 +46,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         return 0;
       }
 
-      console.log(`Calculating cost for ingredient: ${material.name}, Quantity: ${ingredient.quantity}, Unit: ${ingredient.unit}`);
-
       // Get stock entries with valid costPerBaseUnit
       const materialStockEntries = stockEntries.filter(
         entry => String(entry.materialId) === String(ingredient.materialId) && entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0 // Exclude zero-cost entries
@@ -56,7 +54,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       let costPerUnit = 0;
 
       if (materialStockEntries.length > 0) {
-        console.log(`Valid stock entries for ${material.name}:`, materialStockEntries);
         // Calculate weighted average cost
         const { totalCost, totalQuantity } = materialStockEntries.reduce(
           (acc, entry) => {
@@ -72,7 +69,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
         if (totalQuantity > 0) {
           costPerUnit = parseFloat((totalCost / totalQuantity).toFixed(8));
-          console.log(`Weighted average cost per unit for ${material.name}: ${costPerUnit}`);
         } else {
           console.warn(`No valid quantity for stock entries of ${material.name}`);
         }
@@ -93,7 +89,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
           );
           if (totalQuantity > 0) {
             costPerUnit = parseFloat((totalCost / totalQuantity).toFixed(8));
-            console.log(`Fallback cost per unit for ${material.name}: ${costPerUnit}`);
           }
         }
         if (costPerUnit === 0) {
@@ -103,11 +98,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
       // Convert ingredient quantity to base units
       const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
-      console.log(`Conversion factor: ${ingredient.unit} to ${material.baseUnit} = ${conversionFactor}`);
-
       const finalCost = ingredient.quantity * conversionFactor * costPerUnit;
-      console.log(`Final cost: ${ingredient.quantity} * ${conversionFactor} * ${costPerUnit} = ${finalCost}`);
-
       return finalCost;
     },
     [materials, stockEntries]
@@ -141,7 +132,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   const totalIngredientsCost = useMemo(() => {
     const total = ingredients.reduce((total, ingredient) => total + calculateIngredientCost(ingredient), 0);
-    console.log(`Total ingredients cost: ${total}`);
     return total;
   }, [ingredients, calculateIngredientCost]);
 

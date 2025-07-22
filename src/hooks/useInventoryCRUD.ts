@@ -1,5 +1,5 @@
 import { inventoryAPI } from "@/api/inventory.api";
-import { CreateMaterialData, CreateMenuItemData, CreateSectionAssignmentData, CreateSectionData, CreateStockEntryData, Material, MenuItem, Section, SectionAssignment, StockEntry, UpdateMaterialData, UpdateMenuItemData, UpdateSectionAssignmentData, UpdateSectionData, UpdateStockEntryData } from "@/types/inventory";
+import { CreateInnerSectionData, CreateMaterialData, CreateMenuItemData, CreateSectionAssignmentData, CreateSectionData, CreateStockEntryData, CreateTableData, InnerSection, Material, MenuItem, Section, SectionAssignment, StockEntry, Tables, UpdateInnerSectionData, UpdateMaterialData, UpdateMenuItemData, UpdateSectionAssignmentData, UpdateSectionData, UpdateStockEntryData, UpdateTableData } from "@/types/inventory";
 import { useState } from "react";
 
 export const useInventoryCRUD = (refetch: () => void) => {
@@ -231,6 +231,157 @@ export const useInventoryCRUD = (refetch: () => void) => {
     }
   };
 
+  // Inner Sections CRUD
+  const createInnerSection = async (data: CreateInnerSectionData): Promise<InnerSection> => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await inventoryAPI.sections.createInnerSection(data);
+      refetch();
+      return {
+        ...response.data,
+        id: response.data.id.toString(),
+        sectionId: response.data.sectionId.toString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        tables: []
+      };
+    } catch (error) {
+      handleError(error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateInnerSection = async (id: string, data: UpdateInnerSectionData): Promise<InnerSection> => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await inventoryAPI.sections.updateInnerSection(id, data);
+      refetch();
+      return {
+        ...response.data,
+        id: response.data.id.toString(),
+        sectionId: response.data.sectionId.toString(),
+        updatedAt: new Date()
+      };
+    } catch (error) {
+      handleError(error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getInnerSections = async (sectionId: string): Promise<InnerSection[]> => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await inventoryAPI.sections.getInnerSections(sectionId);
+      return response.data.map(section => ({
+        ...section,
+        id: section.id.toString(),
+        sectionId: section.sectionId.toString(),
+        createdAt: new Date(section.createdAt),
+        updatedAt: new Date(section.updatedAt)
+      }));
+    } catch (error) {
+      handleError(error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteInnerSection = async (id: string): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+      await inventoryAPI.sections.deleteInnerSection(id);
+      refetch();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Tables CRUD Operations
+  const createTable = async (data: CreateTableData): Promise<Tables> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Ensure proper data formatting
+      const formattedData = {
+        ...data,
+        innerSectionId: String(data.innerSectionId), // Convert to string
+        capacity: Number(data.capacity) // Ensure number
+      };
+
+      const response = await inventoryAPI.sections.createTable(formattedData);
+
+      // Refresh data
+      await refetch();
+
+      // Return properly formatted response
+      return {
+        ...response.data,
+        id: String(response.data.id),
+        innerSectionId: String(response.data.innerSectionId),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    } catch (error) {
+      handleError(error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateTable = async (id: string, data: UpdateTableData): Promise<Tables> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const formattedData = {
+        ...data,
+        innerSectionId: String(data.innerSectionId),
+        capacity: Number(data.capacity)
+      };
+
+      const response = await inventoryAPI.sections.updateTable(id, formattedData);
+      await refetch();
+
+      return {
+        ...response.data,
+        id: String(response.data.id),
+        innerSectionId: String(response.data.innerSectionId),
+        updatedAt: new Date()
+      };
+    } catch (error) {
+      handleError(error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteTable = async (id: string): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+      await inventoryAPI.sections.deleteTable(id);
+      await refetch();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Assignments CRUD
   const createAssignment = async (data: CreateSectionAssignmentData): Promise<SectionAssignment> => {
     try {
@@ -311,6 +462,15 @@ export const useInventoryCRUD = (refetch: () => void) => {
     createSection,
     updateSection,
     deleteSection,
+    // Inner Sections
+    createInnerSection,
+    getInnerSections,
+    updateInnerSection,
+    deleteInnerSection,
+    // Tables
+    createTable,
+    updateTable,
+    deleteTable,
     // Assignments
     createAssignment,
     updateAssignment,

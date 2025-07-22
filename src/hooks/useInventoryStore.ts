@@ -1,9 +1,9 @@
-import { activeTabAtom, categoryFilterAtom, filteredMaterialsAtom, lowStockFilterAtom, materialsWithStockAtom, menuItemsAtom, optimisticStockEntriesAtom, searchTermAtom, sectionAssignmentsAtom, sectionsAtom, selectedMaterialAtom, selectedSectionAtom, selectedStockEntryAtom, showMaterialFormAtom, showSectionFormAtom, showStockFormAtom, tabErrorAtom, tabLoadingAtom } from "@/store/inventoryAtoms";
+import { activeTabAtom, categoryFilterAtom, filteredMaterialsAtom, innerSectionsAtom, lowStockFilterAtom, materialsWithStockAtom, menuItemsAtom, optimisticStockEntriesAtom, searchTermAtom, sectionAssignmentsAtom, sectionsAtom, selectedMaterialAtom, selectedSectionAtom, selectedStockEntryAtom, showMaterialFormAtom, showSectionFormAtom, showStockFormAtom, tabErrorAtom, tabLoadingAtom } from "@/store/inventoryAtoms";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 
-import { createMaterialAction, createMenuItemAction, createStockEntryAction, deleteMaterialAction, deleteMenuItemAction, deleteStockEntryAction, fetchTabDataAction, updateMaterialAction, updateMenuItemAction, updateStockEntryAction, addToStockAction, recordWasteAction, addToSpecificEntryAction, wasteFromSpecificEntryAction } from "@/store/inventoryActions";
-import { MaterialCategory, MaterialWithStock, MenuItem, Section, StockEntry, UnitType, AddStockData, RecordWasteData, StockFormData } from "@/types/inventory";
+import { addToSpecificEntryAction, addToStockAction, createMaterialAction, createMenuItemAction, createStockEntryAction, deleteMaterialAction, deleteMenuItemAction, deleteStockEntryAction, fetchTabDataAction, recordWasteAction, updateMaterialAction, updateMenuItemAction, updateStockEntryAction, wasteFromSpecificEntryAction } from "@/store/inventoryActions";
+import { AddStockData, MaterialCategory, MaterialWithStock, MenuItem, RecordWasteData, Section, StockEntry, StockFormData, UnitType } from "@/types/inventory";
 import { toast } from "./use-toast";
 
 // Form data interface
@@ -22,6 +22,7 @@ export function useInventoryStore() {
   const filteredMaterials = useAtomValue(filteredMaterialsAtom);
   const stockEntries = useAtomValue(optimisticStockEntriesAtom);
   const sections = useAtomValue(sectionsAtom);
+  const innerSections = useAtomValue(innerSectionsAtom);
   const sectionAssignments = useAtomValue(sectionAssignmentsAtom);
   const menuItems = useAtomValue(menuItemsAtom);
   const [activeTab, setActiveTab] = useAtom(activeTabAtom);
@@ -81,7 +82,6 @@ export function useInventoryStore() {
           unitType: data.unitType,
           inputUnit: data.inputUnit,
           costPerUnit: selectedMaterial?.costPerUnit || 0,
-          costPerBaseUnit: selectedMaterial?.costPerBaseUnit || 0,
           packageQuantity: data.packageQuantity,
           description: data.description,
           createdAt: selectedMaterial?.createdAt || new Date(),
@@ -115,20 +115,20 @@ export function useInventoryStore() {
         } else {
           await createStockEntry(data);
         }
-        
+
         // Refresh stock data to ensure materials are updated with new stock information
-        await fetchTabData('stock');
-        
+        await fetchTabData("stock");
+
         toast({
           title: selectedStockEntry ? "Stock Entry Updated" : "Stock Entry Created",
-          description: selectedStockEntry ? "Stock entry has been updated successfully" : "New stock entry has been created successfully",
+          description: selectedStockEntry ? "Stock entry has been updated successfully" : "New stock entry has been created successfully"
         });
-        
+
         setShowStockFormTyped(false);
         setSelectedStockEntryTyped(null);
         setSelectedMaterialTyped(null);
       } catch (error) {
-        console.error('Failed to submit stock entry:', error);
+        console.error("Failed to submit stock entry:", error);
         // Error is already handled in the action
       }
     },
@@ -167,7 +167,7 @@ export function useInventoryStore() {
       try {
         await deleteMaterial(id);
       } catch (error) {
-        console.error('Failed to delete material:', error);
+        console.error("Failed to delete material:", error);
         // Error handling is already done in the action
       }
     },
@@ -178,16 +178,16 @@ export function useInventoryStore() {
     async (id: string) => {
       try {
         await deleteStockEntry(id);
-        
+
         // Refresh stock data to ensure materials are updated with removed stock information
-        await fetchTabData('stock');
-        
+        await fetchTabData("stock");
+
         toast({
           title: "Stock Entry Deleted",
-          description: "Stock entry has been removed successfully",
+          description: "Stock entry has been removed successfully"
         });
       } catch (error) {
-        console.error('Failed to delete stock entry:', error);
+        console.error("Failed to delete stock entry:", error);
         toast({
           title: "Error",
           description: "Failed to delete stock entry",
@@ -204,7 +204,7 @@ export function useInventoryStore() {
       try {
         await createMenuItem(data);
       } catch (error) {
-        console.error('Failed to create menu item:', error);
+        console.error("Failed to create menu item:", error);
         // Error handling is already done in the action
       }
     },
@@ -216,7 +216,7 @@ export function useInventoryStore() {
       try {
         await updateMenuItem({ id, data });
       } catch (error) {
-        console.error('Failed to update menu item:', error);
+        console.error("Failed to update menu item:", error);
         // Error handling is already done in the action
       }
     },
@@ -228,7 +228,7 @@ export function useInventoryStore() {
       try {
         await deleteMenuItem(id);
       } catch (error) {
-        console.error('Failed to delete menu item:', error);
+        console.error("Failed to delete menu item:", error);
         // Error handling is already done in the action
       }
     },
@@ -246,20 +246,20 @@ export function useInventoryStore() {
           notes: data.notes
         };
         const result = await addToStock(addStockData);
-        
+
         // Refresh stock data to ensure materials are updated with new stock information
-        await fetchTabData('stock');
-        
+        await fetchTabData("stock");
+
         toast({
           title: "Stock Added Successfully",
-          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to inventory`,
+          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to inventory`
         });
-        
+
         setShowStockFormTyped(false);
         setSelectedMaterialTyped(null);
         return result;
       } catch (error) {
-        console.error('Failed to add stock:', error);
+        console.error("Failed to add stock:", error);
         throw error;
       }
     },
@@ -278,20 +278,20 @@ export function useInventoryStore() {
           notes: data.notes
         };
         const result = await recordWaste(wasteData);
-        
+
         // Refresh stock data to ensure materials are updated with new stock information
-        await fetchTabData('stock');
-        
+        await fetchTabData("stock");
+
         toast({
           title: "Waste Recorded Successfully",
-          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from inventory`,
+          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from inventory`
         });
-        
+
         setShowStockFormTyped(false);
         setSelectedMaterialTyped(null);
         return result;
       } catch (error) {
-        console.error('Failed to record waste:', error);
+        console.error("Failed to record waste:", error);
         throw error;
       }
     },
@@ -302,9 +302,9 @@ export function useInventoryStore() {
     async (data: StockFormData & { stockEntryId?: string }) => {
       try {
         if (!data.stockEntryId) {
-          throw new Error('Stock entry ID is required for specific entry operations');
+          throw new Error("Stock entry ID is required for specific entry operations");
         }
-        
+
         const result = await addToSpecificEntry({
           entryId: data.stockEntryId,
           additionalQuantity: data.purchasedQuantity,
@@ -312,21 +312,21 @@ export function useInventoryStore() {
           additionDate: data.purchaseDate,
           notes: data.notes
         });
-        
+
         // Refresh stock data to ensure materials are updated with new stock information
-        await fetchTabData('stock');
-        
+        await fetchTabData("stock");
+
         toast({
           title: "Quantity Added Successfully",
-          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to stock entry`,
+          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to stock entry`
         });
-        
+
         setShowStockFormTyped(false);
         setSelectedStockEntryTyped(null);
         setSelectedMaterialTyped(null);
         return result;
       } catch (error) {
-        console.error('Failed to add to specific entry:', error);
+        console.error("Failed to add to specific entry:", error);
         throw error;
       }
     },
@@ -337,9 +337,9 @@ export function useInventoryStore() {
     async (data: StockFormData & { stockEntryId?: string }) => {
       try {
         if (!data.stockEntryId) {
-          throw new Error('Stock entry ID is required for specific entry operations');
+          throw new Error("Stock entry ID is required for specific entry operations");
         }
-        
+
         const result = await wasteFromSpecificEntry({
           entryId: data.stockEntryId,
           wasteQuantity: data.purchasedQuantity,
@@ -348,21 +348,21 @@ export function useInventoryStore() {
           wasteDate: data.purchaseDate,
           notes: data.notes
         });
-        
+
         // Refresh stock data to ensure materials are updated with new stock information
-        await fetchTabData('stock');
-        
+        await fetchTabData("stock");
+
         toast({
           title: "Waste Recorded Successfully",
-          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from stock entry`,
+          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from stock entry`
         });
-        
+
         setShowStockFormTyped(false);
         setSelectedStockEntryTyped(null);
         setSelectedMaterialTyped(null);
         return result;
       } catch (error) {
-        console.error('Failed to record waste from specific entry:', error);
+        console.error("Failed to record waste from specific entry:", error);
         throw error;
       }
     },
@@ -374,6 +374,7 @@ export function useInventoryStore() {
     filteredMaterials,
     stockEntries,
     sections,
+    innerSections,
     sectionAssignments,
     menuItems,
     activeTab,

@@ -17,14 +17,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   // Helper function to calculate cost per unit for a material
   const calculateMaterialCostPerUnit = useCallback(
     (material: Material, materialStockEntries: StockEntry[] = []) => {
-      console.log(`Calculating cost for material: ${material.name}, ID: ${material.id}`);
-      console.log(`Stock entries for material:`, materialStockEntries);
-
       // Filter valid stock entries with non-null, non-undefined, and non-zero costPerBaseUnit
       const validStockEntries = materialStockEntries.filter(entry => entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit));
 
       if (validStockEntries.length > 0) {
-        console.log(`Valid stock entries found:`, validStockEntries);
         // Calculate weighted average cost from stock entries
         const totalCost = validStockEntries.reduce((sum, entry) => {
           const quantity = entry.purchasedIndividualQuantity || 0;
@@ -35,7 +31,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
         if (totalQuantity > 0) {
           const weightedAverage = totalCost / totalQuantity;
-          console.log(`Weighted average cost: ${weightedAverage}`);
           return parseFloat(weightedAverage.toFixed(8)); // Ensure precision for small values
         }
       }
@@ -102,10 +97,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {
       return ingredients.reduce((sum, ingredient) => {
-        console.log(`Calculating cost for ingredient:`, ingredient);
         // If ingredient has stored cost, use it
         if (ingredient.cost && ingredient.cost > 0) {
-          console.log(`Using stored cost: ${ingredient.cost}`);
           return sum + ingredient.cost;
         }
 
@@ -119,7 +112,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         const costPerUnit = calculateMaterialCostPerUnit(material, materialStockEntries);
         const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
         const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
-        console.log(`Ingredient cost: ${ingredient.quantity} * ${conversionFactor} * ${costPerUnit} = ${ingredientCost}`);
         return sum + ingredientCost;
       }, 0);
     },
