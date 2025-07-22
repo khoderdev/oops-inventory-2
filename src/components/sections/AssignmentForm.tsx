@@ -830,7 +830,8 @@ export function AssignmentForm({ sections = [], stockEntries = [], materials = [
     }
   });
 
-  const selectedSection = sections?.find(s => s.id === selectedSectionId || s.id === form.watch("sectionId"));
+  // Fix: Use only the form's watched section ID to determine the selected section
+  const selectedSection = sections?.find(s => s.id === form.watch("sectionId"));
   const availableInnerSections = useMemo(() => {
     return selectedSection?.innerSections || [];
   }, [selectedSection]);
@@ -854,27 +855,31 @@ export function AssignmentForm({ sections = [], stockEntries = [], materials = [
     }
   }, [formError, watchedItemType, watchedStockEntryId, watchedMenuItemId]);
 
+  // Separate effect for initial form setup
   useEffect(() => {
-    form.reset({
-      sectionId: assignment?.sectionId || selectedSectionId || "",
-      innerSectionId: assignment?.innerSectionId || "none",
-      itemType: assignment?.itemType || "stockEntry",
-      stockEntryId: assignment?.stockEntryId || "",
-      menuItemId: assignment?.menuItemId || "",
-      assignedQuantity: assignment?.assignedQuantity || undefined,
-      assignedUnit: assignment?.assignedUnit || ""
-    });
-  }, [assignment, selectedSectionId, form]);
-
-  useEffect(() => {
-    if (isAddingToSelectedSection && selectedSectionId) {
-      const currentSectionId = form.getValues("sectionId");
-      if (currentSectionId !== selectedSectionId) {
-        form.setValue("sectionId", selectedSectionId);
-        form.setValue("innerSectionId", "none");
-      }
+    if (assignment) {
+      // Reset form when editing an existing assignment
+      form.reset({
+        sectionId: assignment.sectionId,
+        innerSectionId: assignment.innerSectionId || "none",
+        itemType: assignment.itemType,
+        stockEntryId: assignment.stockEntryId || "",
+        menuItemId: assignment.menuItemId || "",
+        assignedQuantity: assignment.assignedQuantity || undefined,
+        assignedUnit: assignment.assignedUnit || ""
+      });
     }
-  }, [isAddingToSelectedSection, selectedSectionId, form]);
+  }, [assignment, form]);
+
+  // Separate effect for setting initial section when creating new assignment
+  useEffect(() => {
+    if (!assignment && selectedSectionId && form.getValues("sectionId") !== selectedSectionId) {
+      form.setValue("sectionId", selectedSectionId);
+      form.setValue("innerSectionId", "none");
+    }
+  }, [selectedSectionId, assignment, form]);
+
+  
 
   // Reset stockEntryId, menuItemId, assignedQuantity, and assignedUnit when itemType changes
   useEffect(() => {
@@ -1113,7 +1118,13 @@ export function AssignmentForm({ sections = [], stockEntries = [], materials = [
                       <Select
                         onValueChange={value => {
                           field.onChange(value);
-                          form.setValue("innerSectionId", "none");
+                          // Only reset inner section if it's not valid for the new section
+                          const newSection = sections?.find(s => s.id === value);
+                          const currentInnerSectionId = form.getValues("innerSectionId");
+                          const isValidInnerSection = newSection?.innerSections?.some(inner => inner.id === currentInnerSectionId);
+                          if (!isValidInnerSection && currentInnerSectionId !== "none") {
+                            form.setValue("innerSectionId", "none");
+                          }
                         }}
                         value={field.value}
                         disabled={isLoading}
@@ -1151,7 +1162,11 @@ export function AssignmentForm({ sections = [], stockEntries = [], materials = [
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm font-medium">Inner Section</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || "none"} 
+                        disabled={isLoading}
+                      >
                         <FormControl>
                           <SelectTrigger className="h-10">
                             <SelectValue placeholder="Choose an inner section (optional)" />
