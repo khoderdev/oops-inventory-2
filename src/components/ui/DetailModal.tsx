@@ -147,7 +147,21 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
     [onDeleteAssignment, currentSectionData, createAssignmentDataHash]
   );
 
-  if (!selectedItem) return null;
+  // Fallback UI for null selectedItem
+  if (!selectedItem) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>No Item Selected</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Please select an item to view details.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   // Extract sections from sectionsWithAssignments for easy lookup
   const sections = sectionsWithAssignments.map(s => ({ id: s.id, name: s.name }));
@@ -513,7 +527,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
                     // Try multiple cost fields
                     let costPerUnit = assignment.stockEntry.costPerPurchasedUnit || 0;
 
-                    // If costPerPurchasedUnit is 0, try alternative cost calculation
+                    // If costPerUnit is 0, try alternative cost calculation
                     if (costPerUnit === 0 && assignment.stockEntry.totalCost && assignment.stockEntry.purchasedQuantity) {
                       costPerUnit = assignment.stockEntry.totalCost / assignment.stockEntry.purchasedQuantity;
                     }
@@ -763,6 +777,7 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   };
 
   const renderInnerSectionDetails = (innerSection: InnerSection) => {
+    console.log("Rendering Inner Section Details:", innerSection); // Debug log
     const parentSection = sections.find(s => s.id.toString() === innerSection.sectionId.toString());
 
     return (
@@ -852,21 +867,21 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {selectedItem.type === "material" && "Material Details"}
-            {selectedItem.type === "stock" && "Stock Entry Details"}
-            {selectedItem.type === "section" && "Section Details"}
-            {selectedItem.type === "assignment" && "Assignment Details"}
-            {selectedItem.type === "innerSection" && "Inner Section Details"}
-            {selectedItem.type === "table" && "Table Details"}
+            {selectedItem?.type === "material" && "Material Details"}
+            {selectedItem?.type === "stock" && "Stock Entry Details"}
+            {selectedItem?.type === "section" && "Section Details"}
+            {selectedItem?.type === "assignment" && "Assignment Details"}
+            {selectedItem?.type === "innerSection" && "Inner Section Details"}
+            {selectedItem?.type === "table" && "Table Details"}
           </DialogTitle>
         </DialogHeader>
         <div className="py-4">
-          {selectedItem.type === "material" && renderMaterialDetails(selectedItem.data as MaterialWithSectionAssignments)}
-          {selectedItem.type === "stock" && renderStockDetails(selectedItem.data as StockEntry)}
-          {selectedItem.type === "section" && renderSectionDetails(selectedItem.data as Section)}
-          {selectedItem.type === "assignment" && renderAssignmentDetails(selectedItem.data as SectionAssignment & { stockEntry?: StockEntry; material?: Material; menuItem?: MenuItem })}
-          {selectedItem.type === "innerSection" && renderInnerSectionDetails(selectedItem.data as InnerSection)}
-          {selectedItem.type === "table" && renderTableDetails(selectedItem.data as Tables)}
+          {selectedItem?.type === "material" && renderMaterialDetails(selectedItem.data as MaterialWithSectionAssignments)}
+          {selectedItem?.type === "stock" && renderStockDetails(selectedItem.data as StockEntry)}
+          {selectedItem?.type === "section" && renderSectionDetails(selectedItem.data as Section)}
+          {selectedItem?.type === "assignment" && renderAssignmentDetails(selectedItem.data as SectionAssignment & { stockEntry?: StockEntry; material?: Material; menuItem?: MenuItem })}
+          {selectedItem?.type === "innerSection" && renderInnerSectionDetails(selectedItem.data as InnerSection)}
+          {selectedItem?.type === "table" && renderTableDetails(selectedItem.data as Tables)}
         </div>
       </DialogContent>
     </Dialog>
