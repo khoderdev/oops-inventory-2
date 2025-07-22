@@ -3,8 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreateTableData, InnerSection, Section } from "@/types/inventory";
-import { AlertTriangle, Edit, Package, Plus, Trash2 } from "lucide-react";
+import { selectedPOSPanelTableAtom, showPOSPanelAtom } from "@/store/inventoryAtoms";
+import { CreateTableData, InnerSection, Section, Tables } from "@/types/inventory";
+import { useAtom } from "jotai";
+import { AlertTriangle, ChevronDown, ChevronUp, Edit, Package, Plus, Trash2 } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -15,7 +17,7 @@ interface InnerSectionsTableProps {
   sections: Section[];
   selectedInnerSectionId: string;
   selectedSectionId: string;
-  setSelectedItem: (item: { type: string; data: InnerSection }) => void;
+  setSelectedItem: (item: { type: string; data: InnerSection | Tables }) => void;
   setIsDetailModalOpen: (open: boolean) => void;
   setEditingInnerSection: (innerSection: InnerSection | undefined) => void;
   setShowInnerSectionForm: (show: boolean) => void;
@@ -84,9 +86,12 @@ const ActionButtons = memo(({ onEdit, onDelete, onAdd, deleteTitle, deleteDescri
 
 ActionButtons.displayName = "ActionButtons";
 
-export const InnerSectionsTable = memo(({ onInnerSectionUpdated, innerSections, sections, selectedInnerSectionId, setSelectedItem, setIsDetailModalOpen, setEditingInnerSection, setShowInnerSectionForm, onDeleteInnerSection, setSelectedInnerSectionId, onCreateTable, isLoading = false }: InnerSectionsTableProps) => {
+export const InnerSectionsTable = memo(({ onInnerSectionUpdated, innerSections, sections, selectedInnerSectionId, selectedSectionId, setSelectedItem, setIsDetailModalOpen, setEditingInnerSection, setShowInnerSectionForm, onDeleteInnerSection, setSelectedInnerSectionId, onCreateTable, isLoading = false }: InnerSectionsTableProps) => {
   const [showTableForm, setShowTableForm] = useState(false);
   const [selectedInnerSectionForTable, setSelectedInnerSectionForTable] = useState<InnerSection | null>(null);
+  const [expandedInnerSections, setExpandedInnerSections] = useState<string[]>([]);
+  const [, setShowPOSPanel] = useAtom(showPOSPanelAtom);
+  const [, setSelectedPOSPanelTable] = useAtom(selectedPOSPanelTableAtom);
   const existingTableNumbers = selectedInnerSectionForTable?.tables?.map(t => t.tableNumber) || [];
 
   // Normalize innerSections to ensure tables is always an array
@@ -94,7 +99,7 @@ export const InnerSectionsTable = memo(({ onInnerSectionUpdated, innerSections, 
     return innerSections.map(is => ({
       ...is,
       tables: is.tables || [],
-      createdAt: is.createdAt ? new Date(is.createdAt) : new Date(), // Fallback for invalid dates
+      createdAt: is.createdAt ? new Date(is.createdAt) : new Date(),
       updatedAt: is.updatedAt ? new Date(is.updatedAt) : new Date()
     }));
   }, [innerSections]);
@@ -108,11 +113,29 @@ export const InnerSectionsTable = memo(({ onInnerSectionUpdated, innerSections, 
     [sections]
   );
 
+  // Toggle inner section expansion
+  const toggleInnerSection = useCallback((innerSectionId: string) => {
+    setExpandedInnerSections(prev => (prev.includes(innerSectionId) ? prev.filter(id => id !== innerSectionId) : [...prev, innerSectionId]));
+  }, []);
+
+  // Handle table click to open POSPanel
+  const handleTableClick = useCallback(
+    (table: Tables) => {
+      console.log("Table clicked:", table); // Debug log
+      setSelectedItem({ type: "table", data: table });
+      setSelectedPOSPanelTable(table);
+      setShowPOSPanel(true);
+      setTimeout(() => {
+        setIsDetailModalOpen(true);
+      }, 0);
+    },
+    [setSelectedItem, setSelectedPOSPanelTable, setShowPOSPanel, setIsDetailModalOpen]
+  );
+
   const handleSelectInnerSection = useCallback(
     (innerSection: InnerSection) => {
       setSelectedInnerSectionId(innerSection.id);
       setSelectedItem({ type: "innerSection", data: innerSection });
-      // Delay modal opening to ensure state update
       setTimeout(() => {
         setIsDetailModalOpen(true);
       }, 0);
@@ -133,7 +156,7 @@ export const InnerSectionsTable = memo(({ onInnerSectionUpdated, innerSections, 
         onInnerSectionUpdated(innerSection);
       }
     },
-    [onInnerSectionUpdated]
+    [setEditingInnerSection, setShowInnerSectionForm, onInnerSectionUpdated]
   );
 
   const handleAddTable = useCallback(
@@ -230,40 +253,98 @@ export const InnerSectionsTable = memo(({ onInnerSectionUpdated, innerSections, 
                   {normalizedInnerSections.map(innerSection => {
                     if (!innerSection) return null;
                     const parentSection = getParentSection(innerSection);
+                    const isExpanded = expandedInnerSections.includes(innerSection.id);
 
                     return (
-                      <TableRow
-                        key={innerSection.id}
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleSelectInnerSection(innerSection);
-                        }}
-                        className={`cursor-pointer hover:bg-muted/50 transition-colors ${selectedInnerSectionId === innerSection.id ? "bg-blue-50" : ""}`}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
+                      <>
+                        <TableRow
+                          key={innerSection.id}
+                          onClick={e => {
+                            e.stopPropagation();
                             handleSelectInnerSection(innerSection);
-                          }
-                        }}
-                      >
-                        <TableCell className="min-w-0">
-                          <div className="font-medium truncate">{innerSection.name}</div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={innerSection.type === "indoor" ? "default" : "secondary"}>{innerSection.type === "indoor" ? "Indoor" : "Outdoor"}</Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">{parentSection?.name || "Unknown"}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="font-mono">
-                            {(innerSection.tables || []).length}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <ActionButtons onEdit={() => handleEditInnerSection(innerSection)} onDelete={() => onDeleteInnerSection(innerSection.id)} onAdd={() => handleAddTable(innerSection)} deleteTitle="Delete Inner Section" deleteDescription={`This will permanently delete the "${innerSection.name}" inner section and all its tables.`} itemName={innerSection.name} />
-                        </TableCell>
-                      </TableRow>
+                          }}
+                          className={`cursor-pointer hover:bg-muted/50 transition-colors ${selectedInnerSectionId === innerSection.id ? "bg-blue-50" : ""}`}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleSelectInnerSection(innerSection);
+                            }
+                          }}
+                        >
+                          <TableCell className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  toggleInnerSection(innerSection.id);
+                                }}
+                                className="p-0 h-6 w-6"
+                              >
+                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              </Button>
+                              <div className="font-medium truncate">{innerSection.name}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={innerSection.type === "indoor" ? "default" : "secondary"}>{innerSection.type === "indoor" ? "Indoor" : "Outdoor"}</Badge>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">{parentSection?.name || "Unknown"}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="font-mono">
+                              {(innerSection.tables || []).length}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <ActionButtons onEdit={() => handleEditInnerSection(innerSection)} onDelete={() => onDeleteInnerSection(innerSection.id)} onAdd={() => handleAddTable(innerSection)} deleteTitle="Delete Inner Section" deleteDescription={`This will permanently delete the "${innerSection.name}" inner section and all its tables.`} itemName={innerSection.name} />
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="bg-muted/20 p-4">
+                              <div className="ml-8 space-y-2">
+                                <h4 className="text-sm font-medium">Tables</h4>
+                                {innerSection.tables && innerSection.tables.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {innerSection.tables.map(table => (
+                                      <div
+                                        key={table.id}
+                                        className="flex justify-between items-center p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200"
+                                        onClick={() => handleTableClick(table)}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={e => {
+                                          if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            handleTableClick(table);
+                                          }
+                                        }}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm font-medium text-primary">Table {table.tableNumber}</span>
+                                          <Badge variant={table.isReserved ? "destructive" : "success"} className="text-xs">
+                                            {table.isReserved ? "Reserved" : "Available"}
+                                          </Badge>
+                                        </div>
+                                        <span className="text-sm">Capacity: {table.capacity}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-500">No tables assigned</p>
+                                )}
+                                <Button variant="outline" size="sm" className="mt-2" onClick={() => handleAddTable(innerSection)}>
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add Table
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
                     );
                   })}
                 </TableBody>

@@ -7,19 +7,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { errorMessageAtom, showPOSPanelAtom, successMessageAtom } from "@/store/inventoryAtoms";
+import { createSaleAction } from "@/store/posActions";
 import { CartItem, MenuItem, MenuItemSale, NegativeStockWarning, POSPanelProps, Section, SectionAssignment, SoldItem } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
+import { useAtom } from "jotai";
 import { AlertCircle, AlertTriangle, Check, History, Loader2, Minus, Package, PackageSearch, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
-  const [selectedSectionId, setSelectedSectionId] = useState<string>("");
+export function POSPanel({ materials, sectionAssignments, initialSectionId }: POSPanelProps) {
+  const [selectedSectionId, setSelectedSectionId] = useState(initialSectionId || "");
+  const [, setShowPOSPanel] = useAtom(showPOSPanelAtom);
+  const [successMessage, setSuccessMessage] = useAtom(successMessageAtom);
+  const [, setErrorMessage] = useAtom(errorMessageAtom);
+  const [, createSale] = useAtom(createSaleAction);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [, setMenuItems] = useState<MenuItem[]>([]);
   const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
   const [, setIsRefreshing] = useState(false);
@@ -35,11 +41,11 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
     errorTimeoutRef.current = setTimeout(() => setError(null), 5000);
   }, []);
 
-  const showSuccess = useCallback((message: string) => {
-    setSuccessMessage(message);
-    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
-    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
-  }, []);
+  useEffect(() => {
+    if (initialSectionId) {
+      setSelectedSectionId(initialSectionId);
+    }
+  }, [initialSectionId]);
 
   // Update optimistic assignments when props change
   useEffect(() => {
@@ -130,9 +136,9 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         } else if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
           // Fallback: calculate from total cost and individual quantity
           displayUnitPrice = stockEntry.totalCost / stockEntry.purchasedIndividualQuantity;
-        } else if (material.costPerBaseUnit) {
-          // Last resort: use material's cost per base unit if available
-          displayUnitPrice = parseFloat(String(material.costPerBaseUnit));
+        } else if (material.costPerUnit) {
+          // Last resort: use material's cost per unit if available
+          displayUnitPrice = parseFloat(String(material.costPerUnit));
         }
 
         // Ensure displayUnitPrice is a valid number
@@ -249,14 +255,6 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
     }, 0);
     return isNaN(total) || !isFinite(total) ? 0 : total;
   }, [cart]);
-
-  // Clear messages after timeout
-  const clearMessages = useCallback(() => {
-    setTimeout(() => {
-      setError(null);
-      setSuccessMessage(null);
-    }, 5000);
-  }, []);
 
   // Add item to cart
   const addToCart = useCallback((item: (typeof availableItems)[0]) => {
@@ -429,7 +427,6 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
       try {
         const response = await posAPI.createSale(saleData);
         const saleResponse = response.data;
-        showSuccess(`Sale completed successfully! Total: ${formatCurrency(cartTotal)}`);
 
         // Handle negative stock warnings from the API response
         const warnings = saleResponse.negativeStockWarnings || [];
@@ -450,7 +447,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [cart, cartTotal, selectedSectionId, availableItems, materials, sectionAssignments, updateInventoryOptimistically, revertOptimisticUpdates, showError, showSuccess]);
+  }, [cart, cartTotal, selectedSectionId, availableItems, materials, sectionAssignments, updateInventoryOptimistically, revertOptimisticUpdates, showError]);
 
   const getSectionName = (sectionId: string) => {
     const section = sections.find(s => String(s.id) === String(sectionId));

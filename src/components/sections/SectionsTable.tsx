@@ -145,7 +145,7 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
             </div>
             <Button size="sm" onClick={() => setShowSectionForm(true)} className="w-fit">
               <Plus className="h-4 w-4 mr-2" />
-              Add Section
+              Add Sectionsss
             </Button>
           </div>
         </CardHeader>
@@ -157,7 +157,7 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
               <p className="text-muted-foreground mb-4">Create your first section to start organizing your inventory.</p>
               <Button onClick={() => setShowSectionForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Section
+                Add Sectionss
               </Button>
             </div>
           ) : (

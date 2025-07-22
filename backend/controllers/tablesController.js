@@ -1,4 +1,4 @@
-import { InnerSection, Sale, Section, Table } from "../models/index.js";
+import { InnerSection, Material, MenuItem, MenuItemIngredient, Sale, SaleMenuItem, Section, Table } from "../models/index.js";
 
 // Table Management Controller
 const tablesController = {
@@ -143,6 +143,10 @@ const tablesController = {
   getTableById: async (req, res, next) => {
     try {
       const { id } = req.params;
+      // Validate id
+      if (!id || id === "undefined" || isNaN(parseInt(id))) {
+        return res.status(400).json({ error: "Valid table ID is required" });
+      }
       const table = await Table.findByPk(id, {
         include: [
           {
@@ -191,6 +195,57 @@ const tablesController = {
       next(error);
     }
   },
+  // getTableById: async (req, res, next) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const table = await Table.findByPk(id, {
+  //       include: [
+  //         {
+  //           model: InnerSection,
+  //           as: "innerSection",
+  //           include: [{ model: Section, as: "section" }]
+  //         },
+  //         {
+  //           model: Sale,
+  //           as: "sales",
+  //           where: { isActive: true },
+  //           required: false,
+  //           include: [
+  //             {
+  //               model: Section,
+  //               as: "section",
+  //               attributes: ["id", "name"]
+  //             },
+  //             {
+  //               model: SaleMenuItem,
+  //               as: "menuItem",
+  //               include: [
+  //                 {
+  //                   model: MenuItem,
+  //                   as: "menuItem",
+  //                   include: [
+  //                     {
+  //                       model: MenuItemIngredient,
+  //                       as: "menuItemIngredients",
+  //                       include: [{ model: Material, as: "material" }]
+  //                     }
+  //                   ]
+  //                 }
+  //               ]
+  //             }
+  //           ]
+  //         }
+  //       ]
+  //     });
+  //     if (!table) {
+  //       return res.status(404).json({ error: "Table not found" });
+  //     }
+  //     res.status(200).json(table);
+  //   } catch (error) {
+  //     console.error("Error fetching table:", error);
+  //     next(error);
+  //   }
+  // },
 
   // Update table (e.g., occupancy, capacity, table number)
   updateTable: async (req, res, next) => {

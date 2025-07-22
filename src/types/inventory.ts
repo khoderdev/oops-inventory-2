@@ -828,6 +828,7 @@ export interface StockEntry {
   id: string;
   materialId: string;
   supplier: string;
+  quantity?: number;
   purchasedQuantity: number;
   purchasedUnit: string;
   purchasedIndividualQuantity?: number;
@@ -960,9 +961,10 @@ export interface UpdateInnerSectionData {
 }
 
 export interface CreateTableData {
-  innerSectionId: string;
   tableNumber: string;
   capacity: number;
+  isReserved: boolean;
+  innerSectionId: string;
 }
 
 export interface UpdateTableData {
@@ -975,6 +977,7 @@ export interface UpdateTableData {
 export interface SectionAssignment {
   id: string;
   sectionId: string;
+  innerSectionId: string;
   itemType: "stockEntry" | "menuItem";
   materialId: string | null;
   menuItemId: string | null;
@@ -1005,6 +1008,7 @@ export interface CreateSectionAssignmentData {
 
 export interface UpdateSectionAssignmentData {
   sectionId?: string;
+  innerSectionId?: string;
   itemType?: "stockEntry" | "menuItem";
   materialId?: string;
   menuItemId?: string;
@@ -1021,6 +1025,8 @@ export interface SectionWithAssignments extends Section {
       stockEntry: StockEntry;
       material: Material;
       menuItem: MenuItem;
+      innerSections: InnerSection[];
+      tables: Tables[];
     }
   >;
   totalValue: number;
@@ -1121,6 +1127,7 @@ export interface POSPanelProps {
   sectionAssignments: SectionAssignment[];
   innerSections: InnerSection[];
   tables: Tables[];
+  initialSectionId?: string;
 }
 
 export interface ItemSale {

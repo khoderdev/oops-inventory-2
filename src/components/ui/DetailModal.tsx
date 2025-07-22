@@ -1,10 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { posPanelDataAtom, selectedPOSPanelTableAtom, showPOSPanelAtom } from "@/store/inventoryAtoms";
 import { InnerSection, Material, MaterialWithSectionAssignments, MenuItem, Section, SectionAssignment, SectionWithAssignments, StockEntry, Tables } from "@/types/inventory";
 import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "@/utils/conversionLogic";
 import { getCategoryLabel } from "@/utils/getCategoryLabel";
+import { useAtom, useAtomValue } from "jotai";
 import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { POSPanel } from "../POSPanel";
 
 interface DetailModalProps {
   isOpen: boolean;
@@ -27,6 +30,19 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   const [forceUpdateKey, setForceUpdateKey] = useState(0);
   const [lastAssignmentCount, setLastAssignmentCount] = useState(0);
   const [lastAssignmentDataHash, setLastAssignmentDataHash] = useState("");
+  const [showPOSPanel, setShowPOSPanel] = useAtom(showPOSPanelAtom);
+  const posPanelData = useAtomValue(posPanelDataAtom);
+  const [selectedTable, setSelectedPOSPanelTable] = useAtom(selectedPOSPanelTableAtom);
+  const sections = sectionsWithAssignments.map(s => ({ id: s.id, name: s.name }));
+  const allInnerSections = sectionsWithAssignments.flatMap(s => s.innerSections || []);
+  const allTables = allInnerSections.flatMap(is => is.tables || []);
+
+  // Handle closing the modal and resetting POS panel state
+  const handleClose = useCallback(() => {
+    onClose();
+    setShowPOSPanel(false);
+    setSelectedPOSPanelTable(null);
+  }, [onClose, setShowPOSPanel, setSelectedPOSPanelTable]);
 
   // Memoize the current section data to ensure we always have the latest version
   const currentSectionData = useMemo(() => {
@@ -162,9 +178,6 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
       </Dialog>
     );
   }
-
-  // Extract sections from sectionsWithAssignments for easy lookup
-  const sections = sectionsWithAssignments.map(s => ({ id: s.id, name: s.name }));
 
   const renderMaterialDetails = (material: MaterialWithSectionAssignments) => {
     const materialWithAssignments = materialsWithSectionAssignments.find(m => m.id === material.id);
@@ -777,7 +790,6 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   };
 
   const renderInnerSectionDetails = (innerSection: InnerSection) => {
-    console.log("Rendering Inner Section Details:", innerSection); // Debug log
     const parentSection = sections.find(s => s.id.toString() === innerSection.sectionId.toString());
 
     return (
@@ -863,8 +875,8 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {selectedItem?.type === "material" && "Material Details"}
@@ -872,16 +884,23 @@ export const DetailModal = ({ isOpen, onClose, selectedItem, materialsWithSectio
             {selectedItem?.type === "section" && "Section Details"}
             {selectedItem?.type === "assignment" && "Assignment Details"}
             {selectedItem?.type === "innerSection" && "Inner Section Details"}
-            {selectedItem?.type === "table" && "Table Details"}
+            {selectedItem?.type === "table" && (showPOSPanel ? `POS Panel - Table ${selectedTable?.tableNumber}` : `Table Details - ${selectedTable?.tableNumber}`)}
           </DialogTitle>
+          <DialogDescription>{selectedItem?.type === "table" && showPOSPanel ? "Manage orders for the selected table" : "View details of the selected item"}</DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          {selectedItem?.type === "material" && renderMaterialDetails(selectedItem.data as MaterialWithSectionAssignments)}
-          {selectedItem?.type === "stock" && renderStockDetails(selectedItem.data as StockEntry)}
-          {selectedItem?.type === "section" && renderSectionDetails(selectedItem.data as Section)}
-          {selectedItem?.type === "assignment" && renderAssignmentDetails(selectedItem.data as SectionAssignment & { stockEntry?: StockEntry; material?: Material; menuItem?: MenuItem })}
-          {selectedItem?.type === "innerSection" && renderInnerSectionDetails(selectedItem.data as InnerSection)}
-          {selectedItem?.type === "table" && renderTableDetails(selectedItem.data as Tables)}
+          {selectedItem?.type === "table" && showPOSPanel ? (
+            <POSPanel materials={posPanelData.materials} sectionAssignments={posPanelData.sectionAssignments} initialSectionId={posPanelData.selectedSectionId} innerSections={allInnerSections} tables={allTables} />
+          ) : (
+            <>
+              {selectedItem?.type === "material" && renderMaterialDetails(selectedItem.data as MaterialWithSectionAssignments)}
+              {selectedItem?.type === "stock" && renderStockDetails(selectedItem.data as StockEntry)}
+              {selectedItem?.type === "section" && renderSectionDetails(selectedItem.data as SectionWithAssignments)}
+              {selectedItem?.type === "assignment" && renderAssignmentDetails(selectedItem.data as SectionAssignment)}
+              {selectedItem?.type === "innerSection" && renderInnerSectionDetails(selectedItem.data as InnerSection)}
+              {selectedItem?.type === "table" && renderTableDetails(selectedItem.data as Tables)}
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
