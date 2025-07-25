@@ -128,13 +128,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           reportResults = await generateWasteReport(dateFrom && format(dateFrom, "yyyy-MM-dd"), dateTo && format(dateTo, "yyyy-MM-dd"));
           break;
         case "variance-analysis":
-          reportResults = await generateVarianceAnalysisReport(
-            materials.data, 
-            stockEntries.data, 
-            sales.data, 
-            dateFrom && format(dateFrom, "yyyy-MM-dd"), 
-            dateTo && format(dateTo, "yyyy-MM-dd")
-          );
+          reportResults = await generateVarianceAnalysisReport(materials.data, stockEntries.data, sales.data, dateFrom && format(dateFrom, "yyyy-MM-dd"), dateTo && format(dateTo, "yyyy-MM-dd"));
           break;
         default:
           throw new Error("Invalid report type");
@@ -225,7 +219,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
               <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                 <Label htmlFor="report-type">Report Type</Label>
                 <Select value={selectedReportType} onValueChange={handleReportTypeChange} disabled={isChangingReportType || isLoading}>
-                  <SelectTrigger id="report-type" className={cn("h-10 w-full", isChangingReportType && "opacity-60")}>
+                  <SelectTrigger id="report-type" className={cn("h-16 w-full", isChangingReportType && "opacity-60")}>
                     <SelectValue placeholder="Select report type" />
                     {isChangingReportType && (
                       <div className="absolute right-8 top-1/2 transform -translate-y-1/2">
@@ -255,7 +249,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                     <Label className="text-sm font-medium">From Date</Label>
                     <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full h-10 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
+                        <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
                           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                           <span className="truncate">{dateFrom ? format(dateFrom, "MMM d, yyyy") : "Pick a date"}</span>
                         </Button>
@@ -281,7 +275,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                     <Label className="text-sm font-medium">To Date</Label>
                     <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full h-10 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
+                        <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
                           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                           <span className="truncate">{dateTo ? format(dateTo, "MMM d, yyyy") : "Pick a date"}</span>
                         </Button>

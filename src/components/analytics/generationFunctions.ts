@@ -590,6 +590,8 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
     // Calculate variance
     const varianceQuantity = actualCurrentStock - expectedStock;
     const variancePercentage = expectedStock !== 0 ? (varianceQuantity / expectedStock) * 100 : 0;
+    
+
 
     // Calculate cost variance
     const avgCostPerUnit =
@@ -694,8 +696,7 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
     totalWasteCost: sortedVariances.reduce((sum, v) => sum + v.wasteCost, 0)
   };
 
-  console.log("Variance analysis summary:", reportSummary);
-  console.log("Sample variance data:", formattedReport.slice(0, 3));
+
 
   // Add summary as metadata
   const reportWithSummary = formattedReport as typeof formattedReport & { summary: typeof reportSummary };

@@ -6,7 +6,11 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
   // Use the header as-is to match Title Case keys with spaces
   const value = row[header];
 
-  if (value === null || value === undefined) return "-";
+
+
+  if (value === null || value === undefined) {
+    return "-";
+  }
 
   // Handle waste-report specific headers
   if (reportType === "waste-report") {
@@ -216,8 +220,8 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
     }
   }
 
-  // Currency formatting
-  if (header.toLowerCase().includes("cost") || header.toLowerCase().includes("value") || header.toLowerCase().includes("revenue") || header.toLowerCase().includes("profit")) {
+  // Currency formatting (exclude variance-analysis columns)
+  if ((header.toLowerCase().includes("cost") || header.toLowerCase().includes("value") || header.toLowerCase().includes("revenue") || header.toLowerCase().includes("profit")) && reportType !== "variance-analysis") {
     const numValue = typeof value === "number" ? value : Number(value);
     return isNaN(numValue) || numValue === 0 ? "-" : formatCurrency(numValue);
   }
@@ -228,8 +232,8 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
     return isNaN(numValue) ? "-" : formatNumber(numValue);
   }
 
-  // Percentage formatting
-  if (header.toLowerCase().includes("%") || header.toLowerCase().includes("percentage")) {
+  // Percentage formatting (exclude variance-analysis columns)
+  if ((header.toLowerCase().includes("%") || header.toLowerCase().includes("percentage")) && reportType !== "variance-analysis") {
     const numValue = typeof value === "number" ? value : Number(value);
     return isNaN(numValue) ? "-" : `${numValue.toFixed(1)}%`;
   }
@@ -256,8 +260,8 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
     return dateValue.toLocaleDateString();
   }
 
-  // Quantity formatting with visual indicators
-  if (header.toLowerCase().includes("qty") || header.toLowerCase().includes("quantity")) {
+  // Quantity formatting with visual indicators (exclude variance-analysis columns)
+  if ((header.toLowerCase().includes("qty") || header.toLowerCase().includes("quantity")) && reportType !== "variance-analysis") {
     const numValue = typeof value === "number" ? value : Number(value);
 
     if (header.toLowerCase().includes("available")) {
@@ -333,6 +337,7 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
 
   // Handle variance-analysis specific headers
   if (reportType === "variance-analysis") {
+    
     switch (header) {
       case "Material": {
         const materialText = String(value);
