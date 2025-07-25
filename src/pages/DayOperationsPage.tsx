@@ -4,11 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { closeDay, getCurrentDayActivities, getCurrentDayOperation, getDayOperations, openDay } from "../api/dayOperations.api";
 import DailyReports from "../components/analytics/DailyReports";
 import ViewReportButton from "../components/ui/ViewReportButton";
+import { useAuth } from "../contexts/AuthContext";
 import { useDailyReports } from "../hooks/useDailyReports";
 import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
 
 const DayOperationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
   const [recentDays, setRecentDays] = useState<DayOperation[]>([]);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
@@ -18,15 +20,15 @@ const DayOperationsPage: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [showTotalSales, setShowTotalSales] = useState(true);
 
-  // Form states
+  // Form states - automatically populate user information
   const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({
     openingCash: 0,
-    openedBy: "",
+    openedBy: user?.fullName || "",
     notes: ""
   });
   const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({
     closingCash: 0,
-    closedBy: "",
+    closedBy: user?.fullName || "",
     notes: ""
   });
 
@@ -40,6 +42,20 @@ const DayOperationsPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Update form user fields when user changes
+  useEffect(() => {
+    if (user?.fullName) {
+      setOpenDayForm(prev => ({
+        ...prev,
+        openedBy: user.fullName
+      }));
+      setCloseDayForm(prev => ({
+        ...prev,
+        closedBy: user.fullName
+      }));
+    }
+  }, [user]);
 
   const loadData = async () => {
     try {
@@ -84,7 +100,7 @@ const DayOperationsPage: React.FC = () => {
 
       setSuccess(`Day opened successfully! ${response.stockItemsCaptured} stock items captured.`);
       setShowOpenModal(false);
-      setOpenDayForm({ openingCash: 0, openedBy: "", notes: "" });
+      setOpenDayForm({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
 
       // Add a small delay then refresh to ensure backend consistency
       setTimeout(async () => {
@@ -111,7 +127,7 @@ const DayOperationsPage: React.FC = () => {
 
       setSuccess(`Day closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
       setShowCloseModal(false);
-      setCloseDayForm({ closingCash: 0, closedBy: "", notes: "" });
+      setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "" });
 
       // Add a small delay then refresh to ensure backend consistency
       setTimeout(async () => {
@@ -418,9 +434,11 @@ const DayOperationsPage: React.FC = () => {
                       openedBy: e.target.value
                     })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                   placeholder="Staff name"
+                  readOnly
                 />
+                <p className="text-xs text-gray-500 mt-1">Automatically detected from logged-in user</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
@@ -484,9 +502,11 @@ const DayOperationsPage: React.FC = () => {
                       closedBy: e.target.value
                     })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                   placeholder="Staff name"
+                  readOnly
                 />
+                <p className="text-xs text-gray-500 mt-1">Automatically detected from logged-in user</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Closing Notes (Optional)</label>
