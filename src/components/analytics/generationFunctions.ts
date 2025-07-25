@@ -170,20 +170,79 @@ export async function generateMenuProfitabilityReport(menuItems: MenuItem[], mat
 }
 
 export async function generateSectionPerformanceReport(sections: Section[], assignments: SectionAssignment[], sales: SaleRecord[]) {
-  return sections.map(section => {
-    const sectionAssignments = assignments.filter(a => a.sectionId === section.id);
-    const totalValue = sectionAssignments.length * 100;
+  // Import the dayOperations API to get actual daily report data
+  const { dayOperationsAPI } = await import("@/api/dayOperations.api.ts");
+  
+  try {
+    // Get today's date for the daily report
+    const today = new Date().toISOString().split('T')[0];
+    const dailyReportData = await dayOperationsAPI.getDailyReport(today);
+    const salesBySection = dailyReportData.report?.sales?.salesBySection || {};
+    
+    return sections.map(section => {
+      const sectionAssignments = assignments.filter(a => a.sectionId === section.id);
+      const assignmentCount = sectionAssignments.length;
+      
+      // Get actual sales data for this section from daily report
+      const sectionSalesData = salesBySection[section.name] || { count: 0, total: 0 };
+      const salesVolume = sectionSalesData.count;
+      const revenue = sectionSalesData.total;
+      
+      // Calculate total value based on assignments and their estimated operational value
+      const avgAssignmentValue = 250; // Estimated operational value per assignment
+      const totalValue = assignmentCount * avgAssignmentValue;
+      
+      // Calculate utilization based on assignments vs optimal capacity
+      const optimalCapacity = 6; // Optimal assignments per section for efficiency
+      const utilization = Math.min((assignmentCount / optimalCapacity) * 100, 100);
+      
+      // Calculate average ticket if there are sales
+      const avgTicket = salesVolume > 0 ? revenue / salesVolume : 0;
+      
+      // Performance rating based on actual metrics from daily operations
+      let performance: string;
+      if (utilization >= 75 && avgTicket >= 8 && salesVolume >= 8) {
+        performance = "Excellent";
+      } else if (utilization >= 50 && avgTicket >= 6 && salesVolume >= 4) {
+        performance = "Good";
+      } else if (utilization >= 25 && salesVolume >= 1) {
+        performance = "Average";
+      } else {
+        performance = "Needs Improvement";
+      }
 
-    return {
-      Section: section.name,
-      Assignments: sectionAssignments.length,
-      "Total Value": totalValue,
-      "Sales Volume": Math.floor(Math.random() * 1000),
-      Revenue: Math.floor(Math.random() * 5000),
-      "Utilization %": Math.floor(Math.random() * 100),
-      Performance: "Good"
-    };
-  });
+      return {
+        Section: section.name,
+        Assignments: assignmentCount,
+        "Total Value": totalValue,
+        "Sales Volume": salesVolume,
+        Revenue: revenue,
+        "Utilization %": Math.round(utilization * 10) / 10,
+        Performance: performance
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching daily report data:', error);
+    // Fallback to assignment-based calculations if daily report is unavailable
+    return sections.map(section => {
+      const sectionAssignments = assignments.filter(a => a.sectionId === section.id);
+      const assignmentCount = sectionAssignments.length;
+      
+      // Fallback calculations
+      const totalValue = assignmentCount * 250;
+      const utilization = Math.min((assignmentCount / 6) * 100, 100);
+      
+      return {
+        Section: section.name,
+        Assignments: assignmentCount,
+        "Total Value": totalValue,
+        "Sales Volume": 0,
+        Revenue: 0,
+        "Utilization %": Math.round(utilization * 10) / 10,
+        Performance: "No Data"
+      };
+    });
+  }
 }
 
 export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
