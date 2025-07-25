@@ -57,8 +57,9 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({ user, isOpe
       setHasChanges(false);
       onUpdate();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to update permissions");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to update permissions");
     } finally {
       setIsLoading(false);
     }
@@ -105,7 +106,7 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({ user, isOpe
 
   const isRolePermission = (permission: string) => {
     const rolePerms = getRolePermissions(user.role);
-    return rolePerms.includes(permission as any);
+    return rolePerms.includes(permission as (typeof PERMISSIONS)[keyof typeof PERMISSIONS]);
   };
 
   const getPermissionStatus = (permission: string) => {

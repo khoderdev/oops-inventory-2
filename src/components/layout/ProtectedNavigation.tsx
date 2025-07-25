@@ -253,7 +253,7 @@ const ProtectedNavigation: React.FC = () => {
             <div className="flex items-center gap-3">
               <Package className="h-8 w-8 text-blue-600" />
               <div>
-                <h1 className="font-bold text-lg text-gray-900">Cost Craft</h1>
+                <h1 className="font-bold text-lg text-gray-900">oOps BackOffice</h1>
                 <p className="text-xs text-gray-500">Inventory System</p>
               </div>
             </div>

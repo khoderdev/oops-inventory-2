@@ -1,8 +1,8 @@
-import { Activity, AlertTriangle, Edit, Loader2, Lock, MoreHorizontal, Plus, Search, Shield, ShieldCheck, Trash2, Unlock, Users } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { Activity, AlertTriangle, Edit, Key, Loader2, Lock, MoreHorizontal, Plus, RefreshCw, Search, Shield, ShieldCheck, Trash2, Unlock, Users } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 import { userAPI } from "../../api/auth";
 import { useAuth } from "../../contexts/AuthContext";
-import type { CreateUserRequest, UpdateUserRequest, User } from "../../types/auth";
+import type { CreateUserRequest, User } from "../../types/auth";
 import { PERMISSIONS } from "../../types/auth";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
@@ -14,6 +14,10 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import EditUserModal from "./EditUserModal";
+import PasswordResetModal from "./PasswordResetModal";
+import UserActivityModal from "./UserActivityModal";
+import UserPermissionsModal from "./UserPermissionsModal";
 
 const UserManagementPage: React.FC = () => {
   const { user: currentUser, hasPermission } = useAuth();
@@ -26,15 +30,12 @@ const UserManagementPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
-
-  // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-
-  // Form states
   const [createForm, setCreateForm] = useState<CreateUserRequest>({
     username: "",
     email: "",
@@ -44,15 +45,13 @@ const UserManagementPage: React.FC = () => {
     role: "staff",
     permissions: {}
   });
-  const [editForm, setEditForm] = useState<UpdateUserRequest>({});
-  const [resetPasswordForm, setResetPasswordForm] = useState({ newPassword: "" });
-
+  const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const params: any = {
+      setError("");
+      const params: Record<string, string | number | boolean> = {
         page: currentPage,
         limit: 10
       };
@@ -65,18 +64,18 @@ const UserManagementPage: React.FC = () => {
       setUsers(response.users);
       setTotalPages(response.pagination.totalPages);
       setTotalUsers(response.pagination.totalUsers);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to fetch users");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to fetch users");
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, searchTerm, roleFilter, statusFilter]);
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, searchTerm, roleFilter, statusFilter]);
+  }, [fetchUsers]);
 
-  // Check if user has admin permissions
   if (!hasPermission(PERMISSIONS.USERS_READ)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -92,8 +91,9 @@ const UserManagementPage: React.FC = () => {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError("");
     try {
-      await userAPI.createUser(createForm);
+      const response = await userAPI.createUser(createForm);
       setShowCreateModal(false);
       setCreateForm({
         username: "",
@@ -104,92 +104,88 @@ const UserManagementPage: React.FC = () => {
         role: "staff",
         permissions: {}
       });
+      setSuccessMessage(`User "${response.user.fullName}" created successfully`);
       fetchUsers();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to create user");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleUpdateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return;
-
-    setIsSubmitting(true);
-    try {
-      await userAPI.updateUser(selectedUser.id, editForm);
-      setShowEditModal(false);
-      setEditForm({});
-      setSelectedUser(null);
-      fetchUsers();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to update user");
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to create user");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteUser = async (user: User) => {
-    if (!confirm(`Are you sure you want to delete user "${user.username}"?`)) return;
+    if (!confirm(`Are you sure you want to delete user "${user.username}"? This action cannot be undone.`)) return;
 
     try {
       await userAPI.deleteUser(user.id);
+      setSuccessMessage(`User "${user.fullName}" deleted successfully`);
       fetchUsers();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to delete user");
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to delete user");
     }
   };
 
   const handleToggleUserStatus = async (user: User) => {
     try {
+      const action = user.isActive ? "deactivated" : "activated";
       await userAPI.updateUser(user.id, { isActive: !user.isActive });
+      setSuccessMessage(`User "${user.fullName}" ${action} successfully`);
       fetchUsers();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to update user status");
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to update user status");
     }
   };
 
   const handleUnlockUser = async (user: User) => {
     try {
       await userAPI.unlockUser(user.id);
+      setSuccessMessage(`User "${user.fullName}" unlocked successfully`);
       fetchUsers();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to unlock user");
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to unlock user");
     }
   };
 
-  const handleResetPassword = async (user: User) => {
-    if (!resetPasswordForm.newPassword) {
-      setError("Please enter a new password");
-      return;
-    }
-
-    try {
-      await userAPI.resetUserPassword(user.id, resetPasswordForm);
-      setResetPasswordForm({ newPassword: "" });
-      alert("Password reset successfully");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to reset password");
-    }
+  const handlePasswordResetSuccess = () => {
+    setSuccessMessage(`Password reset successfully for "${selectedUser?.fullName}"`);
+    // Clear success message after 3 seconds
+    setTimeout(() => setSuccessMessage(""), 3000);
   };
 
   const openEditModal = (user: User) => {
     setSelectedUser(user);
-    setEditForm({
-      username: user.username,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      isActive: user.isActive
-    });
     setShowEditModal(true);
   };
 
   const openPermissionsModal = (user: User) => {
     setSelectedUser(user);
     setShowPermissionsModal(true);
+  };
+
+  const openActivityModal = (user: User) => {
+    setSelectedUser(user);
+    setShowActivityModal(true);
+  };
+
+  const openPasswordResetModal = (user: User) => {
+    setSelectedUser(user);
+    setShowPasswordResetModal(true);
+  };
+
+  const handleModalUpdate = () => {
+    fetchUsers();
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -230,18 +226,30 @@ const UserManagementPage: React.FC = () => {
           <p className="text-gray-600 mt-1">Manage users, roles, and permissions</p>
         </div>
 
-        {hasPermission(PERMISSIONS.USERS_CREATE) && (
-          <Button onClick={() => setShowCreateModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add User
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => fetchUsers()} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Refresh
           </Button>
-        )}
+          {hasPermission(PERMISSIONS.USERS_CREATE) && (
+            <Button onClick={() => setShowCreateModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {successMessage && (
+        <Alert className="border-green-200 bg-green-50">
+          <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -367,6 +375,10 @@ const UserManagementPage: React.FC = () => {
                                   <ShieldCheck className="mr-2 h-4 w-4" />
                                   Permissions
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openPasswordResetModal(user)}>
+                                  <Key className="mr-2 h-4 w-4" />
+                                  Reset Password
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleToggleUserStatus(user)}>
                                   {user.isActive ? (
                                     <>
@@ -392,7 +404,7 @@ const UserManagementPage: React.FC = () => {
 
                             <DropdownMenuSeparator />
 
-                            <DropdownMenuItem onClick={() => setSelectedUser(user)}>
+                            <DropdownMenuItem onClick={() => openActivityModal(user)}>
                               <Activity className="mr-2 h-4 w-4" />
                               View Activity
                             </DropdownMenuItem>
@@ -472,7 +484,7 @@ const UserManagementPage: React.FC = () => {
 
             <div>
               <Label htmlFor="create-role">Role</Label>
-              <Select value={createForm.role} onValueChange={(value: any) => setCreateForm(prev => ({ ...prev, role: value }))}>
+              <Select value={createForm.role} onValueChange={(value: "admin" | "manager" | "staff") => setCreateForm(prev => ({ ...prev, role: value }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -502,6 +514,49 @@ const UserManagementPage: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Edit User Modal */}
+      <EditUserModal
+        user={selectedUser}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedUser(null);
+        }}
+        onUpdate={handleModalUpdate}
+      />
+
+      {/* User Permissions Modal */}
+      <UserPermissionsModal
+        user={selectedUser}
+        isOpen={showPermissionsModal}
+        onClose={() => {
+          setShowPermissionsModal(false);
+          setSelectedUser(null);
+        }}
+        onUpdate={handleModalUpdate}
+      />
+
+      {/* Password Reset Modal */}
+      <PasswordResetModal
+        user={selectedUser}
+        isOpen={showPasswordResetModal}
+        onClose={() => {
+          setShowPasswordResetModal(false);
+          setSelectedUser(null);
+        }}
+        onSuccess={handlePasswordResetSuccess}
+      />
+
+      {/* User Activity Modal */}
+      <UserActivityModal
+        user={selectedUser}
+        isOpen={showActivityModal}
+        onClose={() => {
+          setShowActivityModal(false);
+          setSelectedUser(null);
+        }}
+      />
     </div>
   );
 };
