@@ -156,7 +156,7 @@ export function findLowStockMaterials(materials: MaterialWithStock[], threshold:
 // Calculate inventory turnover rate (simplified)
 export function calculateInventoryTurnover(material: MaterialWithStock, usagePerMonth: number): { turnoverRate: number; monthsOfStock: number } {
   const turnoverRate = usagePerMonth > 0 ? material.totalQuantityInBaseUnit / usagePerMonth : 0;
-  const monthsOfStock = usagePerMonth > 0 ? material.totalQuantityInBaseUnit / usagePerMonth : Infinity;
+  const monthsOfStock = usagePerMonth > 0 ? material.totalQuantityInBaseUnit / usagePerMonth : 0;
 
   return { turnoverRate, monthsOfStock };
 }
