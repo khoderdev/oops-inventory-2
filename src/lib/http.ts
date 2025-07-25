@@ -39,7 +39,8 @@ class ApiClient {
     this.instance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         // Add authentication token if available
-        const token = localStorage.getItem("token");
+        // Import tokenManager dynamically to avoid circular imports
+        const token = localStorage.getItem("auth_token");
         if (token) {
           config.headers.set("Authorization", `Bearer ${token}`);
         }
@@ -65,11 +66,19 @@ class ApiClient {
 
         // Handle specific status codes
         if (error.response?.status === 401) {
-          // Handle unauthorized (e.g., redirect to login)
-          console.error("Unauthorized request");
-          // Optionally trigger logout or redirect
+          // Handle unauthorized - trigger logout
+          console.error("Unauthorized request - clearing session");
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("refresh_token");
+          localStorage.removeItem("token_expiry");
+          localStorage.removeItem("last_activity");
+          localStorage.removeItem("session_id");
+          
+          // Trigger auth state reset
+          window.dispatchEvent(new CustomEvent("authError", { detail: { status: 401 } }));
         } else if (error.response?.status === 403) {
           console.error("Forbidden request");
+          window.dispatchEvent(new CustomEvent("authError", { detail: { status: 403 } }));
         }
 
         return Promise.reject(errorResponse);
