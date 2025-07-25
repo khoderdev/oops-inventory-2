@@ -48,13 +48,13 @@ const Material = sequelize.define(
       comment: "Original input unit from MaterialForm (e.g., 'box', 'pack')"
     },
 
-    costPerBaseUnit: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
-      validate: {
-        isDecimal: { msg: "Cost per base unit must be a decimal number" }
-      }
-    },
+    // costPerBaseUnit: {
+    //   type: DataTypes.DECIMAL(10, 2),
+    //   allowNull: true,
+    //   validate: {
+    //     isDecimal: { msg: "Cost per base unit must be a decimal number" }
+    //   }
+    // },
 
     packageQuantity: {
       type: DataTypes.INTEGER,
@@ -75,11 +75,6 @@ const Material = sequelize.define(
           }
         }
       }
-    },
-
-    description: {
-      type: DataTypes.STRING,
-      allowNull: true
     }
   },
   {

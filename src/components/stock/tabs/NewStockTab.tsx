@@ -25,7 +25,9 @@ interface NewStockTabProps {
 
 export function NewStockTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onSubmit, onCancel }: NewStockTabProps) {
   const handleSubmit = (data: StockFormInputs) => {
+    console.log("📋 NewStockTab handleSubmit - Raw form data:", data);
     const formData = data as unknown as StockFormData;
+    console.log("📋 NewStockTab handleSubmit - Converted form data:", formData);
     onSubmit(formData);
   };
 
@@ -255,7 +257,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
             />
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} purchasedQuantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

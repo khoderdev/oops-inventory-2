@@ -16,8 +16,7 @@ const stockEntriesController = {
           m."unitType" as "material.unitType",
           m."inputUnit" as "material.inputUnit",
           m."packageQuantity" as "material.packageQuantity",
-          m.category as "material.category",
-          m.description as "material.description"
+          m.category as "material.category"
         FROM "stockEntries" se
         LEFT JOIN materials m ON se."materialId" = m.id
         ORDER BY se.id ASC

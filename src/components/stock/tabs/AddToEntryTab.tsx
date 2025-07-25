@@ -298,7 +298,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
             />
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} purchasedQuantity={watchedQuantity} purchasedUnit={watchedUnit} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={watchedUnit} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

@@ -272,7 +272,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
             />
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} purchasedQuantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

@@ -108,10 +108,12 @@ export function useInventoryStore() {
 
   const handleStockSubmit = useCallback(
     async (data: StockEntry) => {
+      console.log("📋 useInventoryStore handleStockSubmit - Received data:", data);
       try {
         if (selectedStockEntry) {
           await updateStockEntry({ id: selectedStockEntry.id, data });
         } else {
+          console.log("📋 useInventoryStore - About to call createStockEntry with:", data);
           await createStockEntry(data);
         }
 

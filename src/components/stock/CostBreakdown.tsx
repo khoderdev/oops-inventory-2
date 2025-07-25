@@ -5,15 +5,15 @@ import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Calculator, DollarSign, Package } from "lucide-react";
 import { Badge } from "../ui/badge";
 
-export const CostBreakdown = ({ selectedMaterial, wasteQuantity, purchasedUnit, costPerPurchasedUnit, totalCost }: { selectedMaterial: Material | null; wasteQuantity: string; purchasedUnit: string; costPerPurchasedUnit: string; totalCost: string }) => {
-  const numQuantity = parseFloat(wasteQuantity) || 0;
+export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costPerPurchasedUnit, totalCost }: { selectedMaterial: Material | null; quantity: string; purchasedUnit: string; costPerPurchasedUnit: string; totalCost: string }) => {
+  const numQuantity = parseFloat(quantity) || 0;
   const numCostPerUnit = parseFloat(costPerPurchasedUnit) || 0;
   const numTotalCost = parseFloat(totalCost) || 0;
 
   // Debugging: Log input props
   console.log("CostBreakdown Inputs:", {
     selectedMaterial,
-    wasteQuantity,
+    quantity,
     purchasedUnit,
     costPerPurchasedUnit,
     totalCost
@@ -90,9 +90,14 @@ export const CostBreakdown = ({ selectedMaterial, wasteQuantity, purchasedUnit, 
     }
   }
 
-  // Calculate total cost for waste: wasteQuantity × costPerBaseUnit
-  calculatedTotalCost = numQuantity * costPerBaseUnit;
-  console.log("💰 Total Cost Calculation:", `${numQuantity} × ${costPerBaseUnit} = ${calculatedTotalCost}`);
+  // Calculate total cost: quantity × cost per purchased unit (for non-package items)
+  // For package items, this was already calculated above in the packagedGood logic
+  if (selectedMaterial.unitType !== "package") {
+    calculatedTotalCost = numQuantity * numCostPerUnit;
+    console.log("💰 Total Cost Calculation:", `${numQuantity} ${purchasedUnit} × $${numCostPerUnit}/${purchasedUnit} = $${calculatedTotalCost}`);
+  } else {
+    console.log("💰 Package Total Cost (already calculated):", `$${calculatedTotalCost}`);
+  }
 
   // Debugging: Log calculated values
   console.log("Calculated Values:", { costPerBaseUnit, calculatedTotalCost });
@@ -115,7 +120,7 @@ export const CostBreakdown = ({ selectedMaterial, wasteQuantity, purchasedUnit, 
             <DollarSign className="h-4 w-4 text-green-600" />
             <span className="text-sm font-medium text-gray-600">Cost per {purchasedUnit}</span>
           </div>
-          <p className="text-xl font-bold text-gray-800">${(selectedMaterial.unitType === "package" ? costPerBaseUnit : numCostPerUnit).toFixed(4)}</p>
+          <p className="text-xl font-bold text-gray-800">${numCostPerUnit.toFixed(4)}</p>
         </div>
 
         <div className="bg-white rounded-lg p-3 border border-blue-100">
@@ -124,7 +129,7 @@ export const CostBreakdown = ({ selectedMaterial, wasteQuantity, purchasedUnit, 
             <span className="text-sm font-medium text-gray-600">Quantity</span>
           </div>
           <p className="text-xl font-bold text-gray-800">
-            {numQuantity} {selectedMaterial?.baseUnit || 'units'}
+            {numQuantity} {purchasedUnit || "units"}
           </p>
         </div>
 
@@ -133,7 +138,7 @@ export const CostBreakdown = ({ selectedMaterial, wasteQuantity, purchasedUnit, 
             <DollarSign className="h-4 w-4 text-purple-600" />
             <span className="text-sm font-medium text-gray-600">Total Cost</span>
           </div>
-          <p className="text-xl font-bold text-gray-800">${calculatedTotalCost < 0.01 ? calculatedTotalCost.toFixed(4) : calculatedTotalCost.toFixed(2)}</p>
+          <p className="text-xl font-bold text-gray-800">${(numQuantity * numCostPerUnit).toFixed(2)}</p>
         </div>
 
         {costPerBaseUnit > 0 && purchasedUnit !== selectedMaterial?.baseUnit && selectedMaterial?.baseUnit && (

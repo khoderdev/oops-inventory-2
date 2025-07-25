@@ -52,7 +52,7 @@ const materialController = {
   // Create a new material
   createMaterial: async (req, res, next) => {
     try {
-      const { name, baseUnit, unitType, inputUnit, packageQuantity, costPerBaseUnit, category, description } = req.body;
+      const { name, baseUnit, unitType, inputUnit, packageQuantity, category } = req.body;
 
       // Validate required fields
       if (!name || !baseUnit || !unitType) {
@@ -80,9 +80,7 @@ const materialController = {
         unitType,
         inputUnit,
         packageQuantity: unitType === "package" ? packageQuantity : null,
-        costPerBaseUnit,
-        category,
-        description
+        category
       };
 
       const material = await Material.create(materialData);
@@ -96,7 +94,7 @@ const materialController = {
   updateMaterial: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { name, baseUnit, unitType, inputUnit, packageQuantity, costPerBaseUnit, category, description } = req.body;
+      const { name, baseUnit, unitType, inputUnit, packageQuantity, category } = req.body;
 
       const material = await Material.findByPk(id);
       if (!material) {
@@ -128,9 +126,7 @@ const materialController = {
         unitType: unitType !== undefined ? unitType : material.unitType,
         inputUnit: inputUnit !== undefined ? inputUnit : material.inputUnit,
         packageQuantity: packageQuantity !== undefined ? packageQuantity : material.packageQuantity,
-        costPerBaseUnit: costPerBaseUnit !== undefined ? costPerBaseUnit : material.costPerBaseUnit,
-        category: category !== undefined ? category : material.category,
-        description: description !== undefined ? description : material.description
+        category: category !== undefined ? category : material.category
       });
 
       res.status(200).json(material);

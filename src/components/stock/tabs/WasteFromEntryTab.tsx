@@ -86,15 +86,15 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
     console.log("🚀 WasteFromEntryTab2 handleSubmit called with data:", data);
     console.log("🔍 Debug wasteQuantity:", data.wasteQuantity, typeof data.wasteQuantity);
     console.log("🔍 Debug wasteReason:", data.wasteReason, typeof data.wasteReason);
-    
+
     const wasteQty = parseFloat(data.wasteQuantity) || 0;
     console.log("🔍 Parsed wasteQuantity:", wasteQty);
-    
+
     // Convert StockFormInputs to StockFormData format with stockEntryId
     const formData: StockFormData & { stockEntryId: string } = {
       materialId: data.materialId,
-      supplier: stockEntry.supplier, // Use supplier from existing stock entry
-      purchasedQuantity: wasteQty, // Use wasteQuantity as purchasedQuantity
+      supplier: stockEntry.supplier,
+      purchasedQuantity: wasteQty,
       purchasedUnit: data.purchasedUnit,
       costPerPurchasedUnit: parseFloat(data.costPerPurchasedUnit) || 0,
       totalCost: parseFloat(data.totalCost) || 0,
@@ -106,10 +106,10 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
       wasteReason: data.wasteReason,
       stockEntryId: stockEntry.id
     };
-    
+
     console.log("📦 Converted formData:", formData);
     console.log("📞 Calling onRecordWaste...");
-    
+
     onRecordWaste(formData);
   };
 
@@ -133,10 +133,13 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit, (errors) => {
-          console.error("❌ Form validation failed:", errors);
-          console.log("📝 Current form values:", form.getValues());
-        })} className="space-y-6">
+        <form
+          onSubmit={form.handleSubmit(handleSubmit, errors => {
+            console.error("❌ Form validation failed:", errors);
+            console.log("📝 Current form values:", form.getValues());
+          })}
+          className="space-y-6"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <FormField
               control={form.control}
@@ -321,20 +324,14 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
             </div>
           </div>
 
-          <CostBreakdown 
-            selectedMaterial={selectedMaterial} 
-            wasteQuantity={watchedQuantity} 
-            purchasedUnit={stockEntry.purchasedUnit} 
-            costPerPurchasedUnit={stockEntry.costPerPurchasedUnit.toString()} 
-            totalCost={form.watch("totalCost")} 
-          />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={stockEntry.purchasedUnit} costPerPurchasedUnit={stockEntry.costPerPurchasedUnit.toString()} totalCost={form.watch("totalCost")} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="bg-red-600 hover:bg-red-700 text-white"
               onClick={() => {
                 console.log("🔴 Record Waste button clicked!");
