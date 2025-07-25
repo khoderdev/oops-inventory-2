@@ -20,6 +20,9 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
+// Trust proxy to get real IP addresses
+app.set("trust proxy", true);
+
 // Routes
 // Authentication routes (public)
 app.use("/api/auth", authRoutes);

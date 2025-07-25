@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
 import { AuditLog, Session, User } from "../models/index.js";
+import { getClientIP } from "../utils/ipUtils.js";
 
 const authController = {
   // User login
@@ -57,7 +58,7 @@ const authController = {
       // Create new session
       const session = await Session.create({
         userId: user.id,
-        ipAddress: req.ip || req.connection.remoteAddress,
+        ipAddress: getClientIP(req),
         userAgent: req.get("User-Agent"),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
       });

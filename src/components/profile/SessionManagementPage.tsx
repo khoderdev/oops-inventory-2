@@ -38,8 +38,9 @@ const SessionManagementPage: React.FC = () => {
       await authAPI.revokeSession(sessionId);
       setSessions(prev => prev.filter(session => session.id !== sessionId));
       setSuccess("Session revoked successfully");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to revoke session");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to revoke session");
     } finally {
       setIsRevoking(null);
     }
@@ -51,8 +52,9 @@ const SessionManagementPage: React.FC = () => {
       await authAPI.revokeAllOtherSessions();
       await loadSessions();
       setSuccess("All other sessions revoked successfully");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to revoke sessions");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to revoke sessions");
     } finally {
       setIsLoading(false);
     }
@@ -106,6 +108,13 @@ const SessionManagementPage: React.FC = () => {
       hour: "2-digit",
       minute: "2-digit"
     });
+  };
+
+  const formatIPAddress = (ipAddress: string) => {
+    if (ipAddress === "127.0.0.1" || ipAddress === "::1") {
+      return `${ipAddress} (localhost)`;
+    }
+    return ipAddress;
   };
 
   const isCurrentSession = (session: Session) => {
@@ -209,7 +218,7 @@ const SessionManagementPage: React.FC = () => {
                           {session.ipAddress && (
                             <div className="flex items-center gap-2">
                               <Globe className="h-4 w-4" />
-                              <span>{session.ipAddress}</span>
+                              <span>{formatIPAddress(session.ipAddress)}</span>
                             </div>
                           )}
 

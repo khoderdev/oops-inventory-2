@@ -40,8 +40,8 @@ export const authAPI = {
   },
 
   getSessions: async (): Promise<Session[]> => {
-    const response = await api.get<Session[]>("/auth/sessions");
-    return response.data;
+    const response = await api.get<{ sessions: Session[] }>("/auth/sessions");
+    return response.data.sessions;
   },
 
   revokeSession: async (sessionId: string): Promise<{ message: string }> => {
