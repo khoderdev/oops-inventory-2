@@ -1,3 +1,5 @@
+import { DeleteConfirmationModal } from "@/components/dialogs/DeleteConfirmationModal";
+import { StockRestorationModal } from "@/components/dialogs/StockRestorationModal";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -40,12 +42,16 @@ export function SalesHistoryPage() {
     deleteDialogOpen,
     bulkRevertDialogOpen,
     bulkDeleteDialogOpen,
+    stockRestorationModalOpen,
+    deleteConfirmationModalOpen,
     selectedSaleForRevert,
     selectedSaleForDelete,
     setRevertDialogOpen,
     setDeleteDialogOpen,
     setBulkRevertDialogOpen,
     setBulkDeleteDialogOpen,
+    setStockRestorationModalOpen,
+    setDeleteConfirmationModalOpen,
     setSelectedSaleForRevert,
     setSelectedSaleForDelete,
     fetchSales,
@@ -583,7 +589,7 @@ export function SalesHistoryPage() {
                               handleSoftDeleteSale(sale);
                             }}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            title="Hide Sale"
+                            title="Delete Sale"
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -739,20 +745,19 @@ export function SalesHistoryPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hide Sale</DialogTitle>
+            <DialogTitle>Delete Sale</DialogTitle>
             <DialogDescription>
-              Are you sure you want to hide sale #{selectedSaleForDelete?.id}?
+              Are you sure you want to delete sale #{selectedSaleForDelete?.id}?
               <br />
               <br />
               <strong>This action will:</strong>
               <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Hide the sale from the sales history view</li>
+                <li>Delete the sale from the sales history view</li>
                 <li>Preserve the sale record in the database</li>
                 <li>Keep all stock levels unchanged</li>
                 <li>Allow the sale to be restored later if needed</li>
               </ul>
               <br />
-              <span className="text-blue-600 font-medium">This is a "soft delete" - the sale data is preserved but hidden from view.</span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -763,12 +768,12 @@ export function SalesHistoryPage() {
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Hiding...
+                  Deleting...
                 </>
               ) : (
                 <>
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Hide Sale
+                  Delete Sale
                 </>
               )}
             </Button>
@@ -787,13 +792,12 @@ export function SalesHistoryPage() {
               <br />
               <strong>This action will:</strong>
               <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Hide the selected items from the sales history view</li>
+                <li>Delete the selected sales from the sales history view</li>
                 <li>Preserve all sale records in the database</li>
                 <li>Keep all stock levels unchanged</li>
                 <li>Allow the sales to be restored later if needed</li>
               </ul>
               <br />
-              <span className="text-blue-600 font-medium">This is a "soft delete" operation - the sale data is preserved but hidden from view.</span>
               {(selectedItem !== "all" || selectedSection !== "all" || dateFilter) && (
                 <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
                   <p className="text-sm text-yellow-800">
@@ -886,6 +890,12 @@ export function SalesHistoryPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Stock Restoration Modal */}
+      <StockRestorationModal open={stockRestorationModalOpen} onOpenChange={setStockRestorationModalOpen} saleId={selectedSaleForRevert?.id?.toString() || ""} stockRestorationReport={stockRestorationReport} />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal open={deleteConfirmationModalOpen} onOpenChange={setDeleteConfirmationModalOpen} saleRecord={selectedSaleForDelete} />
     </div>
   );
 }
@@ -1478,7 +1488,7 @@ export function SalesHistoryPage() {
 //                                   <Undo2 className="mr-2 h-4 w-4" />
 //                                   Revert
 //                                 </Button>
-//                                 <Button variant="outline" size="sm" onClick={() => handleSoftDeleteSale(item.saleId)} className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50" title="Hide Sale">
+//                                 <Button variant="outline" size="sm" onClick={() => handleSoftDeleteSale(item.saleId)} className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50" title="Delete Sale">
 //                                   <Trash2 className="mr-2 h-4 w-4" />
 //                                   Delete
 //                                 </Button>
@@ -1556,14 +1566,14 @@ export function SalesHistoryPage() {
 //       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
 //         <DialogContent>
 //           <DialogHeader>
-//             <DialogTitle>Hide Sale</DialogTitle>
+//             <DialogTitle>Delete Sale</DialogTitle>
 //             <DialogDescription>
-//               Are you sure you want to hide sale #{selectedSaleForDelete?.id}?
+//               Are you sure you want to Delete Sale #{selectedSaleForDelete?.id}?
 //               <br />
 //               <br />
 //               <strong>This action will:</strong>
 //               <ul className="list-disc list-inside mt-2 space-y-1">
-//                 <li>Hide the sale from the sales history view</li>
+//                 <li>Delete the sale from the sales history view</li>
 //                 <li>Preserve the sale record in the database</li>
 //                 <li>Keep all stock levels unchanged</li>
 //                 <li>Allow the sale to be restored later if needed</li>
@@ -1585,7 +1595,7 @@ export function SalesHistoryPage() {
 //               ) : (
 //                 <>
 //                   <Trash2 className="mr-2 h-4 w-4" />
-//                   Hide Sale
+//                   Delete Sale
 //                 </>
 //               )}
 //             </Button>

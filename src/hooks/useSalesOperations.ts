@@ -29,6 +29,8 @@ interface UseSalesOperationsReturn {
   deleteDialogOpen: boolean;
   bulkRevertDialogOpen: boolean;
   bulkDeleteDialogOpen: boolean;
+  stockRestorationModalOpen: boolean;
+  deleteConfirmationModalOpen: boolean;
 
   // Selected items
   selectedSaleForRevert: SaleRecord | null;
@@ -40,6 +42,8 @@ interface UseSalesOperationsReturn {
   setDeleteDialogOpen: (open: boolean) => void;
   setBulkRevertDialogOpen: (open: boolean) => void;
   setBulkDeleteDialogOpen: (open: boolean) => void;
+  setStockRestorationModalOpen: (open: boolean) => void;
+  setDeleteConfirmationModalOpen: (open: boolean) => void;
   setSelectedSaleForRevert: (sale: SaleRecord | null) => void;
   setSelectedSaleForDelete: (sale: SaleRecord | null) => void;
   setSelectedSaleIds: (ids: Set<string>) => void;
@@ -70,6 +74,8 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkRevertDialogOpen, setBulkRevertDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [stockRestorationModalOpen, setStockRestorationModalOpen] = useState(false);
+  const [deleteConfirmationModalOpen, setDeleteConfirmationModalOpen] = useState(false);
   const [selectedSaleForRevert, setSelectedSaleForRevert] = useState<SaleRecord | null>(null);
   const [selectedSaleForDelete, setSelectedSaleForDelete] = useState<SaleRecord | null>(null);
   const [selectedSaleIds, setSelectedSaleIds] = useState<Set<string>>(new Set());
@@ -107,20 +113,13 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
         // Make API call
         const response = await salesAPI.revertSale(sale.id.toString());
 
-        // Show success message with restoration details
+        // Show stock restoration modal with details
         if (response.data.stockRestorationReport && response.data.stockRestorationReport.length > 0) {
           setStockRestorationReport(response.data.stockRestorationReport);
-          const restorationSummary = response.data.stockRestorationReport.map(item => `${item.materialName}: +${item.quantityRestored} ${item.unit}`).join(", ");
-          setRevertSuccess(`Sale reverted successfully! Stock restored: ${restorationSummary}`);
+          setStockRestorationModalOpen(true);
         } else {
           setRevertSuccess("Sale reverted successfully!");
         }
-
-        // Auto-hide success message
-        setTimeout(() => {
-          setRevertSuccess(null);
-          setStockRestorationReport([]);
-        }, 5000);
       } catch (error) {
         console.error("Error reverting sale:", error);
 
@@ -128,9 +127,6 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
         setSales(originalSales);
 
         setError(error instanceof Error ? error.message : "Failed to revert sale");
-
-        // Auto-hide error message
-        setTimeout(() => setError(null), 5000);
       } finally {
         setIsReverting(false);
       }
@@ -157,11 +153,8 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
         // Make API call
         await salesAPI.deleteSale(sale.id.toString());
 
-        // Show success message
-        setDeleteSuccess("Sale deleted successfully!");
-
-        // Auto-hide success message
-        setTimeout(() => setDeleteSuccess(null), 3000);
+        // Show delete confirmation modal
+        setDeleteConfirmationModalOpen(true);
       } catch (error) {
         console.error("Error deleting sale:", error);
 
@@ -176,7 +169,7 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
         setIsDeleting(false);
       }
     },
-    [sales, setSales, setIsDeleting, setError, setDeleteDialogOpen, setDeleteSuccess]
+    [sales, setSales, setIsDeleting, setError, setDeleteDialogOpen, setDeleteConfirmationModalOpen]
   );
 
   const bulkDeleteSales = useCallback(
@@ -320,6 +313,8 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
     deleteDialogOpen,
     bulkRevertDialogOpen,
     bulkDeleteDialogOpen,
+    stockRestorationModalOpen,
+    deleteConfirmationModalOpen,
 
     // Selected items
     selectedSaleForRevert,
@@ -331,6 +326,8 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
     setDeleteDialogOpen,
     setBulkRevertDialogOpen,
     setBulkDeleteDialogOpen,
+    setStockRestorationModalOpen,
+    setDeleteConfirmationModalOpen,
     setSelectedSaleForRevert,
     setSelectedSaleForDelete,
     setSelectedSaleIds,
