@@ -10,6 +10,7 @@ import ProtectedNavigation from "./components/layout/ProtectedNavigation";
 import ProfilePage from "./components/profile/ProfilePage";
 import SessionManagementPage from "./components/profile/SessionManagementPage";
 import { AuthProvider } from "./contexts/AuthContext";
+import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 import DayOperationsPage from "./pages/DayOperationsPage";
 import { InventoryManagementPage } from "./pages/InventoryManagementPage";
 import NotFound from "./pages/NotFound";
@@ -19,12 +20,20 @@ import { PERMISSIONS } from "./types/auth";
 const queryClient = new QueryClient();
 
 // Layout component for authenticated pages
-const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-screen bg-gray-50">
-    <ProtectedNavigation />
-    <main className="lg:ml-64 p-6">{children}</main>
-  </div>
-);
+const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
+  const { isCollapsed } = useSidebar();
+  
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <ProtectedNavigation />
+      <main className={`p-6 transition-all duration-300 ease-in-out ${
+        isCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+      }`}>
+        {children}
+      </main>
+    </div>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -33,6 +42,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <SidebarProvider>
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
@@ -176,6 +186,7 @@ const App = () => (
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </SidebarProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

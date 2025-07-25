@@ -1,12 +1,18 @@
-import { Activity, BarChart3, Boxes, Calendar, ChevronDown, FileText, Home, Link as LinkIcon, LogOut, MapPin, Menu, Package, Settings, Shield, ShoppingCart, User, Users, X } from "lucide-react";
-import React, { useState } from "react";
+import { 
+  Activity, BarChart3, Boxes, Calendar, ChevronDown, ChevronLeft, ChevronRight,
+  FileText, Home, Link as LinkIcon, LogOut, MapPin, Menu, Package, 
+  Settings, Shield, ShoppingCart, User, Users, X 
+} from "lucide-react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 import { PERMISSIONS } from "../../types/auth";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 interface NavigationItem {
   label: string;
@@ -21,12 +27,13 @@ interface NavigationItem {
 
 const ProtectedNavigation: React.FC = () => {
   const { user, logout, hasPermission, hasRole } = useAuth();
+  const { isCollapsed, isMobileMenuOpen, toggleCollapse, closeMobileMenu, toggleMobileMenu } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openSections, setOpenSections] = useState<string[]>([]);
 
-  const navigationItems: NavigationItem[] = [
+  // Memoized navigation items to prevent re-renders
+  const navigationItems: NavigationItem[] = useMemo(() => [
     {
       label: "Dashboard",
       href: "/",
@@ -133,22 +140,29 @@ const ProtectedNavigation: React.FC = () => {
         }
       ]
     }
-  ];
+  ], []);
 
-  const handleLogout = async () => {
+  // Performance optimizations with useCallback
+  const handleLogout = useCallback(async () => {
     try {
       await logout();
       navigate("/login");
     } catch (error) {
       console.error("Logout failed:", error);
     }
-  };
+  }, [logout, navigate]);
 
-  const toggleSection = (label: string) => {
+  const toggleSection = useCallback((label: string) => {
     setOpenSections(prev => (prev.includes(label) ? prev.filter(section => section !== label) : [...prev, label]));
-  };
+  }, []);
 
-  const isItemVisible = (item: NavigationItem): boolean => {
+  // Auto-close mobile menu on route change
+  useEffect(() => {
+    closeMobileMenu();
+  }, [location.pathname, closeMobileMenu]);
+
+  // Memoized visibility check for performance
+  const isItemVisible = useCallback((item: NavigationItem): boolean => {
     // Check role requirement
     if (item.role && !hasRole(item.role)) {
       return false;
@@ -165,16 +179,21 @@ const ProtectedNavigation: React.FC = () => {
     }
 
     return true;
-  };
+  }, [hasRole, hasPermission]);
 
-  const isActiveLink = (href: string): boolean => {
+  const isActiveLink = useCallback((href: string): boolean => {
     if (href === "/") {
       return location.pathname === "/";
     }
     return location.pathname.startsWith(href);
-  };
+  }, [location.pathname]);
 
-  const renderNavigationItem = (item: NavigationItem, level: number = 0) => {
+  // Memoized filtered navigation items
+  const visibleNavigationItems = useMemo(() => {
+    return navigationItems.filter(item => isItemVisible(item));
+  }, [navigationItems, isItemVisible]);
+
+  const renderNavigationItem = useCallback((item: NavigationItem, level: number = 0) => {
     if (!isItemVisible(item)) {
       return null;
     }
@@ -182,43 +201,90 @@ const ProtectedNavigation: React.FC = () => {
     const hasChildren = item.children && item.children.length > 0;
     const isOpen = openSections.includes(item.label);
     const isActive = item.href ? isActiveLink(item.href) : false;
+    const paddingClass = level > 0 ? "pl-8" : "pl-3";
+
+    // Tooltip wrapper for collapsed state
+    const TooltipWrapper = ({ children, content }: { children: React.ReactNode; content: string }) => {
+      if (isCollapsed && level === 0) {
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipContent side="right" className="ml-2">
+              <p>{content}</p>
+            </TooltipContent>
+          </Tooltip>
+        );
+      }
+      return <>{children}</>;
+    };
 
     if (hasChildren) {
       return (
-        <Collapsible key={item.label} open={isOpen} onOpenChange={() => toggleSection(item.label)}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className={`w-full justify-between text-left font-normal ${level > 0 ? "pl-8" : "pl-4"} ${isActive ? "bg-blue-100 text-blue-900" : ""}`}>
-              <div className="flex items-center gap-3">
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-                {item.badge && (
-                  <Badge variant={item.badgeVariant || "default"} className="text-xs">
-                    {item.badge}
-                  </Badge>
+        <TooltipWrapper key={item.label} content={item.label}>
+          <Collapsible open={isOpen} onOpenChange={() => toggleSection(item.label)}>
+            <CollapsibleTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className={`w-full justify-between text-left font-normal ${paddingClass} ${
+                  isActive ? "bg-blue-100 text-blue-900" : "hover:bg-gray-100"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <item.icon className="h-4 w-4 flex-shrink-0" />
+                  {!isCollapsed && (
+                    <>
+                      <span className="truncate">{item.label}</span>
+                      {item.badge && (
+                        <Badge variant={item.badgeVariant || "default"} className="text-xs">
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                </div>
+                {!isCollapsed && (
+                  <ChevronDown className={`h-4 w-4 transition-transform ${
+                    isOpen ? "rotate-180" : ""
+                  }`} />
                 )}
-              </div>
-              <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-1">{item.children?.map(child => renderNavigationItem(child, level + 1))}</CollapsibleContent>
-        </Collapsible>
+              </Button>
+            </CollapsibleTrigger>
+            {!isCollapsed && (
+              <CollapsibleContent className="space-y-1">
+                {item.children?.map(child => renderNavigationItem(child, level + 1))}
+              </CollapsibleContent>
+            )}
+          </Collapsible>
+        </TooltipWrapper>
       );
     }
 
     return (
-      <Link key={item.label} to={item.href!}>
-        <Button variant="ghost" className={`w-full justify-start text-left font-normal ${level > 0 ? "pl-8" : "pl-4"} ${isActive ? "bg-blue-100 text-blue-900" : ""}`} onClick={() => setIsMobileMenuOpen(false)}>
-          <item.icon className="h-4 w-4 mr-3" />
-          <span>{item.label}</span>
-          {item.badge && (
-            <Badge variant={item.badgeVariant || "default"} className="ml-auto text-xs">
-              {item.badge}
-            </Badge>
-          )}
-        </Button>
-      </Link>
+      <TooltipWrapper key={item.label} content={item.label}>
+        <Link to={item.href!}>
+          <Button 
+            variant="ghost" 
+            className={`w-full justify-start text-left font-normal ${paddingClass} ${
+              isActive ? "bg-blue-100 text-blue-900" : "hover:bg-gray-100"
+            }`}
+            onClick={closeMobileMenu}
+          >
+            <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+            {!isCollapsed && (
+              <>
+                <span className="truncate">{item.label}</span>
+                {item.badge && (
+                  <Badge variant={item.badgeVariant || "default"} className="ml-auto text-xs">
+                    {item.badge}
+                  </Badge>
+                )}
+              </>
+            )}
+          </Button>
+        </Link>
+      </TooltipWrapper>
     );
-  };
+  }, [isItemVisible, openSections, isActiveLink, toggleSection, closeMobileMenu, isCollapsed]);
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -236,45 +302,84 @@ const ProtectedNavigation: React.FC = () => {
   return (
     <>
       {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <Button variant="outline" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        </Button>
-      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={toggleMobileMenu}
+        className="lg:hidden fixed top-4 left-4 z-50 shadow-lg bg-white hover:bg-gray-50"
+      >
+        {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+      </Button>
 
       {/* Mobile Overlay */}
-      {isMobileMenuOpen && <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsMobileMenuOpen(false)} />}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-30" 
+          onClick={closeMobileMenu} 
+        />
+      )}
 
       {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 z-40 transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+      <aside className={`
+        fixed top-0 left-0 z-40 h-screen bg-white border-r border-gray-200 shadow-lg
+        transition-all duration-300 ease-in-out
+        ${isCollapsed ? 'w-16' : 'w-64'}
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        {/* Collapse Toggle Button */}
+        <div className="hidden lg:block absolute -right-3 top-6 z-50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleCollapse}
+            className="h-6 w-6 p-0 rounded-full bg-white shadow-md hover:shadow-lg transition-all duration-200"
+          >
+            {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+          </Button>
+        </div>
+
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <Package className="h-8 w-8 text-blue-600" />
-              <div>
-                <h1 className="font-bold text-lg text-gray-900">oOps BackOffice</h1>
-                <p className="text-xs text-gray-500">Inventory System</p>
+              <div className="flex-shrink-0">
+                <Package className="h-8 w-8 text-blue-600" />
               </div>
+              {!isCollapsed && (
+                <div className="min-w-0">
+                  <h1 className="font-bold text-lg text-gray-900 truncate">oOps BackOffice</h1>
+                  <p className="text-xs text-gray-500">Inventory System</p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* User Info */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="h-5 w-5 text-blue-600" />
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <User className="h-5 w-5 text-blue-600" />
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-gray-900 truncate">{user?.fullName}</p>
-                <p className="text-xs text-gray-500 truncate">@{user?.username}</p>
-                <Badge className={`text-xs mt-1 ${getRoleBadgeColor(user?.role || "")}`}>{user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)}</Badge>
-              </div>
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-gray-900 truncate">{user?.fullName}</p>
+                  <p className="text-xs text-gray-500 truncate">@{user?.username}</p>
+                  <Badge className={`text-xs mt-1 ${getRoleBadgeColor(user?.role || "")}`}>
+                    {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)}
+                  </Badge>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4 space-y-1">{navigationItems.map(item => renderNavigationItem(item))}</nav>
+          <nav className="flex-1 overflow-y-auto py-4">
+            <div className="space-y-1 px-3">
+              {visibleNavigationItems.map(item => renderNavigationItem(item))}
+            </div>
+          </nav>
 
           {/* Footer */}
           <div className="p-4 border-t border-gray-200">
@@ -282,8 +387,12 @@ const ProtectedNavigation: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start">
                   <User className="h-4 w-4 mr-3" />
-                  Account
-                  <ChevronDown className="h-4 w-4 ml-auto" />
+                  {!isCollapsed && (
+                    <>
+                      <span>Account</span>
+                      <ChevronDown className="h-4 w-4 ml-auto" />
+                    </>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
@@ -306,10 +415,7 @@ const ProtectedNavigation: React.FC = () => {
             </DropdownMenu>
           </div>
         </div>
-      </div>
-
-      {/* Main Content Spacer */}
-      <div className="lg:ml-64">{/* Content goes here */}</div>
+      </aside>
     </>
   );
 };
