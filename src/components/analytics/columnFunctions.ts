@@ -51,8 +51,29 @@ export function getInitialWidth(header: string): number {
   const wideColumns = ["material", "supplier", "description", "name", "item"];
   const narrowColumns = ["qty", "unit", "status", "entries", "count"];
   const costColumns = ["cost", "value", "price", "profit", "revenue", "amount"];
-  const mediumColumns = ["category", "section", "date"];
+  const mediumColumns = ["category", "section", "date", "reason"];
   const headerLower = header.toLowerCase();
+  
+  // Specific widths for waste report columns
+  if (headerLower === "material") {
+    return 180; // Wider for material name + category
+  }
+  if (headerLower.includes("waste quantity")) {
+    return 120;
+  }
+  if (headerLower === "cost") {
+    return 130; // Accommodate color-coded pills
+  }
+  if (headerLower === "waste date") {
+    return 140;
+  }
+  if (headerLower === "reason") {
+    return 120;
+  }
+  if (headerLower === "unit") {
+    return 80;
+  }
+  
   if (wideColumns.some(keyword => headerLower.includes(keyword))) {
     return 200;
   }

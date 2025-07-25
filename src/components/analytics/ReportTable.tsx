@@ -205,7 +205,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
               minHeight: "250px"
             }}
           >
-            <Table ref={tableRef} className="w-full table-auto min-w-[800px] relative" style={{ tableLayout: "auto" }}>
+            <Table ref={tableRef} className="w-full table-fixed min-w-[800px] relative" style={{ tableLayout: "fixed" }}>
               <TableHeader className="sticky top-0 z-30 bg-white dark:bg-card shadow-sm backdrop-blur-sm">
                 <TableRow className="border-b-2 border-primary/20 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
                   {headers.map((header, index) => {
@@ -229,6 +229,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                           index === headers.length - 1 && "rounded-tr-lg"
                         )}
                         style={{
+                          width: `${getColumnWidth(header)}px`,
                           textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                         }}
                       >
@@ -276,6 +277,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                           key={header}
                           className={cn("text-sm sm:text-base lg:text-sm", "py-4 px-3 sm:py-5 sm:px-4 lg:px-5", cellIndex < headers.length - 1 && "border-r border-slate-200/40 dark:border-slate-600/40", cellIndex === headers.length - 1 && "border-r-0", "transition-all duration-300 ease-in-out", "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60", "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20", getResponsiveColumnClasses(header), alignment)}
                           style={{
+                            width: `${getColumnWidth(header)}px`,
                             textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                           }}
                         >
