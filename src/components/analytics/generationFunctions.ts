@@ -38,16 +38,15 @@ export async function generateInventorySummaryReport(materials: Material[], stoc
     }
 
     return {
-      material: material.name,
-      category: material.category,
-      availableqty: totalQuantity,
-      unit: material.baseUnit,
-      minthreshold: MIN_STOCK_THRESHOLD,
-      avgcost: avgCost,
-      totalvalue: totalValue,
-      stockentries: materialStockEntries.length,
-      lastpurchase: lastPurchase,
-      status: status
+      Material: material.name,
+      Category: material.category,
+      "Available Qty": totalQuantity,
+      Unit: material.baseUnit,
+      "Avg Cost": avgCost,
+      "Total Value": totalValue,
+      "Stock Entries": materialStockEntries.length,
+      "Last Purchase": lastPurchase,
+      Status: status
     };
   });
 }
@@ -58,14 +57,14 @@ export async function generateStockPurchasesReport(stockEntries: StockEntry[], m
     .map(entry => {
       const material = materials.find(m => m.id === entry.materialId);
       return {
-        date: entry.purchaseDate,
-        material: material?.name || "Unknown",
-        supplier: entry.supplier,
-        quantity: entry.purchasedQuantity,
-        unit: entry.purchasedUnit,
-        costperunit: entry.costPerPurchasedUnit,
-        totalcost: entry.totalCost,
-        batch: entry.batchNumber || "-"
+        Date: entry.purchaseDate,
+        Material: material?.name || "Unknown",
+        Supplier: entry.supplier,
+        Quantity: entry.purchasedQuantity,
+        Unit: entry.purchasedUnit,
+        "Cost per Unit": entry.costPerPurchasedUnit,
+        "Total Cost": entry.totalCost,
+        Batch: entry.batchNumber || "-"
       };
     });
 }
@@ -88,26 +87,26 @@ export async function generateSalesPerformanceReport(sales: SaleRecord[], menuIt
     const totalItems = salesList.reduce((sum, sale) => sum + sale.items.length + sale.menuItems.length, 0);
 
     return {
-      date: new Date(date),
-      section: "All Sections",
-      totalsales: salesList.length,
-      itemssold: totalItems,
-      revenue: totalRevenue,
-      topitem: "Various",
-      performance: totalRevenue > 1000 ? "Excellent" : totalRevenue > 500 ? "Good" : "Average"
+      Date: new Date(date),
+      Section: "All Sections",
+      "Total Sales": salesList.length,
+      "Items Sold": totalItems,
+      Revenue: totalRevenue,
+      "Top Item": "Various",
+      Performance: totalRevenue > 1000 ? "Excellent" : totalRevenue > 500 ? "Good" : "Average"
     };
   });
 }
 
 export async function generateCostAnalysisReport(materials: Material[], stockEntries: StockEntry[]) {
   return reportGenerator.generateCostAnalysis(materials, stockEntries).map(analysis => ({
-    material: analysis.materialName,
-    currentcost: analysis.currentAverageCost,
-    previouscost: analysis.previousAverageCost,
-    trend: analysis.costTrend,
-    "variance%": analysis.costVariance,
-    entries: analysis.stockEntriesCount,
-    recommendation: analysis.recommendation
+    Material: analysis.materialName,
+    "Current Cost": analysis.currentAverageCost,
+    "Previous Cost": analysis.previousAverageCost,
+    Trend: analysis.costTrend,
+    "Variance %": analysis.costVariance,
+    Entries: analysis.stockEntriesCount,
+    Recommendation: analysis.recommendation
   }));
 }
 
@@ -158,14 +157,14 @@ export async function generateMenuProfitabilityReport(menuItems: MenuItem[], mat
     const profitMargin = item.price > 0 ? (profit / item.price) * 100 : 0;
 
     return {
-      menuitem: item.name,
-      category: item.category,
-      price: item.price,
-      cost: totalCost,
-      profit: profit,
-      profitmargin: profitMargin,
-      salescount: Math.floor(Math.random() * 50),
-      totalprofit: profit * Math.floor(Math.random() * 50)
+      "Menu Item": item.name,
+      Category: item.category,
+      Price: item.price,
+      Cost: totalCost,
+      Profit: profit,
+      "Profit Margin %": profitMargin,
+      "Sales Count": Math.floor(Math.random() * 50),
+      "Total Profit": profit * Math.floor(Math.random() * 50)
     };
   });
 }
@@ -176,13 +175,13 @@ export async function generateSectionPerformanceReport(sections: Section[], assi
     const totalValue = sectionAssignments.length * 100;
 
     return {
-      section: section.name,
-      assignments: sectionAssignments.length,
-      totalvalue: totalValue,
-      salesvolume: Math.floor(Math.random() * 1000),
-      revenue: Math.floor(Math.random() * 5000),
-      utilization: Math.floor(Math.random() * 100),
-      performance: "Good"
+      Section: section.name,
+      Assignments: sectionAssignments.length,
+      "Total Value": totalValue,
+      "Sales Volume": Math.floor(Math.random() * 1000),
+      Revenue: Math.floor(Math.random() * 5000),
+      "Utilization %": Math.floor(Math.random() * 100),
+      Performance: "Good"
     };
   });
 }
