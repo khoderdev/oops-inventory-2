@@ -19,7 +19,6 @@ interface ReportTableProps {
       // Variance analysis summary
       totalCostVariance?: number;
       avgVariancePercentage?: number;
-      statusCounts?: Record<string, number>;
       highestVariance?: {
         material: string;
         percentage: number;

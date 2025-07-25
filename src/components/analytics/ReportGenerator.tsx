@@ -199,22 +199,6 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
         </CardHeader>
         <CardContent className="flex-1 flex flex-col space-y-4 sm:space-y-6 min-h-0">
           <div className="space-y-4">
-            {currentReportConfig && !isChangingReportType && (
-              <div className="p-4 sm:p-3 bg-muted/50 rounded-lg border-l-4 border-primary">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex-shrink-0">{currentReportConfig.icon}</div>
-                  <h4 className="font-medium text-sm sm:text-base truncate">{currentReportConfig.name}</h4>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">{currentReportConfig.description}</p>
-                {currentReportConfig.requiresDateRange && (
-                  <div className="flex items-center gap-1 mt-2 text-xs text-blue-600">
-                    <span>📅</span>
-                    <span>Requires date range selection</span>
-                  </div>
-                )}
-              </div>
-            )}
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
               <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                 <Label htmlFor="report-type">Report Type</Label>
@@ -227,10 +211,10 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                       </div>
                     )}
                   </SelectTrigger>
-                  <SelectContent className="max-w-[90vw] sm:max-w-md">
+                  <SelectContent className="max-w-[90vw] sm:max-w-md ">
                     {REPORT_CONFIGS.map(config => (
                       <SelectItem key={config.id} value={config.id} className="cursor-pointer">
-                        <div className="flex items-start gap-3 py-1 min-w-0">
+                        <div className="flex items-start gap-3 py-1 min-w-0 text-left">
                           <div className="flex-shrink-0 mt-0.5">{config.icon}</div>
                           <div className="min-w-0 flex-1">
                             <div className="font-medium text-sm truncate">{config.name}</div>

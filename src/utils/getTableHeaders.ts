@@ -13,7 +13,7 @@ export function getTableHeaders(reportType: ReportType): string[] {
     "menu-profitability": ["Menu Item", "Category", "Price", "Cost", "Profit", "Profit Margin %", "Sales Count", "Total Profit"],
     "section-performance": ["Section", "Assignments", "Total Value", "Sales Volume", "Revenue", "Utilization %", "Performance"],
     "waste-report": ["Material", "Waste Quantity", "Unit", "Reason", "Cost", "Waste Date"],
-    "variance-analysis": ["Material", "Expected Stock", "Actual Stock", "Variance Qty", "Variance %", "Sales Impact", "Waste Impact", "Cost Variance", "Status"]
+    "variance-analysis": ["Material", "Expected Stock", "Actual Stock", "Variance Qty", "Variance %", "Sales Impact", "Waste Impact", "Cost Variance"]
   };
 
   return headerMap[reportType] || [];

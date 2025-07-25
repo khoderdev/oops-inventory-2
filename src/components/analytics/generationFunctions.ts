@@ -610,18 +610,6 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
 
     const costVariance = Math.abs(varianceQuantity) * avgCostPerUnit;
 
-    // Determine status
-    let status: string;
-    if (Math.abs(variancePercentage) <= 5) {
-      status = "Acceptable";
-    } else if (Math.abs(variancePercentage) <= 15) {
-      status = "Attention Needed";
-    } else if (varianceQuantity < 0) {
-      status = "Stock Shortage";
-    } else {
-      status = "Excess Stock";
-    }
-
     return {
       material: material.name,
       category: material.category,
@@ -632,7 +620,6 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
       salesImpact: Number(salesImpact.toFixed(2)),
       wasteImpact: Number(wasteImpact.toFixed(2)),
       costVariance: Number(costVariance.toFixed(2)),
-      status,
       unit: material.baseUnit,
       avgCostPerUnit: Number(avgCostPerUnit.toFixed(4)),
       openingStock: Number(openingStock.toFixed(2)),
@@ -657,8 +644,7 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
     "Variance %": `${variance.variancePercentage >= 0 ? "+" : ""}${variance.variancePercentage}%`,
     "Sales Impact": `${variance.salesImpact} ${variance.unit}`,
     "Waste Impact": `${variance.wasteImpact} ${variance.unit}`,
-    "Cost Variance": `$${Math.abs(variance.costVariance).toFixed(2)}`,
-    Status: variance.status
+    "Cost Variance": `$${Math.abs(variance.costVariance).toFixed(2)}`
   }));
 
   // Calculate summary metrics
@@ -666,19 +652,12 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
   const totalCostVariance = sortedVariances.reduce((sum, v) => sum + Math.abs(v.costVariance), 0);
   const avgVariancePercentage = totalMaterials > 0 ? sortedVariances.reduce((sum, v) => sum + Math.abs(v.variancePercentage), 0) / totalMaterials : 0;
 
-  const statusCounts = sortedVariances.reduce(
-    (acc, v) => {
-      acc[v.status] = (acc[v.status] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+
 
   const reportSummary = {
     totalMaterials,
     totalCostVariance: Number(totalCostVariance.toFixed(2)),
     avgVariancePercentage: Number(avgVariancePercentage.toFixed(1)),
-    statusCounts,
     dateRange: {
       from: fromDate ? format(fromDate, "yyyy-MM-dd") : null,
       to: format(toDate, "yyyy-MM-dd")
