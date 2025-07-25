@@ -1,6 +1,6 @@
-import { AlertTriangle, DollarSign, Layout, Package, ShoppingCart, Tag, Trash2, TrendingUp, Utensils } from "lucide-react";
+import { AlertTriangle, BarChart3, DollarSign, Layout, Package, ShoppingCart, Tag, Trash2, TrendingUp, Utensils } from "lucide-react";
 
-export type ReportType = "inventory-summary" | "stock-purchases" | "sales-performance" | "cost-analysis" | "supplier-performance" | "expiry-alerts" | "category-analysis" | "menu-profitability" | "section-performance" | "waste-report";
+export type ReportType = "inventory-summary" | "stock-purchases" | "sales-performance" | "cost-analysis" | "supplier-performance" | "expiry-alerts" | "category-analysis" | "menu-profitability" | "section-performance" | "waste-report" | "variance-analysis";
 
 export const REPORT_CONFIGS: ReadonlyArray<{
   id: ReportType;
@@ -77,6 +77,13 @@ export const REPORT_CONFIGS: ReadonlyArray<{
     name: "Waste Report",
     description: "Summary of waste records including material, quantity, reason, and cost impact.",
     icon: <Trash2 className="h-4 w-4" />,
+    requiresDateRange: true
+  },
+  {
+    id: "variance-analysis",
+    name: "Variance Analysis",
+    description: "Comprehensive analysis of variances between stock entries, sales, wastages, and expected vs actual inventory levels.",
+    icon: <BarChart3 className="h-4 w-4" />,
     requiresDateRange: true
   }
 ];

@@ -1,5 +1,5 @@
 import { stockAPI } from "@/api/stock.api.ts";
-import { Material, MenuItem, SaleRecord, Section, SectionAssignment, StockEntry, WasteRecord } from "@/types/inventory";
+import { Material, MenuItem, MenuItemSale, SaleRecord, Section, SectionAssignment, SoldItem, StockEntry, WasteRecord } from "@/types/inventory";
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { reportGenerator } from "@/utils/inventoryReports";
 import { format, isValid, parse } from "date-fns";
@@ -172,33 +172,33 @@ export async function generateMenuProfitabilityReport(menuItems: MenuItem[], mat
 export async function generateSectionPerformanceReport(sections: Section[], assignments: SectionAssignment[], sales: SaleRecord[]) {
   // Import the dayOperations API to get actual daily report data
   const { dayOperationsAPI } = await import("@/api/dayOperations.api.ts");
-  
+
   try {
     // Get today's date for the daily report
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
     const dailyReportData = await dayOperationsAPI.getDailyReport(today);
     const salesBySection = dailyReportData.report?.sales?.salesBySection || {};
-    
+
     return sections.map(section => {
       const sectionAssignments = assignments.filter(a => a.sectionId === section.id);
       const assignmentCount = sectionAssignments.length;
-      
+
       // Get actual sales data for this section from daily report
       const sectionSalesData = salesBySection[section.name] || { count: 0, total: 0 };
       const salesVolume = sectionSalesData.count;
       const revenue = sectionSalesData.total;
-      
+
       // Calculate total value based on assignments and their estimated operational value
       const avgAssignmentValue = 250; // Estimated operational value per assignment
       const totalValue = assignmentCount * avgAssignmentValue;
-      
+
       // Calculate utilization based on assignments vs optimal capacity
       const optimalCapacity = 6; // Optimal assignments per section for efficiency
       const utilization = Math.min((assignmentCount / optimalCapacity) * 100, 100);
-      
+
       // Calculate average ticket if there are sales
       const avgTicket = salesVolume > 0 ? revenue / salesVolume : 0;
-      
+
       // Performance rating based on actual metrics from daily operations
       let performance: string;
       if (utilization >= 75 && avgTicket >= 8 && salesVolume >= 8) {
@@ -222,16 +222,16 @@ export async function generateSectionPerformanceReport(sections: Section[], assi
       };
     });
   } catch (error) {
-    console.error('Error fetching daily report data:', error);
+    console.error("Error fetching daily report data:", error);
     // Fallback to assignment-based calculations if daily report is unavailable
     return sections.map(section => {
       const sectionAssignments = assignments.filter(a => a.sectionId === section.id);
       const assignmentCount = sectionAssignments.length;
-      
+
       // Fallback calculations
       const totalValue = assignmentCount * 250;
       const utilization = Math.min((assignmentCount / 6) * 100, 100);
-      
+
       return {
         Section: section.name,
         Assignments: assignmentCount,
@@ -289,12 +289,12 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
   const totalWasteQuantity = response.data.reduce((sum, record: WasteRecord) => {
     return sum + (record.quantity || 0);
   }, 0);
-  
+
   const totalWasteCost = response.data.reduce((sum, record: WasteRecord) => {
     const totalCost = Number(record.totalCost) || 0;
     const costPerUnit = Number(record.costPerBaseUnit) || 0;
     const quantity = Math.abs(Number(record.quantity) || 0);
-    
+
     const cost = totalCost !== 0 ? totalCost : quantity * costPerUnit;
     return sum + Number(cost);
   }, 0);
@@ -320,7 +320,7 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
       const recordTotalCost = Number(record.totalCost) || 0;
       const recordCostPerUnit = Number(record.costPerBaseUnit) || 0;
       const recordQuantity = Math.abs(Number(record.quantity) || 0);
-      
+
       const totalCost = recordTotalCost !== 0 ? recordTotalCost : recordQuantity * recordCostPerUnit;
       console.log("Calculated totalCost:", totalCost);
 
@@ -370,7 +370,7 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
   const formattedData = wasteByMaterial.map(item => {
     // Calculate percentage of total waste
     const percentageOfTotal = totalWasteQuantity > 0 ? (item.wastequantity / totalWasteQuantity) * 100 : 0;
-    
+
     return {
       material: item.material,
       category: item.category,
@@ -392,16 +392,14 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
   const formattedReport = sortedData
     .map(item => {
       // Ensure proper number formatting
-      const costPerUnit = Number(item.costperunit) || 0;
       const totalCost = Number(item.totalcost) || 0;
-      const percentage = Number(item.percentageoftotal) || 0;
-      
+
       return {
         Material: `${item.material}\n${item.category}`,
         "Waste Quantity": Math.abs(item.wastequantity),
         Unit: item.unit,
         Reason: item.reason,
-        "Cost": `$${totalCost.toFixed(2)}`,
+        Cost: `$${totalCost.toFixed(2)}`,
         "Waste Date": item.wastedate !== "N/A" ? format(new Date(item.wastedate), "MMM d, yyyy") : "N/A"
       };
     })
@@ -426,10 +424,282 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
   console.log("Report summary:", reportSummary);
   console.log("Expected headers:", getTableHeaders("waste-report"));
   console.log("First row keys:", formattedReport.length > 0 ? Object.keys(formattedReport[0]) : []);
-  
+
   // Add summary as metadata to the report array for frontend access
   const reportWithSummary = formattedReport as typeof formattedReport & { summary: typeof reportSummary };
   reportWithSummary.summary = reportSummary;
-  
+
+  return reportWithSummary;
+}
+
+export async function generateVarianceAnalysisReport(materials: Material[], stockEntries: StockEntry[], sales: SaleRecord[], dateFrom?: string, dateTo?: string) {
+  console.log("Starting generateVarianceAnalysisReport with dates:", { dateFrom, dateTo });
+
+  // Parse and validate dates
+  const parseDate = (dateStr?: string): Date | null => {
+    if (!dateStr) return null;
+    const parsed = parse(dateStr, "yyyy-MM-dd", new Date());
+    if (!isValid(parsed)) {
+      const fallback = parse(dateStr, "MM/dd/yyyy", new Date());
+      return isValid(fallback) ? fallback : null;
+    }
+    return parsed;
+  };
+
+  const fromDate = parseDate(dateFrom);
+  const toDate = parseDate(dateTo) || new Date();
+  toDate.setHours(23, 59, 59, 999);
+
+  console.log("Parsed dates:", { fromDate, toDate });
+
+  // Get waste data for the period
+  let wasteData: WasteRecord[] = [];
+  try {
+    const wasteResponse = await stockAPI.getWastageReport({
+      startDate: fromDate ? format(fromDate, "yyyy-MM-dd") : undefined,
+      endDate: format(toDate, "yyyy-MM-dd")
+    });
+    // Type assertion since we know the API structure
+    const response = wasteResponse as { data: WasteRecord[] };
+    wasteData = Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    console.error("Error fetching waste data:", error);
+  }
+
+  // Filter data by date range
+  const filteredStockEntries = fromDate
+    ? stockEntries.filter(entry => {
+        const entryDate = new Date(entry.purchaseDate);
+        return entryDate >= fromDate && entryDate <= toDate;
+      })
+    : stockEntries;
+
+  const filteredSales = fromDate
+    ? sales.filter(sale => {
+        const saleDate = new Date(sale.saleDate);
+        return saleDate >= fromDate && saleDate <= toDate;
+      })
+    : sales;
+
+  console.log("Filtered data:", {
+    stockEntries: filteredStockEntries.length,
+    sales: filteredSales.length,
+    wasteRecords: wasteData.length
+  });
+
+  // Calculate variance for each material
+  const varianceAnalysis = materials.map(material => {
+    // Get stock entries for this material
+    const materialStockEntries = filteredStockEntries.filter(entry => entry.materialId === material.id);
+    const allMaterialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
+
+    // Calculate expected stock (opening stock + purchases - theoretical consumption)
+    let openingStock = 0;
+    let purchases = 0;
+    let actualCurrentStock = 0;
+
+    // Calculate opening stock (stock before the date range)
+    if (fromDate) {
+      const openingStockEntries = stockEntries.filter(entry => {
+        const entryDate = new Date(entry.purchaseDate);
+        return entry.materialId === material.id && entryDate < fromDate;
+      });
+
+      openingStock = openingStockEntries.reduce((sum, entry) => {
+        if (entry.purchasedIndividualQuantity !== undefined) {
+          return sum + entry.purchasedIndividualQuantity;
+        }
+        if (material.unitType === "package" && material.packageQuantity) {
+          return sum + entry.purchasedQuantity * material.packageQuantity;
+        }
+        return sum + entry.purchasedQuantity;
+      }, 0);
+    }
+
+    // Calculate purchases during the period
+    purchases = materialStockEntries.reduce((sum, entry) => {
+      if (entry.purchasedIndividualQuantity !== undefined) {
+        return sum + entry.purchasedIndividualQuantity;
+      }
+      if (material.unitType === "package" && material.packageQuantity) {
+        return sum + entry.purchasedQuantity * material.packageQuantity;
+      }
+      return sum + entry.purchasedQuantity;
+    }, 0);
+
+    // Calculate actual current stock
+    actualCurrentStock = allMaterialStockEntries.reduce((sum, entry) => {
+      if (entry.purchasedIndividualQuantity !== undefined) {
+        return sum + entry.purchasedIndividualQuantity;
+      }
+      if (material.unitType === "package" && material.packageQuantity) {
+        return sum + entry.purchasedQuantity * material.packageQuantity;
+      }
+      return sum + entry.purchasedQuantity;
+    }, 0);
+
+    // Calculate sales impact (quantity sold)
+    let salesImpact = 0;
+    let salesValue = 0;
+
+    filteredSales.forEach(sale => {
+      // Individual items sold
+      if (sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach((item: SoldItem) => {
+          if (item.materialId === material.id) {
+            salesImpact += Number(item.quantity) || 0;
+            salesValue += Number(item.totalPrice) || 0;
+          }
+        });
+      }
+
+      // Menu items sold (check ingredients)
+      if (sale.menuItems && Array.isArray(sale.menuItems)) {
+        sale.menuItems.forEach((menuItem: MenuItemSale) => {
+          if (menuItem.ingredients && Array.isArray(menuItem.ingredients)) {
+            menuItem.ingredients.forEach((ingredient: { materialId: string; materialName?: string; quantity: number; unit: string }) => {
+              if (ingredient.materialId === material.id) {
+                const ingredientQuantity = Number(ingredient.quantity) || 0;
+                const menuQuantity = Number(menuItem.quantity) || 1;
+                salesImpact += ingredientQuantity * menuQuantity;
+                // Estimate sales value based on menu item price
+                salesValue += menuQuantity * (Number(menuItem.unitPrice) || 0);
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // Calculate waste impact
+    const materialWasteRecords = wasteData.filter(waste => waste.materialName === material.name);
+    const wasteImpact = materialWasteRecords.reduce((sum, waste) => {
+      return sum + Math.abs(Number(waste.quantity) || 0);
+    }, 0);
+
+    const wasteCost = materialWasteRecords.reduce((sum, waste) => {
+      const totalCost = Number(waste.totalCost) || 0;
+      const costPerUnit = Number(waste.costPerBaseUnit) || 0;
+      const quantity = Math.abs(Number(waste.quantity) || 0);
+      return sum + (totalCost !== 0 ? totalCost : quantity * costPerUnit);
+    }, 0);
+
+    // Calculate expected stock
+    const expectedStock = openingStock + purchases - salesImpact - wasteImpact;
+
+    // Calculate variance
+    const varianceQuantity = actualCurrentStock - expectedStock;
+    const variancePercentage = expectedStock !== 0 ? (varianceQuantity / expectedStock) * 100 : 0;
+
+    // Calculate cost variance
+    const avgCostPerUnit =
+      allMaterialStockEntries.length > 0
+        ? allMaterialStockEntries.reduce((sum, entry) => sum + entry.totalCost, 0) /
+          allMaterialStockEntries.reduce((sum, entry) => {
+            if (entry.purchasedIndividualQuantity !== undefined) {
+              return sum + entry.purchasedIndividualQuantity;
+            }
+            if (material.unitType === "package" && material.packageQuantity) {
+              return sum + entry.purchasedQuantity * material.packageQuantity;
+            }
+            return sum + entry.purchasedQuantity;
+          }, 0)
+        : material.costPerUnit || 0;
+
+    const costVariance = Math.abs(varianceQuantity) * avgCostPerUnit;
+
+    // Determine status
+    let status: string;
+    if (Math.abs(variancePercentage) <= 5) {
+      status = "Acceptable";
+    } else if (Math.abs(variancePercentage) <= 15) {
+      status = "Attention Needed";
+    } else if (varianceQuantity < 0) {
+      status = "Stock Shortage";
+    } else {
+      status = "Excess Stock";
+    }
+
+    return {
+      material: material.name,
+      category: material.category,
+      expectedStock: Number(expectedStock.toFixed(2)),
+      actualStock: Number(actualCurrentStock.toFixed(2)),
+      varianceQuantity: Number(varianceQuantity.toFixed(2)),
+      variancePercentage: Number(variancePercentage.toFixed(1)),
+      salesImpact: Number(salesImpact.toFixed(2)),
+      wasteImpact: Number(wasteImpact.toFixed(2)),
+      costVariance: Number(costVariance.toFixed(2)),
+      status,
+      unit: material.baseUnit,
+      avgCostPerUnit: Number(avgCostPerUnit.toFixed(4)),
+      openingStock: Number(openingStock.toFixed(2)),
+      purchases: Number(purchases.toFixed(2)),
+      salesValue: Number(salesValue.toFixed(2)),
+      wasteCost: Number(wasteCost.toFixed(2))
+    };
+  });
+
+  // Filter out materials with no activity
+  const activeVariances = varianceAnalysis.filter(variance => variance.expectedStock !== 0 || variance.actualStock !== 0 || variance.salesImpact !== 0 || variance.wasteImpact !== 0);
+
+  // Sort by absolute variance percentage (highest variances first)
+  const sortedVariances = activeVariances.sort((a, b) => Math.abs(b.variancePercentage) - Math.abs(a.variancePercentage));
+
+  // Format for report display
+  const formattedReport = sortedVariances.map(variance => ({
+    Material: `${variance.material}\n${variance.category}`,
+    "Expected Stock": `${variance.expectedStock} ${variance.unit}`,
+    "Actual Stock": `${variance.actualStock} ${variance.unit}`,
+    "Variance Qty": `${variance.varianceQuantity >= 0 ? "+" : ""}${variance.varianceQuantity} ${variance.unit}`,
+    "Variance %": `${variance.variancePercentage >= 0 ? "+" : ""}${variance.variancePercentage}%`,
+    "Sales Impact": `${variance.salesImpact} ${variance.unit}`,
+    "Waste Impact": `${variance.wasteImpact} ${variance.unit}`,
+    "Cost Variance": `$${Math.abs(variance.costVariance).toFixed(2)}`,
+    Status: variance.status
+  }));
+
+  // Calculate summary metrics
+  const totalMaterials = formattedReport.length;
+  const totalCostVariance = sortedVariances.reduce((sum, v) => sum + Math.abs(v.costVariance), 0);
+  const avgVariancePercentage = totalMaterials > 0 ? sortedVariances.reduce((sum, v) => sum + Math.abs(v.variancePercentage), 0) / totalMaterials : 0;
+
+  const statusCounts = sortedVariances.reduce(
+    (acc, v) => {
+      acc[v.status] = (acc[v.status] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  const reportSummary = {
+    totalMaterials,
+    totalCostVariance: Number(totalCostVariance.toFixed(2)),
+    avgVariancePercentage: Number(avgVariancePercentage.toFixed(1)),
+    statusCounts,
+    dateRange: {
+      from: fromDate ? format(fromDate, "yyyy-MM-dd") : null,
+      to: format(toDate, "yyyy-MM-dd")
+    },
+    highestVariance:
+      formattedReport.length > 0
+        ? {
+            material: sortedVariances[0].material,
+            percentage: sortedVariances[0].variancePercentage
+          }
+        : null,
+    totalSalesImpact: sortedVariances.reduce((sum, v) => sum + v.salesImpact, 0),
+    totalWasteImpact: sortedVariances.reduce((sum, v) => sum + v.wasteImpact, 0),
+    totalSalesValue: sortedVariances.reduce((sum, v) => sum + v.salesValue, 0),
+    totalWasteCost: sortedVariances.reduce((sum, v) => sum + v.wasteCost, 0)
+  };
+
+  console.log("Variance analysis summary:", reportSummary);
+  console.log("Sample variance data:", formattedReport.slice(0, 3));
+
+  // Add summary as metadata
+  const reportWithSummary = formattedReport as typeof formattedReport & { summary: typeof reportSummary };
+  reportWithSummary.summary = reportSummary;
+
   return reportWithSummary;
 }

@@ -4,7 +4,7 @@ import { ReportType } from "@/components/analytics/configs";
 export function getTableHeaders(reportType: ReportType): string[] {
   const headerMap: Record<ReportType, string[]> = {
     "inventory-summary": ["Material", "Category", "Available Qty", "Unit", "Avg Cost", "Total Value", "Stock Entries", "Last Purchase", "Status"],
-    "stock-purchases": ["Date", "Material", "Supplier", "Quantity", "Unit", "Cost per Unit", "Total Cost", "Batch"],
+    "stock-purchases": ["Date", "Material", "Supplier", "Quantity", "Unit", "Cost per Unit", "Total Cost"],
     "sales-performance": ["Date", "Section", "Total Sales", "Items Sold", "Revenue", "Top Item", "Performance"],
     "cost-analysis": ["Material", "Current Cost", "Previous Cost", "Trend", "Variance %", "Entries", "Recommendation"],
     "supplier-performance": ["Supplier", "Total Orders", "Total Value", "Materials Count", "Avg Order Value", "Last Purchase", "Rating"],
@@ -12,7 +12,8 @@ export function getTableHeaders(reportType: ReportType): string[] {
     "category-analysis": ["Category", "Materials Count", "Total Value", "Avg Value", "Percentage", "Purchase Volume", "Sales Volume"],
     "menu-profitability": ["Menu Item", "Category", "Price", "Cost", "Profit", "Profit Margin %", "Sales Count", "Total Profit"],
     "section-performance": ["Section", "Assignments", "Total Value", "Sales Volume", "Revenue", "Utilization %", "Performance"],
-    "waste-report": ["Material", "Waste Quantity", "Unit", "Reason", "Cost", "Waste Date"]
+    "waste-report": ["Material", "Waste Quantity", "Unit", "Reason", "Cost", "Waste Date"],
+    "variance-analysis": ["Material", "Expected Stock", "Actual Stock", "Variance Qty", "Variance %", "Sales Impact", "Waste Impact", "Cost Variance", "Status"]
   };
 
   return headerMap[reportType] || [];

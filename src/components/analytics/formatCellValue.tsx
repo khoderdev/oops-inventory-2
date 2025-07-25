@@ -331,5 +331,100 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
     return <span className={color}>{stringValue}</span>;
   }
 
+  // Handle variance-analysis specific headers
+  if (reportType === "variance-analysis") {
+    switch (header) {
+      case "Material": {
+        const materialText = String(value);
+        const [materialName, category] = materialText.split("\n");
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-gray-900 dark:text-gray-100">{materialName}</span>
+            {category && <span className="text-xs text-muted-foreground/80 capitalize">{category}</span>}
+          </div>
+        );
+      }
+
+      case "Variance %": {
+        const percentText = String(value);
+        const percentValue = parseFloat(percentText.replace("%", "").replace("+", ""));
+        let colorClass = "";
+        let bgClass = "";
+        
+        if (Math.abs(percentValue) <= 5) {
+          colorClass = "text-green-700 dark:text-green-300";
+          bgClass = "bg-green-100 dark:bg-green-900/30";
+        } else if (Math.abs(percentValue) <= 15) {
+          colorClass = "text-yellow-700 dark:text-yellow-300";
+          bgClass = "bg-yellow-100 dark:bg-yellow-900/30";
+        } else {
+          colorClass = "text-red-700 dark:text-red-300";
+          bgClass = "bg-red-100 dark:bg-red-900/30";
+        }
+
+        return (
+          <span className={`px-2 py-1 rounded-md font-semibold text-sm ${colorClass} ${bgClass}`}>
+            {percentText}
+          </span>
+        );
+      }
+
+      case "Status": {
+        const status = String(value);
+        let variant: "default" | "secondary" | "destructive" | "outline" = "default";
+        
+        switch (status) {
+          case "Acceptable":
+            variant = "secondary";
+            break;
+          case "Attention Needed":
+            variant = "default";
+            break;
+          case "Stock Shortage":
+            variant = "destructive";
+            break;
+          case "Excess Stock":
+            variant = "outline";
+            break;
+        }
+        
+        return <Badge variant={variant}>{status}</Badge>;
+      }
+
+      case "Cost Variance": {
+        const costText = String(value);
+        const costValue = parseFloat(costText.replace("$", ""));
+        let colorClass = "";
+        
+        if (costValue >= 50) {
+          colorClass = "text-red-600 font-bold";
+        } else if (costValue >= 20) {
+          colorClass = "text-orange-600 font-semibold";
+        } else if (costValue >= 5) {
+          colorClass = "text-yellow-600";
+        } else {
+          colorClass = "text-green-600";
+        }
+        
+        return <span className={colorClass}>{costText}</span>;
+      }
+
+      case "Variance Qty": {
+        const qtyText = String(value);
+        const isPositive = qtyText.startsWith("+");
+        const isNegative = qtyText.startsWith("-");
+        
+        let colorClass = "text-gray-600";
+        if (isPositive) {
+          colorClass = "text-blue-600 font-semibold";
+        } else if (isNegative) {
+          colorClass = "text-red-600 font-semibold";
+        }
+        
+        return <span className={colorClass}>{qtyText}</span>;
+      }
+    }
+  }
+
   return String(value);
 }

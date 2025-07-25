@@ -19,7 +19,7 @@ import { format, isValid } from "date-fns";
 import { CalendarIcon, Download, FileText, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { REPORT_CONFIGS, ReportType } from "./configs";
-import { generateCategoryAnalysisReport, generateCostAnalysisReport, generateExpiryAlertsReport, generateInventorySummaryReport, generateMenuProfitabilityReport, generateSalesPerformanceReport, generateSectionPerformanceReport, generateStockPurchasesReport, generateSupplierPerformanceReport, generateWasteReport } from "./generationFunctions";
+import { generateCategoryAnalysisReport, generateCostAnalysisReport, generateExpiryAlertsReport, generateInventorySummaryReport, generateMenuProfitabilityReport, generateSalesPerformanceReport, generateSectionPerformanceReport, generateStockPurchasesReport, generateSupplierPerformanceReport, generateVarianceAnalysisReport, generateWasteReport } from "./generationFunctions";
 import { ReportSummary } from "./ReportSummary";
 import { ReportTable } from "./ReportTable";
 
@@ -126,6 +126,15 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           break;
         case "waste-report":
           reportResults = await generateWasteReport(dateFrom && format(dateFrom, "yyyy-MM-dd"), dateTo && format(dateTo, "yyyy-MM-dd"));
+          break;
+        case "variance-analysis":
+          reportResults = await generateVarianceAnalysisReport(
+            materials.data, 
+            stockEntries.data, 
+            sales.data, 
+            dateFrom && format(dateFrom, "yyyy-MM-dd"), 
+            dateTo && format(dateTo, "yyyy-MM-dd")
+          );
           break;
         default:
           throw new Error("Invalid report type");
@@ -335,7 +344,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
           {hasGenerated && !isChangingReportType && (
             <div className="flex-1 flex flex-col space-y-4 animate-in fade-in-50 duration-300 min-h-0">
-              {selectedReportType === "inventory" && <ReportSummary data={reportData} />}
+              {selectedReportType === "inventory-summary" && <ReportSummary data={reportData} />}
 
               <div className="flex-1 border rounded-lg bg-card overflow-hidden min-h-0">
                 <ReportTable reportType={selectedReportType} data={reportData} />

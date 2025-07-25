@@ -11,10 +11,26 @@ interface ReportTableProps {
   reportType: ReportType;
   data: Record<string, unknown>[] & {
     summary?: {
-      totalWasteQuantity: number;
-      totalWasteCost: number;
-      totalMaterials: number;
-      totalEntriesAffected: number;
+      // Waste report summary
+      totalWasteQuantity?: number;
+      totalWasteCost?: number;
+      totalMaterials?: number;
+      totalEntriesAffected?: number;
+      // Variance analysis summary
+      totalCostVariance?: number;
+      avgVariancePercentage?: number;
+      statusCounts?: Record<string, number>;
+      highestVariance?: {
+        material: string;
+        percentage: number;
+      };
+      totalSalesImpact?: number;
+      totalWasteImpact?: number;
+      totalSalesValue?: number;
+      dateRange?: {
+        from: string | null;
+        to: string;
+      };
     };
   };
 }
@@ -235,7 +251,6 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                       >
                         <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px] relative h-full">
                           <span className="truncate font-bold leading-tight">{header}</span>
-                          {(header.toLowerCase().includes("qty") || header.toLowerCase().includes("cost") || header.toLowerCase().includes("value")) && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
 
                           {index < headers.length - 1 && (
                             <>
@@ -312,6 +327,15 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                     Total Wastes:
                     <span className="text-red-700 dark:text-red-400 font-extrabold ml-1">${Number(data.summary.totalWasteCost).toFixed(2)}</span>
                   </span>
+                </div>
+              ) : reportType === "variance-analysis" && data.summary ? (
+                <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <span className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-700 animate-pulse"></span>
+                  <span className="font-bold text-blue-800 dark:text-blue-200 text-sm">
+                    Total Cost Variance:
+                    <span className="text-purple-700 dark:text-purple-400 font-extrabold ml-1">${Number(data.summary.totalCostVariance).toFixed(2)}</span>
+                  </span>
+                  <span className="text-blue-600 dark:text-blue-300 text-xs ml-2">Avg: {Number(data.summary.avgVariancePercentage).toFixed(1)}%</span>
                 </div>
               ) : (
                 <span className="flex items-center gap-1">

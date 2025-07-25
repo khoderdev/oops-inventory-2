@@ -87,7 +87,40 @@ export function SalesHistoryPage() {
       return true;
     });
 
-    return filteredSales.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime());
+    // If a specific item is selected, filter the items within each sale to show only that item
+    const processedSales = filteredSales.map(sale => {
+      if (selectedItem && selectedItem !== "all") {
+        // Filter individual items to show only the selected item
+        const filteredItems = (sale.items || []).filter(item => {
+          const itemName = item.materialName || `Item ${item.materialId}`;
+          return itemName === selectedItem;
+        });
+
+        // Filter menu items to show only the selected item
+        const filteredMenuItems = (sale.menuItems || []).filter(menuItem => {
+          const menuItemName = menuItem.menuItemName || `Menu Item ${menuItem.menuItemId}`;
+          return menuItemName === selectedItem;
+        });
+
+        // Calculate new total amount based on filtered items
+        const newTotalAmount = [
+          ...filteredItems.map(item => parseFloat(String(item.totalPrice || 0))),
+          ...filteredMenuItems.map(menuItem => parseFloat(String(menuItem.totalPrice || 0)))
+        ].reduce((sum, price) => sum + price, 0);
+
+        return {
+          ...sale,
+          items: filteredItems,
+          menuItems: filteredMenuItems,
+          totalAmount: newTotalAmount,
+          // Keep track of original total for reference if needed
+          originalTotalAmount: sale.totalAmount
+        };
+      }
+      return sale;
+    });
+
+    return processedSales.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime());
   }, [sales, selectedItem, selectedSection, dateFilter]);
 
   // Calculate totals from grouped sales
@@ -469,7 +502,7 @@ export function SalesHistoryPage() {
               </CardTitle>
               <p className="text-sm text-muted-foreground">
                 Showing {totalSalesCount} sales
-                {selectedItem !== "all" && ` for "${selectedItem}"`}
+                {selectedItem !== "all" && ` containing "${selectedItem}" (filtered to show only this item)`}
                 {selectedSection !== "all" && ` in "${selectedSection}"`}
                 {dateFilter && ` on ${formatDate(new Date(dateFilter))}`}
               </p>
