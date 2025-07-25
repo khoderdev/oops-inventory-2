@@ -4,7 +4,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { PackageUnit } from "@/types/conversion";
 import { Material, StockEntry, StockFormData, StockFormInputs } from "@/types/inventory";
@@ -41,7 +40,8 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
 
     if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity) {
       const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle"];
-      const costPerUnit = selectedMaterial.costPerUnit || Number(stockEntry.costPerPurchasedUnit) || 0;
+      // Use the specific stock entry's cost, not the material's average cost
+      const costPerUnit = Number(stockEntry.costPerPurchasedUnit) || 0;
 
       if (costPerUnit === 0) {
         form.setValue("costPerPurchasedUnit", "0.0000");
@@ -58,7 +58,8 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
       }
     } else {
       // 👉 New logic for mass, volume, etc.
-      const averageCost = selectedMaterial.costPerUnit || Number(stockEntry.costPerPurchasedUnit) || 0;
+      // Use the specific stock entry's cost, not the material's average cost
+      const averageCost = Number(stockEntry.costPerPurchasedUnit) || 0;
 
       if (purchasedUnit === selectedMaterial.baseUnit && averageCost > 0) {
         form.setValue("costPerPurchasedUnit", averageCost.toFixed(4));
@@ -303,28 +304,9 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
                 </FormItem>
               )}
             />
-
-            <div className="md:col-span-2">
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FileText className="h-4 w-4 text-red-600" />
-                      Notes (Optional)
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Additional details about the waste (e.g., batch number, expiry date, disposal method)..." {...field} className="border-gray-300 focus:border-red-500 focus:ring-red-500 min-h-[80px]" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={stockEntry.purchasedUnit} costPerPurchasedUnit={stockEntry.costPerPurchasedUnit.toString()} totalCost={form.watch("totalCost")} />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={watchedPurchasedUnit} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

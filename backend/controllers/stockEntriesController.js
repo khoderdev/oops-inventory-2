@@ -695,12 +695,10 @@ const stockEntriesController = {
           });
         }
       } else if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-        // If unit matches purchasedUnit (e.g., "pack"), convert to baseUnit for record
         wasteInSmallerUnit = numericWasteQuantity * material.packageQuantity;
         wasteUnitForRecord = material.baseUnit;
       }
 
-      // Validate against available stock
       if (wasteInOriginalUnit > stockEntry.purchasedQuantity) {
         return res.status(400).json({
           error: `Insufficient stock in this entry. Available: ${stockEntry.purchasedQuantity} ${stockEntry.purchasedUnit}, Requested: ${wasteInOriginalUnit.toFixed(3)} ${stockEntry.purchasedUnit}`
@@ -768,8 +766,8 @@ const stockEntriesController = {
         stockEntryId: stockEntry.id,
         materialName: material.name,
         category: material.category,
-        quantity: wasteInSmallerUnit, // Store in smaller unit (e.g., piece)
-        unit: wasteUnitForRecord, // Use material.baseUnit
+        quantity: wasteInSmallerUnit,
+        unit: wasteUnitForRecord,
         costPerBaseUnit: costPerSmallerUnit,
         totalCost: totalCostInSmallerUnit,
         wasteReason,
@@ -803,10 +801,24 @@ const stockEntriesController = {
         return res.status(400).json({ error: "startDate is required" });
       }
 
+      // Create proper date range - start of startDate to end of endDate
+      const startOfDay = new Date(startDate);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = endDate ? new Date(endDate) : new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      console.log("Date filtering:", {
+        startDate,
+        endDate,
+        startOfDay: startOfDay.toISOString(),
+        endOfDay: endOfDay.toISOString()
+      });
+
       const whereClause = {
         wasteDate: {
-          [Op.gte]: startDate,
-          [Op.lte]: endDate || new Date()
+          [Op.gte]: startOfDay,
+          [Op.lte]: endOfDay
         }
       };
 
@@ -817,6 +829,8 @@ const stockEntriesController = {
       if (reason && reason !== "undefined") {
         whereClause.wasteReason = reason;
       }
+
+      console.log("Final whereClause:", JSON.stringify(whereClause, null, 2));
 
       const wastageRecords = await Wasting.findAll({
         where: whereClause,
@@ -835,14 +849,28 @@ const stockEntriesController = {
         ]
       });
 
+      console.log("Found wastage records:", wastageRecords.length);
+      console.log(
+        "Sample record:",
+        wastageRecords[0]
+          ? {
+              id: wastageRecords[0].id,
+              wasteDate: wastageRecords[0].wasteDate,
+              quantity: wastageRecords[0].quantity,
+              unit: wastageRecords[0].unit,
+              materialName: wastageRecords[0].materialName
+            }
+          : "No records found"
+      );
+
       const formattedRecords = wastageRecords.map(record => ({
         id: record.id,
         stockEntryId: record.stockEntryId,
         materialId: record.stockEntry?.materialId,
         materialName: record.stockEntry?.material?.name || record.materialName || "Unknown",
         category: record.stockEntry?.material?.category || record.category || "Unknown",
-        quantity: record.quantity, // Already in smaller unit (e.g., g, piece)
-        unit: record.unit, // Already in smaller unit (e.g., g, piece)
+        quantity: record.quantity,
+        unit: record.unit,
         costPerBaseUnit: record.costPerBaseUnit || 0,
         totalCost: record.totalCost || 0,
         wasteDate: record.wasteDate,

@@ -1,4 +1,4 @@
-import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Home, Minus, Plus, RefreshCw, ToggleLeft, ToggleRight, TrendingUp, XCircle } from "lucide-react";
+import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Home, Plus, ToggleLeft, ToggleRight, TrendingUp, XCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { closeDay, getCurrentDayActivities, getCurrentDayOperation, getDayOperations, openDay } from "../api/dayOperations.api";
@@ -158,11 +158,6 @@ const DayOperationsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Day Operations</h1>
-        <p className="text-gray-600">Manage daily business operations, cash handling, and automated reporting</p>
-      </div>
-
       {/* Alerts */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
@@ -195,175 +190,156 @@ const DayOperationsPage: React.FC = () => {
       )}
 
       {/* Current Day Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 gap-8 mb-12">
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Current Day Status</h2>
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 text-gray-500 mr-2" />
-                <span className="text-gray-600">{new Date().toLocaleDateString()}</span>
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-xl border border-gray-100 p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-100 rounded-xl">
+                  <Calendar className="h-8 w-8 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-900">Current Day Status</h2>
+                  <p className="text-lg text-gray-600 mt-1">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Today</div>
+                <div className="text-2xl font-bold text-gray-900">{new Date().toLocaleDateString()}</div>
               </div>
             </div>
 
             {currentDay ? (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {currentDay.status === "opened" ? (
-                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                    <div className="flex items-center">
-                      <CheckCircle className="h-6 w-6 text-green-500 mr-3" />
-                      <div>
-                        <p className="font-medium text-green-900">Day is Open</p>
-                        <p className="text-sm text-green-700">
-                          Opened at {formatDateTime(currentDay.openedAt)} by {currentDay.openedBy}
-                        </p>
+                  <div className="relative overflow-hidden bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-8 shadow-lg">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-green-100 rounded-full -mr-16 -mt-16 opacity-50"></div>
+                    <div className="relative lg:w-2/3 lg:mx-auto flex flex-col lg:flex-row gap-6 items-center justify-between">
+                      <div className="flex items-center space-x-6">
+                        <div className="p-4 bg-green-100 rounded-2xl shadow-md">
+                          <CheckCircle className="h-12 w-12 text-green-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-green-900 mb-2">Day is Open & Active</h3>
+                          <p className="text-lg text-green-700 mb-1">Opened at {formatDateTime(currentDay.openedAt)}</p>
+                          <p className="text-base text-green-600">
+                            Managed by <span className="font-semibold">{currentDay.openedBy}</span>
+                          </p>
+                        </div>
                       </div>
+                      <button onClick={() => setShowCloseModal(true)} className="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-4 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-lg">
+                        Close Day
+                      </button>
                     </div>
-                    <button onClick={() => setShowCloseModal(true)} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
-                      Close Day
-                    </button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      <XCircle className="h-6 w-6 text-gray-500 mr-3" />
-                      <div>
-                        <p className="font-medium text-gray-900">Day is Closed</p>
-                        <p className="text-sm text-gray-700">{currentDay.closedAt ? `Closed at ${formatDateTime(currentDay.closedAt)} by ${currentDay.closedBy}` : "Day was closed"}</p>
+                  <div className="relative overflow-hidden bg-gradient-to-r from-gray-50 to-slate-50 border-2 border-gray-200 rounded-2xl p-8 shadow-lg">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gray-100 rounded-full -mr-16 -mt-16 opacity-50"></div>
+                    <div className="relative flex items-center justify-between">
+                      <div className="flex items-center space-x-6">
+                        <div className="p-4 bg-gray-100 rounded-2xl shadow-md">
+                          <XCircle className="h-12 w-12 text-gray-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-900 mb-2">Day is Closed</h3>
+                          <p className="text-lg text-gray-700 mb-1">{currentDay.closedAt ? `Closed at ${formatDateTime(currentDay.closedAt)}` : "Day was closed"}</p>
+                          <p className="text-base text-gray-600">
+                            {currentDay.closedBy && (
+                              <span>
+                                Managed by <span className="font-semibold">{currentDay.closedBy}</span>
+                              </span>
+                            )}
+                          </p>
+                        </div>
                       </div>
+                      <button onClick={() => setShowOpenModal(true)} className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-4 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-lg">
+                        Open New Day
+                      </button>
                     </div>
-                    <button onClick={() => setShowOpenModal(true)} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                      Open New Day
-                    </button>
                   </div>
                 )}
-                // In the metrics grid section, replace the relevant part with:
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="flex items-center">
-                      <DollarSign className="h-5 w-5 text-blue-600 mr-2" />
-                      <span className="text-sm text-blue-700">Opening Cash</span>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl shadow-lg border border-blue-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                    <div className="flex items-center mb-3">
+                      <div className="p-2 bg-blue-200 rounded-lg mr-3">
+                        <DollarSign className="h-6 w-6 text-blue-700" />
+                      </div>
+                      <span className="text-base font-medium text-blue-800">Opening Cash</span>
                     </div>
-                    <p className="text-lg font-semibold text-blue-900">{formatCurrency(currentDay?.openingCash)}</p>
+                    <p className="text-2xl font-bold text-blue-900">{formatCurrency(currentDay?.openingCash)}</p>
                   </div>
 
                   {/* Total Sales - conditionally shown based on toggle */}
                   {showTotalSales && (
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl shadow-lg border border-green-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center">
-                          <TrendingUp className="h-5 w-5 text-green-600 mr-2" />
-                          <span className="text-sm text-green-700">Total Sales</span>
+                          <div className="p-2 bg-green-200 rounded-lg mr-3">
+                            <TrendingUp className="h-6 w-6 text-green-700" />
+                          </div>
+                          <span className="text-base font-medium text-green-800">Total Sales</span>
                         </div>
-                        <button onClick={() => setShowTotalSales(false)} className="text-gray-500 hover:text-gray-700" title="Show Expected Cash">
+                        <button onClick={() => setShowTotalSales(false)} className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors" title="Show Expected Cash">
                           <ToggleRight className="h-5 w-5" />
                         </button>
                       </div>
-                      <p className="text-lg font-semibold text-green-900">{formatCurrency(currentDay?.totalSales)}</p>
+                      <p className="text-2xl font-bold text-green-900">{formatCurrency(currentDay?.totalSales)}</p>
                     </div>
                   )}
 
                   {/* Expected Cash - conditionally shown based on toggle */}
                   {!showTotalSales && (
-                    <div className="bg-orange-50 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
+                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-2xl shadow-lg border border-orange-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center">
-                          <Clock className="h-5 w-5 text-orange-600 mr-2" />
-                          <span className="text-sm text-orange-700">Expected Cash</span>
+                          <div className="p-2 bg-orange-200 rounded-lg mr-3">
+                            <Clock className="h-6 w-6 text-orange-700" />
+                          </div>
+                          <span className="text-base font-medium text-orange-800">Expected Cash</span>
                         </div>
-                        <button onClick={() => setShowTotalSales(true)} className="text-gray-500 hover:text-gray-700" title="Show Total Sales">
+                        <button onClick={() => setShowTotalSales(true)} className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors" title="Show Total Sales">
                           <ToggleLeft className="h-5 w-5" />
                         </button>
                       </div>
-                      <p className="text-lg font-semibold text-orange-900">{formatCurrency(currentDay?.expectedCash)}</p>
+                      <p className="text-2xl font-bold text-orange-900">{formatCurrency(currentDay?.expectedCash)}</p>
                     </div>
                   )}
 
-                  <div className="bg-purple-50 p-4 rounded-lg">
-                    <div className="flex items-center">
-                      <BarChart3 className="h-5 w-5 text-purple-600 mr-2" />
-                      <span className="text-sm text-purple-700">Transactions</span>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                    <div className="flex items-center mb-3">
+                      <div className="p-2 bg-purple-200 rounded-lg mr-3">
+                        <BarChart3 className="h-6 w-6 text-purple-700" />
+                      </div>
+                      <span className="text-base font-medium text-purple-800">Transactions</span>
                     </div>
-                    <p className="text-lg font-semibold text-purple-900">{currentDay?.totalTransactions || 0}</p>
+                    <p className="text-2xl font-bold text-purple-900">{currentDay?.totalTransactions || 0}</p>
                   </div>
 
-                  <div className="bg-red-50 p-4 rounded-lg">
-                    <div className="flex items-center">
-                      <DollarSign className="h-5 w-5 text-red-600 mr-2" />
-                      <span className="text-sm text-red-700">Cash Variance</span>
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl shadow-lg border border-red-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                    <div className="flex items-center mb-3">
+                      <div className="p-2 bg-red-200 rounded-lg mr-3">
+                        <DollarSign className="h-6 w-6 text-red-700" />
+                      </div>
+                      <span className="text-base font-medium text-red-800">Cash Variance</span>
                     </div>
-                    <p className="text-lg font-semibold text-red-900">{formatCurrency(currentDay?.status === "closed" ? currentDay?.cashVariance : (currentDay?.expectedCash || 0) - (currentDay?.openingCash || 0))}</p>
+                    <p className="text-2xl font-bold text-red-900">{formatCurrency(currentDay?.status === "closed" ? currentDay?.cashVariance : (currentDay?.expectedCash || 0) - (currentDay?.openingCash || 0))}</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8">
-                <XCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Day Operation Active</h3>
-                <p className="text-gray-600 mb-4">Start a new day to begin tracking sales and operations</p>
-                <button onClick={() => setShowOpenModal(true)} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto">
-                  <Plus className="h-4 w-4 mr-2" />
+              <div className="text-center py-16">
+                <div className="p-6 bg-gray-100 rounded-full w-32 h-32 mx-auto mb-8 flex items-center justify-center">
+                  <XCircle className="h-16 w-16 text-gray-400" />
+                </div>
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">No Day Operation Active</h3>
+                <p className="text-xl text-gray-600 mb-8 max-w-md mx-auto">Start a new day to begin tracking sales and operations</p>
+                <button onClick={() => setShowOpenModal(true)} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-10 py-4 rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center mx-auto text-lg font-semibold">
+                  <Plus className="h-6 w-6 mr-3" />
                   Open Day
                 </button>
               </div>
             )}
           </div>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-            <div className="space-y-3">
-              {!currentDay && (
-                <button onClick={() => setShowOpenModal(true)} className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Open Day
-                </button>
-              )}
-              {currentDay && currentDay.status === "opened" && (
-                <button onClick={() => setShowCloseModal(true)} className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center">
-                  <Minus className="h-4 w-4 mr-2" />
-                  Close Day
-                </button>
-              )}
-              {currentDay && currentDay.status === "closed" && (
-                <button onClick={() => setShowOpenModal(true)} className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Open New Day
-                </button>
-              )}
-              <button onClick={loadData} disabled={loading} className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center justify-center">
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                {loading ? "Refreshing..." : "Refresh Data"}
-              </button>
-            </div>
-          </div>
-
-          {/* Activity Logs - Show only when day is open */}
-          {currentDay && currentDay.status === "opened" && (
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Activities</h3>
-              <div className="max-h-64 overflow-y-auto">
-                {activities.length > 0 ? (
-                  <div className="space-y-2">
-                    {activities.slice(0, 10).map((activity, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
-                        <div className="flex items-center">
-                          <span className={`inline-block w-2 h-2 rounded-full mr-2 ${activity.type === "SALE" ? "bg-green-500" : activity.type === "STOCK" ? "bg-blue-500" : activity.type === "INVENTORY" ? "bg-orange-500" : "bg-gray-500"}`}></span>
-                          <span className="font-medium text-gray-700">{activity.type}</span>
-                        </div>
-                        <span className="text-gray-500">{new Date(activity.timestamp).toLocaleTimeString()}</span>
-                      </div>
-                    ))}
-                    {activities.length > 10 && <p className="text-center text-gray-500 text-sm mt-2">... and {activities.length - 10} more activities</p>}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">No activities recorded yet today</p>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
