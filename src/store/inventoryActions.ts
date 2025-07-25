@@ -162,7 +162,7 @@ export const createMaterialAction = atom(null, async (get, set, data: MaterialWi
       stockEntries: [],
       totalQuantityInBaseUnit: 0,
       totalValue: 0,
-      averageCostPerBaseUnit: response.data.costPerBaseUnit || 0,
+      averageCostPerBaseUnit: response.data.costPerUnit || 0,
       availableQuantity: 0
     };
 
@@ -204,7 +204,7 @@ export const updateMaterialAction = atom(null, async (get, set, { id, data }: { 
       stockEntries: data.stockEntries || [],
       totalQuantityInBaseUnit: data.totalQuantityInBaseUnit || 0,
       totalValue: data.totalValue || 0,
-      averageCostPerBaseUnit: response.data.costPerBaseUnit || 0,
+      averageCostPerBaseUnit: response.data.costPerUnit || 0,
       availableQuantity: data.availableQuantity || 0
     };
 
@@ -623,13 +623,10 @@ export const wasteFromSpecificEntryAction = atom(null, async (get, set, data: { 
     set(optimisticStockEntriesAtom, prev =>
       prev.map(entry => {
         if (entry.id === data.entryId) {
-          // For optimistic updates, only update individual quantity for display
-          // The server will calculate the correct values and we'll get them back
           return {
             ...entry,
             purchasedIndividualQuantity: Math.max(0, (entry.purchasedIndividualQuantity || 0) - data.wasteQuantity),
             updatedAt: new Date()
-            // Don't modify purchasedQuantity optimistically - let server handle it
           };
         }
         return entry;
@@ -645,7 +642,6 @@ export const wasteFromSpecificEntryAction = atom(null, async (get, set, data: { 
       notes: data.notes
     });
 
-    // Transform response data
     const updatedStockEntry: StockEntry = {
       ...response.data.stockEntry,
       id: response.data.stockEntry.id.toString(),

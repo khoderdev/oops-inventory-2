@@ -1,6 +1,7 @@
 import { ReportType } from "@/components/analytics/configs";
 import { assignmentSchema } from "@/components/sections/assignmentSchema";
 import { stockSchema } from "@/components/stock/stockSchema";
+import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "packaging" | "other" | "sweets";
@@ -126,6 +127,7 @@ export interface MaterialTableProps {
 //-----------------------------------------------------------------------------
 
 export interface StockEntry {
+  wasteReason: string;
   id: string;
   materialId: string;
   supplier: string;
@@ -474,6 +476,7 @@ export interface AddStockData {
 export interface RecordWasteData {
   materialId: string;
   wasteQuantity: number;
+  category?: string;
   unit: string;
   wasteReason: string;
   wasteDate?: Date;
@@ -496,6 +499,25 @@ export interface RecordWasteResponse {
   }>;
   reason: string;
 }
+export interface WasteRecord {
+  materialId: number;
+  materialName: string;
+  quantity: number;
+  category?: string;
+  unit: string;
+  reason: string;
+  totalCost: number;
+  costPerBaseUnit: number;
+  wasteDate: Date | string;
+  materialUnitType: string;
+}
+export interface RecordWasteTabProps {
+  form: UseFormReturn<StockFormInputs>;
+  materials: Material[];
+  availableUnits: string[];
+  onRecordWaste: (data: RecordWasteData) => void;
+  onCancel: () => void;
+}
 
 export type StockFormData = z.infer<typeof stockSchema>;
 
@@ -510,8 +532,11 @@ export interface StockFormInputs {
   purchaseDate: Date;
   expiryDate?: Date;
   batchNumber?: string;
+  wasteQuantity: string;
+  wasteReason: string;
+  wasteDate?: Date;
   notes?: string;
-  stockEntryId?: string; // For specific entry operations
+  stockEntryId?: string;
 }
 
 export interface StockFormProps {
@@ -520,9 +545,9 @@ export interface StockFormProps {
   selectedMaterialId?: string;
   onSubmit: (data: StockFormData) => void;
   onAddStock?: (data: StockFormData) => void;
-  onRecordWaste?: (data: StockFormData) => void;
+  onRecordWaste?: (data: RecordWasteData) => void;
   onAddToSpecificEntry?: (data: StockFormData) => void;
-  onWasteFromSpecificEntry?: (data: StockFormData) => void;
+  onWasteFromSpecificEntry?: (data: StockFormData & { stockEntryId?: string }) => void;
   onCancel: () => void;
 }
 

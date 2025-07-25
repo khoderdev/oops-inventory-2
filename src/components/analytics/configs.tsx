@@ -1,70 +1,82 @@
-import { ReportConfig } from "@/types/inventory";
-import { AlertTriangle, ChefHat, FileText, Package, ShoppingCart, TrendingUp, Users } from "lucide-react";
+import { AlertTriangle, DollarSign, Layout, Package, ShoppingCart, Tag, Trash2, TrendingUp, Utensils } from "lucide-react";
 
-export type ReportType = "inventory-summary" | "stock-purchases" | "sales-performance" | "cost-analysis" | "supplier-performance" | "expiry-alerts" | "category-analysis" | "menu-profitability" | "section-performance";
+export type ReportType = "inventory-summary" | "stock-purchases" | "sales-performance" | "cost-analysis" | "supplier-performance" | "expiry-alerts" | "category-analysis" | "menu-profitability" | "section-performance" | "waste-report";
 
-export const REPORT_CONFIGS: ReportConfig[] = [
+export const REPORT_CONFIGS: ReadonlyArray<{
+  id: ReportType;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  requiresDateRange: boolean;
+}> = [
   {
     id: "inventory-summary",
     name: "Inventory Summary",
-    description: "Current stock levels, values, and alerts",
+    description: "Overview of current inventory levels, stock status, and total value by material.",
     icon: <Package className="h-4 w-4" />,
     requiresDateRange: false
   },
   {
     id: "stock-purchases",
     name: "Stock Purchases",
-    description: "Purchase history and supplier performance",
+    description: "Details of stock purchase history including supplier, quantity, and cost.",
     icon: <ShoppingCart className="h-4 w-4" />,
     requiresDateRange: true
   },
   {
     id: "sales-performance",
     name: "Sales Performance",
-    description: "Revenue analysis and sales trends",
+    description: "Analysis of sales performance by date and section with revenue metrics.",
     icon: <TrendingUp className="h-4 w-4" />,
     requiresDateRange: true
   },
   {
     id: "cost-analysis",
     name: "Cost Analysis",
-    description: "Material cost trends and optimization",
-    icon: <FileText className="h-4 w-4" />,
+    description: "Tracks material cost trends and variances for cost optimization.",
+    icon: <DollarSign className="h-4 w-4" />,
     requiresDateRange: true
   },
   {
     id: "supplier-performance",
     name: "Supplier Performance",
-    description: "Supplier comparison and analytics",
-    icon: <Users className="h-4 w-4" />,
+    description: "Evaluates supplier reliability based on order history and value.",
+    icon: <Tag className="h-4 w-4" />,
     requiresDateRange: true
   },
   {
     id: "expiry-alerts",
     name: "Expiry Alerts",
-    description: "Items expiring soon and waste management",
+    description: "Alerts for materials nearing expiry with urgency indicators.",
     icon: <AlertTriangle className="h-4 w-4" />,
     requiresDateRange: false
   },
   {
     id: "category-analysis",
     name: "Category Analysis",
-    description: "Performance breakdown by material categories",
-    icon: <Package className="h-4 w-4" />,
+    description: "Breakdown of inventory by category with value and volume metrics.",
+    icon: <Layout className="h-4 w-4" />,
     requiresDateRange: true
   },
   {
     id: "menu-profitability",
     name: "Menu Profitability",
-    description: "Menu item costs vs pricing analysis",
-    icon: <ChefHat className="h-4 w-4" />,
+    description: "Profitability analysis of menu items based on cost and sales.",
+    icon: <Utensils className="h-4 w-4" />,
     requiresDateRange: true
   },
   {
     id: "section-performance",
     name: "Section Performance",
-    description: "Performance analysis by sections",
-    icon: <TrendingUp className="h-4 w-4" />,
+    description: "Performance metrics for sections based on sales and assignments.",
+    icon: <Layout className="h-4 w-4" />,
+    requiresDateRange: true
+  },
+  {
+    id: "waste-report",
+    name: "Waste Report",
+    description: "Summary of waste records including material, quantity, reason, and cost impact.",
+    icon: <Trash2 className="h-4 w-4" />,
     requiresDateRange: true
   }
 ];

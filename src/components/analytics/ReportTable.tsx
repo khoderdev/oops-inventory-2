@@ -1,11 +1,11 @@
-import { getTableHeaders } from "@/utils/getTableHeaders";
-import { ReportType } from "./configs";
-import { FileText, TrendingUp } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { formatCellValue } from "./formatCellValue";
 import { cn } from "@/lib/utils";
-import React, { useState, useRef, useCallback } from "react";
+import { getTableHeaders } from "@/utils/getTableHeaders";
+import { FileText, TrendingUp } from "lucide-react";
+import React, { useCallback, useRef, useState } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { getColumnAlignment, getInitialWidth, getResponsiveColumnClasses } from "./columnFunctions";
+import { ReportType } from "./configs";
+import { formatCellValue } from "./formatCellValue";
 
 interface ReportTableProps {
   reportType: ReportType;
@@ -13,7 +13,9 @@ interface ReportTableProps {
 }
 
 export function ReportTable({ reportType, data }: ReportTableProps) {
+  console.log("ReportTable received data:", data);
   const headers = getTableHeaders(reportType);
+  console.log("Headers:", headers);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const [isAutoFitting, setIsAutoFitting] = useState<string | null>(null);

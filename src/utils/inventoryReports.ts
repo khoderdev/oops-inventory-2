@@ -1,5 +1,5 @@
-import { Material, StockEntry, MaterialWithStock, MenuItem, SectionAssignment } from "@/types/inventory";
-import { formatCurrency, formatNumber } from "./conversionLogic";
+import { Material, MaterialWithStock, MenuItem, SectionAssignment, StockEntry } from "@/types/inventory";
+import { formatCurrency } from "./conversionLogic";
 import { calculateMaterialInventory, findLowStockMaterials } from "./inventoryCalculations";
 
 export interface InventoryReport {
@@ -75,14 +75,8 @@ export interface HistoricalCost {
 }
 
 export class InventoryReportGenerator {
-  
   // Generate comprehensive inventory report
-  generateInventoryReport(
-    materials: Material[],
-    stockEntries: StockEntry[],
-    menuItems: MenuItem[] = [],
-    sectionAssignments: SectionAssignment[] = []
-  ): InventoryReport {
+  generateInventoryReport(materials: Material[], stockEntries: StockEntry[], menuItems: MenuItem[] = [], sectionAssignments: SectionAssignment[] = []): InventoryReport {
     const materialsWithStock = materials.map(material => {
       const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
       return calculateMaterialInventory(material, materialStockEntries);
@@ -106,7 +100,7 @@ export class InventoryReportGenerator {
 
   // Generate category breakdown analysis
   private generateCategoryBreakdown(materialsWithStock: MaterialWithStock[], totalValue: number): CategoryBreakdown[] {
-    const categoryMap = new Map<string, { materials: MaterialWithStock[], totalValue: number }>();
+    const categoryMap = new Map<string, { materials: MaterialWithStock[]; totalValue: number }>();
 
     materialsWithStock.forEach(material => {
       const existing = categoryMap.get(material.category) || { materials: [], totalValue: 0 };
@@ -115,13 +109,15 @@ export class InventoryReportGenerator {
       categoryMap.set(material.category, existing);
     });
 
-    return Array.from(categoryMap.entries()).map(([category, data]) => ({
-      category,
-      materialCount: data.materials.length,
-      totalValue: data.totalValue,
-      averageValue: data.totalValue / data.materials.length,
-      percentage: (data.totalValue / totalValue) * 100
-    })).sort((a, b) => b.totalValue - a.totalValue);
+    return Array.from(categoryMap.entries())
+      .map(([category, data]) => ({
+        category,
+        materialCount: data.materials.length,
+        totalValue: data.totalValue,
+        averageValue: data.totalValue / data.materials.length,
+        percentage: (data.totalValue / totalValue) * 100
+      }))
+      .sort((a, b) => b.totalValue - a.totalValue);
   }
 
   // Generate top materials by value
@@ -142,11 +138,14 @@ export class InventoryReportGenerator {
 
   // Generate supplier analysis
   private generateSupplierAnalysis(stockEntries: StockEntry[], materials: Material[]): SupplierReport[] {
-    const supplierMap = new Map<string, {
-      entries: StockEntry[],
-      totalValue: number,
-      materialIds: Set<string>
-    }>();
+    const supplierMap = new Map<
+      string,
+      {
+        entries: StockEntry[];
+        totalValue: number;
+        materialIds: Set<string>;
+      }
+    >();
 
     stockEntries.forEach(entry => {
       const existing = supplierMap.get(entry.supplier) || {
@@ -160,14 +159,16 @@ export class InventoryReportGenerator {
       supplierMap.set(entry.supplier, existing);
     });
 
-    return Array.from(supplierMap.entries()).map(([supplier, data]) => ({
-      supplier,
-      totalPurchases: data.entries.length,
-      totalValue: data.totalValue,
-      materialCount: data.materialIds.size,
-      averageOrderValue: data.totalValue / data.entries.length,
-      lastPurchaseDate: new Date(Math.max(...data.entries.map(e => e.purchaseDate.getTime())))
-    })).sort((a, b) => b.totalValue - a.totalValue);
+    return Array.from(supplierMap.entries())
+      .map(([supplier, data]) => ({
+        supplier,
+        totalPurchases: data.entries.length,
+        totalValue: data.totalValue,
+        materialCount: data.materialIds.size,
+        averageOrderValue: data.totalValue / data.entries.length,
+        lastPurchaseDate: new Date(Math.max(...data.entries.map(e => e.purchaseDate.getTime())))
+      }))
+      .sort((a, b) => b.totalValue - a.totalValue);
   }
 
   // Generate expiry alerts
@@ -179,8 +180,9 @@ export class InventoryReportGenerator {
       if (entry.expiryDate) {
         const daysUntilExpiry = Math.ceil((entry.expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         const material = materials.find(m => m.id === entry.materialId);
-        
-        if (daysUntilExpiry <= 30) { // Alert for items expiring within 30 days
+
+        if (daysUntilExpiry <= 30) {
+          // Alert for items expiring within 30 days
           let urgency: "critical" | "warning" | "info" = "info";
           if (daysUntilExpiry <= 3) urgency = "critical";
           else if (daysUntilExpiry <= 7) urgency = "warning";
@@ -206,31 +208,29 @@ export class InventoryReportGenerator {
   // Generate cost analysis for materials
   generateCostAnalysis(materials: Material[], stockEntries: StockEntry[]): CostAnalysis[] {
     return materials.map(material => {
-      const materialEntries = stockEntries
-        .filter(entry => entry.materialId === material.id)
-        .sort((a, b) => a.purchaseDate.getTime() - b.purchaseDate.getTime());
+      const materialEntries = stockEntries.filter(entry => entry.materialId === material.id).sort((a, b) => a.purchaseDate.getTime() - b.purchaseDate.getTime());
 
       // Calculate current cost per base unit from multiple sources
       let currentAverageCost = 0;
       let previousAverageCost = 0;
 
       // Use material's costPerBaseUnit as primary source if available
-      if (material.costPerBaseUnit && material.costPerBaseUnit > 0) {
-        currentAverageCost = material.costPerBaseUnit;
+      if (material.costPerUnit && material.costPerUnit > 0) {
+        currentAverageCost = material.costPerUnit;
       }
 
       // If no material cost or need stock-based calculation
       if (materialEntries.length > 0) {
         let totalCostInBaseUnit = 0;
         let totalQuantityInBaseUnit = 0;
-        
+
         const historicalCosts: HistoricalCost[] = [];
-        
+
         materialEntries.forEach(entry => {
           // Convert purchased cost to base unit cost
           let costPerBaseUnit = entry.costPerPurchasedUnit || 0;
           let convertedQuantity = entry.purchasedQuantity || 0;
-          
+
           // Handle unit conversions to base unit
           if (entry.purchasedUnit !== material.baseUnit) {
             if (material.unitType === "package" && material.packageQuantity) {
@@ -248,7 +248,7 @@ export class InventoryReportGenerator {
 
           totalCostInBaseUnit += entry.totalCost;
           totalQuantityInBaseUnit += convertedQuantity;
-          
+
           historicalCosts.push({
             date: entry.purchaseDate,
             costPerBaseUnit,
@@ -259,14 +259,15 @@ export class InventoryReportGenerator {
 
         // Calculate weighted average cost from stock entries
         const stockAverageCost = totalQuantityInBaseUnit > 0 ? totalCostInBaseUnit / totalQuantityInBaseUnit : 0;
-        
+
         // Use stock average if no material cost set, otherwise blend them
         if (!currentAverageCost || currentAverageCost === 0) {
           currentAverageCost = stockAverageCost;
         } else if (stockAverageCost > 0) {
           // Use more recent stock cost if significantly different
           const difference = Math.abs(currentAverageCost - stockAverageCost) / currentAverageCost;
-          if (difference > 0.1) { // 10% difference threshold
+          if (difference > 0.1) {
+            // 10% difference threshold
             currentAverageCost = stockAverageCost;
           }
         }
@@ -300,11 +301,11 @@ export class InventoryReportGenerator {
       // Enhanced recommendations
       const getRecommendation = (): string => {
         const entriesCount = materialEntries.length;
-        
+
         if (entriesCount === 0) {
           return currentAverageCost > 0 ? "Add stock entries for better tracking" : "Set material cost and add stock entries";
         }
-        
+
         if (costTrend === "increasing") {
           return costVariance > 10 ? "Consider alternative suppliers - high cost increase" : "Monitor costs - increasing trend";
         } else if (costTrend === "decreasing") {
@@ -340,7 +341,7 @@ export class InventoryReportGenerator {
   // Calculate variance for cost analysis
   private calculateVariance(values: number[]): number {
     if (values.length < 2) return 0;
-    
+
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const squaredDiffs = values.map(value => Math.pow(value - mean, 2));
     return squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
@@ -349,11 +350,11 @@ export class InventoryReportGenerator {
   // Calculate recommended reorder point
   private calculateReorderPoint(stockEntries: StockEntry[]): number {
     if (stockEntries.length === 0) return 0;
-    
+
     // Simple calculation based on average consumption
     const totalQuantity = stockEntries.reduce((sum, entry) => sum + entry.purchasedQuantity, 0);
     const averageOrderSize = totalQuantity / stockEntries.length;
-    
+
     // Recommend reordering when stock falls below 2x average order size
     return averageOrderSize * 2;
   }
@@ -362,38 +363,38 @@ export class InventoryReportGenerator {
   exportReportToString(report: InventoryReport): string {
     let output = `INVENTORY REPORT - ${report.generatedAt.toLocaleDateString()}\n`;
     output += `${"=".repeat(50)}\n\n`;
-    
+
     output += `SUMMARY:\n`;
     output += `Total Inventory Value: ${formatCurrency(report.totalInventoryValue)}\n`;
     output += `Total Materials: ${report.totalMaterials}\n`;
     output += `Total Stock Entries: ${report.totalStockEntries}\n`;
     output += `Low Stock Items: ${report.lowStockCount}\n\n`;
-    
+
     output += `CATEGORY BREAKDOWN:\n`;
     report.categoryBreakdown.forEach(category => {
       output += `${category.category}: ${formatCurrency(category.totalValue)} (${category.percentage.toFixed(1)}%)\n`;
     });
     output += `\n`;
-    
+
     output += `TOP MATERIALS BY VALUE:\n`;
     report.topMaterialsByValue.slice(0, 10).forEach((material, index) => {
       output += `${index + 1}. ${material.materialName}: ${formatCurrency(material.totalValue)}\n`;
     });
     output += `\n`;
-    
+
     output += `SUPPLIER ANALYSIS:\n`;
     report.supplierAnalysis.forEach(supplier => {
       output += `${supplier.supplier}: ${formatCurrency(supplier.totalValue)} (${supplier.totalPurchases} orders)\n`;
     });
     output += `\n`;
-    
+
     if (report.expiryAlerts.length > 0) {
       output += `EXPIRY ALERTS:\n`;
       report.expiryAlerts.forEach(alert => {
         output += `${alert.materialName} (${alert.supplier}): expires in ${alert.daysUntilExpiry} days\n`;
       });
     }
-    
+
     return output;
   }
 }

@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StockFormInputs, StockFormProps } from "@/types/inventory";
+import { RecordWasteData, StockFormData, StockFormInputs, StockFormProps } from "@/types/inventory";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Package, Plus, Trash2, TrendingUp } from "lucide-react";
@@ -10,8 +10,8 @@ import { stockSchema } from "./stockSchema";
 import { AddStockTab } from "./tabs/AddStockTab";
 import { AddToEntryTab } from "./tabs/AddToEntryTab";
 import { NewStockTab } from "./tabs/NewStockTab";
-import { RecordWasteTab } from "./tabs/RecordWasteTab";
 import { UpdateEntryTab } from "./tabs/UpdateEntryTab";
+import { WasteFromEntryTab2 } from "./tabs/WasteFromEntryTab";
 
 export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit, onCancel, onAddStock, onRecordWaste, onAddToSpecificEntry, onWasteFromSpecificEntry }: StockFormProps) {
   const [activeTab, setActiveTab] = useState<string>(stockEntry ? "update-entry" : "new-stock");
@@ -27,13 +27,30 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       purchaseDate: stockEntry?.purchaseDate || new Date(),
       expiryDate: stockEntry?.expiryDate,
       batchNumber: stockEntry?.batchNumber || "",
-      notes: stockEntry?.notes || ""
+      // Waste-related fields
+      wasteQuantity: "0",
+      wasteReason: undefined,
+      wasteDate: new Date()
     }
   });
 
   const watchedMaterialId = form.watch("materialId");
   const watchedQuantity = form.watch("purchasedQuantity");
   const watchedCostPerUnit = form.watch("costPerPurchasedUnit");
+
+  // Wrapper function to handle waste from specific entry with proper data conversion
+  const handleWasteFromEntry = (data: StockFormData & { stockEntryId: string }) => {
+    console.log("🔄 StockForm handleWasteFromEntry called with data:", data);
+    
+    if (onWasteFromSpecificEntry) {
+      console.log("✅ onWasteFromSpecificEntry exists, calling it...");
+      // The onWasteFromSpecificEntry expects the data format that handleWasteFromSpecificEntryOperation uses
+      // which is StockFormData & { stockEntryId: string }, so we pass the data as-is
+      onWasteFromSpecificEntry(data);
+    } else {
+      console.error("❌ onWasteFromSpecificEntry is not defined!");
+    }
+  };
   const selectedMaterial = materials.find(m => m.id === watchedMaterialId);
 
   const availableUnits = selectedMaterial
@@ -63,8 +80,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       totalCost: stockEntry?.totalCost?.toString() || "0",
       purchaseDate: stockEntry?.purchaseDate || new Date(),
       expiryDate: stockEntry?.expiryDate,
-      batchNumber: stockEntry?.batchNumber || "",
-      notes: stockEntry?.notes || ""
+      batchNumber: stockEntry?.batchNumber || ""
     });
   }, [stockEntry, selectedMaterialId, form, activeTab]);
 
@@ -199,10 +215,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
             <AddStockTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} onAddStock={onAddStock} onCancel={onCancel} />
           </TabsContent>
 
-          <TabsContent value="record-waste">
-            <RecordWasteTab form={form} materials={materials} availableUnits={availableUnits} onRecordWaste={onRecordWaste} onCancel={onCancel} />
-          </TabsContent>
-
           <TabsContent value="update-entry">
             <UpdateEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} stockEntry={stockEntry} onSubmit={onSubmit} onCancel={onCancel} />
           </TabsContent>
@@ -212,7 +224,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
           </TabsContent>
 
           <TabsContent value="waste-from-entry">
-            <RecordWasteTab form={form} materials={materials} availableUnits={availableUnits} onRecordWaste={onWasteFromSpecificEntry} onCancel={onCancel} />
+            <WasteFromEntryTab2 form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
           </TabsContent>
         </Tabs>
       </CardContent>

@@ -11,7 +11,8 @@ export function getTableHeaders(reportType: ReportType): string[] {
     "expiry-alerts": ["Material", "Supplier", "Expiry Date", "Days Until Expiry", "Quantity", "Unit", "Value", "Urgency"],
     "category-analysis": ["Category", "Materials Count", "Total Value", "Avg Value", "Percentage", "Purchase Volume", "Sales Volume"],
     "menu-profitability": ["Menu Item", "Category", "Price", "Cost", "Profit", "Profit Margin %", "Sales Count", "Total Profit"],
-    "section-performance": ["Section", "Assignments", "Total Value", "Sales Volume", "Revenue", "Utilization %", "Performance"]
+    "section-performance": ["Section", "Assignments", "Total Value", "Sales Volume", "Revenue", "Utilization %", "Performance"],
+    "waste-report": ["Material", "Category", "Waste Quantity", "Unit", "Reason", "Total Cost", "Waste Date", "Entries Affected"]
   };
 
   return headerMap[reportType] || [];
