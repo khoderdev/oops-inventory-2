@@ -14,22 +14,37 @@ export function getColumnAlignment(header: string): string {
 export function getResponsiveColumnClasses(header: string): string {
   const wideColumns = ["material", "supplier", "description", "name", "item"];
   const narrowColumns = ["qty", "unit", "status", "entries", "count"];
-  const mediumColumns = ["category", "section", "date"];
+  const mediumColumns = ["category", "section", "date", "reason"];
   const costColumns = ["cost", "value", "price", "profit", "revenue", "amount"];
   const headerLower = header.toLowerCase();
+
+  // Specific classes for waste report columns
+  if (headerLower === "material") {
+    return "min-w-[140px] w-auto";
+  }
+  if (headerLower.includes("waste quantity")) {
+    return "min-w-[100px] w-auto";
+  }
+  if (headerLower === "cost") {
+    return "min-w-[110px] w-auto";
+  }
+  if (headerLower === "waste date") {
+    return "min-w-[120px] w-auto";
+  }
+
   if (wideColumns.some(keyword => headerLower.includes(keyword))) {
-    return "min-w-[120px]";
+    return "min-w-[120px] w-auto";
   }
   if (costColumns.some(keyword => headerLower.includes(keyword))) {
-    return "min-w-[90px]";
+    return "min-w-[90px] w-auto";
   }
   if (narrowColumns.some(keyword => headerLower.includes(keyword))) {
-    return "min-w-[70px]";
+    return "min-w-[70px] w-auto";
   }
   if (mediumColumns.some(keyword => headerLower.includes(keyword))) {
-    return "min-w-[100px]";
+    return "min-w-[100px] w-auto";
   }
-  return "min-w-[85px]";
+  return "min-w-[85px] w-auto";
 }
 
 export function getInitialWidth(header: string): number {

@@ -12,11 +12,16 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
   if (reportType === "waste-report") {
     switch (header) {
       case "Material": {
-        return String(value);
+        const materialText = String(value);
+        const [materialName, category] = materialText.split("\n");
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-gray-900 dark:text-gray-100">{materialName}</span>
+            {category && <span className="text-xs text-muted-foreground/80 capitalize">{category}</span>}
+          </div>
+        );
       }
-      case "Category": {
-        return String(value);
-      }
+
       case "Waste Quantity": {
         const quantity = typeof value === "number" ? value : Number(value);
         let colorClass = "";
@@ -46,10 +51,33 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
       case "Reason": {
         return String(value);
       }
-      case "Total Cost": {
+      case "Cost": {
         // Remove any existing '$' prefix to avoid double formatting
         const costValue = typeof value === "string" ? parseFloat(value.replace(/[^0-9.-]+/g, "")) : Number(value);
-        return isNaN(costValue) || costValue === 0 ? "-" : formatCurrency(costValue);
+
+        if (isNaN(costValue) || costValue === 0) {
+          return <span className="text-muted-foreground">-</span>;
+        }
+
+        // Color coding based on cost amount
+        let colorClass = "";
+        let bgClass = "";
+
+        if (costValue >= 10) {
+          colorClass = "text-red-700 dark:text-red-400";
+          bgClass = "bg-red-50 dark:bg-red-950/20";
+        } else if (costValue >= 5) {
+          colorClass = "text-orange-700 dark:text-orange-400";
+          bgClass = "bg-orange-50 dark:bg-orange-950/20";
+        } else if (costValue >= 1) {
+          colorClass = "text-yellow-700 dark:text-yellow-400";
+          bgClass = "bg-yellow-50 dark:bg-yellow-950/20";
+        } else {
+          colorClass = "text-green-700 dark:text-green-400";
+          bgClass = "bg-green-50 dark:bg-green-950/20";
+        }
+
+        return <div className={`inline-flex items-center px-2 py-1 rounded-md font-semibold text-sm ${colorClass} ${bgClass}`}>{formatCurrency(costValue)}</div>;
       }
       case "Waste Date": {
         const dateValue = value instanceof Date ? value : new Date(String(value));

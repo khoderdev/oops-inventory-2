@@ -12,7 +12,7 @@ export function getTableHeaders(reportType: ReportType): string[] {
     "category-analysis": ["Category", "Materials Count", "Total Value", "Avg Value", "Percentage", "Purchase Volume", "Sales Volume"],
     "menu-profitability": ["Menu Item", "Category", "Price", "Cost", "Profit", "Profit Margin %", "Sales Count", "Total Profit"],
     "section-performance": ["Section", "Assignments", "Total Value", "Sales Volume", "Revenue", "Utilization %", "Performance"],
-    "waste-report": ["Material", "Category", "Waste Quantity", "Unit", "Reason", "Total Cost", "Waste Date", "Entries Affected"]
+    "waste-report": ["Material", "Waste Quantity", "Unit", "Reason", "Cost", "Waste Date"]
   };
 
   return headerMap[reportType] || [];

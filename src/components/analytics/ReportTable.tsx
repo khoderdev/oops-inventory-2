@@ -9,7 +9,14 @@ import { formatCellValue } from "./formatCellValue";
 
 interface ReportTableProps {
   reportType: ReportType;
-  data: Record<string, unknown>[];
+  data: Record<string, unknown>[] & {
+    summary?: {
+      totalWasteQuantity: number;
+      totalWasteCost: number;
+      totalMaterials: number;
+      totalEntriesAffected: number;
+    };
+  };
 }
 
 export function ReportTable({ reportType, data }: ReportTableProps) {
@@ -198,7 +205,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
               minHeight: "250px"
             }}
           >
-            <Table ref={tableRef} className="w-full table-fixed min-w-[800px] relative" style={{ tableLayout: "fixed" }}>
+            <Table ref={tableRef} className="w-full table-auto min-w-[800px] relative" style={{ tableLayout: "auto" }}>
               <TableHeader className="sticky top-0 z-30 bg-white dark:bg-card shadow-sm backdrop-blur-sm">
                 <TableRow className="border-b-2 border-primary/20 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
                   {headers.map((header, index) => {
@@ -207,9 +214,10 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                       <TableHead
                         key={header}
                         className={cn(
-                          "font-bold text-xs sm:text-sm lg:text-sm xl:text-base",
-                          "text-slate-700 dark:text-slate-200",
-                          "py-3 px-2 sm:py-4 sm:px-3 lg:px-4",
+                          "font-bold text-sm sm:text-base lg:text-base xl:text-lg",
+                          "text-slate-800 dark:text-slate-100",
+                          "py-4 px-3 sm:py-5 sm:px-4 lg:px-5",
+                          "whitespace-nowrap",
                           index < headers.length - 1 && cn("border-r-2 border-slate-300 dark:border-slate-600", "hover:border-blue-400 dark:hover:border-blue-500 hover:border-r-[3px] transition-all duration-200", isResizing === header && "border-blue-500 dark:border-blue-400 border-r-4 shadow-sm", isAutoFitting === "all" && "border-green-500 dark:border-green-400 border-r-[5px] shadow-md", "hover:shadow-[2px_0_4px_rgba(59,130,246,0.1)] dark:hover:shadow-[2px_0_4px_rgba(96,165,250,0.15)]"),
                           index === headers.length - 1 && "border-r-0",
                           "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50",
@@ -221,12 +229,11 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                           index === headers.length - 1 && "rounded-tr-lg"
                         )}
                         style={{
-                          width: `${getColumnWidth(header)}px`,
                           textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                         }}
                       >
                         <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px] relative h-full">
-                          <span className="truncate font-bold leading-tight flex-1">{header}</span>
+                          <span className="truncate font-bold leading-tight">{header}</span>
                           {(header.toLowerCase().includes("qty") || header.toLowerCase().includes("cost") || header.toLowerCase().includes("value")) && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
 
                           {index < headers.length - 1 && (
@@ -261,15 +268,14 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
 
               <TableBody>
                 {data.map((row, index) => (
-                  <TableRow key={index} className={cn("group transition-all duration-200", "hover:bg-gradient-to-r hover:from-blue-50/60 hover:to-indigo-50/40", "dark:hover:from-blue-900/30 dark:hover:to-indigo-900/20", "border-b border-slate-100 dark:border-slate-700", index % 2 === 0 && "bg-slate-50/40 dark:bg-slate-800/40")}>
+                  <TableRow key={index} className={cn("group transition-all duration-300 ease-in-out", "hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-indigo-50/60 hover:shadow-sm", "dark:hover:from-blue-900/40 dark:hover:to-indigo-900/30", "border-b border-slate-200/60 dark:border-slate-700/60", index % 2 === 0 && "bg-gradient-to-r from-slate-50/60 to-gray-50/40 dark:from-slate-800/60 dark:to-gray-800/40", "hover:scale-[1.002] transform-gpu")}>
                     {headers.map((header, cellIndex) => {
                       const alignment = getColumnAlignment(header);
                       return (
                         <TableCell
                           key={header}
-                          className={cn("text-xs sm:text-sm lg:text-sm", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", cellIndex < headers.length - 1 && "border-r-2 border-slate-200 dark:border-slate-600", cellIndex === headers.length - 1 && "border-r-0", "transition-colors duration-200", "group-hover:border-slate-200 dark:group-hover:border-slate-500", getResponsiveColumnClasses(header), alignment)}
+                          className={cn("text-sm sm:text-base lg:text-sm", "py-4 px-3 sm:py-5 sm:px-4 lg:px-5", cellIndex < headers.length - 1 && "border-r border-slate-200/40 dark:border-slate-600/40", cellIndex === headers.length - 1 && "border-r-0", "transition-all duration-300 ease-in-out", "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60", "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20", getResponsiveColumnClasses(header), alignment)}
                           style={{
-                            width: `${getColumnWidth(header)}px`,
                             textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                           }}
                         >
@@ -288,6 +294,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
               <span className="flex items-center gap-1 font-medium">
+                <span className="font-mono text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">{reportType.replace("-", " ").toUpperCase()}</span>
                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
                 <span className="text-xs sm:text-sm">
                   {data.length} {data.length === 1 ? "record" : "records"}
@@ -296,11 +303,20 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs">
-              <span className="flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-blue-500"></span>
-                <span>Numeric data</span>
-              </span>
-              <span className="font-mono text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">{reportType.replace("-", " ").toUpperCase()}</span>
+              {reportType === "waste-report" && data.summary ? (
+                <div className="flex items-center gap-2 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 px-3 py-1.5 rounded-lg border border-orange-200 dark:border-orange-800">
+                  <span className="w-2 h-2 rounded-full bg-gradient-to-r from-red-500 to-red-700 animate-pulse"></span>
+                  <span className="font-bold text-orange-800 dark:text-orange-200 text-sm">
+                    Total Wastes:
+                    <span className="text-red-700 dark:text-red-400 font-extrabold ml-1">${Number(data.summary.totalWasteCost).toFixed(2)}</span>
+                  </span>
+                </div>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-blue-500"></span>
+                  <span>Numeric data</span>
+                </span>
+              )}
             </div>
           </div>
         </div>

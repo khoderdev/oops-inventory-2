@@ -227,6 +227,22 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
 
   console.log("Raw waste records:", response.data);
 
+  // Calculate total waste metrics for percentage calculations
+  const totalWasteQuantity = response.data.reduce((sum, record: WasteRecord) => {
+    return sum + (record.quantity || 0);
+  }, 0);
+  
+  const totalWasteCost = response.data.reduce((sum, record: WasteRecord) => {
+    const totalCost = Number(record.totalCost) || 0;
+    const costPerUnit = Number(record.costPerBaseUnit) || 0;
+    const quantity = Math.abs(Number(record.quantity) || 0);
+    
+    const cost = totalCost !== 0 ? totalCost : quantity * costPerUnit;
+    return sum + Number(cost);
+  }, 0);
+
+  console.log("Total waste metrics:", { totalWasteQuantity, totalWasteCost });
+
   // Aggregate waste by material
   const wasteByMaterial = response.data.reduce(
     (acc, record: WasteRecord) => {
@@ -243,16 +259,21 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
       console.log("Determined reason:", reason);
 
       // Calculate total cost for waste
-      const totalCost = record.totalCost !== 0 ? record.totalCost : Math.abs(record.quantity) * (record.costPerBaseUnit || 0);
+      const recordTotalCost = Number(record.totalCost) || 0;
+      const recordCostPerUnit = Number(record.costPerBaseUnit) || 0;
+      const recordQuantity = Math.abs(Number(record.quantity) || 0);
+      
+      const totalCost = recordTotalCost !== 0 ? recordTotalCost : recordQuantity * recordCostPerUnit;
       console.log("Calculated totalCost:", totalCost);
 
       const existing = acc.find(item => item.material === record.materialName);
       if (existing) {
         console.log("Found existing entry for material:", record.materialName);
-        existing.wastequantity += record.quantity;
-        existing.totalcost += totalCost;
+        existing.wastequantity += Number(record.quantity) || 0;
+        existing.totalcost += Number(totalCost) || 0;
         existing.reason.add(reason);
         existing.entriesaffected += 1;
+        existing.costperunit = Math.abs(existing.wastequantity) > 0 ? existing.totalcost / Math.abs(existing.wastequantity) : 0;
         if (record.wasteDate && (!existing.wastedate || new Date(record.wasteDate) > new Date(existing.wastedate))) {
           existing.wastedate = record.wasteDate;
         }
@@ -261,10 +282,11 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
         acc.push({
           material: record.materialName,
           category: record.category || "unknown",
-          wastequantity: record.quantity,
+          wastequantity: Number(record.quantity) || 0,
           unit: record.unit,
           reason: new Set([reason]),
-          totalcost: totalCost,
+          costperunit: Number(record.costPerBaseUnit) || 0,
+          totalcost: Number(totalCost) || 0,
           wastedate: record.wasteDate,
           entriesaffected: 1
         });
@@ -277,6 +299,7 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
       wastequantity: number;
       unit: string;
       reason: Set<string>;
+      costperunit: number;
       totalcost: number;
       wastedate: Date | string | null;
       entriesaffected: number;
@@ -285,23 +308,70 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
 
   console.log("Aggregated waste data:", wasteByMaterial);
 
-  // Format the aggregated data for the report
-  const formattedReport = wasteByMaterial
-    .map(item => ({
-      Material: item.material,
-      Category: item.category,
-      "Waste Quantity": Math.abs(item.wastequantity),
-      Unit: item.unit,
-      Reason: Array.from(item.reason).join(", "),
-      "Total Cost": `$${Number(item.totalcost).toFixed(2)}`,
-      "Waste Date": item.wastedate ? format(new Date(item.wastedate), "MMM d, yyyy") : null,
-      "Entries Affected": item.entriesaffected
-    }))
-    .filter(waste => waste["Entries Affected"] > 0);
+  // Format the final data for the report
+  const formattedData = wasteByMaterial.map(item => {
+    // Calculate percentage of total waste
+    const percentageOfTotal = totalWasteQuantity > 0 ? (item.wastequantity / totalWasteQuantity) * 100 : 0;
+    
+    return {
+      material: item.material,
+      category: item.category,
+      wastequantity: item.wastequantity,
+      unit: item.unit,
+      reason: Array.from(item.reason).join(", "),
+      costperunit: item.costperunit,
+      totalcost: item.totalcost,
+      percentageoftotal: percentageOfTotal,
+      wastedate: item.wastedate ? format(new Date(item.wastedate), "yyyy-MM-dd") : "N/A",
+      entriesaffected: item.entriesaffected
+    };
+  });
+
+  // Sort by total cost descending for better insights
+  const sortedData = formattedData.sort((a, b) => b.totalcost - a.totalcost);
+
+  // Format the aggregated data for the final report display
+  const formattedReport = sortedData
+    .map(item => {
+      // Ensure proper number formatting
+      const costPerUnit = Number(item.costperunit) || 0;
+      const totalCost = Number(item.totalcost) || 0;
+      const percentage = Number(item.percentageoftotal) || 0;
+      
+      return {
+        Material: `${item.material}\n${item.category}`,
+        "Waste Quantity": Math.abs(item.wastequantity),
+        Unit: item.unit,
+        Reason: item.reason,
+        "Cost": `$${totalCost.toFixed(2)}`,
+        "Waste Date": item.wastedate !== "N/A" ? format(new Date(item.wastedate), "MMM d, yyyy") : "N/A"
+      };
+    })
+    .filter(waste => waste["Cost"] !== "$0.00");
+
+  // Calculate summary totals for frontend performance
+  const reportSummary = {
+    totalMaterials: formattedReport.length,
+    totalWasteQuantity: Number(totalWasteQuantity),
+    totalWasteCost: Number(totalWasteCost),
+    totalEntriesAffected: formattedData.reduce((sum, item) => sum + (item.entriesaffected || 0), 0),
+    averageCostPerUnit: totalWasteQuantity > 0 ? totalWasteCost / totalWasteQuantity : 0,
+    dateRange: {
+      from: formattedDateFrom,
+      to: formattedDateTo || format(new Date(), "yyyy-MM-dd")
+    },
+    topWasteMaterial: formattedReport.length > 0 ? formattedReport[0].Material : null,
+    topWasteCost: formattedReport.length > 0 ? formattedReport[0]["Total Cost"] : "$0.00"
+  };
 
   console.log("Final formatted report:", formattedReport);
-  console.log("Final report data:", formattedReport);
+  console.log("Report summary:", reportSummary);
   console.log("Expected headers:", getTableHeaders("waste-report"));
   console.log("First row keys:", formattedReport.length > 0 ? Object.keys(formattedReport[0]) : []);
-  return formattedReport;
+  
+  // Add summary as metadata to the report array for frontend access
+  const reportWithSummary = formattedReport as typeof formattedReport & { summary: typeof reportSummary };
+  reportWithSummary.summary = reportSummary;
+  
+  return reportWithSummary;
 }
