@@ -1,9 +1,5 @@
-import { 
-  Activity, BarChart3, Boxes, Calendar, ChevronDown, ChevronLeft, ChevronRight,
-  FileText, Home, Link as LinkIcon, LogOut, MapPin, Menu, Package, 
-  Settings, Shield, ShoppingCart, User, Users, X 
-} from "lucide-react";
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { Activity, BarChart3, Boxes, Calendar, ChevronDown, ChevronLeft, ChevronRight, FileText, Home, Link as LinkIcon, LogOut, MapPin, Menu, Package, Settings, Shield, ShoppingCart, User, Users, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -33,114 +29,117 @@ const ProtectedNavigation: React.FC = () => {
   const [openSections, setOpenSections] = useState<string[]>([]);
 
   // Memoized navigation items to prevent re-renders
-  const navigationItems: NavigationItem[] = useMemo(() => [
-    {
-      label: "Dashboard",
-      href: "/",
-      icon: Home
-    },
-    {
-      label: "Inventory",
-      icon: Package,
-      children: [
-        {
-          label: "Materials",
-          href: "/materials",
-          icon: Boxes,
-          permission: PERMISSIONS.MATERIALS_READ
-        },
-        {
-          label: "Stock Entries",
-          href: "/stock",
-          icon: Package,
-          permission: PERMISSIONS.STOCK_READ
-        },
-        {
-          label: "Sections",
-          href: "/sections",
-          icon: MapPin,
-          permission: PERMISSIONS.SECTIONS_READ
-        },
-        {
-          label: "Assignments",
-          href: "/assignments",
-          icon: LinkIcon,
-          permission: PERMISSIONS.ASSIGNMENTS_READ
-        }
-      ]
-    },
-    {
-      label: "Sales",
-      icon: ShoppingCart,
-      children: [
-        {
-          label: "POS System",
-          href: "/pos",
-          icon: ShoppingCart,
-          permission: PERMISSIONS.SALES_CREATE
-        },
-        {
-          label: "Sales History",
-          href: "/sales",
-          icon: FileText,
-          permission: PERMISSIONS.SALES_READ
-        },
-        {
-          label: "Menu Items",
-          href: "/menu-items",
-          icon: Package,
-          permission: PERMISSIONS.MENU_ITEMS_READ
-        }
-      ]
-    },
-    {
-      label: "Operations",
-      icon: Calendar,
-      children: [
-        {
-          label: "Day Operations",
-          href: "/day-operations",
-          icon: Calendar,
-          permission: PERMISSIONS.DAY_OPERATIONS_READ
-        }
-      ]
-    },
-    {
-      label: "Reports",
-      href: "/reports",
-      icon: BarChart3,
-      permission: PERMISSIONS.REPORTS_READ
-    },
-    {
-      label: "Analytics",
-      href: "/analytics",
-      icon: Activity,
-      permission: PERMISSIONS.ANALYTICS_READ
-    },
-    {
-      label: "Administration",
-      icon: Shield,
-      role: ["admin", "manager"],
-      children: [
-        {
-          label: "User Management",
-          href: "/admin/users",
-          icon: Users,
-          permission: PERMISSIONS.USERS_READ,
-          badge: "Admin",
-          badgeVariant: "destructive"
-        },
-        {
-          label: "System Settings",
-          href: "/admin/settings",
-          icon: Settings,
-          permission: PERMISSIONS.SYSTEM_SETTINGS,
-          badge: "Admin",
-          badgeVariant: "destructive"
-        }
-      ]
-    }
-  ], []);
+  const navigationItems: NavigationItem[] = useMemo(
+    () => [
+      {
+        label: "Dashboard",
+        href: "/",
+        icon: Home
+      },
+      {
+        label: "Inventory",
+        icon: Package,
+        children: [
+          {
+            label: "Materials",
+            href: "/materials",
+            icon: Boxes,
+            permission: PERMISSIONS.MATERIALS_READ
+          },
+          {
+            label: "Stock Entries",
+            href: "/stock",
+            icon: Package,
+            permission: PERMISSIONS.STOCK_READ
+          },
+          {
+            label: "Sections",
+            href: "/sections",
+            icon: MapPin,
+            permission: PERMISSIONS.SECTIONS_READ
+          },
+          {
+            label: "Assignments",
+            href: "/assignments",
+            icon: LinkIcon,
+            permission: PERMISSIONS.ASSIGNMENTS_READ
+          }
+        ]
+      },
+      {
+        label: "Sales",
+        icon: ShoppingCart,
+        children: [
+          {
+            label: "POS System",
+            href: "/pos",
+            icon: ShoppingCart,
+            permission: PERMISSIONS.SALES_CREATE
+          },
+          {
+            label: "Sales History",
+            href: "/sales",
+            icon: FileText,
+            permission: PERMISSIONS.SALES_READ
+          },
+          {
+            label: "Menu Items",
+            href: "/menu-items",
+            icon: Package,
+            permission: PERMISSIONS.MENU_ITEMS_READ
+          }
+        ]
+      },
+      {
+        label: "Operations",
+        icon: Calendar,
+        children: [
+          {
+            label: "Day Operations",
+            href: "/day-operations",
+            icon: Calendar,
+            permission: PERMISSIONS.DAY_OPERATIONS_READ
+          }
+        ]
+      },
+      {
+        label: "Reports",
+        href: "/reports",
+        icon: BarChart3,
+        permission: PERMISSIONS.REPORTS_READ
+      },
+      {
+        label: "Analytics",
+        href: "/analytics",
+        icon: Activity,
+        permission: PERMISSIONS.ANALYTICS_READ
+      },
+      {
+        label: "Administration",
+        icon: Shield,
+        role: ["admin", "manager"],
+        children: [
+          {
+            label: "User Management",
+            href: "/admin/users",
+            icon: Users,
+            permission: PERMISSIONS.USERS_READ,
+            badge: "Admin",
+            badgeVariant: "destructive"
+          },
+          {
+            label: "System Settings",
+            href: "/admin/settings",
+            icon: Settings,
+            permission: PERMISSIONS.SYSTEM_SETTINGS,
+            badge: "Admin",
+            badgeVariant: "destructive"
+          }
+        ]
+      }
+    ],
+    []
+  );
 
   // Performance optimizations with useCallback
   const handleLogout = useCallback(async () => {
@@ -162,129 +161,119 @@ const ProtectedNavigation: React.FC = () => {
   }, [location.pathname, closeMobileMenu]);
 
   // Memoized visibility check for performance
-  const isItemVisible = useCallback((item: NavigationItem): boolean => {
-    // Check role requirement
-    if (item.role && !hasRole(item.role)) {
-      return false;
-    }
+  const isItemVisible = useCallback(
+    (item: NavigationItem): boolean => {
+      // Check role requirement
+      if (item.role && !hasRole(item.role)) {
+        return false;
+      }
 
-    // Check permission requirement
-    if (item.permission && !hasPermission(item.permission)) {
-      return false;
-    }
+      // Check permission requirement
+      if (item.permission && !hasPermission(item.permission)) {
+        return false;
+      }
 
-    // If item has children, check if any child is visible
-    if (item.children) {
-      return item.children.some(child => isItemVisible(child));
-    }
+      // If item has children, check if any child is visible
+      if (item.children) {
+        return item.children.some(child => isItemVisible(child));
+      }
 
-    return true;
-  }, [hasRole, hasPermission]);
+      return true;
+    },
+    [hasRole, hasPermission]
+  );
 
-  const isActiveLink = useCallback((href: string): boolean => {
-    if (href === "/") {
-      return location.pathname === "/";
-    }
-    return location.pathname.startsWith(href);
-  }, [location.pathname]);
+  const isActiveLink = useCallback(
+    (href: string): boolean => {
+      if (href === "/") {
+        return location.pathname === "/";
+      }
+      return location.pathname.startsWith(href);
+    },
+    [location.pathname]
+  );
 
   // Memoized filtered navigation items
   const visibleNavigationItems = useMemo(() => {
     return navigationItems.filter(item => isItemVisible(item));
   }, [navigationItems, isItemVisible]);
 
-  const renderNavigationItem = useCallback((item: NavigationItem, level: number = 0) => {
-    if (!isItemVisible(item)) {
-      return null;
-    }
+  const renderNavigationItem = useCallback(
+    (item: NavigationItem, level: number = 0) => {
+      if (!isItemVisible(item)) {
+        return null;
+      }
 
-    const hasChildren = item.children && item.children.length > 0;
-    const isOpen = openSections.includes(item.label);
-    const isActive = item.href ? isActiveLink(item.href) : false;
-    const paddingClass = level > 0 ? "pl-8" : "pl-3";
+      const hasChildren = item.children && item.children.length > 0;
+      const isOpen = openSections.includes(item.label);
+      const isActive = item.href ? isActiveLink(item.href) : false;
+      const paddingClass = level > 0 ? "pl-8" : "pl-3";
 
-    // Tooltip wrapper for collapsed state
-    const TooltipWrapper = ({ children, content }: { children: React.ReactNode; content: string }) => {
-      if (isCollapsed && level === 0) {
+      // Tooltip wrapper for collapsed state
+      const TooltipWrapper = ({ children, content }: { children: React.ReactNode; content: string }) => {
+        if (isCollapsed && level === 0) {
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>{children}</TooltipTrigger>
+              <TooltipContent side="right" className="ml-2">
+                <p>{content}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        }
+        return <>{children}</>;
+      };
+
+      if (hasChildren) {
         return (
-          <Tooltip>
-            <TooltipTrigger asChild>{children}</TooltipTrigger>
-            <TooltipContent side="right" className="ml-2">
-              <p>{content}</p>
-            </TooltipContent>
-          </Tooltip>
+          <TooltipWrapper key={item.label} content={item.label}>
+            <Collapsible open={isOpen} onOpenChange={() => toggleSection(item.label)}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className={`w-full justify-between text-left font-normal ${paddingClass} ${isActive ? "bg-blue-100 text-blue-900" : "hover:bg-gray-100"}`}>
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && (
+                      <>
+                        <span className="truncate">{item.label}</span>
+                        {item.badge && (
+                          <Badge variant={item.badgeVariant || "default"} className="text-xs">
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {!isCollapsed && <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />}
+                </Button>
+              </CollapsibleTrigger>
+              {!isCollapsed && <CollapsibleContent className="space-y-1">{item.children?.map(child => renderNavigationItem(child, level + 1))}</CollapsibleContent>}
+            </Collapsible>
+          </TooltipWrapper>
         );
       }
-      return <>{children}</>;
-    };
 
-    if (hasChildren) {
       return (
         <TooltipWrapper key={item.label} content={item.label}>
-          <Collapsible open={isOpen} onOpenChange={() => toggleSection(item.label)}>
-            <CollapsibleTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className={`w-full justify-between text-left font-normal ${paddingClass} ${
-                  isActive ? "bg-blue-100 text-blue-900" : "hover:bg-gray-100"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon className="h-4 w-4 flex-shrink-0" />
-                  {!isCollapsed && (
-                    <>
-                      <span className="truncate">{item.label}</span>
-                      {item.badge && (
-                        <Badge variant={item.badgeVariant || "default"} className="text-xs">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </>
+          <Link to={item.href!}>
+            <Button variant="ghost" className={`w-full justify-start text-left font-normal ${paddingClass} ${isActive ? "bg-blue-100 text-blue-900" : "hover:bg-gray-100"}`} onClick={closeMobileMenu}>
+              <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+              {!isCollapsed && (
+                <>
+                  <span className="truncate">{item.label}</span>
+                  {item.badge && (
+                    <Badge variant={item.badgeVariant || "default"} className="ml-auto text-xs">
+                      {item.badge}
+                    </Badge>
                   )}
-                </div>
-                {!isCollapsed && (
-                  <ChevronDown className={`h-4 w-4 transition-transform ${
-                    isOpen ? "rotate-180" : ""
-                  }`} />
-                )}
-              </Button>
-            </CollapsibleTrigger>
-            {!isCollapsed && (
-              <CollapsibleContent className="space-y-1">
-                {item.children?.map(child => renderNavigationItem(child, level + 1))}
-              </CollapsibleContent>
-            )}
-          </Collapsible>
+                </>
+              )}
+            </Button>
+          </Link>
         </TooltipWrapper>
       );
-    }
-
-    return (
-      <TooltipWrapper key={item.label} content={item.label}>
-        <Link to={item.href!}>
-          <Button 
-            variant="ghost" 
-            className={`w-full justify-start text-left font-normal ${paddingClass} ${
-              isActive ? "bg-blue-100 text-blue-900" : "hover:bg-gray-100"
-            }`}
-            onClick={closeMobileMenu}
-          >
-            <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
-            {!isCollapsed && (
-              <>
-                <span className="truncate">{item.label}</span>
-                {item.badge && (
-                  <Badge variant={item.badgeVariant || "default"} className="ml-auto text-xs">
-                    {item.badge}
-                  </Badge>
-                )}
-              </>
-            )}
-          </Button>
-        </Link>
-      </TooltipWrapper>
-    );
-  }, [isItemVisible, openSections, isActiveLink, toggleSection, closeMobileMenu, isCollapsed]);
+    },
+    [isItemVisible, openSections, isActiveLink, toggleSection, closeMobileMenu, isCollapsed]
+  );
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -302,38 +291,25 @@ const ProtectedNavigation: React.FC = () => {
   return (
     <>
       {/* Mobile Menu Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={toggleMobileMenu}
-        className="lg:hidden fixed top-4 left-4 z-50 shadow-lg bg-white hover:bg-gray-50"
-      >
+      <Button variant="outline" size="sm" onClick={toggleMobileMenu} className="lg:hidden fixed top-4 left-4 z-50 shadow-lg bg-white hover:bg-gray-50">
         {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
       </Button>
 
       {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/50 z-30" 
-          onClick={closeMobileMenu} 
-        />
-      )}
+      {isMobileMenuOpen && <div className="lg:hidden fixed inset-0 bg-black/50 z-30" onClick={closeMobileMenu} />}
 
       {/* Sidebar */}
-      <aside className={`
+      <aside
+        className={`
         fixed top-0 left-0 z-40 h-screen bg-white border-r border-gray-200 shadow-lg
         transition-all duration-300 ease-in-out
-        ${isCollapsed ? 'w-16' : 'w-64'}
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+        ${isCollapsed ? "w-16" : "w-64"}
+        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+      `}
+      >
         {/* Collapse Toggle Button */}
         <div className="hidden lg:block absolute -right-3 top-6 z-50">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleCollapse}
-            className="h-6 w-6 p-0 rounded-full bg-white shadow-md hover:shadow-lg transition-all duration-200"
-          >
+          <Button variant="outline" size="sm" onClick={toggleCollapse} className="h-6 w-6 p-0 rounded-full bg-white shadow-md hover:shadow-lg transition-all duration-200">
             {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
           </Button>
         </div>
@@ -354,31 +330,9 @@ const ProtectedNavigation: React.FC = () => {
             </div>
           </div>
 
-          {/* User Info */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <User className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-              {!isCollapsed && (
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-gray-900 truncate">{user?.fullName}</p>
-                  <p className="text-xs text-gray-500 truncate">@{user?.username}</p>
-                  <Badge className={`text-xs mt-1 ${getRoleBadgeColor(user?.role || "")}`}>
-                    {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)}
-                  </Badge>
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-4">
-            <div className="space-y-1 px-3">
-              {visibleNavigationItems.map(item => renderNavigationItem(item))}
-            </div>
+            <div className="space-y-1 px-3">{visibleNavigationItems.map(item => renderNavigationItem(item))}</div>
           </nav>
 
           {/* Footer */}
