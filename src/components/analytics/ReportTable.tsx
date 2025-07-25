@@ -1,38 +1,11 @@
 import { cn } from "@/lib/utils";
+import { ReportTableProps } from "@/types/inventory";
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { FileText, TrendingUp } from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { getColumnAlignment, getInitialWidth, getResponsiveColumnClasses } from "./columnFunctions";
-import { ReportType } from "./configs";
 import { formatCellValue } from "./formatCellValue";
-
-interface ReportTableProps {
-  reportType: ReportType;
-  data: Record<string, unknown>[] & {
-    summary?: {
-      // Waste report summary
-      totalWasteQuantity?: number;
-      totalWasteCost?: number;
-      totalMaterials?: number;
-      totalEntriesAffected?: number;
-      // Variance analysis summary
-      totalCostVariance?: number;
-      avgVariancePercentage?: number;
-      highestVariance?: {
-        material: string;
-        percentage: number;
-      };
-      totalSalesImpact?: number;
-      totalWasteImpact?: number;
-      totalSalesValue?: number;
-      dateRange?: {
-        from: string | null;
-        to: string;
-      };
-    };
-  };
-}
 
 export function ReportTable({ reportType, data }: ReportTableProps) {
   console.log("ReportTable received data:", data);
@@ -227,10 +200,10 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
               scrollbarGutter: "stable" // Reserve space for scrollbar
             }}
           >
-            <Table 
-              ref={tableRef} 
-              className="w-full table-fixed min-w-[800px] relative" 
-              style={{ 
+            <Table
+              ref={tableRef}
+              className="w-full table-fixed min-w-[800px] relative"
+              style={{
                 tableLayout: "fixed",
                 willChange: "auto", // Optimize for smooth scrolling
                 backfaceVisibility: "hidden" // Prevent flickering
@@ -298,14 +271,17 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
 
               <TableBody>
                 {data.map((row, index) => (
-                  <TableRow key={index} className={cn(
-                    "group transition-colors duration-200 ease-in-out", // Reduced transition scope
-                    "hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-indigo-50/60",
-                    "dark:hover:from-blue-900/40 dark:hover:to-indigo-900/30",
-                    "border-b border-slate-200/60 dark:border-slate-700/60",
-                    index % 2 === 0 && "bg-gradient-to-r from-slate-50/60 to-gray-50/40 dark:from-slate-800/60 dark:to-gray-800/40"
-                    // Removed hover:scale and hover:shadow-sm to prevent layout shifts
-                  )}>
+                  <TableRow
+                    key={index}
+                    className={cn(
+                      "group transition-colors duration-200 ease-in-out", // Reduced transition scope
+                      "hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-indigo-50/60",
+                      "dark:hover:from-blue-900/40 dark:hover:to-indigo-900/30",
+                      "border-b border-slate-200/60 dark:border-slate-700/60",
+                      index % 2 === 0 && "bg-gradient-to-r from-slate-50/60 to-gray-50/40 dark:from-slate-800/60 dark:to-gray-800/40"
+                      // Removed hover:scale and hover:shadow-sm to prevent layout shifts
+                    )}
+                  >
                     {headers.map((header, cellIndex) => {
                       const alignment = getColumnAlignment(header);
                       return (

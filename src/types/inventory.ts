@@ -577,6 +577,33 @@ export interface DailyReportsModalProps {
   setError?: (error: string | null) => void;
 }
 
+export interface ReportTableProps {
+  reportType: ReportType;
+  data: Record<string, unknown>[] & {
+    summary?: {
+      // Waste report summary
+      totalWasteQuantity?: number;
+      totalWasteCost?: number;
+      totalMaterials?: number;
+      totalEntriesAffected?: number;
+      // Variance analysis summary
+      totalCostVariance?: number;
+      avgVariancePercentage?: number;
+      highestVariance?: {
+        material: string;
+        percentage: number;
+      };
+      totalSalesImpact?: number;
+      totalWasteImpact?: number;
+      totalSalesValue?: number;
+      dateRange?: {
+        from: string | null;
+        to: string;
+      };
+    };
+  };
+}
+
 //-----------------------------------------------------------------------------
 // Day Operations Types
 

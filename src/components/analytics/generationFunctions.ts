@@ -395,7 +395,7 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
       const totalCost = Number(item.totalcost) || 0;
 
       return {
-        Material: `${item.material}\n${item.category}`,
+        Material: item.material,
         "Waste Quantity": Math.abs(item.wastequantity),
         Unit: item.unit,
         Reason: item.reason,
