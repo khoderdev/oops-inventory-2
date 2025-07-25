@@ -321,7 +321,13 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
             </div>
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} wasteQuantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={form.watch("costPerPurchasedUnit")} totalCost={form.watch("totalCost")} />
+          <CostBreakdown 
+            selectedMaterial={selectedMaterial} 
+            wasteQuantity={watchedQuantity} 
+            purchasedUnit={stockEntry.purchasedUnit} 
+            costPerPurchasedUnit={stockEntry.costPerPurchasedUnit.toString()} 
+            totalCost={form.watch("totalCost")} 
+          />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>
