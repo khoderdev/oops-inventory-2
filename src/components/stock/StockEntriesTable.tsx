@@ -16,7 +16,7 @@ import { AlertTriangle, Edit, Eye, FileText, Plus, RefreshCw, Search, Trash2 } f
 import { useState } from "react";
 
 export function StockEntriesTable() {
-  const { stockEntries, materialsWithStock, handleEditStockEntry, handleDeleteStockEntry, setShowStockForm, updateMaterialPOS } = useInventoryStore();
+  const { stockEntries, materialsWithStock, handleEditStockEntry, handleDeleteStockEntry, setShowStockForm, fetchTabData } = useInventoryStore();
   const materials = materialsWithStock;
   const [searchTerm, setSearchTerm] = useState("");
   const [negativeStockReport, setNegativeStockReport] = useState<NegativeStockReport | null>(null);
@@ -146,7 +146,7 @@ export function StockEntriesTable() {
     setSelectedRowId(selectedRowId === entryId ? null : entryId);
   };
 
-  const handleViewInPOS = async (entry: (typeof stockEntriesWithMaterial)[0]) => {
+  const handleTogglePOSVisibility = async (entry: (typeof stockEntriesWithMaterial)[0]) => {
     if (!entry.material) {
       toast({
         title: "Error",
@@ -157,27 +157,31 @@ export function StockEntriesTable() {
     }
 
     try {
-      // Update the material to be visible in POS
+      const newPOSStatus = !entry.material.isPOSItem;
+      
+      // Update the material's POS visibility
       const response = await materialsAPI.updateMaterialPOS(entry.materialId, {
-        isPOSItem: true
+        isPOSItem: newPOSStatus
       });
 
       if (!response) {
         throw new Error("Failed to update material POS visibility");
       }
+      
       toast({
         title: "Success",
-        description: `${entry.material.name} is now available in POS`,
+        description: `${entry.material.name} is now ${newPOSStatus ? 'available in' : 'hidden from'} POS`,
         variant: "default"
       });
 
-      // Optionally refresh the data or update the store
-      // You might want to call a refresh function here
+      // Refresh the data to show updated state
+      await fetchTabData("stock");
+      
     } catch (error) {
       console.error("Error updating material POS visibility:", error);
       toast({
         title: "Error",
-        description: "Failed to make item available in POS",
+        description: "Failed to update POS visibility",
         variant: "destructive"
       });
     }
@@ -374,13 +378,14 @@ export function StockEntriesTable() {
                           <TableCell className="min-w-[220px]">
                             <div className="flex gap-2">
                               <Button
-                                variant="outline"
+                                variant={entry.material?.isPOSItem ? "default" : "outline"}
                                 size="sm"
                                 onClick={e => {
                                   e.stopPropagation();
-                                  handleViewInPOS(entry);
+                                  handleTogglePOSVisibility(entry);
                                 }}
-                                title="Show in POS"
+                                title={entry.material?.isPOSItem ? "Hide from POS" : "Show in POS"}
+                                className={entry.material?.isPOSItem ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
