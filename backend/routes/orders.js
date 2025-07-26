@@ -18,6 +18,7 @@ router.patch("/:orderId/autosave", ordersController.autoSaveOrder);
 // Order status management
 router.patch("/:orderId/status", ordersController.updateOrderStatus);
 router.patch("/:orderId/cancel", ordersController.cancelOrder);
+router.patch("/:orderId/void", ordersController.voidOrder);
 
 // Order completion
 router.post("/:orderId/complete", ordersController.completeOrder);

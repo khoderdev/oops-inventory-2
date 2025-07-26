@@ -132,7 +132,7 @@ export const useOrderManagement = () => {
           console.error("🔍 updateOrder - No valid order ID found!");
           throw new Error("No valid order ID found in currentOrder");
         }
-        
+
         console.log("🔍 updateOrder - calling API with orderId:", orderId);
         const response = await ordersAPI.updateOrder(orderId, data);
         // Handle nested response structure
@@ -241,6 +241,67 @@ export const useOrderManagement = () => {
     [currentOrder]
   );
 
+  // Void order (enhanced cancellation with stock restoration)
+  const voidOrder = useCallback(
+    async (reason?: string, restoreStock: boolean = true) => {
+      if (!currentOrder) {
+        throw new Error("No current order to void");
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Handle nested currentOrder structure
+        const orderId = currentOrder.id || (currentOrder as any)?.data?.id;
+        if (!orderId) {
+          throw new Error("No valid order ID found in currentOrder");
+        }
+
+        console.log("🚫 Voiding order:", orderId, "with reason:", reason);
+
+        const response = await ordersAPI.voidOrder(orderId, {
+          reason: reason || "Order voided by user",
+          restoreStock
+        });
+
+        // Handle nested response structure
+        const responseData = response.data as { order?: any; stockRestorations?: any[] } | any;
+        const voidedOrder = responseData.order || responseData;
+        const stockRestorations = responseData.stockRestorations;
+
+        // Clear current order after voiding
+        setCurrentOrder(null);
+
+        // Show success message with stock restoration info
+        let successMessage = "Order voided successfully";
+        if (stockRestorations && stockRestorations.length > 0) {
+          successMessage += `. Stock restored for ${stockRestorations.length} item(s).`;
+        }
+
+        toast({
+          title: "Order Voided",
+          description: successMessage,
+          variant: "default"
+        });
+
+        return { order: voidedOrder, stockRestorations };
+      } catch (error: unknown) {
+        const errorMessage = (error as any)?.response?.data?.message || "Failed to void order";
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [currentOrder]
+  );
+
   // Clear current order
   const clearOrder = useCallback(() => {
     if (autoSaveTimeoutRef.current) {
@@ -269,6 +330,7 @@ export const useOrderManagement = () => {
     updateOrder,
     updateOrderStatus,
     completeOrder,
+    voidOrder,
     clearOrder
   };
 };

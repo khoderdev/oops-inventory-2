@@ -30,9 +30,11 @@ export const defaultActionButtons: ActionButtonConfig[] = [
 interface LegacyActionBarProps {
   onSaveOrder?: () => void;
   onPrintReceipt?: () => void;
+  onVoidOrder?: () => void;
   hasUnsavedChanges?: boolean;
   isOrderLoading?: boolean;
   canPrintReceipt?: boolean;
+  canVoidOrder?: boolean;
 }
 
 // New flexible props interface
@@ -75,10 +77,17 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
-    const { onSaveOrder, onPrintReceipt, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false } = props;
+    const { onSaveOrder, onPrintReceipt, onVoidOrder, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false } = props;
 
     buttons = [
-      { id: "void", icon: X, label: "Void", active: false },
+      {
+        id: "void",
+        icon: X,
+        label: "Void",
+        active: canVoidOrder,
+        onClick: onVoidOrder,
+        disabled: !canVoidOrder || !onVoidOrder
+      },
       {
         id: "print",
         icon: Printer,

@@ -20,6 +20,7 @@ import { PaymentDialog } from "./PaymentDialog";
 import { ProductGrid } from "./ProductGrid";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 import { TablesLayout } from "./TablesLayout";
+import { VoidOrderDialog } from "./VoidOrderDialog";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete }) => {
   const [selectedSectionId] = useState<string>("");
@@ -46,12 +47,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [showSuccessCheckmark, setShowSuccessCheckmark] = useState(false);
   const [shouldAutoPrint, setShouldAutoPrint] = useState(false);
+  const [showVoidDialog, setShowVoidDialog] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Order management hook
-  const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, updateOrderStatus, completeOrder, clearOrder } = useOrderManagement();
+  const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, updateOrderStatus, completeOrder, voidOrder, clearOrder } = useOrderManagement();
 
   // Helper functions
   const showError = useCallback((message: string) => {
@@ -530,6 +532,58 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setShowReceiptDialog(true);
   }, [cart, currentOrder, subtotal, tax, total, showError]);
 
+  // Handle void order
+  const handleVoidOrder = useCallback(() => {
+    if (!currentOrder) {
+      showError("No current order to void");
+      return;
+    }
+
+    if (cart.length === 0 && !currentOrder.items?.length) {
+      showError("Cannot void an empty order");
+      return;
+    }
+
+    setShowVoidDialog(true);
+  }, [currentOrder, cart.length, showError]);
+
+  // Confirm void order
+  const handleConfirmVoid = useCallback(async (reason: string, restoreStock: boolean) => {
+    try {
+      setShowVoidDialog(false);
+      
+      const result = await voidOrder(reason, restoreStock);
+      
+      // Clear cart and local storage after successful void
+      clearCartWithAnimation();
+      setHasUnsavedChanges(false);
+      OrderPersistence.clearCurrentOrder();
+      
+      // Refresh tables if this was a table order
+      if (orderType === "table" && selectedTable) {
+        try {
+          const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
+          const responseData = tablesResponse.data as Table[] | { data: Table[] };
+          const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
+          setTables(refreshedTables);
+        } catch (error) {
+          console.error("Failed to refresh tables:", error);
+        }
+      }
+      
+      // Show success message with stock restoration info
+      let successMessage = "Order voided successfully";
+      if (result.stockRestorations && result.stockRestorations.length > 0) {
+        successMessage += `. Stock restored for ${result.stockRestorations.length} item(s).`;
+      }
+      showSuccess(successMessage);
+      
+    } catch (error) {
+      console.error("Failed to void order:", error);
+      // Error is already handled by the voidOrder function
+    }
+  }, [voidOrder, clearCartWithAnimation, orderType, selectedTable, showSuccess]);
+
   // Handle payment
   const handlePayment = useCallback(async () => {
     if (cart.length === 0) {
@@ -759,7 +813,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         {/* Bottom Action Bar - Fixed Footer */}
         <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} />
+          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} canVoidOrder={!!currentOrder} />
         </div>
       </div>
 
@@ -806,6 +860,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }}
         receiptData={lastSaleData}
         autoPrint={shouldAutoPrint}
+      />
+
+      {/* Void Order Dialog */}
+      <VoidOrderDialog
+        isOpen={showVoidDialog}
+        onClose={() => setShowVoidDialog(false)}
+        onConfirm={handleConfirmVoid}
+        order={currentOrder}
+        isLoading={orderLoading}
       />
 
       {/* Unsaved Changes Dialog */}

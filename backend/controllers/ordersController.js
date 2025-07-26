@@ -573,6 +573,131 @@ export const ordersController = {
     }
   },
 
+  // Void order - Enhanced cancellation with stock restoration
+  voidOrder: async (req, res) => {
+    const transaction = await sequelize.transaction();
+    
+    try {
+      const { orderId } = req.params;
+      const { reason, restoreStock = true } = req.body;
+      const userId = req.user?.id;
+
+      console.log("🚫 Voiding order:", orderId, "with reason:", reason);
+
+      // Find the order with all its items
+      const order = await Order.findByPk(orderId, {
+        include: [{ model: OrderItem, as: "items" }],
+        transaction
+      });
+
+      if (!order) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Check if order can be voided
+      if (order.status === "cancelled") {
+        await transaction.rollback();
+        return res.status(400).json({ message: "Order is already cancelled/voided" });
+      }
+
+      if (order.status === "paid") {
+        await transaction.rollback();
+        return res.status(400).json({ message: "Cannot void a paid order. Use refund instead." });
+      }
+
+      // Restore stock if requested and order had consumed stock
+      const stockRestorations = [];
+      if (restoreStock && order.items && order.items.length > 0) {
+        console.log("📦 Restoring stock for voided order items...");
+        
+        for (const item of order.items) {
+          if (item.materialId && item.type === "material") {
+            try {
+              // Find the material's stock entries to restore stock
+              const { StockEntry } = await import("../models/index.js");
+              
+              // Find the most recent stock entry for this material
+              const stockEntry = await StockEntry.findOne({
+                where: { materialId: item.materialId },
+                order: [["createdAt", "DESC"]],
+                transaction
+              });
+
+              if (stockEntry) {
+                // Restore the quantity that was consumed
+                const restoredQuantity = stockEntry.purchasedIndividualQuantity + item.quantity;
+                await stockEntry.update({
+                  purchasedIndividualQuantity: restoredQuantity
+                }, { transaction });
+
+                stockRestorations.push({
+                  materialId: item.materialId,
+                  itemName: item.name,
+                  quantityRestored: item.quantity,
+                  newStockLevel: restoredQuantity
+                });
+
+                console.log(`📈 Restored ${item.quantity} units of ${item.name} to stock`);
+              }
+            } catch (stockError) {
+              console.warn(`⚠️ Could not restore stock for item ${item.name}:`, stockError.message);
+            }
+          }
+        }
+      }
+
+      // Update order status to cancelled (voided)
+      await order.update({
+        status: "cancelled",
+        cancelReason: reason || "Order voided",
+        cancelledAt: new Date(),
+        updatedBy: userId
+      }, { transaction });
+
+      // Free up table when order is voided
+      if (order.tableId) {
+        const table = await Table.findByPk(order.tableId, { transaction });
+        if (table) {
+          // Check if there are other active orders for this table
+          const otherActiveOrders = await Order.count({
+            where: {
+              tableId: order.tableId,
+              id: { [Op.ne]: order.id },
+              status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
+            },
+            transaction
+          });
+
+          if (otherActiveOrders === 0) {
+            await table.update({ status: "available" }, { transaction });
+            console.log("📋 Table freed after order void:", table.number);
+          }
+        }
+      }
+
+      // Commit the transaction
+      await transaction.commit();
+
+      // Get the updated order with items
+      const voidedOrder = await Order.findByPk(orderId, {
+        include: [{ model: OrderItem, as: "items" }]
+      });
+
+      console.log("✅ Order voided successfully:", orderId);
+
+      res.json({ 
+        message: "Order voided successfully", 
+        order: voidedOrder,
+        stockRestorations: stockRestorations.length > 0 ? stockRestorations : null
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Void order error:", error);
+      res.status(500).json({ message: "Failed to void order", error: error.message });
+    }
+  },
+
   // Get table orders
   getTableOrders: async (req, res) => {
     try {
