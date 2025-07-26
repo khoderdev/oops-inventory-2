@@ -56,9 +56,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
   const formatTime = (date: Date | string) => {
     try {
-      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      const dateObj = typeof date === "string" ? new Date(date) : date;
       if (isNaN(dateObj.getTime())) {
-        return 'Invalid time';
+        return "Invalid time";
       }
       return new Intl.DateTimeFormat("en-US", {
         hour: "2-digit",
@@ -66,16 +66,16 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         hour12: true
       }).format(dateObj);
     } catch (error) {
-      console.error('Error formatting time:', error);
-      return 'Invalid time';
+      console.error("Error formatting time:", error);
+      return "Invalid time";
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-full max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full h-full max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Restaurant Tables</h2>
             <p className="text-gray-600 mt-1">Select a table to start taking orders</p>
@@ -137,33 +137,60 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                         transform: "translate(-50%, -50%)"
                       }}
                     >
-                      {/* Table */}
-                      <div className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} onClick={() => onTableSelect(table)}>
-                        <div className="text-center">
-                          <div className="font-bold text-gray-800">{table.number}</div>
-                          <div className="text-xs text-gray-600 flex items-center justify-center">
-                            <Users className="w-3 h-3 mr-1" />
-                            {table.seats}
+                      {/* Table with Hover Group */}
+                      <div className="group relative">
+                        {/* Table */}
+                        <div className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} onClick={() => onTableSelect(table)}>
+                          <div className="text-center">
+                            <div className="font-bold text-gray-800">{table.number}</div>
+                            <div className="text-xs text-gray-600 flex items-center justify-center">
+                              <Users className="w-3 h-3 mr-1" />
+                              {table.seats}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Table Info Card (for opened tables) */}
-                      {table.status === "opened" && table.currentOrder && (
-                        <Card className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-48 shadow-lg z-10">
-                          <CardContent className="p-3">
-                            <div className="text-sm">
-                              <div className="font-medium text-gray-800 mb-1">{table.currentOrder.customerName || table.currentOrder.orderNumber || `Order #${String(table.currentOrder.orderId).slice(-4)}`}</div>
-                              <div className="flex items-center text-gray-600 mb-1">
-                                <Clock className="w-3 h-3 mr-1" />
-                                {formatTime(table.currentOrder.startTime)}
-                              </div>
-                              <div className="text-gray-600 mb-1">{table.currentOrder.itemCount} items</div>
-                              <div className="font-medium text-green-600">{formatCurrency(table.currentOrder.totalAmount)}</div>
+                        {/* Hover Info Card (for opened tables) */}
+                        {table.status === "opened" && table.currentOrder && (
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto !z-50">
+                            <div className="relative">
+                              {/* Arrow pointing up */}
+                              <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[8px] border-l-transparent border-r-transparent border-b-white drop-shadow-sm"></div>
+
+                              {/* Card */}
+                              <Card className="w-52 shadow-xl border-0 bg-white/95 backdrop-blur-sm">
+                                <CardContent className="p-4">
+                                  <div className="space-y-3">
+                                    {/* Order Number */}
+                                    <div className="text-center">
+                                      <div className="font-bold text-lg text-gray-800 mb-1">{table.currentOrder.orderNumber || `ORD-${String(table.currentOrder.orderId).padStart(4, "0")}`}</div>
+                                    </div>
+
+                                    {/* Time */}
+                                    <div className="flex items-center justify-center text-gray-600">
+                                      <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                                      <span className="font-medium">{formatTime(table.currentOrder.startTime)}</span>
+                                    </div>
+
+                                    {/* Items Count */}
+                                    <div className="flex items-center justify-center text-gray-600">
+                                      <div className="w-4 h-4 mr-2 rounded-full bg-orange-100 flex items-center justify-center">
+                                        <span className="text-xs font-bold text-orange-600">{table.currentOrder.itemCount}</span>
+                                      </div>
+                                      <span className="font-medium">{table.currentOrder.itemCount} items</span>
+                                    </div>
+
+                                    {/* Total Amount */}
+                                    <div className="text-center pt-2 border-t border-gray-100">
+                                      <div className="text-xl font-bold text-green-600">{formatCurrency(table.currentOrder.totalAmount)}</div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
                             </div>
-                          </CardContent>
-                        </Card>
-                      )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })
