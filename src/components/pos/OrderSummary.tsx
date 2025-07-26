@@ -3,7 +3,7 @@ import { OrderSummaryProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import React from "react";
 
-export const OrderSummary: React.FC<OrderSummaryProps> = ({ cart, subtotal, total, onPaymentClick }) => {
+export const OrderSummary: React.FC<OrderSummaryProps> = ({ cart, subtotal, total, onPaymentClick, onSaveClick }) => {
   if (cart.length === 0) {
     return null;
   }
@@ -24,7 +24,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({ cart, subtotal, tota
       </div>
 
       <div className="flex space-x-2 mt-4">
-        <Button variant="outline" className="flex-1">
+        <Button variant="outline" className="flex-1" onClick={onSaveClick}>
           SAVE
         </Button>
         <Button className="flex-1 bg-teal-500 hover:bg-teal-600 text-white" onClick={onPaymentClick}>

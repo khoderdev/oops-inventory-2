@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { LocalOrderData, OrderPersistence } from "@/utils/orderPersistence";
+import { OrderPersistence } from "@/utils/orderPersistence";
 import { AlertCircle, AlertTriangle, Check, Save, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActionBar } from "./ActionBar";
@@ -44,10 +44,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [tables, setTables] = useState<Table[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Order management hook
   const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, updateOrderStatus, completeOrder, clearOrder } = useOrderManagement();
@@ -106,98 +104,70 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     fetchInitialData();
   }, [showError]);
 
-  // Auto-save functionality
-  const scheduleAutoSave = useCallback(() => {
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current);
-    }
-
-    autoSaveTimeoutRef.current = setTimeout(() => {
-      if (cart.length > 0) {
-        handleAutoSave();
-      }
-    }, 3000); // 3 seconds delay
-  }, [cart]);
-
-  const handleAutoSave = useCallback(async () => {
-    // Only auto-save if we have a current order with a valid ID
-    const orderId = currentOrder?.id || (currentOrder as any)?.data?.id;
-    if (!currentOrder || !orderId) {
-      console.log("🔍 Auto-save skipped: No current order ID");
+  // Manual save function
+  const handleManualSave = useCallback(async () => {
+    if (cart.length === 0) {
+      showError("Cannot save empty order");
       return;
     }
 
     try {
-      console.log("🔍 Auto-saving order:", orderId);
-      // Convert POSCartItem[] to OrderItem[]
-      const items = cart.map(cartItem => ({
-        id: cartItem.id,
-        materialId: cartItem.type === "material" ? cartItem.originalItem.id : undefined,
-        menuItemId: cartItem.type === "menu" ? cartItem.originalItem.id : undefined,
-        assignmentId: undefined, // Assignment info is handled separately
-        name: cartItem.name,
-        quantity: cartItem.quantity,
-        unitPrice: cartItem.price,
-        totalPrice: cartItem.price * cartItem.quantity,
-        type: cartItem.type,
-        notes: undefined
-      }));
-
-      const orderData: LocalOrderData = {
+      const orderData = {
         orderType,
         tableId: selectedTable?.id,
-        tableNumber: selectedTable?.number,
-        customerName: undefined, // Add customer info if needed
-        customerPhone: undefined,
-        customerAddress: undefined,
-        items,
-        notes: undefined,
-        lastModified: Date.now(),
-        autoSaveEnabled: true
+        items: cart.map(item => ({
+          materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
+          menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
+          assignmentId: undefined,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.price,
+          totalPrice: item.price * item.quantity,
+          type: item.type,
+          notes: undefined
+        }))
       };
 
-      // Save to localStorage
-      OrderPersistence.saveCurrentOrder(orderData);
-      setLastAutoSave(new Date());
-      setHasUnsavedChanges(false);
-
-      // Also try to save to backend if we have an order
       if (currentOrder) {
-        const items = cart.map(cartItem => {
-          if (cartItem.type === "material") {
-            const stockEntry = cartItem.originalItem as StockEntryWithMaterial;
-            return {
-              type: "individual" as const,
-              materialId: stockEntry.materialId || "",
-              materialName: stockEntry.material?.name || cartItem.name,
-              quantity: cartItem.quantity,
-              unitPrice: cartItem.price,
-              totalPrice: cartItem.price * cartItem.quantity
-            };
-          } else {
-            const menuItem = cartItem.originalItem as MenuItem;
-            return {
-              type: "menu" as const,
-              menuItemId: menuItem.id,
-              menuItemName: menuItem.name,
-              quantity: cartItem.quantity,
-              unitPrice: cartItem.price,
-              totalPrice: cartItem.price * cartItem.quantity
-            };
-          }
-        });
-
-        await updateOrder({
-          items,
-          orderType,
-          tableId: selectedTable?.id,
-          totalAmount: cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-        });
+        // Update existing order
+        const updateItems = cart.map((item, index) => ({
+          id: currentOrder.items[index]?.id || `temp-${Date.now()}-${index}`,
+          materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
+          menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
+          assignmentId: undefined,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.price,
+          totalPrice: item.price * item.quantity,
+          type: item.type,
+          notes: undefined
+        }));
+        await updateOrder({ items: updateItems });
+        showSuccess("Order updated successfully");
+      } else {
+        // Create new order
+        await createOrder(orderData);
+        showSuccess("Order saved as draft");
       }
+
+      // Refresh tables to update status in UI
+      if (orderType === "table") {
+        try {
+          const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
+          const responseData = tablesResponse.data as Table[] | { data: Table[] };
+          const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
+          setTables(refreshedTables);
+        } catch (error) {
+          console.error("Failed to refresh tables:", error);
+        }
+      }
+
+      setHasUnsavedChanges(false);
     } catch (error) {
-      console.error("Auto-save failed:", error);
+      console.error("Failed to save order:", error);
+      showError("Failed to save order");
     }
-  }, [cart, orderType, selectedTable, currentOrder, updateOrder]);
+  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError]);
 
   // Load saved order on component mount
   useEffect(() => {
@@ -247,44 +217,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [optimisticAssignments, menuItems, stockEntries, tables, showSuccess]);
 
-  // Schedule auto-save when cart changes
+  // Track unsaved changes when cart changes
   useEffect(() => {
-    console.log("🔍 Auto-save useEffect triggered. Cart length:", cart.length, "currentOrder:", currentOrder);
     if (cart.length > 0) {
       setHasUnsavedChanges(true);
-      // Only schedule auto-save if we have a current order to update
-      const orderId = currentOrder?.id || (currentOrder as any)?.data?.id;
-      if (currentOrder && orderId) {
-        console.log("🔍 Scheduling auto-save for order:", orderId);
-        scheduleAutoSave();
-      } else {
-        console.log("🔍 Auto-save not scheduled: No current order ID. CurrentOrder:", currentOrder);
-      }
     } else {
-      // Clear saved order when cart is empty
-      OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
-      setLastAutoSave(null);
     }
-  }, [cart, scheduleAutoSave, currentOrder]);
-
-  // Additional effect to handle auto-save when currentOrder is set after loading
-  useEffect(() => {
-    const orderId = currentOrder?.id || (currentOrder as any)?.data?.id;
-    if (currentOrder && orderId && cart.length > 0 && hasUnsavedChanges) {
-      console.log("🔍 CurrentOrder is now set, scheduling auto-save for:", orderId);
-      scheduleAutoSave();
-    }
-  }, [currentOrder, cart.length, hasUnsavedChanges, scheduleAutoSave]);
-
-  // Cleanup auto-save timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-    };
-  }, []);
+  }, [cart]);
 
   // Fetch menu items
   useEffect(() => {
@@ -681,7 +621,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       clearOrder();
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
-      setLastAutoSave(null);
 
       // Callback for parent component
       if (onSaleComplete) {
@@ -720,7 +659,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
 
         {/* Order Summary */}
-        <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} />
+        <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} onSaveClick={handleManualSave} />
       </div>
 
       {/* Right Panel - Product Grid */}
@@ -772,7 +711,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} />
 
       {/* Order Status Indicator */}
-      {(hasUnsavedChanges || currentOrder || lastAutoSave) && (
+      {(hasUnsavedChanges || currentOrder) && (
         <div className="fixed top-4 left-4 z-50">
           <Alert className="bg-blue-50 border-blue-200">
             <Save className="h-4 w-4 text-blue-600" />
@@ -783,9 +722,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   <span className="text-xs">({currentOrder.status})</span>
                 </div>
               ) : hasUnsavedChanges ? (
-                "Unsaved changes"
-              ) : lastAutoSave ? (
-                `Auto-saved at ${lastAutoSave.toLocaleTimeString()}`
+                "Unsaved changes - Click SAVE to save"
               ) : null}
             </AlertDescription>
           </Alert>
@@ -814,7 +751,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             </Button>
             <Button
               onClick={() => {
-                handleSaveOrder();
+                handleManualSave();
                 setShowUnsavedDialog(false);
               }}
             >

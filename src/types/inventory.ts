@@ -453,6 +453,7 @@ export interface OrderSummaryProps {
   subtotal: number;
   total: number;
   onPaymentClick: () => void;
+  onSaveClick: () => void;
 }
 
 export interface OrderItemsListProps {
