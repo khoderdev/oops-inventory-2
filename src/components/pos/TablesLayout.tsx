@@ -6,6 +6,9 @@ import { Clock, Users, X } from "lucide-react";
 import React from "react";
 
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose }) => {
+  // Ensure tables is always an array
+  const safeTablesList = Array.isArray(tables) ? tables : [];
+
   const getTableStatusColor = (status: Table["status"]) => {
     switch (status) {
       case "available":
@@ -100,45 +103,62 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           <div className="relative bg-gray-50 rounded-lg p-8 min-h-full">
             {/* Restaurant Floor Plan */}
             <div className="relative w-full h-full min-h-[600px]">
-              {tables.map(table => (
-                <div
-                  key={table.id}
-                  className="absolute"
-                  style={{
-                    left: `${table.position.x}%`,
-                    top: `${table.position.y}%`,
-                    transform: "translate(-50%, -50%)"
-                  }}
-                >
-                  {/* Table */}
-                  <div className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} onClick={() => onTableSelect(table)}>
-                    <div className="text-center">
-                      <div className="font-bold text-gray-800">{table.number}</div>
-                      <div className="text-xs text-gray-600 flex items-center justify-center">
-                        <Users className="w-3 h-3 mr-1" />
-                        {table.seats}
-                      </div>
-                    </div>
+              {safeTablesList.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-gray-500">
+                    <div className="text-lg font-medium mb-2">No tables available</div>
+                    <div className="text-sm">Tables are being loaded or none are configured.</div>
                   </div>
-
-                  {/* Table Info Card (for occupied tables) */}
-                  {table.status === "open" && table.currentOrder && (
-                    <Card className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-48 shadow-lg z-10">
-                      <CardContent className="p-3">
-                        <div className="text-sm">
-                          <div className="font-medium text-gray-800 mb-1">{table.currentOrder.customerName || `Order #${table.currentOrder.orderId.slice(-4)}`}</div>
-                          <div className="flex items-center text-gray-600 mb-1">
-                            <Clock className="w-3 h-3 mr-1" />
-                            {formatTime(table.currentOrder.startTime)}
-                          </div>
-                          <div className="text-gray-600 mb-1">{table.currentOrder.itemCount} items</div>
-                          <div className="font-medium text-green-600">{formatCurrency(table.currentOrder.totalAmount)}</div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
                 </div>
-              ))}
+              ) : (
+                safeTablesList.map((table, index) => {
+                  // Ensure table has valid position, fallback to grid layout if missing
+                  const position = table.position || {
+                    x: 20 + (index % 4) * 20, // Grid layout: 20%, 40%, 60%, 80%
+                    y: 20 + Math.floor(index / 4) * 25 // Rows: 20%, 45%, 70%
+                  };
+
+                  return (
+                    <div
+                      key={table.id}
+                      className="absolute"
+                      style={{
+                        left: `${position.x}%`,
+                        top: `${position.y}%`,
+                        transform: "translate(-50%, -50%)"
+                      }}
+                    >
+                      {/* Table */}
+                      <div className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} onClick={() => onTableSelect(table)}>
+                        <div className="text-center">
+                          <div className="font-bold text-gray-800">{table.number}</div>
+                          <div className="text-xs text-gray-600 flex items-center justify-center">
+                            <Users className="w-3 h-3 mr-1" />
+                            {table.seats}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Table Info Card (for occupied tables) */}
+                      {table.status === "open" && table.currentOrder && (
+                        <Card className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-48 shadow-lg z-10">
+                          <CardContent className="p-3">
+                            <div className="text-sm">
+                              <div className="font-medium text-gray-800 mb-1">{table.currentOrder.customerName || `Order #${table.currentOrder.orderId.slice(-4)}`}</div>
+                              <div className="flex items-center text-gray-600 mb-1">
+                                <Clock className="w-3 h-3 mr-1" />
+                                {formatTime(table.currentOrder.startTime)}
+                              </div>
+                              <div className="text-gray-600 mb-1">{table.currentOrder.itemCount} items</div>
+                              <div className="font-medium text-green-600">{formatCurrency(table.currentOrder.totalAmount)}</div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  );
+                })
+              )}
 
               {/* Restaurant Features */}
               <div className="absolute top-4 left-4 bg-blue-100 border-2 border-blue-300 rounded-lg p-4 w-32 h-16 flex items-center justify-center">

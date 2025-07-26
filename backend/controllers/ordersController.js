@@ -3,28 +3,51 @@ import { Assignment, Material, MenuItem, Order, OrderItem, sequelize, Table, Use
 import salesController from "./salesController.js";
 
 export const ordersController = {
-  // Create a new order
+  // Create a new order - SIMPLIFIED VERSION
   createOrder: async (req, res) => {
+    console.log(" ORDER REQUEST RECEIVED");
+    console.log(" Request body keys:", Object.keys(req.body));
+    
     const transaction = await sequelize.transaction();
 
     try {
-      const { orderType, tableId, customerName, customerPhone, customerAddress, notes, items = [] } = req.body;
+      const { orderNumber, orderType, tableId, customerName, customerPhone, customerAddress, notes, items = [] } = req.body;
       const userId = req.user?.id;
 
-      // Validate table if provided
-      if (tableId) {
-        const table = await Table.findByPk(tableId);
-        if (!table) {
-          await transaction.rollback();
-          return res.status(404).json({ message: "Table not found" });
+      console.log(" Creating order:", { orderNumber, orderType, tableId, itemsCount: items.length });
+
+      // Generate sequential order number if not provided
+      let finalOrderNumber = orderNumber;
+      if (!finalOrderNumber) {
+        try {
+          // Find the last order number
+          const lastOrder = await Order.findOne({
+            order: [["orderNumber", "DESC"]],
+            attributes: ["orderNumber"]
+          });
+
+          let nextSequence = 1;
+          if (lastOrder && lastOrder.orderNumber) {
+            const match = lastOrder.orderNumber.match(/ORD-(\d+)/);
+            if (match) {
+              nextSequence = parseInt(match[1], 10) + 1;
+            }
+          }
+
+          finalOrderNumber = `ORD-${nextSequence.toString().padStart(4, "0")}`;
+          console.log("🔢 Generated sequential order number:", finalOrderNumber);
+        } catch (error) {
+          console.error("Error generating order number:", error);
+          finalOrderNumber = `ORD-0001`; // Fallback
         }
       }
 
-      // Create order
+      // Create order with your exact data
       const order = await Order.create(
         {
+          orderNumber: finalOrderNumber,
           orderType: orderType || "takeaway",
-          tableId,
+          tableId: tableId || null,
           customerName,
           customerPhone,
           customerAddress,
@@ -35,23 +58,32 @@ export const ordersController = {
         { transaction }
       );
 
-      // Create order items
+      console.log("✅ Order created:", order.id, order.orderNumber);
+
+      // Create order items - SIMPLIFIED
       if (items.length > 0) {
         const orderItems = await Promise.all(
           items.map(async item => {
+            console.log("📎 Creating item:", item.name, "x", item.quantity);
+            console.log("🔍 Full item data:", JSON.stringify(item, null, 2));
+
+            const orderItemData = {
+              orderId: order.id,
+              materialId: item.materialId || null,
+              menuItemId: item.menuItemId || null,
+              assignmentId: item.assignmentId || null,
+              name: item.name,
+              type: item.type,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              notes: item.notes
+            };
+            
+            console.log("🔍 OrderItem create data:", JSON.stringify(orderItemData, null, 2));
+
             const orderItem = await OrderItem.create(
-              {
-                orderId: order.id,
-                materialId: item.materialId,
-                menuItemId: item.menuItemId,
-                assignmentId: item.assignmentId,
-                name: item.name,
-                type: item.type,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                totalPrice: item.totalPrice,
-                notes: item.notes
-              },
+              orderItemData,
               { transaction }
             );
 
@@ -97,7 +129,7 @@ export const ordersController = {
   // Get all orders with filters
   getOrders: async (req, res) => {
     try {
-      const { status, orderType, tableId, startDate, endDate, limit = 50, offset = 0 } = req.query;
+      const { status, orderType, tableId, startDate, endDate, limit = 50, offset = 0, orderBy = "createdAt", order = "DESC" } = req.query;
 
       const whereClause = {};
 
@@ -125,7 +157,7 @@ export const ordersController = {
           { model: Table, as: "table" },
           { model: User, as: "creator" }
         ],
-        order: [["createdAt", "DESC"]],
+        order: [[orderBy, order.toUpperCase()]],
         limit: parseInt(limit),
         offset: parseInt(offset)
       });

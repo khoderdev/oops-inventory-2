@@ -107,34 +107,7 @@ const Order = sequelize.define(
       {
         fields: ["createdAt"]
       }
-    ],
-    hooks: {
-      beforeCreate: async order => {
-        if (!order.orderNumber) {
-          // Generate order number: ORD-YYYYMMDD-XXXX
-          const today = new Date();
-          const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
-
-          // Find the last order number for today
-          const lastOrder = await Order.findOne({
-            where: {
-              orderNumber: {
-                [sequelize.Sequelize.Op.like]: `ORD-${dateStr}-%`
-              }
-            },
-            order: [["orderNumber", "DESC"]]
-          });
-
-          let sequence = 1;
-          if (lastOrder) {
-            const lastSequence = parseInt(lastOrder.orderNumber.split("-")[2]);
-            sequence = lastSequence + 1;
-          }
-
-          order.orderNumber = `ORD-${dateStr}-${sequence.toString().padStart(4, "0")}`;
-        }
-      }
-    }
+    ]
   }
 );
 

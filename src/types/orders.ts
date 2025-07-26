@@ -69,6 +69,7 @@ export interface Order {
 }
 
 export interface CreateOrderData {
+  orderNumber?: string; // Optional - will be generated automatically if not provided
   orderType: OrderType;
   tableId?: string;
   customerName?: string;

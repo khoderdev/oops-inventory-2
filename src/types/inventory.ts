@@ -422,7 +422,7 @@ export interface POSCartItem {
   price: number;
   quantity: number;
   type: "material" | "menu";
-  originalItem: SectionAssignment | MenuItem;
+  originalItem: StockEntryWithMaterial | MenuItem;
 }
 
 export interface POSClientProps {
@@ -442,9 +442,9 @@ export interface PaymentDialogProps {
 }
 
 export interface ProductGridProps {
-  filteredItems: SectionAssignment[];
+  filteredItems: StockEntryWithMaterial[];
   filteredMenuItems: MenuItem[];
-  onAddToCart: (item: SectionAssignment | MenuItem, type: "material" | "menu") => void;
+  onAddToCart: (item: StockEntryWithMaterial | MenuItem, type: "material" | "menu") => void;
 }
 
 export interface OrderSummaryProps {
