@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { InventoryManagementPanelProps } from "@/types/inventory";
-import { Building2 } from "lucide-react";
+import { Building2, MapPin, Package, Warehouse } from "lucide-react";
 import { SectionsManagementPanel } from "../sections/SectionsManagementPanel";
 
 export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps = {}) {
@@ -89,31 +89,70 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
     <div className="space-y-6">
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="w-full">
-          <TabsTrigger value="material" className="relative w-full">
-            Material
+        <TabsList className="w-full bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 rounded-xl p-2 shadow-sm">
+          <TabsTrigger value="material" className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50 text-gray-600 hover:text-gray-800">
+            <Package className="h-4 w-4" />
+            <span className="hidden sm:inline">Materials</span>
+            <span className="sm:hidden">Mat</span>
             {tabLoading.material}
           </TabsTrigger>
-          <TabsTrigger value="stock" className="relative w-full">
-            Stock Entries
+          <TabsTrigger value="stock" className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-green-700 data-[state=active]:border data-[state=active]:border-green-200 hover:bg-white/50 text-gray-600 hover:text-gray-800">
+            <Warehouse className="h-4 w-4" />
+            <span className="hidden sm:inline">Stock Entries</span>
+            <span className="sm:hidden">Stock</span>
             {tabLoading.stock}
           </TabsTrigger>
-          <TabsTrigger value="sections" className="relative w-full">
-            Sections
+          <TabsTrigger value="sections" className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-purple-200 hover:bg-white/50 text-gray-600 hover:text-gray-800">
+            <MapPin className="h-4 w-4" />
+            <span className="hidden sm:inline">Sections</span>
+            <span className="sm:hidden">Sec</span>
             {tabLoading.sections}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="material">
-          <MaterialTable filteredMaterials={filteredMaterials} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
+        <TabsContent value="material" className="mt-6 space-y-4 focus-visible:outline-none">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-blue-200">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-blue-900">Materials Management</h2>
+              </div>
+              <p className="text-sm text-blue-700 mt-1">Manage your inventory materials and their properties</p>
+            </div>
+            <div className="p-6">
+              <MaterialTable filteredMaterials={filteredMaterials} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
+            </div>
+          </div>
         </TabsContent>
 
-        <TabsContent value="stock">
-          <StockEntriesTable />
+        <TabsContent value="stock" className="mt-6 space-y-4 focus-visible:outline-none">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-b border-green-200">
+              <div className="flex items-center gap-2">
+                <Warehouse className="h-5 w-5 text-green-600" />
+                <h2 className="text-lg font-semibold text-green-900">Stock Entries</h2>
+              </div>
+              <p className="text-sm text-green-700 mt-1">Track and manage your inventory stock levels</p>
+            </div>
+            <div className="p-6">
+              <StockEntriesTable />
+            </div>
+          </div>
         </TabsContent>
 
-        <TabsContent value="sections">
-          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
+        <TabsContent value="sections" className="mt-6 space-y-4 focus-visible:outline-none">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-50 to-purple-100 px-6 py-4 border-b border-purple-200">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-purple-600" />
+                <h2 className="text-lg font-semibold text-purple-900">Sections Management</h2>
+              </div>
+              <p className="text-sm text-purple-700 mt-1">Organize your inventory into sections and manage assignments</p>
+            </div>
+            <div className="">
+              <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 

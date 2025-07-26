@@ -146,7 +146,7 @@ export function StockEntriesTable() {
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full !border-none">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">

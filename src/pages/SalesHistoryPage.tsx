@@ -14,7 +14,7 @@ import { ItemSale } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
 import { useAtom, useAtomValue } from "jotai";
-import { AlertCircle, ArrowRight, CheckCircle, CheckSquare, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart, Square, Trash2, Undo2 } from "lucide-react";
+import { AlertCircle, CheckCircle, CheckSquare, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart, Square, Trash2, Undo2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -301,10 +301,6 @@ export function SalesHistoryPage() {
           <h1 className="text-3xl font-bold">Sales History</h1>
           <p className="text-muted-foreground">View and manage all completed sales</p>
         </div>
-        <Button variant="outline" onClick={() => navigate(-1)} className="flex items-center gap-2">
-          Back
-          <ArrowRight className="h-4 w-4" />
-        </Button>
       </div>
 
       {/* Error Alert */}

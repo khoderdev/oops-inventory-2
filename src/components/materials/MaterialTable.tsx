@@ -17,7 +17,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     return !searchTerm || material.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
   return (
-    <Card>
+    <Card className="!border-none">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Materials</CardTitle>

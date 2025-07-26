@@ -317,8 +317,9 @@ const ProtectedNavigation: React.FC = () => {
 
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center gap-3">
+          <div className="p-2 flex items-center justify-center border-b border-gray-200">
+            <img src="oops-logo.png" alt="oops-logo" className="w-36" />
+            {/* <div className="flex items-center gap-3">
               <div className="flex-shrink-0">
                 <Package className="h-8 w-8 text-blue-600" />
               </div>
@@ -328,7 +329,7 @@ const ProtectedNavigation: React.FC = () => {
                   <p className="text-xs text-gray-500">Inventory System</p>
                 </div>
               )}
-            </div>
+            </div> */}
           </div>
 
           {/* Navigation */}

@@ -226,10 +226,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   return (
     <>
-      <Card>
+      <Card className="!border-0 !shadow-none !bg-background">
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Menu Items</CardTitle>
+          <div className="flex justify-between items-center mb-2">
+            <CardTitle className="text-3xl font-bold">Menu Items</CardTitle>
             <Button
               size="sm"
               onClick={() => {

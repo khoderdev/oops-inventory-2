@@ -374,7 +374,7 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
         </div>
         <h3 className="text-lg font-semibold text-foreground mb-3">No Sections Available</h3>
         <p className="text-sm text-muted-foreground/80 max-w-md leading-relaxed mb-4">No sections found. Create your first section to start organizing your inventory.</p>
-        <Button onClick={() => setShowSectionForm(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+        <Button onClick={() => setShowSectionForm(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Section
         </Button>
@@ -398,7 +398,7 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
               </CardTitle>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">Manage and organize your inventory by sections</p>
             </div>
-            <Button size="sm" onClick={() => setShowSectionForm(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200">
+            <Button size="sm" onClick={() => setShowSectionForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Section
             </Button>
