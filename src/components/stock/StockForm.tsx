@@ -10,6 +10,7 @@ import { stockSchema } from "./stockSchema";
 import { AddStockTab } from "./tabs/AddStockTab";
 import { AddToEntryTab } from "./tabs/AddToEntryTab";
 import { NewStockTab } from "./tabs/NewStockTab";
+import { RecordWasteTab } from "./tabs/RecordWasteTab";
 import { UpdateEntryTab } from "./tabs/UpdateEntryTab";
 import { WasteFromEntryTab2 } from "./tabs/WasteFromEntryTab";
 
@@ -226,6 +227,10 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
 
           <TabsContent value="waste-from-entry">
             <WasteFromEntryTab2 form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
+          </TabsContent>
+
+          <TabsContent value="record-waste">
+            <RecordWasteTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} onRecordWaste={onRecordWaste} onCancel={onCancel} />
           </TabsContent>
         </Tabs>
       </CardContent>
