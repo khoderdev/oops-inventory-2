@@ -3,11 +3,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { Clock, Users, X } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
 
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose }) => {
   // Ensure tables is always an array
   const safeTablesList = Array.isArray(tables) ? tables : [];
+  
+  // State for hover popup
+  const [hoveredTable, setHoveredTable] = useState<Table | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
 
   const getTableStatusColor = (status: Table["status"]) => {
     switch (status) {
@@ -71,8 +75,25 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     }
   };
 
+  // Handle table hover
+  const handleTableHover = (table: Table, event: React.MouseEvent) => {
+    if (table.status === "opened" && table.currentOrder) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setHoveredTable(table);
+      setPopupPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.bottom + 12
+      });
+    }
+  };
+
+  const handleTableLeave = () => {
+    setHoveredTable(null);
+    setPopupPosition(null);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full h-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -137,59 +158,20 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                         transform: "translate(-50%, -50%)"
                       }}
                     >
-                      {/* Table with Hover Group */}
-                      <div className="group relative">
-                        {/* Table */}
-                        <div className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} onClick={() => onTableSelect(table)}>
-                          <div className="text-center">
-                            <div className="font-bold text-gray-800">{table.number}</div>
-                            <div className="text-xs text-gray-600 flex items-center justify-center">
-                              <Users className="w-3 h-3 mr-1" />
-                              {table.seats}
-                            </div>
+                      {/* Table */}
+                      <div 
+                        className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} 
+                        onClick={() => onTableSelect(table)}
+                        onMouseEnter={(e) => handleTableHover(table, e)}
+                        onMouseLeave={handleTableLeave}
+                      >
+                        <div className="text-center">
+                          <div className="font-bold text-gray-800">{table.number}</div>
+                          <div className="text-xs text-gray-600 flex items-center justify-center">
+                            <Users className="w-3 h-3 mr-1" />
+                            {table.seats}
                           </div>
                         </div>
-
-                        {/* Hover Info Card (for opened tables) */}
-                        {table.status === "opened" && table.currentOrder && (
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto !z-50">
-                            <div className="relative">
-                              {/* Arrow pointing up */}
-                              <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[8px] border-l-transparent border-r-transparent border-b-white drop-shadow-sm"></div>
-
-                              {/* Card */}
-                              <Card className="w-52 shadow-xl border-0 bg-white/95 backdrop-blur-sm">
-                                <CardContent className="p-4">
-                                  <div className="space-y-3">
-                                    {/* Order Number */}
-                                    <div className="text-center">
-                                      <div className="font-bold text-lg text-gray-800 mb-1">{table.currentOrder.orderNumber || `ORD-${String(table.currentOrder.orderId).padStart(4, "0")}`}</div>
-                                    </div>
-
-                                    {/* Time */}
-                                    <div className="flex items-center justify-center text-gray-600">
-                                      <Clock className="w-4 h-4 mr-2 text-blue-500" />
-                                      <span className="font-medium">{formatTime(table.currentOrder.startTime)}</span>
-                                    </div>
-
-                                    {/* Items Count */}
-                                    <div className="flex items-center justify-center text-gray-600">
-                                      <div className="w-4 h-4 mr-2 rounded-full bg-orange-100 flex items-center justify-center">
-                                        <span className="text-xs font-bold text-orange-600">{table.currentOrder.itemCount}</span>
-                                      </div>
-                                      <span className="font-medium">{table.currentOrder.itemCount} items</span>
-                                    </div>
-
-                                    {/* Total Amount */}
-                                    <div className="text-center pt-2 border-t border-gray-100">
-                                      <div className="text-xl font-bold text-green-600">{formatCurrency(table.currentOrder.totalAmount)}</div>
-                                    </div>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   );
@@ -203,10 +185,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
               <div className="absolute top-4 right-4 bg-purple-100 border-2 border-purple-300 rounded-lg p-4 w-32 h-16 flex items-center justify-center">
                 <span className="text-sm font-medium text-purple-800">Bar</span>
-              </div>
-
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-orange-100 border-2 border-orange-300 rounded-lg p-4 w-40 h-16 flex items-center justify-center">
-                <span className="text-sm font-medium text-orange-800">Main Entrance</span>
               </div>
             </div>
           </div>
@@ -235,6 +213,58 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           </div>
         </div>
       </div>
+      
+      {/* Floating Popup - Positioned at top level to avoid z-index issues */}
+      {hoveredTable && popupPosition && (
+        <div 
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            left: popupPosition.x,
+            top: popupPosition.y,
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <div className="relative">
+            {/* Arrow pointing up */}
+            <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[8px] border-l-transparent border-r-transparent border-b-white drop-shadow-sm"></div>
+            
+            {/* Card */}
+            <Card className="w-52 shadow-xl border-0 bg-white backdrop-blur-sm animate-in fade-in-0 zoom-in-95 duration-200">
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  {/* Order Number */}
+                  <div className="text-center">
+                    <div className="font-bold text-lg text-gray-800 mb-1">
+                      {hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}
+                    </div>
+                  </div>
+
+                  {/* Time */}
+                  <div className="flex items-center justify-center text-gray-600">
+                    <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                    <span className="font-medium">{formatTime(hoveredTable.currentOrder?.startTime || new Date())}</span>
+                  </div>
+
+                  {/* Items Count */}
+                  <div className="flex items-center justify-center text-gray-600">
+                    <div className="w-4 h-4 mr-2 rounded-full bg-orange-100 flex items-center justify-center">
+                      <span className="text-xs font-bold text-orange-600">{hoveredTable.currentOrder?.itemCount || 0}</span>
+                    </div>
+                    <span className="font-medium">{hoveredTable.currentOrder?.itemCount || 0} items</span>
+                  </div>
+
+                  {/* Total Amount */}
+                  <div className="text-center pt-2 border-t border-gray-100">
+                    <div className="text-xl font-bold text-green-600">
+                      {formatCurrency(hoveredTable.currentOrder?.totalAmount || 0)}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
