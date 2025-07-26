@@ -43,7 +43,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       console.warn(`No valid stock entries for material ${material.name}, returning 0`);
       return 0; // Fallback to 0 if no valid stock entries
     },
-    [stockEntries]
+    [] // No dependencies needed since function receives materialStockEntries as parameter
   );
 
   const availableMaterials = useMemo(() => {
@@ -127,16 +127,22 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 
   const handleAddMenuItem = useCallback(
-    (menuItem: MenuItem) => {
-      const ingredientsWithCosts = menuItem.ingredients.map(ingredient => {
+    (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
+      console.log("🍽️ handleAddMenuItem - Creating new menu item with data:", data);
+      
+      const ingredientsWithCosts = data.ingredients.map(ingredient => {
         const material = availableMaterials.find(m => m.id === String(ingredient.materialId));
-        if (!material) return ingredient;
+        if (!material) {
+          console.warn(`Material not found for ID: ${ingredient.materialId}`);
+          return { ...ingredient, cost: 0 };
+        }
 
         const materialStockEntries = stockEntries.filter(entry => entry.materialId === String(ingredient.materialId));
         const costPerUnit = calculateMaterialCostPerUnit(material, materialStockEntries);
         const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
 
         const cost = ingredient.quantity * conversionFactor * costPerUnit;
+        console.log(`Ingredient cost calculation: ${ingredient.quantity} * ${conversionFactor} * ${costPerUnit} = ${cost}`);
 
         return {
           ...ingredient,
@@ -144,18 +150,22 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         };
       });
 
-      const menuItemWithCosts = {
-        ...menuItem,
-        ingredients: ingredientsWithCosts
+      const menuItemToCreate: MenuItem = {
+        id: `menu-${Date.now()}`, // Temporary ID, server should assign real ID
+        ...data,
+        ingredients: ingredientsWithCosts,
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
-      if (editingMenuItem) {
-        onUpdateMenuItem(editingMenuItem.id, menuItemWithCosts);
-      } else {
-        onCreateMenuItem(menuItemWithCosts);
-      }
+      console.log("🍽️ handleAddMenuItem - Final menu item to create:", menuItemToCreate);
+      onCreateMenuItem(menuItemToCreate);
+      
+      // Close the form
+      setShowMenuItemForm(false);
+      setEditingMenuItem(null);
     },
-    [availableMaterials, editingMenuItem, onUpdateMenuItem, onCreateMenuItem, stockEntries, calculateMaterialCostPerUnit]
+    [availableMaterials, onCreateMenuItem, stockEntries, calculateMaterialCostPerUnit]
   );
 
   const handleUpdateMenuItem = useCallback(

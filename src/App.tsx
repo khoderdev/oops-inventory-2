@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import UserManagementPage from "./components/admin/UserManagementPage";
 import { ReportGenerator } from "./components/analytics/ReportGenerator";
 import LoginPage from "./components/auth/LoginPage";
@@ -19,8 +19,8 @@ import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 import { useInventoryData } from "./hooks/useInventoryData";
 import DayOperationsPage from "./pages/DayOperationsPage";
 import NotFound from "./pages/NotFound";
-import { SalesHistoryPage } from "./pages/SalesHistoryPage";
 import POSClientPage from "./pages/POSClientPage";
+import { SalesHistoryPage } from "./pages/SalesHistoryPage";
 import { PERMISSIONS } from "./types/auth";
 import { InventoryManagementPanelProps } from "./types/inventory";
 
@@ -54,9 +54,14 @@ const RoleBasedRoute = ({ children, fallbackPath = "/pos-client" }: { children: 
   return <>{children}</>;
 };
 
-export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps = {}) {
+export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps = {}) {
   const { materials } = useInventoryData();
-  const { materialsWithStock, stockEntries, sections, sectionAssignments, menuItems, fetchTabData } = useInventoryStore();
+  const { materialsWithStock, stockEntries, sections, sectionAssignments, menuItems, fetchTabData, handleCreateMenuItem: storeCreateMenuItem, handleUpdateMenuItem: storeUpdateMenuItem, handleDeleteMenuItem: storeDeleteMenuItem } = useInventoryStore();
+
+  // Use store handlers or provided props (store handlers make actual API calls)
+  const handleCreateMenuItem = onCreateMenuItem || storeCreateMenuItem;
+  const handleUpdateMenuItem = onUpdateMenuItem || storeUpdateMenuItem;
+  const handleDeleteMenuItem = onDeleteMenuItem || storeDeleteMenuItem;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -113,7 +118,7 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                     <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
                       <RoleBasedRoute>
                         <AuthenticatedLayout>
-                          <InventoryManagementPanel />
+                          <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
                         </AuthenticatedLayout>
                       </RoleBasedRoute>
                     </ProtectedRoute>
@@ -151,7 +156,7 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                     <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
                       <RoleBasedRoute>
                         <AuthenticatedLayout>
-                          <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={onCreateMenuItem} onUpdateMenuItem={onUpdateMenuItem} onDeleteMenuItem={onDeleteMenuItem} sections={sections} sectionAssignments={sectionAssignments} />
+                          <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} sections={sections} />
                         </AuthenticatedLayout>
                       </RoleBasedRoute>
                     </ProtectedRoute>
