@@ -13,7 +13,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     switch (status) {
       case "available":
         return "bg-green-100 border-green-300 hover:bg-green-200";
-      case "open":
+      case "opened":
         return "bg-red-100 border-red-300 hover:bg-red-200";
       case "reserved":
         return "bg-yellow-100 border-yellow-300 hover:bg-yellow-200";
@@ -28,7 +28,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     switch (status) {
       case "available":
         return "Available";
-      case "open":
+      case "opened":
         return "Open";
       case "reserved":
         return "Reserved";
@@ -54,12 +54,21 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     }
   };
 
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true
-    }).format(date);
+  const formatTime = (date: Date | string) => {
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) {
+        return 'Invalid time';
+      }
+      return new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      }).format(dateObj);
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return 'Invalid time';
+    }
   };
 
   return (
@@ -139,12 +148,12 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                         </div>
                       </div>
 
-                      {/* Table Info Card (for occupied tables) */}
-                      {table.status === "open" && table.currentOrder && (
+                      {/* Table Info Card (for opened tables) */}
+                      {table.status === "opened" && table.currentOrder && (
                         <Card className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-48 shadow-lg z-10">
                           <CardContent className="p-3">
                             <div className="text-sm">
-                              <div className="font-medium text-gray-800 mb-1">{table.currentOrder.customerName || `Order #${table.currentOrder.orderId.slice(-4)}`}</div>
+                              <div className="font-medium text-gray-800 mb-1">{table.currentOrder.customerName || table.currentOrder.orderNumber || `Order #${String(table.currentOrder.orderId).slice(-4)}`}</div>
                               <div className="flex items-center text-gray-600 mb-1">
                                 <Clock className="w-3 h-3 mr-1" />
                                 {formatTime(table.currentOrder.startTime)}
@@ -193,7 +202,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 Cancel
               </Button>
               <Button onClick={() => selectedTable && onTableSelect(selectedTable)} disabled={!selectedTable || selectedTable.status === "cleaning"} className="bg-blue-600 hover:bg-blue-700">
-                {selectedTable?.status === "open" ? "Continue Order" : "Start Order"}
+                {selectedTable?.status === "opened" ? "Continue Order" : "Start Order"}
               </Button>
             </div>
           </div>

@@ -86,12 +86,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         const menuData = menuResponse.data || [];
         setMenuItems(menuData);
 
-        // Fetch tables
-        const tablesResponse = await tablesAPI.getTables();
+        // Fetch tables with order information
+        const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
+        console.log("Tables API response:", tablesResponse);
 
         // Handle both possible response structures
         const responseData = tablesResponse.data as Table[] | { data: Table[] };
         const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
+        console.log("Final tablesData:", tablesData, "Length:", tablesData.length);
         setTables(tablesData);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -118,7 +120,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [cart]);
 
   const handleAutoSave = useCallback(async () => {
+    // Only auto-save if we have a current order with a valid ID
+    const orderId = currentOrder?.id || (currentOrder as any)?.data?.id;
+    if (!currentOrder || !orderId) {
+      console.log("🔍 Auto-save skipped: No current order ID");
+      return;
+    }
+
     try {
+      console.log("🔍 Auto-saving order:", orderId);
       // Convert POSCartItem[] to OrderItem[]
       const items = cart.map(cartItem => ({
         id: cartItem.id,
@@ -239,16 +249,33 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Schedule auto-save when cart changes
   useEffect(() => {
+    console.log("🔍 Auto-save useEffect triggered. Cart length:", cart.length, "currentOrder:", currentOrder);
     if (cart.length > 0) {
       setHasUnsavedChanges(true);
-      scheduleAutoSave();
+      // Only schedule auto-save if we have a current order to update
+      const orderId = currentOrder?.id || (currentOrder as any)?.data?.id;
+      if (currentOrder && orderId) {
+        console.log("🔍 Scheduling auto-save for order:", orderId);
+        scheduleAutoSave();
+      } else {
+        console.log("🔍 Auto-save not scheduled: No current order ID. CurrentOrder:", currentOrder);
+      }
     } else {
       // Clear saved order when cart is empty
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
       setLastAutoSave(null);
     }
-  }, [cart, scheduleAutoSave]);
+  }, [cart, scheduleAutoSave, currentOrder]);
+
+  // Additional effect to handle auto-save when currentOrder is set after loading
+  useEffect(() => {
+    const orderId = currentOrder?.id || (currentOrder as any)?.data?.id;
+    if (currentOrder && orderId && cart.length > 0 && hasUnsavedChanges) {
+      console.log("🔍 CurrentOrder is now set, scheduling auto-save for:", orderId);
+      scheduleAutoSave();
+    }
+  }, [currentOrder, cart.length, hasUnsavedChanges, scheduleAutoSave]);
 
   // Cleanup auto-save timeout on unmount
   useEffect(() => {
@@ -362,57 +389,80 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleTableSelection = useCallback(
     async (table: Table) => {
+      console.log("🔍 Table selected:", table);
+      console.log("🔍 Table status:", table.status);
+      console.log("🔍 Table currentOrder:", table.currentOrder);
+
       setSelectedTable(table);
       setOrderType("table");
       setShowTablesLayout(false);
 
-      // If table is occupied/open, load existing order
-      if (table.status === "open") {
+      // If table is opened and has currentOrder, load existing order
+      if (table.status === "opened" && table.currentOrder) {
+        console.log("🔍 Loading order for opened table...");
         try {
-          // Get orders for this table
-          const response = await ordersAPI.getTableOrders(table.id);
-          const tableOrders = response.data;
+          // Get the full order details using the orderId from currentOrder
+          console.log("🔍 Fetching order with ID:", table.currentOrder.orderId);
+          const response = await ordersAPI.getOrder(table.currentOrder.orderId);
+          // Handle nested response structure - API sometimes returns nested data
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const responseData = response.data as { data?: any } | any;
+          const existingOrder = responseData.data || responseData;
+          console.log("🔍 Fetched order:", existingOrder);
 
-          // Find active order (not completed or cancelled)
-          const activeOrder = tableOrders.find(order => order.status !== "paid" && order.status !== "cancelled");
+          if (existingOrder && existingOrder.items) {
+            console.log("🔍 Order items:", existingOrder.items);
+            console.log("🔍 Available stockEntries:", stockEntries.length);
+            console.log("🔍 Available menuItems:", menuItems.length);
 
-          if (activeOrder) {
-            // Load the order using order management hook
-            const existingOrder = await loadOrder(activeOrder.id);
-            if (existingOrder) {
-              // Convert order items to cart items
-              const cartItems: POSCartItem[] = existingOrder.items.map(item => {
-                let originalItem: StockEntryWithMaterial | MenuItem;
+            // Load the order using order management hook to set currentOrder state
+            const loadedOrder = await loadOrder(existingOrder.id);
+            console.log("🔍 Loaded order:", loadedOrder);
+            console.log("🔍 After loadOrder, currentOrder state:", currentOrder);
 
-                if (item.type === "material" && item.materialId) {
-                  // Find the stock entry by materialId
-                  originalItem = stockEntries.find(se => se.materialId === item.materialId) || stockEntries[0];
-                } else if (item.type === "menu" && item.menuItemId) {
-                  // Find the menu item by menuItemId
-                  originalItem = menuItems.find(m => m.id === item.menuItemId) || menuItems[0];
-                } else {
-                  // Fallback to first available item
-                  originalItem = stockEntries[0] || menuItems[0];
-                }
+            // Convert order items to cart items
+            const cartItems: POSCartItem[] = existingOrder.items.map(item => {
+              console.log("🔍 Processing item:", item);
+              let originalItem: StockEntryWithMaterial | MenuItem;
 
-                return {
-                  id: item.id,
-                  name: item.name,
-                  price: item.unitPrice,
-                  quantity: item.quantity,
-                  type: item.type as "material" | "menu",
-                  originalItem
-                };
-              });
+              if (item.type === "material" && item.materialId) {
+                // Find the stock entry by materialId
+                originalItem = stockEntries.find(se => se.materialId === item.materialId) || stockEntries[0];
+                console.log("🔍 Found material originalItem:", originalItem);
+              } else if (item.type === "menu" && item.menuItemId) {
+                // Find the menu item by menuItemId
+                originalItem = menuItems.find(m => m.id === item.menuItemId) || menuItems[0];
+                console.log("🔍 Found menu originalItem:", originalItem);
+              } else {
+                // Fallback to first available item
+                originalItem = stockEntries[0] || menuItems[0];
+                console.log("🔍 Using fallback originalItem:", originalItem);
+              }
 
-              setCart(cartItems);
-              showSuccess(`Loaded existing order for Table ${table.number}`);
-            }
+              const cartItem = {
+                id: item.id,
+                name: item.name,
+                price: parseFloat(item.unitPrice.toString()),
+                quantity: item.quantity,
+                type: item.type as "material" | "menu",
+                originalItem
+              };
+              console.log("🔍 Created cart item:", cartItem);
+              return cartItem;
+            });
+
+            console.log("🔍 Final cart items:", cartItems);
+            setCart(cartItems);
+            showSuccess(`Loaded existing order ${existingOrder.orderNumber} for Table ${table.number}`);
+          } else {
+            console.log("🔍 No existing order or items found");
           }
         } catch (error) {
-          console.error("Failed to load table order:", error);
+          console.error("🔍 Failed to load table order:", error);
           showError("Failed to load existing table order");
         }
+      } else {
+        console.log("🔍 Table is not opened or has no currentOrder");
       }
     },
     [loadOrder, menuItems, stockEntries, showSuccess, showError]
@@ -462,6 +512,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       } else {
         await createOrder(orderData);
         showSuccess("Order saved as draft");
+      }
+
+      // Refresh tables to update status in UI
+      if (orderType === "table") {
+        try {
+          const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
+          const responseData = tablesResponse.data as Table[] | { data: Table[] };
+          const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
+          setTables(refreshedTables);
+        } catch (error) {
+          console.error("Failed to refresh tables:", error);
+        }
       }
 
       setHasUnsavedChanges(false);
@@ -529,7 +591,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             // Clear table reservation/status
             await tablesAPI.clearReservation(selectedTable.id);
             // Refresh tables to update UI
-            const tablesResponse = await tablesAPI.getTables();
+            const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
             const responseData = tablesResponse.data as Table[] | { data: Table[] };
             const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
             setTables(refreshedTables);

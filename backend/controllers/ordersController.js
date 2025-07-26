@@ -7,7 +7,7 @@ export const ordersController = {
   createOrder: async (req, res) => {
     console.log(" ORDER REQUEST RECEIVED");
     console.log(" Request body keys:", Object.keys(req.body));
-    
+
     const transaction = await sequelize.transaction();
 
     try {
@@ -60,6 +60,15 @@ export const ordersController = {
 
       console.log("✅ Order created:", order.id, order.orderNumber);
 
+      // Update table status if this is a table order
+      if (tableId) {
+        const table = await Table.findByPk(tableId, { transaction });
+        if (table && table.status === "available") {
+          await table.update({ status: "opened" }, { transaction });
+          console.log("📋 Table status updated to opened:", table.number);
+        }
+      }
+
       // Create order items - SIMPLIFIED
       if (items.length > 0) {
         const orderItems = await Promise.all(
@@ -79,13 +88,10 @@ export const ordersController = {
               totalPrice: item.totalPrice,
               notes: item.notes
             };
-            
+
             console.log("🔍 OrderItem create data:", JSON.stringify(orderItemData, null, 2));
 
-            const orderItem = await OrderItem.create(
-              orderItemData,
-              { transaction }
-            );
+            const orderItem = await OrderItem.create(orderItemData, { transaction });
 
             return orderItem;
           })
@@ -232,11 +238,15 @@ export const ordersController = {
         return res.status(404).json({ message: "Order not found" });
       }
 
+      // Handle table status changes
+      const oldTableId = order.tableId;
+      const newTableId = tableId !== undefined ? tableId : order.tableId;
+
       // Update order details
       await order.update(
         {
           orderType: orderType || order.orderType,
-          tableId: tableId !== undefined ? tableId : order.tableId,
+          tableId: newTableId,
           customerName: customerName !== undefined ? customerName : order.customerName,
           customerPhone: customerPhone !== undefined ? customerPhone : order.customerPhone,
           customerAddress: customerAddress !== undefined ? customerAddress : order.customerAddress,
@@ -245,6 +255,39 @@ export const ordersController = {
         },
         { transaction }
       );
+
+      // Update table statuses if table assignment changed
+      if (oldTableId !== newTableId) {
+        // Free up old table
+        if (oldTableId) {
+          const oldTable = await Table.findByPk(oldTableId, { transaction });
+          if (oldTable) {
+            // Check if there are other active orders for this table
+            const otherActiveOrders = await Order.count({
+              where: {
+                tableId: oldTableId,
+                id: { [Op.ne]: order.id },
+                status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
+              },
+              transaction
+            });
+
+            if (otherActiveOrders === 0) {
+              await oldTable.update({ status: "available" }, { transaction });
+              console.log("📋 Old table freed:", oldTable.number);
+            }
+          }
+        }
+
+        // Occupy new table
+        if (newTableId) {
+          const newTable = await Table.findByPk(newTableId, { transaction });
+          if (newTable && newTable.status === "available") {
+            await newTable.update({ status: "opened" }, { transaction });
+            console.log("📋 New table opened:", newTable.number);
+          }
+        }
+      }
 
       // Update items if provided
       if (items) {
@@ -429,6 +472,27 @@ export const ordersController = {
         { transaction }
       );
 
+      // Free up table when order is completed
+      if (order.tableId) {
+        const table = await Table.findByPk(order.tableId, { transaction });
+        if (table) {
+          // Check if there are other active orders for this table
+          const otherActiveOrders = await Order.count({
+            where: {
+              tableId: order.tableId,
+              id: { [Op.ne]: order.id },
+              status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
+            },
+            transaction
+          });
+
+          if (otherActiveOrders === 0) {
+            await table.update({ status: "available" }, { transaction });
+            console.log("📋 Table freed after order completion:", table.number);
+          }
+        }
+      }
+
       await transaction.commit();
 
       const completedOrder = await Order.findByPk(orderId, {
@@ -465,6 +529,26 @@ export const ordersController = {
         cancelledAt: new Date(),
         updatedBy: userId
       });
+
+      // Free up table when order is cancelled
+      if (order.tableId) {
+        const table = await Table.findByPk(order.tableId);
+        if (table) {
+          // Check if there are other active orders for this table
+          const otherActiveOrders = await Order.count({
+            where: {
+              tableId: order.tableId,
+              id: { [Op.ne]: order.id },
+              status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
+            }
+          });
+
+          if (otherActiveOrders === 0) {
+            await table.update({ status: "available" });
+            console.log("📋 Table freed after order cancellation:", table.number);
+          }
+        }
+      }
 
       const cancelledOrder = await Order.findByPk(orderId, {
         include: [{ model: OrderItem, as: "items" }]

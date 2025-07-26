@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { Order, OrderItem, Table, User } from "../models/index.js";
+import { Order, OrderItem, Table } from "../models/index.js";
 
 export const tablesController = {
   // Get all tables
@@ -8,12 +8,12 @@ export const tablesController = {
       const { section, status, includeOrders } = req.query;
 
       const whereClause = { isActive: true };
-      
+
       if (section) whereClause.section = section;
       if (status) whereClause.status = status;
 
       const includeOptions = [];
-      
+
       if (includeOrders === "true") {
         includeOptions.push({
           model: Order,
@@ -40,23 +40,23 @@ export const tablesController = {
       // Transform tables to include current order info
       const tablesWithOrderInfo = tables.map(table => {
         const tableData = table.toJSON();
-        
+
         if (table.orders && table.orders.length > 0) {
-          const currentOrder = table.orders[0]; // Most recent active order
+          const currentOrder = table.orders[0];
           tableData.currentOrder = {
-            orderId: currentOrder.id,
+            orderId: currentOrder.id.toString(),
             orderNumber: currentOrder.orderNumber,
             customerName: currentOrder.customerName,
             startTime: currentOrder.createdAt,
             totalAmount: parseFloat(currentOrder.total),
             itemCount: currentOrder.items?.length || 0
           };
-          tableData.status = "occupied";
+          tableData.status = "opened";
         }
-        
+
         // Remove the full orders array to keep response clean
         delete tableData.orders;
-        
+
         return tableData;
       });
 
@@ -143,11 +143,11 @@ export const tablesController = {
 
       // Check if new table number conflicts with existing tables
       if (number && number !== table.number) {
-        const existingTable = await Table.findOne({ 
-          where: { 
+        const existingTable = await Table.findOne({
+          where: {
             number,
             id: { [Op.ne]: tableId }
-          } 
+          }
         });
         if (existingTable) {
           return res.status(400).json({ message: "Table number already exists" });
@@ -191,8 +191,8 @@ export const tablesController = {
       });
 
       if (activeOrders > 0) {
-        return res.status(400).json({ 
-          message: "Cannot delete table with active orders. Please complete or cancel all orders first." 
+        return res.status(400).json({
+          message: "Cannot delete table with active orders. Please complete or cancel all orders first."
         });
       }
 

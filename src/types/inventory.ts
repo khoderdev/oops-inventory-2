@@ -477,13 +477,14 @@ export interface Table {
   id: string;
   number: number;
   seats: number;
-  status: "available" | "open" | "reserved" | "cleaning";
+  status: "available" | "opened" | "reserved" | "cleaning";
   position: { x: number; y: number };
   shape: "round" | "square" | "rectangle";
   currentOrder?: {
     orderId: string;
+    orderNumber?: string;
     customerName?: string;
-    startTime: Date;
+    startTime: Date | string;
     totalAmount: number;
     itemCount: number;
   };
