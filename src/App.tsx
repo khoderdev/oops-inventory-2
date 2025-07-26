@@ -20,6 +20,7 @@ import { useInventoryData } from "./hooks/useInventoryData";
 import DayOperationsPage from "./pages/DayOperationsPage";
 import NotFound from "./pages/NotFound";
 import { SalesHistoryPage } from "./pages/SalesHistoryPage";
+import POSClientPage from "./pages/POSClientPage";
 import { PERMISSIONS } from "./types/auth";
 import { InventoryManagementPanelProps } from "./types/inventory";
 
@@ -65,7 +66,7 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   }
                 />
 
-                {/* POS */}
+                {/* POS - Backoffice */}
                 <Route
                   path="/pos"
                   element={
@@ -73,6 +74,16 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                       <AuthenticatedLayout>
                         <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
                       </AuthenticatedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* POS Client - Full Screen */}
+                <Route
+                  path="/pos-client"
+                  element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.SALES_CREATE}>
+                      <POSClientPage />
                     </ProtectedRoute>
                   }
                 />
