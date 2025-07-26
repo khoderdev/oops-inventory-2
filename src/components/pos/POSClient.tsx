@@ -127,12 +127,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         // Fetch tables with order information
         const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
-        console.log("Tables API response:", tablesResponse);
-
         // Handle both possible response structures
         const responseData = tablesResponse.data as Table[] | { data: Table[] };
         const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
-        console.log("Final tablesData:", tablesData, "Length:", tablesData.length);
         setTables(tablesData);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -368,54 +365,37 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleTableSelection = useCallback(
     async (table: Table) => {
-      console.log("🔍 Table selected:", table);
-      console.log("🔍 Table status:", table.status);
-      console.log("🔍 Table currentOrder:", table.currentOrder);
-
       setSelectedTable(table);
       setOrderType("table");
       setShowTablesLayout(false);
 
       // If table is opened and has currentOrder, load existing order
       if (table.status === "opened" && table.currentOrder) {
-        console.log("🔍 Loading order for opened table...");
         try {
           // Get the full order details using the orderId from currentOrder
-          console.log("🔍 Fetching order with ID:", table.currentOrder.orderId);
           const response = await ordersAPI.getOrder(table.currentOrder.orderId);
           // Handle nested response structure - API sometimes returns nested data
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const responseData = response.data as { data?: any } | any;
           const existingOrder = responseData.data || responseData;
-          console.log("🔍 Fetched order:", existingOrder);
 
           if (existingOrder && existingOrder.items) {
-            console.log("🔍 Order items:", existingOrder.items);
-            console.log("🔍 Available stockEntries:", stockEntries.length);
-            console.log("🔍 Available menuItems:", menuItems.length);
-
             // Load the order using order management hook to set currentOrder state
             const loadedOrder = await loadOrder(existingOrder.id);
-            console.log("🔍 Loaded order:", loadedOrder);
-            console.log("🔍 After loadOrder, currentOrder state:", currentOrder);
 
             // Convert order items to cart items
             const cartItems: POSCartItem[] = existingOrder.items.map(item => {
-              console.log("🔍 Processing item:", item);
               let originalItem: StockEntryWithMaterial | MenuItem;
 
               if (item.type === "material" && item.materialId) {
                 // Find the stock entry by materialId
                 originalItem = stockEntries.find(se => se.materialId === item.materialId) || stockEntries[0];
-                console.log("🔍 Found material originalItem:", originalItem);
               } else if (item.type === "menu" && item.menuItemId) {
                 // Find the menu item by menuItemId
                 originalItem = menuItems.find(m => m.id === item.menuItemId) || menuItems[0];
-                console.log("🔍 Found menu originalItem:", originalItem);
               } else {
                 // Fallback to first available item
                 originalItem = stockEntries[0] || menuItems[0];
-                console.log("🔍 Using fallback originalItem:", originalItem);
               }
 
               const cartItem = {
@@ -426,22 +406,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 type: item.type as "material" | "menu",
                 originalItem
               };
-              console.log("🔍 Created cart item:", cartItem);
               return cartItem;
             });
 
-            console.log("🔍 Final cart items:", cartItems);
             setCart(cartItems);
             showSuccess(`Loaded existing order ${existingOrder.orderNumber} for Table ${table.number}`);
-          } else {
-            console.log("🔍 No existing order or items found");
           }
         } catch (error) {
-          console.error("🔍 Failed to load table order:", error);
           showError("Failed to load existing table order");
         }
-      } else {
-        console.log("🔍 Table is not opened or has no currentOrder");
       }
     },
     [loadOrder, menuItems, stockEntries, showSuccess, showError]
@@ -749,7 +722,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         {/* Order Items List with Success Animation Overlay */}
         <div className="flex-1 relative">
           <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
-          
+
           {/* Success Animation Overlay */}
           {showSuccessCheckmark && (
             <div className="absolute inset-0 flex items-center justify-center bg-green-50/90 backdrop-blur-sm">
@@ -821,8 +794,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         receiptData={lastSaleData}
         autoPrint={shouldAutoPrint}
       />
-
-
 
       {/* Unsaved Changes Dialog */}
       <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
