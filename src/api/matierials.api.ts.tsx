@@ -6,5 +6,6 @@ export const materialsAPI = {
   getMaterial: (id: string) => api.get<Material>(`/materials/${id}`),
   createMaterial: (materialData: CreateMaterialData) => api.post<Material, CreateMaterialData>("/materials", materialData),
   updateMaterial: (id: string, materialData: UpdateMaterialData) => api.put<Material, UpdateMaterialData>(`/materials/${id}`, materialData),
+  updateMaterialPOS: (id: string, materialData: UpdateMaterialData) => api.patch<Material, UpdateMaterialData>(`/materials/${id}`, materialData),
   deleteMaterial: (id: string) => api.delete<null>(`/materials/${id}`)
 };

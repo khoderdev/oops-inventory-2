@@ -1,3 +1,4 @@
+import { materialsAPI } from "@/api/matierials.api.ts";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -11,11 +12,11 @@ import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { NegativeStockReport, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
-import { AlertTriangle, Edit, FileText, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Edit, Eye, FileText, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export function StockEntriesTable() {
-  const { stockEntries, materialsWithStock, handleEditStockEntry, handleDeleteStockEntry, setShowStockForm } = useInventoryStore();
+  const { stockEntries, materialsWithStock, handleEditStockEntry, handleDeleteStockEntry, setShowStockForm, updateMaterialPOS } = useInventoryStore();
   const materials = materialsWithStock;
   const [searchTerm, setSearchTerm] = useState("");
   const [negativeStockReport, setNegativeStockReport] = useState<NegativeStockReport | null>(null);
@@ -143,6 +144,43 @@ export function StockEntriesTable() {
 
   const handleRowClick = (entryId: string) => {
     setSelectedRowId(selectedRowId === entryId ? null : entryId);
+  };
+
+  const handleViewInPOS = async (entry: (typeof stockEntriesWithMaterial)[0]) => {
+    if (!entry.material) {
+      toast({
+        title: "Error",
+        description: "Material information not found",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Update the material to be visible in POS
+      const response = await materialsAPI.updateMaterialPOS(entry.materialId, {
+        isPOSItem: true
+      });
+
+      if (!response) {
+        throw new Error("Failed to update material POS visibility");
+      }
+      toast({
+        title: "Success",
+        description: `${entry.material.name} is now available in POS`,
+        variant: "default"
+      });
+
+      // Optionally refresh the data or update the store
+      // You might want to call a refresh function here
+    } catch (error) {
+      console.error("Error updating material POS visibility:", error);
+      toast({
+        title: "Error",
+        description: "Failed to make item available in POS",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -288,7 +326,7 @@ export function StockEntriesTable() {
                     <TableHead className="min-w-[120px] bg-background">Cost/Unit</TableHead>
                     <TableHead className="min-w-[120px] bg-background">Total Cost</TableHead>
                     <TableHead className="min-w-[140px] bg-background">Purchase Date</TableHead>
-                    <TableHead className="min-w-[180px] bg-background">Actions</TableHead>
+                    <TableHead className="min-w-[220px] bg-background">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
               </Table>
@@ -333,8 +371,19 @@ export function StockEntriesTable() {
                           </TableCell>
                           <TableCell className="min-w-[120px]">{formatCurrency(entry.totalCost)}</TableCell>
                           <TableCell className="min-w-[140px]">{entry.purchaseDate.toLocaleDateString()}</TableCell>
-                          <TableCell className="min-w-[180px]">
+                          <TableCell className="min-w-[220px]">
                             <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleViewInPOS(entry);
+                                }}
+                                title="Show in POS"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                               <Button variant="outline" size="sm" onClick={() => handleEditStockEntry(entry as StockEntry)}>
                                 <Edit className="h-4 w-4" />
                               </Button>

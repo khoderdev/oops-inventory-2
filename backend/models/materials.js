@@ -75,6 +75,13 @@ const Material = sequelize.define(
           }
         }
       }
+    },
+
+    isPOSItem: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Whether this material should be visible in the POS system"
     }
   },
   {

@@ -11,12 +11,12 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({ cart, subtotal, tota
 
   return (
     <div className="border-t border-gray-200 pb-0 bg-gray-50">
-      <div className="space-y-2 p-4 text-sm">
+      <div className="space-y-2 p-2 text-sm">
         <div className="flex justify-between">
           <span>Sub Total</span>
           <span>{formatCurrency(subtotal)}</span>
         </div>
-        <div className="border-t border-gray-300 pt-2 mt-2">
+        <div className="border-t border-gray-300">
           <div className="flex justify-between font-bold text-lg">
             <span>TOTAL</span>
             <span>{formatCurrency(total)}</span>

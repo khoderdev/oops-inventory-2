@@ -281,7 +281,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     fetchMenuItems();
   }, [showError]);
 
-  // Get available stock entries (filter by search term and available quantity)
+  // Get available stock entries (filter by search term, available quantity, and POS visibility)
   const availableStockEntries = stockEntries.filter(stockEntry => {
     // Check if stock entry has available quantity
     const hasQuantity = stockEntry.purchasedIndividualQuantity && stockEntry.purchasedIndividualQuantity > 0;
@@ -289,7 +289,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     // Check search term
     const matchesSearch = searchTerm === "" || stockEntry.material?.name.toLowerCase().includes(searchTerm.toLowerCase()) || stockEntry.material?.category?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return hasQuantity && matchesSearch;
+    // Check if material is marked as POS item
+    const isPOSItem = stockEntry.material?.isPOSItem === true;
+
+    return hasQuantity && matchesSearch && isPOSItem;
   });
 
   // Get available menu items
@@ -687,15 +690,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [cart, selectedSectionId, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder]);
 
-  // Quick amount buttons for payment
-  const quickAmounts = [10, 20, 50, 100, 200, 500];
-
   return (
     <div className="h-full flex bg-gray-100">
       {/* Left Panel - Cart/Order Details */}
-      <div className="min-w-96 bg-white border-r border-gray-200 flex flex-col">
-        {/* Cart Header */}
-        <div className="border-b border-gray-200 p-3">
+      <div className="min-w-96 bg-white border-r border-gray-200 flex flex-col h-full">
+        {/* Cart Header - Fixed */}
+        <div className="border-b border-gray-200 p-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
@@ -719,13 +719,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           </div>
         </div>
 
-        {/* Order Items List with Success Animation Overlay */}
-        <div className="flex-1 relative">
-          <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
+        {/* Order Items List - Scrollable */}
+        <div className="flex-1 relative overflow-hidden">
+          <div className="h-full overflow-y-auto">
+            <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
+          </div>
 
           {/* Success Animation Overlay */}
           {showSuccessCheckmark && (
-            <div className="absolute inset-0 flex items-center justify-center bg-green-50/90 backdrop-blur-sm">
+            <div className="absolute inset-0 flex items-center justify-center bg-green-50/90 backdrop-blur-sm z-10">
               <div className="text-center">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-scale-in" />
                 <p className="text-green-700 font-medium text-lg">Order Completed!</p>
@@ -735,19 +737,30 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           )}
         </div>
 
-        {/* Order Summary */}
-        {!showSuccessCheckmark && <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} onSaveClick={handleManualSave} />}
+        {/* Order Summary - Fixed Footer */}
+        {!showSuccessCheckmark && (
+          <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+            <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} onSaveClick={handleManualSave} />
+          </div>
+        )}
       </div>
 
       {/* Right Panel - Product Grid */}
-      <div className="flex-1 flex flex-col bg-white">
-        {/* Top Controls */}
-        <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
-        {/* Product Grid */}
-        <ProductGrid filteredItems={filteredStockEntries} filteredMenuItems={filteredMenuItems} onAddToCart={addToCart} />
+      <div className="flex-1 flex flex-col bg-white h-full">
+        {/* Top Controls - Fixed Header */}
+        <div className="flex-shrink-0 border-b border-gray-200 bg-white">
+          <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
+        </div>
 
-        {/* Bottom Action Bar */}
-        <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} />
+        {/* Product Grid - Scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          <ProductGrid filteredItems={filteredStockEntries} filteredMenuItems={filteredMenuItems} onAddToCart={addToCart} />
+        </div>
+
+        {/* Bottom Action Bar - Fixed Footer */}
+        <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} />
+        </div>
       </div>
 
       {/* Payment Dialog */}

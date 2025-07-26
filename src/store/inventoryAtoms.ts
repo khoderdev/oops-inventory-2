@@ -1,7 +1,7 @@
-import { atom, WritableAtom } from 'jotai';
-import { atomWithStorage } from 'jotai/utils';
-import { Material, MaterialWithStock, StockEntry, Section, SectionAssignment, MenuItem, StockEntryWithMaterial } from '@/types/inventory';
-import { calculateMaterialInventory } from '@/utils/inventoryCalculations';
+import { Material, MaterialWithStock, MenuItem, Section, SectionAssignment, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
+import { calculateMaterialInventory } from "@/utils/inventoryCalculations";
+import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 
 // Base data atoms
 export const materialsAtom = atom<Material[]>([]);
@@ -21,34 +21,31 @@ export const loadingStatesAtom = atom<Record<string, boolean>>({});
 export const errorStatesAtom = atom<Record<string, string | null>>({});
 
 // UI state atoms
-export const activeTabAtom = atomWithStorage('inventoryManagementActiveTab', 'sections');
-export const searchTermAtom = atom<string>('');
-export const categoryFilterAtom = atom<string>('all');
+export const activeTabAtom = atomWithStorage("inventoryManagementActiveTab", "sections");
+export const searchTermAtom = atom<string>("");
+export const categoryFilterAtom = atom<string>("all");
 export const lowStockFilterAtom = atom<boolean>(false);
 
 // Derived atoms
-export const materialsWithStockAtom = atom<MaterialWithStock[]>((get) => {
+export const materialsWithStockAtom = atom<MaterialWithStock[]>(get => {
   const materials = get(optimisticMaterialsAtom);
   const stockEntries = get(optimisticStockEntriesAtom);
   const assignments = get(optimisticAssignmentsAtom);
-  
+
   return materials.map(material => {
     const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
     const materialInventory = calculateMaterialInventory(material, materialStockEntries);
-    
+
     // Calculate assigned quantities
-    const materialAssignments = assignments.filter(
-      assignment => assignment.materialId === material.id && assignment.itemType === "stockEntry"
-    );
-    
+    const materialAssignments = assignments.filter(assignment => assignment.materialId === material.id && assignment.itemType === "stockEntry");
+
     const totalAssignedIndividualQuantity = materialAssignments.reduce((sum, assignment) => {
-      const individualQty = assignment.assignedIndividualQuantity || 
-        (assignment.assignedQuantity || 0) * (material.packageQuantity || 1);
+      const individualQty = assignment.assignedIndividualQuantity || (assignment.assignedQuantity || 0) * (material.packageQuantity || 1);
       return sum + individualQty;
     }, 0);
-    
+
     const availableQuantity = Math.max(0, materialInventory.totalQuantityInBaseUnit - totalAssignedIndividualQuantity);
-    
+
     return {
       ...materialInventory,
       availableQuantity
@@ -56,12 +53,12 @@ export const materialsWithStockAtom = atom<MaterialWithStock[]>((get) => {
   });
 });
 
-export const filteredMaterialsAtom = atom<MaterialWithStock[]>((get) => {
+export const filteredMaterialsAtom = atom<MaterialWithStock[]>(get => {
   const materials = get(materialsWithStockAtom);
   const searchTerm = get(searchTermAtom);
   const categoryFilter = get(categoryFilterAtom);
   const lowStockFilter = get(lowStockFilterAtom);
-  
+
   return materials.filter(material => {
     const matchesSearch = !searchTerm || material.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "all" || material.category === categoryFilter;

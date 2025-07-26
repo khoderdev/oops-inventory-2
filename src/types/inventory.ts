@@ -94,6 +94,7 @@ export interface Material {
   costPerUnit: number;
   packageQuantity?: number; // For package units: how many base units per package
   description?: string;
+  isPOSItem?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -106,6 +107,7 @@ export interface CreateMaterialData {
   inputUnit?: string;
   packageQuantity?: number;
   description?: string;
+  isPOSItem?: boolean;
 }
 
 export interface UpdateMaterialData {
@@ -116,6 +118,7 @@ export interface UpdateMaterialData {
   inputUnit?: string;
   packageQuantity?: number;
   description?: string;
+  isPOSItem?: boolean;
 }
 
 export interface MaterialTableProps {
