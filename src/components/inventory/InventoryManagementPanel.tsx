@@ -90,23 +90,62 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="w-full bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 rounded-xl p-2 shadow-sm">
-          <TabsTrigger value="material" className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50 text-gray-600 hover:text-gray-800">
-            <Package className="h-4 w-4" />
-            <span className="hidden sm:inline">Materials</span>
-            <span className="sm:hidden">Mat</span>
-            {tabLoading.material}
+          <TabsTrigger
+            value="material"
+            className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform
+                       data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 
+                       data-[state=active]:shadow-lg data-[state=active]:shadow-blue-200/50 
+                       data-[state=active]:text-white data-[state=active]:font-semibold 
+                       data-[state=active]:border-2 data-[state=active]:border-blue-300
+                       data-[state=active]:scale-105 data-[state=active]:-translate-y-0.5
+                       hover:bg-white/70 hover:shadow-md hover:scale-102 hover:-translate-y-px
+                       active:scale-95 active:translate-y-0
+                       text-gray-600 hover:text-gray-800
+                       before:absolute before:inset-0 before:rounded-lg before:bg-gradient-to-r before:from-blue-400 before:to-blue-500 before:opacity-0 before:transition-opacity before:duration-300
+                       data-[state=active]:before:opacity-100"
+          >
+            <Package className="h-4 w-4 relative z-10 transition-transform duration-300 data-[state=active]:scale-110" />
+            <span className="hidden sm:inline relative z-10">Materials</span>
+            <span className="sm:hidden relative z-10">Mat</span>
+            <div className="relative z-10">{tabLoading.material}</div>
           </TabsTrigger>
-          <TabsTrigger value="stock" className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-green-700 data-[state=active]:border data-[state=active]:border-green-200 hover:bg-white/50 text-gray-600 hover:text-gray-800">
-            <Warehouse className="h-4 w-4" />
-            <span className="hidden sm:inline">Stock Entries</span>
-            <span className="sm:hidden">Stock</span>
-            {tabLoading.stock}
+          <TabsTrigger
+            value="stock"
+            className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform
+                       data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 
+                       data-[state=active]:shadow-lg data-[state=active]:shadow-green-200/50 
+                       data-[state=active]:text-white data-[state=active]:font-semibold 
+                       data-[state=active]:border-2 data-[state=active]:border-green-300
+                       data-[state=active]:scale-105 data-[state=active]:-translate-y-0.5
+                       hover:bg-white/70 hover:shadow-md hover:scale-102 hover:-translate-y-px
+                       active:scale-95 active:translate-y-0
+                       text-gray-600 hover:text-gray-800
+                       before:absolute before:inset-0 before:rounded-lg before:bg-gradient-to-r before:from-green-400 before:to-green-500 before:opacity-0 before:transition-opacity before:duration-300
+                       data-[state=active]:before:opacity-100"
+          >
+            <Warehouse className="h-4 w-4 relative z-10 transition-transform duration-300 data-[state=active]:scale-110" />
+            <span className="hidden sm:inline relative z-10">Stock Entries</span>
+            <span className="sm:hidden relative z-10">Stock</span>
+            <div className="relative z-10">{tabLoading.stock}</div>
           </TabsTrigger>
-          <TabsTrigger value="sections" className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-purple-200 hover:bg-white/50 text-gray-600 hover:text-gray-800">
-            <MapPin className="h-4 w-4" />
-            <span className="hidden sm:inline">Sections</span>
-            <span className="sm:hidden">Sec</span>
-            {tabLoading.sections}
+          <TabsTrigger
+            value="sections"
+            className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform
+                       data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 
+                       data-[state=active]:shadow-lg data-[state=active]:shadow-purple-200/50 
+                       data-[state=active]:text-white data-[state=active]:font-semibold 
+                       data-[state=active]:border-2 data-[state=active]:border-purple-300
+                       data-[state=active]:scale-105 data-[state=active]:-translate-y-0.5
+                       hover:bg-white/70 hover:shadow-md hover:scale-102 hover:-translate-y-px
+                       active:scale-95 active:translate-y-0
+                       text-gray-600 hover:text-gray-800
+                       before:absolute before:inset-0 before:rounded-lg before:bg-gradient-to-r before:from-purple-400 before:to-purple-500 before:opacity-0 before:transition-opacity before:duration-300
+                       data-[state=active]:before:opacity-100"
+          >
+            <MapPin className="h-4 w-4 relative z-10 transition-transform duration-300 data-[state=active]:scale-110" />
+            <span className="hidden sm:inline relative z-10">Sections</span>
+            <span className="sm:hidden relative z-10">Sec</span>
+            <div className="relative z-10">{tabLoading.sections}</div>
           </TabsTrigger>
         </TabsList>
 
