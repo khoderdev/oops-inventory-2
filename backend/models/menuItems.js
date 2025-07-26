@@ -32,6 +32,11 @@ const MenuItem = sequelize.define(
         min: { args: [0], msg: "Price cannot be negative" }
       }
     },
+    isPOSItem: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,

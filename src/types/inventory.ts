@@ -520,6 +520,7 @@ export interface MenuItem {
   price: number;
   ingredients: MenuItemIngredient[];
   menuItemIngredients: boolean;
+  isPOSItem?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -537,6 +538,7 @@ export interface CreateMenuItemData {
   category: MenuItemCategory;
   price: number;
   ingredients: MenuItemIngredient[];
+  isPOSItem?: boolean;
 }
 
 export interface UpdateMenuItemData {
@@ -545,6 +547,7 @@ export interface UpdateMenuItemData {
   category?: MenuItemCategory;
   price?: number;
   ingredients?: MenuItemIngredient[];
+  isPOSItem?: boolean;
 }
 
 export interface MenuItemBuilderProps {

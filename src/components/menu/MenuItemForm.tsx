@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Switch } from "../ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 interface MenuItemFormProps {
   menuItem?: MenuItem;
@@ -21,6 +22,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [name, setName] = useState(menuItem?.name || "");
   const [category, setCategory] = useState<MenuItemCategory | "">(menuItem?.category || "");
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
+  const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem || false);
   const [ingredients, setIngredients] = useState<Omit<MenuItemIngredient, "cost">[]>(menuItem?.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit })) || []);
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [ingredientQuantity, setIngredientQuantity] = useState("");
@@ -164,6 +166,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       setName(menuItem.name || "");
       setCategory(menuItem.category || "");
       setPrice(menuItem.price.toString() || "");
+      setIsPOSItem(menuItem.isPOSItem || false);
       setIngredients(
         menuItem.ingredients.map(i => ({
           materialId: i.materialId,
@@ -175,6 +178,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       setName("");
       setCategory("");
       setPrice("");
+      setIsPOSItem(false);
       setIngredients([]);
     }
     setErrors({});
@@ -223,11 +227,13 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         category: category as MenuItemCategory,
         price: parseFloat(price),
         ingredients,
+        isPOSItem,
         menuItemIngredients: false
       });
       setName("");
       setCategory("");
       setPrice("");
+      setIsPOSItem(false);
       setIngredients([]);
       setErrors({});
       onCancel();
@@ -235,7 +241,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       console.error("Error submitting form:", error);
       onCancel();
     }
-  }, [name, category, price, ingredients, onSubmit, onCancel, validateForm]);
+  }, [name, category, price, isPOSItem, ingredients, onSubmit, onCancel, validateForm]);
 
   const handleMaterialSelect = useCallback(
     (materialId: string) => {
@@ -298,6 +304,14 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
             {errors.price}
           </p>
         )}
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Switch id="isPOSItem" checked={isPOSItem} onCheckedChange={setIsPOSItem} />
+        <label htmlFor="isPOSItem" className="text-sm font-medium cursor-pointer">
+          Show in POS
+        </label>
+        <span className="text-xs text-muted-foreground">(Make this item available for sale in the POS system)</span>
       </div>
 
       <div className="border-t pt-4">

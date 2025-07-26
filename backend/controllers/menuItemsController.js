@@ -69,7 +69,7 @@ const menuItemsController = {
   createMenuItem: async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
-      const { name, price, category, description, ingredients } = req.body;
+      const { name, price, category, description, ingredients, isPOSItem } = req.body;
 
       // Validate and convert price
       const priceValue = typeof price === "string" ? parseFloat(price) : price;
@@ -135,7 +135,8 @@ const menuItemsController = {
           name,
           price: priceValue,
           category,
-          description
+          description,
+          isPOSItem: isPOSItem !== undefined ? isPOSItem : false
         },
         { transaction }
       );
@@ -187,7 +188,7 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
-      const { name, price, category, description, ingredients } = req.body;
+      const { name, price, category, description, ingredients, isPOSItem } = req.body;
 
       const menuItem = await MenuItem.findByPk(id, { transaction });
       if (!menuItem) {
@@ -258,7 +259,8 @@ const menuItemsController = {
           name: name !== undefined ? name : menuItem.name,
           price: price !== undefined ? priceValue : menuItem.price,
           category: category !== undefined ? category : menuItem.category,
-          description: description !== undefined ? description : menuItem.description
+          description: description !== undefined ? description : menuItem.description,
+          isPOSItem: isPOSItem !== undefined ? isPOSItem : menuItem.isPOSItem
         },
         { transaction }
       );

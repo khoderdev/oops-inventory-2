@@ -108,18 +108,13 @@ export function useInventoryStore() {
 
   const handleStockSubmit = useCallback(
     async (data: StockEntry) => {
-      console.log("📋 useInventoryStore handleStockSubmit - Received data:", data);
       try {
         if (selectedStockEntry) {
           await updateStockEntry({ id: selectedStockEntry.id, data });
         } else {
-          console.log("📋 useInventoryStore - About to call createStockEntry with:", data);
           await createStockEntry(data);
         }
-
-        // Refresh stock data to ensure materials are updated with new stock information
         await fetchTabData("stock");
-
         toast({
           title: selectedStockEntry ? "Stock Entry Updated" : "Stock Entry Created",
           description: selectedStockEntry ? "Stock entry has been updated successfully" : "New stock entry has been created successfully"
@@ -130,7 +125,6 @@ export function useInventoryStore() {
         setSelectedMaterialTyped(null);
       } catch (error) {
         console.error("Failed to submit stock entry:", error);
-        // Error is already handled in the action
       }
     },
     [selectedStockEntry, createStockEntry, updateStockEntry, setShowStockFormTyped, setSelectedStockEntryTyped, setSelectedMaterialTyped, fetchTabData]
@@ -179,10 +173,7 @@ export function useInventoryStore() {
     async (id: string) => {
       try {
         await deleteStockEntry(id);
-
-        // Refresh stock data to ensure materials are updated with removed stock information
         await fetchTabData("stock");
-
         toast({
           title: "Stock Entry Deleted",
           description: "Stock entry has been removed successfully"
@@ -194,7 +185,6 @@ export function useInventoryStore() {
           description: "Failed to delete stock entry",
           variant: "destructive"
         });
-        // Error handling is already done in the action
       }
     },
     [deleteStockEntry, fetchTabData]
@@ -206,7 +196,6 @@ export function useInventoryStore() {
         await createMenuItem(data);
       } catch (error) {
         console.error("Failed to create menu item:", error);
-        // Error handling is already done in the action
       }
     },
     [createMenuItem]
@@ -218,7 +207,6 @@ export function useInventoryStore() {
         await updateMenuItem({ id, data });
       } catch (error) {
         console.error("Failed to update menu item:", error);
-        // Error handling is already done in the action
       }
     },
     [updateMenuItem]

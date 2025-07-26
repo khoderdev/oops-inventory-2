@@ -1,30 +1,31 @@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { menuAPI } from "@/api/menu.api.ts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "@/components/ui/use-toast";
+import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
-import { Edit, Package, Plus, Search, Trash2 } from "lucide-react";
+import { Edit, Eye, Package, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { MenuItemForm } from "./MenuItemForm";
 
-export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
+export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, sections }) => {
+  const { fetchTabData } = useInventoryStore();
+  
   // Helper function to calculate cost per unit for a material
   const calculateMaterialCostPerUnit = useCallback(
     (material: Material, materialStockEntries: StockEntry[] = []) => {
-      console.log(`Calculating cost for material: ${material.name}, ID: ${material.id}`);
-      console.log(`Stock entries for material:`, materialStockEntries);
-
       // Filter valid stock entries with non-null, non-undefined, and non-zero costPerBaseUnit
       const validStockEntries = materialStockEntries.filter(entry => entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit));
 
       if (validStockEntries.length > 0) {
-        console.log(`Valid stock entries found:`, validStockEntries);
         // Calculate weighted average cost from stock entries
         const totalCost = validStockEntries.reduce((sum, entry) => {
           const quantity = entry.purchasedIndividualQuantity || 0;
@@ -35,12 +36,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
         if (totalQuantity > 0) {
           const weightedAverage = totalCost / totalQuantity;
-          console.log(`Weighted average cost: ${weightedAverage}`);
           return parseFloat(weightedAverage.toFixed(8)); // Ensure precision for small values
         }
       }
-
-      console.warn(`No valid stock entries for material ${material.name}, returning 0`);
       return 0; // Fallback to 0 if no valid stock entries
     },
     [] // No dependencies needed since function receives materialStockEntries as parameter
@@ -102,10 +100,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {
       return ingredients.reduce((sum, ingredient) => {
-        console.log(`Calculating cost for ingredient:`, ingredient);
         // If ingredient has stored cost, use it
         if (ingredient.cost && ingredient.cost > 0) {
-          console.log(`Using stored cost: ${ingredient.cost}`);
           return sum + ingredient.cost;
         }
 
@@ -129,7 +125,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const handleAddMenuItem = useCallback(
     (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
       console.log("🍽️ handleAddMenuItem - Creating new menu item with data:", data);
-      
+
       const ingredientsWithCosts = data.ingredients.map(ingredient => {
         const material = availableMaterials.find(m => m.id === String(ingredient.materialId));
         if (!material) {
@@ -142,7 +138,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
 
         const cost = ingredient.quantity * conversionFactor * costPerUnit;
-        console.log(`Ingredient cost calculation: ${ingredient.quantity} * ${conversionFactor} * ${costPerUnit} = ${cost}`);
 
         return {
           ...ingredient,
@@ -160,7 +155,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
       console.log("🍽️ handleAddMenuItem - Final menu item to create:", menuItemToCreate);
       onCreateMenuItem(menuItemToCreate);
-      
+
       // Close the form
       setShowMenuItemForm(false);
       setEditingMenuItem(null);
@@ -234,6 +229,45 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     setSelectedRowId(prevSelected => (prevSelected === id ? null : id));
   }, []);
 
+  const handleTogglePOSVisibility = useCallback(
+    async (item: MenuItem) => {
+      try {
+        const newPOSStatus = !item.isPOSItem;
+        
+        // Update the menu item's POS visibility
+        const response = await menuAPI.updateMenuItem(item.id, {
+          isPOSItem: newPOSStatus
+        });
+
+        if (!response) {
+          throw new Error("Failed to update menu item POS visibility");
+        }
+
+        toast({
+          title: "Success",
+          description: `${item.name} is now ${newPOSStatus ? 'available in' : 'hidden from'} POS`,
+          variant: "default"
+        });
+
+        // Refresh the data to show updated state
+        await fetchTabData("menu");
+        
+        // Update local state by calling the update handler
+        if (onUpdateMenuItem) {
+          onUpdateMenuItem(item.id, { ...item, isPOSItem: newPOSStatus });
+        }
+      } catch (error) {
+        console.error("Error updating menu item POS visibility:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update POS visibility",
+          variant: "destructive"
+        });
+      }
+    },
+    [onUpdateMenuItem, fetchTabData]
+  );
+
   return (
     <>
       <Card className="!border-0 !shadow-none !bg-background">
@@ -303,7 +337,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                   <TableHead className="min-w-[120px]">Cost</TableHead>
                   <TableHead className="min-w-[120px]">Price</TableHead>
                   <TableHead className="min-w-[120px]">Profit</TableHead>
-                  <TableHead className="text-right min-w-[160px]">Actions</TableHead>
+                  <TableHead className="text-right min-w-[200px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -339,8 +373,21 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                         <TableCell className={`min-w-[120px] ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
                           {formatCurrency(profit)} ({formatNumber(profitMargin)}%)
                         </TableCell>
-                        <TableCell className="text-right min-w-[160px]">
+                        <TableCell className="text-right min-w-[200px]">
                           <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant={item.isPOSItem ? "default" : "outline"}
+                              className={item.isPOSItem ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePOSVisibility(item);
+                              }}
+                              title={item.isPOSItem ? "Hide from POS" : "Show in POS"}
+                              aria-label={`${item.isPOSItem ? 'Hide from' : 'Show in'} POS`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
