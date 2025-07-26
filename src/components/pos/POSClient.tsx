@@ -3,7 +3,7 @@ import { posAPI } from "@/api/pos.api.ts";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, SaleResponse, SectionAssignment } from "@/types/inventory";
+import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, SaleResponse, SectionAssignment, Table } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertCircle, AlertTriangle, Check, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -14,6 +14,7 @@ import { OrderSummary } from "./OrderSummary";
 import { PaymentDialog } from "./PaymentDialog";
 import { ProductGrid } from "./ProductGrid";
 import { ReceiptPrinter } from "./ReceiptPrinter";
+import { TablesLayout } from "./TablesLayout";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete }) => {
   const [selectedSectionId] = useState<string>("");
@@ -31,8 +32,32 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [lastSaleData, setLastSaleData] = useState<SaleResponse | null>(null);
+  const [orderType, setOrderType] = useState<OrderType>('takeaway');
+  const [selectedTable, setSelectedTable] = useState<Table | undefined>(undefined);
+  const [showTablesLayout, setShowTablesLayout] = useState(false);
+  const [tables, setTables] = useState<Table[]>([]);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Generate mock tables data
+  const generateMockTables = useCallback((): Table[] => {
+    return [
+      { id: '1', number: 1, seats: 2, status: 'available', position: { x: 20, y: 20 }, shape: 'round' },
+      { id: '2', number: 2, seats: 4, status: 'occupied', position: { x: 40, y: 20 }, shape: 'square', 
+        currentOrder: { orderId: 'ORD001', customerName: 'John Doe', startTime: new Date(), totalAmount: 45.50, itemCount: 3 } },
+      { id: '3', number: 3, seats: 6, status: 'available', position: { x: 60, y: 20 }, shape: 'rectangle' },
+      { id: '4', number: 4, seats: 2, status: 'reserved', position: { x: 80, y: 20 }, shape: 'round' },
+      { id: '5', number: 5, seats: 4, status: 'available', position: { x: 20, y: 50 }, shape: 'square' },
+      { id: '6', number: 6, seats: 8, status: 'occupied', position: { x: 40, y: 50 }, shape: 'rectangle',
+        currentOrder: { orderId: 'ORD002', customerName: 'Smith Family', startTime: new Date(), totalAmount: 89.25, itemCount: 7 } },
+      { id: '7', number: 7, seats: 2, status: 'cleaning', position: { x: 60, y: 50 }, shape: 'round' },
+      { id: '8', number: 8, seats: 4, status: 'available', position: { x: 80, y: 50 }, shape: 'square' },
+      { id: '9', number: 9, seats: 6, status: 'available', position: { x: 20, y: 80 }, shape: 'rectangle' },
+      { id: '10', number: 10, seats: 4, status: 'available', position: { x: 40, y: 80 }, shape: 'square' },
+      { id: '11', number: 11, seats: 2, status: 'available', position: { x: 60, y: 80 }, shape: 'round' },
+      { id: '12', number: 12, seats: 8, status: 'available', position: { x: 80, y: 80 }, shape: 'rectangle' }
+    ];
+  }, []);
 
   // Helper functions
   const showError = useCallback((message: string) => {
@@ -51,6 +76,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   useEffect(() => {
     setOptimisticAssignments(sectionAssignments);
   }, [sectionAssignments]);
+
+  // Initialize tables
+  useEffect(() => {
+    setTables(generateMockTables());
+  }, [generateMockTables]);
 
   // Fetch menu items
   useEffect(() => {
@@ -142,6 +172,34 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const clearCart = useCallback(() => {
     setCart([]);
+  }, []);
+
+  // Order type handlers
+  const handleOrderTypeChange = useCallback((type: OrderType) => {
+    setOrderType(type);
+    if (type !== 'table') {
+      setSelectedTable(undefined);
+    }
+  }, []);
+
+  const handleTableSelect = useCallback(() => {
+    setShowTablesLayout(true);
+  }, []);
+
+  const handleTableSelection = useCallback((table: Table) => {
+    setSelectedTable(table);
+    setOrderType('table');
+    setShowTablesLayout(false);
+    
+    // If table is occupied, you might want to load existing order
+    if (table.status === 'occupied' && table.currentOrder) {
+      // Here you could load the existing order for this table
+      console.log('Loading existing order for table:', table.number);
+    }
+  }, []);
+
+  const handleCloseTablesLayout = useCallback(() => {
+    setShowTablesLayout(false);
   }, []);
 
   // Calculate totals
@@ -253,7 +311,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </div>
 
         {/* Order Items List */}
-        <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} />
+        <OrderItemsList 
+          cart={cart} 
+          updateCartQuantity={updateCartQuantity}
+          orderType={orderType}
+          selectedTable={selectedTable}
+          onOrderTypeChange={handleOrderTypeChange}
+          onTableSelect={handleTableSelect}
+        />
 
         {/* Order Summary */}
         <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} />
@@ -300,6 +365,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Tables Layout Dialog */}
+      {showTablesLayout && (
+        <TablesLayout
+          tables={tables}
+          selectedTable={selectedTable}
+          onTableSelect={handleTableSelection}
+          onClose={handleCloseTablesLayout}
+        />
+      )}
 
       {/* Receipt Printer Dialog */}
       <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} />

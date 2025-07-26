@@ -457,7 +457,36 @@ export interface OrderSummaryProps {
 
 export interface OrderItemsListProps {
   cart: POSCartItem[];
-  updateCartQuantity: (id: string, quantity: number) => void;
+  updateCartQuantity: (cartId: string, newQuantity: number) => void;
+  orderType: OrderType;
+  selectedTable?: Table;
+  onOrderTypeChange: (type: OrderType) => void;
+  onTableSelect: () => void;
+}
+
+export type OrderType = "delivery" | "takeaway" | "table";
+
+export interface Table {
+  id: string;
+  number: number;
+  seats: number;
+  status: "available" | "occupied" | "reserved" | "cleaning";
+  position: { x: number; y: number };
+  shape: "round" | "square" | "rectangle";
+  currentOrder?: {
+    orderId: string;
+    customerName?: string;
+    startTime: Date;
+    totalAmount: number;
+    itemCount: number;
+  };
+}
+
+export interface TablesLayoutProps {
+  tables: Table[];
+  selectedTable?: Table;
+  onTableSelect: (table: Table) => void;
+  onClose: () => void;
 }
 
 export interface CategoryTabsProps {

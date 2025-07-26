@@ -1,20 +1,85 @@
 import { Button } from "@/components/ui/button";
-import { OrderItemsListProps } from "@/types/inventory";
+import { OrderItemsListProps, OrderType } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { Minus, Plus } from "lucide-react";
+import { Car, MapPin, Minus, Plus, ShoppingBag, Users } from "lucide-react";
 import React from "react";
 
-export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity }) => {
+export const OrderItemsList: React.FC<OrderItemsListProps> = ({ 
+  cart, 
+  updateCartQuantity, 
+  orderType, 
+  selectedTable, 
+  onOrderTypeChange, 
+  onTableSelect 
+}) => {
+  const getOrderTypeIcon = (type: OrderType) => {
+    switch (type) {
+      case 'delivery':
+        return <Car className="w-4 h-4" />;
+      case 'takeaway':
+        return <ShoppingBag className="w-4 h-4" />;
+      case 'table':
+        return <Users className="w-4 h-4" />;
+      default:
+        return <ShoppingBag className="w-4 h-4" />;
+    }
+  };
+
+  const getOrderTypeLabel = (type: OrderType) => {
+    switch (type) {
+      case 'delivery':
+        return 'DELIVERY';
+      case 'takeaway':
+        return 'TAKE AWAY';
+      case 'table':
+        return selectedTable ? `TABLE ${selectedTable.number}` : 'SELECT TABLE';
+      default:
+        return 'TAKE AWAY';
+    }
+  };
   return (
     <div className="flex-1 overflow-y-auto">
+      {/* Order Type Selector */}
+      <div className="p-4 border-b border-gray-100">
+        <div className="grid grid-cols-3 gap-2">
+          {(['delivery', 'takeaway', 'table'] as OrderType[]).map((type) => (
+            <Button
+              key={type}
+              variant={orderType === type ? "default" : "outline"}
+              size="sm"
+              onClick={() => type === 'table' ? onTableSelect() : onOrderTypeChange(type)}
+              className={`flex items-center justify-center space-x-2 h-12 ${
+                orderType === type 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              {getOrderTypeIcon(type)}
+              <span className="text-xs font-medium">
+                {type === 'delivery' ? 'DELIVERY' : type === 'takeaway' ? 'TAKE AWAY' : 'TABLE'}
+              </span>
+            </Button>
+          ))}
+        </div>
+        
+        {/* Current Order Type Display */}
+        <div className="mt-3 flex items-center justify-center space-x-2 text-sm font-medium text-gray-700">
+          {getOrderTypeIcon(orderType)}
+          <span>{getOrderTypeLabel(orderType)}</span>
+          {orderType === 'table' && selectedTable && (
+            <span className="text-xs text-gray-500">({selectedTable.seats} seats)</span>
+          )}
+        </div>
+      </div>
+
       {cart.length === 0 ? (
         <div className="p-4 text-center text-gray-500">
-          <div className="text-sm font-medium mb-2">DELIVERY</div>
+          <div className="text-sm font-medium mb-2">{getOrderTypeLabel(orderType)}</div>
           <div className="text-xs text-gray-400">No items in cart</div>
         </div>
       ) : (
         <div className="p-4 space-y-3">
-          <div className="text-sm font-medium text-gray-600 mb-3">DELIVERY</div>
+          <div className="text-sm font-medium text-gray-600 mb-3">{getOrderTypeLabel(orderType)}</div>
           {cart.map(item => (
             <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
               <div className="flex-1">
