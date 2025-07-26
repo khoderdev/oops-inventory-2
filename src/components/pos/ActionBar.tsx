@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { AlertCircle, AlertTriangle, Calculator, DollarSign, Grid3X3, Package, Save, ShoppingCart, X } from "lucide-react";
+import { AlertCircle, Calculator, DollarSign, Grid3X3, Package, Save, ShoppingCart, X } from "lucide-react";
 import React from "react";
 
 interface ActionBarProps {
@@ -10,26 +10,19 @@ interface ActionBarProps {
 
 export const ActionBar: React.FC<ActionBarProps> = ({ onSaveOrder, hasUnsavedChanges = false, isOrderLoading = false }) => {
   const actionButtons = [
-    { icon: Grid3X3, label: "Speed Key", active: true },
-    { icon: Calculator, label: "Depts", active: false },
-    { icon: ShoppingCart, label: "Orders", active: false },
-    { icon: Package, label: "Table Orders", active: false },
-    { icon: AlertCircle, label: "Hold", active: false },
     { icon: X, label: "Void", active: false },
-    { icon: AlertTriangle, label: "No Sales", active: false },
     { icon: DollarSign, label: "Refund", active: false },
-    {
-      icon: Save,
-      label: "Save Order",
-      active: hasUnsavedChanges,
-      onClick: onSaveOrder,
-      disabled: isOrderLoading || !onSaveOrder
-    }
+    { icon: Package, label: "Table Orders", active: false },
+    { icon: ShoppingCart, label: "Orders", active: false },
+    { icon: Calculator, label: "Depts", active: false },
+    { icon: Grid3X3, label: "Speed Key", active: false },
+    { icon: AlertCircle, label: "Hold", active: false },
+    { icon: Save, label: "Save Order", active: hasUnsavedChanges, onClick: onSaveOrder, disabled: isOrderLoading || !onSaveOrder }
   ];
 
   return (
     <div className="border-t border-gray-200 bg-gray-50">
-      <div className="grid grid-cols-9">
+      <div className="grid grid-cols-8">
         {actionButtons.map((button, index) => {
           const IconComponent = button.icon;
           return (
