@@ -217,7 +217,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                       <TableHead
                         key={header}
                         className={cn(
-                          "font-bold text-sm sm:text-base lg:text-base xl:text-lg",
+                          "font-bold text-sm ",
                           "text-slate-800 dark:text-slate-100",
                           "py-4 px-3 sm:py-5 sm:px-4 lg:px-5",
                           "whitespace-nowrap",
@@ -236,7 +236,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                           textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                         }}
                       >
-                        <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px] relative h-full">
+                        <div className="flex items-center gap-1 sm:gap-2 min-h-[16px] sm:min-h-[16px] relative h-full">
                           <span className="truncate font-bold leading-tight">{header}</span>
 
                           {index < headers.length - 1 && (

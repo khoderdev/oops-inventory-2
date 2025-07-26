@@ -5,6 +5,7 @@ import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import UserManagementPage from "./components/admin/UserManagementPage";
+import { ReportGenerator } from "./components/analytics/ReportGenerator";
 import LoginPage from "./components/auth/LoginPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { InventoryManagementPanel } from "./components/inventory/InventoryManagementPanel";
@@ -171,10 +172,7 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_READ}>
                       <AuthenticatedLayout>
-                        <div className="p-8 text-center">
-                          <h1 className="text-2xl font-bold text-gray-900 mb-4">Reports</h1>
-                          <p className="text-gray-600">Reports functionality coming soon...</p>
-                        </div>
+                        <ReportGenerator className="w-full" />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }
