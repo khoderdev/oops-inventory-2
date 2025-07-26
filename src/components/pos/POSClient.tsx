@@ -490,11 +490,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Clear cart with animation after successful save
       clearCartWithAnimation();
       setHasUnsavedChanges(false);
+      
+      // Automatically select TAKE AWAY after saving
+      resetToTakeaway();
     } catch (error) {
       console.error("Failed to save order:", error);
       showError("Failed to save order");
     }
-  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation]);
+  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation, resetToTakeaway]);
 
   const handleCloseTablesLayout = useCallback(() => {
     setShowTablesLayout(false);
