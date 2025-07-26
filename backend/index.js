@@ -48,11 +48,11 @@ app.use(errorHandler);
 
 // Database sync and server start
 sequelize
-  .sync({ force: true, alter: false }) // Temporarily force sync to fix schema
+  .sync({ force: false, alter: true }) // Temporarily force sync to fix schema
   .then(async () => {
     console.log("✅ Database connected successfully");
     console.log("🔄 Database schema synced with models");
-    
+
     // Seed initial data
     await seedTables();
 

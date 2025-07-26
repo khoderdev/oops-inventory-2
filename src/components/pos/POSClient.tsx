@@ -78,26 +78,20 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         // Fetch stock entries
         const stockResponse = await stockAPI.getStockEntries();
-        console.log("Stock entries response:", stockResponse);
         const stockData = stockResponse.data || [];
-        console.log("Stock entries data:", stockData);
-        console.log("Number of stock entries:", stockData.length);
         setStockEntries(stockData);
 
         // Fetch menu items
         const menuResponse = await menuAPI.getMenus();
-        console.log("Menu items response:", menuResponse);
         const menuData = menuResponse.data || [];
         setMenuItems(menuData);
 
         // Fetch tables
         const tablesResponse = await tablesAPI.getTables();
-        console.log("Tables API response:", tablesResponse);
 
         // Handle both possible response structures
         const responseData = tablesResponse.data as Table[] | { data: Table[] };
         const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
-        console.log("Final tablesData:", tablesData, "Length:", tablesData.length);
         setTables(tablesData);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -282,28 +276,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Get available stock entries (filter by search term and available quantity)
   const availableStockEntries = stockEntries.filter(stockEntry => {
-    console.log("Checking stock entry:", {
-      id: stockEntry.id,
-      materialName: stockEntry.material?.name,
-      quantity: stockEntry.purchasedIndividualQuantity,
-      hasQuantity: stockEntry.purchasedIndividualQuantity && stockEntry.purchasedIndividualQuantity > 0
-    });
-
     // Check if stock entry has available quantity
     const hasQuantity = stockEntry.purchasedIndividualQuantity && stockEntry.purchasedIndividualQuantity > 0;
 
     // Check search term
     const matchesSearch = searchTerm === "" || stockEntry.material?.name.toLowerCase().includes(searchTerm.toLowerCase()) || stockEntry.material?.category?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    console.log("Filter result:", { hasQuantity, matchesSearch, passes: hasQuantity && matchesSearch });
     return hasQuantity && matchesSearch;
   });
-
-  console.log("Final availableStockEntries count:", availableStockEntries.length);
-  console.log(
-    "Available stock entries:",
-    availableStockEntries.map(s => ({ id: s.id, name: s.material?.name, quantity: s.purchasedIndividualQuantity }))
-  );
 
   // Get available menu items
   const availableMenuItems = menuItems.filter(menuItem => searchTerm === "" || menuItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || menuItem.category?.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -403,7 +383,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               // Convert order items to cart items
               const cartItems: POSCartItem[] = existingOrder.items.map(item => {
                 let originalItem: StockEntryWithMaterial | MenuItem;
-                
+
                 if (item.type === "material" && item.materialId) {
                   // Find the stock entry by materialId
                   originalItem = stockEntries.find(se => se.materialId === item.materialId) || stockEntries[0];
@@ -414,7 +394,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   // Fallback to first available item
                   originalItem = stockEntries[0] || menuItems[0];
                 }
-                
+
                 return {
                   id: item.id,
                   name: item.name,

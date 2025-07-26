@@ -2,23 +2,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { POSLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
-
-interface POSLayoutProps {
-  children: React.ReactNode;
-  currentTotal?: number;
-  transactionCount?: number;
-  onLogout?: () => void;
-}
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout }) => {
   const { user, logout } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const [showSystemDialog, setShowSystemDialog] = useState(false);
 
   // Update time every second
   useEffect(() => {

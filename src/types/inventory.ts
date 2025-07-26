@@ -75,6 +75,7 @@ export interface RevertSaleResponse {
 
 export interface SaleResponse {
   sale: SaleRecord;
+  totalAmount: number;
   updatedStockEntries?: StockEntryWithMaterial[];
   message: string;
   negativeStockWarnings?: NegativeStockWarning[];
@@ -461,6 +462,13 @@ export interface OrderItemsListProps {
   selectedTable?: Table;
   onOrderTypeChange: (type: OrderType) => void;
   onTableSelect: () => void;
+}
+
+export interface POSLayoutProps {
+  children: React.ReactNode;
+  currentTotal?: number;
+  transactionCount?: number;
+  onLogout?: () => void;
 }
 
 export type OrderType = "delivery" | "takeaway" | "table";

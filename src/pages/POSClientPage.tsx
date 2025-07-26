@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { useAuth } from "@/contexts/AuthContext";
 import POSLayout from "@/components/layout/POSLayout";
 import { POSClient } from "@/components/pos/POSClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { PERMISSIONS } from "@/types/auth";
+import { SaleResponse } from "@/types/inventory";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const POSClientPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,41 +19,41 @@ const POSClientPage: React.FC = () => {
   // Check authentication and permissions
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
-    
+
     if (!isLoading && isAuthenticated && !hasPermission(PERMISSIONS.SALES_CREATE)) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
   }, [isAuthenticated, isLoading, hasPermission, navigate]);
 
   // Load initial data
   useEffect(() => {
-    fetchTabData('materials');
+    fetchTabData("materials");
   }, [fetchTabData]);
 
   // Handle sale completion
-  const handleSaleComplete = (saleData: any) => {
+  const handleSaleComplete = (saleData: SaleResponse) => {
     setSessionStats(prev => ({
       totalSales: prev.totalSales + (saleData.totalAmount || 0),
       transactionCount: prev.transactionCount + 1
     }));
 
     // Refresh data after sale
-    fetchTabData('materials');
+    fetchTabData("materials");
   };
 
   // Handle logout
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
       // Force navigation even if logout fails
-      navigate('/login');
+      navigate("/login");
     }
   };
 
@@ -74,16 +75,8 @@ const POSClientPage: React.FC = () => {
   }
 
   return (
-    <POSLayout
-      currentTotal={sessionStats.totalSales}
-      transactionCount={sessionStats.transactionCount}
-      onLogout={handleLogout}
-    >
-      <POSClient
-        materials={materialsWithStock}
-        sectionAssignments={sectionAssignments}
-        onSaleComplete={handleSaleComplete}
-      />
+    <POSLayout currentTotal={sessionStats.totalSales} transactionCount={sessionStats.transactionCount} onLogout={handleLogout}>
+      <POSClient materials={materialsWithStock} sectionAssignments={sectionAssignments} onSaleComplete={handleSaleComplete} />
     </POSLayout>
   );
 };
