@@ -1,6 +1,35 @@
 export type OrderStatus = "draft" | "confirmed" | "preparing" | "ready" | "served" | "paid" | "cancelled";
 export type OrderType = "delivery" | "takeaway" | "table";
 
+export type TableStatus = "available" | "opened" | "reserved" | "cleaning";
+
+export interface CreateTableData {
+  number: number;
+  name?: string;
+  seats: number;
+  shape: "round" | "square" | "rectangle";
+  position: { x: number; y: number };
+  section?: string;
+  notes?: string;
+}
+
+export interface UpdateTableData {
+  number?: number;
+  name?: string;
+  seats?: number;
+  shape?: "round" | "square" | "rectangle";
+  position?: { x: number; y: number };
+  section?: string;
+  notes?: string;
+  status?: TableStatus;
+}
+
+export interface ReserveTableData {
+  reservedBy: string;
+  reservedUntil: string;
+  notes?: string;
+}
+
 export interface OrderItem {
   id: string;
   materialId?: string;

@@ -27,18 +27,6 @@ const User = sequelize.define(
         }
       }
     },
-    email: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-      unique: {
-        msg: "Email already exists"
-      },
-      validate: {
-        isEmail: {
-          msg: "Invalid email format"
-        }
-      }
-    },
     password: {
       type: DataTypes.STRING(255),
       allowNull: false,

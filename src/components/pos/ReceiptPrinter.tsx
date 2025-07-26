@@ -12,9 +12,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   businessInfo = {
     name: "Your Business Name",
     address: "123 Business Street, City, State 12345",
-    phone: "(555) 123-4567",
-    email: "info@yourbusiness.com",
-    taxId: "TAX-123456789"
+    phone: "(555) 123-4567"
   }
 }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -181,7 +179,6 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
             <div className="business-info text-xs leading-tight">
               <div>{businessInfo.address}</div>
               <div>Phone: {businessInfo.phone}</div>
-              <div>Email: {businessInfo.email}</div>
               {businessInfo.taxId && <div>Tax ID: {businessInfo.taxId}</div>}
             </div>
           </div>

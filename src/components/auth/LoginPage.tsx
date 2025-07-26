@@ -86,7 +86,7 @@ const LoginPage: React.FC = () => {
                 <div>
                   <Label htmlFor="username">Username or Email</Label>
                   <div className="relative mt-1">
-                    <Input id="username" name="username" type="text" autoComplete="username" required value={formData.username} onChange={handleInputChange} placeholder="Enter your username or email" className="pl-10" disabled={isSubmitting} />
+                    <Input id="username" name="username" type="text" autoComplete="username" required value={formData.username} onChange={handleInputChange} placeholder="Enter your username" className="pl-10" disabled={isSubmitting} />
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
                 </div>

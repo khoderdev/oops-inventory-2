@@ -406,7 +406,6 @@ export interface ReceiptPrinterProps {
     name: string;
     address: string;
     phone: string;
-    email: string;
     taxId?: string;
   };
 }

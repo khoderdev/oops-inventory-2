@@ -4,11 +4,14 @@ import AuditLog from "./AuditLog.js";
 import DayOperation from "./dayOperation.js";
 import Material from "./materials.js";
 import { MenuItem, MenuItemIngredient } from "./menuItems.js";
+import Order from "./Order.js";
+import OrderItem from "./OrderItem.js";
 import Sale from "./sale.js";
 import SaleMenuItem from "./SaleMenuItem.js";
 import Section from "./sections.js";
 import Session from "./Session.js";
 import StockEntry from "./StockEntry.js";
+import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";
 
@@ -226,4 +229,116 @@ User.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, DayOperation, Material, MenuItem, MenuItemIngredient, Sale, SaleMenuItem, Section, sequelize, Session, StockEntry, User, Wasting };
+// Order ↔ OrderItem
+Order.hasMany(OrderItem, {
+  foreignKey: "orderId",
+  as: "items",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+OrderItem.belongsTo(Order, {
+  foreignKey: "orderId",
+  as: "order",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Table ↔ Order
+Table.hasMany(Order, {
+  foreignKey: "tableId",
+  as: "orders",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Order.belongsTo(Table, {
+  foreignKey: "tableId",
+  as: "table",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// Order ↔ Sale
+Order.belongsTo(Sale, {
+  foreignKey: "saleId",
+  as: "sale",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Sale.hasOne(Order, {
+  foreignKey: "saleId",
+  as: "order",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// OrderItem ↔ Material
+OrderItem.belongsTo(Material, {
+  foreignKey: "materialId",
+  as: "material",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Material.hasMany(OrderItem, {
+  foreignKey: "materialId",
+  as: "orderItems",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// OrderItem ↔ MenuItem
+OrderItem.belongsTo(MenuItem, {
+  foreignKey: "menuItemId",
+  as: "menuItem",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+MenuItem.hasMany(OrderItem, {
+  foreignKey: "menuItemId",
+  as: "orderItems",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// OrderItem ↔ Assignment
+OrderItem.belongsTo(Assignment, {
+  foreignKey: "assignmentId",
+  as: "assignment",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Assignment.hasMany(OrderItem, {
+  foreignKey: "assignmentId",
+  as: "orderItems",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// User ↔ Order (createdBy/updatedBy)
+Order.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "creator",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Order.belongsTo(User, {
+  foreignKey: "updatedBy",
+  as: "updater",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+User.hasMany(Order, {
+  foreignKey: "createdBy",
+  as: "createdOrders",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+User.hasMany(Order, {
+  foreignKey: "updatedBy",
+  as: "updatedOrders",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+
+
+export { Assignment, AuditLog, DayOperation, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Sale, SaleMenuItem, Section, sequelize, Session, StockEntry, Table, User, Wasting };

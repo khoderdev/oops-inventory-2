@@ -29,7 +29,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, isOpen, onClose, on
     if (user) {
       setFormData({
         username: user.username,
-        email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
@@ -115,11 +114,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, isOpen, onClose, on
                 <Label htmlFor="edit-lastName">Last Name</Label>
                 <Input id="edit-lastName" value={formData.lastName || ""} onChange={e => handleInputChange("lastName", e.target.value)} required />
               </div>
-            </div>
-
-            <div>
-              <Label htmlFor="edit-email">Email Address</Label>
-              <Input id="edit-email" type="email" value={formData.email || ""} onChange={e => handleInputChange("email", e.target.value)} required />
             </div>
 
             <div>

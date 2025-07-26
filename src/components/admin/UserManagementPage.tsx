@@ -38,7 +38,6 @@ const UserManagementPage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [createForm, setCreateForm] = useState<CreateUserRequest>({
     username: "",
-    email: "",
     password: "",
     firstName: "",
     lastName: "",
@@ -97,7 +96,6 @@ const UserManagementPage: React.FC = () => {
       setShowCreateModal(false);
       setCreateForm({
         username: "",
-        email: "",
         password: "",
         firstName: "",
         lastName: "",
@@ -344,7 +342,6 @@ const UserManagementPage: React.FC = () => {
                         <div>
                           <div className="font-medium">{user.fullName}</div>
                           <div className="text-sm text-gray-500">@{user.username}</div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -470,11 +467,6 @@ const UserManagementPage: React.FC = () => {
             <div>
               <Label htmlFor="create-username">Username</Label>
               <Input id="create-username" value={createForm.username} onChange={e => setCreateForm(prev => ({ ...prev, username: e.target.value }))} required />
-            </div>
-
-            <div>
-              <Label htmlFor="create-email">Email</Label>
-              <Input id="create-email" type="email" value={createForm.email} onChange={e => setCreateForm(prev => ({ ...prev, email: e.target.value }))} required />
             </div>
 
             <div>

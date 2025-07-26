@@ -1,4 +1,4 @@
-import { AlertTriangle, Calendar, CheckCircle, Eye, EyeOff, Key, Loader2, Mail, MapPin, Phone, Save, Shield, User as UserIcon } from "lucide-react";
+import { AlertTriangle, Calendar, CheckCircle, Eye, EyeOff, Key, Loader2, MapPin, Phone, Save, Shield, User as UserIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { authAPI } from "../../api/auth";
 import { useAuth } from "../../contexts/AuthContext";
@@ -24,7 +24,6 @@ const ProfilePage: React.FC = () => {
   const [profileForm, setProfileForm] = useState({
     firstName: "",
     lastName: "",
-    email: "",
     phone: "",
     address: ""
   });
@@ -41,7 +40,6 @@ const ProfilePage: React.FC = () => {
       setProfileForm({
         firstName: user.firstName || "",
         lastName: user.lastName || "",
-        email: user.email || "",
         phone: user.phone || "",
         address: user.address || ""
       });
@@ -58,7 +56,6 @@ const ProfilePage: React.FC = () => {
       await authAPI.updateProfile({
         firstName: profileForm.firstName,
         lastName: profileForm.lastName,
-        email: profileForm.email,
         phone: profileForm.phone,
         address: profileForm.address
       });
@@ -208,22 +205,6 @@ const ProfilePage: React.FC = () => {
                       placeholder="Enter your last name"
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profileForm.email}
-                    onChange={e =>
-                      setProfileForm(prev => ({
-                        ...prev,
-                        email: e.target.value
-                      }))
-                    }
-                    placeholder="Enter your email address"
-                  />
                 </div>
 
                 <div className="space-y-2">
@@ -387,14 +368,6 @@ const ProfilePage: React.FC = () => {
                   <div>
                     <Label className="text-sm font-medium text-gray-500">Full Name</Label>
                     <p className="text-lg font-medium">{user.fullName}</p>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">Email</Label>
-                    <p className="text-lg font-medium flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      {user.email}
-                    </p>
                   </div>
 
                   {user.phone && (

@@ -28,12 +28,11 @@ export const authenticate = async (req, res, next) => {
     // Check for static test token (DEVELOPMENT ONLY)
     if (token === STATIC_TEST_TOKEN) {
       console.log("🔧 Using static test token for development");
-      
+
       // Create a mock admin user for testing
       const mockAdminUser = {
         id: 1,
         username: "admin",
-        email: "admin@test.com",
         firstName: "Test",
         lastName: "Admin",
         role: "admin",

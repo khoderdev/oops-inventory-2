@@ -18,7 +18,7 @@ const authController = {
       // Find user by username or email
       const user = await User.findOne({
         where: {
-          [Op.or]: [{ username: username.toLowerCase() }, { email: username.toLowerCase() }],
+          [Op.or]: [{ username: username.toLowerCase() }],
           isActive: true
         }
       });
@@ -72,7 +72,6 @@ const authController = {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
@@ -135,7 +134,6 @@ const authController = {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
@@ -156,20 +154,18 @@ const authController = {
   // Update user profile
   updateProfile: async (req, res, next) => {
     try {
-      const { firstName, lastName, email } = req.body;
+      const { firstName, lastName } = req.body;
       const user = req.user;
 
       // Store old values for audit
       const oldValues = {
         firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email
+        lastName: user.lastName
       };
 
       const updates = {};
       if (firstName !== undefined) updates.firstName = firstName;
       if (lastName !== undefined) updates.lastName = lastName;
-      if (email !== undefined) updates.email = email;
 
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({
@@ -187,7 +183,6 @@ const authController = {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
@@ -199,7 +194,7 @@ const authController = {
       if (error.name === "SequelizeUniqueConstraintError") {
         return res.status(409).json({
           error: "Conflict",
-          message: "Email already exists"
+          message: "Username already exists"
         });
       }
       next(error);

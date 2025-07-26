@@ -1,5 +1,4 @@
 import chalk from "chalk";
-import sequelize from "../config/database.js";
 import { Material } from "../models/index.js";
 
 // Custom Sequelize query logger
@@ -18,19 +17,7 @@ const logError = (error, context = "") => {
   }
 };
 
-// Example: Log DB connection & sync status with clear messages
-(async () => {
-  try {
-    await sequelize.authenticate();
-    console.log(chalk.green("✅ Database connection established successfully."));
-
-    await sequelize.sync();
-    console.log(chalk.green("✅ Database synced successfully."));
-  } catch (error) {
-    logError(error, "Database connection/sync failed");
-    process.exit(1); // stop server startup if DB fails
-  }
-})();
+// Database sync is handled in index.js after all models are loaded
 
 // Example Express error middleware for catching errors & logging them
 // (assuming you use Express)

@@ -7,11 +7,14 @@ import authRoutes from "./routes/auth.js";
 import dayOperationsRoutes from "./routes/dayOperations.js";
 import materialRoutes from "./routes/materials.js";
 import menuItemsRoutes from "./routes/menuItems.js";
+import ordersRoutes from "./routes/orders.js";
 import salesRoutes from "./routes/sales.js";
 import sectionRoutes from "./routes/sections.js";
 import stockEntriesRoutes from "./routes/stockEntries.js";
+import tablesRoutes from "./routes/tables.js";
 import userRoutes from "./routes/users.js";
 import { errorHandler } from "./utils/logger.js";
+import { seedTables } from "./utils/seedTables.js";
 
 const app = express();
 const PORT = 3000;
@@ -34,6 +37,8 @@ app.use("/api/sections", sectionRoutes);
 app.use("/api/assignments", assignmentsRoutes);
 app.use("/api/stock-entries", stockEntriesRoutes);
 app.use("/api/menu-items", menuItemsRoutes);
+app.use("/api/orders", ordersRoutes);
+app.use("/api/tables", tablesRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/day-operations", dayOperationsRoutes);
 
@@ -43,8 +48,13 @@ app.use(errorHandler);
 
 // Database sync and server start
 sequelize
-  .sync({ force: false, alter: true })
-  .then(() => {
+  .sync({ force: false, alter: false })
+  .then(async () => {
+    console.log("✅ Database connected successfully");
+    
+    // Seed initial data
+    await seedTables();
+
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on port ${PORT}`);
     });

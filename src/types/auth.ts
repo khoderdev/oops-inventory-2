@@ -1,7 +1,6 @@
 export interface User {
   id: number;
   username: string;
-  email: string;
   phone: string;
   firstName: string;
   lastName: string;
@@ -39,7 +38,6 @@ export interface LoginResponse {
 
 export interface RegisterRequest {
   username: string;
-  email: string;
   password: string;
   firstName: string;
   lastName: string;
@@ -50,7 +48,6 @@ export interface RegisterRequest {
 export interface UpdateProfileRequest {
   firstName?: string;
   lastName?: string;
-  email?: string;
   phone?: string;
   address?: string;
 }
@@ -122,7 +119,6 @@ export interface AuthContextType {
 
 export interface CreateUserRequest {
   username: string;
-  email: string;
   password: string;
   firstName: string;
   lastName: string;
@@ -132,7 +128,6 @@ export interface CreateUserRequest {
 
 export interface UpdateUserRequest {
   username?: string;
-  email?: string;
   firstName?: string;
   lastName?: string;
   role?: "admin" | "manager" | "staff";

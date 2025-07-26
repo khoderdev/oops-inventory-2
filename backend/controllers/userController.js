@@ -10,20 +10,15 @@ const userController = {
 
       // Build where clause
       const whereClause = {};
-      
+
       if (search) {
-        whereClause[Op.or] = [
-          { username: { [Op.iLike]: `%${search}%` } },
-          { email: { [Op.iLike]: `%${search}%` } },
-          { firstName: { [Op.iLike]: `%${search}%` } },
-          { lastName: { [Op.iLike]: `%${search}%` } }
-        ];
+        whereClause[Op.or] = [{ username: { [Op.iLike]: `%${search}%` } }, { firstName: { [Op.iLike]: `%${search}%` } }, { lastName: { [Op.iLike]: `%${search}%` } }];
       }
-      
+
       if (role) {
         whereClause.role = role;
       }
-      
+
       if (isActive !== undefined) {
         whereClause.isActive = isActive === "true";
       }
@@ -48,7 +43,6 @@ const userController = {
         users: users.map(user => ({
           id: user.id,
           username: user.username,
-          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
@@ -59,11 +53,13 @@ const userController = {
           isLocked: user.isLocked(),
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
-          createdBy: user.creator ? {
-            id: user.creator.id,
-            username: user.creator.username,
-            fullName: `${user.creator.firstName} ${user.creator.lastName}`
-          } : null
+          createdBy: user.creator
+            ? {
+                id: user.creator.id,
+                username: user.creator.username,
+                fullName: `${user.creator.firstName} ${user.creator.lastName}`
+              }
+            : null
         })),
         pagination: {
           currentPage: parseInt(page),
@@ -83,7 +79,7 @@ const userController = {
   getUserById: async (req, res, next) => {
     try {
       const { id } = req.params;
-      
+
       const user = await User.findByPk(id, {
         attributes: { exclude: ["password"] },
         include: [
@@ -107,7 +103,6 @@ const userController = {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
@@ -120,11 +115,13 @@ const userController = {
           isLocked: user.isLocked(),
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
-          createdBy: user.creator ? {
-            id: user.creator.id,
-            username: user.creator.username,
-            fullName: `${user.creator.firstName} ${user.creator.lastName}`
-          } : null
+          createdBy: user.creator
+            ? {
+                id: user.creator.id,
+                username: user.creator.username,
+                fullName: `${user.creator.firstName} ${user.creator.lastName}`
+              }
+            : null
         }
       });
     } catch (error) {
@@ -136,13 +133,13 @@ const userController = {
   // Create new user (admin only)
   createUser: async (req, res, next) => {
     try {
-      const { username, email, password, firstName, lastName, role, permissions } = req.body;
+      const { username, password, firstName, lastName, role, permissions } = req.body;
 
       // Validation
-      if (!username || !email || !password || !firstName || !lastName) {
+      if (!username || !password || !firstName || !lastName) {
         return res.status(400).json({
           error: "Validation error",
-          message: "Username, email, password, first name, and last name are required"
+          message: "Username, password, first name, and last name are required"
         });
       }
 
@@ -156,7 +153,6 @@ const userController = {
 
       const user = await User.create({
         username: username.toLowerCase(),
-        email: email.toLowerCase(),
         password,
         firstName,
         lastName,
@@ -173,7 +169,6 @@ const userController = {
         null,
         {
           username: user.username,
-          email: user.email,
           role: user.role
         },
         req
@@ -184,7 +179,6 @@ const userController = {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
@@ -198,7 +192,7 @@ const userController = {
       if (error.name === "SequelizeUniqueConstraintError") {
         return res.status(409).json({
           error: "Conflict",
-          message: "Username or email already exists"
+          message: "Username already exists"
         });
       }
       next(error);
@@ -209,10 +203,10 @@ const userController = {
   updateUser: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { username, email, firstName, lastName, role, permissions, isActive } = req.body;
+      const { username, firstName, lastName, role, permissions, isActive } = req.body;
 
       const user = await User.findByPk(id);
-      
+
       if (!user) {
         return res.status(404).json({
           error: "Not found",
@@ -252,7 +246,6 @@ const userController = {
       // Store old values for audit
       const oldValues = {
         username: user.username,
-        email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
@@ -262,7 +255,6 @@ const userController = {
 
       const updates = { updatedBy: req.user.id };
       if (username !== undefined) updates.username = username.toLowerCase();
-      if (email !== undefined) updates.email = email.toLowerCase();
       if (firstName !== undefined) updates.firstName = firstName;
       if (lastName !== undefined) updates.lastName = lastName;
       if (role !== undefined) updates.role = role;
@@ -276,22 +268,13 @@ const userController = {
         await Session.revokeUserSessions(user.id);
       }
 
-      await AuditLog.logUserAction(
-        req.user.id,
-        "user_update",
-        "user",
-        user.id,
-        oldValues,
-        updates,
-        req
-      );
+      await AuditLog.logUserAction(req.user.id, "user_update", "user", user.id, oldValues, updates, req);
 
       res.status(200).json({
         message: "User updated successfully",
         user: {
           id: user.id,
           username: user.username,
-          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
@@ -305,7 +288,7 @@ const userController = {
       if (error.name === "SequelizeUniqueConstraintError") {
         return res.status(409).json({
           error: "Conflict",
-          message: "Username or email already exists"
+          message: "Username already exists"
         });
       }
       next(error);
@@ -316,9 +299,9 @@ const userController = {
   deleteUser: async (req, res, next) => {
     try {
       const { id } = req.params;
-      
+
       const user = await User.findByPk(id);
-      
+
       if (!user) {
         return res.status(404).json({
           error: "Not found",
@@ -337,7 +320,6 @@ const userController = {
       // Store user data for audit before deletion
       const userData = {
         username: user.username,
-        email: user.email,
         role: user.role
       };
 
@@ -347,15 +329,7 @@ const userController = {
       // Soft delete - deactivate instead of hard delete
       await user.update({ isActive: false, updatedBy: req.user.id });
 
-      await AuditLog.logUserAction(
-        req.user.id,
-        "user_delete",
-        "user",
-        user.id,
-        userData,
-        null,
-        req
-      );
+      await AuditLog.logUserAction(req.user.id, "user_delete", "user", user.id, userData, null, req);
 
       res.status(200).json({
         message: "User deleted successfully"
@@ -380,7 +354,7 @@ const userController = {
       }
 
       const user = await User.findByPk(id);
-      
+
       if (!user) {
         return res.status(404).json({
           error: "Not found",
@@ -393,15 +367,7 @@ const userController = {
       // Revoke all user sessions to force re-login
       await Session.revokeUserSessions(user.id);
 
-      await AuditLog.logUserAction(
-        req.user.id,
-        "password_reset",
-        "user",
-        user.id,
-        null,
-        null,
-        req
-      );
+      await AuditLog.logUserAction(req.user.id, "password_reset", "user", user.id, null, null, req);
 
       res.status(200).json({
         message: "Password reset successfully"
@@ -416,9 +382,9 @@ const userController = {
   unlockUser: async (req, res, next) => {
     try {
       const { id } = req.params;
-      
+
       const user = await User.findByPk(id);
-      
+
       if (!user) {
         return res.status(404).json({
           error: "Not found",
@@ -431,15 +397,7 @@ const userController = {
         lockUntil: null
       });
 
-      await AuditLog.logUserAction(
-        req.user.id,
-        "user_unlock",
-        "user",
-        user.id,
-        null,
-        null,
-        req
-      );
+      await AuditLog.logUserAction(req.user.id, "user_unlock", "user", user.id, null, null, req);
 
       res.status(200).json({
         message: "User account unlocked successfully"
@@ -458,7 +416,7 @@ const userController = {
       const offset = (page - 1) * limit;
 
       const user = await User.findByPk(id);
-      
+
       if (!user) {
         return res.status(404).json({
           error: "Not found",
