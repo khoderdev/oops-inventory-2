@@ -85,6 +85,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }, 1500);
   }, []);
 
+  // Helper function to automatically select TAKE AWAY after order actions
+  const resetToTakeaway = useCallback(() => {
+    setOrderType("takeaway");
+    setSelectedTable(undefined);
+    setShowTablesLayout(false);
+  }, []);
+
   // Clear cart without animation (for trash button)
   const clearCart = useCallback(() => {
     setCart([]);
@@ -559,6 +566,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setHasUnsavedChanges(false);
       OrderPersistence.clearCurrentOrder();
       
+      // Automatically select TAKE AWAY after voiding
+      resetToTakeaway();
+      
       // Refresh tables if this was a table order
       if (orderType === "table" && selectedTable) {
         try {
@@ -582,7 +592,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.error("Failed to void order:", error);
       // Error is already handled by the voidOrder function
     }
-  }, [voidOrder, clearCartWithAnimation, orderType, selectedTable, showSuccess]);
+  }, [voidOrder, clearCartWithAnimation, orderType, selectedTable, showSuccess, resetToTakeaway]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
@@ -725,6 +735,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       clearOrder();
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
+      
+      // Automatically select TAKE AWAY after payment completion
+      resetToTakeaway();
 
       // Callback for parent component
       if (onSaleComplete) {
@@ -742,7 +755,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, selectedSectionId, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder]);
+  }, [cart, selectedSectionId, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder, resetToTakeaway]);
 
   return (
     <div className="h-full flex bg-gray-100">
