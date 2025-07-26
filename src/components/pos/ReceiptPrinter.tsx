@@ -1,41 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ReceiptPrinterProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { Download, Mail, Printer, Share2 } from "lucide-react";
 import React, { useRef } from "react";
-
-interface ReceiptData {
-  id: string;
-  date: string;
-  time: string;
-  cashier: string;
-  items: Array<{
-    name: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    type: "material" | "menu";
-  }>;
-  subtotal: number;
-  tax: number;
-  total: number;
-  paymentAmount: number;
-  change: number;
-  paymentMethod: string;
-}
-
-interface ReceiptPrinterProps {
-  isOpen: boolean;
-  onClose: () => void;
-  receiptData: ReceiptData | null;
-  businessInfo?: {
-    name: string;
-    address: string;
-    phone: string;
-    email: string;
-    taxId?: string;
-  };
-}
 
 export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   isOpen,

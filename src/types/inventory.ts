@@ -360,11 +360,6 @@ export type CartItem = {
   ingredients?: { materialId: number; quantity: number; unit: string }[];
 };
 
-export interface POSPanelProps {
-  materials: MaterialWithStock[];
-  sectionAssignments: SectionAssignment[];
-}
-
 export interface ItemSale {
   id: string;
   saleId: string;
@@ -379,6 +374,96 @@ export interface ItemSale {
   totalPrice: number;
   materialId?: string;
   menuItemId?: string;
+}
+
+//------------------------------------------------------------------------------------------
+
+export interface ReceiptData {
+  id: string;
+  date: string;
+  time: string;
+  cashier: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    type: "material" | "menu";
+  }>;
+  subtotal: number;
+  tax: number;
+  total: number;
+  paymentAmount: number;
+  change: number;
+  paymentMethod: string;
+}
+
+export interface ReceiptPrinterProps {
+  isOpen: boolean;
+  onClose: () => void;
+  receiptData: ReceiptData | null;
+  businessInfo?: {
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+    taxId?: string;
+  };
+}
+//------------------------------------------------------------------------------------------
+
+export interface POSPanelProps {
+  materials: MaterialWithStock[];
+  sectionAssignments: SectionAssignment[];
+}
+
+export interface POSCartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  type: "material" | "menu";
+  originalItem: SectionAssignment | MenuItem;
+}
+
+export interface POSClientProps {
+  materials: MenuItem[];
+  sectionAssignments: SectionAssignment[];
+  onSaleComplete?: (saleData: SaleResponse) => void;
+}
+
+export interface PaymentDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  total: number;
+  paymentAmount: string;
+  onPaymentAmountChange: (amount: string) => void;
+  onPayment: () => void;
+  isLoading: boolean;
+}
+
+export interface ProductGridProps {
+  filteredItems: SectionAssignment[];
+  filteredMenuItems: MenuItem[];
+  onAddToCart: (item: SectionAssignment | MenuItem, type: "material" | "menu") => void;
+}
+
+export interface OrderSummaryProps {
+  cart: POSCartItem[];
+  subtotal: number;
+  total: number;
+  onPaymentClick: () => void;
+}
+
+export interface OrderItemsListProps {
+  cart: POSCartItem[];
+  updateCartQuantity: (id: string, quantity: number) => void;
+}
+
+export interface CategoryTabsProps {
+  categories: string[];
+  activeCategory: string;
+  onCategoryChange: (category: string) => void;
 }
 
 //-----------------------------------------------------------------------------

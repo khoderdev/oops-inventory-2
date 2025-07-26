@@ -2,37 +2,23 @@ import { menuAPI } from "@/api/menu.api.ts.tsx";
 import { posAPI } from "@/api/pos.api.ts";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { MenuItem, NegativeStockWarning, SaleResponse, SectionAssignment } from "@/types/inventory";
+import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, SaleResponse, SectionAssignment } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { AlertCircle, AlertTriangle, Calculator, Check, CreditCard, DollarSign, Grid3X3, Loader2, Minus, Package, Plus, Receipt, ShoppingCart, Trash2, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, Trash2 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActionBar } from "./ActionBar";
+import { CategoryTabs } from "./CategoryTabs";
+import { OrderItemsList } from "./OrderItemsList";
+import { OrderSummary } from "./OrderSummary";
+import { PaymentDialog } from "./PaymentDialog";
+import { ProductGrid } from "./ProductGrid";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-
-// Enhanced CartItem interface for POS
-interface POSCartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  type: "material" | "menu";
-  originalItem: SectionAssignment | MenuItem;
-}
-
-interface POSClientProps {
-  materials: MenuItem[];
-  sectionAssignments: SectionAssignment[];
-  onSaleComplete?: (saleData: SaleResponse) => void;
-}
-
-export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignments, onSaleComplete }) => {
-  // State management
-  const [selectedSectionId, setSelectedSectionId] = useState<string>("");
+export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete }) => {
+  const [selectedSectionId] = useState<string>("");
   const [cart, setCart] = useState<POSCartItem[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -42,11 +28,9 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
   const [showNegativeStockDialog, setShowNegativeStockDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [lastSaleData, setLastSaleData] = useState<SaleResponse | null>(null);
-
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -116,10 +100,29 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
       if (existingItem) {
         return prevCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
       } else {
+        // Calculate price for material items
+        let itemPrice = 0;
+        if (type === "material") {
+          // Get cost from stockEntry (where the actual cost data is stored)
+          const stockEntry = item.stockEntry;
+          if (stockEntry) {
+            // Try costPerBaseUnit first (this is the cost per individual unit)
+            if (stockEntry.costPerBaseUnit && stockEntry.costPerBaseUnit !== "0") {
+              itemPrice = parseFloat(stockEntry.costPerBaseUnit);
+            }
+            // Fallback: calculate from totalCost and individual quantity
+            else if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
+              itemPrice = parseFloat(stockEntry.totalCost) / stockEntry.purchasedIndividualQuantity;
+            }
+          }
+        } else {
+          itemPrice = item.price || 0;
+        }
+
         const newItem: POSCartItem = {
           id: cartId,
           name: type === "material" ? item.material?.name : item.name,
-          price: type === "material" ? item.material?.costPerUnit || 0 : item.price || 0,
+          price: itemPrice,
           quantity: 1,
           type,
           originalItem: item
@@ -250,205 +253,25 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
         </div>
 
         {/* Order Items List */}
-        <div className="flex-1 overflow-y-auto">
-          {cart.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
-              <div className="text-sm font-medium mb-2">DELIVERY</div>
-              <div className="text-xs text-gray-400">No items in cart</div>
-            </div>
-          ) : (
-            <div className="p-4 space-y-3">
-              <div className="text-sm font-medium text-gray-600 mb-3">DELIVERY</div>
-              {cart.map(item => (
-                <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-800">{item.name}</div>
-                    {item.type === "material" && <div className="text-xs text-gray-500">Extra Powdered Seasoning</div>}
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="w-6 h-6 p-0">
-                        <Minus className="w-3 h-3" />
-                      </Button>
-                      <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                      <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="w-6 h-6 p-0">
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <div className="w-16 text-right font-medium text-gray-800">{formatCurrency(item.price * item.quantity)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} />
 
         {/* Order Summary */}
-        {cart.length > 0 && (
-          <div className="border-t border-gray-200 p-4 bg-gray-50">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Sub Total</span>
-                <span>{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="border-t border-gray-300 pt-2 mt-2">
-                <div className="flex justify-between font-bold text-lg">
-                  <span>TOTAL</span>
-                  <span>{formatCurrency(total)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex space-x-2 mt-4">
-              <Button variant="outline" className="flex-1">
-                SAVE
-              </Button>
-              <Button className="flex-1 bg-teal-500 hover:bg-teal-600 text-white" onClick={() => setShowPaymentDialog(true)}>
-                PAY {formatCurrency(total)}
-              </Button>
-            </div>
-          </div>
-        )}
+        <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} />
       </div>
 
       {/* Right Panel - Product Grid */}
       <div className="flex-1 flex flex-col bg-white">
         {/* Top Controls */}
-        <div className="border-b border-gray-200">
-          <div className="flex items-center justify-between p-2">
-            <div className="flex space-x-2">
-              {categories.slice(0, 6).map(category => (
-                <Button key={category} variant={activeCategory === category ? "default" : "outline"} size="sm" onClick={() => setActiveCategory(category)} className={`capitalize ${activeCategory === category ? "bg-teal-500 hover:bg-teal-600 text-white" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-                  {category === "all" ? "All" : category}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
         {/* Product Grid */}
-        <div className="flex-1 p-4 overflow-y-auto">
-          <div className="grid grid-cols-4 gap-4">
-            {/* Individual Items */}
-            {filteredItems.map(assignment => (
-              <Card key={assignment.id} className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => addToCart(assignment, "material")}>
-                <CardContent className="p-4 text-center">
-                  <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <Package className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h4 className="font-medium text-gray-800 mb-1">{assignment.material?.name}</h4>
-                  <p className="text-lg font-bold text-gray-800">{formatCurrency(assignment.material?.costPerUnit || 0)}</p>
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Menu Items */}
-            {filteredMenuItems.map(menuItem => (
-              <Card key={menuItem.id} className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => addToCart(menuItem, "menu")}>
-                <CardContent className="p-4 text-center">
-                  <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <ShoppingCart className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h4 className="font-medium text-gray-800 mb-1">{menuItem.name}</h4>
-                  <p className="text-lg font-bold text-gray-800">{formatCurrency(menuItem.price || 0)}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+        <ProductGrid filteredItems={filteredItems} filteredMenuItems={filteredMenuItems} onAddToCart={addToCart} />
 
         {/* Bottom Action Bar */}
-        <div className="border-t border-gray-200  bg-gray-50">
-          <div className="grid grid-cols-9 ">
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 bg-teal-500 text-white hover:bg-teal-600 rounded-none">
-              <Grid3X3 className="w-5 h-5 mb-1" />
-              <span className="text-xs">Speed Key</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
-              <Calculator className="w-5 h-5 mb-1" />
-              <span className="text-xs">Depts</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
-              <ShoppingCart className="w-5 h-5 mb-1" />
-              <span className="text-xs">Orders</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
-              <Package className="w-5 h-5 mb-1" />
-              <span className="text-xs">Table Orders</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
-              <AlertCircle className="w-5 h-5 mb-1" />
-              <span className="text-xs">Hold</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
-              <X className="w-5 h-5 mb-1" />
-              <span className="text-xs">Void</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
-              <AlertTriangle className="w-5 h-5 mb-1" />
-              <span className="text-xs">No Sales</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
-              <DollarSign className="w-5 h-5 mb-1" />
-              <span className="text-xs">Refund</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
-              <Receipt className="w-5 h-5 mb-1" />
-              <span className="text-xs">Price Check</span>
-            </Button>
-          </div>
-        </div>
+        <ActionBar />
       </div>
 
       {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <CreditCard className="w-5 h-5" />
-              <span>Process Payment</span>
-            </DialogTitle>
-            <DialogDescription>Complete the transaction</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(total)}</div>
-                <div className="text-sm text-slate-500">Total Amount</div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Payment Amount</label>
-              <Input type="number" step="0.01" placeholder="Enter amount" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="h-12 text-lg text-center" />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {quickAmounts.map(amount => (
-                <Button key={amount} variant="outline" onClick={() => setPaymentAmount(amount.toString())}>
-                  {formatCurrency(amount)}
-                </Button>
-              ))}
-            </div>
-
-            {parseFloat(paymentAmount) > total && (
-              <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-                <div className="text-sm text-green-700 dark:text-green-300">Change: {formatCurrency(parseFloat(paymentAmount) - total)}</div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handlePayment} disabled={isLoading || !paymentAmount || parseFloat(paymentAmount) < total}>
-              {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
-              Complete Sale
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
 
       {/* Negative Stock Warning Dialog */}
       <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>

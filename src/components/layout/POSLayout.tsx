@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/utils/conversionLogic";
@@ -78,15 +78,9 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       {/* POS Header */}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm px-6 py-3 flex items-center justify-between shrink-0">
         {/* Left Section - Branding */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">POS</span>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Point of Sale</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Professional POS System</p>
-            </div>
+        <div className="flex items-center space-x-3">
+          <div>
+            <img src="/oops-logo.png" alt="" className="w-24" />
           </div>
         </div>
 
@@ -170,47 +164,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* System Settings Dialog */}
-      <Dialog open={showSystemDialog} onOpenChange={setShowSystemDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <Settings className="w-5 h-5 text-blue-500" />
-              <span>POS System Settings</span>
-            </DialogTitle>
-            <DialogDescription>System configuration and preferences</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Display</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" size="sm" onClick={toggleFullscreen} className="w-full">
-                    {isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Session Info</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 text-xs">
-                  <div>User: {user?.username}</div>
-                  <div>Role: {user?.role}</div>
-                  <div>Time: {formatTime(currentTime)}</div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowSystemDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
