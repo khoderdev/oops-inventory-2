@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power, Settings, User } from "lucide-react";
+import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 interface POSLayoutProps {
@@ -130,10 +130,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={toggleFullscreen} className="p-2">
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </Button>
-
-            <Button variant="outline" size="sm" onClick={() => setShowSystemDialog(true)} className="p-2">
-              <Settings className="w-4 h-4" />
             </Button>
 
             <Button variant="destructive" size="sm" onClick={() => setShowLogoutDialog(true)} className="p-2">
