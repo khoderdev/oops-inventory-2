@@ -221,25 +221,133 @@ const salesController = {
       // Process individual items and update section assignments AND stock entries
       if (items && items.length > 0) {
         for (const item of items) {
-          const assignment = await Assignment.findByPk(item.assignmentId, {
-            include: [
-              { model: Material, as: "material" },
-              { model: StockEntry, as: "stockEntry" }
-            ],
-            transaction
-          });
+          let assignment = null;
+          let material = null;
+          let stockEntry = null;
+          let isPOSItem = false;
 
-          if (!assignment) {
-            await transaction.rollback();
-            return res.status(400).json({ error: `Assignment ${item.assignmentId} not found` });
+          // Check if this is a POS item (no assignment required)
+          if (!item.assignmentId || item.assignmentId === null) {
+            // Fetch material directly to check if it's a POS item
+            material = await Material.findByPk(item.materialId, { transaction });
+            
+            if (!material) {
+              await transaction.rollback();
+              return res.status(400).json({ error: `Material ${item.materialId} not found` });
+            }
+
+            isPOSItem = material.isPOSItem;
+            
+            if (!isPOSItem) {
+              await transaction.rollback();
+              return res.status(400).json({ error: `Assignment required for non-POS item: ${material.name}` });
+            }
+
+            // For POS items, we don't need assignment or stock entry validation
+            console.log(`Processing POS item: ${material.name} (no assignment required)`);
+          } else {
+            // Regular item with assignment
+            assignment = await Assignment.findByPk(item.assignmentId, {
+              include: [
+                { model: Material, as: "material" },
+                { model: StockEntry, as: "stockEntry" }
+              ],
+              transaction
+            });
+
+            if (!assignment) {
+              await transaction.rollback();
+              return res.status(400).json({ error: `Assignment ${item.assignmentId} not found` });
+            }
+
+            material = assignment.material;
+            stockEntry = assignment.stockEntry;
+
+            if (!stockEntry) {
+              await transaction.rollback();
+              return res.status(400).json({ error: `Stock entry not found for assignment ${item.assignmentId}` });
+            }
           }
 
-          const material = assignment.material;
-          const stockEntry = assignment.stockEntry;
+          // Handle POS items differently - deduct from stock entries but skip assignment logic
+          if (isPOSItem) {
+            console.log(`Processing POS item: ${material.name} - deducting from stock entries`);
+            
+            // Calculate deduction quantity for POS item
+            let stockDeductionQuantity;
+            if (material && material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+              // Package unit conversion logic - deduct individual units directly
+              stockDeductionQuantity = item.quantity; // POS items are sold in base units (bottles, pieces, etc.)
+            } else {
+              // Non-package units - direct deduction
+              stockDeductionQuantity = item.quantity;
+            }
 
-          if (!stockEntry) {
-            await transaction.rollback();
-            return res.status(400).json({ error: `Stock entry not found for assignment ${item.assignmentId}` });
+            // Find stock entries for this POS material using FIFO
+            const stockEntries = await StockEntry.findAll({
+              where: {
+                materialId: material.id
+              },
+              order: [["createdAt", "ASC"]], // FIFO - First In, First Out
+              transaction
+            });
+
+            if (stockEntries.length === 0) {
+              console.warn(`No stock entries found for POS item: ${material.name}`);
+              // Allow sale even without stock entries for POS items
+              continue;
+            }
+
+            // Deduct from stock entries using FIFO logic
+            let remainingToDeduct = stockDeductionQuantity;
+            for (const stockEntry of stockEntries) {
+              if (remainingToDeduct <= 0) break;
+
+              const availableQuantity = stockEntry.purchasedIndividualQuantity;
+              const deductFromThisEntry = Math.min(remainingToDeduct, availableQuantity);
+
+              if (deductFromThisEntry > 0) {
+                // Update stock entry
+                const newIndividualQuantity = availableQuantity - deductFromThisEntry;
+                stockEntry.purchasedIndividualQuantity = Math.round(newIndividualQuantity);
+                await stockEntry.save({ transaction });
+
+                console.log(`Deducted ${deductFromThisEntry} ${material.baseUnit} from stock entry ${stockEntry.id} for POS item ${material.name}`);
+                
+                // Log negative stock warning if needed
+                if (Math.round(newIndividualQuantity) < 0) {
+                  console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for POS item ${material.name} now has negative individual quantity: ${Math.round(newIndividualQuantity)}`);
+                  negativeStockWarnings.push({
+                    materialId: material.id,
+                    materialName: material.name,
+                    type: "stockEntry",
+                    stockEntryId: stockEntry.id,
+                    availableQuantity: availableQuantity,
+                    requiredQuantity: deductFromThisEntry,
+                    shortageQuantity: Math.max(0, deductFromThisEntry - availableQuantity),
+                    unit: material.baseUnit
+                  });
+                }
+
+                remainingToDeduct -= deductFromThisEntry;
+              }
+            }
+
+            // If we couldn't deduct everything, log a warning
+            if (remainingToDeduct > 0) {
+              console.warn(`Could not deduct full quantity for POS item ${material.name}. Remaining: ${remainingToDeduct} ${material.baseUnit}`);
+              negativeStockWarnings.push({
+                materialId: material.id,
+                materialName: material.name,
+                type: "insufficient_stock",
+                availableQuantity: stockDeductionQuantity - remainingToDeduct,
+                requiredQuantity: stockDeductionQuantity,
+                shortageQuantity: remainingToDeduct,
+                unit: material.baseUnit
+              });
+            }
+
+            continue; // Skip assignment logic for POS items
           }
 
           // Calculate deduction quantities - use individual units for both assignment and stock

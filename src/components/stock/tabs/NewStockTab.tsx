@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Minus, Plus } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
+import { ValidationHelper } from "../ValidationHelper";
 
 interface NewStockTabProps {
   form: UseFormReturn<StockFormInputs>;
@@ -24,8 +25,35 @@ interface NewStockTabProps {
 }
 
 export function NewStockTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onSubmit, onCancel }: NewStockTabProps) {
-  const handleSubmit = (data: StockFormInputs) => {
+  const handleSubmit = async (data: StockFormInputs) => {
     console.log("📋 NewStockTab handleSubmit - Raw form data:", data);
+    
+    // Check for required fields and focus/scroll to first missing one
+    const requiredFields = [
+      { name: 'materialId', element: document.querySelector('[name="materialId"]') },
+      { name: 'supplier', element: document.querySelector('[name="supplier"]') },
+      { name: 'purchasedQuantity', element: document.querySelector('[name="purchasedQuantity"]') },
+      { name: 'purchasedUnit', element: document.querySelector('[name="purchasedUnit"]') },
+      { name: 'costPerPurchasedUnit', element: document.querySelector('[name="costPerPurchasedUnit"]') }
+    ];
+
+    for (const field of requiredFields) {
+      const value = form.getValues(field.name as keyof StockFormInputs);
+      const isEmpty = !value || (typeof value === 'string' && value.trim() === '') || 
+                     (field.name === 'purchasedQuantity' && parseFloat(value as string) <= 0) ||
+                     (field.name === 'costPerPurchasedUnit' && parseFloat(value as string) < 0);
+      
+      if (isEmpty && field.element) {
+        // Scroll to the field
+        field.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Focus the field
+        (field.element as HTMLElement).focus();
+        // Trigger validation to show error
+        form.trigger(field.name as keyof StockFormInputs);
+        return; // Stop at first missing field
+      }
+    }
+    
     const formData = data as unknown as StockFormData;
     console.log("📋 NewStockTab handleSubmit - Converted form data:", formData);
     onSubmit(formData);
@@ -39,12 +67,19 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
             <FormField
               control={form.control}
               name="materialId"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>Material</FormLabel>
+                  <FormLabel className="flex items-center gap-1">
+                    Material
+                    <span className="text-red-500 text-sm">*</span>
+                  </FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className={cn(
+                        "transition-colors",
+                        !field.value && "border-red-200 focus:border-red-500",
+                        field.value && !fieldState.error && "border-green-200 focus:border-green-500"
+                      )}>
                         <SelectValue placeholder="Select material" />
                       </SelectTrigger>
                     </FormControl>
@@ -60,6 +95,11 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                  <ValidationHelper
+                    isRequired={true}
+                    hasValue={!!field.value}
+                    hasError={!!fieldState.error}
+                  />
                 </FormItem>
               )}
             />
@@ -67,13 +107,29 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
             <FormField
               control={form.control}
               name="supplier"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>Supplier</FormLabel>
+                  <FormLabel className="flex items-center gap-1">
+                    Supplier
+                    <span className="text-red-500 text-sm">*</span>
+                  </FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., ABC Food Distributors" {...field} />
+                    <Input 
+                      placeholder="e.g., ABC Food Distributors" 
+                      {...field} 
+                      className={cn(
+                        "transition-colors",
+                        !field.value && "border-red-200 focus:border-red-500",
+                        field.value && !fieldState.error && "border-green-200 focus:border-green-500"
+                      )}
+                    />
                   </FormControl>
                   <FormMessage />
+                  <ValidationHelper
+                    isRequired={true}
+                    hasValue={!!field.value}
+                    hasError={!!fieldState.error}
+                  />
                 </FormItem>
               )}
             />
@@ -81,55 +137,85 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
             <FormField
               control={form.control}
               name="purchasedQuantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Purchased Quantity</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
-                        onClick={() => {
-                          const currentValue = parseInt(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 1);
-                          field.onChange(newValue.toString());
-                        }}
-                        disabled={parseInt(field.value) <= 0}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-green-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
-                        onClick={() => {
-                          const currentValue = parseInt(field.value) || 0;
-                          const newValue = currentValue + 1;
-                          field.onChange(newValue.toString());
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field, fieldState }) => {
+                const hasValue = field.value && parseInt(field.value) > 0;
+                return (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1">
+                      Purchased Quantity
+                      <span className="text-red-500 text-sm">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
+                          onClick={() => {
+                            const currentValue = parseInt(field.value) || 0;
+                            const newValue = Math.max(0, currentValue - 1);
+                            field.onChange(newValue.toString());
+                          }}
+                          disabled={parseInt(field.value) <= 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Input 
+                          type="number" 
+                          step="1" 
+                          min="0" 
+                          placeholder="0" 
+                          {...field} 
+                          onChange={e => field.onChange(e.target.value)} 
+                          className={cn(
+                            "h-11 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-colors",
+                            !hasValue && "border-red-200 focus:border-red-500 focus:ring-red-500",
+                            hasValue && !fieldState.error && "border-green-300 focus:border-green-500 focus:ring-green-500"
+                          )}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
+                          onClick={() => {
+                            const currentValue = parseInt(field.value) || 0;
+                            const newValue = currentValue + 1;
+                            field.onChange(newValue.toString());
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                    <ValidationHelper
+                      isRequired={true}
+                      hasValue={hasValue}
+                      hasError={!!fieldState.error}
+                    />
+                  </FormItem>
+                );
+              }}
             />
 
             <FormField
               control={form.control}
               name="purchasedUnit"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>Unit</FormLabel>
+                  <FormLabel className="flex items-center gap-1">
+                    Unit
+                    <span className="text-red-500 text-sm">*</span>
+                  </FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className={cn(
+                        "transition-colors",
+                        !field.value && "border-red-200 focus:border-red-500",
+                        field.value && !fieldState.error && "border-green-200 focus:border-green-500"
+                      )}>
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
                     </FormControl>
@@ -142,6 +228,11 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                  <ValidationHelper
+                    isRequired={true}
+                    hasValue={!!field.value}
+                    hasError={!!fieldState.error}
+                  />
                 </FormItem>
               )}
             />
@@ -149,44 +240,68 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
             <FormField
               control={form.control}
               name="costPerPurchasedUnit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cost per Unit ($)</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
-                        onClick={() => {
-                          const currentValue = parseFloat(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 0.0001);
-                          field.onChange(newValue.toFixed(4));
-                        }}
-                        disabled={parseFloat(field.value) <= 0}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <Input onWheel={e => e.preventDefault()} type="number" step="0.0001" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
-                        onClick={() => {
-                          const currentValue = parseFloat(field.value) || 0;
-                          const newValue = currentValue + 0.0001;
-                          field.onChange(newValue.toFixed(4));
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field, fieldState }) => {
+                const hasValue = field.value && parseFloat(field.value) >= 0;
+                return (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1">
+                      Cost per Unit ($)
+                      <span className="text-red-500 text-sm">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          onClick={() => {
+                            const currentValue = parseFloat(field.value) || 0;
+                            const newValue = Math.max(0, currentValue - 0.0001);
+                            field.onChange(newValue.toFixed(4));
+                          }}
+                          disabled={parseFloat(field.value) <= 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Input 
+                          onWheel={e => e.preventDefault()} 
+                          type="number" 
+                          step="0.0001" 
+                          min="0" 
+                          placeholder="0.00" 
+                          {...field} 
+                          onChange={e => field.onChange(e.target.value)} 
+                          className={cn(
+                            "h-11 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-colors",
+                            !hasValue && "border-red-200 focus:border-red-500 focus:ring-red-500",
+                            hasValue && !fieldState.error && "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                          )}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          onClick={() => {
+                            const currentValue = parseFloat(field.value) || 0;
+                            const newValue = currentValue + 0.0001;
+                            field.onChange(newValue.toFixed(4));
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                    <ValidationHelper
+                      isRequired={true}
+                      hasValue={hasValue}
+                      hasError={!!fieldState.error}
+                    />
+                  </FormItem>
+                );
+              }}
             />
 
             <FormField

@@ -15,6 +15,7 @@ import { WasteFromEntryTab2 } from "./tabs/WasteFromEntryTab";
 
 export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit, onCancel, onAddStock, onRecordWaste, onAddToSpecificEntry, onWasteFromSpecificEntry }: StockFormProps) {
   const [activeTab, setActiveTab] = useState<string>(stockEntry ? "update-entry" : "new-stock");
+  
   const form = useForm<StockFormInputs>({
     resolver: zodResolver(stockSchema),
     defaultValues: {
