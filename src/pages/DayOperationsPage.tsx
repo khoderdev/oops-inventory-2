@@ -43,6 +43,21 @@ const DayOperationsPage: React.FC = () => {
     loadData();
   }, []);
 
+  // Keyboard event handler for Enter key
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === "Enter" && !showOpenModal && !showCloseModal && !currentDay) {
+        event.preventDefault();
+        setShowOpenModal(true);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyPress);
+    return () => {
+      document.removeEventListener("keydown", handleKeyPress);
+    };
+  }, [showOpenModal, showCloseModal, currentDay]);
+
   // Update form user fields when user changes
   useEffect(() => {
     if (user?.fullName) {
@@ -274,71 +289,67 @@ const DayOperationsPage: React.FC = () => {
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl shadow-lg border border-blue-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-                    <div className="flex items-center mb-3">
-                      <div className="p-2 bg-blue-200 rounded-lg mr-3">
-                        <DollarSign className="h-6 w-6 text-blue-700" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-8">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 sm:p-6 rounded-2xl shadow-lg border border-blue-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="p-3 bg-blue-200 rounded-lg mb-3">
+                        <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-blue-700" />
                       </div>
-                      <span className="text-base font-medium text-blue-800">Opening Cash</span>
+                      <span className="text-sm sm:text-base font-medium text-blue-800 mb-2">Opening Cash</span>
+                      <p className="text-xl sm:text-2xl font-bold text-blue-900">{formatCurrency(currentDay?.openingCash)}</p>
                     </div>
-                    <p className="text-2xl font-bold text-blue-900">{formatCurrency(currentDay?.openingCash)}</p>
                   </div>
 
                   {/* Total Sales - conditionally shown based on toggle */}
                   {showTotalSales && (
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl shadow-lg border border-green-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center">
-                          <div className="p-2 bg-green-200 rounded-lg mr-3">
-                            <TrendingUp className="h-6 w-6 text-green-700" />
-                          </div>
-                          <span className="text-base font-medium text-green-800">Total Sales</span>
-                        </div>
-                        <button onClick={() => setShowTotalSales(false)} className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors" title="Show Expected Cash">
-                          <ToggleRight className="h-5 w-5" />
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 sm:p-6 rounded-2xl shadow-lg border border-green-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                      <div className="flex flex-col items-center text-center relative">
+                        <button onClick={() => setShowTotalSales(false)} className="absolute top-0 right-0 text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors" title="Show Expected Cash">
+                          <ToggleRight className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
+                        <div className="p-3 bg-green-200 rounded-lg mb-3">
+                          <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-700" />
+                        </div>
+                        <span className="text-sm sm:text-base font-medium text-green-800 mb-2">Total Sales</span>
+                        <p className="text-xl sm:text-2xl font-bold text-green-900">{formatCurrency(currentDay?.totalSales)}</p>
                       </div>
-                      <p className="text-2xl font-bold text-green-900">{formatCurrency(currentDay?.totalSales)}</p>
                     </div>
                   )}
 
                   {/* Expected Cash - conditionally shown based on toggle */}
                   {!showTotalSales && (
-                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-2xl shadow-lg border border-orange-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center">
-                          <div className="p-2 bg-orange-200 rounded-lg mr-3">
-                            <Clock className="h-6 w-6 text-orange-700" />
-                          </div>
-                          <span className="text-base font-medium text-orange-800">Expected Cash</span>
-                        </div>
-                        <button onClick={() => setShowTotalSales(true)} className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors" title="Show Total Sales">
-                          <ToggleLeft className="h-5 w-5" />
+                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 sm:p-6 rounded-2xl shadow-lg border border-orange-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                      <div className="flex flex-col items-center text-center relative">
+                        <button onClick={() => setShowTotalSales(true)} className="absolute top-0 right-0 text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors" title="Show Total Sales">
+                          <ToggleLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
+                        <div className="p-3 bg-orange-200 rounded-lg mb-3">
+                          <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-orange-700" />
+                        </div>
+                        <span className="text-sm sm:text-base font-medium text-orange-800 mb-2">Expected Cash</span>
+                        <p className="text-xl sm:text-2xl font-bold text-orange-900">{formatCurrency(currentDay?.expectedCash)}</p>
                       </div>
-                      <p className="text-2xl font-bold text-orange-900">{formatCurrency(currentDay?.expectedCash)}</p>
                     </div>
                   )}
 
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-                    <div className="flex items-center mb-3">
-                      <div className="p-2 bg-purple-200 rounded-lg mr-3">
-                        <BarChart3 className="h-6 w-6 text-purple-700" />
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 sm:p-6 rounded-2xl shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="p-3 bg-purple-200 rounded-lg mb-3">
+                        <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-700" />
                       </div>
-                      <span className="text-base font-medium text-purple-800">Transactions</span>
+                      <span className="text-sm sm:text-base font-medium text-purple-800 mb-2">Transactions</span>
+                      <p className="text-xl sm:text-2xl font-bold text-purple-900">{currentDay?.totalTransactions || 0}</p>
                     </div>
-                    <p className="text-2xl font-bold text-purple-900">{currentDay?.totalTransactions || 0}</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl shadow-lg border border-red-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-                    <div className="flex items-center mb-3">
-                      <div className="p-2 bg-red-200 rounded-lg mr-3">
-                        <DollarSign className="h-6 w-6 text-red-700" />
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 sm:p-6 rounded-2xl shadow-lg border border-red-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="p-3 bg-red-200 rounded-lg mb-3">
+                        <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-red-700" />
                       </div>
-                      <span className="text-base font-medium text-red-800">Cash Variance</span>
+                      <span className="text-sm sm:text-base font-medium text-red-800 mb-2">Cash Variance</span>
+                      <p className="text-xl sm:text-2xl font-bold text-red-900">{formatCurrency(currentDay?.status === "closed" ? currentDay?.cashVariance : (currentDay?.expectedCash || 0) - (currentDay?.openingCash || 0))}</p>
                     </div>
-                    <p className="text-2xl font-bold text-red-900">{formatCurrency(currentDay?.status === "closed" ? currentDay?.cashVariance : (currentDay?.expectedCash || 0) - (currentDay?.openingCash || 0))}</p>
                   </div>
                 </div>
               </div>
@@ -349,7 +360,16 @@ const DayOperationsPage: React.FC = () => {
                 </div>
                 <h3 className="text-3xl font-bold text-gray-900 mb-4">No Day Operation Active</h3>
                 <p className="text-xl text-gray-600 mb-8 max-w-md mx-auto">Start a new day to begin tracking sales and operations</p>
-                <button onClick={() => setShowOpenModal(true)} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-10 py-4 rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center mx-auto text-lg font-semibold">
+                <button
+                  onClick={() => setShowOpenModal(true)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      setShowOpenModal(true);
+                    }
+                  }}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-10 py-4 rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center mx-auto text-lg font-semibold"
+                >
                   <Plus className="h-6 w-6 mr-3" />
                   Open Day
                 </button>
@@ -404,7 +424,18 @@ const DayOperationsPage: React.FC = () => {
       {/* Open Day Modal */}
       {showOpenModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div
+            className="bg-white rounded-lg p-6 w-full max-w-md"
+            onKeyDown={e => {
+              if (e.key === "Enter" && !actionLoading) {
+                e.preventDefault();
+                handleOpenDay();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setShowOpenModal(false);
+              }
+            }}
+          >
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Open New Day</h3>
             <div className="space-y-4">
               <div>
@@ -419,8 +450,15 @@ const DayOperationsPage: React.FC = () => {
                       openingCash: parseFloat(e.target.value) || 0
                     })
                   }
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !actionLoading) {
+                      e.preventDefault();
+                      handleOpenDay();
+                    }
+                  }}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="0.00"
+                  autoFocus
                 />
               </div>
               <div>
@@ -450,9 +488,15 @@ const DayOperationsPage: React.FC = () => {
                       notes: e.target.value
                     })
                   }
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && e.ctrlKey && !actionLoading) {
+                      e.preventDefault();
+                      handleOpenDay();
+                    }
+                  }}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={3}
-                  placeholder="Any opening notes..."
+                  placeholder="Any opening notes... (Ctrl+Enter to submit)"
                 />
               </div>
             </div>
@@ -460,7 +504,17 @@ const DayOperationsPage: React.FC = () => {
               <button onClick={() => setShowOpenModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
                 Cancel
               </button>
-              <button onClick={handleOpenDay} disabled={actionLoading} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50">
+              <button
+                onClick={handleOpenDay}
+                disabled={actionLoading}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !actionLoading) {
+                    e.preventDefault();
+                    handleOpenDay();
+                  }
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
                 {actionLoading ? "Opening..." : "Open Day"}
               </button>
             </div>
@@ -476,20 +530,38 @@ const DayOperationsPage: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Actual Closing Cash Amount *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={closeDayForm.closingCash}
-                  onChange={e =>
-                    setCloseDayForm({
-                      ...closeDayForm,
-                      closingCash: parseFloat(e.target.value) || 0
-                    })
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="0.00"
-                  required
-                />
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={closeDayForm.closingCash}
+                    onChange={e =>
+                      setCloseDayForm({
+                        ...closeDayForm,
+                        closingCash: parseFloat(e.target.value) || 0
+                      })
+                    }
+                    className=" border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0.00"
+                    required
+                    autoFocus
+                  />
+                  {currentDay && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCloseDayForm({
+                          ...closeDayForm,
+                          closingCash: currentDay.expectedCash || 0
+                        });
+                      }}
+                      className="w-full px-3 py-2 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium whitespace-nowrap"
+                      title="Click to use expected cash amount"
+                    >
+                      Expected: {formatCurrency(currentDay.expectedCash)}
+                    </button>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Closed By</label>
@@ -523,12 +595,6 @@ const DayOperationsPage: React.FC = () => {
                   placeholder="Any closing notes..."
                 />
               </div>
-              {currentDay && (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm text-blue-700">Expected Cash: {formatCurrency(currentDay.expectedCash)}</p>
-                  <p className="text-sm text-blue-700">Variance: {formatCurrency(closeDayForm.closingCash - currentDay.expectedCash)}</p>
-                </div>
-              )}
             </div>
             <div className="flex justify-end space-x-3 mt-6">
               <button onClick={() => setShowCloseModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">

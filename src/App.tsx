@@ -1,12 +1,15 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import UserManagementPage from "./components/admin/UserManagementPage";
 import LoginPage from "./components/auth/LoginPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import { InventoryManagementPanel } from "./components/inventory/InventoryManagementPanel";
 import ProtectedNavigation from "./components/layout/ProtectedNavigation";
+import { MenuItemBuilder } from "./components/menu/MenuBuilder";
 import { POSPanel } from "./components/POSPanel";
 import ProfilePage from "./components/profile/ProfilePage";
 import SessionManagementPage from "./components/profile/SessionManagementPage";
@@ -14,10 +17,10 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 import { useInventoryData } from "./hooks/useInventoryData";
 import DayOperationsPage from "./pages/DayOperationsPage";
-import { InventoryManagementPage } from "./pages/InventoryManagementPage";
 import NotFound from "./pages/NotFound";
 import { SalesHistoryPage } from "./pages/SalesHistoryPage";
 import { PERMISSIONS } from "./types/auth";
+import { InventoryManagementPanelProps } from "./types/inventory";
 
 const queryClient = new QueryClient();
 
@@ -33,8 +36,9 @@ const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const App = () => {
-  const { materials, sectionAssignments } = useInventoryData();
+export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps = {}) {
+  const { materials } = useInventoryData();
+  const { materialsWithStock, stockEntries, sections, sectionAssignments, menuItems, fetchTabData } = useInventoryStore();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -66,30 +70,17 @@ const App = () => {
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
                       <AuthenticatedLayout>
-                        <POSPanel materials={materials} sectionAssignments={sectionAssignments} />
+                        <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }
                 />
-                {/* Materials */}
                 <Route
-                  path="/materials"
+                  path="/inventory"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
                       <AuthenticatedLayout>
-                        <InventoryManagementPage />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Stock */}
-                <Route
-                  path="/stock"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ}>
-                      <AuthenticatedLayout>
-                        <InventoryManagementPage />
+                        <InventoryManagementPanel />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }
@@ -106,13 +97,22 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 />
-
                 <Route
                   path="/sales-history"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
                       <AuthenticatedLayout>
                         <SalesHistoryPage />
+                      </AuthenticatedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/menu-items"
+                  element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
+                      <AuthenticatedLayout>
+                        <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={onCreateMenuItem} onUpdateMenuItem={onUpdateMenuItem} onDeleteMenuItem={onDeleteMenuItem} sections={sections} sectionAssignments={sectionAssignments} />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }
@@ -194,6 +194,16 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/inventory/assignments"
+                  element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.ASSIGNMENTS_READ}>
+                      <AuthenticatedLayout>
+                        <InventoryManagementPanel />
+                      </AuthenticatedLayout>
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* 404 */}
                 <Route path="*" element={<NotFound />} />
@@ -204,5 +214,4 @@ const App = () => {
       </TooltipProvider>
     </QueryClientProvider>
   );
-};
-export default App;
+}

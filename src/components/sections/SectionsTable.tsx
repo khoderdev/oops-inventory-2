@@ -383,53 +383,55 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-white dark:bg-card rounded-lg overflow-hidden">
       {/* Mobile View */}
       <MobileCardView sectionsWithAssignments={sectionsWithAssignments} handleSectionRowClick={handleSectionRowClick} handleEditSection={handleEditSection} handleDeleteSection={handleDeleteSection} handleAddAssignment={handleAddAssignment} handleAssignmentRowClick={handleAssignmentRowClick} handleEditAssignment={handleEditAssignment} handleDeleteAssignment={handleDeleteAssignment} />
 
       {/* Desktop View */}
       <div className="hidden sm:flex flex-col h-full">
-        <Card className="flex-1 bg-transparent border-0 shadow-none">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 border-b-2 border-primary/20 px-3 sm:px-4 py-2 sm:py-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  Section Inventory
-                </CardTitle>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">Manage and organize your inventory by sections</p>
-              </div>
-              <Button size="sm" onClick={() => setShowSectionForm(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Section
-              </Button>
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 px-3 sm:px-4 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                Section Inventory
+              </CardTitle>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">Manage and organize your inventory by sections</p>
             </div>
-          </CardHeader>
+            <Button size="sm" onClick={() => setShowSectionForm(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Section
+            </Button>
+          </div>
+        </CardHeader>
+
+        <Card className="flex-1 bg-transparent border-0 shadow-none">
           <CardContent className="p-0">
-            <div className={cn("h-full overflow-auto", "scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400", "dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600", "scroll-smooth")} style={{ maxHeight: "calc(100vh - 240px)", minHeight: "250px" }}>
+            <div className={cn("h-full overflow-auto", "scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400", "dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600", "scroll-smooth")} style={{ maxHeight: "calc(100vh - 200px)", minHeight: "300px" }}>
               <Table className="w-full table-fixed min-w-[800px]" style={{ tableLayout: "fixed" }}>
-                <TableHeader className="sticky top-0 z-30 bg-white dark:bg-card shadow-sm backdrop-blur-sm">
-                  <TableRow className="border-b-2 border-primary/20 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
-                    <TableHead className={cn("font-bold text-xs sm:text-sm lg:text-sm", "text-slate-700 dark:text-slate-200", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r-2 border-slate-300 dark:border-slate-600", "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50", "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800", "rounded-tl-lg")} style={{ width: "250px" }}>
-                      <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px]">
-                        <span className="truncate font-bold leading-tight flex-1">Section</span>
+                <TableHeader className="sticky top-0 z-10 bg-white dark:bg-card shadow-sm backdrop-blur-sm">
+                  <TableRow className="border-b-2 border-slate-200 dark:border-slate-700 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
+                    <TableHead className={cn("font-bold text-xs sm:text-sm lg:text-sm", "text-slate-700 dark:text-slate-200", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r border-slate-200 dark:border-slate-600", "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50")} style={{ width: "250px" }}>
+                      <div className="flex items-center gap-2 min-h-[24px]">
+                        <span className="truncate font-bold leading-tight">Section</span>
                       </div>
                     </TableHead>
-                    <TableHead className={cn("font-bold text-xs sm:text-sm lg:text-sm text-center", "text-slate-700 dark:text-slate-200", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r-2 border-slate-300 dark:border-slate-600", "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50", "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800")} style={{ width: "100px" }}>
-                      <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px] justify-center">
-                        <span className="truncate font-bold leading-tight flex-1">Items</span>
-                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+
+                    <TableHead className={cn("font-bold text-xs sm:text-sm lg:text-sm text-center", "text-slate-700 dark:text-slate-200", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r border-slate-200 dark:border-slate-600", "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50")} style={{ width: "100px" }}>
+                      <div className="flex items-center gap-2 min-h-[24px] justify-center">
+                        <span className="truncate font-bold leading-tight">Items</span>
                       </div>
                     </TableHead>
-                    <TableHead className={cn("font-bold text-xs sm:text-sm lg:text-sm text-right", "text-slate-700 dark:text-slate-200", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r-2 border-slate-300 dark:border-slate-600", "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50", "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800")} style={{ width: "120px" }}>
-                      <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px] justify-end">
-                        <span className="truncate font-bold leading-tight flex-1">Total Value</span>
-                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+
+                    <TableHead className={cn("font-bold text-xs sm:text-sm lg:text-sm text-right", "text-slate-700 dark:text-slate-200", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r border-slate-200 dark:border-slate-600", "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50")} style={{ width: "120px" }}>
+                      <div className="flex items-center gap-2 min-h-[24px] justify-end">
+                        <span className="truncate font-bold leading-tight">Total Value</span>
                       </div>
                     </TableHead>
-                    <TableHead className={cn("font-bold text-xs sm:text-sm lg:text-sm text-center", "text-slate-700 dark:text-slate-200", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r-0", "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50", "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800", "rounded-tr-lg")} style={{ width: "120px" }}>
-                      <div className="flex items-center gap-1 sm:gap-2 min-h-[20px] sm:min-h-[24px] justify-center">
-                        <span className="truncate font-bold leading-tight flex-1">Actions</span>
+
+                    <TableHead className={cn("font-bold text-xs sm:text-sm lg:text-sm text-center", "text-slate-700 dark:text-slate-200", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50")} style={{ width: "120px" }}>
+                      <div className="flex items-center gap-2 min-h-[24px] justify-center">
+                        <span className="truncate font-bold leading-tight">Actions</span>
                       </div>
                     </TableHead>
                   </TableRow>
@@ -439,7 +441,7 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
                     <TableRow
                       key={section.id}
                       onClick={() => handleSectionRowClick(section)}
-                      className={cn("group transition-all duration-200", "hover:bg-gradient-to-r hover:from-blue-50/60 hover:to-indigo-50/40", "dark:hover:from-blue-900/30 dark:hover:to-indigo-900/20", "border-b border-slate-100 dark:border-slate-700", index % 2 === 0 && "bg-slate-50/40 dark:bg-slate-800/40")}
+                      className={cn("group transition-all duration-200 cursor-pointer", "hover:bg-gradient-to-r hover:from-blue-50/60 hover:to-indigo-50/40", "dark:hover:from-blue-900/30 dark:hover:to-indigo-900/20", "border-b border-slate-100 dark:border-slate-700", "hover:shadow-sm", index % 2 === 0 && "bg-slate-50/30 dark:bg-slate-800/30")}
                       role="button"
                       tabIndex={0}
                       onKeyDown={e => {
@@ -449,18 +451,21 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
                         }
                       }}
                     >
-                      <TableCell className={cn("text-xs sm:text-sm lg:text-sm", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r-2 border-slate-200 dark:border-slate-600", "transition-colors duration-200", "group-hover:border-slate-200 dark:group-hover:border-slate-500")} style={{ width: "250px" }}>
-                        <div className="font-bold text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-base">{section.name}</div>
+                      <TableCell className={cn("text-xs sm:text-sm lg:text-sm", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r border-slate-200 dark:border-slate-600", "transition-colors duration-200")} style={{ width: "250px" }}>
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{section.name}</div>
                       </TableCell>
-                      <TableCell className={cn("text-xs sm:text-sm lg:text-sm text-center", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r-2 border-slate-200 dark:border-slate-600", "transition-colors duration-200", "group-hover:border-slate-200 dark:group-hover:border-slate-500")} style={{ width: "100px" }}>
-                        <Badge variant="outline" className="font-mono bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-700 px-3 py-1">
+
+                      <TableCell className={cn("text-xs sm:text-sm lg:text-sm text-center", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r border-slate-200 dark:border-slate-600", "transition-colors duration-200")} style={{ width: "100px" }}>
+                        <Badge variant="outline" className="font-mono bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-700 px-2 py-1 text-xs">
                           {section.assignments.length}
                         </Badge>
                       </TableCell>
-                      <TableCell className={cn("text-xs sm:text-sm lg:text-sm font-bold text-right", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r-2 border-slate-200 dark:border-slate-600", "transition-colors duration-200", "group-hover:border-slate-200 dark:group-hover:border-slate-500", "text-green-600 dark:text-green-400")} style={{ width: "120px" }}>
+
+                      <TableCell className={cn("text-xs sm:text-sm lg:text-sm font-semibold text-right", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r border-slate-200 dark:border-slate-600", "transition-colors duration-200", "text-green-600 dark:text-green-400")} style={{ width: "120px" }}>
                         {formatCurrency(section.totalValue)}
                       </TableCell>
-                      <TableCell className={cn("text-xs sm:text-sm lg:text-sm text-center", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "border-r-0", "transition-colors duration-200", "group-hover:border-slate-200 dark:group-hover:border-slate-500")} style={{ width: "120px" }}>
+
+                      <TableCell className={cn("text-xs sm:text-sm lg:text-sm text-center", "py-3 px-2 sm:py-4 sm:px-3 lg:px-4", "transition-colors duration-200")} style={{ width: "120px" }}>
                         <div className="flex justify-center">
                           <ActionButtons onEdit={() => handleEditSection(section)} onDelete={() => handleDeleteSection(section.id)} onAdd={() => handleAddAssignment(section.id)} deleteTitle="Delete Section" deleteDescription={`This will permanently delete the "${section.name}" section and all its assignments.`} itemName={section.name} />
                         </div>

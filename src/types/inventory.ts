@@ -738,3 +738,16 @@ export interface DayActivitiesResponse {
   lastActivity?: Date;
   dayStatus: "opened" | "closed";
 }
+
+//-------------------------------------------------------------------------------------------------------
+
+export interface InventoryManagementPanelProps {
+  onDeleteMaterial?: (id: string) => void;
+  onDeleteStockEntry?: (id: string) => void;
+  onCreateMenuItem?: (data: MenuItem) => void;
+  onUpdateMenuItem?: (id: string, data: MenuItem) => void;
+  onDeleteMenuItem?: (id: string) => void;
+  onCreateSection?: (data: { name: string; description?: string }) => void;
+  onUpdateSection?: (id: string, data: { name: string; description?: string }) => void;
+  onDeleteSection?: (id: string) => void;
+}

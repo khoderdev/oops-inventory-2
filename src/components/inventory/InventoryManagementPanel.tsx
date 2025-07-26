@@ -3,32 +3,13 @@ import { MaterialTable } from "@/components/materials/MaterialTable";
 import { SectionForm } from "@/components/sections/SectionForm";
 import { StockEntriesTable } from "@/components/stock/StockEntriesTable";
 import { StockForm } from "@/components/stock/StockForm";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { MaterialWithStock, MenuItem } from "@/types/inventory";
-import { formatCurrency } from "@/utils/conversionLogic";
-import { calculateCostForQuantity, getSuggestedUnits } from "@/utils/inventoryCalculations";
+import { InventoryManagementPanelProps } from "@/types/inventory";
 import { Building2 } from "lucide-react";
-import { useState } from "react";
-import { MenuItemBuilder } from "../menu/MenuBuilder";
 import { SectionsManagementPanel } from "../sections/SectionsManagementPanel";
-
-interface InventoryManagementPanelProps {
-  onDeleteMaterial?: (id: string) => void;
-  onDeleteStockEntry?: (id: string) => void;
-  onCreateMenuItem?: (data: MenuItem) => void;
-  onUpdateMenuItem?: (id: string, data: MenuItem) => void;
-  onDeleteMenuItem?: (id: string) => void;
-  onCreateSection?: (data: { name: string; description?: string }) => void;
-  onUpdateSection?: (id: string, data: { name: string; description?: string }) => void;
-  onDeleteSection?: (id: string) => void;
-}
 
 export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps = {}) {
   const {
@@ -108,26 +89,18 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
     <div className="space-y-6">
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList>
-          <TabsTrigger value="material" className="relative">
+        <TabsList className="w-full">
+          <TabsTrigger value="material" className="relative w-full">
             Material
             {tabLoading.material}
           </TabsTrigger>
-          <TabsTrigger value="stock" className="relative">
+          <TabsTrigger value="stock" className="relative w-full">
             Stock Entries
             {tabLoading.stock}
           </TabsTrigger>
-          <TabsTrigger value="sections" className="relative">
+          <TabsTrigger value="sections" className="relative w-full">
             Sections
             {tabLoading.sections}
-          </TabsTrigger>
-          <TabsTrigger value="menu" className="relative">
-            Menu Builder
-            {tabLoading.menu}
-          </TabsTrigger>
-          <TabsTrigger value="conversions" className="relative">
-            Unit Conversions
-            {tabLoading.conversions}
           </TabsTrigger>
         </TabsList>
 
@@ -141,14 +114,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
 
         <TabsContent value="sections">
           <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
-        </TabsContent>
-
-        <TabsContent value="menu">
-          <MenuItemBuilder stockEntries={stockEntries} materials={filteredMaterials} sections={sections} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
-        </TabsContent>
-
-        <TabsContent value="conversions">
-          <UnitConversionCalculator materials={materialsWithStock} />
         </TabsContent>
       </Tabs>
 
@@ -217,154 +182,5 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-// Extended ConversionResult for the calculator
-interface CalculatorConversionResult {
-  cost: number;
-  steps?: string[];
-  warning?: string;
-  error?: string;
-}
-
-// Unit Conversion Calculator Component
-function UnitConversionCalculator({ materials }: { materials: MaterialWithStock[] }) {
-  const [selectedMaterial, setSelectedMaterial] = useState<MaterialWithStock | null>(null);
-  const [quantity, setQuantity] = useState<number>(1);
-  const [fromUnit, setFromUnit] = useState<string>("");
-  const [toUnit, setToUnit] = useState<string>("");
-  const [conversionResult, setConversionResult] = useState<CalculatorConversionResult | null>(null);
-
-  const handleCalculate = () => {
-    if (!selectedMaterial || !quantity || !fromUnit || !toUnit) return;
-
-    try {
-      const result = calculateCostForQuantity(selectedMaterial, quantity, fromUnit, selectedMaterial.averageCostPerBaseUnit);
-      setConversionResult({
-        cost: result.cost,
-        steps: result.steps,
-        warning: undefined
-      });
-    } catch (error) {
-      console.error("Conversion error:", error);
-      setConversionResult({
-        cost: 0,
-        error: "Conversion failed"
-      });
-    }
-  };
-
-  const suggestedUnits = selectedMaterial ? getSuggestedUnits(selectedMaterial.unitType) : [];
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Unit Conversion Calculator</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Material</label>
-            <Select
-              value={selectedMaterial?.id || ""}
-              onValueChange={value => {
-                const material = materials.find(m => m.id === value);
-                setSelectedMaterial(material || null);
-                setFromUnit("");
-                setToUnit("");
-                setConversionResult(null);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select material" />
-              </SelectTrigger>
-              <SelectContent>
-                {materials.map(material => (
-                  <SelectItem key={material.id} value={material.id}>
-                    {material.name} ({material.baseUnit})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Quantity</label>
-            <Input type="number" value={quantity} onChange={e => setQuantity(Number(e.target.value))} placeholder="Enter quantity" min="0" step="0.01" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">From Unit</label>
-            <Select value={fromUnit} onValueChange={setFromUnit}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select from unit" />
-              </SelectTrigger>
-              <SelectContent>
-                {suggestedUnits.map(unit => (
-                  <SelectItem key={unit} value={unit}>
-                    {unit}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">To Unit</label>
-            <Select value={toUnit} onValueChange={setToUnit}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select to unit" />
-              </SelectTrigger>
-              <SelectContent>
-                {suggestedUnits.map(unit => (
-                  <SelectItem key={unit} value={unit}>
-                    {unit}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <Button onClick={handleCalculate} className="w-full">
-          Calculate Conversion & Cost
-        </Button>
-
-        {conversionResult && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Conversion Result</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {conversionResult.error ? (
-                <p className="text-red-600">{conversionResult.error}</p>
-              ) : (
-                <div className="space-y-2">
-                  <p>
-                    <strong>Total Cost:</strong> {formatCurrency(conversionResult.cost)}
-                  </p>
-                  {conversionResult.warning && (
-                    <p className="text-yellow-600">
-                      <strong>Warning:</strong> {conversionResult.warning}
-                    </p>
-                  )}
-                  <div>
-                    <strong>Calculation Steps:</strong>
-                    <ul className="list-disc list-inside mt-1 space-y-1">
-                      {conversionResult.steps?.map((step: string, index: number) => (
-                        <li key={index} className="text-sm text-muted-foreground">
-                          {step}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </CardContent>
-    </Card>
   );
 }

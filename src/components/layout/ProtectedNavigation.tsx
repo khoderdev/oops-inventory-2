@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Boxes, Calendar, ChevronDown, ChevronLeft, ChevronRight, FileText, Home, Link as LinkIcon, LogOut, MapPin, Menu, Package, Settings, Shield, ShoppingCart, User, Users, X } from "lucide-react";
+import { Activity, BarChart3, Calendar, ChevronDown, ChevronLeft, ChevronRight, FileText, Home, LogOut, Menu, Package, Settings, Shield, ShoppingCart, User, Users, X } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -39,32 +39,33 @@ const ProtectedNavigation: React.FC = () => {
       {
         label: "Inventory",
         icon: Package,
-        children: [
-          {
-            label: "Materials",
-            href: "/materials",
-            icon: Boxes,
-            permission: PERMISSIONS.MATERIALS_READ
-          },
-          {
-            label: "Stock Entries",
-            href: "/stock",
-            icon: Package,
-            permission: PERMISSIONS.STOCK_READ
-          },
-          {
-            label: "Sections",
-            href: "/sections",
-            icon: MapPin,
-            permission: PERMISSIONS.SECTIONS_READ
-          },
-          {
-            label: "Assignments",
-            href: "/assignments",
-            icon: LinkIcon,
-            permission: PERMISSIONS.ASSIGNMENTS_READ
-          }
-        ]
+        href: "/inventory"
+        // children: [
+        //   {
+        //     label: "Materials",
+        //     href: "/inventory/materials",
+        //     icon: Boxes,
+        //     permission: PERMISSIONS.MATERIALS_READ
+        //   },
+        //   {
+        //     label: "Stock Entries",
+        //     href: "/inventory/stock",
+        //     icon: Package,
+        //     permission: PERMISSIONS.STOCK_READ
+        //   },
+        //   {
+        //     label: "Sections",
+        //     href: "/inventory/sections",
+        //     icon: MapPin,
+        //     permission: PERMISSIONS.SECTIONS_READ
+        //   },
+        //   {
+        //     label: "Assignments",
+        //     href: "/inventory/assignments",
+        //     icon: LinkIcon,
+        //     permission: PERMISSIONS.ASSIGNMENTS_READ
+        //   }
+        // ]
       },
       {
         label: "Sales",
