@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -130,9 +129,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
             <User className="w-5 h-5 text-slate-500" />
             <div className="text-right">
               <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{user?.username || "User"}</div>
-              <Badge variant="secondary" className="text-xs">
-                {user?.role || "Staff"}
-              </Badge>
             </div>
           </div>
 

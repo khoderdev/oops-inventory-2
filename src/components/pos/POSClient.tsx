@@ -242,15 +242,10 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
       {/* Left Panel - Cart/Order Details */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
         {/* Cart Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
+        <div className="border-b border-gray-200 p-3">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
-            {cart.length > 0 && (
-              <Button variant="outline" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700">
-                <Trash2 className="w-4 h-4 mr-1" />
-                Clear
-              </Button>
-            )}
+            {cart.length > 0 && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
           </div>
         </div>
 
@@ -296,30 +291,10 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
                 <span>Sub Total</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Tax</span>
-                <span>{formatCurrency(tax)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tip</span>
-                <span>$0.02</span>
-              </div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Service Fee</span>
-                <span>$0.60</span>
-              </div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Small Order Fee</span>
-                <span>$2.50</span>
-              </div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Delivery Fee</span>
-                <span>$2.50</span>
-              </div>
               <div className="border-t border-gray-300 pt-2 mt-2">
                 <div className="flex justify-between font-bold text-lg">
                   <span>TOTAL</span>
-                  <span>{formatCurrency(total + 5.62)}</span>
+                  <span>{formatCurrency(total)}</span>
                 </div>
               </div>
             </div>
@@ -329,7 +304,7 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
                 SAVE
               </Button>
               <Button className="flex-1 bg-teal-500 hover:bg-teal-600 text-white" onClick={() => setShowPaymentDialog(true)}>
-                PAY {formatCurrency(total + 5.62)}
+                PAY {formatCurrency(total)}
               </Button>
             </div>
           </div>
@@ -339,8 +314,8 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
       {/* Right Panel - Product Grid */}
       <div className="flex-1 flex flex-col bg-white">
         {/* Top Controls */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
+        <div className="border-b border-gray-200">
+          <div className="flex items-center justify-between p-2">
             <div className="flex space-x-2">
               {categories.slice(0, 6).map(category => (
                 <Button key={category} variant={activeCategory === category ? "default" : "outline"} size="sm" onClick={() => setActiveCategory(category)} className={`capitalize ${activeCategory === category ? "bg-teal-500 hover:bg-teal-600 text-white" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
@@ -382,41 +357,41 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
         </div>
 
         {/* Bottom Action Bar */}
-        <div className="border-t border-gray-200 p-4 bg-gray-50">
-          <div className="grid grid-cols-9 gap-2">
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16 bg-teal-500 text-white hover:bg-teal-600">
+        <div className="border-t border-gray-200  bg-gray-50">
+          <div className="grid grid-cols-9 ">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 bg-teal-500 text-white hover:bg-teal-600 rounded-none">
               <Grid3X3 className="w-5 h-5 mb-1" />
               <span className="text-xs">Speed Key</span>
             </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
               <Calculator className="w-5 h-5 mb-1" />
               <span className="text-xs">Depts</span>
             </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
               <ShoppingCart className="w-5 h-5 mb-1" />
               <span className="text-xs">Orders</span>
             </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
               <Package className="w-5 h-5 mb-1" />
               <span className="text-xs">Table Orders</span>
             </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
               <AlertCircle className="w-5 h-5 mb-1" />
               <span className="text-xs">Hold</span>
             </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
               <X className="w-5 h-5 mb-1" />
               <span className="text-xs">Void</span>
             </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
               <AlertTriangle className="w-5 h-5 mb-1" />
               <span className="text-xs">No Sales</span>
             </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
               <DollarSign className="w-5 h-5 mb-1" />
               <span className="text-xs">Refund</span>
             </Button>
-            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 rounded-none">
               <Receipt className="w-5 h-5 mb-1" />
               <span className="text-xs">Price Check</span>
             </Button>

@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import UserManagementPage from "./components/admin/UserManagementPage";
 import { ReportGenerator } from "./components/analytics/ReportGenerator";
 import LoginPage from "./components/auth/LoginPage";
@@ -14,7 +14,7 @@ import { MenuItemBuilder } from "./components/menu/MenuBuilder";
 import { POSPanel } from "./components/POSPanel";
 import ProfilePage from "./components/profile/ProfilePage";
 import SessionManagementPage from "./components/profile/SessionManagementPage";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 import { useInventoryData } from "./hooks/useInventoryData";
 import DayOperationsPage from "./pages/DayOperationsPage";
@@ -38,6 +38,22 @@ const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// Role-based route wrapper that redirects STAFF users to POS client
+const RoleBasedRoute = ({ children, fallbackPath = "/pos-client" }: { children: React.ReactNode; fallbackPath?: string }) => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+
+  // If user is STAFF, redirect to POS client only
+  if (user?.role === "staff") {
+    return <Navigate to={fallbackPath} replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps = {}) {
   const { materials } = useInventoryData();
   const { materialsWithStock, stockEntries, sections, sectionAssignments, menuItems, fetchTabData } = useInventoryStore();
@@ -59,9 +75,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/"
                   element={
                     <ProtectedRoute>
-                      <AuthenticatedLayout>
-                        <DayOperationsPage />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <DayOperationsPage />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -71,9 +89,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/pos"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
-                      <AuthenticatedLayout>
-                        <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -91,9 +111,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/inventory"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
-                      <AuthenticatedLayout>
-                        <InventoryManagementPanel />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <InventoryManagementPanel />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -103,9 +125,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/sales"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
-                      <AuthenticatedLayout>
-                        <SalesHistoryPage />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <SalesHistoryPage />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -113,9 +137,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/sales-history"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
-                      <AuthenticatedLayout>
-                        <SalesHistoryPage />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <SalesHistoryPage />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -123,9 +149,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/menu-items"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
-                      <AuthenticatedLayout>
-                        <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={onCreateMenuItem} onUpdateMenuItem={onUpdateMenuItem} onDeleteMenuItem={onDeleteMenuItem} sections={sections} sectionAssignments={sectionAssignments} />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={onCreateMenuItem} onUpdateMenuItem={onUpdateMenuItem} onDeleteMenuItem={onDeleteMenuItem} sections={sections} sectionAssignments={sectionAssignments} />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -135,9 +163,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/day-operations"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
-                      <AuthenticatedLayout>
-                        <DayOperationsPage />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <DayOperationsPage />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -147,9 +177,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/profile"
                   element={
                     <ProtectedRoute>
-                      <AuthenticatedLayout>
-                        <ProfilePage />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <ProfilePage />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -158,9 +190,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/profile/sessions"
                   element={
                     <ProtectedRoute>
-                      <AuthenticatedLayout>
-                        <SessionManagementPage />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <SessionManagementPage />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -170,9 +204,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/admin/users"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.USERS_READ} requiredRole={["admin", "manager"]}>
-                      <AuthenticatedLayout>
-                        <UserManagementPage />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <UserManagementPage />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -182,9 +218,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/reports"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_READ}>
-                      <AuthenticatedLayout>
-                        <ReportGenerator className="w-full" />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <ReportGenerator className="w-full" />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -194,12 +232,14 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/analytics"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_READ}>
-                      <AuthenticatedLayout>
-                        <div className="p-8 text-center">
-                          <h1 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h1>
-                          <p className="text-gray-600">Analytics functionality coming soon...</p>
-                        </div>
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <div className="p-8 text-center">
+                            <h1 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h1>
+                            <p className="text-gray-600">Analytics functionality coming soon...</p>
+                          </div>
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -207,9 +247,11 @@ export default function App({ onDeleteMaterial, onDeleteStockEntry, onCreateMenu
                   path="/inventory/assignments"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.ASSIGNMENTS_READ}>
-                      <AuthenticatedLayout>
-                        <InventoryManagementPanel />
-                      </AuthenticatedLayout>
+                      <RoleBasedRoute>
+                        <AuthenticatedLayout>
+                          <InventoryManagementPanel />
+                        </AuthenticatedLayout>
+                      </RoleBasedRoute>
                     </ProtectedRoute>
                   }
                 />

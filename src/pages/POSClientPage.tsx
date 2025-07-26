@@ -8,20 +8,25 @@ import { PERMISSIONS } from "@/types/auth";
 
 const POSClientPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission, logout, isAuthenticated, isLoading } = useAuth();
   const { materialsWithStock, sectionAssignments, fetchTabData } = useInventoryStore();
   const [sessionStats, setSessionStats] = useState({
     totalSales: 0,
     transactionCount: 0
   });
 
-  // Check permissions
+  // Check authentication and permissions
   useEffect(() => {
-    if (!hasPermission(PERMISSIONS.SALES_CREATE)) {
+    if (!isLoading && !isAuthenticated) {
       navigate('/login');
       return;
     }
-  }, [hasPermission, navigate]);
+    
+    if (!isLoading && isAuthenticated && !hasPermission(PERMISSIONS.SALES_CREATE)) {
+      navigate('/login');
+      return;
+    }
+  }, [isAuthenticated, isLoading, hasPermission, navigate]);
 
   // Load initial data
   useEffect(() => {
@@ -40,12 +45,32 @@ const POSClientPage: React.FC = () => {
   };
 
   // Handle logout
-  const handleLogout = () => {
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Force navigation even if logout fails
+      navigate('/login');
+    }
   };
 
-  if (!user) {
-    return null; // Will redirect to login
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (useEffect will handle redirect)
+  if (!isAuthenticated || !user) {
+    return null;
   }
 
   return (
