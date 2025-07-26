@@ -1,37 +1,14 @@
 import { menuAPI } from "@/api/menu.api.ts.tsx";
 import { posAPI } from "@/api/pos.api.ts";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { MenuItem, MenuItemSale, NegativeStockWarning, Section, SectionAssignment, SoldItem, Material, SaleResponse } from "@/types/inventory";
-import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
+import { MenuItem, NegativeStockWarning, SaleResponse, SectionAssignment } from "@/types/inventory";
+import { formatCurrency } from "@/utils/conversionLogic";
+import { AlertCircle, AlertTriangle, Calculator, Check, CreditCard, DollarSign, Grid3X3, Loader2, Minus, Package, Plus, Receipt, ShoppingCart, Trash2, X } from "lucide-react";
 import { ReceiptPrinter } from "./ReceiptPrinter";
-import { 
-  AlertCircle, 
-  AlertTriangle, 
-  Check, 
-  Loader2, 
-  Minus, 
-  Package, 
-  Plus, 
-  Search, 
-  ShoppingCart, 
-  Trash2, 
-  X,
-  CreditCard,
-  DollarSign,
-  Receipt,
-  Calculator,
-  Grid3X3,
-  List,
-  Filter,
-  Zap
-} from "lucide-react";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
@@ -41,12 +18,12 @@ interface POSCartItem {
   name: string;
   price: number;
   quantity: number;
-  type: 'material' | 'menu';
-  originalItem: any; // SectionAssignment or MenuItem
+  type: "material" | "menu";
+  originalItem: SectionAssignment | MenuItem;
 }
 
 interface POSClientProps {
-  materials: any[];
+  materials: MenuItem[];
   sectionAssignments: SectionAssignment[];
   onSaleComplete?: (saleData: SaleResponse) => void;
 }
@@ -65,10 +42,10 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
   const [showNegativeStockDialog, setShowNegativeStockDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<string>("");
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [activeCategory, setActiveCategory] = useState<string>("all");
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
-  const [lastSaleData, setLastSaleData] = useState<any>(null);
+  const [lastSaleData, setLastSaleData] = useState<SaleResponse | null>(null);
 
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -142,7 +119,7 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
         const newItem: POSCartItem = {
           id: cartId,
           name: type === "material" ? item.material?.name : item.name,
-          price: type === "material" ? (item.material?.costPerUnit || 0) : (item.price || 0),
+          price: type === "material" ? item.material?.costPerUnit || 0 : item.price || 0,
           quantity: 1,
           type,
           originalItem: item
@@ -217,7 +194,7 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
         id: response.data?.sale?.id || `POS-${Date.now()}`,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
-        cashier: 'Current User', // You can get this from auth context
+        cashier: "Current User", // You can get this from auth context
         items: cart.map(item => ({
           name: item.name,
           quantity: item.quantity,
@@ -230,7 +207,7 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
         total,
         paymentAmount: parseFloat(paymentAmount) || total,
         change: Math.max(0, (parseFloat(paymentAmount) || total) - total),
-        paymentMethod: 'cash'
+        paymentMethod: "cash"
       };
 
       setLastSaleData(receiptData);
@@ -261,206 +238,190 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
   const quickAmounts = [10, 20, 50, 100, 200, 500];
 
   return (
-    <div className="h-full flex bg-slate-50 dark:bg-slate-900">
-      {/* Left Panel - Products */}
-      <div className="flex-1 flex flex-col">
-        {/* Search and Filters */}
-        <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4">
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input placeholder="Search products..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 h-12 text-lg" />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button variant={viewMode === "grid" ? "default" : "outline"} size="lg" onClick={() => setViewMode("grid")}>
-                <Grid3X3 className="w-4 h-4" />
-              </Button>
-              <Button variant={viewMode === "list" ? "default" : "outline"} size="lg" onClick={() => setViewMode("list")}>
-                <List className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Section Selection */}
-          <div className="flex items-center space-x-2 mb-4">
-            <Filter className="w-4 h-4 text-slate-500" />
-            <div className="flex space-x-2 overflow-x-auto">
-              <Button variant={!selectedSectionId ? "default" : "outline"} size="sm" onClick={() => setSelectedSectionId("")}>
-                All Sections
-              </Button>
-              {sections.map(section => (
-                <Button key={section.id} variant={selectedSectionId === section.id ? "default" : "outline"} size="sm" onClick={() => setSelectedSectionId(section.id)}>
-                  {section.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Category Selection */}
-          <div className="flex space-x-2 overflow-x-auto">
-            {categories.map(category => (
-              <Button key={category} variant={activeCategory === category ? "default" : "outline"} size="sm" onClick={() => setActiveCategory(category)} className="capitalize">
-                {category}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Products Grid/List */}
-        <ScrollArea className="flex-1 p-4">
-          {/* Individual Items */}
-          {filteredItems.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3 flex items-center">
-                <Package className="w-5 h-5 mr-2" />
-                Individual Items
-              </h3>
-              <div className={viewMode === "grid" ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" : "space-y-2"}>
-                {filteredItems.map(assignment => (
-                  <Card key={assignment.id} className={`cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${viewMode === "list" ? "flex items-center p-3" : "p-4"}`} onClick={() => addToCart(assignment, "material")}>
-                    <CardContent className={viewMode === "list" ? "flex items-center space-x-4 p-0" : "p-0"}>
-                      <div className={viewMode === "grid" ? "text-center" : "flex-1"}>
-                        <h4 className="font-medium text-slate-900 dark:text-slate-100">{assignment.material?.name}</h4>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 capitalize">{assignment.material?.category}</p>
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className="text-lg font-bold text-green-600">
-                            {formatCurrency(assignment.material?.costPerUnit || 0)}
-                          </span>
-                          <Badge variant="secondary">{assignment.assignedIndividualQuantity} left</Badge>
-                        </div>
-                      </div>
-                      {viewMode === "list" && (
-                        <Button size="sm">
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Menu Items */}
-          {filteredMenuItems.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center">
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                Menu Items
-              </h3>
-              <div className={viewMode === "grid" ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" : "space-y-2"}>
-                {filteredMenuItems.map(menuItem => (
-                  <Card key={menuItem.id} className={`cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${viewMode === "list" ? "flex items-center p-3" : "p-4"}`} onClick={() => addToCart(menuItem, "menu")}>
-                    <CardContent className={viewMode === "list" ? "flex items-center space-x-4 p-0" : "p-0"}>
-                      <div className={viewMode === "grid" ? "text-center" : "flex-1"}>
-                        <h4 className="font-medium text-slate-900 dark:text-slate-100">{menuItem.name}</h4>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 capitalize">{menuItem.category}</p>
-                        <div className="mt-2">
-                          <span className="text-lg font-bold text-green-600">
-                            {formatCurrency(menuItem.price || 0)}
-                          </span>
-                        </div>
-                      </div>
-                      {viewMode === "list" && (
-                        <Button size="sm">
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-        </ScrollArea>
-      </div>
-
-      {/* Right Panel - Cart */}
-      <div className="w-96 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col">
+    <div className="h-full flex bg-gray-100">
+      {/* Left Panel - Cart/Order Details */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
         {/* Cart Header */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center">
-              <ShoppingCart className="w-5 h-5 mr-2" />
-              Cart ({cart.length})
-            </h2>
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
             {cart.length > 0 && (
-              <Button variant="outline" size="sm" onClick={clearCart}>
-                <Trash2 className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700">
+                <Trash2 className="w-4 h-4 mr-1" />
                 Clear
               </Button>
             )}
           </div>
         </div>
 
-        {/* Cart Items */}
-        <ScrollArea className="flex-1 p-4">
+        {/* Order Items List */}
+        <div className="flex-1 overflow-y-auto">
           {cart.length === 0 ? (
-            <div className="text-center text-slate-500 dark:text-slate-400 mt-8">
-              <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Cart is empty</p>
-              <p className="text-sm">Add items to get started</p>
+            <div className="p-4 text-center text-gray-500">
+              <div className="text-sm font-medium mb-2">DELIVERY</div>
+              <div className="text-xs text-gray-400">No items in cart</div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="p-4 space-y-3">
+              <div className="text-sm font-medium text-gray-600 mb-3">DELIVERY</div>
               {cart.map(item => (
-                <Card key={item.id} className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{item.name}</h4>
-                      <p className="text-sm text-slate-500 capitalize">
-                        {item.type} • {formatCurrency(item.price)}
-                      </p>
-                    </div>
+                <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-800">{item.name}</div>
+                    {item.type === "material" && <div className="text-xs text-gray-500">Extra Powdered Seasoning</div>}
+                  </div>
+                  <div className="flex items-center space-x-3">
                     <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.id, item.quantity - 1)}>
+                      <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="w-6 h-6 p-0">
                         <Minus className="w-3 h-3" />
                       </Button>
-                      <span className="w-8 text-center font-medium">{item.quantity}</span>
-                      <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.id, item.quantity + 1)}>
+                      <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                      <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="w-6 h-6 p-0">
                         <Plus className="w-3 h-3" />
                       </Button>
                     </div>
+                    <div className="w-16 text-right font-medium text-gray-800">{formatCurrency(item.price * item.quantity)}</div>
                   </div>
-                  <div className="mt-2 flex justify-between items-center">
-                    <span className="text-sm text-slate-500">
-                      {item.quantity} × {formatCurrency(item.price)}
-                    </span>
-                    <span className="font-bold">
-                      {formatCurrency(item.price * item.quantity)}
-                    </span>
-                  </div>
-                </Card>
+                </div>
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
-        {/* Cart Summary & Checkout */}
+        {/* Order Summary */}
         {cart.length > 0 && (
-          <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-4">
-            <div className="space-y-2">
+          <div className="border-t border-gray-200 p-4 bg-gray-50">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Subtotal:</span>
+                <span>Sub Total</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tax (10%):</span>
+                <span>Tax</span>
                 <span>{formatCurrency(tax)}</span>
               </div>
-              <Separator />
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total:</span>
-                <span>{formatCurrency(total)}</span>
+              <div className="flex justify-between">
+                <span>Tip</span>
+                <span>$0.02</span>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Service Fee</span>
+                <span>$0.60</span>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Small Order Fee</span>
+                <span>$2.50</span>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Delivery Fee</span>
+                <span>$2.50</span>
+              </div>
+              <div className="border-t border-gray-300 pt-2 mt-2">
+                <div className="flex justify-between font-bold text-lg">
+                  <span>TOTAL</span>
+                  <span>{formatCurrency(total + 5.62)}</span>
+                </div>
               </div>
             </div>
 
-            <Button className="w-full h-12 text-lg" onClick={() => setShowPaymentDialog(true)} disabled={isLoading}>
-              {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
-              Process Payment
-            </Button>
+            <div className="flex space-x-2 mt-4">
+              <Button variant="outline" className="flex-1">
+                SAVE
+              </Button>
+              <Button className="flex-1 bg-teal-500 hover:bg-teal-600 text-white" onClick={() => setShowPaymentDialog(true)}>
+                PAY {formatCurrency(total + 5.62)}
+              </Button>
+            </div>
           </div>
         )}
+      </div>
+
+      {/* Right Panel - Product Grid */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Top Controls */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex space-x-2">
+              {categories.slice(0, 6).map(category => (
+                <Button key={category} variant={activeCategory === category ? "default" : "outline"} size="sm" onClick={() => setActiveCategory(category)} className={`capitalize ${activeCategory === category ? "bg-teal-500 hover:bg-teal-600 text-white" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+                  {category === "all" ? "All" : category}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Product Grid */}
+        <div className="flex-1 p-4 overflow-y-auto">
+          <div className="grid grid-cols-4 gap-4">
+            {/* Individual Items */}
+            {filteredItems.map(assignment => (
+              <Card key={assignment.id} className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => addToCart(assignment, "material")}>
+                <CardContent className="p-4 text-center">
+                  <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <Package className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h4 className="font-medium text-gray-800 mb-1">{assignment.material?.name}</h4>
+                  <p className="text-lg font-bold text-gray-800">{formatCurrency(assignment.material?.costPerUnit || 0)}</p>
+                </CardContent>
+              </Card>
+            ))}
+
+            {/* Menu Items */}
+            {filteredMenuItems.map(menuItem => (
+              <Card key={menuItem.id} className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => addToCart(menuItem, "menu")}>
+                <CardContent className="p-4 text-center">
+                  <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <ShoppingCart className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h4 className="font-medium text-gray-800 mb-1">{menuItem.name}</h4>
+                  <p className="text-lg font-bold text-gray-800">{formatCurrency(menuItem.price || 0)}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom Action Bar */}
+        <div className="border-t border-gray-200 p-4 bg-gray-50">
+          <div className="grid grid-cols-9 gap-2">
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16 bg-teal-500 text-white hover:bg-teal-600">
+              <Grid3X3 className="w-5 h-5 mb-1" />
+              <span className="text-xs">Speed Key</span>
+            </Button>
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+              <Calculator className="w-5 h-5 mb-1" />
+              <span className="text-xs">Depts</span>
+            </Button>
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+              <ShoppingCart className="w-5 h-5 mb-1" />
+              <span className="text-xs">Orders</span>
+            </Button>
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+              <Package className="w-5 h-5 mb-1" />
+              <span className="text-xs">Table Orders</span>
+            </Button>
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+              <AlertCircle className="w-5 h-5 mb-1" />
+              <span className="text-xs">Hold</span>
+            </Button>
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+              <X className="w-5 h-5 mb-1" />
+              <span className="text-xs">Void</span>
+            </Button>
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+              <AlertTriangle className="w-5 h-5 mb-1" />
+              <span className="text-xs">No Sales</span>
+            </Button>
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+              <DollarSign className="w-5 h-5 mb-1" />
+              <span className="text-xs">Refund</span>
+            </Button>
+            <Button variant="outline" className="flex flex-col items-center p-3 h-16">
+              <Receipt className="w-5 h-5 mb-1" />
+              <span className="text-xs">Price Check</span>
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Payment Dialog */}
@@ -526,14 +487,14 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
           </DialogHeader>
 
           <div className="space-y-2 max-h-60 overflow-y-auto">
-              {negativeStockWarnings.map((warning, index) => (
-                <Alert key={index}>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>{warning.materialName}</strong>: Low stock - Available: {warning.availableQuantity}, Required: {warning.requiredQuantity}
-                  </AlertDescription>
-                </Alert>
-              ))}
+            {negativeStockWarnings.map((warning, index) => (
+              <Alert key={index}>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>{warning.materialName}</strong>: Low stock - Available: {warning.availableQuantity}, Required: {warning.requiredQuantity}
+                </AlertDescription>
+              </Alert>
+            ))}
           </div>
 
           <DialogFooter>
@@ -543,20 +504,14 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
       </Dialog>
 
       {/* Receipt Printer Dialog */}
-      <ReceiptPrinter
-        isOpen={showReceiptDialog}
-        onClose={() => setShowReceiptDialog(false)}
-        receiptData={lastSaleData}
-      />
+      <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} />
 
       {/* Success/Error Messages */}
       {successMessage && (
         <div className="fixed top-4 right-4 z-50">
           <Alert className="bg-green-50 border-green-200">
             <Check className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">
-              {successMessage}
-            </AlertDescription>
+            <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
           </Alert>
         </div>
       )}
@@ -565,9 +520,7 @@ export const POSClient: React.FC<POSClientProps> = ({ materials, sectionAssignme
         <div className="fixed top-4 right-4 z-50">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {error}
-            </AlertDescription>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         </div>
       )}
