@@ -470,7 +470,7 @@ export interface Table {
   id: string;
   number: number;
   seats: number;
-  status: "available" | "occupied" | "reserved" | "cleaning";
+  status: "available" | "open" | "reserved" | "cleaning";
   position: { x: number; y: number };
   shape: "round" | "square" | "rectangle";
   currentOrder?: {

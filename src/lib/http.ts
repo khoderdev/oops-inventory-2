@@ -73,7 +73,7 @@ class ApiClient {
           localStorage.removeItem("token_expiry");
           localStorage.removeItem("last_activity");
           localStorage.removeItem("session_id");
-          
+
           // Trigger auth state reset
           window.dispatchEvent(new CustomEvent("authError", { detail: { status: 401 } }));
         } else if (error.response?.status === 403) {
@@ -118,6 +118,20 @@ class ApiClient {
   async put<T, D>(url: string, data: D, config?: InternalAxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
       const response = await this.instance.put<T>(url, data, config);
+      return {
+        data: response.data,
+        status: response.status,
+        message: response.statusText
+      };
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  // Generic PATCH request
+  async patch<T, D>(url: string, data: D, config?: InternalAxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.instance.patch<T>(url, data, config);
       return {
         data: response.data,
         status: response.status,

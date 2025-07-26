@@ -1,0 +1,250 @@
+import { ordersAPI } from "@/api/orders.api";
+import { CreateOrderData, Order, OrderStatus, UpdateOrderData } from "@/types/orders";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "./use-toast";
+
+export const useOrderManagement = () => {
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedRef = useRef<string>("");
+
+  // Auto-save functionality
+  const scheduleAutoSave = useCallback((order: Order) => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    const orderString = JSON.stringify({
+      items: order.items,
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      notes: order.notes
+    });
+
+    // Only save if something actually changed
+    if (orderString === lastSavedRef.current) {
+      return;
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await ordersAPI.autoSaveOrder(order.id, {
+          items: order.items.map(item => ({
+            materialId: item.materialId,
+            menuItemId: item.menuItemId,
+            assignmentId: item.assignmentId,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            type: item.type,
+            notes: item.notes
+          })),
+          customerName: order.customerName,
+          customerPhone: order.customerPhone,
+          notes: order.notes
+        });
+        lastSavedRef.current = orderString;
+        console.log("Order auto-saved successfully");
+      } catch (error) {
+        console.error("Auto-save failed:", error);
+      }
+    }, 2000); // Auto-save after 2 seconds of inactivity
+  }, []);
+
+  // Create a new order
+  const createOrder = useCallback(async (data: CreateOrderData): Promise<Order> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await ordersAPI.createOrder(data);
+      const newOrder = response.data;
+      setCurrentOrder(newOrder);
+      return newOrder;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to create order";
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Load an existing order
+  const loadOrder = useCallback(async (orderId: string): Promise<Order> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await ordersAPI.getOrder(orderId);
+      const order = response.data;
+      setCurrentOrder(order);
+      return order;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to load order";
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Update current order
+  const updateOrder = useCallback(
+    async (data: UpdateOrderData): Promise<Order> => {
+      if (!currentOrder) {
+        throw new Error("No current order to update");
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await ordersAPI.updateOrder(currentOrder.id, data);
+        const updatedOrder = response.data;
+        setCurrentOrder(updatedOrder);
+
+        // Schedule auto-save for draft orders
+        if (updatedOrder.status === "draft") {
+          scheduleAutoSave(updatedOrder);
+        }
+
+        return updatedOrder;
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || "Failed to update order";
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [currentOrder, scheduleAutoSave]
+  );
+
+  // Update order status
+  const updateOrderStatus = useCallback(
+    async (status: OrderStatus): Promise<Order> => {
+      if (!currentOrder) {
+        throw new Error("No current order to update");
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await ordersAPI.updateOrderStatus(currentOrder.id, status);
+        const updatedOrder = response.data;
+        setCurrentOrder(updatedOrder);
+
+        toast({
+          title: "Order Updated",
+          description: `Order status changed to ${status}`,
+          variant: "default"
+        });
+
+        return updatedOrder;
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || "Failed to update order status";
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [currentOrder]
+  );
+
+  // Complete order (convert to sale)
+  const completeOrder = useCallback(
+    async (paymentData: { paymentMethod: string; paymentAmount: number; change?: number }) => {
+      if (!currentOrder) {
+        throw new Error("No current order to complete");
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await ordersAPI.completeOrder(currentOrder.id, paymentData);
+        const { order, saleId } = response.data;
+
+        // Clear current order after completion
+        setCurrentOrder(null);
+
+        toast({
+          title: "Order Completed",
+          description: `Order completed successfully. Sale ID: ${saleId}`,
+          variant: "default"
+        });
+
+        return { order, saleId };
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || "Failed to complete order";
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [currentOrder]
+  );
+
+  // Clear current order
+  const clearOrder = useCallback(() => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+    setCurrentOrder(null);
+    setError(null);
+    lastSavedRef.current = "";
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  return {
+    currentOrder,
+    isLoading,
+    error,
+    createOrder,
+    loadOrder,
+    updateOrder,
+    updateOrderStatus,
+    completeOrder,
+    clearOrder
+  };
+};

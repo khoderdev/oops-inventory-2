@@ -10,7 +10,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     switch (status) {
       case "available":
         return "bg-green-100 border-green-300 hover:bg-green-200";
-      case "occupied":
+      case "open":
         return "bg-red-100 border-red-300 hover:bg-red-200";
       case "reserved":
         return "bg-yellow-100 border-yellow-300 hover:bg-yellow-200";
@@ -25,8 +25,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     switch (status) {
       case "available":
         return "Available";
-      case "occupied":
-        return "Occupied";
+      case "open":
+        return "Open";
       case "reserved":
         return "Reserved";
       case "cleaning":
@@ -82,7 +82,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded-full bg-red-100 border-2 border-red-300"></div>
-              <span className="text-sm text-gray-600">Occupied</span>
+              <span className="text-sm text-gray-600">Open</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded-full bg-yellow-100 border-2 border-yellow-300"></div>
@@ -122,7 +122,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                   </div>
 
                   {/* Table Info Card (for occupied tables) */}
-                  {table.status === "occupied" && table.currentOrder && (
+                  {table.status === "open" && table.currentOrder && (
                     <Card className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-48 shadow-lg z-10">
                       <CardContent className="p-3">
                         <div className="text-sm">
@@ -173,7 +173,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 Cancel
               </Button>
               <Button onClick={() => selectedTable && onTableSelect(selectedTable)} disabled={!selectedTable || selectedTable.status === "cleaning"} className="bg-blue-600 hover:bg-blue-700">
-                {selectedTable?.status === "occupied" ? "Continue Order" : "Start Order"}
+                {selectedTable?.status === "open" ? "Continue Order" : "Start Order"}
               </Button>
             </div>
           </div>

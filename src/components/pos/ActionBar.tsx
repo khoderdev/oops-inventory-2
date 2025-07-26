@@ -1,18 +1,14 @@
-import React from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  Grid3X3, 
-  Calculator, 
-  ShoppingCart, 
-  Package, 
-  AlertCircle, 
-  X, 
-  AlertTriangle, 
-  DollarSign, 
-  Receipt 
-} from "lucide-react";
+import { AlertCircle, AlertTriangle, Calculator, DollarSign, Grid3X3, Package, Save, ShoppingCart, X } from "lucide-react";
+import React from "react";
 
-export const ActionBar: React.FC = () => {
+interface ActionBarProps {
+  onSaveOrder?: () => void;
+  hasUnsavedChanges?: boolean;
+  isOrderLoading?: boolean;
+}
+
+export const ActionBar: React.FC<ActionBarProps> = ({ onSaveOrder, hasUnsavedChanges = false, isOrderLoading = false }) => {
   const actionButtons = [
     { icon: Grid3X3, label: "Speed Key", active: true },
     { icon: Calculator, label: "Depts", active: false },
@@ -22,7 +18,13 @@ export const ActionBar: React.FC = () => {
     { icon: X, label: "Void", active: false },
     { icon: AlertTriangle, label: "No Sales", active: false },
     { icon: DollarSign, label: "Refund", active: false },
-    { icon: Receipt, label: "Price Check", active: false },
+    {
+      icon: Save,
+      label: "Save Order",
+      active: hasUnsavedChanges,
+      onClick: onSaveOrder,
+      disabled: isOrderLoading || !onSaveOrder
+    }
   ];
 
   return (
@@ -31,15 +33,7 @@ export const ActionBar: React.FC = () => {
         {actionButtons.map((button, index) => {
           const IconComponent = button.icon;
           return (
-            <Button 
-              key={index}
-              variant="outline" 
-              className={`flex flex-col items-center p-3 h-16 rounded-none ${
-                button.active 
-                  ? "bg-teal-500 text-white hover:bg-teal-600" 
-                  : ""
-              }`}
-            >
+            <Button key={index} variant="outline" className={`flex flex-col items-center p-3 h-16 rounded-none ${button.active ? "bg-teal-500 text-white hover:bg-teal-600" : ""}`} onClick={button.onClick} disabled={button.disabled}>
               <IconComponent className="w-5 h-5 mb-1" />
               <span className="text-xs">{button.label}</span>
             </Button>
