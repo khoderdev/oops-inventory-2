@@ -165,12 +165,22 @@ export function calculateIngredientCost(material: Material, quantity: number, un
 //   }).format(amount);
 // }
 export function formatCurrency(amount: number): string {
-  const fractionDigits = amount < 0.01 ? 6 : 4; // Use 6 decimals for small values
+  // For very small amounts, use more decimal places and adjust minimum digits
+  if (amount < 0.01 && amount > 0) {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 6
+    }).format(amount);
+  }
+  
+  // For normal amounts, use standard formatting
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
-    maximumFractionDigits: fractionDigits
+    maximumFractionDigits: 2
   }).format(amount);
 }
 

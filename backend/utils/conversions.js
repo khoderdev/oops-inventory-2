@@ -6,6 +6,7 @@ export const MATERIAL_CATEGORIES = [
   { value: "grains", label: "Grains & Cereals" },
   { value: "spices", label: "Spices & Seasonings" },
   { value: "beverages", label: "Beverages" },
+  { value: "alcohol", label: "Alcohol" },
   { value: "packaging", label: "Packaging Materials" },
   { value: "other", label: "Other" }
 ];

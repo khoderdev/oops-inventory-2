@@ -1,5 +1,5 @@
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { menuAPI } from "@/api/menu.api.ts";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,7 +18,7 @@ import { MenuItemForm } from "./MenuItemForm";
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, sections }) => {
   const { fetchTabData } = useInventoryStore();
-  
+
   // Helper function to calculate cost per unit for a material
   const calculateMaterialCostPerUnit = useCallback(
     (material: Material, materialStockEntries: StockEntry[] = []) => {
@@ -66,11 +66,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const MENU_CATEGORIES = useMemo<{ value: MenuItemCategory; label: string }[]>(
     () => [
       { value: "appetizers", label: "Appetizers" },
-      { value: "mains", label: "Main Courses" },
-      { value: "sides", label: "Sides" },
-      { value: "desserts", label: "Desserts" },
-      { value: "beverages", label: "Beverages" },
-      { value: "other", label: "Other" }
+      { value: "burgers", label: "Burgers" },
+      { value: "sandwiches", label: "Sandwiches" },
+      { value: "plates", label: "Plates" },
+      { value: "desserts", label: "Desserts" }
     ],
     []
   );
@@ -233,7 +232,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     async (item: MenuItem) => {
       try {
         const newPOSStatus = !item.isPOSItem;
-        
+
         // Update the menu item's POS visibility
         const response = await menuAPI.updateMenuItem(item.id, {
           isPOSItem: newPOSStatus
@@ -245,13 +244,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
         toast({
           title: "Success",
-          description: `${item.name} is now ${newPOSStatus ? 'available in' : 'hidden from'} POS`,
+          description: `${item.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
           variant: "default"
         });
 
         // Refresh the data to show updated state
         await fetchTabData("menu");
-        
+
         // Update local state by calling the update handler
         if (onUpdateMenuItem) {
           onUpdateMenuItem(item.id, { ...item, isPOSItem: newPOSStatus });
@@ -379,12 +378,12 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                               size="sm"
                               variant={item.isPOSItem ? "default" : "outline"}
                               className={item.isPOSItem ? "bg-green-600 hover:bg-green-700 text-white" : ""}
-                              onClick={(e) => {
+                              onClick={e => {
                                 e.stopPropagation();
                                 handleTogglePOSVisibility(item);
                               }}
                               title={item.isPOSItem ? "Hide from POS" : "Show in POS"}
-                              aria-label={`${item.isPOSItem ? 'Hide from' : 'Show in'} POS`}
+                              aria-label={`${item.isPOSItem ? "Hide from" : "Show in"} POS`}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>

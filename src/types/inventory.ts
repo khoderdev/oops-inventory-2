@@ -4,7 +4,7 @@ import { stockSchema } from "@/components/stock/stockSchema";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
-export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "packaging" | "other" | "sweets";
+export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets";
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
 
@@ -510,7 +510,7 @@ export interface CategoryTabsProps {
 
 //-----------------------------------------------------------------------------
 
-export type MenuItemCategory = "appetizers" | "mains" | "sides" | "desserts" | "beverages" | "sweets" | "other";
+export type MenuItemCategory = "appetizers" | "burgers" | "sandwiches" | "plates" | "desserts";
 
 export interface MenuItem {
   id: string;
@@ -570,6 +570,7 @@ export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label
   { value: "grains", label: "Grains & Cereals" },
   { value: "spices", label: "Spices & Seasonings" },
   { value: "beverages", label: "Beverages" },
+  { value: "alcohol", label: "Alcohol" },
   { value: "packaging", label: "Packaging Materials" },
   { value: "other", label: "Other" }
 ];
@@ -584,12 +585,10 @@ export const UNIT_OPTIONS: Readonly<Record<UnitType, ReadonlyArray<string>>> = {
 // Menu categories
 export const MENU_CATEGORIES = [
   { value: "appetizers", label: "Appetizers" },
-  { value: "mains", label: "Main Courses" },
-  { value: "sides", label: "Sides" },
-  { value: "desserts", label: "Desserts" },
-  { value: "beverages", label: "Beverages" },
-  { value: "sweets", label: "Sweets" },
-  { value: "other", label: "Other" }
+  { value: "burgers", label: "Burgers" },
+  { value: "sandwiches", label: "Sandwiches" },
+  { value: "plates", label: "Plates" },
+  { value: "desserts", label: "Desserts" }
 ];
 
 //-----------------------------------------------------------------------------

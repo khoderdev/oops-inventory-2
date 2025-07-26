@@ -64,7 +64,6 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
               <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
                 <div className="flex-1">
                   <div className="font-medium text-gray-800">{item.name}</div>
-                  {item.type === "material" && <div className="text-xs text-gray-500">Extra Powdered Seasoning</div>}
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center space-x-2">

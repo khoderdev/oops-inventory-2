@@ -19,14 +19,34 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ filteredItems, filtere
               <p className="text-lg font-bold text-gray-800">
                 {formatCurrency(
                   (() => {
-                    const stockEntry = assignment.stockEntry as any;
-                    if (!stockEntry) return 0;
+                    // Debug: log the entire assignment object to see structure
+                    console.log('Assignment object:', assignment);
+                    
+                    // assignment IS the stock entry, not a container
+                    const stockEntry = assignment as any;
+                    
+                    console.log('StockEntry object:', stockEntry);
+                    
+                    // Try to get cost per base unit first (most accurate)
                     if (stockEntry.costPerBaseUnit && stockEntry.costPerBaseUnit !== "0") {
+                      console.log('Using costPerBaseUnit:', stockEntry.costPerBaseUnit);
                       return parseFloat(stockEntry.costPerBaseUnit);
                     }
-                    if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
-                      return parseFloat(stockEntry.totalCost) / stockEntry.purchasedIndividualQuantity;
+                    
+                    // Fallback: calculate from total cost and quantity
+                    if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity && stockEntry.purchasedIndividualQuantity > 0) {
+                      const calculated = parseFloat(stockEntry.totalCost) / stockEntry.purchasedIndividualQuantity;
+                      console.log('Using calculated price:', calculated);
+                      return calculated;
                     }
+                    
+                    // Last fallback: use cost per purchased unit
+                    if (stockEntry.costPerPurchasedUnit) {
+                      console.log('Using costPerPurchasedUnit:', stockEntry.costPerPurchasedUnit);
+                      return parseFloat(stockEntry.costPerPurchasedUnit);
+                    }
+                    
+                    console.log('No price found, returning 0');
                     return 0;
                   })()
                 )}
