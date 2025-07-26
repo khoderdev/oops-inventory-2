@@ -403,6 +403,7 @@ export interface ReceiptPrinterProps {
   isOpen: boolean;
   onClose: () => void;
   receiptData: ReceiptData | null;
+  autoPrint?: boolean;
   businessInfo?: {
     name: string;
     address: string;

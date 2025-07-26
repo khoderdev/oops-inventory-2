@@ -1,22 +1,24 @@
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Calculator, DollarSign, Grid3X3, Package, Save, ShoppingCart, X } from "lucide-react";
+import { Calculator, DollarSign, Grid3X3, Package, Printer, Save, ShoppingCart, X } from "lucide-react";
 import React from "react";
 
 interface ActionBarProps {
   onSaveOrder?: () => void;
+  onPrintReceipt?: () => void;
   hasUnsavedChanges?: boolean;
   isOrderLoading?: boolean;
+  canPrintReceipt?: boolean;
 }
 
-export const ActionBar: React.FC<ActionBarProps> = ({ onSaveOrder, hasUnsavedChanges = false, isOrderLoading = false }) => {
+export const ActionBar: React.FC<ActionBarProps> = ({ onSaveOrder, onPrintReceipt, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false }) => {
   const actionButtons = [
     { icon: X, label: "Void", active: false },
+    { icon: Printer, label: "Print Receipt", active: canPrintReceipt, onClick: onPrintReceipt, disabled: !canPrintReceipt || !onPrintReceipt },
     { icon: DollarSign, label: "Refund", active: false },
     { icon: Package, label: "Table Orders", active: false },
     { icon: ShoppingCart, label: "Orders", active: false },
     { icon: Calculator, label: "Depts", active: false },
     { icon: Grid3X3, label: "Speed Key", active: false },
-    { icon: AlertCircle, label: "Hold", active: false },
     { icon: Save, label: "Save Order", active: hasUnsavedChanges, onClick: onSaveOrder, disabled: isOrderLoading || !onSaveOrder }
   ];
 

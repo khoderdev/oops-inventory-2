@@ -45,6 +45,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [showSuccessCheckmark, setShowSuccessCheckmark] = useState(false);
+  const [shouldAutoPrint, setShouldAutoPrint] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,6 +88,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setCart([]);
     setHasUnsavedChanges(false);
   }, []);
+
+
 
   // Update optimistic assignments when props change
   useEffect(() => {
@@ -519,6 +522,40 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const tax = subtotal * 0.1; // 10% tax
   const total = subtotal + tax;
 
+  // Print current order receipt
+  const handlePrintReceipt = useCallback(() => {
+    if (cart.length === 0) {
+      showError("No items in cart to print");
+      return;
+    }
+
+    // Create receipt data from current cart
+    const receiptData = {
+      id: currentOrder?.orderNumber || `DRAFT-${Date.now()}`,
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString(),
+      cashier: "Current User",
+      items: cart.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        totalPrice: item.price * item.quantity,
+        type: item.type
+      })),
+      subtotal,
+      tax,
+      total,
+      paymentAmount: total,
+      change: 0,
+      paymentMethod: "N/A"
+    };
+
+    // Set receipt data and show receipt dialog
+    setLastSaleData(receiptData);
+    setShouldAutoPrint(false); // Manual print - don't auto-print
+    setShowReceiptDialog(true);
+  }, [cart, currentOrder, subtotal, tax, total, showError]);
+
   // Handle payment
   const handlePayment = useCallback(async () => {
     if (cart.length === 0) {
@@ -653,6 +690,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       clearCartWithAnimation();
       setPaymentAmount("");
       setShowPaymentDialog(false);
+      setShouldAutoPrint(true); // Enable auto-print for payment receipts
       setShowReceiptDialog(true);
 
       // Clear current order and local storage
@@ -740,7 +778,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <ProductGrid filteredItems={filteredStockEntries} filteredMenuItems={filteredMenuItems} onAddToCart={addToCart} />
 
         {/* Bottom Action Bar */}
-        <ActionBar onSaveOrder={handleSaveOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} />
+        <ActionBar 
+          onSaveOrder={handleManualSave} 
+          onPrintReceipt={handlePrintReceipt}
+          hasUnsavedChanges={hasUnsavedChanges} 
+          isOrderLoading={orderLoading}
+          canPrintReceipt={cart.length > 0}
+        />
       </div>
 
       {/* Payment Dialog */}
@@ -778,7 +822,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {showTablesLayout && <TablesLayout tables={Array.isArray(tables) ? tables : []} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} />}
 
       {/* Receipt Printer Dialog */}
-      <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} />
+      <ReceiptPrinter 
+        isOpen={showReceiptDialog} 
+        onClose={() => {
+          setShowReceiptDialog(false);
+          setShouldAutoPrint(false); // Reset auto-print flag
+        }} 
+        receiptData={lastSaleData}
+        autoPrint={shouldAutoPrint}
+      />
 
       {/* Success Checkmark Overlay */}
       {showSuccessCheckmark && (
