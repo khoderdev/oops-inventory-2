@@ -10,7 +10,7 @@ import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { OrderPersistence } from "@/utils/orderPersistence";
-import { AlertCircle, AlertTriangle, Check, Save, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActionBar } from "./ActionBar";
 import { CategoryTabs } from "./CategoryTabs";
@@ -44,8 +44,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [tables, setTables] = useState<Table[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [showSuccessCheckmark, setShowSuccessCheckmark] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Order management hook
   const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, updateOrderStatus, completeOrder, clearOrder } = useOrderManagement();
@@ -67,6 +69,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   useEffect(() => {
     setOptimisticAssignments(sectionAssignments);
   }, [sectionAssignments]);
+
+  // Cleanup timeout references on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+      if (checkmarkTimeoutRef.current) {
+        clearTimeout(checkmarkTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch initial data (stock entries, menu items, tables)
   useEffect(() => {
@@ -147,7 +164,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       } else {
         // Create new order
         await createOrder(orderData);
-        showSuccess("Order saved as draft");
+        showSuccess("Order Saved");
       }
 
       // Refresh tables to update status in UI
@@ -315,6 +332,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setCart([]);
   }, []);
 
+  // Clear cart with success animation
+  const clearCartWithAnimation = useCallback(() => {
+    setShowSuccessCheckmark(true);
+    setCart([]);
+    if (checkmarkTimeoutRef.current) {
+      clearTimeout(checkmarkTimeoutRef.current);
+    }
+    checkmarkTimeoutRef.current = setTimeout(() => {
+      setShowSuccessCheckmark(false);
+    }, 1500);
+  }, []);
+
   // Order type handlers
   const handleOrderTypeChange = useCallback((type: OrderType) => {
     setOrderType(type);
@@ -420,10 +449,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         orderType,
         tableId: selectedTable?.id,
         items: cart.map(item => ({
-          // Don't include id for new order items (CreateOrderData expects Omit<OrderItem, "id">[])
           materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
           menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
-          assignmentId: undefined, // Assignment info is handled separately
+          assignmentId: undefined,
           name: item.name,
           quantity: item.quantity,
           unitPrice: item.price,
@@ -434,7 +462,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       };
 
       if (currentOrder) {
-        // For updates, we need to include existing item IDs or generate new ones
         const updateItems = cart.map((item, index) => ({
           id: currentOrder.items[index]?.id || `temp-${Date.now()}-${index}`,
           materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
@@ -454,7 +481,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         showSuccess("Order saved as draft");
       }
 
-      // Refresh tables to update status in UI
       if (orderType === "table") {
         try {
           const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
@@ -466,6 +492,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
       }
 
+      // Clear cart with animation after successful save
+      clearCartWithAnimation();
       setHasUnsavedChanges(false);
     } catch (error) {
       console.error("Failed to save order:", error);
@@ -612,7 +640,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
       }
 
-      clearCart();
+      // Clear cart with animation after successful payment
+      clearCartWithAnimation();
       setPaymentAmount("");
       setShowPaymentDialog(false);
       setShowReceiptDialog(true);
@@ -638,7 +667,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, selectedSectionId, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCart, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder]);
+  }, [cart, selectedSectionId, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder]);
 
   // Quick amount buttons for payment
   const quickAmounts = [10, 20, 50, 100, 200, 500];
@@ -646,20 +675,52 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   return (
     <div className="h-full flex bg-gray-100">
       {/* Left Panel - Cart/Order Details */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="min-w-96 bg-white border-r border-gray-200 flex flex-col">
         {/* Cart Header */}
         <div className="border-b border-gray-200 p-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
-            {cart.length > 0 && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
+            <div className="flex items-center space-x-3">
+              <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
+              {/* Order Status Indicator */}
+              {(hasUnsavedChanges || currentOrder) && !showSuccessCheckmark && (
+                <div className="flex items-center space-x-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md">
+                  <span className="text-xs text-blue-800">
+                    {currentOrder ? (
+                      <div className="flex items-center space-x-1">
+                        <span>#{currentOrder.orderNumber}</span>
+                        <span className="text-xs opacity-75">({currentOrder.status})</span>
+                      </div>
+                    ) : hasUnsavedChanges ? (
+                      "Unsaved"
+                    ) : null}
+                  </span>
+                </div>
+              )}
+            </div>
+            {cart.length > 0 && !showSuccessCheckmark && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
+            {showSuccessCheckmark && (
+              <div className="flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-500 animate-bounce" />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Order Items List */}
-        <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
+        {/* Order Items List or Success Animation */}
+        {showSuccessCheckmark ? (
+          <div className="flex-1 flex items-center justify-center bg-green-50">
+            <div className="text-center">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-pulse" />
+              <p className="text-green-700 font-medium text-lg">Order Completed!</p>
+              <p className="text-green-600 text-sm mt-1">Cart cleared successfully</p>
+            </div>
+          </div>
+        ) : (
+          <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
+        )}
 
         {/* Order Summary */}
-        <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} onSaveClick={handleManualSave} />
+        {!showSuccessCheckmark && <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} onSaveClick={handleManualSave} />}
       </div>
 
       {/* Right Panel - Product Grid */}
@@ -710,22 +771,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {/* Receipt Printer Dialog */}
       <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} />
 
-      {/* Order Status Indicator */}
-      {(hasUnsavedChanges || currentOrder) && (
-        <div className="fixed top-4 left-4 z-50">
-          <Alert className="bg-blue-50 border-blue-200">
-            <Save className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800">
-              {currentOrder ? (
-                <div className="flex items-center space-x-2">
-                  <span>Order #{currentOrder.orderNumber}</span>
-                  <span className="text-xs">({currentOrder.status})</span>
-                </div>
-              ) : hasUnsavedChanges ? (
-                "Unsaved changes - Click SAVE to save"
-              ) : null}
-            </AlertDescription>
-          </Alert>
+      {/* Success Checkmark Overlay */}
+      {showSuccessCheckmark && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20 pointer-events-none">
+          <div className="bg-white rounded-full p-6 shadow-2xl animate-scale-in">
+            <CheckCircle className="w-20 h-20 text-green-500 animate-bounce" />
+          </div>
         </div>
       )}
 

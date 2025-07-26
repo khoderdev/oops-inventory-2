@@ -7,40 +7,44 @@ import React from "react";
 export const ProductGrid: React.FC<ProductGridProps> = ({ filteredItems, filteredMenuItems, onAddToCart }) => {
   return (
     <div className="flex-1 p-4 overflow-y-auto">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-6 gap-5">
         {/* Individual Items */}
         {filteredItems.map(assignment => (
-          <Card key={assignment.id} className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => onAddToCart(assignment, "material")}>
+          <Card key={assignment.id} className="w-44 cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => onAddToCart(assignment, "material")}>
             <CardContent className="p-4 text-center">
-              <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
-                <Package className="w-8 h-8 text-gray-400" />
+              <div className="w-6 h-6 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
+                <Package className="w-6 h-6 text-gray-400" />
               </div>
               <h4 className="font-medium text-gray-800 mb-1">{assignment.material?.name}</h4>
-              <p className="text-lg font-bold text-gray-800">{formatCurrency((() => {
-                // Get cost from stockEntry (where the actual cost data is stored)
-                const stockEntry = assignment.stockEntry as any;
-                if (!stockEntry) return 0;
-                
-                // Try costPerBaseUnit first (this is the cost per individual unit)
-                if (stockEntry.costPerBaseUnit && stockEntry.costPerBaseUnit !== "0") {
-                  return parseFloat(stockEntry.costPerBaseUnit);
-                }
-                // Fallback: calculate from totalCost and individual quantity
-                if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
-                  return parseFloat(stockEntry.totalCost) / stockEntry.purchasedIndividualQuantity;
-                }
-                return 0;
-              })())}</p>
+              <p className="text-lg font-bold text-gray-800">
+                {formatCurrency(
+                  (() => {
+                    // Get cost from stockEntry (where the actual cost data is stored)
+                    const stockEntry = assignment.stockEntry as any;
+                    if (!stockEntry) return 0;
+
+                    // Try costPerBaseUnit first (this is the cost per individual unit)
+                    if (stockEntry.costPerBaseUnit && stockEntry.costPerBaseUnit !== "0") {
+                      return parseFloat(stockEntry.costPerBaseUnit);
+                    }
+                    // Fallback: calculate from totalCost and individual quantity
+                    if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
+                      return parseFloat(stockEntry.totalCost) / stockEntry.purchasedIndividualQuantity;
+                    }
+                    return 0;
+                  })()
+                )}
+              </p>
             </CardContent>
           </Card>
         ))}
 
         {/* Menu Items */}
         {filteredMenuItems.map(menuItem => (
-          <Card key={menuItem.id} className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => onAddToCart(menuItem, "menu")}>
+          <Card key={menuItem.id} className="w-44 cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => onAddToCart(menuItem, "menu")}>
             <CardContent className="p-4 text-center">
-              <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
-                <ShoppingCart className="w-8 h-8 text-gray-400" />
+              <div className="w-6 h-6 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
+                <ShoppingCart className="w-6 h-6 text-gray-400" />
               </div>
               <h4 className="font-medium text-gray-800 mb-1">{menuItem.name}</h4>
               <p className="text-lg font-bold text-gray-800">{formatCurrency(menuItem.price || 0)}</p>
