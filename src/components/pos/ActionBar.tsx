@@ -47,33 +47,20 @@ type ActionBarProps = LegacyActionBarProps | FlexibleActionBarProps;
 
 // Type guard to check if props are legacy
 function isLegacyProps(props: ActionBarProps): props is LegacyActionBarProps {
-  return 'onSaveOrder' in props || 'onPrintReceipt' in props || !('buttons' in props);
+  return "onSaveOrder" in props || "onPrintReceipt" in props || !("buttons" in props);
 }
 
 // Individual Action Button Component
-export const ActionButton: React.FC<ActionButtonConfig & { className?: string; compact?: boolean }> = ({
-  icon: IconComponent,
-  label,
-  active = false,
-  disabled = false,
-  onClick,
-  className = "",
-  compact = false
-}) => {
+export const ActionButton: React.FC<ActionButtonConfig & { className?: string; compact?: boolean }> = ({ icon: IconComponent, label, active = false, disabled = false, onClick, className = "", compact = false }) => {
   const baseClasses = "flex flex-col items-center justify-center rounded-none";
   const heightClass = compact ? "h-12 p-2" : "h-16 p-3";
-  const activeClasses = active ? "bg-teal-500 text-white hover:bg-teal-600" : "";
-  const iconSize = compact ? "w-4 h-4" : "w-5 h-5";
-  const textSize = compact ? "text-xs" : "text-xs";
-  const iconMargin = compact ? "mb-0.5" : "mb-1";
-  
+  const activeClasses = active ? "bg-teal-500 text-white hover:text-white hover:bg-teal-600" : "";
+  const iconSize = compact ? "w-4 h-4" : "!w-6 !h-6";
+  const textSize = compact ? "text-xs" : "text-sm";
+  const iconMargin = compact ? "" : "";
+
   return (
-    <Button
-      variant="outline"
-      className={`${baseClasses} ${heightClass} ${activeClasses} ${className}`}
-      onClick={onClick}
-      disabled={disabled}
-    >
+    <Button variant="outline" className={`${baseClasses} ${heightClass} ${activeClasses} ${className}`} onClick={onClick} disabled={disabled}>
       <IconComponent className={`${iconSize} ${iconMargin}`} />
       <span className={textSize}>{label}</span>
     </Button>
@@ -81,7 +68,7 @@ export const ActionButton: React.FC<ActionButtonConfig & { className?: string; c
 };
 
 // Main ActionBar Component
-export const ActionBar: React.FC<ActionBarProps> = (props) => {
+export const ActionBar: React.FC<ActionBarProps> = props => {
   let buttons: ActionButtonConfig[];
   let columns: number;
   let className: string;
@@ -89,29 +76,29 @@ export const ActionBar: React.FC<ActionBarProps> = (props) => {
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
     const { onSaveOrder, onPrintReceipt, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false } = props;
-    
+
     buttons = [
       { id: "void", icon: X, label: "Void", active: false },
-      { 
-        id: "print", 
-        icon: Printer, 
-        label: "Print Receipt", 
-        active: canPrintReceipt, 
-        onClick: onPrintReceipt, 
-        disabled: !canPrintReceipt || !onPrintReceipt 
+      {
+        id: "print",
+        icon: Printer,
+        label: "Print Receipt",
+        active: canPrintReceipt,
+        onClick: onPrintReceipt,
+        disabled: !canPrintReceipt || !onPrintReceipt
       },
       { id: "refund", icon: DollarSign, label: "Refund", active: false },
       { id: "table-orders", icon: Package, label: "Table Orders", active: false },
       { id: "orders", icon: ShoppingCart, label: "Orders", active: false },
       { id: "depts", icon: Calculator, label: "Depts", active: false },
       { id: "speed-key", icon: Grid3X3, label: "Speed Key", active: false },
-      { 
-        id: "save", 
-        icon: Save, 
-        label: "Save Order", 
-        active: hasUnsavedChanges, 
-        onClick: onSaveOrder, 
-        disabled: isOrderLoading || !onSaveOrder 
+      {
+        id: "save",
+        icon: Save,
+        label: "Save Order",
+        active: hasUnsavedChanges,
+        onClick: onSaveOrder,
+        disabled: isOrderLoading || !onSaveOrder
       }
     ];
     columns = 8;
@@ -135,12 +122,7 @@ export const ActionBar: React.FC<ActionBarProps> = (props) => {
 };
 
 // Utility function to create custom button configurations
-export const createActionButton = (
-  id: string,
-  icon: LucideIcon,
-  label: string,
-  options: Partial<Omit<ActionButtonConfig, 'id' | 'icon' | 'label'>> = {}
-): ActionButtonConfig => ({
+export const createActionButton = (id: string, icon: LucideIcon, label: string, options: Partial<Omit<ActionButtonConfig, "id" | "icon" | "label">> = {}): ActionButtonConfig => ({
   id,
   icon,
   label,
