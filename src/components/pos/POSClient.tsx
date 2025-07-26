@@ -65,6 +65,29 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
   }, []);
 
+  // Clear cart with animation
+  const clearCartWithAnimation = useCallback(() => {
+    // Show success checkmark animation
+    setShowSuccessCheckmark(true);
+    
+    // Clear cart immediately for instant feedback
+    setCart([]);
+    
+    // Hide animation after 1500ms
+    if (checkmarkTimeoutRef.current) {
+      clearTimeout(checkmarkTimeoutRef.current);
+    }
+    checkmarkTimeoutRef.current = setTimeout(() => {
+      setShowSuccessCheckmark(false);
+    }, 1500);
+  }, []);
+
+  // Clear cart without animation (for trash button)
+  const clearCart = useCallback(() => {
+    setCart([]);
+    setHasUnsavedChanges(false);
+  }, []);
+
   // Update optimistic assignments when props change
   useEffect(() => {
     setOptimisticAssignments(sectionAssignments);
@@ -179,12 +202,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
       }
 
+      // Clear cart with animation after successful save
+      clearCartWithAnimation();
       setHasUnsavedChanges(false);
     } catch (error) {
       console.error("Failed to save order:", error);
       showError("Failed to save order");
     }
-  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError]);
+  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation]);
 
   // Load saved order on component mount
   useEffect(() => {
@@ -326,22 +351,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } else {
       setCart(prevCart => prevCart.map(item => (item.id === cartId ? { ...item, quantity: newQuantity } : item)));
     }
-  }, []);
-
-  const clearCart = useCallback(() => {
-    setCart([]);
-  }, []);
-
-  // Clear cart with success animation
-  const clearCartWithAnimation = useCallback(() => {
-    setShowSuccessCheckmark(true);
-    setCart([]);
-    if (checkmarkTimeoutRef.current) {
-      clearTimeout(checkmarkTimeoutRef.current);
-    }
-    checkmarkTimeoutRef.current = setTimeout(() => {
-      setShowSuccessCheckmark(false);
-    }, 1500);
   }, []);
 
   // Order type handlers
@@ -499,7 +508,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.error("Failed to save order:", error);
       showError("Failed to save order");
     }
-  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError]);
+  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation]);
 
   const handleCloseTablesLayout = useCallback(() => {
     setShowTablesLayout(false);
