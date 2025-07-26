@@ -411,9 +411,14 @@ export const ordersController = {
         return res.status(400).json({ message: "Order already completed" });
       }
 
+      // Log order data for debugging
+      console.log('Order data:', JSON.stringify(order, null, 2));
+      console.log('Order items:', JSON.stringify(order.items, null, 2));
+
       // Convert order to sale format
       const saleData = {
-        sectionId: "default-section", // You may want to get this from table or user
+        saleDate: new Date().toISOString(),
+        // sectionId will be handled automatically by the sales controller
         items: order.items
           .filter(item => item.type === "material")
           .map(item => ({
@@ -445,17 +450,24 @@ export const ordersController = {
         json: data => data
       };
 
+      // Log the sale data for debugging
+      console.log('Sale data being sent:', JSON.stringify(saleData, null, 2));
+
       const saleResult = await new Promise((resolve, reject) => {
         const originalJson = mockRes.json;
         mockRes.json = data => {
+          console.log('Sales controller response:', JSON.stringify(data, null, 2));
           if (data.error || data.message?.includes("failed")) {
-            reject(new Error(data.message || "Sale creation failed"));
+            reject(new Error(`Sale creation failed: ${data.error || data.message}`));
           } else {
             resolve(data);
           }
         };
 
-        salesController.createSales(mockReq, mockRes).catch(reject);
+        salesController.createSales(mockReq, mockRes).catch(error => {
+          console.log('Sales controller threw error:', error);
+          reject(error);
+        });
       });
 
       // Update order with completion details

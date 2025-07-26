@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PaymentDialogProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
@@ -7,55 +7,102 @@ import { Check, CreditCard, Loader2 } from "lucide-react";
 import React from "react";
 
 export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, total, paymentAmount, onPaymentAmountChange, onPayment, isLoading }) => {
-  const quickAmounts = [10, 20, 50, 100, total, Math.ceil(total / 10) * 10];
+  // Create quick amounts with $5 added and sorted
+  const baseAmounts = [5, 10, 20, 50, 100];
+  const totalAmount = total;
+  const roundedUpAmount = Math.ceil(total / 10) * 10;
+
+  // Combine and sort amounts, remove duplicates
+  const quickAmounts = [...new Set([...baseAmounts, totalAmount, roundedUpAmount])].sort((a, b) => a - b).filter(amount => amount > 0);
+
+  const isExactAmount = parseFloat(paymentAmount) === total;
+  const hasChange = parseFloat(paymentAmount) > total;
+  const changeAmount = hasChange ? parseFloat(paymentAmount) - total : 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <CreditCard className="w-5 h-5" />
-            <span>Process Payment</span>
+      <DialogContent className="max-w-2xl w-full max-h-[90vh] p-0">
+        {/* Header */}
+        <DialogHeader className="px-8 pt-8 pb-4">
+          <DialogTitle className="flex items-center justify-center space-x-3 text-2xl">
+            <CreditCard className="w-8 h-8 text-blue-600" />
+            <span className="text-gray-800">Payment</span>
           </DialogTitle>
-          <DialogDescription>Complete the transaction</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+        <div className="">
+          {/* Total Amount Display */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 p-6 rounded-2xl">
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(total)}</div>
-              <div className="text-sm text-slate-500">Total Amount</div>
+              <div className="text-sm font-medium text-green-700 mb-2">TOTAL AMOUNT</div>
+              <div className="text-5xl font-bold text-green-600 mb-2">{formatCurrency(total)}</div>
+              <div className="text-green-600 font-medium">Amount Due</div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Payment Amount</label>
-            <Input type="number" step="0.01" placeholder="Enter amount" value={paymentAmount} onChange={e => onPaymentAmountChange(e.target.value)} className="h-12 text-lg text-center" />
+          {/* Payment Input */}
+          <div className="space-y-3">
+            <label className="block text-lg font-semibold text-gray-700 text-center">Enter Payment Amount</label>
+            <Input type="number" step="0.01" placeholder="0.00" value={paymentAmount} onChange={e => onPaymentAmountChange(e.target.value)} className="h-16 text-2xl text-center font-bold border-2 border-gray-300 focus:border-blue-500 rounded-xl" />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            {quickAmounts.map(amount => (
-              <Button key={amount} variant="outline" onClick={() => onPaymentAmountChange(amount.toString())}>
-                {formatCurrency(amount)}
-              </Button>
-            ))}
+          {/* Quick Amount Buttons */}
+          <div className="p-4">
+            <div className="grid grid-cols-3 gap-3">
+              {quickAmounts.map(amount => {
+                const isTotal = amount === total;
+                const isSelected = parseFloat(paymentAmount) === amount;
+
+                return (
+                  <Button key={amount} variant={isSelected ? "default" : "outline"} size="lg" onClick={() => onPaymentAmountChange(amount.toString())} className={`h-14 text-lg font-bold transition-all duration-200 ${isSelected ? "bg-blue-600 hover:bg-blue-700 text-white" : "hover:bg-gray-50 hover:border-gray-400"}`}>
+                    {formatCurrency(amount)}
+                    {isTotal && <div className="ml-2 px-2 py-1 bg-green-600 text-white text-xs rounded-full font-bold">EXACT</div>}
+                  </Button>
+                );
+              })}
+            </div>
           </div>
 
-          {parseFloat(paymentAmount) > total && (
-            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-              <div className="text-sm text-green-700 dark:text-green-300">Change: {formatCurrency(parseFloat(paymentAmount) - total)}</div>
+          {/* Change Display */}
+          {hasChange && (
+            <div className="flex justify-center items-center text-center ">
+              <div className="w-fit text-center pt-2">
+                <div className="text-sm font-medium text-blue-700 mb-1">CHANGE DUE</div>
+                <div className="text-3xl font-bold text-blue-600">{formatCurrency(changeAmount)}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Exact Amount Confirmation */}
+          {isExactAmount && (
+            <div className="flex justify-center items-center text-center ">
+              <div className="w-fit text-center pt-2">
+                <div className="text-2xl font-bold text-green-600">Exact Amount - No Change Required</div>
+              </div>
             </div>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={onPayment} disabled={isLoading || !paymentAmount || parseFloat(paymentAmount) < total}>
-            {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
-            Complete Sale
-          </Button>
+        {/* Footer */}
+        <DialogFooter className="px-8 py-6 bg-gray-50 border-t">
+          <div className="flex w-full space-x-4">
+            <Button variant="outline" size="lg" onClick={onClose} className="flex-1 h-14 text-lg font-semibold">
+              Cancel
+            </Button>
+            <Button onClick={onPayment} disabled={isLoading || !paymentAmount || parseFloat(paymentAmount) < total} size="lg" className="flex-1 h-14 text-lg font-semibold bg-green-600 hover:bg-green-700 text-white">
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5 mr-2" />
+                  Complete Sale
+                </>
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -177,13 +177,13 @@ const salesController = {
         return res.status(400).json({ error: "Invalid sale date" });
       }
 
-      // Validate sectionId - required for individual items, optional for menu items
+      // Validate that we have either items or menu items
       const hasIndividualItems = items && items.length > 0;
       const hasMenuItems = menuItems && menuItems.length > 0;
 
-      if (hasIndividualItems && (!sectionId || sectionId === "" || isNaN(parseInt(sectionId)))) {
+      if (!hasIndividualItems && !hasMenuItems) {
         await transaction.rollback();
-        return res.status(400).json({ error: "Valid section ID is required for individual item sales" });
+        return res.status(400).json({ error: "At least one item or menu item is required" });
       }
 
       // For menu item only sales, assign a default section ID if none provided
@@ -208,13 +208,14 @@ const salesController = {
         finalSectionId = parseInt(sectionId);
       } else {
         // Fallback: find any available section
-        const fallbackSection = await Section.findOne({ transaction });
-        if (fallbackSection) {
-          finalSectionId = fallbackSection.id;
-        } else {
-          await transaction.rollback();
-          return res.status(400).json({ error: "No sections available" });
+        let fallbackSection = await Section.findOne({ transaction });
+        if (!fallbackSection) {
+          // Create a default section if none exists
+          fallbackSection = await Section.create({
+            name: "Default Section"
+          }, { transaction });
         }
+        finalSectionId = fallbackSection.id;
       }
 
       // Process individual items and update section assignments AND stock entries
