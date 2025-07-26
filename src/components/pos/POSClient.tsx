@@ -742,27 +742,25 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 </div>
               )}
             </div>
-            {cart.length > 0 && !showSuccessCheckmark && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
-            {showSuccessCheckmark && (
-              <div className="flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-green-500 animate-bounce" />
-              </div>
-            )}
+            {cart.length > 0 && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
           </div>
         </div>
 
-        {/* Order Items List or Success Animation */}
-        {showSuccessCheckmark ? (
-          <div className="flex-1 flex items-center justify-center bg-green-50">
-            <div className="text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-pulse" />
-              <p className="text-green-700 font-medium text-lg">Order Completed!</p>
-              <p className="text-green-600 text-sm mt-1">Cart cleared successfully</p>
-            </div>
-          </div>
-        ) : (
+        {/* Order Items List with Success Animation Overlay */}
+        <div className="flex-1 relative">
           <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
-        )}
+          
+          {/* Success Animation Overlay */}
+          {showSuccessCheckmark && (
+            <div className="absolute inset-0 flex items-center justify-center bg-green-50/90 backdrop-blur-sm">
+              <div className="text-center">
+                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-scale-in" />
+                <p className="text-green-700 font-medium text-lg">Order Completed!</p>
+                <p className="text-green-600 text-sm mt-1">Cart cleared successfully</p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Order Summary */}
         {!showSuccessCheckmark && <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} onSaveClick={handleManualSave} />}
@@ -824,14 +822,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         autoPrint={shouldAutoPrint}
       />
 
-      {/* Success Checkmark Overlay */}
-      {showSuccessCheckmark && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20 pointer-events-none">
-          <div className="bg-white rounded-full p-6 shadow-2xl animate-scale-in">
-            <CheckCircle className="w-20 h-20 text-green-500 animate-bounce" />
-          </div>
-        </div>
-      )}
+
 
       {/* Unsaved Changes Dialog */}
       <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
