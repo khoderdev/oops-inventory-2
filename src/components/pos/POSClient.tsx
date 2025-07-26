@@ -70,10 +70,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const clearCartWithAnimation = useCallback(() => {
     // Show success checkmark animation
     setShowSuccessCheckmark(true);
-    
+
     // Clear cart immediately for instant feedback
     setCart([]);
-    
+
     // Hide animation after 1500ms
     if (checkmarkTimeoutRef.current) {
       clearTimeout(checkmarkTimeoutRef.current);
@@ -88,8 +88,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setCart([]);
     setHasUnsavedChanges(false);
   }, []);
-
-
 
   // Update optimistic assignments when props change
   useEffect(() => {
@@ -519,8 +517,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.1; // 10% tax
-  const total = subtotal + tax;
+  const tax = 0; // No tax applied
+  const total = subtotal; // Total equals subtotal (no tax)
 
   // Print current order receipt
   const handlePrintReceipt = useCallback(() => {
@@ -547,7 +545,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       total,
       paymentAmount: total,
       change: 0,
-      paymentMethod: "N/A"
+      paymentMethod: "cash"
     };
 
     // Set receipt data and show receipt dialog
@@ -778,13 +776,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <ProductGrid filteredItems={filteredStockEntries} filteredMenuItems={filteredMenuItems} onAddToCart={addToCart} />
 
         {/* Bottom Action Bar */}
-        <ActionBar 
-          onSaveOrder={handleManualSave} 
-          onPrintReceipt={handlePrintReceipt}
-          hasUnsavedChanges={hasUnsavedChanges} 
-          isOrderLoading={orderLoading}
-          canPrintReceipt={cart.length > 0}
-        />
+        <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} />
       </div>
 
       {/* Payment Dialog */}
@@ -822,12 +814,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {showTablesLayout && <TablesLayout tables={Array.isArray(tables) ? tables : []} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} />}
 
       {/* Receipt Printer Dialog */}
-      <ReceiptPrinter 
-        isOpen={showReceiptDialog} 
+      <ReceiptPrinter
+        isOpen={showReceiptDialog}
         onClose={() => {
           setShowReceiptDialog(false);
           setShouldAutoPrint(false); // Reset auto-print flag
-        }} 
+        }}
         receiptData={lastSaleData}
         autoPrint={shouldAutoPrint}
       />

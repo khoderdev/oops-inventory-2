@@ -228,22 +228,22 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm h-auto overflow-y-auto">
+      <DialogContent className="max-w-md h-auto overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Printer className="w-5 h-5" />
             <span>Receipt Preview</span>
           </DialogTitle>
-          <DialogDescription>Review and print the transaction receipt</DialogDescription>
+          <DialogDescription>Review and print the transaction receipt (Preview scaled 1.5x for visibility)</DialogDescription>
         </DialogHeader>
 
-        <div ref={receiptRef} className="receipt bg-white text-black" style={{ width: "100%", maxWidth: "60mm", padding: "2mm", margin: "0 auto", border: "1px solid #ddd", fontFamily: "Courier New, monospace", fontSize: "11px", lineHeight: "1.2" }}>
+        <div ref={receiptRef} className="receipt bg-white text-black" style={{ width: "100%", maxWidth: "120mm", padding: "4mm", margin: "0 auto", border: "1px solid #ddd", fontFamily: "Courier New, monospace", fontSize: "16px", lineHeight: "1.2", transform: "scale(1)", transformOrigin: "top center" }}>
           {/* Header */}
-          <div className="header text-center border-b-2 border-black/25" style={{ paddingBottom: "3mm", marginBottom: "4mm" }}>
-            <div className="business-name font-bold" style={{ fontSize: "14px", marginBottom: "1mm" }}>
+          <div className="header text-center border-b-2 border-black/25" style={{ paddingBottom: "4.5mm", marginBottom: "6mm" }}>
+            <div className="business-name font-bold" style={{ fontSize: "21px", marginBottom: "1.5mm" }}>
               {businessInfo.name}
             </div>
-            <div className="business-info" style={{ fontSize: "9px", lineHeight: "1.1" }}>
+            <div className="business-info" style={{ fontSize: "13.5px", lineHeight: "1.1" }}>
               <div>{businessInfo.address}</div>
               <div>Phone: {businessInfo.phone}</div>
               {businessInfo.taxId && <div>Tax ID: {businessInfo.taxId}</div>}
@@ -251,7 +251,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           </div>
 
           {/* Receipt Info */}
-          <div className="receipt-info" style={{ fontSize: "9px", marginBottom: "4mm" }}>
+          <div className="receipt-info" style={{ fontSize: "13.5px", marginBottom: "6mm" }}>
             <div className="flex justify-between">
               <span>Receipt #:</span>
               <span>{receiptData.id}</span>
@@ -271,14 +271,14 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           </div>
 
           {/* Items */}
-          <div className="items" style={{ marginBottom: "4mm" }}>
+          <div className="items" style={{ marginBottom: "6mm" }}>
             {receiptData.items.map((item, index) => (
-              <div key={index} className="item" style={{ marginBottom: "2mm", fontSize: "9px" }}>
-                <div className="item-line flex justify-between" style={{ marginBottom: "1mm" }}>
+              <div key={index} className="item" style={{ marginBottom: "3mm", fontSize: "13.5px" }}>
+                <div className="item-line flex justify-between" style={{ marginBottom: "1.5mm" }}>
                   <span className="flex-1">{item.name}</span>
                   <span>{formatCurrency(item.totalPrice)}</span>
                 </div>
-                <div className="item-details text-black/50" style={{ fontSize: "8px", marginLeft: "3mm" }}>
+                <div className="item-details text-black/50" style={{ fontSize: "12px", marginLeft: "4.5mm" }}>
                   {item.quantity} × {formatCurrency(item.unitPrice)}
                 </div>
               </div>
@@ -286,23 +286,15 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           </div>
 
           {/* Totals */}
-          <div className="totals border-t border-black/25" style={{ paddingTop: "3mm", marginTop: "4mm" }}>
-            <div className="total-line flex justify-between" style={{ marginBottom: "1mm", fontSize: "9px" }}>
-              <span>Subtotal:</span>
-              <span>{formatCurrency(receiptData.subtotal)}</span>
-            </div>
-            <div className="total-line flex justify-between" style={{ marginBottom: "1mm", fontSize: "9px" }}>
-              <span>Tax (10%):</span>
-              <span>{formatCurrency(receiptData.tax)}</span>
-            </div>
-            <div className="final-total flex justify-between font-bold border-t border-black/25" style={{ fontSize: "11px", paddingTop: "2mm", marginTop: "2mm" }}>
+          <div className="totals border-t border-black/25" style={{ paddingTop: "4.5mm", marginTop: "6mm" }}>
+            <div className="final-total flex justify-between font-bold" style={{ fontSize: "16.5px" }}>
               <span>TOTAL:</span>
               <span>{formatCurrency(receiptData.total)}</span>
             </div>
           </div>
 
           {/* Payment Info */}
-          <div className="payment-info border-t border-dashed border-black/30" style={{ marginTop: "4mm", paddingTop: "3mm", fontSize: "9px" }}>
+          <div className="payment-info border-t border-dashed border-black/30" style={{ marginTop: "6mm", paddingTop: "4.5mm", fontSize: "13.5px" }}>
             <div className="flex justify-between">
               <span>Payment Method:</span>
               <span className="capitalize">{receiptData.paymentMethod}</span>
@@ -320,7 +312,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="footer text-center border-t border-dashed border-black/30" style={{ marginTop: "5mm", paddingTop: "3mm", fontSize: "8px" }}>
+          <div className="footer text-center border-t border-dashed border-black/30" style={{ marginTop: "7.5mm", paddingTop: "4.5mm", fontSize: "12px" }}>
             <div>oOps! dont forget to visit us again soon!</div>
           </div>
         </div>
