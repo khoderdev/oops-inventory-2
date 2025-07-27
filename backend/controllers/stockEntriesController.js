@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { Material, StockEntry, Wasting } from "../models/index.js";
+import { auditStockOperation } from "../middleware/auditMiddleware.js";
 
 const stockEntriesController = {
   // Get all stock entries
@@ -133,6 +134,12 @@ const stockEntriesController = {
         include: { model: Material, as: "material" }
       });
 
+      // Log successful stock entry creation
+      const userId = req.user?.id;
+      if (userId) {
+        await auditStockOperation(userId, 'CREATE', createdStockEntry.toJSON(), null, req);
+      }
+
       res.status(201).json(createdStockEntry);
     } catch (error) {
       console.error("Error creating stock entry:", error);
@@ -155,6 +162,9 @@ const stockEntriesController = {
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
       }
+
+      // Store original stock entry data for audit
+      const originalStockEntry = stockEntry.toJSON();
 
       if (numericPurchasedQuantity !== undefined && numericPurchasedQuantity <= 0) {
         return res.status(400).json({ error: "Purchased quantity must be positive" });
@@ -225,6 +235,12 @@ const stockEntriesController = {
         include: { model: Material, as: "material" }
       });
 
+      // Log successful stock entry update
+      const userId = req.user?.id;
+      if (userId) {
+        await auditStockOperation(userId, 'UPDATE', updatedStockEntry.toJSON(), originalStockEntry, req);
+      }
+
       res.status(200).json(updatedStockEntry);
     } catch (error) {
       console.error("Error updating stock entry:", error);
@@ -241,7 +257,17 @@ const stockEntriesController = {
         return res.status(404).json({ error: "Stock entry not found" });
       }
 
+      // Store stock entry data for audit before deletion
+      const deletedStockEntry = stockEntry.toJSON();
+
       await stockEntry.destroy();
+
+      // Log successful stock entry deletion
+      const userId = req.user?.id;
+      if (userId) {
+        await auditStockOperation(userId, 'DELETE', deletedStockEntry, null, req);
+      }
+
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting stock entry:", error);

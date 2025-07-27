@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import { Assignment, Material, MenuItem, Order, OrderItem, sequelize, Table, User } from "../models/index.js";
 import salesController from "./salesController.js";
+import { auditOrderOperation, auditSecurityEvent } from "../middleware/auditMiddleware.js";
 
 export const ordersController = {
   // Create a new order - SIMPLIFIED VERSION
@@ -124,6 +125,11 @@ export const ordersController = {
         ]
       });
 
+      // Log successful order creation
+      if (userId) {
+        await auditOrderOperation(userId, 'CREATE', completeOrder.toJSON(), null, req);
+      }
+
       res.status(201).json({ message: "Order created successfully", order: completeOrder });
     } catch (error) {
       await transaction.rollback();
@@ -239,6 +245,9 @@ export const ordersController = {
         return res.status(404).json({ message: "Order not found" });
       }
 
+      // Store original order data for audit
+      const originalOrder = order.toJSON();
+
       // Handle table status changes
       const oldTableId = order.tableId;
       const newTableId = tableId !== undefined ? tableId : order.tableId;
@@ -345,6 +354,11 @@ export const ordersController = {
           { model: Table, as: "table" }
         ]
       });
+
+      // Log successful order update
+      if (userId) {
+        await auditOrderOperation(userId, 'UPDATE', updatedOrder.toJSON(), originalOrder, req);
+      }
 
       res.json({ message: "Order updated successfully", order: updatedOrder });
     } catch (error) {

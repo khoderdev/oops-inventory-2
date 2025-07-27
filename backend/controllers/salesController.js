@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, StockEntry, User } from "../models/index.js";
+import { auditSalesOperation, auditSecurityEvent } from "../middleware/auditMiddleware.js";
 
 const salesController = {
   getNegativeStockReport: async (req, res, next) => {
@@ -568,6 +569,12 @@ const salesController = {
 
       await transaction.commit();
 
+      // Log successful sale creation
+      const userId = req.user?.id;
+      if (userId) {
+        await auditSalesOperation(userId, 'CREATE', sale.toJSON(), null, req);
+      }
+
       // Fetch updated stock entries AFTER transaction commit to ensure fresh data
       const updatedStockEntries = await StockEntry.findAll({
         include: [
@@ -612,6 +619,9 @@ const salesController = {
         await transaction.rollback();
         return res.status(404).json({ error: "Sale not found" });
       }
+
+      // Store original values for audit
+      const originalSale = sale.toJSON();
 
       // Validate menuItemId if provided
       if (menuItemId !== undefined) {
@@ -677,6 +687,13 @@ const salesController = {
       };
 
       await transaction.commit();
+
+      // Log successful sale update
+      const userId = req.user?.id;
+      if (userId) {
+        await auditSalesOperation(userId, 'UPDATE', formattedSale, originalSale, req);
+      }
+
       res.status(200).json(formattedSale);
     } catch (error) {
       await transaction.rollback();
@@ -694,9 +711,20 @@ const salesController = {
         await transaction.rollback();
         return res.status(404).json({ error: "Sale not found" });
       }
+
+      // Store sale data for audit before deletion
+      const deletedSale = sale.toJSON();
+
       // Delete sale
       await sale.destroy({ transaction });
       await transaction.commit();
+
+      // Log successful sale deletion
+      const userId = req.user?.id;
+      if (userId) {
+        await auditSalesOperation(userId, 'DELETE', deletedSale, null, req);
+      }
+
       res.status(204).send();
     } catch (error) {
       await transaction.rollback();
@@ -877,9 +905,19 @@ const salesController = {
           }
         }
       }
+      // Store sale data for audit before deletion
+      const revertedSale = sale.toJSON();
+
       // Delete the sale record
       await sale.destroy({ transaction });
       await transaction.commit();
+
+      // Log successful sale revert
+      const userId = req.user?.id;
+      if (userId) {
+        await auditSalesOperation(userId, 'REVERT', revertedSale, null, req);
+      }
+
       res.status(200).json({
         message: "Sale successfully reverted",
         saleId: id,
@@ -909,9 +947,19 @@ const salesController = {
         await transaction.rollback();
         return res.status(400).json({ error: "Sale is already inactive" });
       }
+      // Store original sale data for audit
+      const originalSale = sale.toJSON();
+
       // Mark sale as inactive (soft delete)
       await sale.update({ isActive: false }, { transaction });
       await transaction.commit();
+
+      // Log successful soft delete
+      const userId = req.user?.id;
+      if (userId) {
+        await auditSalesOperation(userId, 'SOFT_DELETE', { ...originalSale, isActive: false }, originalSale, req);
+      }
+
       res.status(200).json({
         message: "Sale successfully hidden",
         saleId: id,
