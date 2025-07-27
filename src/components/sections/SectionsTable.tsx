@@ -389,14 +389,10 @@ export const SectionsTable = memo(({ sectionsWithAssignments, selectedSectionId,
 
       {/* Desktop View */}
       <div className="hidden sm:flex flex-col h-full">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 px-3 sm:px-4 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-700">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 py-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                Section Inventory
-              </CardTitle>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">Manage and organize your inventory by sections</p>
+              <CardTitle className="text-3xl font-bold">Section Inventory</CardTitle>
             </div>
             <Button size="sm" onClick={() => setShowSectionForm(true)}>
               <Plus className="h-4 w-4 mr-2" />

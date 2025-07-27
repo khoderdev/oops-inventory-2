@@ -191,7 +191,7 @@ export function StockEntriesTable() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <CardTitle>Stock Entries</CardTitle>
+            <CardTitle className="text-3xl font-bold">Stock Entries</CardTitle>
             {negativeStockCount > 0 && (
               <div className="flex items-center gap-2 text-red-600">
                 <AlertTriangle className="h-4 w-4" />

@@ -47,7 +47,7 @@ const ProtectedNavigation: React.FC = () => {
         children: [
           {
             label: "Stock",
-            href: "/inventory/menu-items",
+            href: "/inventory",
             icon: Package,
             permission: PERMISSIONS.MENU_ITEMS_READ
           },

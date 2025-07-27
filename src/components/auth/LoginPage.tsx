@@ -11,16 +11,16 @@ import { Label } from "../ui/label";
 
 // Type for API error responses
 interface ApiErrorResponse {
-  response?: { 
+  response?: {
     data?: Record<string, unknown>;
     status?: number;
-  }; 
-  message?: string; 
-  code?: string; 
-  status?: number; 
-  field?: string; 
-  fields?: string[]; 
-  attemptsLeft?: number; 
+  };
+  message?: string;
+  code?: string;
+  status?: number;
+  field?: string;
+  fields?: string[];
+  attemptsLeft?: number;
   lockTimeLeft?: number;
 }
 
@@ -82,7 +82,7 @@ const LoginPage: React.FC = () => {
         lockTimeLeft: apiError.lockTimeLeft,
         details: apiError.response?.data
       };
-      
+
       const errorMessage = getErrorMessage(transformedError);
       const errorFields = getErrorFields(transformedError);
 
@@ -129,46 +129,24 @@ const LoginPage: React.FC = () => {
                     Username or Email
                   </Label>
                   <div className="relative mt-1">
-                    <Input id="username" name="username" type="text" autoComplete="username" required value={formData.username} onChange={handleInputChange} placeholder="Enter your username" className={`pl-10 ${fieldErrors.includes("username") ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`} disabled={isSubmitting} />
+                    <Input id="username" name="username" type="text" autoComplete="username" autoFocus required value={formData.username} onChange={handleInputChange} placeholder="Enter your username" className={`pl-10 ${fieldErrors.includes("username") ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`} disabled={isSubmitting} />
                     <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${fieldErrors.includes("username") ? "text-red-400" : "text-gray-400"}`} />
                   </div>
                   {fieldErrors.includes("username") && <p className="mt-1 text-sm text-red-600">Please check your username</p>}
                 </div>
 
                 <div>
-                  <Label htmlFor="password" className={fieldErrors.includes('password') ? 'text-red-600' : ''}>Password</Label>
+                  <Label htmlFor="password" className={fieldErrors.includes("password") ? "text-red-600" : ""}>
+                    Password
+                  </Label>
                   <div className="relative mt-1">
-                    <Input 
-                      id="password" 
-                      name="password" 
-                      type={showPassword ? "text" : "password"} 
-                      autoComplete="current-password" 
-                      required 
-                      value={formData.password} 
-                      onChange={handleInputChange} 
-                      placeholder="Enter your password" 
-                      className={`pl-10 pr-10 ${
-                        fieldErrors.includes('password') 
-                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
-                          : ''
-                      }`} 
-                      disabled={isSubmitting} 
-                    />
-                    <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${
-                      fieldErrors.includes('password') ? 'text-red-400' : 'text-gray-400'
-                    }`} />
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPassword(!showPassword)} 
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600" 
-                      disabled={isSubmitting}
-                    >
+                    <Input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={formData.password} onChange={handleInputChange} placeholder="Enter your password" className={`pl-10 pr-10 ${fieldErrors.includes("password") ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`} disabled={isSubmitting} />
+                    <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${fieldErrors.includes("password") ? "text-red-400" : "text-gray-400"}`} />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600" disabled={isSubmitting}>
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {fieldErrors.includes('password') && (
-                    <p className="mt-1 text-sm text-red-600">Please check your password</p>
-                  )}
+                  {fieldErrors.includes("password") && <p className="mt-1 text-sm text-red-600">Please check your password</p>}
                 </div>
               </div>
 

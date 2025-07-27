@@ -371,7 +371,7 @@ export function SectionsManagementPanel({ sections, sectionAssignments, material
   );
 
   return (
-    <div className="space-y-6 p-4 sm:p-10">
+    <div className="">
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />

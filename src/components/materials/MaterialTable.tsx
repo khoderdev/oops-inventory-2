@@ -20,7 +20,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     <Card className="!border-none">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Materials</CardTitle>
+          <CardTitle className="text-3xl font-bold">Materials</CardTitle>
           <Button size="sm" onClick={() => setShowMaterialForm(true)} className="w-fit">
             <Plus className="h-4 w-4 mr-2" />
             Add Material
