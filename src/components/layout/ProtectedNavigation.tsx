@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { PERMISSIONS } from "../../types/auth";
+import { LOGO_CONFIGS, useCachedLogo } from "../../utils/logoCache";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
@@ -27,6 +28,10 @@ const ProtectedNavigation: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [openSections, setOpenSections] = useState<string[]>([]);
+
+  // Cached logos with preloading and fallback - different logos for collapsed/expanded states
+  const logoConfig = isCollapsed ? LOGO_CONFIGS.SIDEBAR_ICON : LOGO_CONFIGS.SIDEBAR_LOGO;
+  const { logoSrc, isLoaded, error, isPreloaded } = useCachedLogo(logoConfig);
 
   // Memoized navigation items to prevent re-renders
   const navigationItems: NavigationItem[] = useMemo(
@@ -98,17 +103,13 @@ const ProtectedNavigation: React.FC = () => {
             label: "User Management",
             href: "/admin/users",
             icon: Users,
-            permission: PERMISSIONS.USERS_READ,
-            badge: "Admin",
-            badgeVariant: "destructive"
+            permission: PERMISSIONS.USERS_READ
           },
           {
             label: "System Settings",
             href: "/admin/settings",
             icon: Settings,
-            permission: PERMISSIONS.SYSTEM_SETTINGS,
-            badge: "Admin",
-            badgeVariant: "destructive"
+            permission: PERMISSIONS.SYSTEM_SETTINGS
           }
         ]
       }
@@ -250,19 +251,6 @@ const ProtectedNavigation: React.FC = () => {
     [isItemVisible, openSections, isActiveLink, toggleSection, closeMobileMenu, isCollapsed]
   );
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case "admin":
-        return "bg-red-100 text-red-800";
-      case "manager":
-        return "bg-blue-100 text-blue-800";
-      case "staff":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   return (
     <>
       {/* Mobile Menu Button */}
@@ -292,7 +280,40 @@ const ProtectedNavigation: React.FC = () => {
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="p-2 flex items-center justify-center border-b border-gray-200">
-            <img src="oops-logo.png" alt="oops-logo" className="w-36" />
+            {/* Dynamic Cached Logo - Icon when collapsed, Full logo when expanded */}
+            <div className={`relative flex items-center justify-center transition-all duration-300 ${isCollapsed ? "w-12 h-12" : "w-36 h-12"}`}>
+              {!isLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className={`border-2 border-blue-500 border-t-transparent rounded-full animate-spin ${isCollapsed ? "w-6 h-6" : "w-8 h-8"}`} />
+                </div>
+              )}
+              <img
+                src={logoSrc}
+                alt={logoConfig.alt}
+                className={`transition-all duration-300 ${isLoaded ? "opacity-100" : "opacity-0"} ${isCollapsed ? "w-10 h-10" : "w-36"}`}
+                style={{
+                  // Ensure logo is always rendered for best performance
+                  display: "block",
+                  maxWidth: "100%",
+                  height: "auto",
+                  // Smooth transitions for size changes
+                  objectFit: "contain"
+                }}
+                onLoad={() => {
+                  // Additional load handler for any missed cases
+                  if (!isLoaded && process.env.NODE_ENV === "development") {
+                    console.log(`${isCollapsed ? "Icon" : "Logo"} loaded successfully`);
+                  }
+                }}
+                onError={e => {
+                  console.error(`${isCollapsed ? "Icon" : "Logo"} failed to load:`, error);
+                  // Fallback to text if image fails completely
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = "none";
+                }}
+              />
+              {error && !isLoaded && <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 font-semibold">{isCollapsed ? "oO" : "oOps Resto"}</div>}
+            </div>
           </div>
 
           {/* Navigation */}

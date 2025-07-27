@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useAuth } from "@/contexts/AuthContext";
 import { POSLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
+import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -11,6 +12,9 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  // Cached logo with preloading and fallback
+  const { logoSrc, isLoaded, error, isPreloaded } = useCachedLogo(LOGO_CONFIGS.MAIN_LOGO);
 
   // Update time every second
   useEffect(() => {
@@ -70,11 +74,43 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       {/* POS Header */}
       <header className="bg-teal-500 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm px-6 py-0 flex items-center justify-between shrink-0">
         {/* Left Section - Branding */}
-        {/* <div className="flex items-center space-x-3"> */}
         <div className="flex items-center py-1">
-          <img src="/oops-logo.png" alt="" className="w-24" />
+          {/* Cached Logo with Loading State and Performance Optimization */}
+          <div className="relative w-24 h-8 flex items-center justify-center">
+            {!isLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            <img
+              src={logoSrc}
+              alt={LOGO_CONFIGS.MAIN_LOGO.alt}
+              className={`w-24 transition-opacity duration-300 ${isLoaded ? "opacity-100" : "opacity-0"}`}
+              style={{
+                // Critical performance optimizations
+                display: "block",
+                maxWidth: "100%",
+                height: "auto",
+                // Prevent layout shifts
+                aspectRatio: "3/1",
+                objectFit: "contain",
+                // GPU acceleration for smooth transitions
+                transform: "translateZ(0)",
+                willChange: "opacity"
+              }}
+              // Preload hint for browser optimization
+              loading="eager"
+              decoding="sync"
+              onLoad={() => {}}
+              onError={e => {
+                console.error("POS Logo failed to load:", error);
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+              }}
+            />
+            {error && !isLoaded && <div className="absolute inset-0 flex items-center justify-center text-xs text-white font-bold">oOps POS</div>}
+          </div>
         </div>
-        {/* </div> */}
 
         {/* Center Section - Date & Time */}
         <div className="flex items-center space-x-6">
