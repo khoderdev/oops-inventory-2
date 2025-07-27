@@ -9,9 +9,15 @@ const authController = {
       const { username, password } = req.body;
 
       if (!username || !password) {
+        const missingFields = [];
+        if (!username) missingFields.push("username");
+        if (!password) missingFields.push("password");
+
         return res.status(400).json({
           error: "Validation error",
-          message: "Username and password are required"
+          message: `Please enter your ${missingFields.join(" and ")}.`,
+          code: "MISSING_CREDENTIALS",
+          fields: missingFields
         });
       }
 
@@ -27,16 +33,24 @@ const authController = {
         await AuditLog.logFailedAction(null, "login_failed", "authentication", `Login attempt with invalid username: ${username}`, req);
         return res.status(401).json({
           error: "Authentication failed",
-          message: "Invalid username or password"
+          message: "The username you entered doesn't exist. Please check your username and try again.",
+          code: "USER_NOT_FOUND",
+          field: "username"
         });
       }
 
       // Check if account is locked
       if (user.isLocked()) {
         await AuditLog.logFailedAction(user.id, "login_failed", "authentication", "Account is locked", req);
+
+        const lockTimeLeft = Math.ceil((user.lockUntil - Date.now()) / (1000 * 60)); // Minutes left
+
         return res.status(423).json({
           error: "Account locked",
-          message: "Your account has been temporarily locked due to multiple failed login attempts"
+          message: `Your account has been temporarily locked due to multiple failed login attempts. Please try again in ${lockTimeLeft} minute${lockTimeLeft === 1 ? "" : "s"}.`,
+          code: "ACCOUNT_LOCKED",
+          field: "username",
+          lockTimeLeft
         });
       }
 
@@ -46,9 +60,17 @@ const authController = {
       if (!isPasswordValid) {
         await User.incLoginAttempts(user.id);
         await AuditLog.logFailedAction(user.id, "login_failed", "authentication", "Invalid password", req);
+
+        // Check remaining attempts before lockout
+        const updatedUser = await User.findByPk(user.id);
+        const attemptsLeft = 5 - updatedUser.loginAttempts; // Assuming max 5 attempts
+
         return res.status(401).json({
           error: "Authentication failed",
-          message: "Invalid username or password"
+          message: attemptsLeft > 0 ? `Invalid password. You have ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} remaining before your account is locked.` : "Invalid password. Your account will be locked after one more failed attempt.",
+          code: "INVALID_PASSWORD",
+          field: "password",
+          attemptsLeft
         });
       }
 
@@ -99,7 +121,7 @@ const authController = {
           sessionDuration: new Date() - new Date(req.session.createdAt),
           lastActivity: req.session.lastActivity
         };
-        
+
         await req.session.update({ isActive: false });
 
         await AuditLog.logUserAction(req.user.id, "logout", "authentication", null, null, sessionData, req);

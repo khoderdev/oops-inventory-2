@@ -12,6 +12,11 @@ interface ApiError {
   message: string;
   code?: string;
   status?: number;
+  field?: string;
+  fields?: string[];
+  attemptsLeft?: number;
+  lockTimeLeft?: number;
+  details?: Record<string, unknown>;
 }
 
 // API configuration interface
@@ -158,13 +163,38 @@ class ApiClient {
 
   // Error handler
   private handleError(error: unknown): ApiError {
+    // Handle standard Axios errors
     if (axios.isAxiosError(error)) {
+      const errorData = error.response?.data;
+      
       return {
-        message: error.response?.data?.message || "Request failed",
-        code: error.code,
-        status: error.response?.status
+        message: errorData?.message || "Request failed",
+        code: errorData?.code || error.code,
+        status: error.response?.status,
+        field: errorData?.field,
+        fields: errorData?.fields,
+        attemptsLeft: errorData?.attemptsLeft,
+        lockTimeLeft: errorData?.lockTimeLeft,
+        details: errorData
       };
     }
+    
+    // Handle case where error is already transformed but contains the right data
+    const errorObj = error as Record<string, unknown>;
+    if (errorObj && typeof errorObj === 'object' && errorObj.message) {
+      return {
+        message: errorObj.message as string,
+        code: errorObj.code === 'ERR_BAD_REQUEST' ? undefined : (errorObj.code as string), // Ignore generic axios codes
+        status: errorObj.status as number,
+        field: errorObj.field as string,
+        fields: errorObj.fields as string[],
+        attemptsLeft: errorObj.attemptsLeft as number,
+        lockTimeLeft: errorObj.lockTimeLeft as number,
+        details: errorObj
+      };
+    }
+    
+    // Fallback for unknown error types
     return {
       message: "An unexpected error occurred"
     };
