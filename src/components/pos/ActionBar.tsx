@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calculator, DollarSign, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
+import { Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
 import React from "react";
 
 // Action button configuration interface
@@ -33,6 +33,7 @@ interface LegacyActionBarProps {
   onPrintReceipt?: () => void;
   onVoidOrder?: () => void;
   onShowOrders?: () => void;
+  onShowReports?: () => void;
   hasUnsavedChanges?: boolean;
   isOrderLoading?: boolean;
   canPrintReceipt?: boolean;
@@ -84,7 +85,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
-    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {} } = props;
+    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, onShowReports, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {} } = props;
 
     buttons = [
       {
@@ -107,6 +108,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
       { id: "refund", icon: DollarSign, label: "Refund", active: false },
 
       { id: "orders", icon: ShoppingCart, label: "Orders", active: false, onClick: onShowOrders, disabled: !onShowOrders },
+      { id: "reports", icon: FileText, label: "Reports", active: false, onClick: onShowReports },
       {
         id: "back-office",
         icon: Settings,
@@ -120,7 +122,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
           : undefined
       }
     ];
-    columns = 6;
+    columns = 7;
     className = "";
   } else {
     // New flexible mode

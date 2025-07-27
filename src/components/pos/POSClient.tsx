@@ -13,6 +13,7 @@ import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
 import { CategoryTabs } from "./CategoryTabs";
 import { OrderItemsList } from "./OrderItemsList";
@@ -51,6 +52,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [shouldAutoPrint, setShouldAutoPrint] = useState(false);
   const [showVoidDialog, setShowVoidDialog] = useState(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
+  const [showReportsDialog, setShowReportsDialog] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -101,6 +103,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setHasUnsavedChanges(false);
   }, []);
 
+  const handleShowReports = useCallback(() => {
+    setShowReportsDialog(true);
+  }, []);
+
   // Comprehensive reset function - clears everything in POS system
   const handleCancelOrder = useCallback(() => {
     // Clear cart and local state
@@ -122,6 +128,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setShowOrdersDialog(false);
     setShowNegativeStockDialog(false);
     setShowUnsavedDialog(false);
+    setShowReportsDialog(false);
 
     // Clear payment amount
     setPaymentAmount("");
@@ -157,8 +164,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handleOrderSelect = useCallback(
     async (order: any) => {
       try {
-
-
         setIsLoading(true);
         setError(null);
 
@@ -182,11 +187,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Convert order items to cart items
         const cartItems: POSCartItem[] =
           order.items?.map((item: any) => {
-
-            
             // Find the original item for proper saving
             let originalItem: StockEntryWithMaterial | MenuItem | undefined;
-            
+
             if (item.materialId) {
               // Find stock entry by materialId
               originalItem = stockEntries.find(se => se.materialId === item.materialId);
@@ -194,7 +197,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               // Find menu item by menuItemId
               originalItem = menuItems.find(mi => mi.id === item.menuItemId);
             }
-            
+
             return {
               id: item.id || `${item.materialId || item.menuItemId}-${Date.now()}`,
               stockEntryId: item.materialId, // materialId maps to stockEntryId
@@ -798,7 +801,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       } else {
         // Fallback to direct sale creation for backward compatibility
         const saleData = {
-          sectionId: selectedSectionId || sections[0]?.id,
+          sectionId: selectedSectionId || optimisticAssignments[0]?.id,
           saleDate: new Date(),
           items: cart
             .filter(item => item.type === "material")
@@ -899,7 +902,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, selectedSectionId, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder, resetToTakeaway]);
+  }, [cart, selectedSectionId, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder, resetToTakeaway, optimisticAssignments]);
 
   return (
     <div className="h-full flex bg-gray-100">
@@ -975,7 +978,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         {/* Bottom Action Bar - Fixed Footer */}
         <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} canVoidOrder={!!currentOrder} />
+          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} canVoidOrder={!!currentOrder} />
         </div>
       </div>
 
@@ -1080,6 +1083,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       {/* Orders Management Dialog */}
       <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} onOrderSelect={handleOrderSelect} />
+
+      {/* Reports Dialog */}
+      {showReportsDialog && (
+        <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
+          <DialogContent className="max-w-7xl max-h-[98vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Reports & Analytics</DialogTitle>
+              <DialogDescription>Generate and view various reports for your business</DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden">
+              <ReportGenerator />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
