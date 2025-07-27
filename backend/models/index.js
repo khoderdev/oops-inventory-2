@@ -166,6 +166,14 @@ Sale.belongsTo(Section, {
   onDelete: "CASCADE",
   onUpdate: "CASCADE"
 });
+
+Sale.belongsTo(User, {
+  foreignKey: "userId",
+  as: "creator",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
 Section.hasMany(Sale, {
   foreignKey: "sectionId",
   as: "sales",
@@ -338,7 +346,5 @@ User.hasMany(Order, {
   onDelete: "SET NULL",
   onUpdate: "CASCADE"
 });
-
-
 
 export { Assignment, AuditLog, DayOperation, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Sale, SaleMenuItem, Section, sequelize, Session, StockEntry, Table, User, Wasting };

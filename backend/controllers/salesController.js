@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
-import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, StockEntry } from "../models/index.js";
+import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, StockEntry, User } from "../models/index.js";
 
 const salesController = {
   getNegativeStockReport: async (req, res, next) => {
@@ -62,6 +62,11 @@ const salesController = {
             model: Section,
             as: "section",
             attributes: ["id", "name"]
+          },
+          {
+            model: User,
+            as: "creator",
+            attributes: ["username"]
           }
         ],
         order: [["saleDate", "DESC"]]
@@ -211,9 +216,12 @@ const salesController = {
         let fallbackSection = await Section.findOne({ transaction });
         if (!fallbackSection) {
           // Create a default section if none exists
-          fallbackSection = await Section.create({
-            name: "Default Section"
-          }, { transaction });
+          fallbackSection = await Section.create(
+            {
+              name: "Default Section"
+            },
+            { transaction }
+          );
         }
         finalSectionId = fallbackSection.id;
       }
@@ -230,14 +238,14 @@ const salesController = {
           if (!item.assignmentId || item.assignmentId === null) {
             // Fetch material directly to check if it's a POS item
             material = await Material.findByPk(item.materialId, { transaction });
-            
+
             if (!material) {
               await transaction.rollback();
               return res.status(400).json({ error: `Material ${item.materialId} not found` });
             }
 
             isPOSItem = material.isPOSItem;
-            
+
             if (!isPOSItem) {
               await transaction.rollback();
               return res.status(400).json({ error: `Assignment required for non-POS item: ${material.name}` });
@@ -272,7 +280,7 @@ const salesController = {
           // Handle POS items differently - deduct from stock entries but skip assignment logic
           if (isPOSItem) {
             console.log(`Processing POS item: ${material.name} - deducting from stock entries`);
-            
+
             // Calculate deduction quantity for POS item
             let stockDeductionQuantity;
             if (material && material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
@@ -313,7 +321,7 @@ const salesController = {
                 await stockEntry.save({ transaction });
 
                 console.log(`Deducted ${deductFromThisEntry} ${material.baseUnit} from stock entry ${stockEntry.id} for POS item ${material.name}`);
-                
+
                 // Log negative stock warning if needed
                 if (Math.round(newIndividualQuantity) < 0) {
                   console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for POS item ${material.name} now has negative individual quantity: ${Math.round(newIndividualQuantity)}`);

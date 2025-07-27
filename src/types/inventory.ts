@@ -308,14 +308,13 @@ export interface AssignmentFormProps {
 //-----------------------------------------------------------------------------
 
 export interface SoldItem {
-  assignmentId: string;
-  materialId: string;
-  sectionId: string;
-  materialName: string;
-  unit: string;
   quantity: number;
   unitPrice: number;
+  materialId: string;
   totalPrice: number;
+  assignmentId?: string | null;
+  materialName?: string;
+  unit?: string;
 }
 
 export interface SaleRecord {
@@ -328,6 +327,9 @@ export interface SaleRecord {
   section?: {
     id: string;
     name: string;
+  };
+  creator?: {
+    username: string;
   };
   isActive?: boolean;
   createdAt: Date;
@@ -347,8 +349,6 @@ export interface MenuItemSale {
     quantity: number;
     unit: string;
   }>;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export type CartItem = {

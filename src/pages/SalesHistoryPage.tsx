@@ -1,5 +1,6 @@
 import { DeleteConfirmationModal } from "@/components/dialogs/DeleteConfirmationModal";
 import { StockRestorationModal } from "@/components/dialogs/StockRestorationModal";
+import { ReceiptPrinter } from "@/components/pos/ReceiptPrinter";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSalesOperations } from "@/hooks/useSalesOperations";
 import { dateFilterAtom, itemSalesAtom, selectedItemFilterAtom, selectedSectionFilterAtom, totalQuantityAtom, totalSalesAtom, uniqueItemNamesAtom, uniqueSectionNamesAtom } from "@/store/salesAtoms";
-import { ItemSale } from "@/types/inventory";
+import { ItemSale, ReceiptData } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
 import { useAtom, useAtomValue } from "jotai";
-import { AlertCircle, CheckCircle, CheckSquare, DollarSign, Loader2, Package, Search, ShoppingBag, ShoppingCart, Square, Trash2, Undo2 } from "lucide-react";
+import { AlertCircle, CheckCircle, CheckSquare, DollarSign, Loader2, Package, Printer, Search, ShoppingBag, ShoppingCart, Square, Trash2, Undo2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -62,10 +63,65 @@ export function SalesHistoryPage() {
 
   const [selectedItemIds, setSelectedItemIds] = React.useState<Set<string>>(new Set());
 
+  // Receipt printer state
+  const [showReceiptDialog, setShowReceiptDialog] = React.useState(false);
+  const [receiptData, setReceiptData] = React.useState<ReceiptData | null>(null);
+
+  // Convert sale data to receipt format
+  const convertSaleToReceipt = useCallback(
+    (saleId: string) => {
+      const sale = sales.find(s => s.id.toString() === saleId);
+      if (!sale) return;
+
+      const receiptItems: ReceiptData["items"] = [];
+
+      // Add individual items
+      sale.items?.forEach(item => {
+        receiptItems.push({
+          name: item.materialName || `Item ${item.materialId}`,
+          quantity: item.quantity,
+          unitPrice: parseFloat(String(item.unitPrice || 0)),
+          totalPrice: parseFloat(String(item.totalPrice || 0)),
+          type: "material"
+        });
+      });
+
+      // Add menu items
+      sale.menuItems?.forEach(menuItem => {
+        receiptItems.push({
+          name: menuItem.menuItemName || `Menu Item ${menuItem.menuItemId}`,
+          quantity: menuItem.quantity,
+          unitPrice: parseFloat(String(menuItem.unitPrice || 0)),
+          totalPrice: parseFloat(String(menuItem.totalPrice || 0)),
+          type: "menu"
+        });
+      });
+
+      const saleDate = new Date(sale.saleDate);
+      const receipt: ReceiptData = {
+        id: `SALE-${sale.id}`,
+        date: saleDate.toLocaleDateString(),
+        time: saleDate.toLocaleTimeString(),
+        cashier: sale.creator?.username || "Unknown User",
+        items: receiptItems,
+        subtotal: sale.totalAmount,
+        tax: 0,
+        total: sale.totalAmount,
+        paymentAmount: sale.totalAmount,
+        change: 0,
+        paymentMethod: "cash"
+      };
+
+      setReceiptData(receipt);
+      setShowReceiptDialog(true);
+    },
+    [sales]
+  );
+
   const localFilteredSales = useMemo(() => {
     const items: ItemSale[] = [];
     sales.forEach(sale => {
-      sale.items?.forEach((item: any, index: number) => {
+      sale.items?.forEach((item, index: number) => {
         items.push({
           id: `${sale.id}-item-${index}`,
           saleId: sale.id.toString(),
@@ -81,7 +137,7 @@ export function SalesHistoryPage() {
           materialId: item.materialId
         });
       });
-      sale.menuItems?.forEach((menuItem: any, index: number) => {
+      sale.menuItems?.forEach((menuItem, index: number) => {
         items.push({
           id: `${sale.id}-menu-${index}`,
           saleId: sale.id.toString(),
@@ -532,6 +588,18 @@ export function SalesHistoryPage() {
                         <Badge variant="outline">{items.length} items</Badge>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={e => {
+                            e.stopPropagation();
+                            convertSaleToReceipt(saleId);
+                          }}
+                          className="h-8 w-8 p-0 hover:bg-blue-100"
+                          title="Print Receipt"
+                        >
+                          <Printer className="h-4 w-4 text-blue-600" />
+                        </Button>
                         <span className="font-bold">{formatCurrency(total)}</span>
                       </div>
                     </div>
@@ -843,6 +911,9 @@ export function SalesHistoryPage() {
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal open={deleteConfirmationModalOpen} onOpenChange={setDeleteConfirmationModalOpen} saleRecord={selectedSaleForDelete} />
+
+      {/* Receipt Printer */}
+      <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={receiptData} autoPrint={false} />
     </div>
   );
 }
