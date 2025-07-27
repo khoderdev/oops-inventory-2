@@ -54,7 +54,7 @@ const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
       <Suspense fallback={<LoadingFallback />}>
         <ProtectedNavigation />
       </Suspense>
-      <main className={`px-4 transition-all duration-300 ease-in-out ${isCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
+      <main className={`h-screen px-4 transition-all duration-300 ease-in-out ${isCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
         <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
       </main>
     </div>

@@ -326,7 +326,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             </DialogContent>
           </Dialog>
 
-          <div className="w-full h-[calc(100vh-240px)] overflow-auto border rounded-md">
+          <div className="w-full h-[calc(100vh-175px)] overflow-auto border rounded-md">
             <Table className="min-w-full">
               <TableHeader className="sticky top-0 bg-background z-10 border-b">
                 <TableRow>
