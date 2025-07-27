@@ -158,7 +158,7 @@ export function StockEntriesTable() {
 
     try {
       const newPOSStatus = !entry.material.isPOSItem;
-      
+
       // Update the material's POS visibility
       const response = await materialsAPI.updateMaterialPOS(entry.materialId, {
         isPOSItem: newPOSStatus
@@ -167,16 +167,15 @@ export function StockEntriesTable() {
       if (!response) {
         throw new Error("Failed to update material POS visibility");
       }
-      
+
       toast({
         title: "Success",
-        description: `${entry.material.name} is now ${newPOSStatus ? 'available in' : 'hidden from'} POS`,
+        description: `${entry.material.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
         variant: "default"
       });
 
       // Refresh the data to show updated state
       await fetchTabData("stock");
-      
     } catch (error) {
       console.error("Error updating material POS visibility:", error);
       toast({
@@ -385,7 +384,7 @@ export function StockEntriesTable() {
                                   handleTogglePOSVisibility(entry);
                                 }}
                                 title={entry.material?.isPOSItem ? "Hide from POS" : "Show in POS"}
-                                className={entry.material?.isPOSItem ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                                className={entry.material?.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>

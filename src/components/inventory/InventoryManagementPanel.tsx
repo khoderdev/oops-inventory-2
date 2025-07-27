@@ -86,10 +86,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
   };
 
   return (
-    <div className="space-y-6">
+    <div className="h-screen w-full flex flex-col overflow-hidden">
       {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="w-full bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 rounded-xl p-2 shadow-sm">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
+        <TabsList className="sticky top-0 z-10 flex-shrink-0 w-full bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 rounded-xl p-2 shadow-sm">
           <TabsTrigger
             value="material"
             className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform
@@ -149,46 +149,25 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="material" className="mt-6 space-y-4 focus-visible:outline-none">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-blue-200">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-blue-900">Materials Management</h2>
-              </div>
-              <p className="text-sm text-blue-700 mt-1">Manage your inventory materials and their properties</p>
-            </div>
-            <div className="p-6">
+        <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden">
+          <div className="h-full bg-white border border-gray-200 shadow-sm overflow-hidden rounded-lg">
+            <div className="h-full p-4">
               <MaterialTable filteredMaterials={filteredMaterials} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="stock" className="mt-6 space-y-4 focus-visible:outline-none">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-b border-green-200">
-              <div className="flex items-center gap-2">
-                <Warehouse className="h-5 w-5 text-green-600" />
-                <h2 className="text-lg font-semibold text-green-900">Stock Entries</h2>
-              </div>
-              <p className="text-sm text-green-700 mt-1">Track and manage your inventory stock levels</p>
-            </div>
-            <div className="p-6">
+        <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden">
+          <div className="h-full bg-white border border-gray-200 shadow-sm overflow-hidden rounded-lg">
+            <div className="h-full">
               <StockEntriesTable />
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="sections" className="mt-6 space-y-4 focus-visible:outline-none">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100 px-6 py-4 border-b border-purple-200">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-purple-600" />
-                <h2 className="text-lg font-semibold text-purple-900">Sections Management</h2>
-              </div>
-              <p className="text-sm text-purple-700 mt-1">Organize your inventory into sections and manage assignments</p>
-            </div>
-            <div className="">
+        <TabsContent value="sections" className="flex-1 focus-visible:outline-none overflow-hidden">
+          <div className="h-full bg-white border border-gray-200 shadow-sm overflow-hidden rounded-lg">
+            <div className="h-full p-4">
               <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
             </div>
           </div>

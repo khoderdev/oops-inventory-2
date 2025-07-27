@@ -22,7 +22,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [name, setName] = useState(menuItem?.name || "");
   const [category, setCategory] = useState<MenuItemCategory | "">(menuItem?.category || "");
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
-  const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem || false);
+  const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [ingredients, setIngredients] = useState<Omit<MenuItemIngredient, "cost">[]>(menuItem?.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit })) || []);
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [ingredientQuantity, setIngredientQuantity] = useState("");
@@ -178,7 +178,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       setName("");
       setCategory("");
       setPrice("");
-      setIsPOSItem(false);
+      setIsPOSItem(true);
       setIngredients([]);
     }
     setErrors({});
@@ -233,7 +233,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       setName("");
       setCategory("");
       setPrice("");
-      setIsPOSItem(false);
+      setIsPOSItem(true);
       setIngredients([]);
       setErrors({});
       onCancel();

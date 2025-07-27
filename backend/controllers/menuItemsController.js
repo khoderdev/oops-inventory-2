@@ -97,7 +97,7 @@ const menuItemsController = {
       }
 
       // Validate category
-      const validCategories = ["appetizers", "mains", "sides", "desserts", "beverages", "other"];
+      const validCategories = ["appetizers", "burgers", "sandwiches", "plates", "desserts", "beverages"];
       if (!validCategories.includes(category)) {
         await transaction.rollback();
         return res.status(400).json({ error: "Invalid category" });
@@ -219,7 +219,7 @@ const menuItemsController = {
       }
 
       // Validate category if provided
-      const validCategories = ["appetizers", "mains", "sides", "desserts", "beverages", "other"];
+      const validCategories = ["appetizers", "burgers", "sandwiches", "plates", "desserts", "beverages"];
       if (category !== undefined && !validCategories.includes(category)) {
         await transaction.rollback();
         return res.status(400).json({ error: "Invalid category" });

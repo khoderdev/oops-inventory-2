@@ -33,7 +33,7 @@ const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       <ProtectedNavigation />
-      <main className={`p-6 transition-all duration-300 ease-in-out ${isCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>{children}</main>
+      <main className={`px-4 transition-all duration-300 ease-in-out ${isCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>{children}</main>
     </div>
   );
 };

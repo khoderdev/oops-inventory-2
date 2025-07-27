@@ -369,7 +369,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                         </TableCell>
                         <TableCell className="min-w-[120px]">{formatCurrency(totalCost)}</TableCell>
                         <TableCell className="min-w-[120px]">{formatCurrency(item.price)}</TableCell>
-                        <TableCell className={`min-w-[120px] ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        <TableCell className={`min-w-[120px] ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
                           {formatCurrency(profit)} ({formatNumber(profitMargin)}%)
                         </TableCell>
                         <TableCell className="text-right min-w-[200px]">
@@ -377,7 +377,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                             <Button
                               size="sm"
                               variant={item.isPOSItem ? "default" : "outline"}
-                              className={item.isPOSItem ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                              className={item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
                               onClick={e => {
                                 e.stopPropagation();
                                 handleTogglePOSVisibility(item);
