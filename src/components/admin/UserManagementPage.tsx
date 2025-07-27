@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import EditUserModal from "./EditUserModal";
 import PasswordResetModal from "./PasswordResetModal";
 import UserActivityModal from "./UserActivityModal";
-import EnhancedUserPermissionsModal from "./UserPermissionsModal";
+import UserPermissionsModal from "./UserPermissionsModal";
 
 const UserManagementPage: React.FC = () => {
   const { user: currentUser, hasPermission } = useAuth();
@@ -214,7 +214,7 @@ const UserManagementPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
@@ -519,7 +519,7 @@ const UserManagementPage: React.FC = () => {
       />
 
       {/* User Permissions Modal */}
-      <EnhancedUserPermissionsModal
+      <UserPermissionsModal
         user={selectedUser}
         isOpen={showPermissionsModal}
         onClose={() => {

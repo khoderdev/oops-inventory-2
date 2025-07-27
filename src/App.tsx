@@ -14,7 +14,6 @@ import { InventoryManagementPanelProps } from "./types/inventory";
 
 // Lazy load components for better performance
 const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
-const PermissionsManagementDashboard = lazy(() => import("./components/admin/PermissionsManagementDashboard"));
 const ReportGenerator = lazy(() => import("./components/analytics/ReportGenerator").then(m => ({ default: m.ReportGenerator })));
 const LoginPage = lazy(() => import("./components/auth/LoginPage"));
 const ProtectedRoute = lazy(() => import("./components/auth/ProtectedRoute"));
@@ -296,18 +295,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                         <RoleBasedRoute>
                           <AuthenticatedLayout>
                             <UserManagementPage />
-                          </AuthenticatedLayout>
-                        </RoleBasedRoute>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/permissions"
-                    element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.USERS_MANAGE_PERMISSIONS} requiredRole={["admin"]}>
-                        <RoleBasedRoute>
-                          <AuthenticatedLayout>
-                            <PermissionsManagementDashboard />
                           </AuthenticatedLayout>
                         </RoleBasedRoute>
                       </ProtectedRoute>
