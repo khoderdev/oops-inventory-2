@@ -148,6 +148,7 @@ export interface StockEntry {
   expiryDate?: Date;
   batchNumber?: string;
   notes?: string;
+  isPOSItem: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -428,6 +429,9 @@ export interface POSCartItem {
   quantity: number;
   type: "material" | "menu";
   originalItem: StockEntryWithMaterial | MenuItem;
+  posItem?: POSItem;
+  stockEntryId?: number;
+  menuItemId?: number;
 }
 
 export interface POSClientProps {
@@ -446,10 +450,58 @@ export interface PaymentDialogProps {
   isLoading: boolean;
 }
 
+// Unified POS Item types for new endpoint
+export interface POSItem {
+  id: string;
+  type: "menu_item" | "stock_entry";
+  name: string;
+  description?: string;
+  price: number;
+  category: string;
+  unit: string;
+  availableQuantity: number;
+  costPerUnit: number;
+  materialId?: number;
+  material?: Material;
+  ingredients?: Array<{
+    materialId: number;
+    materialName: string;
+    quantity: number;
+    unit: string;
+    cost: number;
+  }>;
+  stockEntries?: Array<{
+    id: number;
+    supplier: string;
+    purchasedQuantity: number;
+    purchasedUnit: string;
+    purchasedIndividualQuantity: number;
+    costPerBaseUnit: number;
+    totalCost: number;
+    purchaseDate: string;
+    expiryDate?: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface POSItemsResponse {
+  success: boolean;
+  data: POSItem[];
+  summary: {
+    totalItems: number;
+    menuItems: number;
+    stockEntries: number;
+    categories: string[];
+    totalStockValue: number;
+    lastUpdated: string;
+  };
+  message: string;
+}
+
 export interface ProductGridProps {
-  filteredItems: StockEntryWithMaterial[];
-  filteredMenuItems: MenuItem[];
-  onAddToCart: (item: StockEntryWithMaterial | MenuItem, type: "material" | "menu") => void;
+  posItems: POSItem[];
+  onAddToCart: (item: POSItem) => void;
 }
 
 export interface OrderSummaryProps {

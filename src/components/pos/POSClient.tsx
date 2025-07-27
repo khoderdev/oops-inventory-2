@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
-import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
+import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
@@ -34,6 +34,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [stockEntries, setStockEntries] = useState<StockEntryWithMaterial[]>([]);
+  const [posItems, setPosItems] = useState<POSItem[]>([]);
   const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
   const [negativeStockWarnings, setNegativeStockWarnings] = useState<NegativeStockWarning[]>([]);
   const [showNegativeStockDialog, setShowNegativeStockDialog] = useState(false);
@@ -242,25 +243,28 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     };
   }, []);
 
-  // Fetch initial data (stock entries, menu items, tables)
+  // Fetch initial data (POS items, stock entries, menu items, tables)
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         setIsLoading(true);
 
-        // Fetch stock entries
+        // Fetch unified POS items (replaces separate stock/menu fetching for POS)
+        const posResponse = await posAPI.getPOSItems();
+        const posData = posResponse.data?.data || [];
+        setPosItems(posData);
+
+        // Still fetch stock entries and menu items for backward compatibility
         const stockResponse = await stockAPI.getStockEntries();
         const stockData = stockResponse.data || [];
         setStockEntries(stockData);
 
-        // Fetch menu items
         const menuResponse = await menuAPI.getMenus();
         const menuData = menuResponse.data || [];
         setMenuItems(menuData);
 
         // Fetch tables with order information
         const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
-        // Handle both possible response structures
         const responseData = tablesResponse.data as Table[] | { data: Table[] };
         const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
         setTables(tablesData);
@@ -422,33 +426,99 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     fetchMenuItems();
   }, [showError]);
 
-  // Get available stock entries (filter by search term, available quantity, and POS visibility)
-  const availableStockEntries = stockEntries.filter(stockEntry => {
-    // Check if stock entry has available quantity
-    const hasQuantity = stockEntry.purchasedIndividualQuantity && stockEntry.purchasedIndividualQuantity > 0;
-
+  // Get available POS items (filter by search term and category)
+  const availablePosItems = posItems.filter(posItem => {
     // Check search term
+    const matchesSearch = searchTerm === "" || 
+      posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      posItem.category?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchesSearch;
+  });
+
+  // Get unique categories from POS items
+  const categories = ["all", ...Array.from(new Set(posItems.map(item => item.category).filter(Boolean)))];
+
+  // Filter POS items by category
+  const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
+
+  // Legacy filtering for backward compatibility (keep for order editing)
+  const availableStockEntries = stockEntries.filter(stockEntry => {
+    const hasQuantity = stockEntry.purchasedIndividualQuantity && stockEntry.purchasedIndividualQuantity > 0;
     const matchesSearch = searchTerm === "" || stockEntry.material?.name.toLowerCase().includes(searchTerm.toLowerCase()) || stockEntry.material?.category?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // Check if material is marked as POS item
     const isPOSItem = stockEntry.material?.isPOSItem === true;
-
     return hasQuantity && matchesSearch && isPOSItem;
   });
 
-  // Get available menu items
   const availableMenuItems = menuItems.filter(menuItem => searchTerm === "" || menuItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || menuItem.category?.toLowerCase().includes(searchTerm.toLowerCase()));
-
-  // Get unique categories
-  const categories = ["all", ...Array.from(new Set([...availableStockEntries.map(item => item.material?.category).filter(Boolean), ...availableMenuItems.map(item => item.category).filter(Boolean)]))];
-
-  // Filter items by category
+  
   const filteredStockEntries = activeCategory === "all" ? availableStockEntries : availableStockEntries.filter(item => item.material?.category === activeCategory);
-
   const filteredMenuItems = activeCategory === "all" ? availableMenuItems : availableMenuItems.filter(item => item.category === activeCategory);
 
-  // Cart operations
-  const addToCart = useCallback((item: StockEntryWithMaterial | MenuItem, type: "material" | "menu") => {
+  // Cart operations - Updated for unified POS items
+  const addToCart = useCallback((posItem: POSItem) => {
+    const cartId = `pos-${posItem.id}`;
+
+    setCart(prevCart => {
+      const existingItem = prevCart.find(cartItem => cartItem.id === cartId);
+
+      if (existingItem) {
+        return prevCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
+      } else {
+        // Create a mock original item for backward compatibility
+        let originalItem: StockEntryWithMaterial | MenuItem;
+        const itemType = posItem.type === "menu_item" ? "menu" : "material";
+        
+        if (posItem.type === "menu_item") {
+          // Create a mock MenuItem for backward compatibility
+          originalItem = {
+            id: parseInt(posItem.id.replace('menu_', '')) || 0,
+            name: posItem.name,
+            description: posItem.description || '',
+            price: posItem.price,
+            category: posItem.category,
+            isPOSItem: true,
+            ingredients: posItem.ingredients || [],
+            menuItemIngredients: [],
+            createdAt: new Date(posItem.createdAt),
+            updatedAt: new Date(posItem.updatedAt)
+          } as unknown as MenuItem;
+        } else {
+          // Create a mock StockEntryWithMaterial for backward compatibility
+          originalItem = {
+            id: parseInt(posItem.id.replace('material_', '')) || 0,
+            materialId: posItem.materialId || 0,
+            material: posItem.material,
+            purchasedIndividualQuantity: posItem.availableQuantity,
+            costPerBaseUnit: posItem.costPerUnit,
+            totalCost: posItem.costPerUnit * posItem.availableQuantity,
+            supplier: 'POS',
+            purchasedQuantity: posItem.availableQuantity,
+            purchasedUnit: posItem.unit,
+            costPerPurchasedUnit: posItem.costPerUnit,
+            createdAt: new Date(posItem.createdAt),
+            updatedAt: new Date(posItem.updatedAt)
+          } as unknown as StockEntryWithMaterial;
+        }
+
+        const newItem: POSCartItem = {
+          id: cartId,
+          name: posItem.name,
+          price: posItem.price,
+          quantity: 1,
+          type: itemType,
+          originalItem,
+          posItem,
+          stockEntryId: posItem.materialId,
+          menuItemId: posItem.type === "menu_item" ? parseInt(posItem.id.replace('menu_', '')) : undefined
+        };
+        return [...prevCart, newItem];
+      }
+    });
+  }, []);
+
+  // Legacy addToCart function for backward compatibility (used in order editing)
+  const addToCartLegacy = useCallback((item: StockEntryWithMaterial | MenuItem, type: "material" | "menu") => {
     const cartId = type === "material" ? `material-${item.id}` : `menu-${item.id}`;
 
     setCart(prevCart => {
@@ -457,17 +527,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       if (existingItem) {
         return prevCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
       } else {
-        // Calculate price for material items
         let itemPrice = 0;
         if (type === "material") {
-          // Get cost from stock entry directly
           const stockEntry = item as StockEntryWithMaterial;
-          // Try costPerBaseUnit first (this is the cost per individual unit)
           if (stockEntry.costPerBaseUnit && stockEntry.costPerBaseUnit.toString() !== "0") {
             itemPrice = parseFloat(stockEntry.costPerBaseUnit.toString());
-          }
-          // Fallback: calculate from totalCost and individual quantity
-          else if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
+          } else if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
             itemPrice = parseFloat(stockEntry.totalCost.toString()) / stockEntry.purchasedIndividualQuantity;
           }
         } else {
@@ -973,7 +1038,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         {/* Product Grid - Scrollable */}
         <div className="flex-1 overflow-y-auto">
-          <ProductGrid filteredItems={filteredStockEntries} filteredMenuItems={filteredMenuItems} onAddToCart={addToCart} />
+          <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} />
         </div>
 
         {/* Bottom Action Bar - Fixed Footer */}

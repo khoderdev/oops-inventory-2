@@ -1,5 +1,5 @@
-import { materialsAPI } from "@/api/matierials.api.ts";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
+import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { NegativeStockReport, StockEntry } from "@/types/inventory";
+import { Material, NegativeStockReport, StockEntry } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
 import { AlertTriangle, Edit, Eye, FileText, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
@@ -146,7 +146,7 @@ export function StockEntriesTable() {
     setSelectedRowId(selectedRowId === entryId ? null : entryId);
   };
 
-  const handleTogglePOSVisibility = async (entry: (typeof stockEntriesWithMaterial)[0]) => {
+  const handleTogglePOSVisibility = async (entry: StockEntry & { material?: Material }) => {
     if (!entry.material) {
       toast({
         title: "Error",
@@ -157,27 +157,27 @@ export function StockEntriesTable() {
     }
 
     try {
-      const newPOSStatus = !entry.material.isPOSItem;
+      const newPOSStatus = !entry.isPOSItem;
 
-      // Update the material's POS visibility
-      const response = await materialsAPI.updateMaterialPOS(entry.materialId, {
+      // Update the stock entry's POS visibility
+      const response = await stockAPI.updateStockEntryPOS(entry.id.toString(), {
         isPOSItem: newPOSStatus
       });
 
       if (!response) {
-        throw new Error("Failed to update material POS visibility");
+        throw new Error("Failed to update stock entry POS visibility");
       }
 
       toast({
         title: "Success",
-        description: `${entry.material.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
+        description: `${entry.material.name} stock entry is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
         variant: "default"
       });
 
       // Refresh the data to show updated state
       await fetchTabData("stock");
     } catch (error) {
-      console.error("Error updating material POS visibility:", error);
+      console.error("Error updating stock entry POS visibility:", error);
       toast({
         title: "Error",
         description: "Failed to update POS visibility",
@@ -377,14 +377,14 @@ export function StockEntriesTable() {
                           <TableCell className="min-w-[220px]">
                             <div className="flex gap-2">
                               <Button
-                                variant={entry.material?.isPOSItem ? "default" : "outline"}
+                                variant={entry.isPOSItem ? "default" : "outline"}
                                 size="sm"
                                 onClick={e => {
                                   e.stopPropagation();
                                   handleTogglePOSVisibility(entry);
                                 }}
-                                title={entry.material?.isPOSItem ? "Hide from POS" : "Show in POS"}
-                                className={entry.material?.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
+                                title={entry.isPOSItem ? "Hide from POS" : "Show in POS"}
+                                className={entry.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
