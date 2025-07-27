@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Calculator, DollarSign, Grid3X3, LucideIcon, Package, Printer, Save, ShoppingCart, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Calculator, DollarSign, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, X } from "lucide-react";
 import React from "react";
 
 // Action button configuration interface
@@ -36,6 +37,7 @@ interface LegacyActionBarProps {
   isOrderLoading?: boolean;
   canPrintReceipt?: boolean;
   canVoidOrder?: boolean;
+  onCancelOrder?: () => void;
 }
 
 // New flexible props interface
@@ -72,23 +74,19 @@ export const ActionButton: React.FC<ActionButtonConfig & { className?: string; c
 
 // Main ActionBar Component
 export const ActionBar: React.FC<ActionBarProps> = props => {
+  const { user } = useAuth();
   let buttons: ActionButtonConfig[];
   let columns: number;
   let className: string;
+  
+  // Check if user has access to Back Office (Admin or Manager only)
+  const canAccessBackOffice = user?.role === "admin" || user?.role === "manager";
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
-    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false } = props;
+    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {} } = props;
 
     buttons = [
-      {
-        id: "void",
-        icon: X,
-        label: "Void",
-        active: canVoidOrder,
-        onClick: onVoidOrder,
-        disabled: !canVoidOrder || !onVoidOrder
-      },
       {
         id: "print",
         icon: Printer,
@@ -97,18 +95,27 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         onClick: onPrintReceipt,
         disabled: !canPrintReceipt || !onPrintReceipt
       },
-      { id: "refund", icon: DollarSign, label: "Refund", active: false },
-      { id: "table-orders", icon: Package, label: "Table Orders", active: false },
-      { id: "orders", icon: ShoppingCart, label: "Orders", active: false, onClick: onShowOrders, disabled: !onShowOrders },
-      // { id: "depts", icon: Calculator, label: "Depts", active: false },
-      // { id: "speed-key", icon: Grid3X3, label: "Speed Key", active: false },
+      { id: "cancel", icon: Package, label: "Cancel", active: false, onClick: onCancelOrder, disabled: !onCancelOrder },
       {
-        id: "save",
-        icon: Save,
-        label: "Save Order",
-        active: hasUnsavedChanges,
-        onClick: onSaveOrder,
-        disabled: isOrderLoading || !onSaveOrder
+        id: "void",
+        icon: X,
+        label: "Void",
+        active: canVoidOrder,
+        onClick: onVoidOrder,
+        disabled: !canVoidOrder || !onVoidOrder
+      },
+      { id: "refund", icon: DollarSign, label: "Refund", active: false },
+
+      { id: "orders", icon: ShoppingCart, label: "Orders", active: false, onClick: onShowOrders, disabled: !onShowOrders },
+      {
+        id: "back-office",
+        icon: Settings,
+        label: "Back Office",
+        active: false,
+        disabled: !canAccessBackOffice,
+        onClick: canAccessBackOffice ? () => {
+          window.location.href = "/";
+        } : undefined
       }
     ];
     columns = 6;

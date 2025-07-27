@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Order } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertTriangle, Package, ShoppingBag } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 interface VoidOrderDialogProps {
   isOpen: boolean;
@@ -18,25 +18,35 @@ interface VoidOrderDialogProps {
 
 export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClose, onConfirm, order, isLoading = false }) => {
   const [reason, setReason] = useState("");
-  const [restoreStock, setRestoreStock] = useState(true);
+  const [restoreStock, setRestoreStock] = useState(false);
 
   const handleConfirm = () => {
     onConfirm(reason || "Order voided by user", restoreStock);
     setReason("");
-    setRestoreStock(true);
+    setRestoreStock(false);
   };
 
   const handleClose = () => {
     setReason("");
-    setRestoreStock(true);
+    setRestoreStock(false);
     onClose();
   };
 
-  if (!order) return null;
+  // Count material items that would have stock restored (only if order exists)
+  const materialItemsCount = order?.items?.filter(item => item.type === "material").length || 0;
+  const menuItemsCount = order?.items?.filter(item => item.type === "menu").length || 0;
+  
+  // Only show restore stock option for orders that have actually consumed stock
+  // Draft orders haven't consumed stock yet, so there's nothing to restore
+  const hasConsumedStock = order && order.status !== "draft" && order.status !== "cancelled";
+  const shouldShowRestoreStock = hasConsumedStock && materialItemsCount > 0;
+  
+  // Set default restoreStock value based on whether stock restoration is applicable
+  useEffect(() => {
+    setRestoreStock(shouldShowRestoreStock);
+  }, [shouldShowRestoreStock]);
 
-  // Count material items that would have stock restored
-  const materialItemsCount = order.items?.filter(item => item.type === "material").length || 0;
-  const menuItemsCount = order.items?.filter(item => item.type === "menu").length || 0;
+  if (!order) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -89,7 +99,7 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
           )}
 
           {/* Stock Restoration Option */}
-          {materialItemsCount > 0 && (
+          {shouldShowRestoreStock && (
             <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
               <div className="flex-1">
                 <Label htmlFor="restore-stock" className="text-sm font-medium text-green-800">
@@ -117,7 +127,7 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
                   <li>• This order will be marked as cancelled/voided</li>
                   <li>• The order cannot be recovered after voiding</li>
                   {order.tableId && <li>• The table will be freed for new customers</li>}
-                  {restoreStock && materialItemsCount > 0 && <li>• Stock levels will be restored for material items</li>}
+                  {restoreStock && shouldShowRestoreStock && <li>• Stock levels will be restored for material items</li>}
                 </ul>
               </div>
             </div>
