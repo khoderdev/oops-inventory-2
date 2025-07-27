@@ -5,10 +5,10 @@ import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import StockLogs from "./components/stock/StockLogs";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 import { useInventoryData } from "./hooks/useInventoryData";
+import SystemLogs from "./pages/SystemLogs";
 import { PERMISSIONS } from "./types/auth";
 import { InventoryManagementPanelProps } from "./types/inventory";
 
@@ -176,7 +176,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
 
                   {/* Inventory & Stock Management */}
                   <Route
-                    path="/stock"
+                    path="/inventory"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ}>
                         <RoleBasedRoute>
@@ -187,30 +187,20 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                       </ProtectedRoute>
                     }
                   />
+
                   <Route
-                    path="/stock/logs"
+                    path="/admin/system-logs"
                     element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.AUDIT_REPORTS}>
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_LOGS}>
                         <RoleBasedRoute>
                           <AuthenticatedLayout>
-                            <StockLogs />
+                            <SystemLogs />
                           </AuthenticatedLayout>
                         </RoleBasedRoute>
                       </ProtectedRoute>
                     }
                   />
-                  <Route
-                    path="/inventory/transfers"
-                    element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_TRANSFER}>
-                        <RoleBasedRoute>
-                          <AuthenticatedLayout>
-                            <PlaceholderPage title="Stock Transfers" description="Stock transfer functionality coming soon..." />
-                          </AuthenticatedLayout>
-                        </RoleBasedRoute>
-                      </ProtectedRoute>
-                    }
-                  />
+
                   <Route
                     path="/inventory/waste"
                     element={
@@ -302,7 +292,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
 
                   {/* Menu Management */}
                   <Route
-                    path="/menu"
+                    path="/inventory/menu-items"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
                         <RoleBasedRoute>

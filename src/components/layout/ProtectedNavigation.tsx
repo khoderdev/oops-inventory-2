@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Calendar, ChevronDown, ChevronLeft, ChevronRight, FileText, Home, LogOut, Menu, Package, Settings, Shield, ShoppingCart, User, Users, X } from "lucide-react";
+import { Activity, BarChart3, Calendar, ChevronDown, ChevronLeft, ChevronRight, FileText, Home, LogOut, Menu, Package, Receipt, Shield, ShoppingCart, User, Users, X } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -44,19 +44,18 @@ const ProtectedNavigation: React.FC = () => {
       {
         label: "Inventory",
         icon: Package,
-        href: "/inventory",
         children: [
           {
             label: "Stock",
-            href: "/stock",
+            href: "/inventory/menu-items",
             icon: Package,
-            permission: PERMISSIONS.STOCK_READ
+            permission: PERMISSIONS.MENU_ITEMS_READ
           },
           {
-            label: "Logs",
-            href: "/stock/logs",
+            label: "Menu Items",
+            href: "/inventory/menu-items",
             icon: Package,
-            permission: PERMISSIONS.AUDIT_REPORTS
+            permission: PERMISSIONS.MENU_ITEMS_READ
           }
         ]
       },
@@ -126,10 +125,10 @@ const ProtectedNavigation: React.FC = () => {
             permission: PERMISSIONS.USERS_READ
           },
           {
-            label: "System Settings",
-            href: "/admin/settings",
-            icon: Settings,
-            permission: PERMISSIONS.SYSTEM_SETTINGS
+            label: "System Logs",
+            href: "/admin/system-logs",
+            icon: Receipt,
+            permission: PERMISSIONS.SYSTEM_LOGS
           }
         ]
       }
