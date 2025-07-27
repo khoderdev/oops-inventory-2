@@ -429,9 +429,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Get available POS items (filter by search term and category)
   const availablePosItems = posItems.filter(posItem => {
     // Check search term
-    const matchesSearch = searchTerm === "" || 
-      posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      posItem.category?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || posItem.category?.toLowerCase().includes(searchTerm.toLowerCase());
 
     return matchesSearch;
   });
@@ -450,11 +448,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     return hasQuantity && matchesSearch && isPOSItem;
   });
 
-  const availableMenuItems = menuItems.filter(menuItem => searchTerm === "" || menuItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || menuItem.category?.toLowerCase().includes(searchTerm.toLowerCase()));
-  
-  const filteredStockEntries = activeCategory === "all" ? availableStockEntries : availableStockEntries.filter(item => item.material?.category === activeCategory);
-  const filteredMenuItems = activeCategory === "all" ? availableMenuItems : availableMenuItems.filter(item => item.category === activeCategory);
-
   // Cart operations - Updated for unified POS items
   const addToCart = useCallback((posItem: POSItem) => {
     const cartId = `pos-${posItem.id}`;
@@ -468,13 +461,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Create a mock original item for backward compatibility
         let originalItem: StockEntryWithMaterial | MenuItem;
         const itemType = posItem.type === "menu_item" ? "menu" : "material";
-        
+
         if (posItem.type === "menu_item") {
           // Create a mock MenuItem for backward compatibility
+          // Menu item IDs are just numbers, not prefixed strings
+          const menuItemId = typeof posItem.id === "string" ? parseInt(posItem.id) : posItem.id;
           originalItem = {
-            id: parseInt(posItem.id.replace('menu_', '')) || 0,
+            id: menuItemId || 0,
             name: posItem.name,
-            description: posItem.description || '',
+            description: posItem.description || "",
             price: posItem.price,
             category: posItem.category,
             isPOSItem: true,
@@ -485,14 +480,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           } as unknown as MenuItem;
         } else {
           // Create a mock StockEntryWithMaterial for backward compatibility
+          // Stock entry IDs are prefixed with 'material_'
+          const stockEntryId = typeof posItem.id === "string" && posItem.id.includes("material_") ? parseInt(posItem.id.replace("material_", "")) : typeof posItem.id === "string" ? parseInt(posItem.id) : posItem.id;
           originalItem = {
-            id: parseInt(posItem.id.replace('material_', '')) || 0,
+            id: stockEntryId || 0,
             materialId: posItem.materialId || 0,
             material: posItem.material,
             purchasedIndividualQuantity: posItem.availableQuantity,
             costPerBaseUnit: posItem.costPerUnit,
             totalCost: posItem.costPerUnit * posItem.availableQuantity,
-            supplier: 'POS',
+            supplier: "POS",
             purchasedQuantity: posItem.availableQuantity,
             purchasedUnit: posItem.unit,
             costPerPurchasedUnit: posItem.costPerUnit,
@@ -510,7 +507,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           originalItem,
           posItem,
           stockEntryId: posItem.materialId,
-          menuItemId: posItem.type === "menu_item" ? parseInt(posItem.id.replace('menu_', '')) : undefined
+          menuItemId: posItem.type === "menu_item" ? (typeof posItem.id === "string" ? parseInt(posItem.id) : posItem.id) : undefined
         };
         return [...prevCart, newItem];
       }
@@ -815,124 +812,73 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     setIsLoading(true);
     try {
-      // If we have a current order, complete it through the order system
-      if (currentOrder) {
-        const paymentData = {
-          paymentMethod: "cash",
-          paymentAmount: parseFloat(paymentAmount) || total,
-          change: Math.max(0, (parseFloat(paymentAmount) || total) - total)
-        };
-
-        const { order, saleId } = await completeOrder(paymentData);
-
-        // Prepare receipt data from completed order
-        const receiptData = {
-          id: saleId,
-          date: new Date().toLocaleDateString(),
-          time: new Date().toLocaleTimeString(),
-          cashier: "Current User",
-          items: order.items.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            type: item.type
-          })),
-          subtotal: order.subtotal,
-          tax: order.tax,
-          total: order.total,
-          paymentAmount: paymentData.paymentAmount,
-          change: paymentData.change || 0,
-          paymentMethod: paymentData.paymentMethod
-        };
-
-        setLastSaleData(receiptData);
-        showSuccess(`Order completed successfully! Total: ${formatCurrency(order.total)}`);
-
-        // Update table status if this was a table order
-        if (selectedTable && orderType === "table") {
-          try {
-            // Clear table reservation/status
-            await tablesAPI.clearReservation(selectedTable.id);
-            // Refresh tables to update UI
-            const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
-            const responseData = tablesResponse.data as Table[] | { data: Table[] };
-            const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
-            setTables(refreshedTables);
-          } catch (error) {
-            console.error("Failed to clear table:", error);
-          }
-        }
-      } else {
-        // Fallback to direct sale creation for backward compatibility
-        const saleData = {
-          sectionId: selectedSectionId || optimisticAssignments[0]?.id,
-          saleDate: new Date(),
-          items: cart
-            .filter(item => item.type === "material")
-            .map(item => ({
-              materialId: (item.originalItem as StockEntryWithMaterial).materialId || "",
-              assignmentId: item.originalItem.id,
-              sectionId: (item.originalItem as StockEntryWithMaterial).sectionId,
-              quantity: item.quantity,
-              unit: (item.originalItem as StockEntryWithMaterial).assignedUnit || "piece",
-              unitPrice: item.price,
-              totalPrice: item.price * item.quantity,
-              materialName: item.name
-            })),
-          menuItems: cart
-            .filter(item => item.type === "menu")
-            .map(item => ({
-              menuItemId: (item.originalItem as MenuItem).id,
-              quantity: item.quantity,
-              unitPrice: item.price,
-              totalPrice: item.price * item.quantity,
-              menuItemName: item.name,
-              ingredients: [],
-              createdAt: new Date(),
-              updatedAt: new Date()
-            })),
-          totalAmount: total,
-          paymentAmount: parseFloat(paymentAmount) || total,
-          paymentMethod: "cash",
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-
-        const response = await posAPI.createSale(saleData);
-
-        if (response.data?.negativeStockWarnings && response.data.negativeStockWarnings.length > 0) {
-          setNegativeStockWarnings(response.data.negativeStockWarnings);
-          setShowNegativeStockDialog(true);
-        }
-
-        // Prepare receipt data
-        const receiptData = {
-          id: response.data?.sale?.id || `POS-${Date.now()}`,
-          date: new Date().toLocaleDateString(),
-          time: new Date().toLocaleTimeString(),
-          cashier: "Current User",
+      // Always create/update order first, then complete it
+      if (!currentOrder) {
+        // Create a new order first
+        const orderData = {
+          orderType,
+          tableId: selectedTable?.id,
           items: cart.map(item => ({
+            materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
+            menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
+            assignmentId: undefined,
             name: item.name,
             quantity: item.quantity,
             unitPrice: item.price,
             totalPrice: item.price * item.quantity,
-            type: item.type
-          })),
-          subtotal,
-          tax,
-          total,
-          paymentAmount: parseFloat(paymentAmount) || total,
-          change: Math.max(0, (parseFloat(paymentAmount) || total) - total),
-          paymentMethod: "cash"
+            type: item.type,
+            notes: undefined
+          }))
         };
 
-        setLastSaleData(receiptData);
-        showSuccess(`Sale completed successfully! Total: ${formatCurrency(total)}`);
+        await createOrder(orderData);
+      }
 
-        // Update optimistic assignments
-        if (response?.data && "updatedAssignments" in response.data && response.data.updatedAssignments) {
-          setOptimisticAssignments(response.data.updatedAssignments as SectionAssignment[]);
+      // Now complete the order with payment
+      const paymentData = {
+        paymentMethod: "cash",
+        paymentAmount: parseFloat(paymentAmount) || total,
+        change: Math.max(0, (parseFloat(paymentAmount) || total) - total)
+      };
+
+      const { order, saleId } = await completeOrder(paymentData);
+
+      // Prepare receipt data from completed order
+      const receiptData = {
+        id: saleId,
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString(),
+        cashier: "Current User",
+        items: order.items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          type: item.type
+        })),
+        subtotal: order.subtotal,
+        tax: order.tax,
+        total: order.total,
+        paymentAmount: paymentData.paymentAmount,
+        change: paymentData.change || 0,
+        paymentMethod: paymentData.paymentMethod
+      };
+
+      setLastSaleData(receiptData);
+      showSuccess(`Order completed successfully! Total: ${formatCurrency(order.total)}`);
+
+      // Update table status if this was a table order
+      if (selectedTable && orderType === "table") {
+        try {
+          // Clear table reservation/status
+          await tablesAPI.clearReservation(selectedTable.id);
+          // Refresh tables to update UI
+          const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
+          const responseData = tablesResponse.data as Table[] | { data: Table[] };
+          const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
+          setTables(refreshedTables);
+        } catch (error) {
+          console.error("Failed to clear table:", error);
         }
       }
 
@@ -967,7 +913,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, selectedSectionId, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder, resetToTakeaway, optimisticAssignments]);
+  }, [cart, total, paymentAmount, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
 
   return (
     <div className="h-full flex bg-gray-100">
@@ -1110,18 +1056,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               </DialogTitle>
               <DialogDescription>You have unsaved changes in your current order. Would you like to save them?</DialogDescription>
             </DialogHeader>
-            
+
             <div className="flex-1 flex items-center justify-center p-6">
               <div className="text-center space-y-4">
-                <div className="text-lg text-gray-600">
-                  Your current order has unsaved changes that will be lost if you continue.
-                </div>
-                <div className="text-sm text-gray-500">
-                  Choose whether to save your progress or discard the changes.
-                </div>
+                <div className="text-lg text-gray-600">Your current order has unsaved changes that will be lost if you continue.</div>
+                <div className="text-sm text-gray-500">Choose whether to save your progress or discard the changes.</div>
               </div>
             </div>
-            
+
             <DialogFooter className="flex-shrink-0 p-6 border-t">
               <Button
                 variant="outline"

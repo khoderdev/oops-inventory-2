@@ -214,100 +214,98 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
-        <div className="w-full h-full flex flex-col overflow-hidden">
-          {/* Scrollable Receipt Container */}
-          <div className="flex-1 overflow-y-auto p-6">
-            <div ref={receiptRef} className="receipt bg-white text-black" style={{ width: "100%", maxWidth: "120mm", padding: "4mm", margin: "0 auto", fontFamily: "Courier New, monospace", fontSize: "16px", lineHeight: "1.2", transform: "scale(1)", transformOrigin: "top center" }}>
-              {/* Header */}
-              <div className="header text-center border-b-2 border-black/25" style={{ paddingBottom: "4.5mm", marginBottom: "6mm" }}>
-                <div className="business-name font-bold" style={{ fontSize: "21px", marginBottom: "1.5mm" }}>
-                  {businessInfo.name}
-                </div>
-                <div className="business-info" style={{ fontSize: "13.5px", lineHeight: "1.1" }}>
-                  <div>{businessInfo.address}</div>
-                  <div>Phone: {businessInfo.phone}</div>
-                  {businessInfo.taxId && <div>Tax ID: {businessInfo.taxId}</div>}
-                </div>
+      <DialogContent className="max-w-md w-full max-h-[95vh] h-auto flex flex-col p-0 pt-2">
+        {/* Scrollable Receipt Container */}
+        <div className="flex-1 overflow-y-auto p-0">
+          <div ref={receiptRef} className="receipt bg-white text-black" style={{ width: "100%", maxWidth: "120mm", padding: "4mm", margin: "0 auto", fontFamily: "Courier New, monospace", fontSize: "16px", lineHeight: "1.2", transform: "scale(1)", transformOrigin: "top center" }}>
+            {/* Header */}
+            <div className="header text-center border-b-2 border-black/25" style={{ paddingBottom: "4.5mm", marginBottom: "6mm" }}>
+              <div className="business-name font-bold" style={{ fontSize: "21px", marginBottom: "1.5mm" }}>
+                {businessInfo.name}
               </div>
-
-              {/* Receipt Info */}
-              <div className="receipt-info" style={{ fontSize: "13.5px", marginBottom: "6mm" }}>
-                <div className="flex justify-between">
-                  <span>Receipt #:</span>
-                  <span>{receiptData.id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Date:</span>
-                  <span>{receiptData.date}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Time:</span>
-                  <span>{receiptData.time}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Cashier:</span>
-                  <span>{receiptData.cashier}</span>
-                </div>
-              </div>
-
-              {/* Items */}
-              <div className="items" style={{ marginBottom: "6mm" }}>
-                {receiptData.items.map((item, index) => (
-                  <div key={index} className="item" style={{ marginBottom: "3mm", fontSize: "13.5px" }}>
-                    <div className="item-line flex justify-between" style={{ marginBottom: "1.5mm" }}>
-                      <span className="flex-1">{item.name}</span>
-                      <span>{formatCurrency(item.totalPrice)}</span>
-                    </div>
-                    <div className="item-details text-black/50" style={{ fontSize: "12px", marginLeft: "4.5mm" }}>
-                      {item.quantity} × {formatCurrency(item.unitPrice)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Totals */}
-              <div className="totals border-t border-black/25" style={{ paddingTop: "4.5mm", marginTop: "6mm" }}>
-                <div className="final-total flex justify-between font-bold" style={{ fontSize: "16.5px" }}>
-                  <span>TOTAL:</span>
-                  <span>{formatCurrency(receiptData.total)}</span>
-                </div>
-              </div>
-
-              {/* Payment Info */}
-              <div className="payment-info border-t border-dashed border-black/30" style={{ marginTop: "6mm", paddingTop: "4.5mm", fontSize: "13.5px" }}>
-                <div className="flex justify-between">
-                  <span>Payment Method:</span>
-                  <span className="capitalize">{receiptData.paymentMethod}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Amount Paid:</span>
-                  <span>{formatCurrency(receiptData.paymentAmount)}</span>
-                </div>
-                {receiptData.change > 0 && (
-                  <div className="flex justify-between font-bold">
-                    <span>Change:</span>
-                    <span>{formatCurrency(receiptData.change)}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="footer text-center border-t border-dashed border-black/30" style={{ marginTop: "7.5mm", paddingTop: "4.5mm", fontSize: "12px" }}>
-                <div>oOps! dont forget to visit us again soon!</div>
+              <div className="business-info" style={{ fontSize: "13.5px", lineHeight: "1.1" }}>
+                <div>{businessInfo.address}</div>
+                <div>Phone: {businessInfo.phone}</div>
+                {businessInfo.taxId && <div>Tax ID: {businessInfo.taxId}</div>}
               </div>
             </div>
-          </div>
 
-          <div className="flex p-0 gap-0 flex-shrink-0 border-t">
-            <Button className="flex-1 h-14 rounded-bl-lg rounded-br-none rounded-tl-none rounded-tr-none border-none bg-gray-200 hover:bg-red-500 hover:text-white text-gray-700 font-medium transition-colors" variant="ghost" onClick={onClose}>
-              Close
-            </Button>
-            <Button className="flex-1 h-14 rounded-br-lg rounded-bl-none rounded-tr-none rounded-tl-none border-none bg-blue-600 hover:bg-blue-700 hover:text-white text-white font-medium transition-colors" onClick={handlePrint}>
-              <Printer className="w-5 h-5 mr-2" />
-              Print
-            </Button>
+            {/* Receipt Info */}
+            <div className="receipt-info" style={{ fontSize: "13.5px", marginBottom: "6mm" }}>
+              <div className="flex justify-between">
+                <span>Receipt #:</span>
+                <span>{receiptData.id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Date:</span>
+                <span>{receiptData.date}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Time:</span>
+                <span>{receiptData.time}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Cashier:</span>
+                <span>{receiptData.cashier}</span>
+              </div>
+            </div>
+
+            {/* Items */}
+            <div className="items" style={{ marginBottom: "6mm" }}>
+              {receiptData.items.map((item, index) => (
+                <div key={index} className="item" style={{ marginBottom: "3mm", fontSize: "13.5px" }}>
+                  <div className="item-line flex justify-between" style={{ marginBottom: "1.5mm" }}>
+                    <span className="flex-1">{item.name}</span>
+                    <span>{formatCurrency(item.totalPrice)}</span>
+                  </div>
+                  <div className="item-details text-black/50" style={{ fontSize: "12px", marginLeft: "4.5mm" }}>
+                    {item.quantity} × {formatCurrency(item.unitPrice)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Totals */}
+            <div className="totals border-t border-black/25" style={{ paddingTop: "4.5mm", marginTop: "6mm" }}>
+              <div className="final-total flex justify-between font-bold" style={{ fontSize: "16.5px" }}>
+                <span>TOTAL:</span>
+                <span>{formatCurrency(receiptData.total)}</span>
+              </div>
+            </div>
+
+            {/* Payment Info */}
+            <div className="payment-info border-t border-dashed border-black/30" style={{ marginTop: "6mm", paddingTop: "4.5mm", fontSize: "13.5px" }}>
+              <div className="flex justify-between">
+                <span>Payment Method:</span>
+                <span className="capitalize">{receiptData.paymentMethod}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Amount Paid:</span>
+                <span>{formatCurrency(receiptData.paymentAmount)}</span>
+              </div>
+              {receiptData.change > 0 && (
+                <div className="flex justify-between font-bold">
+                  <span>Change:</span>
+                  <span>{formatCurrency(receiptData.change)}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="footer text-center border-t border-dashed border-black/30" style={{ marginTop: "7.5mm", paddingTop: "4.5mm", fontSize: "12px" }}>
+              <div>oOps! dont forget to visit us again soon!</div>
+            </div>
           </div>
+        </div>
+
+        <div className="flex p-0 gap-0 flex-shrink-0">
+          <Button className="flex-1 h-14 rounded-bl-lg rounded-br-none rounded-tl-none rounded-tr-none border-none bg-gray-200 hover:bg-red-500 hover:text-white text-gray-700 font-medium transition-colors" variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+          <Button className="flex-1 h-14 rounded-br-lg rounded-bl-none rounded-tr-none rounded-tl-none border-none bg-blue-600 hover:bg-blue-700 hover:text-white text-white font-medium transition-colors" onClick={handlePrint}>
+            <Printer className="w-5 h-5 mr-2" />
+            Print
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
