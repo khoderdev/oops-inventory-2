@@ -1,7 +1,7 @@
-import { AlertTriangle, Package, ShoppingCart, TrendingUp } from "lucide-react";
-import { Card } from "../ui/card";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/utils/conversionLogic";
+import { AlertTriangle, Package, ShoppingCart, TrendingUp } from "lucide-react";
+import { Card } from "../ui/card";
 
 interface ReportSummaryProps {
   data: Record<string, unknown>[];
@@ -63,7 +63,7 @@ export function ReportSummary({ data }: ReportSummaryProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
       {summaryCards.map((card, index) => (
         <Card key={index} className={cn("p-3", card.bgColor)}>
           <div className="flex items-center justify-between">

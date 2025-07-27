@@ -50,8 +50,9 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+        <div className="w-full h-full flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0 p-6 border-b">
           <DialogTitle className="flex items-center space-x-2 text-red-600">
             <AlertTriangle className="w-5 h-5" />
             <span>Void Order</span>
@@ -59,7 +60,8 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
           <DialogDescription>Are you sure you want to void this order? This action cannot be undone.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 p-6 overflow-y-auto">
+          <div className="space-y-4">
           {/* Order Information */}
           <div className="bg-gray-50 p-3 rounded-lg">
             <div className="flex justify-between items-center mb-2">
@@ -134,7 +136,7 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
           </div>
         </div>
 
-        <DialogFooter className="flex space-x-2">
+        <DialogFooter className="flex-shrink-0 flex space-x-2 p-6 border-t">
           <Button variant="outline" onClick={handleClose} disabled={isLoading}>
             Cancel
           </Button>
@@ -142,6 +144,8 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
             {isLoading ? "Voiding..." : "Void Order"}
           </Button>
         </DialogFooter>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -260,6 +260,14 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     onCancel();
   }, [onCancel]);
 
+  // Handle Enter key press to add ingredient
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddIngredient();
+    }
+  }, [handleAddIngredient]);
+
   return (
     <div className="space-y-6 p-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -399,7 +407,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
             <label htmlFor="quantity" className="block text-sm font-medium mb-1">
               Quantity
             </label>
-            <Input id="quantity" type="number" value={ingredientQuantity} onChange={e => setIngredientQuantity(e.target.value)} placeholder="0" min="0" step="0.01" disabled={!selectedMaterialId} aria-invalid={!!errors.ingredientQuantity} aria-describedby={errors.ingredientQuantity ? "quantity-error" : undefined} />
+            <Input id="quantity" type="number" value={ingredientQuantity} onChange={e => setIngredientQuantity(e.target.value)} onKeyDown={handleKeyDown} placeholder="0" min="0" step="0.01" disabled={!selectedMaterialId} aria-invalid={!!errors.ingredientQuantity} aria-describedby={errors.ingredientQuantity ? "quantity-error" : undefined} />
             {errors.ingredientQuantity && (
               <p id="quantity-error" className="text-sm text-red-500 mt-1">
                 {errors.ingredientQuantity}
@@ -410,7 +418,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
             <label htmlFor="unit" className="block text-sm font-medium mb-1">
               Unit
             </label>
-            <select id="unit" value={ingredientUnit} onChange={e => setIngredientUnit(e.target.value)} className="w-full px-3 py-2 border border-input bg-background rounded-md" disabled={!selectedMaterialId}>
+            <select id="unit" value={ingredientUnit} onChange={e => setIngredientUnit(e.target.value)} onKeyDown={handleKeyDown} className="w-full px-3 py-2 border border-input bg-background rounded-md" disabled={!selectedMaterialId}>
               {selectedMaterialId ? (
                 (() => {
                   const availableUnits = getAvailableUnits(selectedMaterialId, materials);

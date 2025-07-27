@@ -70,7 +70,7 @@ const ProtectedNavigation: React.FC = () => {
           },
           {
             label: "Menu Items",
-            href: "/menu-items",
+            href: "/menu",
             icon: Package,
             permission: PERMISSIONS.MENU_ITEMS_READ
           }

@@ -181,24 +181,24 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
   };
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full h-full flex flex-col", className)}>
       <Card className="flex flex-col h-full">
-        <CardHeader className="flex-shrink-0">
+        <CardHeader className="flex-shrink-0 p-4 px-6">
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
               Report Generator
             </div>
             {currentReportConfig && !isChangingReportType && hasGenerated && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground bg-primary/10 px-3 py-1 rounded-full">
+              <div className="flex items-center gap-1 text-sm text-muted-foreground bg-primary/10 px-3 py-1 rounded-full mr-4 sm:mr-10">
                 {currentReportConfig.icon}
-                <span>Currently viewing: {currentReportConfig.name}</span>
+                <span>viewing: {currentReportConfig.name}</span>
               </div>
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 flex flex-col space-y-4 sm:space-y-6 min-h-0">
-          <div className="space-y-4">
+        <CardContent className="flex-1 flex flex-col space-y-2 min-h-0 overflow-hidden">
+          <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
               <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                 <Label htmlFor="report-type">Report Type</Label>
@@ -321,10 +321,14 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           )}
 
           {hasGenerated && !isChangingReportType && (
-            <div className="flex-1 flex flex-col space-y-4 animate-in fade-in-50 duration-300 min-h-0">
-              {selectedReportType === "inventory-summary" && <ReportSummary data={reportData} />}
+            <div className="flex-1 flex flex-col space-y-4 animate-in fade-in-50 duration-300 min-h-0 overflow-hidden">
+              {selectedReportType === "inventory-summary" && (
+                <div className="flex-shrink-0">
+                  <ReportSummary data={reportData} />
+                </div>
+              )}
 
-              <div className="flex-1 border rounded-lg bg-card overflow-hidden min-h-0">
+              <div className="flex-1 bg-card overflow-hidden min-h-0">
                 <ReportTable reportType={selectedReportType} data={reportData} />
               </div>
             </div>

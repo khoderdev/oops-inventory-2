@@ -195,8 +195,8 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
               "scrollbar-gutter-stable" // Prevent scrollbar flickering
             )}
             style={{
-              maxHeight: "calc(100vh - 240px)",
-              minHeight: "250px",
+              height: "100%",
+              minHeight: "200px",
               scrollbarGutter: "stable" // Reserve space for scrollbar
             }}
           >

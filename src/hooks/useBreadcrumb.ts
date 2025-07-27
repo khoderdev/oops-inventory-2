@@ -24,7 +24,7 @@ const routeConfigs: RouteConfig[] = [
   { path: "/pos", label: "POS System", icon: ShoppingCart, parent: "/" },
   { path: "/sales", label: "Sales History", icon: FileText, parent: "/" },
   { path: "/sales-history", label: "Sales History", icon: FileText, parent: "/" },
-  { path: "/menu-items", label: "Menu Items", icon: Package, parent: "/" },
+  { path: "/menu", label: "Menu Items", icon: Package, parent: "/" },
 
   // Operations
   { path: "/day-operations", label: "Day Operations", icon: Calendar, parent: "/" },

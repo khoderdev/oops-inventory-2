@@ -7,12 +7,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptData } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertCircle, Calendar, Check, Clock, Edit, Eye, Package, Printer, Search, ShoppingBag, Truck, User, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
 interface POSClientOrdersProps {
@@ -152,48 +152,51 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   }, []);
 
   // Handle print order receipt
-  const handlePrintOrderReceipt = useCallback(async (orderSummary: OrderSummary) => {
-    setIsLoading(true);
-    setError(null);
+  const handlePrintOrderReceipt = useCallback(
+    async (orderSummary: OrderSummary) => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const response = await ordersAPI.getOrder(orderSummary.id);
-      // Handle nested response structure
-      const responseData = response.data as any;
-      const orderData = responseData.data || responseData;
+      try {
+        const response = await ordersAPI.getOrder(orderSummary.id);
+        // Handle nested response structure
+        const responseData = response.data as any;
+        const orderData = responseData.data || responseData;
 
-      // Convert order to receipt data
-      const receiptData: ReceiptData = {
-        id: orderData.orderNumber || orderData.id,
-        date: new Date(orderData.createdAt).toLocaleDateString(),
-        time: new Date(orderData.createdAt).toLocaleTimeString(),
-        cashier: user?.fullName || "POS System",
-        items: orderData.items.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: item.totalPrice,
-          type: item.type
-        })),
-        subtotal: orderData.subtotal,
-        tax: orderData.tax,
-        total: orderData.total,
-        paymentAmount: orderData.total,
-        change: 0,
-        paymentMethod: "cash"
-      };
+        // Convert order to receipt data
+        const receiptData: ReceiptData = {
+          id: orderData.orderNumber || orderData.id,
+          date: new Date(orderData.createdAt).toLocaleDateString(),
+          time: new Date(orderData.createdAt).toLocaleTimeString(),
+          cashier: user?.fullName || "POS System",
+          items: orderData.items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            type: item.type
+          })),
+          subtotal: orderData.subtotal,
+          tax: orderData.tax,
+          total: orderData.total,
+          paymentAmount: orderData.total,
+          change: 0,
+          paymentMethod: "cash"
+        };
 
-      setReceiptData(receiptData);
-      setShowReceiptDialog(true);
-      // Close the details modal
-      setShowOrderDetails(false);
-    } catch (error) {
-      console.error("Failed to prepare receipt:", error);
-      setError("Failed to prepare receipt. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
+        setReceiptData(receiptData);
+        setShowReceiptDialog(true);
+        // Close the details modal
+        setShowOrderDetails(false);
+      } catch (error) {
+        console.error("Failed to prepare receipt:", error);
+        setError("Failed to prepare receipt. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [user]
+  );
 
   // Handle filter changes
   const handleFilterChange = useCallback((key: keyof OrderFilters, value: any) => {
@@ -217,30 +220,33 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   }, []);
 
   // Handle order selection for editing
-  const handleOrderSelect = useCallback(async (orderSummary: OrderSummary) => {
-    if (!onOrderSelect) return;
+  const handleOrderSelect = useCallback(
+    async (orderSummary: OrderSummary) => {
+      if (!onOrderSelect) return;
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const response = await ordersAPI.getOrder(orderSummary.id);
-      // Handle nested response structure
-      const responseData = response.data as any;
-      const orderData = responseData.data || responseData;
+      try {
+        const response = await ordersAPI.getOrder(orderSummary.id);
+        // Handle nested response structure
+        const responseData = response.data as any;
+        const orderData = responseData.data || responseData;
 
-      // Call the parent callback to load order into POS cart
-      onOrderSelect(orderData);
-      
-      // Close the orders dialog
-      onClose();
-    } catch (error) {
-      console.error("Failed to load order for editing:", error);
-      setError("Failed to load order for editing. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onOrderSelect, onClose]);
+        // Call the parent callback to load order into POS cart
+        onOrderSelect(orderData);
+
+        // Close the orders dialog
+        onClose();
+      } catch (error) {
+        console.error("Failed to load order for editing:", error);
+        setError("Failed to load order for editing. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [onOrderSelect, onClose]
+  );
 
   // Handle order status update
   const handleUpdateOrderStatus = useCallback(
@@ -353,8 +359,8 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+          <DialogHeader className="flex-shrink-0 p-6 border-b">
             <DialogTitle className="flex items-center space-x-2">
               <ShoppingBag className="w-5 h-5" />
               <span>Orders Management</span>
@@ -365,374 +371,374 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
             <DialogDescription>View and manage delivery and takeaway orders</DialogDescription>
           </DialogHeader>
 
-          {/* Filters Section */}
-          <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-lg">
-            <div className="flex-1 min-w-64">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input placeholder="Search by order number, customer name..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-10" />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Filters Section */}
+            <div className="flex-shrink-0 flex flex-wrap gap-4 p-4 bg-gray-50 rounded-lg mx-6 mt-4">
+              <div className="flex-1 min-w-64">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input placeholder="Search by order number, customer name..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-10" />
+                </div>
               </div>
+
+              <Select value={filters.status || "all"} onValueChange={value => handleFilterChange("status", value === "all" ? undefined : value)}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="preparing">Preparing</SelectItem>
+                  <SelectItem value="ready">Ready</SelectItem>
+                  <SelectItem value="served">Served</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.orderType || "all"} onValueChange={value => handleFilterChange("orderType", value === "all" ? undefined : value)}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="delivery">Delivery</SelectItem>
+                  <SelectItem value="takeaway">Takeaway</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button variant="outline" onClick={clearFilters}>
+                Clear Filters
+              </Button>
             </div>
 
-            <Select value={filters.status || "all"} onValueChange={value => handleFilterChange("status", value === "all" ? undefined : value)}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="preparing">Preparing</SelectItem>
-                <SelectItem value="ready">Ready</SelectItem>
-                <SelectItem value="served">Served</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filters.orderType || "all"} onValueChange={value => handleFilterChange("orderType", value === "all" ? undefined : value)}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="delivery">Delivery</SelectItem>
-                <SelectItem value="takeaway">Takeaway</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button variant="outline" onClick={clearFilters}>
-              Clear Filters
-            </Button>
-          </div>
-
-          {/* Orders List */}
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="text-gray-500">Loading orders...</div>
-                </div>
-              ) : error ? (
-                <Alert variant="destructive" className="m-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              ) : orders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-32 text-gray-500">
-                  <ShoppingBag className="w-12 h-12 mb-2 opacity-50" />
-                  <p>No orders found</p>
-                  <p className="text-sm">Try adjusting your filters</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                  {orders.map(order => (
-                    <Card 
-                      key={order.id} 
-                      className="hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => handleOrderSelect(order)}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg font-semibold">{order.orderNumber}</CardTitle>
-                          <div className="flex items-center space-x-2">
-                            {ORDER_TYPE_ICONS[order.orderType]}
-                            <Badge className={ORDER_STATUS_COLORS[order.status]}>{order.status}</Badge>
-                          </div>
-                        </div>
-                        <CardDescription className="flex items-center space-x-4 text-sm">
-                          <span className="flex items-center space-x-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>{formatDate(order.createdAt)}</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <Clock className="w-4 h-4" />
-                            <span>{formatTime(order.createdAt)}</span>
-                          </span>
-                        </CardDescription>
-                      </CardHeader>
-
-                      <CardContent className="pt-0">
-                        <div className="space-y-2">
-                          {order.customerName && (
-                            <div className="flex items-center space-x-2 text-sm">
-                              <User className="w-4 h-4 text-gray-400" />
-                              <span>{order.customerName}</span>
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between pt-2 border-t">
-                            <span className="text-lg font-semibold text-green-600">{formatCurrency(order.total)}</span>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOrderSelect(order);
-                                }} 
-                                className="flex items-center space-x-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200"
-                              >
-                                <Edit className="w-4 h-4" />
-                                <span>Edit</span>
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewOrderDetails(order);
-                                }} 
-                                className="flex items-center space-x-1"
-                              >
-                                <Eye className="w-4 h-4" />
-                                <span>View</span>
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlePrintOrderReceipt(order);
-                                }} 
-                                className="flex items-center space-x-1"
-                              >
-                                <Printer className="w-4 h-4" />
-                                <span>Print</span>
-                              </Button>
+            {/* Orders List */}
+            <div className="flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="text-gray-500">Loading orders...</div>
+                  </div>
+                ) : error ? (
+                  <Alert variant="destructive" className="m-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                ) : orders.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-gray-500">
+                    <ShoppingBag className="w-12 h-12 mb-2 opacity-50" />
+                    <p>No orders found</p>
+                    <p className="text-sm">Try adjusting your filters</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                    {orders.map(order => (
+                      <Card key={order.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleOrderSelect(order)}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg font-semibold">{order.orderNumber}</CardTitle>
+                            <div className="flex items-center space-x-2">
+                              {ORDER_TYPE_ICONS[order.orderType]}
+                              <Badge className={ORDER_STATUS_COLORS[order.status]}>{order.status}</Badge>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-          </div>
+                          <CardDescription className="flex items-center space-x-4 text-sm">
+                            <span className="flex items-center space-x-1">
+                              <Calendar className="w-4 h-4" />
+                              <span>{formatDate(order.createdAt)}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Clock className="w-4 h-4" />
+                              <span>{formatTime(order.createdAt)}</span>
+                            </span>
+                          </CardDescription>
+                        </CardHeader>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </DialogFooter>
+                        <CardContent className="pt-0">
+                          <div className="space-y-2">
+                            {order.customerName && (
+                              <div className="flex items-center space-x-2 text-sm">
+                                <User className="w-4 h-4 text-gray-400" />
+                                <span>{order.customerName}</span>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <span className="text-lg font-semibold text-green-600">{formatCurrency(order.total)}</span>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleOrderSelect(order);
+                                  }}
+                                  className="flex items-center space-x-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  <span>Edit</span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleViewOrderDetails(order);
+                                  }}
+                                  className="flex items-center space-x-1"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  <span>View</span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handlePrintOrderReceipt(order);
+                                  }}
+                                  className="flex items-center space-x-1"
+                                >
+                                  <Printer className="w-4 h-4" />
+                                  <span>Print</span>
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>
+                Close
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Order Details Dialog */}
       <Dialog open={showOrderDetails} onOpenChange={setShowOrderDetails}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <ShoppingBag className="w-5 h-5" />
-              <span>Order Details - {selectedOrder?.orderNumber}</span>
-              {selectedOrder && <Badge className={ORDER_STATUS_COLORS[selectedOrder.status]}>{selectedOrder.status}</Badge>}
-            </DialogTitle>
-            <DialogDescription>Complete order information and items</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+          <div className="w-full h-full flex flex-col overflow-hidden">
+            <DialogHeader className="flex-shrink-0 p-6 border-b">
+              <DialogTitle className="flex items-center space-x-2">
+                <ShoppingBag className="w-5 h-5" />
+                <span>Order Details - {selectedOrder?.orderNumber}</span>
+                {selectedOrder && <Badge className={ORDER_STATUS_COLORS[selectedOrder.status]}>{selectedOrder.status}</Badge>}
+              </DialogTitle>
+              <DialogDescription>Complete order information and items</DialogDescription>
+            </DialogHeader>
 
-          {selectedOrder && (
-            <div className="flex-1 overflow-hidden">
-              <ScrollArea className="h-full">
-                <div className="space-y-6 p-4">
-                  {/* Order Information */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Order Information</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">Order Number</label>
-                          <p className="font-semibold">{selectedOrder.orderNumber}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">Type</label>
-                          <div className="flex items-center space-x-2">
-                            {ORDER_TYPE_ICONS[selectedOrder.orderType]}
-                            <span className="capitalize">{selectedOrder.orderType}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">Status</label>
-                          <Badge className={ORDER_STATUS_COLORS[selectedOrder.status]}>{selectedOrder.status}</Badge>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">Created</label>
-                          <p>
-                            {formatDate(selectedOrder.createdAt)} at {formatTime(selectedOrder.createdAt)}
-                          </p>
-                        </div>
-                        {selectedOrder.completedAt && (
-                          <div>
-                            <label className="text-sm font-medium text-gray-500">Completed</label>
-                            <p>
-                              {formatDate(selectedOrder.completedAt)} at {formatTime(selectedOrder.completedAt)}
-                            </p>
-                          </div>
-                        )}
-                        {selectedOrder.estimatedReadyTime && (
-                          <div>
-                            <label className="text-sm font-medium text-gray-500">Ready Time</label>
-                            <p>
-                              {formatDate(selectedOrder.estimatedReadyTime)} at {formatTime(selectedOrder.estimatedReadyTime)}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Customer Information */}
-                  {(selectedOrder.customerName || selectedOrder.customerPhone || selectedOrder.customerAddress) && (
+            {selectedOrder && (
+              <div className="flex-1 overflow-hidden">
+                <ScrollArea className="h-full">
+                  <div className="space-y-6 p-4">
+                    {/* Order Information */}
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">Customer Information</CardTitle>
+                        <CardTitle className="text-lg">Order Information</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {selectedOrder.customerName && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Order Number</label>
+                            <p className="font-semibold">{selectedOrder.orderNumber}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Type</label>
+                            <div className="flex items-center space-x-2">
+                              {ORDER_TYPE_ICONS[selectedOrder.orderType]}
+                              <span className="capitalize">{selectedOrder.orderType}</span>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Status</label>
+                            <Badge className={ORDER_STATUS_COLORS[selectedOrder.status]}>{selectedOrder.status}</Badge>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Created</label>
+                            <p>
+                              {formatDate(selectedOrder.createdAt)} at {formatTime(selectedOrder.createdAt)}
+                            </p>
+                          </div>
+                          {selectedOrder.completedAt && (
                             <div>
-                              <label className="text-sm font-medium text-gray-500">Name</label>
-                              <p>{selectedOrder.customerName}</p>
+                              <label className="text-sm font-medium text-gray-500">Completed</label>
+                              <p>
+                                {formatDate(selectedOrder.completedAt)} at {formatTime(selectedOrder.completedAt)}
+                              </p>
                             </div>
                           )}
-                          {selectedOrder.customerPhone && (
+                          {selectedOrder.estimatedReadyTime && (
                             <div>
-                              <label className="text-sm font-medium text-gray-500">Phone</label>
-                              <p>{selectedOrder.customerPhone}</p>
-                            </div>
-                          )}
-                          {selectedOrder.customerAddress && (
-                            <div className="md:col-span-2">
-                              <label className="text-sm font-medium text-gray-500">Address</label>
-                              <p>{selectedOrder.customerAddress}</p>
+                              <label className="text-sm font-medium text-gray-500">Ready Time</label>
+                              <p>
+                                {formatDate(selectedOrder.estimatedReadyTime)} at {formatTime(selectedOrder.estimatedReadyTime)}
+                              </p>
                             </div>
                           )}
                         </div>
                       </CardContent>
                     </Card>
-                  )}
 
-                  {/* Order Items */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Order Items</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {selectedOrder.items.map((item, index) => (
-                          <div key={item.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">{item.type === "material" ? <Package className="w-4 h-4 text-blue-600" /> : <ShoppingBag className="w-4 h-4 text-green-600" />}</div>
+                    {/* Customer Information */}
+                    {(selectedOrder.customerName || selectedOrder.customerPhone || selectedOrder.customerAddress) && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Customer Information</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {selectedOrder.customerName && (
                               <div>
-                                <p className="font-medium">{item.name}</p>
-                                <p className="text-sm text-gray-500">
-                                  {item.quantity} × {formatCurrency(item.unitPrice)}
-                                </p>
+                                <label className="text-sm font-medium text-gray-500">Name</label>
+                                <p>{selectedOrder.customerName}</p>
+                              </div>
+                            )}
+                            {selectedOrder.customerPhone && (
+                              <div>
+                                <label className="text-sm font-medium text-gray-500">Phone</label>
+                                <p>{selectedOrder.customerPhone}</p>
+                              </div>
+                            )}
+                            {selectedOrder.customerAddress && (
+                              <div className="md:col-span-2">
+                                <label className="text-sm font-medium text-gray-500">Address</label>
+                                <p>{selectedOrder.customerAddress}</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Order Items */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Order Items</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {selectedOrder.items.map((item, index) => (
+                            <div key={item.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">{item.type === "material" ? <Package className="w-4 h-4 text-blue-600" /> : <ShoppingBag className="w-4 h-4 text-green-600" />}</div>
+                                <div>
+                                  <p className="font-medium">{item.name}</p>
+                                  <p className="text-sm text-gray-500">
+                                    {item.quantity} × {formatCurrency(item.unitPrice)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold">{formatCurrency(item.totalPrice)}</p>
+                                <Badge variant="outline" className="text-xs">
+                                  {item.type}
+                                </Badge>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="font-semibold">{formatCurrency(item.totalPrice)}</p>
-                              <Badge variant="outline" className="text-xs">
-                                {item.type}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Order Summary */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Order Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span>Subtotal</span>
-                          <span>{formatCurrency(selectedOrder.subtotal)}</span>
+                          ))}
                         </div>
-                        <div className="flex justify-between">
-                          <span>Tax</span>
-                          <span>{formatCurrency(selectedOrder.tax)}</span>
-                        </div>
-                        <div className="flex justify-between text-lg font-semibold border-t pt-2">
-                          <span>Total</span>
-                          <span className="text-green-600">{formatCurrency(selectedOrder.total)}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Notes */}
-                  {selectedOrder.notes && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Notes</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-gray-700">{selectedOrder.notes}</p>
                       </CardContent>
                     </Card>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          )}
 
-          <DialogFooter className="flex justify-between">
-            <div className="flex space-x-2">
-              {selectedOrder && selectedOrder.status === "draft" && (
-                <Button onClick={() => handleUpdateOrderStatus(selectedOrder.id, "confirmed")} className="flex items-center space-x-2 bg-green-600 hover:bg-green-700" disabled={isLoading}>
-                  <Check className="w-4 h-4" />
-                  <span>Confirm Order</span>
-                </Button>
-              )}
+                    {/* Order Summary */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Order Summary</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Subtotal</span>
+                            <span>{formatCurrency(selectedOrder.subtotal)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Tax</span>
+                            <span>{formatCurrency(selectedOrder.tax)}</span>
+                          </div>
+                          <div className="flex justify-between text-lg font-semibold border-t pt-2">
+                            <span>Total</span>
+                            <span className="text-green-600">{formatCurrency(selectedOrder.total)}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-              {selectedOrder && selectedOrder.status !== "paid" && selectedOrder.status !== "cancelled" && (
-                <Button onClick={() => handleCompleteOrder(selectedOrder.id)} className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                  <Check className="w-4 h-4" />
-                  <span>Complete & Pay</span>
-                </Button>
-              )}
+                    {/* Notes */}
+                    {selectedOrder.notes && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Notes</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-gray-700">{selectedOrder.notes}</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
 
-              {selectedOrder && selectedOrder.status !== "paid" && selectedOrder.status !== "cancelled" && (
-                <Button onClick={() => handleCancelOrder(selectedOrder.id, "Cancelled from orders management")} variant="destructive" className="flex items-center space-x-2" disabled={isLoading}>
-                  <X className="w-4 h-4" />
-                  <span>Cancel Order</span>
-                </Button>
-              )}
-            </div>
+            <DialogFooter className="flex justify-between">
+              <div className="flex space-x-2">
+                {selectedOrder && selectedOrder.status === "draft" && (
+                  <Button onClick={() => handleUpdateOrderStatus(selectedOrder.id, "confirmed")} className="flex items-center space-x-2 bg-green-600 hover:bg-green-700" disabled={isLoading}>
+                    <Check className="w-4 h-4" />
+                    <span>Confirm Order</span>
+                  </Button>
+                )}
 
-            <div className="flex space-x-2">
-              {selectedOrder && (
-                <Button
-                  onClick={() =>
-                    handlePrintOrderReceipt({
-                      id: selectedOrder.id,
-                      orderNumber: selectedOrder.orderNumber,
-                      status: selectedOrder.status,
-                      orderType: selectedOrder.orderType,
-                      customerName: selectedOrder.customerName,
-                      total: selectedOrder.total,
-                      itemCount: selectedOrder.items.length,
-                      createdAt: selectedOrder.createdAt
-                    })
-                  }
-                  className="flex items-center space-x-2"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Print Receipt</span>
+                {selectedOrder && selectedOrder.status !== "paid" && selectedOrder.status !== "cancelled" && (
+                  <Button onClick={() => handleCompleteOrder(selectedOrder.id)} className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                    <Check className="w-4 h-4" />
+                    <span>Complete & Pay</span>
+                  </Button>
+                )}
+
+                {selectedOrder && selectedOrder.status !== "paid" && selectedOrder.status !== "cancelled" && (
+                  <Button onClick={() => handleCancelOrder(selectedOrder.id, "Cancelled from orders management")} variant="destructive" className="flex items-center space-x-2" disabled={isLoading}>
+                    <X className="w-4 h-4" />
+                    <span>Cancel Order</span>
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex space-x-2">
+                {selectedOrder && (
+                  <Button
+                    onClick={() =>
+                      handlePrintOrderReceipt({
+                        id: selectedOrder.id,
+                        orderNumber: selectedOrder.orderNumber,
+                        status: selectedOrder.status,
+                        orderType: selectedOrder.orderType,
+                        customerName: selectedOrder.customerName,
+                        total: selectedOrder.total,
+                        itemCount: selectedOrder.items.length,
+                        createdAt: selectedOrder.createdAt
+                      })
+                    }
+                    className="flex items-center space-x-2"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Print Receipt</span>
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setShowOrderDetails(false)}>
+                  Close
                 </Button>
-              )}
-              <Button variant="outline" onClick={() => setShowOrderDetails(false)}>
-                Close
-              </Button>
-            </div>
-          </DialogFooter>
+              </div>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

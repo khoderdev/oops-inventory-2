@@ -987,29 +987,33 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       {/* Negative Stock Warning Dialog */}
       <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-              <span>Stock Warning</span>
-            </DialogTitle>
-            <DialogDescription>Some items have low or negative stock levels</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+          <div className="w-full h-full flex flex-col overflow-hidden">
+            <DialogHeader className="flex-shrink-0 p-6 border-b">
+              <DialogTitle className="flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                <span>Stock Warning</span>
+              </DialogTitle>
+              <DialogDescription>Some items have low or negative stock levels</DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {negativeStockWarnings.map((warning, index) => (
-              <Alert key={index}>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>{warning.materialName}</strong>: Low stock - Available: {warning.availableQuantity}, Required: {warning.requiredQuantity}
-                </AlertDescription>
-              </Alert>
-            ))}
+            <div className="flex-1 p-6 overflow-y-auto">
+              <div className="space-y-2">
+                {negativeStockWarnings.map((warning, index) => (
+                  <Alert key={index}>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>{warning.materialName}</strong>: Low stock - Available: {warning.availableQuantity}, Required: {warning.requiredQuantity}
+                    </AlertDescription>
+                  </Alert>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter className="flex-shrink-0 p-6 border-t">
+              <Button onClick={() => setShowNegativeStockDialog(false)}>Acknowledge</Button>
+            </DialogFooter>
           </div>
-
-          <DialogFooter>
-            <Button onClick={() => setShowNegativeStockDialog(false)}>Acknowledge</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1032,33 +1036,47 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       {/* Unsaved Changes Dialog */}
       <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-              <span>Unsaved Changes</span>
-            </DialogTitle>
-            <DialogDescription>You have unsaved changes in your current order. Would you like to save them?</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowUnsavedDialog(false);
-                // Continue with the action that triggered this dialog
-              }}
-            >
-              Discard Changes
-            </Button>
-            <Button
-              onClick={() => {
-                handleManualSave();
-                setShowUnsavedDialog(false);
-              }}
-            >
-              Save Order
-            </Button>
-          </DialogFooter>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+          <div className="w-full h-full flex flex-col overflow-hidden">
+            <DialogHeader className="flex-shrink-0 p-6 border-b">
+              <DialogTitle className="flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                <span>Unsaved Changes</span>
+              </DialogTitle>
+              <DialogDescription>You have unsaved changes in your current order. Would you like to save them?</DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="text-center space-y-4">
+                <div className="text-lg text-gray-600">
+                  Your current order has unsaved changes that will be lost if you continue.
+                </div>
+                <div className="text-sm text-gray-500">
+                  Choose whether to save your progress or discard the changes.
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter className="flex-shrink-0 p-6 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowUnsavedDialog(false);
+                  // Continue with the action that triggered this dialog
+                }}
+              >
+                Discard Changes
+              </Button>
+              <Button
+                onClick={() => {
+                  handleManualSave();
+                  setShowUnsavedDialog(false);
+                }}
+              >
+                Save Order
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1087,13 +1105,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {/* Reports Dialog */}
       {showReportsDialog && (
         <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
-          <DialogContent className="max-w-7xl max-h-[98vh] overflow-auto">
-            <DialogHeader>
-              <DialogTitle>Reports & Analytics</DialogTitle>
-              <DialogDescription>Generate and view various reports for your business</DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-hidden">
-              <ReportGenerator />
+          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+            <div className="w-full h-full flex flex-col overflow-hidden">
+              <ReportGenerator className="flex-1 overflow-hidden" />
             </div>
           </DialogContent>
         </Dialog>

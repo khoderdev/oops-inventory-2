@@ -318,7 +318,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         </CardHeader>
         <CardContent>
           <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
               <DialogHeader>
                 <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
               </DialogHeader>

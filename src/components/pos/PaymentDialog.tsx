@@ -21,16 +21,17 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-full max-h-[90vh] p-0">
+      <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+        <div className="w-full h-full flex flex-col overflow-hidden">
         {/* Header */}
-        <DialogHeader className="px-8 pt-8 pb-4">
+        <DialogHeader className="flex-shrink-0 px-8 pt-8 pb-4 border-b">
           <DialogTitle className="flex items-center justify-center space-x-3 text-2xl">
             <CreditCard className="w-8 h-8 text-blue-600" />
             <span className="text-gray-800">Payment</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="">
+        <div className="flex-1 p-6 overflow-y-auto">
           {/* Total Amount Display */}
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 p-6 rounded-2xl">
             <div className="text-center">
@@ -84,7 +85,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
         </div>
 
         {/* Footer */}
-        <DialogFooter className="px-8 py-6 bg-gray-50 border-t">
+        <DialogFooter className="flex-shrink-0 px-8 py-6 bg-gray-50 border-t">
           <div className="flex w-full space-x-4">
             <Button variant="outline" size="lg" onClick={onClose} className="flex-1 h-14 text-lg font-semibold">
               Cancel
@@ -104,6 +105,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
             </Button>
           </div>
         </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
