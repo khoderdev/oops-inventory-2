@@ -3,12 +3,12 @@ import sequelize from "../config/database.js";
 
 /**
  * Simplified Stock Entry Logs Model
- * 
+ *
  * Basic version to test table creation without complex features
  */
 
-const StockEntryLogSimple = sequelize.define(
-  "StockEntryLogSimple",
+const SystemLogs = sequelize.define(
+  "SystemLogs",
   {
     id: {
       type: DataTypes.INTEGER,
@@ -16,7 +16,7 @@ const StockEntryLogSimple = sequelize.define(
       autoIncrement: true,
       allowNull: false
     },
-    
+
     // User Information
     userId: {
       type: DataTypes.INTEGER,
@@ -82,10 +82,10 @@ const StockEntryLogSimple = sequelize.define(
     status: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      defaultValue: 'success',
+      defaultValue: "success",
       comment: "Status of the action execution"
     },
-    
+
     // Error handling
     errorMessage: {
       type: DataTypes.TEXT,
@@ -94,13 +94,13 @@ const StockEntryLogSimple = sequelize.define(
     }
   },
   {
-    tableName: "stock_entry_logs_simple",
+    tableName: "SystemLogs",
     timestamps: false
   }
 );
 
 // Static method for logging
-StockEntryLogSimple.logAction = async function(actionData) {
+SystemLogs.logAction = async function (actionData) {
   try {
     const logEntry = await this.create({
       ...actionData,
@@ -108,9 +108,9 @@ StockEntryLogSimple.logAction = async function(actionData) {
     });
     return logEntry;
   } catch (error) {
-    console.error('Failed to create stock entry log:', error);
+    console.error("Failed to create stock entry log:", error);
     throw error;
   }
 };
 
-export default StockEntryLogSimple;
+export default SystemLogs;

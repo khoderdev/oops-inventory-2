@@ -453,7 +453,7 @@ router.get("/export", async (req, res) => {
       const csvContent = [csvHeaders, ...csvRows].map(row => row.map(field => `"${field}"`).join(",")).join("\n");
 
       res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", `attachment; filename="stock_entry_logs_${Date.now()}.csv"`);
+      res.setHeader("Content-Disposition", `attachment; filename="SystemLogs_${Date.now()}.csv"`);
       res.send(csvContent);
     } else {
       // Return JSON

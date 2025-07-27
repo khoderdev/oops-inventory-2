@@ -1,6 +1,6 @@
 export const up = async (queryInterface, Sequelize) => {
   await queryInterface.createTable(
-    "stock_entry_logs",
+    "SystemLogs",
     {
       id: {
         type: Sequelize.INTEGER,
@@ -271,73 +271,73 @@ export const up = async (queryInterface, Sequelize) => {
   );
 
   // Create indexes for optimal query performance
-  await queryInterface.addIndex("stock_entry_logs", ["stockEntryId"], {
-    name: "idx_stock_entry_logs_stock_entry_id"
+  await queryInterface.addIndex("SystemLogs", ["stockEntryId"], {
+    name: "idx_system_logs_stock_entry_id"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["materialId"], {
-    name: "idx_stock_entry_logs_material_id"
+  await queryInterface.addIndex("SystemLogs", ["materialId"], {
+    name: "idx_system_logs_material_id"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["userId"], {
-    name: "idx_stock_entry_logs_user_id"
+  await queryInterface.addIndex("SystemLogs", ["userId"], {
+    name: "idx_system_logs_user_id"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["actionType"], {
-    name: "idx_stock_entry_logs_action_type"
+  await queryInterface.addIndex("SystemLogs", ["actionType"], {
+    name: "idx_system_logs_action_type"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["actionTimestamp"], {
-    name: "idx_stock_entry_logs_timestamp"
+  await queryInterface.addIndex("SystemLogs", ["actionTimestamp"], {
+    name: "idx_system_logs_timestamp"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["materialName"], {
-    name: "idx_stock_entry_logs_material_name"
+  await queryInterface.addIndex("SystemLogs", ["materialName"], {
+    name: "idx_system_logs_material_name"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["status"], {
-    name: "idx_stock_entry_logs_status"
+  await queryInterface.addIndex("SystemLogs", ["status"], {
+    name: "idx_system_logs_status"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["businessImpact"], {
-    name: "idx_stock_entry_logs_business_impact"
+  await queryInterface.addIndex("SystemLogs", ["businessImpact"], {
+    name: "idx_system_logs_business_impact"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["batchId"], {
-    name: "idx_stock_entry_logs_batch_id"
+  await queryInterface.addIndex("SystemLogs", ["batchId"], {
+    name: "idx_system_logs_batch_id"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["correlationId"], {
-    name: "idx_stock_entry_logs_correlation_id"
+  await queryInterface.addIndex("SystemLogs", ["correlationId"], {
+    name: "idx_system_logs_correlation_id"
   });
 
   // Composite indexes for common query patterns
-  await queryInterface.addIndex("stock_entry_logs", ["actionTimestamp", "actionType"], {
-    name: "idx_stock_entry_logs_timestamp_action"
+  await queryInterface.addIndex("SystemLogs", ["actionTimestamp", "actionType"], {
+    name: "idx_system_logs_timestamp_action"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["materialId", "actionTimestamp"], {
-    name: "idx_stock_entry_logs_material_timestamp"
+  await queryInterface.addIndex("SystemLogs", ["materialId", "actionTimestamp"], {
+    name: "idx_system_logs_material_timestamp"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["userId", "actionTimestamp"], {
-    name: "idx_stock_entry_logs_user_timestamp"
+  await queryInterface.addIndex("SystemLogs", ["userId", "actionTimestamp"], {
+    name: "idx_system_logs_user_timestamp"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["stockEntryId", "actionTimestamp"], {
-    name: "idx_stock_entry_logs_stock_timestamp"
+  await queryInterface.addIndex("SystemLogs", ["stockEntryId", "actionTimestamp"], {
+    name: "idx_system_logs_stock_timestamp"
   });
 
   // Index for compliance and business impact queries
-  await queryInterface.addIndex("stock_entry_logs", ["complianceRelevant", "actionTimestamp"], {
-    name: "idx_stock_entry_logs_compliance_timestamp"
+  await queryInterface.addIndex("SystemLogs", ["complianceRelevant", "actionTimestamp"], {
+    name: "idx_system_logs_compliance_timestamp"
   });
 
-  await queryInterface.addIndex("stock_entry_logs", ["businessImpact", "actionTimestamp"], {
-    name: "idx_stock_entry_logs_impact_timestamp"
+  await queryInterface.addIndex("SystemLogs", ["businessImpact", "actionTimestamp"], {
+    name: "idx_system_logs_impact_timestamp"
   });
 };
 
 export const down = async (queryInterface, Sequelize) => {
-  await queryInterface.dropTable("stock_entry_logs");
+  await queryInterface.dropTable("SystemLogs");
 };
