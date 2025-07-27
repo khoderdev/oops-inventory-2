@@ -1,10 +1,4 @@
-import React from 'react';
-
-/**
- * Logo Cache Utility
- * Provides static logo caching with preloading and error handling
- * for optimal UI performance and availability
- */
+import React from "react";
 
 interface LogoCacheConfig {
   src: string;
@@ -33,7 +27,7 @@ class LogoCache {
    */
   async preloadLogo(config: LogoCacheConfig): Promise<HTMLImageElement> {
     const { src, fallbackSrc } = config;
-    
+
     // Return cached version if available
     if (this.cache.has(src)) {
       return this.cache.get(src)!;
@@ -67,22 +61,20 @@ class LogoCache {
   private loadImage(src: string, fallbackSrc?: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      
+
       img.onload = () => {
         resolve(img);
       };
-      
+
       img.onerror = () => {
         if (fallbackSrc && fallbackSrc !== src) {
           // Try fallback image
-          this.loadImage(fallbackSrc)
-            .then(resolve)
-            .catch(reject);
+          this.loadImage(fallbackSrc).then(resolve).catch(reject);
         } else {
           reject(new Error(`Failed to load image: ${src}`));
         }
       };
-      
+
       img.src = src;
     });
   }
@@ -106,7 +98,7 @@ class LogoCache {
    */
   getLogoSrc(src: string, bustCache = false): string {
     if (bustCache) {
-      const separator = src.includes('?') ? '&' : '?';
+      const separator = src.includes("?") ? "&" : "?";
       return `${src}${separator}v=${Date.now()}`;
     }
     return src;
@@ -139,21 +131,21 @@ export const logoCache = LogoCache.getInstance();
 // Logo configurations
 export const LOGO_CONFIGS = {
   MAIN_LOGO: {
-    src: '/oops-logo.png',
-    alt: 'oOps Resto-Café Logo',
-    fallbackSrc: '/assets/logo-fallback.png',
+    src: "/oops-logo.png",
+    alt: "oOps Resto-Café Logo",
+    fallbackSrc: "/assets/logo-fallback.png",
     preload: true
   },
   SIDEBAR_LOGO: {
-    src: 'oops-logo.png',
-    alt: 'oops-logo',
-    fallbackSrc: '/assets/logo-fallback.png',
+    src: "oops-logo.png",
+    alt: "oops-logo",
+    fallbackSrc: "/assets/logo-fallback.png",
     preload: true
   },
   SIDEBAR_ICON: {
-    src: 'oops-icon.png',
-    alt: 'oOps Icon',
-    fallbackSrc: '/assets/icon-fallback.png',
+    src: "oops-icon.png",
+    alt: "oOps Icon",
+    fallbackSrc: "/assets/icon-fallback.png",
     preload: true
   }
 } as const;
@@ -182,9 +174,9 @@ export const useCachedLogo = (config: LogoCacheConfig) => {
         setLogoSrc(config.src);
         setError(null);
       } catch (err) {
-        console.error('Logo loading failed:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load logo');
-        
+        console.error("Logo loading failed:", err);
+        setError(err instanceof Error ? err.message : "Failed to load logo");
+
         // Try fallback
         if (config.fallbackSrc) {
           setLogoSrc(config.fallbackSrc);
@@ -209,9 +201,7 @@ export const preloadAllLogos = async (): Promise<void> => {
   const preloadPromises = Object.values(LOGO_CONFIGS)
     .filter(config => config.preload)
     .map(config => logoCache.preloadLogo(config).catch(console.error));
-
   await Promise.allSettled(preloadPromises);
-  console.log('Logo preloading completed:', logoCache.getCacheStats());
 };
 
 export default logoCache;

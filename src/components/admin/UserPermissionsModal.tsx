@@ -1,15 +1,17 @@
-import { AlertTriangle, Loader2, RotateCcw, Save, Shield } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle, Filter, Loader2, RotateCcw, Save, Search, Shield, XCircle } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { userAPI } from "../../api/auth";
-import type { User } from "../../types/auth";
-import { PERMISSIONS, ROLE_PERMISSIONS } from "../../types/auth";
+import { PERMISSION_GROUPS, PERMISSIONS, ROLE_PERMISSIONS, User } from "../../types/auth";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Checkbox } from "../ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 interface UserPermissionsModalProps {
   user: User | null;
@@ -23,27 +25,33 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({ user, isOpe
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"granted" | "denied" | "all">("all");
 
+  // Initialize permissions when user changes
   useEffect(() => {
     if (user) {
-      // Initialize permissions with user's current permissions
       const currentPermissions = { ...user.permissions };
       if (user.specificPermissions) {
         Object.assign(currentPermissions, user.specificPermissions);
       }
       setPermissions(currentPermissions);
       setHasChanges(false);
+      setError("");
     }
   }, [user]);
 
-  const handlePermissionChange = (permission: string, checked: boolean) => {
+  // Permission change handler
+  const handlePermissionChange = useCallback((permission: string, checked: boolean) => {
     setPermissions(prev => ({
       ...prev,
       [permission]: checked
     }));
     setHasChanges(true);
-  };
+  }, []);
 
+  // Save permissions
   const handleSavePermissions = async () => {
     if (!user) return;
 
@@ -65,7 +73,8 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({ user, isOpe
     }
   };
 
-  const handleResetToRoleDefaults = () => {
+  // Reset to role defaults
+  const handleResetToRoleDefaults = useCallback(() => {
     if (!user) return;
 
     const rolePermissions = ROLE_PERMISSIONS[user.role] || [];
@@ -83,174 +92,265 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({ user, isOpe
 
     setPermissions(resetPermissions);
     setHasChanges(true);
-  };
+  }, [user]);
+
+  // Bulk permission operations
+  const handleBulkOperation = useCallback((operation: "grant" | "revoke", groupName?: string) => {
+    const targetPermissions = groupName ? PERMISSION_GROUPS[groupName as keyof typeof PERMISSION_GROUPS]?.permissions || [] : Object.values(PERMISSIONS);
+
+    setPermissions(prev => {
+      const updated = { ...prev };
+      targetPermissions.forEach(permission => {
+        updated[permission] = operation === "grant";
+      });
+      return updated;
+    });
+    setHasChanges(true);
+  }, []);
+
+  // Get permission status
+  const getPermissionStatus = useCallback(
+    (permission: string) => {
+      if (!user) return "disabled";
+
+      const isEnabled = permissions[permission];
+      const rolePerms = ROLE_PERMISSIONS[user.role] || [];
+      const isRolePerm = rolePerms.includes(permission as any);
+
+      if (isEnabled && isRolePerm) return "role";
+      if (isEnabled && !isRolePerm) return "custom";
+      if (!isEnabled && isRolePerm) return "revoked";
+      return "disabled";
+    },
+    [user, permissions]
+  );
+
+  // Filter permissions based on search and filters
+  const filteredGroups = useMemo(() => {
+    return Object.entries(PERMISSION_GROUPS).filter(([groupName, group]) => {
+      // Group filter
+      if (selectedGroup !== "all" && groupName !== selectedGroup) return false;
+
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const groupMatches = groupName.toLowerCase().includes(searchLower) || group.description.toLowerCase().includes(searchLower);
+        const permissionMatches = group.permissions.some(perm => perm.toLowerCase().includes(searchLower));
+        if (!groupMatches && !permissionMatches) return false;
+      }
+
+      // View mode filter
+      if (viewMode !== "all") {
+        const hasMatchingPermissions = group.permissions.some(perm => {
+          const status = getPermissionStatus(perm);
+          return viewMode === "granted" ? status === "role" || status === "custom" : status === "disabled" || status === "revoked";
+        });
+        if (!hasMatchingPermissions) return false;
+      }
+
+      return true;
+    });
+  }, [selectedGroup, searchTerm, viewMode, getPermissionStatus]);
+
+  // Get status badge
+  const getStatusBadge = useCallback(
+    (permission: string) => {
+      const status = getPermissionStatus(permission);
+
+      switch (status) {
+        case "role":
+          return (
+            <Badge variant="default" className="bg-blue-100 text-blue-800 border-blue-200">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Role
+            </Badge>
+          );
+        case "custom":
+          return (
+            <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Custom
+            </Badge>
+          );
+        case "revoked":
+          return (
+            <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
+              <XCircle className="w-3 h-3 mr-1" />
+              Revoked
+            </Badge>
+          );
+        default:
+          return (
+            <Badge variant="secondary" className="bg-gray-100 text-gray-600 border-gray-200">
+              <XCircle className="w-3 h-3 mr-1" />
+              Disabled
+            </Badge>
+          );
+      }
+    },
+    [getPermissionStatus]
+  );
 
   if (!user) return null;
 
-  const permissionGroups = {
-    "User Management": [PERMISSIONS.USERS_CREATE, PERMISSIONS.USERS_READ, PERMISSIONS.USERS_UPDATE, PERMISSIONS.USERS_DELETE],
-    Materials: [PERMISSIONS.MATERIALS_CREATE, PERMISSIONS.MATERIALS_READ, PERMISSIONS.MATERIALS_UPDATE, PERMISSIONS.MATERIALS_DELETE],
-    "Stock Management": [PERMISSIONS.STOCK_CREATE, PERMISSIONS.STOCK_READ, PERMISSIONS.STOCK_UPDATE, PERMISSIONS.STOCK_DELETE],
-    Sales: [PERMISSIONS.SALES_CREATE, PERMISSIONS.SALES_READ, PERMISSIONS.SALES_UPDATE, PERMISSIONS.SALES_DELETE, PERMISSIONS.SALES_REVERT],
-    Sections: [PERMISSIONS.SECTIONS_CREATE, PERMISSIONS.SECTIONS_READ, PERMISSIONS.SECTIONS_UPDATE, PERMISSIONS.SECTIONS_DELETE],
-    Assignments: [PERMISSIONS.ASSIGNMENTS_CREATE, PERMISSIONS.ASSIGNMENTS_READ, PERMISSIONS.ASSIGNMENTS_UPDATE, PERMISSIONS.ASSIGNMENTS_DELETE],
-    "Menu Items": [PERMISSIONS.MENU_ITEMS_CREATE, PERMISSIONS.MENU_ITEMS_READ, PERMISSIONS.MENU_ITEMS_UPDATE, PERMISSIONS.MENU_ITEMS_DELETE],
-    "Day Operations": [PERMISSIONS.DAY_OPERATIONS_CREATE, PERMISSIONS.DAY_OPERATIONS_READ, PERMISSIONS.DAY_OPERATIONS_UPDATE, PERMISSIONS.DAY_OPERATIONS_DELETE],
-    "Reports & Analytics": [PERMISSIONS.REPORTS_READ, PERMISSIONS.REPORTS_EXPORT, PERMISSIONS.ANALYTICS_READ],
-    System: [PERMISSIONS.SYSTEM_SETTINGS]
-  };
-
-  const getRolePermissions = (role: string) => {
-    return ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] || [];
-  };
-
-  const isRolePermission = (permission: string) => {
-    const rolePerms = getRolePermissions(user.role);
-    return rolePerms.includes(permission as (typeof PERMISSIONS)[keyof typeof PERMISSIONS]);
-  };
-
-  const getPermissionStatus = (permission: string) => {
-    const isEnabled = permissions[permission];
-    const isRolePerm = isRolePermission(permission);
-
-    if (isEnabled && isRolePerm) return "role";
-    if (isEnabled && !isRolePerm) return "custom";
-    if (!isEnabled && isRolePerm) return "revoked";
-    return "disabled";
-  };
-
-  const getStatusBadge = (permission: string) => {
-    const status = getPermissionStatus(permission);
-
-    switch (status) {
-      case "role":
-        return (
-          <Badge variant="default" className="bg-blue-100 text-blue-800">
-            Role
-          </Badge>
-        );
-      case "custom":
-        return (
-          <Badge variant="default" className="bg-green-100 text-green-800">
-            Custom
-          </Badge>
-        );
-      case "revoked":
-        return <Badge variant="destructive">Revoked</Badge>;
-      default:
-        return <Badge variant="secondary">Disabled</Badge>;
-    }
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Manage Permissions - {user.fullName}
-          </DialogTitle>
-          <DialogDescription>Configure specific permissions for this user. Custom permissions override role defaults.</DialogDescription>
-        </DialogHeader>
+    <TooltipProvider>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Enhanced Permissions Management - {user.fullName}
+            </DialogTitle>
+            <DialogDescription>Comprehensive permission control system covering all aspects of the application</DialogDescription>
+          </DialogHeader>
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+          {error && (
+            <Alert variant="destructive" className="flex-shrink-0">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-        <div className="space-y-6">
-          {/* User Info */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">User Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Role:</span>
-                  <Badge className="ml-2">{user.role.charAt(0).toUpperCase() + user.role.slice(1)}</Badge>
-                </div>
-                <div>
-                  <span className="font-medium">Status:</span>
-                  <Badge className="ml-2" variant={user.isActive ? "default" : "destructive"}>
-                    {user.isActive ? "Active" : "Inactive"}
-                  </Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex-1 flex flex-col min-h-0 space-y-4">
+            {/* Filters and Search */}
+            <Card className="flex-shrink-0">
+              <CardContent className="p-4">
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div className="flex-1 min-w-64">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input placeholder="Search permissions..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+                    </div>
+                  </div>
 
-          {/* Permission Legend */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Permission Status Legend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <Badge variant="default" className="bg-blue-100 text-blue-800">
-                    Role
-                  </Badge>
-                  <span>Granted by user role</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="default" className="bg-green-100 text-green-800">
-                    Custom
-                  </Badge>
-                  <span>Custom permission granted</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="destructive">Revoked</Badge>
-                  <span>Role permission revoked</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">Disabled</Badge>
-                  <span>Not granted</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                    <SelectTrigger className="w-48">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filter by group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Groups</SelectItem>
+                      {Object.keys(PERMISSION_GROUPS).map(group => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-          {/* Permissions Grid */}
-          <div className="space-y-6">
-            {Object.entries(permissionGroups).map(([groupName, groupPermissions]) => (
-              <Card key={groupName}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">{groupName}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 gap-3">
-                    {groupPermissions.map(permission => (
-                      <div key={permission} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <Checkbox id={permission} checked={permissions[permission] || false} onCheckedChange={checked => handlePermissionChange(permission, checked as boolean)} />
+                  <Select value={viewMode} onValueChange={(value: any) => setViewMode(value)}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="granted">Granted</SelectItem>
+                      <SelectItem value="denied">Denied</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Permission Groups */}
+            <div className="flex-1 overflow-y-auto space-y-4">
+              {filteredGroups.map(([groupName, group]) => {
+                const IconComponent = group.icon;
+                const groupPermissions = group.permissions.filter(perm => {
+                  if (!perm || typeof perm !== "string") return false;
+                  if (!searchTerm) return true;
+                  return perm.toLowerCase().includes(searchTerm.toLowerCase());
+                });
+
+                if (groupPermissions.length === 0) return null;
+
+                const groupGranted = groupPermissions.filter(perm => permissions[perm]).length;
+                const groupTotal = groupPermissions.length;
+
+                return (
+                  <Card key={groupName}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <IconComponent className={`h-5 w-5 ${group.color}`} />
                           <div>
-                            <Label htmlFor={permission} className="font-medium cursor-pointer">
-                              {permission
-                                .split(".")
-                                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-                                .join(" ")}
-                            </Label>
-                            <p className="text-xs text-gray-500 mt-1">{permission}</p>
+                            <CardTitle className="text-lg">{groupName}</CardTitle>
+                            <p className="text-sm text-gray-500 mt-1">{group.description}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">{getStatusBadge(permission)}</div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {groupGranted}/{groupTotal}
+                          </Badge>
+                          <div className="flex gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="outline" onClick={() => handleBulkOperation("grant", groupName)} className="h-8 w-8 p-0">
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Grant all permissions in this group</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="outline" onClick={() => handleBulkOperation("revoke", groupName)} className="h-8 w-8 p-0">
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Revoke all permissions in this group</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 gap-3">
+                        {groupPermissions.map(permission => {
+                          if (!permission || typeof permission !== "string") return null;
+
+                          return (
+                            <div key={permission} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                              <div className="flex items-center space-x-3">
+                                <Checkbox id={permission} checked={permissions[permission] || false} onCheckedChange={checked => handlePermissionChange(permission, checked as boolean)} />
+                                <div className="flex-1">
+                                  <Label htmlFor={permission} className="font-medium cursor-pointer">
+                                    {permission
+                                      .split(".")
+                                      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                                      .join(" ")}
+                                  </Label>
+                                  <p className="text-xs text-gray-500 mt-1 font-mono">{permission}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">{getStatusBadge(permission)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <Button type="button" variant="outline" onClick={handleResetToRoleDefaults} className="flex items-center gap-2">
-              <RotateCcw className="h-4 w-4" />
-              Reset to Role Defaults
-            </Button>
+          <div className="flex items-center justify-between pt-4 border-t flex-shrink-0">
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={handleResetToRoleDefaults} className="flex items-center gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Reset to Role Defaults
+              </Button>
+              <Button type="button" variant="outline" onClick={() => handleBulkOperation("grant")} className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Grant All
+              </Button>
+              <Button type="button" variant="outline" onClick={() => handleBulkOperation("revoke")} className="flex items-center gap-2">
+                <XCircle className="h-4 w-4" />
+                Revoke All
+              </Button>
+            </div>
 
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
@@ -271,9 +371,9 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({ user, isOpe
               </Button>
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 };
 

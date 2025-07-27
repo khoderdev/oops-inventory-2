@@ -15,7 +15,6 @@ import tablesRoutes from "./routes/tables.js";
 import userRoutes from "./routes/users.js";
 import { errorHandler } from "./utils/logger.js";
 import { seedTables } from "./utils/seedTables.js";
-import updatePOSItems from "./utils/updatePOSItems.js";
 
 const app = express();
 const PORT = 3000;
@@ -56,9 +55,6 @@ sequelize
 
     // Seed initial data
     await seedTables();
-    
-    // Update POS items
-    await updatePOSItems();
 
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on port ${PORT}`);

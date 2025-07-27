@@ -155,24 +155,92 @@ User.prototype.hasPermission = function (permission) {
 User.prototype.getRolePermissions = function () {
   const rolePermissions = {
     admin: {
-      // Full system access
+      // === USER MANAGEMENT ===
       "users.create": true,
       "users.read": true,
       "users.update": true,
       "users.delete": true,
+      "users.resetPassword": true,
+      "users.unlock": true,
+      "users.managePermissions": true,
+      "users.viewActivity": true,
+      "users.impersonate": true,
+
+      // === AUTHENTICATION & SECURITY ===
+      "auth.manageSessions": true,
+      "auth.viewAuditLogs": true,
+      "auth.securitySettings": true,
+      "auth.twoFactor": true,
+      "auth.apiKeys": true,
+
+      // === MATERIALS MANAGEMENT ===
       "materials.create": true,
       "materials.read": true,
       "materials.update": true,
       "materials.delete": true,
+      "materials.import": true,
+      "materials.export": true,
+      "materials.bulkOperations": true,
+      "materials.viewCosts": true,
+      "materials.manageCategories": true,
+
+      // === INVENTORY & STOCK MANAGEMENT ===
       "stock.create": true,
       "stock.read": true,
       "stock.update": true,
       "stock.delete": true,
+      "stock.adjust": true,
+      "stock.transfer": true,
+      "stock.wasteRecord": true,
+      "stock.viewCosts": true,
+      "stock.bulkOperations": true,
+      "stock.alerts": true,
+      "stock.forecasting": true,
+
+      // === SALES & TRANSACTIONS ===
       "sales.create": true,
       "sales.read": true,
       "sales.update": true,
       "sales.delete": true,
       "sales.revert": true,
+      "sales.refund": true,
+      "sales.viewProfits": true,
+      "sales.discount": true,
+      "sales.void": true,
+      "sales.export": true,
+
+      // === ORDERS MANAGEMENT ===
+      "orders.create": true,
+      "orders.read": true,
+      "orders.update": true,
+      "orders.delete": true,
+      "orders.void": true,
+      "orders.complete": true,
+      "orders.cancel": true,
+      "orders.viewAll": true,
+      "orders.manageQueue": true,
+
+      // === POS SYSTEM ===
+      "pos.access": true,
+      "pos.cashDrawer": true,
+      "pos.receipts": true,
+      "pos.payments": true,
+      "pos.tables": true,
+      "pos.kitchenDisplay": true,
+      "pos.customerDisplay": true,
+
+      // === MENU MANAGEMENT ===
+      "menuItems.create": true,
+      "menuItems.read": true,
+      "menuItems.update": true,
+      "menuItems.delete": true,
+      "menuItems.pricing": true,
+      "menuItems.categories": true,
+      "menuItems.recipes": true,
+      "menuItems.nutritional": true,
+      "menuItems.availability": true,
+
+      // === SECTIONS & ASSIGNMENTS ===
       "sections.create": true,
       "sections.read": true,
       "sections.update": true,
@@ -181,36 +249,170 @@ User.prototype.getRolePermissions = function () {
       "assignments.read": true,
       "assignments.update": true,
       "assignments.delete": true,
-      "menuItems.create": true,
-      "menuItems.read": true,
-      "menuItems.update": true,
-      "menuItems.delete": true,
+      "assignments.bulk": true,
+
+      // === DAILY OPERATIONS ===
       "dayOperations.create": true,
       "dayOperations.read": true,
       "dayOperations.update": true,
       "dayOperations.delete": true,
-      "reports.read": true,
+      "dayOperations.close": true,
+      "dayOperations.reopen": true,
+      "dayOperations.cashCount": true,
+
+      // === REPORTS & ANALYTICS ===
+      "reports.sales": true,
+      "reports.inventory": true,
+      "reports.financial": true,
+      "reports.waste": true,
+      "reports.staff": true,
+      "reports.customer": true,
       "reports.export": true,
-      "analytics.read": true,
-      "system.settings": true
+      "reports.schedule": true,
+      "analytics.dashboard": true,
+      "analytics.trends": true,
+      "analytics.forecasting": true,
+      "analytics.profitability": true,
+
+      // === FINANCIAL MANAGEMENT ===
+      "finance.viewCosts": true,
+      "finance.viewProfits": true,
+      "finance.pricing": true,
+      "finance.budgets": true,
+      "finance.expenses": true,
+      "finance.taxReports": true,
+
+      // === CUSTOMER MANAGEMENT ===
+      "customers.create": true,
+      "customers.read": true,
+      "customers.update": true,
+      "customers.delete": true,
+      "customers.loyalty": true,
+      "customers.feedback": true,
+
+      // === SUPPLIERS & PROCUREMENT ===
+      "suppliers.create": true,
+      "suppliers.read": true,
+      "suppliers.update": true,
+      "suppliers.delete": true,
+      "procurement.orders": true,
+      "procurement.receiving": true,
+
+      // === SYSTEM ADMINISTRATION ===
+      "system.settings": true,
+      "system.backup": true,
+      "system.restore": true,
+      "system.maintenance": true,
+      "system.logs": true,
+      "system.integrations": true,
+      "system.database": true,
+      "system.notifications": true,
+
+      // === COMPLIANCE & AUDIT ===
+      "compliance.foodSafety": true,
+      "compliance.healthDept": true,
+      "compliance.tax": true,
+      "audit.trails": true,
+      "audit.reports": true,
+
+      // === COMMUNICATION ===
+      "communication.announcements": true,
+      "communication.messages": true,
+      "communication.notifications": true,
+
+      // === EMERGENCY & SPECIAL ===
+      "emergency.override": true,
+      "emergency.shutdown": true,
+      "special.functions": true
     },
+
     manager: {
-      // Management level access
+      // === USER MANAGEMENT (Limited) ===
       "users.read": true,
-      "users.update": false, // Can't modify users
+      "users.viewActivity": true,
+      "users.create": false,
+      "users.update": false,
+      "users.delete": false,
+      "users.resetPassword": false,
+      "users.unlock": false,
+      "users.managePermissions": false,
+      "users.impersonate": false,
+
+      // === AUTHENTICATION & SECURITY ===
+      "auth.manageSessions": true,
+      "auth.viewAuditLogs": true,
+      "auth.securitySettings": false,
+      "auth.twoFactor": false,
+      "auth.apiKeys": false,
+
+      // === MATERIALS MANAGEMENT ===
       "materials.create": true,
       "materials.read": true,
       "materials.update": true,
-      "materials.delete": false, // Can't delete materials
+      "materials.delete": false,
+      "materials.import": true,
+      "materials.export": true,
+      "materials.bulkOperations": true,
+      "materials.viewCosts": true,
+      "materials.manageCategories": true,
+
+      // === INVENTORY & STOCK MANAGEMENT ===
       "stock.create": true,
       "stock.read": true,
       "stock.update": true,
       "stock.delete": false,
+      "stock.adjust": true,
+      "stock.transfer": true,
+      "stock.wasteRecord": true,
+      "stock.viewCosts": true,
+      "stock.bulkOperations": true,
+      "stock.alerts": true,
+      "stock.forecasting": true,
+
+      // === SALES & TRANSACTIONS ===
       "sales.create": true,
       "sales.read": true,
       "sales.update": true,
       "sales.delete": true,
       "sales.revert": true,
+      "sales.refund": true,
+      "sales.viewProfits": true,
+      "sales.discount": true,
+      "sales.void": true,
+      "sales.export": true,
+
+      // === ORDERS MANAGEMENT ===
+      "orders.create": true,
+      "orders.read": true,
+      "orders.update": true,
+      "orders.delete": false,
+      "orders.void": true,
+      "orders.complete": true,
+      "orders.cancel": true,
+      "orders.viewAll": true,
+      "orders.manageQueue": true,
+
+      // === POS SYSTEM ===
+      "pos.access": true,
+      "pos.cashDrawer": true,
+      "pos.receipts": true,
+      "pos.payments": true,
+      "pos.tables": true,
+      "pos.kitchenDisplay": true,
+      "pos.customerDisplay": true,
+
+      // === MENU MANAGEMENT ===
+      "menuItems.create": true,
+      "menuItems.read": true,
+      "menuItems.update": true,
+      "menuItems.delete": false,
+      "menuItems.pricing": true,
+      "menuItems.categories": true,
+      "menuItems.recipes": true,
+      "menuItems.nutritional": true,
+      "menuItems.availability": true,
+
+      // === SECTIONS & ASSIGNMENTS ===
       "sections.create": true,
       "sections.read": true,
       "sections.update": true,
@@ -219,37 +421,197 @@ User.prototype.getRolePermissions = function () {
       "assignments.read": true,
       "assignments.update": true,
       "assignments.delete": true,
-      "menuItems.create": true,
-      "menuItems.read": true,
-      "menuItems.update": true,
-      "menuItems.delete": false,
+      "assignments.bulk": true,
+
+      // === DAILY OPERATIONS ===
       "dayOperations.create": true,
       "dayOperations.read": true,
       "dayOperations.update": true,
       "dayOperations.delete": false,
-      "reports.read": true,
+      "dayOperations.close": true,
+      "dayOperations.reopen": false,
+      "dayOperations.cashCount": true,
+
+      // === REPORTS & ANALYTICS ===
+      "reports.sales": true,
+      "reports.inventory": true,
+      "reports.financial": true,
+      "reports.waste": true,
+      "reports.staff": true,
+      "reports.customer": true,
       "reports.export": true,
-      "analytics.read": true,
-      "system.settings": false
+      "reports.schedule": true,
+      "analytics.dashboard": true,
+      "analytics.trends": true,
+      "analytics.forecasting": true,
+      "analytics.profitability": true,
+
+      // === FINANCIAL MANAGEMENT (Limited) ===
+      "finance.viewCosts": true,
+      "finance.viewProfits": true,
+      "finance.pricing": true,
+      "finance.budgets": false,
+      "finance.expenses": false,
+      "finance.taxReports": false,
+
+      // === CUSTOMER MANAGEMENT ===
+      "customers.create": true,
+      "customers.read": true,
+      "customers.update": true,
+      "customers.delete": false,
+      "customers.loyalty": true,
+      "customers.feedback": true,
+
+      // === SUPPLIERS & PROCUREMENT ===
+      "suppliers.create": false,
+      "suppliers.read": true,
+      "suppliers.update": false,
+      "suppliers.delete": false,
+      "procurement.orders": true,
+      "procurement.receiving": true,
+
+      // === SYSTEM ADMINISTRATION (Limited) ===
+      "system.settings": false,
+      "system.backup": false,
+      "system.restore": false,
+      "system.maintenance": false,
+      "system.logs": true,
+      "system.integrations": false,
+      "system.database": false,
+      "system.notifications": true,
+
+      // === COMPLIANCE & AUDIT ===
+      "compliance.foodSafety": true,
+      "compliance.healthDept": true,
+      "compliance.tax": false,
+      "audit.trails": true,
+      "audit.reports": true,
+
+      // === COMMUNICATION ===
+      "communication.announcements": true,
+      "communication.messages": true,
+      "communication.notifications": true,
+
+      // === EMERGENCY & SPECIAL ===
+      "emergency.override": false,
+      "emergency.shutdown": false,
+      "special.functions": false
     },
+
     staff: {
-      // Basic operational access
+      // === USER MANAGEMENT ===
       "users.read": false,
+      "users.viewActivity": false,
+
+      // === AUTHENTICATION & SECURITY ===
+      "auth.manageSessions": false,
+      "auth.viewAuditLogs": false,
+
+      // === MATERIALS MANAGEMENT (Basic) ===
+      "materials.create": false,
       "materials.read": true,
+      "materials.update": false,
+      "materials.delete": false,
+      "materials.viewCosts": false,
+
+      // === INVENTORY & STOCK MANAGEMENT (Basic) ===
       "stock.create": true,
       "stock.read": true,
-      "stock.update": false, // Can add stock but not modify existing
+      "stock.update": false,
+      "stock.delete": false,
+      "stock.adjust": false,
+      "stock.transfer": false,
+      "stock.wasteRecord": true,
+      "stock.viewCosts": false,
+
+      // === SALES & TRANSACTIONS (Basic) ===
       "sales.create": true,
       "sales.read": true,
       "sales.update": false,
       "sales.delete": false,
       "sales.revert": false,
-      "sections.read": true,
-      "assignments.read": true,
+      "sales.refund": false,
+      "sales.viewProfits": false,
+      "sales.discount": false,
+      "sales.void": false,
+
+      // === ORDERS MANAGEMENT (Basic) ===
+      "orders.create": true,
+      "orders.read": true,
+      "orders.update": true,
+      "orders.delete": false,
+      "orders.void": false,
+      "orders.complete": false,
+      "orders.cancel": false,
+      "orders.viewAll": false,
+      "orders.manageQueue": false,
+
+      // === POS SYSTEM (Basic Access) ===
+      "pos.access": true,
+      "pos.cashDrawer": false,
+      "pos.receipts": true,
+      "pos.payments": true,
+      "pos.tables": true,
+      "pos.kitchenDisplay": false,
+      "pos.customerDisplay": false,
+
+      // === MENU MANAGEMENT (Read Only) ===
+      "menuItems.create": false,
       "menuItems.read": true,
+      "menuItems.update": false,
+      "menuItems.delete": false,
+      "menuItems.pricing": false,
+      "menuItems.categories": false,
+      "menuItems.recipes": false,
+      "menuItems.nutritional": false,
+      "menuItems.availability": false,
+
+      // === SECTIONS & ASSIGNMENTS (Read Only) ===
+      "sections.create": false,
+      "sections.read": true,
+      "sections.update": false,
+      "sections.delete": false,
+      "assignments.create": false,
+      "assignments.read": true,
+      "assignments.update": false,
+      "assignments.delete": false,
+
+      // === DAILY OPERATIONS (Basic) ===
+      "dayOperations.create": false,
       "dayOperations.read": true,
-      "reports.read": false, // Limited report access
-      "analytics.read": false
+      "dayOperations.update": false,
+      "dayOperations.delete": false,
+      "dayOperations.close": false,
+      "dayOperations.cashCount": false,
+
+      // === REPORTS & ANALYTICS (Limited) ===
+      "reports.sales": false,
+      "reports.inventory": false,
+      "reports.financial": false,
+      "reports.waste": false,
+      "reports.staff": false,
+      "reports.customer": false,
+      "reports.export": false,
+      "analytics.dashboard": false,
+      "analytics.trends": false,
+
+      // === CUSTOMER MANAGEMENT (Basic) ===
+      "customers.create": false,
+      "customers.read": true,
+      "customers.update": false,
+      "customers.delete": false,
+      "customers.loyalty": false,
+      "customers.feedback": false,
+
+      // === All Other Permissions ===
+      "finance.viewCosts": false,
+      "finance.viewProfits": false,
+      "suppliers.read": false,
+      "system.settings": false,
+      "compliance.foodSafety": false,
+      "audit.trails": false,
+      "communication.messages": false,
+      "emergency.override": false
     }
   };
 

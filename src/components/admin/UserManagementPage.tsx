@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import EditUserModal from "./EditUserModal";
 import PasswordResetModal from "./PasswordResetModal";
 import UserActivityModal from "./UserActivityModal";
-import UserPermissionsModal from "./UserPermissionsModal";
+import EnhancedUserPermissionsModal from "./UserPermissionsModal";
 
 const UserManagementPage: React.FC = () => {
   const { user: currentUser, hasPermission } = useAuth();
@@ -519,7 +519,7 @@ const UserManagementPage: React.FC = () => {
       />
 
       {/* User Permissions Modal */}
-      <UserPermissionsModal
+      <EnhancedUserPermissionsModal
         user={selectedUser}
         isOpen={showPermissionsModal}
         onClose={() => {

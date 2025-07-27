@@ -47,6 +47,8 @@ const userController = {
           lastName: user.lastName,
           fullName: user.getFullName(),
           role: user.role,
+          permissions: user.getRolePermissions(),
+          specificPermissions: user.permissions,
           isActive: user.isActive,
           lastLogin: user.lastLogin,
           loginAttempts: user.loginAttempts,
