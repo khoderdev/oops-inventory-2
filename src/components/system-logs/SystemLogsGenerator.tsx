@@ -15,7 +15,7 @@ import { format, isValid } from "date-fns";
 import { CalendarIcon, Database, Download, FileText, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ACTION_TYPE_OPTIONS, LOG_CONFIGS, LogType } from "./configs.tsx";
-import { generateActionTypeLogsReport, generateDateRangeLogsReport, generateFailedOperationsReport, generateMaterialActivityLogsReport, generateRecentActivityReport, generateSearchLogsReport, generateStockEntryLogsReport, generateSummaryOverviewReport, generateTodayLogsReport, generateUserActivityLogsReport } from "./generationFunctions";
+import { generateActionTypeLogsReport, generateFailedOperationsReport, generateMaterialActivityLogsReport, generateRecentActivityReport, generateSearchLogsReport, generateStockEntryLogsReport, generateSummaryOverviewReport, generateTodayLogsReport, generateUserActivityLogsReport } from "./generationFunctions";
 import { LogsTable } from "./LogsTable";
 
 export interface SystemLogsGeneratorProps {
@@ -29,7 +29,7 @@ interface User {
 }
 
 interface Material {
-  id: number;
+  id: string;
   name: string;
   category: string;
 }
@@ -105,10 +105,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
     setSearchQuery("");
 
     const newConfig = LOG_CONFIGS.find(config => config.id === newLogType);
-    if (!newConfig?.requiresDateRange) {
-      setDateFrom(undefined);
-      setDateTo(undefined);
-    }
+    // Don't clear date ranges when switching log types since all types support them now
 
     setTimeout(() => {
       setSelectedLogType(newLogType);
@@ -117,9 +114,13 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
   };
 
   const isDateRangeValid = useMemo(() => {
-    if (!currentLogConfig?.requiresDateRange) return true;
-    return dateFrom && dateTo && dateFrom <= dateTo;
-  }, [dateFrom, dateTo, currentLogConfig]);
+    // Date range is always optional, but if provided, must be valid
+    if (!dateFrom && !dateTo) return true;
+    if (dateFrom && dateTo) return dateFrom <= dateTo;
+    if (dateFrom && !dateTo) return false; // From date without To date is invalid
+    if (!dateFrom && dateTo) return false; // To date without From date is invalid
+    return true;
+  }, [dateFrom, dateTo]);
 
   const isAdditionalParamValid = useMemo(() => {
     if (!currentLogConfig?.requiresAdditionalParams) return true;
@@ -140,11 +141,20 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
 
   const generateLogs = async () => {
     if (!isDateRangeValid) {
+      let errorMessage = "Please select a valid date range.";
+      if (dateFrom && !dateTo) {
+        errorMessage = "Please select a 'To Date' to complete the date range.";
+      } else if (!dateFrom && dateTo) {
+        errorMessage = "Please select a 'From Date' to complete the date range.";
+      } else if (dateFrom && dateTo && dateFrom > dateTo) {
+        errorMessage = "The 'From Date' must be before or equal to the 'To Date'.";
+      }
+
       toast({
         title: "Invalid Date Range",
-        description: "Please select a valid date range for this log type.",
+        description: errorMessage,
         variant: "destructive",
-        duration: 1500
+        duration: 2000
       });
       return;
     }
@@ -175,34 +185,47 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
 
         case "user-activity-logs":
           if (!selectedUserId) throw new Error("User ID is required");
-          logResults = await generateUserActivityLogsReport(parseInt(selectedUserId));
+          logResults = await generateUserActivityLogsReport(parseInt(selectedUserId), {
+            startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+            endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
+          });
           break;
 
         case "material-activity-logs":
           if (!selectedMaterialId) throw new Error("Material ID is required");
-          logResults = await generateMaterialActivityLogsReport(parseInt(selectedMaterialId));
+          logResults = await generateMaterialActivityLogsReport(parseInt(selectedMaterialId), {
+            startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+            endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
+          });
           break;
 
         case "failed-operations":
-          logResults = await generateFailedOperationsReport();
+          logResults = await generateFailedOperationsReport({
+            startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+            endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
+          });
           break;
 
         case "recent-activity":
-          logResults = await generateRecentActivityReport();
+          logResults = await generateRecentActivityReport({
+            startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+            endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
+          });
           break;
 
         case "today-logs":
-          logResults = await generateTodayLogsReport();
+          logResults = await generateTodayLogsReport({
+            startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+            endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
+          });
           break;
 
         case "action-type-logs":
           if (!selectedActionType) throw new Error("Action type is required");
-          logResults = await generateActionTypeLogsReport(selectedActionType);
-          break;
-
-        case "date-range-logs":
-          if (!dateFrom || !dateTo) throw new Error("Date range is required");
-          logResults = await generateDateRangeLogsReport(format(dateFrom, "yyyy-MM-dd"), format(dateTo, "yyyy-MM-dd"));
+          logResults = await generateActionTypeLogsReport(selectedActionType, {
+            startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+            endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
+          });
           break;
 
         case "summary-overview":
@@ -214,7 +237,10 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
 
         case "search-logs":
           if (!searchQuery.trim()) throw new Error("Search query is required");
-          logResults = await generateSearchLogsReport(searchQuery.trim());
+          logResults = await generateSearchLogsReport(searchQuery.trim(), {
+            startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+            endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
+          });
           break;
 
         default:
@@ -240,6 +266,16 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const clearDateRange = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    toast({
+      title: "Date Range Cleared",
+      description: "Date range filters have been removed.",
+      duration: 1500
+    });
   };
 
   const exportLogs = () => {
@@ -287,9 +323,9 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
 
         <CardContent className="flex-1 flex flex-col space-y-2 min-h-0 overflow-hidden">
           <div className="space-y-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start border-2">
               {/* Log Type Selection */}
-              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <div className="space-y-2 sm:col-span-2 lg:col-span-2 xl:col-span-2">
                 <Label htmlFor="log-type">Log Type</Label>
                 <Select value={selectedLogType} onValueChange={handleLogTypeChange} disabled={isChangingLogType || isLoading}>
                   <SelectTrigger id="log-type" className={cn("h-16 w-full", isChangingLogType && "opacity-60")}>
@@ -316,11 +352,16 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
                 </Select>
               </div>
 
-              {/* Date Range */}
-              {currentLogConfig?.requiresDateRange && (
+              {/* Date Range - Available for all log types */}
+              {currentLogConfig?.supportsDateRange && (
                 <>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">From Date</Label>
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      From Date
+                      <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                        Optional
+                      </Badge>
+                    </Label>
                     <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingLogType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingLogType || isLoading}>
@@ -346,7 +387,12 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
                     </Popover>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">To Date</Label>
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      To Date
+                      <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                        Optional
+                      </Badge>
+                    </Label>
                     <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingLogType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingLogType || isLoading}>
@@ -443,6 +489,13 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
                 <span className="truncate">{isLoading ? "Generating..." : "Generate Logs"}</span>
               </Button>
 
+              {(dateFrom || dateTo) && (
+                <Button variant="outline" onClick={clearDateRange} disabled={isChangingLogType || isLoading} className="flex items-center justify-center gap-2 h-10">
+                  <CalendarIcon className="h-4 w-4" />
+                  <span>Clear Dates</span>
+                </Button>
+              )}
+
               {hasGenerated && (
                 <Button variant="outline" onClick={exportLogs} disabled={isChangingLogType || isLoading} className="flex items-center justify-center gap-2 h-10">
                   <Download className="h-4 w-4" />
@@ -451,12 +504,21 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
               )}
             </div>
 
-            {hasGenerated && (
-              <Badge variant="secondary" className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1">
-                <FileText className="h-3 w-3" />
-                <span className="text-sm">{logData.length} records</span>
-              </Badge>
-            )}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+              {hasGenerated && (
+                <Badge variant="secondary" className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1">
+                  <FileText className="h-3 w-3" />
+                  <span className="text-sm">{logData.length} records</span>
+                </Badge>
+              )}
+
+              {(dateFrom || dateTo) && (
+                <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-xs">
+                  <CalendarIcon className="h-3 w-3" />
+                  <span>{dateFrom && dateTo ? `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d, yyyy")}` : dateFrom ? `From ${format(dateFrom, "MMM d, yyyy")}` : `Until ${format(dateTo!, "MMM d, yyyy")}`}</span>
+                </Badge>
+              )}
+            </div>
           </div>
 
           {isChangingLogType && (

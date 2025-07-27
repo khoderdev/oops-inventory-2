@@ -1,29 +1,6 @@
-import { 
-  Activity, 
-  AlertTriangle, 
-  BarChart3, 
-  Calendar,
-  Clock,
-  Database,
-  FileText,
-  Package,
-  Search,
-  TrendingUp,
-  User,
-  Users
-} from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Calendar, FileText, Package, Search, User } from "lucide-react";
 
-export type LogType = 
-  | "stock-entry-logs" 
-  | "user-activity-logs" 
-  | "material-activity-logs" 
-  | "failed-operations" 
-  | "recent-activity" 
-  | "today-logs" 
-  | "action-type-logs" 
-  | "date-range-logs" 
-  | "summary-overview" 
-  | "search-logs";
+export type LogType = "stock-entry-logs" | "user-activity-logs" | "material-activity-logs" | "failed-operations" | "recent-activity" | "today-logs" | "action-type-logs" | "summary-overview" | "search-logs";
 
 export const LOG_CONFIGS: ReadonlyArray<{
   id: LogType;
@@ -31,6 +8,7 @@ export const LOG_CONFIGS: ReadonlyArray<{
   description: string;
   icon: React.ReactNode;
   requiresDateRange: boolean;
+  supportsDateRange: boolean;
   requiresAdditionalParams: boolean;
   additionalParamType?: "userId" | "materialId" | "actionType" | "searchQuery";
   additionalParamLabel?: string;
@@ -41,6 +19,7 @@ export const LOG_CONFIGS: ReadonlyArray<{
     description: "Complete history of all stock entry operations including create, update, delete, and stock movements.",
     icon: <Package className="h-4 w-4" />,
     requiresDateRange: false,
+    supportsDateRange: true,
     requiresAdditionalParams: false
   },
   {
@@ -49,6 +28,7 @@ export const LOG_CONFIGS: ReadonlyArray<{
     description: "Track specific user's activity across all stock operations with performance metrics.",
     icon: <User className="h-4 w-4" />,
     requiresDateRange: false,
+    supportsDateRange: true,
     requiresAdditionalParams: true,
     additionalParamType: "userId",
     additionalParamLabel: "Select User"
@@ -59,6 +39,7 @@ export const LOG_CONFIGS: ReadonlyArray<{
     description: "View all operations performed on a specific material across different stock entries.",
     icon: <Package className="h-4 w-4" />,
     requiresDateRange: false,
+    supportsDateRange: true,
     requiresAdditionalParams: true,
     additionalParamType: "materialId",
     additionalParamLabel: "Select Material"
@@ -69,6 +50,7 @@ export const LOG_CONFIGS: ReadonlyArray<{
     description: "List of all failed operations with error details for troubleshooting and system monitoring.",
     icon: <AlertTriangle className="h-4 w-4" />,
     requiresDateRange: false,
+    supportsDateRange: true,
     requiresAdditionalParams: false
   },
   {
@@ -77,6 +59,7 @@ export const LOG_CONFIGS: ReadonlyArray<{
     description: "Latest 50 operations across all stock entries for real-time monitoring.",
     icon: <Activity className="h-4 w-4" />,
     requiresDateRange: false,
+    supportsDateRange: true,
     requiresAdditionalParams: false
   },
   {
@@ -85,6 +68,7 @@ export const LOG_CONFIGS: ReadonlyArray<{
     description: "All operations performed today for daily activity review and monitoring.",
     icon: <Calendar className="h-4 w-4" />,
     requiresDateRange: false,
+    supportsDateRange: true,
     requiresAdditionalParams: false
   },
   {
@@ -93,24 +77,19 @@ export const LOG_CONFIGS: ReadonlyArray<{
     description: "Filter logs by specific action types like create, update, delete, add_to_stock, etc.",
     icon: <FileText className="h-4 w-4" />,
     requiresDateRange: false,
+    supportsDateRange: true,
     requiresAdditionalParams: true,
     additionalParamType: "actionType",
     additionalParamLabel: "Select Action Type"
   },
-  {
-    id: "date-range-logs",
-    name: "Date Range Logs",
-    description: "Comprehensive logs for a specific date range with advanced filtering options.",
-    icon: <Clock className="h-4 w-4" />,
-    requiresDateRange: true,
-    requiresAdditionalParams: false
-  },
+
   {
     id: "summary-overview",
     name: "Summary Overview",
     description: "Statistical overview with action breakdowns, top users, materials, and success rates.",
     icon: <BarChart3 className="h-4 w-4" />,
     requiresDateRange: false,
+    supportsDateRange: true,
     requiresAdditionalParams: false
   },
   {
@@ -119,6 +98,7 @@ export const LOG_CONFIGS: ReadonlyArray<{
     description: "Advanced text search across all log fields including descriptions, materials, and users.",
     icon: <Search className="h-4 w-4" />,
     requiresDateRange: false,
+    supportsDateRange: true,
     requiresAdditionalParams: true,
     additionalParamType: "searchQuery",
     additionalParamLabel: "Search Query"

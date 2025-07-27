@@ -47,10 +47,17 @@ export async function generateStockEntryLogsReport(
 }
 
 // Generate user activity logs report
-export async function generateUserActivityLogsReport(userId: number) {
+export async function generateUserActivityLogsReport(
+  userId: number,
+  options: {
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
   try {
     const response = await logsApiClient.getUserActivity(userId, {
-      limit: 1000
+      limit: 1000,
+      ...options
     });
 
     if (!response.success) {
@@ -74,10 +81,17 @@ export async function generateUserActivityLogsReport(userId: number) {
 }
 
 // Generate material activity logs report
-export async function generateMaterialActivityLogsReport(materialId: number) {
+export async function generateMaterialActivityLogsReport(
+  materialId: number,
+  options: {
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
   try {
     const response = await logsApiClient.getMaterialActivity(materialId, {
-      limit: 1000
+      limit: 1000,
+      ...options
     });
 
     if (!response.success) {
@@ -101,11 +115,26 @@ export async function generateMaterialActivityLogsReport(materialId: number) {
 }
 
 // Generate failed operations report
-export async function generateFailedOperationsReport() {
+export async function generateFailedOperationsReport(
+  options: {
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
   try {
-    const logs = await logsApiClient.getFailedOperations(1000);
+    const response = await logsApiClient.getAllLogs({
+      status: "failure",
+      limit: 1000,
+      sortBy: "actionTimestamp",
+      sortOrder: "DESC",
+      ...options
+    });
 
-    return logs.map(log => ({
+    if (!response.success) {
+      throw new Error(response.message || "Failed to fetch failed operations logs");
+    }
+
+    return response.data.logs.map(log => ({
       Timestamp: log.actionTimestamp,
       "Action Type": log.actionType,
       Material: log.materialName,
@@ -114,6 +143,7 @@ export async function generateFailedOperationsReport() {
       "Error Message": log.errorMessage || "Unknown error",
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
+      Status: log.status,
       Description: log.actionDescription || "-"
     }));
   } catch (error) {
@@ -123,11 +153,25 @@ export async function generateFailedOperationsReport() {
 }
 
 // Generate recent activity report
-export async function generateRecentActivityReport() {
+export async function generateRecentActivityReport(
+  options: {
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
   try {
-    const logs = await logsApiClient.getRecentActivity();
+    const response = await logsApiClient.getAllLogs({
+      limit: 50,
+      sortBy: "actionTimestamp",
+      sortOrder: "DESC",
+      ...options
+    });
 
-    return logs.map(log => ({
+    if (!response.success) {
+      throw new Error(response.message || "Failed to fetch recent activity logs");
+    }
+
+    return response.data.logs.map(log => ({
       Timestamp: log.actionTimestamp,
       "Action Type": log.actionType,
       Material: log.materialName,
@@ -135,7 +179,8 @@ export async function generateRecentActivityReport() {
       "Stock Entry": log.stockEntryId,
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
-      Status: log.status
+      Status: log.status,
+      Description: log.actionDescription || "-"
     }));
   } catch (error) {
     console.error("Error generating recent activity report:", error);
@@ -144,11 +189,31 @@ export async function generateRecentActivityReport() {
 }
 
 // Generate today's logs report
-export async function generateTodayLogsReport() {
+export async function generateTodayLogsReport(
+  options: {
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
   try {
-    const logs = await logsApiClient.getTodaysLogs();
+    // Use provided date range or default to today
+    const today = format(new Date(), "yyyy-MM-dd");
+    const startDate = options.startDate || today;
+    const endDate = options.endDate || today;
 
-    return logs.map(log => ({
+    const response = await logsApiClient.getAllLogs({
+      startDate,
+      endDate,
+      limit: 1000,
+      sortBy: "actionTimestamp",
+      sortOrder: "DESC"
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || "Failed to fetch today's logs");
+    }
+
+    return response.data.logs.map(log => ({
       Time: format(new Date(log.actionTimestamp), "HH:mm:ss"),
       "Action Type": log.actionType,
       Material: log.materialName,
@@ -166,11 +231,27 @@ export async function generateTodayLogsReport() {
 }
 
 // Generate action type logs report
-export async function generateActionTypeLogsReport(actionType: string) {
+export async function generateActionTypeLogsReport(
+  actionType: string,
+  options: {
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
   try {
-    const logs = await logsApiClient.getLogsByActionType(actionType, 1000);
+    const response = await logsApiClient.getAllLogs({
+      actionType,
+      limit: 1000,
+      sortBy: "actionTimestamp",
+      sortOrder: "DESC",
+      ...options
+    });
 
-    return logs.map(log => ({
+    if (!response.success) {
+      throw new Error(response.message || "Failed to fetch action type logs");
+    }
+
+    return response.data.logs.map(log => ({
       Timestamp: log.actionTimestamp,
       Material: log.materialName,
       User: log.userName || "System",
@@ -182,28 +263,6 @@ export async function generateActionTypeLogsReport(actionType: string) {
     }));
   } catch (error) {
     console.error("Error generating action type logs report:", error);
-    throw error;
-  }
-}
-
-// Generate date range logs report
-export async function generateDateRangeLogsReport(startDate: string, endDate: string) {
-  try {
-    const logs = await logsApiClient.getLogsForDateRange(startDate, endDate, 1000);
-
-    return logs.map(log => ({
-      Timestamp: log.actionTimestamp,
-      "Action Type": log.actionType,
-      Material: log.materialName,
-      User: log.userName || "System",
-      "Stock Entry": log.stockEntryId,
-      Quantity: log.quantityDelta || 0,
-      Cost: log.costDelta || 0,
-      Status: log.status,
-      Description: log.actionDescription || "-"
-    }));
-  } catch (error) {
-    console.error("Error generating date range logs report:", error);
     throw error;
   }
 }
@@ -290,14 +349,16 @@ export async function generateSearchLogsReport(
     searchFields?: string[];
     page?: number;
     limit?: number;
+    startDate?: string;
+    endDate?: string;
   } = {}
 ) {
   try {
     const response = await logsApiClient.searchLogs({
       q: searchQuery,
-      searchFields: options.searchFields || ["materialName", "actionDescription", "userName"],
-      page: options.page || 1,
-      limit: options.limit || 1000
+      searchFields: ["materialName", "userName", "actionDescription", "actionType"],
+      limit: 1000,
+      page: options.page || 1
     });
 
     if (!response.success) {
