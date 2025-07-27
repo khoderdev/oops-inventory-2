@@ -17,6 +17,7 @@ import { CategoryTabs } from "./CategoryTabs";
 import { OrderItemsList } from "./OrderItemsList";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentDialog } from "./PaymentDialog";
+import { POSClientOrders } from "./POSClientOrders";
 import { ProductGrid } from "./ProductGrid";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 import { TablesLayout } from "./TablesLayout";
@@ -48,6 +49,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showSuccessCheckmark, setShowSuccessCheckmark] = useState(false);
   const [shouldAutoPrint, setShouldAutoPrint] = useState(false);
   const [showVoidDialog, setShowVoidDialog] = useState(false);
+  const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -490,7 +492,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Clear cart with animation after successful save
       clearCartWithAnimation();
       setHasUnsavedChanges(false);
-      
+
       // Automatically select TAKE AWAY after saving
       resetToTakeaway();
     } catch (error) {
@@ -558,44 +560,51 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [currentOrder, cart.length, showError]);
 
   // Confirm void order
-  const handleConfirmVoid = useCallback(async (reason: string, restoreStock: boolean) => {
-    try {
-      setShowVoidDialog(false);
-      
-      const result = await voidOrder(reason, restoreStock);
-      
-      // Clear cart and local storage after successful void
-      clearCartWithAnimation();
-      setHasUnsavedChanges(false);
-      OrderPersistence.clearCurrentOrder();
-      
-      // Automatically select TAKE AWAY after voiding
-      resetToTakeaway();
-      
-      // Refresh tables if this was a table order
-      if (orderType === "table" && selectedTable) {
-        try {
-          const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
-          const responseData = tablesResponse.data as Table[] | { data: Table[] };
-          const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
-          setTables(refreshedTables);
-        } catch (error) {
-          console.error("Failed to refresh tables:", error);
+  const handleConfirmVoid = useCallback(
+    async (reason: string, restoreStock: boolean) => {
+      try {
+        setShowVoidDialog(false);
+
+        const result = await voidOrder(reason, restoreStock);
+
+        // Clear cart and local storage after successful void
+        clearCartWithAnimation();
+        setHasUnsavedChanges(false);
+        OrderPersistence.clearCurrentOrder();
+
+        // Automatically select TAKE AWAY after voiding
+        resetToTakeaway();
+
+        // Refresh tables if this was a table order
+        if (orderType === "table" && selectedTable) {
+          try {
+            const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
+            const responseData = tablesResponse.data as Table[] | { data: Table[] };
+            const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
+            setTables(refreshedTables);
+          } catch (error) {
+            console.error("Failed to refresh tables:", error);
+          }
         }
+
+        // Show success message with stock restoration info
+        let successMessage = "Order voided successfully";
+        if (result.stockRestorations && result.stockRestorations.length > 0) {
+          successMessage += `. Stock restored for ${result.stockRestorations.length} item(s).`;
+        }
+        showSuccess(successMessage);
+      } catch (error) {
+        console.error("Failed to void order:", error);
+        // Error is already handled by the voidOrder function
       }
-      
-      // Show success message with stock restoration info
-      let successMessage = "Order voided successfully";
-      if (result.stockRestorations && result.stockRestorations.length > 0) {
-        successMessage += `. Stock restored for ${result.stockRestorations.length} item(s).`;
-      }
-      showSuccess(successMessage);
-      
-    } catch (error) {
-      console.error("Failed to void order:", error);
-      // Error is already handled by the voidOrder function
-    }
-  }, [voidOrder, clearCartWithAnimation, orderType, selectedTable, showSuccess, resetToTakeaway]);
+    },
+    [voidOrder, clearCartWithAnimation, orderType, selectedTable, showSuccess, resetToTakeaway]
+  );
+
+  // Handle orders dialog
+  const handleShowOrders = useCallback(() => {
+    setShowOrdersDialog(true);
+  }, []);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
@@ -738,7 +747,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       clearOrder();
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
-      
+
       // Automatically select TAKE AWAY after payment completion
       resetToTakeaway();
 
@@ -829,7 +838,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         {/* Bottom Action Bar - Fixed Footer */}
         <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} canVoidOrder={!!currentOrder} />
+          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} canVoidOrder={!!currentOrder} />
         </div>
       </div>
 
@@ -879,13 +888,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       />
 
       {/* Void Order Dialog */}
-      <VoidOrderDialog
-        isOpen={showVoidDialog}
-        onClose={() => setShowVoidDialog(false)}
-        onConfirm={handleConfirmVoid}
-        order={currentOrder}
-        isLoading={orderLoading}
-      />
+      <VoidOrderDialog isOpen={showVoidDialog} onClose={() => setShowVoidDialog(false)} onConfirm={handleConfirmVoid} order={currentOrder} isLoading={orderLoading} />
 
       {/* Unsaved Changes Dialog */}
       <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
@@ -937,6 +940,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           </Alert>
         </div>
       )}
+
+      {/* Orders Management Dialog */}
+      <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} />
     </div>
   );
 };

@@ -137,7 +137,7 @@ export function getSuggestedUnits(unitType: string): string[] {
     case "piece":
       return ["piece", "unit"];
     case "package":
-      return ["box", "pack", "bag", "piece"];
+      return ["box", "pack", "bag", "piece", "bottle"];
     default:
       return [];
   }

@@ -31,6 +31,7 @@ interface LegacyActionBarProps {
   onSaveOrder?: () => void;
   onPrintReceipt?: () => void;
   onVoidOrder?: () => void;
+  onShowOrders?: () => void;
   hasUnsavedChanges?: boolean;
   isOrderLoading?: boolean;
   canPrintReceipt?: boolean;
@@ -77,7 +78,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
-    const { onSaveOrder, onPrintReceipt, onVoidOrder, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false } = props;
+    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false } = props;
 
     buttons = [
       {
@@ -98,9 +99,9 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
       },
       { id: "refund", icon: DollarSign, label: "Refund", active: false },
       { id: "table-orders", icon: Package, label: "Table Orders", active: false },
-      { id: "orders", icon: ShoppingCart, label: "Orders", active: false },
-      { id: "depts", icon: Calculator, label: "Depts", active: false },
-      { id: "speed-key", icon: Grid3X3, label: "Speed Key", active: false },
+      { id: "orders", icon: ShoppingCart, label: "Orders", active: false, onClick: onShowOrders, disabled: !onShowOrders },
+      // { id: "depts", icon: Calculator, label: "Depts", active: false },
+      // { id: "speed-key", icon: Grid3X3, label: "Speed Key", active: false },
       {
         id: "save",
         icon: Save,
@@ -110,7 +111,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         disabled: isOrderLoading || !onSaveOrder
       }
     ];
-    columns = 8;
+    columns = 6;
     className = "";
   } else {
     // New flexible mode
@@ -119,9 +120,15 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
     className = props.className || "";
   }
 
+  // Create grid style based on columns count
+  const gridStyle = {
+    display: "grid",
+    gridTemplateColumns: `repeat(${columns}, 1fr)`
+  };
+
   return (
     <div className={`border-t border-gray-200 bg-gray-50 ${className}`}>
-      <div className={`grid grid-cols-${columns}`}>
+      <div style={gridStyle}>
         {buttons.map((button, index) => (
           <ActionButton key={button.id || index} {...button} />
         ))}
