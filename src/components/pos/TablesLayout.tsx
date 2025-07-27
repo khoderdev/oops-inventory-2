@@ -8,7 +8,7 @@ import React, { useState } from "react";
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose }) => {
   // Ensure tables is always an array
   const safeTablesList = Array.isArray(tables) ? tables : [];
-  
+
   // State for hover popup
   const [hoveredTable, setHoveredTable] = useState<Table | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
@@ -93,10 +93,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full h-full max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-2">
+      <div className="bg-white rounded-lg shadow-xl w-full h-full max-h-[100vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-1 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Restaurant Tables</h2>
             <p className="text-gray-600 mt-1">Select a table to start taking orders</p>
@@ -106,31 +106,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           </Button>
         </div>
 
-        {/* Legend */}
-        <div className="px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 rounded-full bg-green-100 border-2 border-green-300"></div>
-              <span className="text-sm text-gray-600">Available</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 rounded-full bg-red-100 border-2 border-red-300"></div>
-              <span className="text-sm text-gray-600">Open</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 rounded-full bg-yellow-100 border-2 border-yellow-300"></div>
-              <span className="text-sm text-gray-600">Reserved</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 rounded-full bg-gray-100 border-2 border-gray-300"></div>
-              <span className="text-sm text-gray-600">Cleaning</span>
-            </div>
-          </div>
-        </div>
-
         {/* Tables Layout */}
-        <div className="flex-1 p-6 overflow-auto">
-          <div className="relative bg-gray-50 rounded-lg p-8 min-h-full">
+        <div className="flex-1 overflow-auto">
+          <div className="relative bg-gray-50 rounded-lg min-h-full">
             {/* Restaurant Floor Plan */}
             <div className="relative w-full h-full min-h-[600px]">
               {safeTablesList.length === 0 ? (
@@ -159,14 +137,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                       }}
                     >
                       {/* Table */}
-                      <div 
-                        className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} 
-                        onClick={() => onTableSelect(table)}
-                        onMouseEnter={(e) => handleTableHover(table, e)}
-                        onMouseLeave={handleTableLeave}
-                      >
+                      <div className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} onClick={() => onTableSelect(table)} onMouseEnter={e => handleTableHover(table, e)} onMouseLeave={handleTableLeave}>
                         <div className="text-center">
-                          <div className="font-bold text-gray-800">{table.number}</div>
+                          <div className="font-bold text-lg text-gray-800">{table.number}</div>
                           <div className="text-xs text-gray-600 flex items-center justify-center">
                             <Users className="w-3 h-3 mr-1" />
                             {table.seats}
@@ -179,11 +152,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
               )}
 
               {/* Restaurant Features */}
-              <div className="absolute top-4 left-4 bg-blue-100 border-2 border-blue-300 rounded-lg p-4 w-32 h-16 flex items-center justify-center">
+              <div className="absolute top-0 left-4 bg-blue-100 border-2 border-blue-300 rounded-lg p-4 w-32 h-16 flex items-center justify-center">
                 <span className="text-sm font-medium text-blue-800">Kitchen</span>
               </div>
 
-              <div className="absolute top-4 right-4 bg-purple-100 border-2 border-purple-300 rounded-lg p-4 w-32 h-16 flex items-center justify-center">
+              <div className="absolute top-6 right-4 bg-purple-100 border-2 border-purple-300 rounded-lg p-4 w-28 h-[90%] flex items-center justify-center">
                 <span className="text-sm font-medium text-purple-800">Bar</span>
               </div>
             </div>
@@ -191,7 +164,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
+        <div className="px-6 py-2 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
               {selectedTable ? (
@@ -202,6 +175,28 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 "Select a table to continue"
               )}
             </div>
+
+            <div className="px-6 py- border-b border-gray-100">
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 rounded-full bg-green-100 border-2 border-green-300"></div>
+                  <span className="text-sm text-gray-600">Available</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 rounded-full bg-red-100 border-2 border-red-300"></div>
+                  <span className="text-sm text-gray-600">Open</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 rounded-full bg-yellow-100 border-2 border-yellow-300"></div>
+                  <span className="text-sm text-gray-600">Reserved</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 rounded-full bg-gray-100 border-2 border-gray-300"></div>
+                  <span className="text-sm text-gray-600">Cleaning</span>
+                </div>
+              </div>
+            </div>
+
             <div className="flex space-x-3">
               <Button variant="outline" onClick={onClose}>
                 Cancel
@@ -213,30 +208,28 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           </div>
         </div>
       </div>
-      
+
       {/* Floating Popup - Positioned at top level to avoid z-index issues */}
       {hoveredTable && popupPosition && (
-        <div 
+        <div
           className="fixed z-[9999] pointer-events-none"
           style={{
             left: popupPosition.x,
             top: popupPosition.y,
-            transform: 'translateX(-50%)'
+            transform: "translateX(-50%)"
           }}
         >
           <div className="relative">
             {/* Arrow pointing up */}
             <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[8px] border-l-transparent border-r-transparent border-b-white drop-shadow-sm"></div>
-            
+
             {/* Card */}
             <Card className="w-52 shadow-xl border-0 bg-white backdrop-blur-sm animate-in fade-in-0 zoom-in-95 duration-200">
               <CardContent className="p-4">
                 <div className="space-y-3">
                   {/* Order Number */}
                   <div className="text-center">
-                    <div className="font-bold text-lg text-gray-800 mb-1">
-                      {hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}
-                    </div>
+                    <div className="font-bold text-lg text-gray-800 mb-1">{hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}</div>
                   </div>
 
                   {/* Time */}
@@ -255,9 +248,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
                   {/* Total Amount */}
                   <div className="text-center pt-2 border-t border-gray-100">
-                    <div className="text-xl font-bold text-green-600">
-                      {formatCurrency(hoveredTable.currentOrder?.totalAmount || 0)}
-                    </div>
+                    <div className="text-xl font-bold text-green-600">{formatCurrency(hoveredTable.currentOrder?.totalAmount || 0)}</div>
                   </div>
                 </div>
               </CardContent>
