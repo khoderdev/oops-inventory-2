@@ -187,12 +187,12 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     }
                   />
                   <Route
-                    path="/inventory/adjustments"
+                    path="/inventory/stock/logs"
                     element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_ADJUST}>
+                      <ProtectedRoute requiredPermission={PERMISSIONS.AUDIT_REPORTS}>
                         <RoleBasedRoute>
                           <AuthenticatedLayout>
-                            <PlaceholderPage title="Stock Adjustments" description="Stock adjustment functionality coming soon..." />
+                            <PlaceholderPage title="Stock Logs" description="Stock adjustment functionality coming soon..." />
                           </AuthenticatedLayout>
                         </RoleBasedRoute>
                       </ProtectedRoute>

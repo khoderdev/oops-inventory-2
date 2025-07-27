@@ -44,7 +44,21 @@ const ProtectedNavigation: React.FC = () => {
       {
         label: "Inventory",
         icon: Package,
-        href: "/inventory"
+        href: "/inventory",
+        children: [
+          {
+            label: "Stock",
+            href: "/stock",
+            icon: Package,
+            permission: PERMISSIONS.STOCK_READ
+          },
+          {
+            label: "Logs",
+            href: "/stock/logs",
+            icon: Package,
+            permission: PERMISSIONS.AUDIT_REPORTS
+          }
+        ]
       },
       {
         label: "Sales",
@@ -92,13 +106,13 @@ const ProtectedNavigation: React.FC = () => {
         label: "Reports",
         href: "/reports",
         icon: BarChart3,
-        permission: PERMISSIONS.REPORTS_READ
+        permission: PERMISSIONS.AUDIT_REPORTS
       },
       {
         label: "Analytics",
         href: "/analytics",
         icon: Activity,
-        permission: PERMISSIONS.ANALYTICS_READ
+        permission: PERMISSIONS.ANALYTICS_TRENDS
       },
       {
         label: "Administration",
