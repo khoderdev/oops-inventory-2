@@ -11,37 +11,21 @@ interface InventoryNavigationTabsProps {
   className?: string;
 }
 
-const InventoryNavigationTabs: React.FC<InventoryNavigationTabsProps> = ({
-  activeTab,
-  onTabChange,
-  materialsContent,
-  stockEntriesContent,
-  sectionsContent,
-  className = ""
-}) => {
+const InventoryNavigationTabs: React.FC<InventoryNavigationTabsProps> = ({ activeTab, onTabChange, materialsContent, stockEntriesContent, sectionsContent, className = "" }) => {
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className={className}>
-      <TabsList className="grid w-full grid-cols-3 bg-gray-50 p-1 rounded-lg">
-        <TabsTrigger 
-          value="materials" 
-          className="flex items-center gap-2 text-gray-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
-        >
+      <TabsList className="grid w-full grid-cols-3 bg-gray-700 p-1 rounded-lg">
+        <TabsTrigger value="materials" className="flex items-center gap-2 text-gray-700 data-[state=active]:bg-red data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200">
           <Boxes className="h-4 w-4" />
           <span className="hidden sm:inline">Materials</span>
           <span className="sm:hidden">Mat.</span>
         </TabsTrigger>
-        <TabsTrigger 
-          value="stock-entries" 
-          className="flex items-center gap-2 text-gray-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
-        >
+        <TabsTrigger value="stock-entries" className="flex items-center gap-2 text-gray-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200">
           <Package className="h-4 w-4" />
           <span className="hidden sm:inline">Stock Entries</span>
           <span className="sm:hidden">Stock</span>
         </TabsTrigger>
-        <TabsTrigger 
-          value="sections" 
-          className="flex items-center gap-2 text-gray-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
-        >
+        <TabsTrigger value="sections" className="flex items-center gap-2 text-gray-700 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200">
           <MapPin className="h-4 w-4" />
           <span className="hidden sm:inline">Sections</span>
           <span className="sm:hidden">Sec.</span>

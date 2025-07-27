@@ -89,10 +89,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
     <div className="h-screen w-full flex flex-col overflow-hidden">
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
-        <TabsList className="sticky top-0 z-10 flex-shrink-0 w-full bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 rounded-xl p-2 shadow-sm">
+        <TabsList className="sticky top-0 z-10 flex-shrink-0 w-full px-3 rounded-lg ">
           <TabsTrigger
             value="material"
-            className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform
+            className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform !bg-white
                        data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 
                        data-[state=active]:shadow-lg data-[state=active]:shadow-blue-200/50 
                        data-[state=active]:text-white data-[state=active]:font-semibold 
@@ -111,7 +111,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           </TabsTrigger>
           <TabsTrigger
             value="stock"
-            className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform
+            className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform !bg-white
                        data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 
                        data-[state=active]:shadow-lg data-[state=active]:shadow-green-200/50 
                        data-[state=active]:text-white data-[state=active]:font-semibold 
@@ -130,7 +130,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           </TabsTrigger>
           <TabsTrigger
             value="sections"
-            className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform
+            className="relative flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 ease-in-out transform !bg-white
                        data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 
                        data-[state=active]:shadow-lg data-[state=active]:shadow-purple-200/50 
                        data-[state=active]:text-white data-[state=active]:font-semibold 
