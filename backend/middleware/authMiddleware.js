@@ -352,8 +352,9 @@ export const auditAction = (action, resource) => {
     const originalSend = res.send;
 
     res.json = function (data) {
-      // Log successful actions
-      if (res.statusCode >= 200 && res.statusCode < 300 && req.user) {
+      // Log successful actions, but skip logout actions to prevent duplicates
+      // (logout is already logged explicitly in the auth controller with detailed session data)
+      if (res.statusCode >= 200 && res.statusCode < 300 && req.user && action !== 'logout') {
         AuditLog.logUserAction(req.user.id, action, resource, req.params.id || null, req.auditOldValues || null, req.auditNewValues || data, req).catch(error => {
           console.error("Error logging audit action:", error);
         });
