@@ -12,8 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getLogsTableHeaders } from "@/utils/getLogsTableHeaders";
 import { format, isValid } from "date-fns";
-import { CalendarIcon, Database, Download, FileText, TrendingUp } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { CalendarIcon, Database, Download, RotateCcw, TrendingUp, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ACTION_TYPE_OPTIONS, LOG_CONFIGS, LogType } from "./configs.tsx";
 import { generateActionTypeLogsReport, generateFailedOperationsReport, generateMaterialActivityLogsReport, generateRecentActivityReport, generateSearchLogsReport, generateStockEntryLogsReport, generateSummaryOverviewReport, generateTodayLogsReport, generateUserActivityLogsReport } from "./generationFunctions";
 import { LogsTable } from "./LogsTable";
@@ -57,6 +57,13 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
 
+  // Refs for focus management
+  const logTypeSelectRef = useRef<HTMLButtonElement>(null);
+  const userSelectRef = useRef<HTMLButtonElement>(null);
+  const materialSelectRef = useRef<HTMLButtonElement>(null);
+  const actionTypeSelectRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const currentLogConfig = LOG_CONFIGS.find(config => config.id === selectedLogType);
 
   // Load users and materials for dropdowns
@@ -88,6 +95,40 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
     loadUsers();
     loadMaterials();
   }, []);
+
+  // Focus management for required inputs on initial mount
+  useEffect(() => {
+    // Focus the log type selector on initial mount only if no log type is selected
+    const timer = setTimeout(() => {
+      if (logTypeSelectRef.current && !selectedLogType) {
+        logTypeSelectRef.current.focus();
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [selectedLogType]);
+
+  // Focus required additional parameter inputs when log type changes
+  useEffect(() => {
+    if (!currentLogConfig?.requiresAdditionalParams || isChangingLogType) return;
+
+    const timer = setTimeout(() => {
+      const { additionalParamType } = currentLogConfig;
+
+      // Focus the appropriate required input based on log type
+      if (additionalParamType === "userId" && userSelectRef.current && !selectedUserId) {
+        userSelectRef.current.focus();
+      } else if (additionalParamType === "materialId" && materialSelectRef.current && !selectedMaterialId) {
+        materialSelectRef.current.focus();
+      } else if (additionalParamType === "actionType" && actionTypeSelectRef.current && !selectedActionType) {
+        actionTypeSelectRef.current.focus();
+      } else if (additionalParamType === "searchQuery" && searchInputRef.current && !searchQuery.trim()) {
+        searchInputRef.current.focus();
+      }
+    }, 150); // Slight delay to ensure DOM is ready after log type change
+
+    return () => clearTimeout(timer);
+  }, [selectedLogType, currentLogConfig, isChangingLogType, selectedUserId, selectedMaterialId, selectedActionType, searchQuery]);
 
   const handleLogTypeChange = (newLogType: LogType) => {
     if (newLogType === selectedLogType) return;
@@ -154,7 +195,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
         title: "Invalid Date Range",
         description: errorMessage,
         variant: "destructive",
-        duration: 2000
+        duration: 1500
       });
       return;
     }
@@ -278,6 +319,33 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
     });
   };
 
+  const clearAllFilters = () => {
+    // Clear date range
+    setDateFrom(undefined);
+    setDateTo(undefined);
+
+    // Clear additional parameters
+    setSelectedUserId("");
+    setSelectedMaterialId("");
+    setSelectedActionType("");
+    setSearchQuery("");
+
+    // Clear generated data
+    setLogData([]);
+    setHasGenerated(false);
+    setIsLoading(false);
+
+    // Close any open popovers
+    setDateFromOpen(false);
+    setDateToOpen(false);
+
+    toast({
+      title: "All Filters Cleared",
+      description: "All filters and data have been reset to default state.",
+      duration: 1500
+    });
+  };
+
   const exportLogs = () => {
     if (!hasGenerated || logData.length === 0) return;
 
@@ -312,23 +380,21 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
               <Database className="h-5 w-5" />
               System Logs Generator
             </div>
-            {currentLogConfig && !isChangingLogType && hasGenerated && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground bg-primary/10 px-3 py-1 rounded-full mr-4 sm:mr-10">
-                {currentLogConfig.icon}
-                <span>viewing: {currentLogConfig.name}</span>
-              </div>
-            )}
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="flex-1 flex flex-col space-y-2 min-h-0 overflow-hidden">
-          <div className="space-y-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start border-2">
+        <CardContent className="flex-1 flex flex-col space-y-6 min-h-0 overflow-hidden">
+          {/* Filter Controls Section */}
+          <div className="space-y-1">
+            {/* Filter Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 items-center">
               {/* Log Type Selection */}
-              <div className="space-y-2 sm:col-span-2 lg:col-span-2 xl:col-span-2">
-                <Label htmlFor="log-type">Log Type</Label>
+              <div className="space-y-1 sm:col-span-2 lg:col-span-2 xl:col-span-2">
+                <Label htmlFor="log-type" className="text-base font-semibold text-gray-800 dark:text-gray-200">
+                  Log Type
+                </Label>
                 <Select value={selectedLogType} onValueChange={handleLogTypeChange} disabled={isChangingLogType || isLoading}>
-                  <SelectTrigger id="log-type" className={cn("h-16 w-full", isChangingLogType && "opacity-60")}>
+                  <SelectTrigger ref={logTypeSelectRef} id="log-type" className={cn("h-14 w-full text-base bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 hover:border-teal-400 dark:hover:border-teal-500 focus:border-teal-500 dark:focus:border-teal-400 focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors duration-200", isChangingLogType && "opacity-60")}>
                     <SelectValue placeholder="Select log type" />
                     {isChangingLogType && (
                       <div className="absolute right-8 top-1/2 transform -translate-y-1/2">
@@ -338,11 +404,11 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
                   </SelectTrigger>
                   <SelectContent className="max-w-[90vw] sm:max-w-md">
                     {LOG_CONFIGS.map(config => (
-                      <SelectItem key={config.id} value={config.id} className="cursor-pointer">
-                        <div className="flex items-start gap-3 py-1 min-w-0 text-left">
+                      <SelectItem key={config.id} value={config.id} className="cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-950 transition-colors">
+                        <div className="flex items-start gap-3 py-2 min-w-0 text-left">
                           <div className="flex-shrink-0 mt-0.5">{config.icon}</div>
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium text-sm truncate">{config.name}</div>
+                            <div className="font-semibold text-sm truncate">{config.name}</div>
                             <div className="text-xs text-muted-foreground line-clamp-2 leading-tight">{config.description}</div>
                           </div>
                         </div>
@@ -355,17 +421,12 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
               {/* Date Range - Available for all log types */}
               {currentLogConfig?.supportsDateRange && (
                 <>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium flex items-center gap-2">
-                      From Date
-                      <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                        Optional
-                      </Badge>
-                    </Label>
+                  <div className="space-y-1">
+                    <Label className="text-base font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">From Date</Label>
                     <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingLogType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingLogType || isLoading}>
-                          <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                        <Button variant="outline" className={cn("w-full h-14 justify-start text-left font-medium px-4 text-base bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 hover:border-green-400 dark:hover:border-green-500 focus:border-green-500 dark:focus:border-green-400 transition-colors duration-200", !dateFrom && "text-muted-foreground", (isChangingLogType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingLogType || isLoading}>
+                          <CalendarIcon className="mr-3 h-5 w-5 flex-shrink-0" />
                           <span className="truncate">{dateFrom ? format(dateFrom, "MMM d, yyyy") : "Pick a date"}</span>
                         </Button>
                       </PopoverTrigger>
@@ -386,17 +447,12 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium flex items-center gap-2">
-                      To Date
-                      <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                        Optional
-                      </Badge>
-                    </Label>
+                  <div className="space-y-1">
+                    <Label className="text-base font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">To Date</Label>
                     <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingLogType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingLogType || isLoading}>
-                          <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                        <Button variant="outline" className={cn("w-full h-14 justify-start text-left font-medium px-4 text-base bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 hover:border-green-400 dark:hover:border-green-500 focus:border-green-500 dark:focus:border-green-400 transition-colors duration-200", !dateTo && "text-muted-foreground", (isChangingLogType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingLogType || isLoading}>
+                          <CalendarIcon className="mr-3 h-5 w-5 flex-shrink-0" />
                           <span className="truncate">{dateTo ? format(dateTo, "MMM d, yyyy") : "Pick a date"}</span>
                         </Button>
                       </PopoverTrigger>
@@ -422,12 +478,12 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
 
               {/* Additional Parameters */}
               {currentLogConfig?.requiresAdditionalParams && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">{currentLogConfig.additionalParamLabel}</Label>
+                <div className="space-y-1">
+                  <Label className="text-base font-semibold text-gray-800 dark:text-gray-200">{currentLogConfig.additionalParamLabel}</Label>
 
                   {currentLogConfig.additionalParamType === "userId" && (
                     <Select value={selectedUserId} onValueChange={setSelectedUserId} disabled={isChangingLogType || isLoading || loadingUsers}>
-                      <SelectTrigger className="h-16">
+                      <SelectTrigger ref={userSelectRef} className="h-14 text-base bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 hover:border-purple-400 dark:hover:border-purple-500 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors duration-200">
                         <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select user"} />
                       </SelectTrigger>
                       <SelectContent>
@@ -445,7 +501,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
 
                   {currentLogConfig.additionalParamType === "materialId" && (
                     <Select value={selectedMaterialId} onValueChange={setSelectedMaterialId} disabled={isChangingLogType || isLoading || loadingMaterials}>
-                      <SelectTrigger className="h-16">
+                      <SelectTrigger ref={materialSelectRef} className="h-14 text-base bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 hover:border-orange-400 dark:hover:border-orange-500 focus:border-orange-500 dark:focus:border-orange-400 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors duration-200">
                         <SelectValue placeholder={loadingMaterials ? "Loading materials..." : "Select material"} />
                       </SelectTrigger>
                       <SelectContent>
@@ -463,7 +519,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
 
                   {currentLogConfig.additionalParamType === "actionType" && (
                     <Select value={selectedActionType} onValueChange={setSelectedActionType} disabled={isChangingLogType || isLoading}>
-                      <SelectTrigger className="h-16">
+                      <SelectTrigger ref={actionTypeSelectRef} className="h-14 text-base bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200">
                         <SelectValue placeholder="Select action type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -476,45 +532,44 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
                     </Select>
                   )}
 
-                  {currentLogConfig.additionalParamType === "searchQuery" && <Input placeholder="Enter search query..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="h-16" disabled={isChangingLogType || isLoading} />}
+                  {currentLogConfig.additionalParamType === "searchQuery" && (
+                    <Input ref={searchInputRef} placeholder="Enter search query..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="h-14 text-base bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 hover:border-cyan-400 dark:hover:border-cyan-500 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition-colors duration-200" disabled={isChangingLogType || isLoading} />
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <Button onClick={generateLogs} disabled={isLoading || !isDateRangeValid || !isAdditionalParamValid || isChangingLogType} className="flex items-center justify-center gap-2 h-10 min-w-[140px]">
-                {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <TrendingUp className="h-4 w-4" />}
+          {/* Action Buttons Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <Button onClick={generateLogs} disabled={isLoading || !isDateRangeValid || !isAdditionalParamValid || isChangingLogType} className="flex items-center justify-center gap-3 h-12 min-w-[160px] text-base font-semibold bg-teal-600 hover:bg-teal-700 dark:bg-teal-700 dark:hover:bg-teal-600 transition-all duration-200 shadow-md hover:shadow-lg">
+                {isLoading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" /> : <TrendingUp className="h-5 w-5" />}
                 <span className="truncate">{isLoading ? "Generating..." : "Generate Logs"}</span>
               </Button>
-
+              <Button variant="outline" onClick={clearAllFilters} disabled={isChangingLogType || isLoading} className="flex items-center justify-center gap-2 h-12 px-4 text-base font-medium bg-red-50 hover:bg-red-100 border-red-200 text-red-700 hover:text-red-800 dark:bg-red-950 dark:hover:bg-red-900 dark:border-red-800 dark:text-red-300 dark:hover:text-red-200 transition-all duration-200">
+                <RotateCcw className="h-4 w-4" />
+                <span>Clear All</span>
+              </Button>
               {(dateFrom || dateTo) && (
-                <Button variant="outline" onClick={clearDateRange} disabled={isChangingLogType || isLoading} className="flex items-center justify-center gap-2 h-10">
-                  <CalendarIcon className="h-4 w-4" />
+                <Button variant="outline" onClick={clearDateRange} disabled={isChangingLogType || isLoading} className="flex items-center justify-center gap-2 h-12 px-4 text-base font-medium bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-800 hover:text-amber-900 dark:bg-amber-950 dark:hover:bg-amber-900 dark:border-amber-700 dark:text-amber-300 dark:hover:text-amber-200 transition-all duration-200">
+                  <X className="h-4 w-4" />
                   <span>Clear Dates</span>
                 </Button>
               )}
 
               {hasGenerated && (
-                <Button variant="outline" onClick={exportLogs} disabled={isChangingLogType || isLoading} className="flex items-center justify-center gap-2 h-10">
-                  <Download className="h-4 w-4" />
+                <Button variant="outline" onClick={exportLogs} disabled={isChangingLogType || isLoading} className="flex items-center justify-center gap-2 h-12 px-4 text-base font-medium bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-800 hover:text-emerald-900 dark:bg-emerald-950 dark:hover:bg-emerald-900 dark:border-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200 transition-all duration-200">
+                  <Download className="h-5 w-5" />
                   <span>Export CSV</span>
                 </Button>
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-              {hasGenerated && (
-                <Badge variant="secondary" className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1">
-                  <FileText className="h-3 w-3" />
-                  <span className="text-sm">{logData.length} records</span>
-                </Badge>
-              )}
-
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               {(dateFrom || dateTo) && (
-                <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-xs">
-                  <CalendarIcon className="h-3 w-3" />
+                <Badge variant="outline" className="flex items-center justify-center gap-2 px-4 py-2 h-12 text-base font-medium border-2 border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-700 dark:bg-teal-950 dark:text-teal-200">
+                  <CalendarIcon className="h-4 w-4" />
                   <span>{dateFrom && dateTo ? `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d, yyyy")}` : dateFrom ? `From ${format(dateFrom, "MMM d, yyyy")}` : `Until ${format(dateTo!, "MMM d, yyyy")}`}</span>
                 </Badge>
               )}
