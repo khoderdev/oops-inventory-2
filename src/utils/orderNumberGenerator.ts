@@ -22,3 +22,29 @@ export const generateUniqueOrderNumber = (): string => {
   console.log('Generated order number:', orderNumber);
   return orderNumber;
 };
+
+/**
+ * Generates a preview order number for display purposes
+ * This is used to show what the order number will be before saving
+ * Format: ORD-YYYY-MMDD-XXXX (e.g., ORD-2025-0127-XXXX)
+ */
+export const generatePreviewOrderNumber = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  
+  // Use XXXX as placeholder for sequence number since we don't know the actual next number
+  const previewNumber = `ORD-${year}-${month}${day}-XXXX`;
+  return previewNumber;
+};
+
+/**
+ * Generates a temporary order number for local display
+ * This creates a unique identifier for unsaved orders
+ */
+export const generateTempOrderNumber = (): string => {
+  const timestamp = Date.now();
+  const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  return `DRAFT-${timestamp}-${randomSuffix}`;
+};

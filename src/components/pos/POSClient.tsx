@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
+import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -105,15 +106,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     // Clear cart and local state
     setCart([]);
     setHasUnsavedChanges(false);
-    
+
     // Reset order type and table selection
     setOrderType("takeaway");
     setSelectedTable(undefined);
     setShowTablesLayout(false);
-    
+
     // Clear search and filters
     setActiveCategory("all");
-    
+
     // Clear any dialogs
     setShowPaymentDialog(false);
     setShowReceiptDialog(false);
@@ -121,14 +122,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setShowOrdersDialog(false);
     setShowNegativeStockDialog(false);
     setShowUnsavedDialog(false);
-    
+
     // Clear payment amount
     setPaymentAmount("");
-    
+
     // Clear messages
     setError(null);
     setSuccessMessage(null);
-    
+
     // Clear any timeouts
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current);
@@ -142,18 +143,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       clearTimeout(checkmarkTimeoutRef.current);
       checkmarkTimeoutRef.current = null;
     }
-    
+
     // Clear current order from order management
     if (clearOrder) {
       clearOrder();
     }
-    
+
     // Clear all order persistence data (localStorage)
     OrderPersistence.clearAllData();
-    
+
     // Show success message
-    showSuccess("POS system reset successfully");
-  }, [clearOrder, showSuccess]);
+  }, [clearOrder]);
 
   // Update optimistic assignments when props change
   useEffect(() => {
@@ -269,11 +269,19 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Clear cart with animation after successful save
       clearCartWithAnimation();
       setHasUnsavedChanges(false);
+
+      // Clear current order from order management
+      if (clearOrder) {
+        clearOrder();
+      }
+
+      // Clear order persistence data
+      OrderPersistence.clearCurrentOrder();
     } catch (error) {
       console.error("Failed to save order:", error);
       showError("Failed to save order");
     }
-  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation]);
+  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation, clearOrder]);
 
   // Load saved order on component mount
   useEffect(() => {
@@ -626,6 +634,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         clearCartWithAnimation();
         setHasUnsavedChanges(false);
         OrderPersistence.clearCurrentOrder();
+        
+        // Clear current order from order management (voidOrder hook may handle this, but ensure it's cleared)
+        if (clearOrder) {
+          clearOrder();
+        }
 
         // Automatically select TAKE AWAY after voiding
         resetToTakeaway();
@@ -653,7 +666,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Error is already handled by the voidOrder function
       }
     },
-    [voidOrder, clearCartWithAnimation, orderType, selectedTable, showSuccess, resetToTakeaway]
+    [voidOrder, clearCartWithAnimation, orderType, selectedTable, showSuccess, resetToTakeaway, clearOrder]
   );
 
   // Handle orders dialog
@@ -834,13 +847,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             <div className="flex items-center space-x-3">
               <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
               {/* Order Status Indicator */}
-              {(hasUnsavedChanges || currentOrder) && !showSuccessCheckmark && (
+              {(hasUnsavedChanges || currentOrder || (cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
                 <div className="flex items-center space-x-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md">
                   <span className="text-xs text-blue-800">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
                         <span>#{currentOrder.orderNumber}</span>
                         <span className="text-xs opacity-75">({currentOrder.status})</span>
+                      </div>
+                    ) : cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
+                      <div className="flex items-center space-x-1">
+                        <span>#{generatePreviewOrderNumber()}</span>
+                        <span className="text-xs opacity-75">(Preview)</span>
                       </div>
                     ) : hasUnsavedChanges ? (
                       "Unsaved"
