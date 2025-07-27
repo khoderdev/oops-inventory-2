@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from "axios";
+import api from "@/lib/http";
 
 export interface StockEntryLog {
   id: number;
@@ -207,38 +207,8 @@ export interface SearchOptions {
   [key: string]: any;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
-const LOGS_BASE_PATH = "/api/logs";
-
-const logsApi = axios.create({
-  baseURL: `${API_BASE_URL}${LOGS_BASE_PATH}`,
-  timeout: 30000,
-  headers: {
-    "Content-Type": "application/json"
-  }
-});
-
-logsApi.interceptors.request.use(
-  config => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  error => Promise.reject(error)
-);
-
-logsApi.interceptors.response.use(
-  response => response,
-  error => {
-    console.error("Logs API Error:", error.response?.data || error.message);
-    return Promise.reject(error);
-  }
-);
-
 export class LogsApiClient {
-  private cache = new Map<string, { data: any; timestamp: number }>();
+  private cache = new Map<string, { data: unknown; timestamp: number }>();
   private readonly CACHE_TTL = 5 * 60 * 1000;
 
   private getCachedData<T>(key: string): T | null {
@@ -256,7 +226,8 @@ export class LogsApiClient {
   public clearCache(): void {
     this.cache.clear();
   }
-  private buildQueryString(params: Record<string, any>): string {
+  
+  private buildQueryString(params: Record<string, unknown> | LogsQueryParams | ExportOptions | SearchOptions): string {
     const searchParams = new URLSearchParams();
 
     Object.entries(params).forEach(([key, value]) => {
@@ -290,7 +261,7 @@ export class LogsApiClient {
     }
 
     try {
-      const response: AxiosResponse<LogsResponse> = await logsApi.get(`/stock-entries?${queryString}`);
+      const response = await api.get<LogsResponse>(`/logs/stock-entries?${queryString}`);
 
       // Cache successful responses
       this.setCachedData(cacheKey, response.data);
@@ -321,7 +292,7 @@ export class LogsApiClient {
     }
 
     try {
-      const response: AxiosResponse<StockHistoryResponse> = await logsApi.get(`/stock-entries/${stockEntryId}?${queryString}`);
+      const response = await api.get<StockHistoryResponse>(`/logs/stock-entries/${stockEntryId}?${queryString}`);
 
       this.setCachedData(cacheKey, response.data);
       return response.data;
@@ -351,7 +322,7 @@ export class LogsApiClient {
     }
 
     try {
-      const response: AxiosResponse<MaterialActivityResponse> = await logsApi.get(`/materials/${materialId}?${queryString}`);
+      const response = await api.get<MaterialActivityResponse>(`/logs/materials/${materialId}?${queryString}`);
 
       this.setCachedData(cacheKey, response.data);
       return response.data;
@@ -380,7 +351,7 @@ export class LogsApiClient {
     }
 
     try {
-      const response: AxiosResponse<UserActivityResponse> = await logsApi.get(`/users/${userId}?${queryString}`);
+      const response = await api.get<UserActivityResponse>(`/logs/users/${userId}?${queryString}`);
 
       this.setCachedData(cacheKey, response.data);
       return response.data;
@@ -408,7 +379,7 @@ export class LogsApiClient {
     }
 
     try {
-      const response: AxiosResponse<LogsSummaryResponse> = await logsApi.get(`/summary?${queryString}`);
+      const response = await api.get<LogsSummaryResponse>(`/logs/summary?${queryString}`);
 
       // Cache summary for shorter time (2 minutes)
       this.cache.set(cacheKey, { data: response.data, timestamp: Date.now() });
@@ -425,7 +396,7 @@ export class LogsApiClient {
     const queryString = this.buildQueryString(options);
 
     try {
-      const response: AxiosResponse<LogsSearchResponse> = await logsApi.get(`/search?${queryString}`);
+      const response = await api.get<LogsSearchResponse>(`/logs/search?${queryString}`);
 
       return response.data;
     } catch (error) {
@@ -436,13 +407,13 @@ export class LogsApiClient {
   /**
    * Export logs to CSV or JSON
    */
-  async exportLogs(options: ExportOptions = {}): Promise<Blob | any> {
+  async exportLogs(options: ExportOptions = {}): Promise<Blob | unknown> {
     const queryString = this.buildQueryString(options);
 
     try {
-      const response = await logsApi.get(`/export?${queryString}`, {
-        responseType: options.format === "csv" ? "blob" : "json"
-      });
+      // Note: The existing HTTP client doesn't support responseType configuration
+      // This would need to be handled differently or the HTTP client would need to be extended
+      const response = await api.get<Blob | unknown>(`/logs/export?${queryString}`);
 
       return response.data;
     } catch (error) {
@@ -546,16 +517,18 @@ export class LogsApiClient {
   /**
    * Handle API errors consistently
    */
-  private handleApiError(error: any, defaultMessage: string): Error {
-    if (error.response?.data?.error) {
-      return new Error(error.response.data.error);
+  private handleApiError(error: unknown, defaultMessage: string): Error {
+    // Handle our custom API error format
+    if (error && typeof error === 'object' && 'message' in error) {
+      return new Error((error as { message: string }).message);
     }
-    if (error.response?.data?.details) {
-      return new Error(error.response.data.details);
+    
+    // Handle standard error objects
+    if (error instanceof Error) {
+      return error;
     }
-    if (error.message) {
-      return new Error(error.message);
-    }
+    
+    // Fallback to default message
     return new Error(defaultMessage);
   }
 
@@ -590,37 +563,41 @@ export class LogsApiClient {
           endDate: this.formatDate(today)
         };
 
-      case "yesterday":
+      case "yesterday": {
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
         return {
           startDate: this.formatDate(yesterday),
           endDate: this.formatDate(yesterday)
         };
+      }
 
-      case "week":
+      case "week": {
         const weekStart = new Date(today);
         weekStart.setDate(weekStart.getDate() - 7);
         return {
           startDate: this.formatDate(weekStart),
           endDate: this.formatDate(today)
         };
+      }
 
-      case "month":
+      case "month": {
         const monthStart = new Date(today);
         monthStart.setDate(monthStart.getDate() - 30);
         return {
           startDate: this.formatDate(monthStart),
           endDate: this.formatDate(today)
         };
+      }
 
-      case "quarter":
+      case "quarter": {
         const quarterStart = new Date(today);
         quarterStart.setDate(quarterStart.getDate() - 90);
         return {
           startDate: this.formatDate(quarterStart),
           endDate: this.formatDate(today)
         };
+      }
 
       default:
         return {

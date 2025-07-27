@@ -5,6 +5,7 @@ import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import StockLogs from "./components/stock/StockLogs";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 import { useInventoryData } from "./hooks/useInventoryData";
@@ -175,7 +176,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
 
                   {/* Inventory & Stock Management */}
                   <Route
-                    path="/inventory"
+                    path="/stock"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ}>
                         <RoleBasedRoute>
@@ -187,12 +188,12 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     }
                   />
                   <Route
-                    path="/inventory/stock/logs"
+                    path="/stock/logs"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.AUDIT_REPORTS}>
                         <RoleBasedRoute>
                           <AuthenticatedLayout>
-                            <PlaceholderPage title="Stock Logs" description="Stock adjustment functionality coming soon..." />
+                            <StockLogs />
                           </AuthenticatedLayout>
                         </RoleBasedRoute>
                       </ProtectedRoute>
