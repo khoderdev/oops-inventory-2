@@ -1,7 +1,7 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { Material, StockEntry, Wasting } from "../models/index.js";
-import { auditStockOperation } from "../middleware/auditMiddleware.js";
+import { StockEntryAuditHelperSimple } from "../decorators/stockEntryAuditDecoratorSimple.js";
 
 const stockEntriesController = {
   // Get all stock entries
@@ -135,10 +135,25 @@ const stockEntriesController = {
         include: { model: Material, as: "material" }
       });
 
-      // Log successful stock entry creation
-      const userId = req.user?.id;
-      if (userId) {
-        await auditStockOperation(userId, 'CREATE', createdStockEntry.toJSON(), null, req);
+      // Log successful stock entry creation using dedicated stock entry logger
+      try {
+        const user = req.user || { id: null, fullName: 'System', username: 'system' };
+        await StockEntryAuditHelperSimple.logStockCreation(
+          createdStockEntry.toJSON(),
+          user,
+          req,
+          {
+            operationType: 'stock_creation',
+            supplier: createdStockEntry.supplier,
+            totalCost: createdStockEntry.totalCost,
+            purchasedQuantity: createdStockEntry.purchasedQuantity,
+            purchasedUnit: createdStockEntry.purchasedUnit
+          }
+        );
+        console.log(`✅ Stock entry creation logged for material ${createdStockEntry.material?.name} (ID: ${createdStockEntry.id})`);
+      } catch (loggingError) {
+        console.error('❌ Failed to log stock entry creation:', loggingError);
+        // Don't fail the main operation if logging fails
       }
 
       res.status(201).json(createdStockEntry);
@@ -237,10 +252,26 @@ const stockEntriesController = {
         include: { model: Material, as: "material" }
       });
 
-      // Log successful stock entry update
-      const userId = req.user?.id;
-      if (userId) {
-        await auditStockOperation(userId, 'UPDATE', updatedStockEntry.toJSON(), originalStockEntry, req);
+      // Log successful stock entry update using dedicated stock entry logger
+      try {
+        const user = req.user || { id: null, fullName: 'System', username: 'system' };
+        await StockEntryAuditHelperSimple.logStockEdit(
+          originalStockEntry,
+          updatedStockEntry.toJSON(),
+          user,
+          req,
+          {
+            operationType: 'stock_edit',
+            supplier: updatedStockEntry.supplier,
+            totalCost: updatedStockEntry.totalCost,
+            purchasedQuantity: updatedStockEntry.purchasedQuantity,
+            purchasedUnit: updatedStockEntry.purchasedUnit
+          }
+        );
+        console.log(`✅ Stock entry update logged for material ${updatedStockEntry.material?.name} (ID: ${updatedStockEntry.id})`);
+      } catch (loggingError) {
+        console.error('❌ Failed to log stock entry update:', loggingError);
+        // Don't fail the main operation if logging fails
       }
 
       res.status(200).json(updatedStockEntry);
@@ -264,10 +295,19 @@ const stockEntriesController = {
 
       await stockEntry.destroy();
 
-      // Log successful stock entry deletion
-      const userId = req.user?.id;
-      if (userId) {
-        await auditStockOperation(userId, 'DELETE', deletedStockEntry, null, req);
+      // Log successful stock entry deletion using dedicated stock entry logger
+      try {
+        const user = req.user || { id: null, fullName: 'System', username: 'system' };
+        await StockEntryAuditHelperSimple.logStockDeletion(
+          deletedStockEntry,
+          user,
+          'Manual deletion via API',
+          req
+        );
+        console.log(`✅ Stock entry deletion logged for material ${deletedStockEntry.material?.name || 'Unknown'} (ID: ${deletedStockEntry.id})`);
+      } catch (loggingError) {
+        console.error('❌ Failed to log stock entry deletion:', loggingError);
+        // Don't fail the main operation if logging fails
       }
 
       res.status(204).send();
@@ -405,6 +445,30 @@ const stockEntriesController = {
       const updatedEntry = await StockEntry.findByPk(id, {
         include: { model: Material, as: "material" }
       });
+
+      // Log successful stock addition using dedicated stock entry logger
+      try {
+        const user = req.user || { id: null, fullName: 'System', username: 'system' };
+        const originalStockEntry = { ...stockEntry.toJSON() }; // Store original before update
+        await StockEntryAuditHelperSimple.logAddToStock(
+          originalStockEntry,
+          updatedEntry.toJSON(),
+          numericAdditionalQuantity,
+          unit,
+          user,
+          req,
+          {
+            operationType: 'add_to_stock',
+            notes: notes,
+            additionDate: additionDate,
+            costPerPurchasedUnit: finalCostPerPurchasedUnit
+          }
+        );
+        console.log(`✅ Stock addition logged for material ${updatedEntry.material?.name} (ID: ${updatedEntry.id}) - Added ${numericAdditionalQuantity} ${unit}`);
+      } catch (loggingError) {
+        console.error('❌ Failed to log stock addition:', loggingError);
+        // Don't fail the main operation if logging fails
+      }
 
       res.status(200).json({
         message: `Successfully added ${numericAdditionalQuantity} ${unit} to existing stock entry`,
@@ -633,6 +697,32 @@ const stockEntriesController = {
       const updatedEntry = await StockEntry.findByPk(id, {
         include: { model: Material, as: "material" }
       });
+
+      // Log successful waste recording using dedicated stock entry logger
+      try {
+        const user = req.user || { id: null, fullName: 'System', username: 'system' };
+        const originalStockEntry = { ...stockEntry.toJSON() }; // Store original before update
+        await StockEntryAuditHelperSimple.logWasteFromStock(
+          originalStockEntry,
+          updatedEntry.toJSON(),
+          wasteInSmallerUnit,
+          wasteUnitForRecord,
+          wasteReason,
+          user,
+          req,
+          {
+            operationType: 'waste_from_stock',
+            notes: notes,
+            wasteDate: wasteDate,
+            totalCostReduction: costReduction,
+            wasteRecordId: wasteRecord.id
+          }
+        );
+        console.log(`✅ Stock waste logged for material ${updatedEntry.material?.name} (ID: ${updatedEntry.id}) - Wasted ${wasteInSmallerUnit} ${wasteUnitForRecord} (${wasteReason})`);
+      } catch (loggingError) {
+        console.error('❌ Failed to log stock waste:', loggingError);
+        // Don't fail the main operation if logging fails
+      }
 
       res.status(200).json({
         message: `Successfully recorded waste of ${wasteInSmallerUnit} ${wasteUnitForRecord} from stock entry ${stockEntry.id}`,
@@ -887,10 +977,20 @@ const stockEntriesController = {
         include: { model: Material, as: "material" }
       });
 
-      // Log successful POS visibility update
-      const userId = req.user?.id;
-      if (userId) {
-        await auditStockOperation(userId, 'UPDATE', updatedStockEntry.toJSON(), originalStockEntry, req);
+      // Log successful POS visibility update using dedicated stock entry logger
+      try {
+        const user = req.user || { id: null, fullName: 'System', username: 'system' };
+        await StockEntryAuditHelperSimple.logPOSToggle(
+          updatedStockEntry.toJSON(),
+          originalStockEntry.isPOSItem,
+          isPOSItem,
+          user,
+          req
+        );
+        console.log(`✅ POS visibility toggle logged for material ${updatedStockEntry.material?.name} (ID: ${updatedStockEntry.id}) - Changed to ${isPOSItem ? 'visible' : 'hidden'}`);
+      } catch (loggingError) {
+        console.error('❌ Failed to log POS visibility toggle:', loggingError);
+        // Don't fail the main operation if logging fails
       }
 
       res.status(200).json({

@@ -5,6 +5,7 @@ import "./models/index.js";
 import assignmentsRoutes from "./routes/assignments.js";
 import authRoutes from "./routes/auth.js";
 import dayOperationsRoutes from "./routes/dayOperations.js";
+import logsRoutes from "./routes/logs.js";
 import materialRoutes from "./routes/materials.js";
 import menuItemsRoutes from "./routes/menuItems.js";
 import ordersRoutes from "./routes/orders.js";
@@ -43,6 +44,7 @@ app.use("/api/pos", posRoutes);
 app.use("/api/tables", tablesRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/day-operations", dayOperationsRoutes);
+app.use("/api/logs", logsRoutes);
 
 // Error handling middleware
 // IMPORTANT: app.use(errorHandler) should be the *last* middleware

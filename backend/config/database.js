@@ -1,4 +1,4 @@
-import chalk from "chalk"; // install via: npm install chalk
+import chalk from "chalk";
 import { Sequelize } from "sequelize";
 
 const customLogger = (sql, timing) => {

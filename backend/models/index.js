@@ -11,6 +11,8 @@ import SaleMenuItem from "./SaleMenuItem.js";
 import Section from "./sections.js";
 import Session from "./Session.js";
 import StockEntry from "./StockEntry.js";
+// import StockEntryLog from "./StockEntryLog.js"; // Temporarily disabled due to syntax errors
+import StockEntryLogSimple from "./StockEntryLogSimple.js";
 import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";
@@ -347,4 +349,34 @@ User.hasMany(Order, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, DayOperation, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Sale, SaleMenuItem, Section, sequelize, Session, StockEntry, Table, User, Wasting };
+// StockEntry ↔ StockEntryLogSimple associations temporarily disabled to prevent FK constraint errors
+/*
+StockEntry.hasMany(StockEntryLogSimple, {
+  foreignKey: "stockEntryId",
+  as: "logs",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+StockEntryLogSimple.belongsTo(StockEntry, {
+  foreignKey: "stockEntryId",
+  as: "stockEntry",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Material ↔ StockEntryLogSimple associations temporarily disabled
+Material.hasMany(StockEntryLogSimple, {
+  foreignKey: "materialId",
+  as: "stockLogs",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+StockEntryLogSimple.belongsTo(Material, {
+  foreignKey: "materialId",
+  as: "material",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+*/
+
+export { Assignment, AuditLog, DayOperation, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Sale, SaleMenuItem, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };
