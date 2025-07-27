@@ -40,32 +40,6 @@ const ProtectedNavigation: React.FC = () => {
         label: "Inventory",
         icon: Package,
         href: "/inventory"
-        // children: [
-        //   {
-        //     label: "Materials",
-        //     href: "/inventory/materials",
-        //     icon: Boxes,
-        //     permission: PERMISSIONS.MATERIALS_READ
-        //   },
-        //   {
-        //     label: "Stock Entries",
-        //     href: "/inventory/stock",
-        //     icon: Package,
-        //     permission: PERMISSIONS.STOCK_READ
-        //   },
-        //   {
-        //     label: "Sections",
-        //     href: "/inventory/sections",
-        //     icon: MapPin,
-        //     permission: PERMISSIONS.SECTIONS_READ
-        //   },
-        //   {
-        //     label: "Assignments",
-        //     href: "/inventory/assignments",
-        //     icon: LinkIcon,
-        //     permission: PERMISSIONS.ASSIGNMENTS_READ
-        //   }
-        // ]
       },
       {
         label: "Sales",
@@ -319,17 +293,6 @@ const ProtectedNavigation: React.FC = () => {
           {/* Header */}
           <div className="p-2 flex items-center justify-center border-b border-gray-200">
             <img src="oops-logo.png" alt="oops-logo" className="w-36" />
-            {/* <div className="flex items-center gap-3">
-              <div className="flex-shrink-0">
-                <Package className="h-8 w-8 text-blue-600" />
-              </div>
-              {!isCollapsed && (
-                <div className="min-w-0">
-                  <h1 className="font-bold text-lg text-gray-900 truncate">oOps BackOffice</h1>
-                  <p className="text-xs text-gray-500">Inventory System</p>
-                </div>
-              )}
-            </div> */}
           </div>
 
           {/* Navigation */}
