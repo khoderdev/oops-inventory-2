@@ -1,3 +1,5 @@
+import { userAPI } from "@/api/auth.ts";
+import { materialsAPI } from "@/api/matierials.api.ts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -8,26 +10,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getLogsTableHeaders } from "@/utils/getLogsTableHeaders";
 import { format, isValid } from "date-fns";
 import { CalendarIcon, Database, Download, FileText, TrendingUp } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
-import { LOG_CONFIGS, ACTION_TYPE_OPTIONS, LogType } from "./configs.tsx";
-import { 
-  generateActionTypeLogsReport,
-  generateDateRangeLogsReport,
-  generateFailedOperationsReport,
-  generateMaterialActivityLogsReport,
-  generateRecentActivityReport,
-  generateSearchLogsReport,
-  generateStockEntryLogsReport,
-  generateSummaryOverviewReport,
-  generateTodayLogsReport,
-  generateUserActivityLogsReport
-} from "./generationFunctions";
+import { useEffect, useMemo, useState } from "react";
+import { ACTION_TYPE_OPTIONS, LOG_CONFIGS, LogType } from "./configs.tsx";
+import { generateActionTypeLogsReport, generateDateRangeLogsReport, generateFailedOperationsReport, generateMaterialActivityLogsReport, generateRecentActivityReport, generateSearchLogsReport, generateStockEntryLogsReport, generateSummaryOverviewReport, generateTodayLogsReport, generateUserActivityLogsReport } from "./generationFunctions";
 import { LogsTable } from "./LogsTable";
-import { getLogsTableHeaders } from "@/utils/getLogsTableHeaders";
-import { materialsAPI } from "@/api/matierials.api.ts";
-import { userAPI } from "@/api/auth.ts";
 
 export interface SystemLogsGeneratorProps {
   className?: string;
@@ -55,13 +44,13 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
   const [isChangingLogType, setIsChangingLogType] = useState(false);
   const [dateFromOpen, setDateFromOpen] = useState(false);
   const [dateToOpen, setDateToOpen] = useState(false);
-  
+
   // Additional parameters
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>("");
   const [selectedActionType, setSelectedActionType] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  
+
   // Data for dropdowns
   const [users, setUsers] = useState<User[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -108,19 +97,19 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
     setIsLoading(false);
     setDateFromOpen(false);
     setDateToOpen(false);
-    
+
     // Reset additional parameters
     setSelectedUserId("");
     setSelectedMaterialId("");
     setSelectedActionType("");
     setSearchQuery("");
-    
+
     const newConfig = LOG_CONFIGS.find(config => config.id === newLogType);
     if (!newConfig?.requiresDateRange) {
       setDateFrom(undefined);
       setDateTo(undefined);
     }
-    
+
     setTimeout(() => {
       setSelectedLogType(newLogType);
       setIsChangingLogType(false);
@@ -134,7 +123,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
 
   const isAdditionalParamValid = useMemo(() => {
     if (!currentLogConfig?.requiresAdditionalParams) return true;
-    
+
     switch (currentLogConfig.additionalParamType) {
       case "userId":
         return selectedUserId !== "";
@@ -183,54 +172,51 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
             endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
           });
           break;
-          
+
         case "user-activity-logs":
           if (!selectedUserId) throw new Error("User ID is required");
           logResults = await generateUserActivityLogsReport(parseInt(selectedUserId));
           break;
-          
+
         case "material-activity-logs":
           if (!selectedMaterialId) throw new Error("Material ID is required");
           logResults = await generateMaterialActivityLogsReport(parseInt(selectedMaterialId));
           break;
-          
+
         case "failed-operations":
           logResults = await generateFailedOperationsReport();
           break;
-          
+
         case "recent-activity":
           logResults = await generateRecentActivityReport();
           break;
-          
+
         case "today-logs":
           logResults = await generateTodayLogsReport();
           break;
-          
+
         case "action-type-logs":
           if (!selectedActionType) throw new Error("Action type is required");
           logResults = await generateActionTypeLogsReport(selectedActionType);
           break;
-          
+
         case "date-range-logs":
           if (!dateFrom || !dateTo) throw new Error("Date range is required");
-          logResults = await generateDateRangeLogsReport(
-            format(dateFrom, "yyyy-MM-dd"),
-            format(dateTo, "yyyy-MM-dd")
-          );
+          logResults = await generateDateRangeLogsReport(format(dateFrom, "yyyy-MM-dd"), format(dateTo, "yyyy-MM-dd"));
           break;
-          
+
         case "summary-overview":
           logResults = await generateSummaryOverviewReport({
             startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
             endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
           });
           break;
-          
+
         case "search-logs":
           if (!searchQuery.trim()) throw new Error("Search query is required");
           logResults = await generateSearchLogsReport(searchQuery.trim());
           break;
-          
+
         default:
           throw new Error("Invalid log type");
       }
@@ -249,7 +235,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to generate logs. Please check the console for details.",
         variant: "destructive",
-        duration: 3000
+        duration: 1500
       });
     } finally {
       setIsLoading(false);
@@ -298,7 +284,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
             )}
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent className="flex-1 flex flex-col space-y-2 min-h-0 overflow-hidden">
           <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
@@ -392,7 +378,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
               {currentLogConfig?.requiresAdditionalParams && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">{currentLogConfig.additionalParamLabel}</Label>
-                  
+
                   {currentLogConfig.additionalParamType === "userId" && (
                     <Select value={selectedUserId} onValueChange={setSelectedUserId} disabled={isChangingLogType || isLoading || loadingUsers}>
                       <SelectTrigger className="h-16">
@@ -444,15 +430,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
                     </Select>
                   )}
 
-                  {currentLogConfig.additionalParamType === "searchQuery" && (
-                    <Input
-                      placeholder="Enter search query..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-16"
-                      disabled={isChangingLogType || isLoading}
-                    />
-                  )}
+                  {currentLogConfig.additionalParamType === "searchQuery" && <Input placeholder="Enter search query..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="h-16" disabled={isChangingLogType || isLoading} />}
                 </div>
               )}
             </div>
@@ -460,11 +438,7 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <Button 
-                onClick={generateLogs} 
-                disabled={isLoading || !isDateRangeValid || !isAdditionalParamValid || isChangingLogType} 
-                className="flex items-center justify-center gap-2 h-10 min-w-[140px]"
-              >
+              <Button onClick={generateLogs} disabled={isLoading || !isDateRangeValid || !isAdditionalParamValid || isChangingLogType} className="flex items-center justify-center gap-2 h-10 min-w-[140px]">
                 {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <TrendingUp className="h-4 w-4" />}
                 <span className="truncate">{isLoading ? "Generating..." : "Generate Logs"}</span>
               </Button>

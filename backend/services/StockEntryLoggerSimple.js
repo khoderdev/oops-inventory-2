@@ -148,8 +148,14 @@ class StockEntryLoggerSimple {
    * @param {Object} metadata - Additional metadata
    */
   async logWasteFromStock(originalStock, updatedStock, wastedQuantity, wastedUnit, reason, user, request = null, metadata = {}) {
-    const quantityDelta = this._calculateQuantityDelta(originalStock, updatedStock);
-    const costDelta = this._calculateCostDelta(originalStock, updatedStock);
+    // For waste operations, record the actual wasted quantity and cost as negative values
+    // Calculate the cost of the wasted quantity
+    const costPerUnit = parseFloat(updatedStock.costPerBaseUnit) || 0;
+    const wastedCost = Math.abs(wastedQuantity) * costPerUnit;
+    
+    // Record as negative values to show reduction in stock
+    const quantityDelta = -Math.abs(wastedQuantity);
+    const costDelta = -wastedCost;
 
     return this.logAction({
       actionType: "waste_from_stock",
@@ -169,7 +175,9 @@ class StockEntryLoggerSimple {
         wastedQuantity: Math.abs(wastedQuantity),
         wastedUnit,
         wasteReason: reason,
-        wasteCategory: this._categorizeWasteReason(reason)
+        wasteCategory: this._categorizeWasteReason(reason),
+        costPerUnit,
+        totalWastedCost: wastedCost
       }
     });
   }

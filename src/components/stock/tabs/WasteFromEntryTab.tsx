@@ -25,49 +25,57 @@ interface WasteFromEntryTabProps {
 }
 
 export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMaterial, stockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
-  const watchedQuantity = useWatch({ control: form.control, name: "wasteQuantity" });
+  const watchedQuantity = useWatch({ control: form.control, name: "purchasedQuantity" });
   const watchedCostPerUnit = useWatch({ control: form.control, name: "costPerPurchasedUnit" });
   const watchedPurchasedUnit = useWatch({ control: form.control, name: "purchasedUnit" });
 
-  // Set costPerPurchasedUnit based on purchasedUnit
+  // Set costPerPurchasedUnit based on purchasedUnit and calculate proportional cost from original entry
   useEffect(() => {
     const purchasedUnit = watchedPurchasedUnit;
 
-    if (!selectedMaterial) {
+    if (!selectedMaterial || !stockEntry) {
       form.setValue("costPerPurchasedUnit", "0.0000");
       return;
     }
 
+    // Calculate cost per unit based on the original stock entry's total cost and quantity
+    const originalTotalCost = Number(stockEntry.totalCost) || 0;
+    const originalQuantity = Number(stockEntry.purchasedQuantity) || 0;
+    const originalUnit = stockEntry.purchasedUnit;
+
+    if (originalTotalCost === 0 || originalQuantity === 0) {
+      form.setValue("costPerPurchasedUnit", "0.0000");
+      return;
+    }
+
+    // Calculate cost per original unit (e.g., cost per kg if original was in kg)
+    const costPerOriginalUnit = originalTotalCost / originalQuantity;
+
     if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity) {
       const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle"];
-      // Use the specific stock entry's cost, not the material's average cost
-      const costPerUnit = Number(stockEntry.costPerPurchasedUnit) || 0;
-
-      if (costPerUnit === 0) {
-        form.setValue("costPerPurchasedUnit", "0.0000");
-        return;
-      }
-
+      
       if (purchasedUnit === selectedMaterial.baseUnit) {
-        const costPerPiece = costPerUnit / selectedMaterial.packageQuantity;
+        // If wasting in base unit (e.g., pieces), calculate cost per piece
+        const costPerPiece = costPerOriginalUnit / selectedMaterial.packageQuantity;
         form.setValue("costPerPurchasedUnit", isNaN(costPerPiece) ? "0.0000" : costPerPiece.toFixed(4));
       } else if (validPackageUnits.includes(purchasedUnit as PackageUnit) && purchasedUnit === selectedMaterial.inputUnit) {
-        form.setValue("costPerPurchasedUnit", costPerUnit.toFixed(4));
+        // If wasting in input unit (e.g., boxes), use original cost per unit
+        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toFixed(4));
       } else {
         form.setValue("costPerPurchasedUnit", "0.0000");
       }
     } else {
-      // 👉 New logic for mass, volume, etc.
-      // Use the specific stock entry's cost, not the material's average cost
-      const averageCost = Number(stockEntry.costPerPurchasedUnit) || 0;
-
-      if (purchasedUnit === selectedMaterial.baseUnit && averageCost > 0) {
-        form.setValue("costPerPurchasedUnit", averageCost.toFixed(4));
+      // For mass, volume, etc. - calculate proportional cost
+      if (purchasedUnit === originalUnit) {
+        // Same unit as original entry - use direct cost per unit
+        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toFixed(4));
       } else {
-        const conversionFactor = getConversionFactor(purchasedUnit, selectedMaterial.baseUnit, selectedMaterial.unitType, selectedMaterial);
+        // Different unit - convert using conversion factor
+        const conversionFactor = getConversionFactor(originalUnit, purchasedUnit, selectedMaterial.unitType, selectedMaterial);
         if (conversionFactor > 0) {
-          const adjustedCost = averageCost * conversionFactor;
-          form.setValue("costPerPurchasedUnit", adjustedCost.toFixed(4));
+          // Convert original unit cost to waste unit cost
+          const costPerWasteUnit = costPerOriginalUnit / conversionFactor;
+          form.setValue("costPerPurchasedUnit", isNaN(costPerWasteUnit) ? "0.0000" : costPerWasteUnit.toFixed(4));
         } else {
           form.setValue("costPerPurchasedUnit", "0.0000");
         }
@@ -80,16 +88,33 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
     const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
     const totalCost = quantity * costPerUnit;
     form.setValue("totalCost", isNaN(totalCost) ? "0.00" : totalCost.toFixed(2));
-    console.log("Form Values:", { quantity, costPerUnit, totalCost });
-  }, [watchedQuantity, watchedCostPerUnit, form]);
+    
+    // Debug logging for cost calculations
+    if (stockEntry && selectedMaterial) {
+      console.log("💰 Waste Cost Calculation Debug:", {
+        originalEntry: {
+          totalCost: stockEntry.totalCost,
+          quantity: stockEntry.purchasedQuantity,
+          unit: stockEntry.purchasedUnit,
+          costPerUnit: Number(stockEntry.totalCost) / Number(stockEntry.purchasedQuantity)
+        },
+        wasteCalculation: {
+          wasteQuantity: quantity,
+          wasteUnit: watchedPurchasedUnit,
+          costPerWasteUnit: costPerUnit,
+          totalWasteCost: totalCost
+        }
+      });
+    }
+  }, [watchedQuantity, watchedCostPerUnit, watchedPurchasedUnit, form, stockEntry, selectedMaterial]);
 
   const handleSubmit = (data: StockFormInputs) => {
     console.log("🚀 WasteFromEntryTab2 handleSubmit called with data:", data);
-    console.log("🔍 Debug wasteQuantity:", data.wasteQuantity, typeof data.wasteQuantity);
+    console.log("🔍 Debug purchasedQuantity:", data.purchasedQuantity, typeof data.purchasedQuantity);
     console.log("🔍 Debug wasteReason:", data.wasteReason, typeof data.wasteReason);
 
-    const wasteQty = parseFloat(data.wasteQuantity) || 0;
-    console.log("🔍 Parsed wasteQuantity:", wasteQty);
+    const wasteQty = parseFloat(data.purchasedQuantity) || 0;
+    console.log("🔍 Parsed purchasedQuantity:", wasteQty);
 
     // Convert StockFormInputs to StockFormData format with stockEntryId
     const formData: StockFormData & { stockEntryId: string } = {
@@ -176,7 +201,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
 
             <FormField
               control={form.control}
-              name="wasteQuantity"
+              name="purchasedQuantity"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -304,6 +329,34 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
                 </FormItem>
               )}
             />
+          </div>
+
+          {/* Original Entry Cost Context */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Original Entry Cost Information</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">Original Total Cost:</span>
+                <span className="ml-2 font-medium">${Number(stockEntry?.totalCost || 0).toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Original Quantity:</span>
+                <span className="ml-2 font-medium">{stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Cost per {stockEntry?.purchasedUnit}:</span>
+                <span className="ml-2 font-medium">${(Number(stockEntry?.totalCost || 0) / Number(stockEntry?.purchasedQuantity || 1)).toFixed(4)}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Remaining Stock:</span>
+                <span className="ml-2 font-medium">
+                  {stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit 
+                    ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}`
+                    : `${stockEntry?.purchasedQuantity} ${stockEntry?.purchasedUnit}`
+                  }
+                </span>
+              </div>
+            </div>
           </div>
 
           <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={watchedPurchasedUnit} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />

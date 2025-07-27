@@ -1,6 +1,5 @@
 import { logsApiClient } from "@/api/logs.api";
 import { format } from "date-fns";
-import { LogType } from "./configs.tsx";
 
 // Generate stock entry logs report
 export async function generateStockEntryLogsReport(
@@ -35,8 +34,9 @@ export async function generateStockEntryLogsReport(
       "Action Type": log.actionType,
       Material: log.materialName,
       User: log.userName || "System",
-      "Quantity Δ": log.quantityDelta || 0,
-      "Cost Δ": log.costDelta || 0,
+      "Stock Entry": log.stockEntryId,
+      Quantity: log.quantityDelta || 0,
+      Cost: log.costDelta || 0,
       Status: log.status,
       Description: log.actionDescription || "-"
     }));
@@ -62,8 +62,8 @@ export async function generateUserActivityLogsReport(userId: number) {
       "Action Type": log.actionType,
       Material: log.materialName,
       "Stock Entry": log.stockEntryId,
-      "Quantity Δ": log.quantityDelta || 0,
-      "Cost Δ": log.costDelta || 0,
+      Quantity: log.quantityDelta || 0,
+      Cost: log.costDelta || 0,
       Status: log.status,
       Description: log.actionDescription || "-"
     }));
@@ -89,8 +89,8 @@ export async function generateMaterialActivityLogsReport(materialId: number) {
       "Action Type": log.actionType,
       User: log.userName || "System",
       "Stock Entry": log.stockEntryId,
-      "Quantity Δ": log.quantityDelta || 0,
-      "Cost Δ": log.costDelta || 0,
+      Quantity: log.quantityDelta || 0,
+      Cost: log.costDelta || 0,
       Status: log.status,
       Description: log.actionDescription || "-"
     }));
@@ -111,8 +111,8 @@ export async function generateFailedOperationsReport() {
       Material: log.materialName,
       User: log.userName || "System",
       "Error Message": log.errorMessage || "Unknown error",
-      "Quantity Δ": log.quantityDelta || 0,
-      "Cost Δ": log.costDelta || 0,
+      Quantity: log.quantityDelta || 0,
+      Cost: log.costDelta || 0,
       Description: log.actionDescription || "-"
     }));
   } catch (error) {
@@ -131,8 +131,8 @@ export async function generateRecentActivityReport() {
       "Action Type": log.actionType,
       Material: log.materialName,
       User: log.userName || "System",
-      "Quantity Δ": log.quantityDelta || 0,
-      "Cost Δ": log.costDelta || 0,
+      Quantity: log.quantityDelta || 0,
+      Cost: log.costDelta || 0,
       Status: log.status
     }));
   } catch (error) {
@@ -151,8 +151,8 @@ export async function generateTodayLogsReport() {
       "Action Type": log.actionType,
       Material: log.materialName,
       User: log.userName || "System",
-      "Quantity Δ": log.quantityDelta || 0,
-      "Cost Δ": log.costDelta || 0,
+      Quantity: log.quantityDelta || 0,
+      Cost: log.costDelta || 0,
       Status: log.status,
       Description: log.actionDescription || "-"
     }));
@@ -172,8 +172,8 @@ export async function generateActionTypeLogsReport(actionType: string) {
       Material: log.materialName,
       User: log.userName || "System",
       "Stock Entry": log.stockEntryId,
-      "Quantity Δ": log.quantityDelta || 0,
-      "Cost Δ": log.costDelta || 0,
+      Quantity: log.quantityDelta || 0,
+      Cost: log.costDelta || 0,
       Status: log.status,
       Description: log.actionDescription || "-"
     }));
@@ -193,8 +193,8 @@ export async function generateDateRangeLogsReport(startDate: string, endDate: st
       "Action Type": log.actionType,
       Material: log.materialName,
       User: log.userName || "System",
-      "Quantity Δ": log.quantityDelta || 0,
-      "Cost Δ": log.costDelta || 0,
+      Quantity: log.quantityDelta || 0,
+      Cost: log.costDelta || 0,
       Status: log.status,
       Description: log.actionDescription || "-"
     }));
@@ -305,8 +305,8 @@ export async function generateSearchLogsReport(
       "Action Type": log.actionType,
       Material: log.materialName,
       User: log.userName || "System",
-      "Quantity Δ": log.quantityDelta || 0,
-      "Cost Δ": log.costDelta || 0,
+      Quantity: log.quantityDelta || 0,
+      Cost: log.costDelta || 0,
       Status: log.status,
       Description: log.actionDescription || "-",
       Relevance: `${Math.max(100 - index * 2, 10)}%` // Simple relevance calculation
