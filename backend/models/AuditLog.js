@@ -62,10 +62,7 @@ const AuditLog = sequelize.define(
       type: DataTypes.INET,
       allowNull: true
     },
-    userAgent: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
+
     status: {
       type: DataTypes.ENUM("success", "failure", "warning"),
       allowNull: false,
@@ -73,7 +70,8 @@ const AuditLog = sequelize.define(
     },
     errorMessage: {
       type: DataTypes.TEXT,
-      allowNull: true
+      allowNull: true,
+      comment: "Detailed error message with context and troubleshooting information"
     },
     timestamp: {
       type: DataTypes.DATE,
@@ -105,7 +103,7 @@ const AuditLog = sequelize.define(
 );
 
 // Static methods for common audit actions
-AuditLog.logUserAction = async function(userId, action, resource, resourceId = null, oldValues = null, newValues = null, req = null) {
+AuditLog.logUserAction = async function (userId, action, resource, resourceId = null, oldValues = null, newValues = null, req = null) {
   try {
     const logData = {
       userId,
@@ -119,7 +117,6 @@ AuditLog.logUserAction = async function(userId, action, resource, resourceId = n
 
     if (req) {
       logData.ipAddress = req.ip || req.connection.remoteAddress;
-      logData.userAgent = req.get("User-Agent");
     }
 
     await this.create(logData);
@@ -129,7 +126,7 @@ AuditLog.logUserAction = async function(userId, action, resource, resourceId = n
   }
 };
 
-AuditLog.logFailedAction = async function(userId, action, resource, errorMessage, req = null) {
+AuditLog.logFailedAction = async function (userId, action, resource, errorMessage, req = null) {
   try {
     const logData = {
       userId,
@@ -141,7 +138,6 @@ AuditLog.logFailedAction = async function(userId, action, resource, errorMessage
 
     if (req) {
       logData.ipAddress = req.ip || req.connection.remoteAddress;
-      logData.userAgent = req.get("User-Agent");
     }
 
     await this.create(logData);
@@ -150,7 +146,7 @@ AuditLog.logFailedAction = async function(userId, action, resource, errorMessage
   }
 };
 
-AuditLog.logSystemAction = async function(action, resource, metadata = null) {
+AuditLog.logSystemAction = async function (action, resource, metadata = null) {
   try {
     await this.create({
       userId: null, // System action
@@ -164,9 +160,9 @@ AuditLog.logSystemAction = async function(action, resource, metadata = null) {
   }
 };
 
-AuditLog.getRecentActivity = async function(userId = null, limit = 50) {
+AuditLog.getRecentActivity = async function (userId = null, limit = 50) {
   const whereClause = userId ? { userId } : {};
-  
+
   return await this.findAll({
     where: whereClause,
     order: [["timestamp", "DESC"]],
@@ -182,23 +178,16 @@ AuditLog.getRecentActivity = async function(userId = null, limit = 50) {
   });
 };
 
-AuditLog.getSecurityEvents = async function(hours = 24) {
+AuditLog.getSecurityEvents = async function (hours = 24) {
   const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-  
+
   return await this.findAll({
     where: {
       timestamp: {
         [sequelize.Sequelize.Op.gte]: since
       },
       action: {
-        [sequelize.Sequelize.Op.in]: [
-          "login",
-          "login_failed",
-          "logout",
-          "password_change",
-          "account_locked",
-          "permission_denied"
-        ]
+        [sequelize.Sequelize.Op.in]: ["login", "login_failed", "logout", "password_change", "account_locked", "permission_denied"]
       }
     },
     order: [["timestamp", "DESC"]],

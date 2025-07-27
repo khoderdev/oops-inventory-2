@@ -14,19 +14,33 @@ class AuditService {
    */
   async logActivity(userId, action, resource, data = {}, req = null) {
     try {
+      // Map resource names for consistency
+      const resourceMap = {
+        'user': 'user_management',
+        'stock': 'stock_entries',
+        'stock_entry': 'stock_entries',
+        'material': 'material',
+        'order': 'pos',
+        'sale': 'pos',
+        'table': 'pos',
+        'auth': 'authentication',
+        'security': 'authentication'
+      };
+      
+      const mappedResource = resourceMap[resource.toLowerCase()] || resource.toLowerCase();
+      
       const auditData = {
         userId,
-        action: action.toUpperCase(),
-        resource: resource.toLowerCase(),
+        action: action.toLowerCase(),
+        resource: mappedResource,
         resourceId: data.resourceId?.toString() || null,
         oldValues: data.oldValues || null,
         newValues: data.newValues || null,
         status: data.status || 'success',
-        errorMessage: data.errorMessage || null,
+        errorMessage: data.errorMessage ? `${data.errorMessage} | Action: ${action} | Resource: ${mappedResource}` : null,
         metadata: {
           ...data.metadata,
           timestamp: new Date().toISOString(),
-          userAgent: req?.get('User-Agent'),
           endpoint: req?.path,
           method: req?.method,
           query: req?.query,
@@ -36,15 +50,14 @@ class AuditService {
 
       if (req) {
         auditData.ipAddress = req.ip || req.connection.remoteAddress;
-        auditData.sessionId = req.sessionId || req.headers['x-session-id'];
       }
 
       // Add to batch queue for performance
       this.auditQueue.push(auditData);
       
       // Process immediately for critical actions
-      const criticalActions = ['LOGIN', 'LOGOUT', 'DELETE', 'VOID', 'REVERT'];
-      if (criticalActions.includes(action.toUpperCase())) {
+      const criticalActions = ['login', 'logout', 'delete', 'void', 'revert'];
+      if (criticalActions.includes(action.toLowerCase())) {
         await this.processBatch();
       } else {
         this.scheduleBatchProcess();
@@ -60,10 +73,10 @@ class AuditService {
    */
   async logSecurityEvent(userId, event, details = {}, req = null) {
     const securityData = {
-      action: `SECURITY_${event.toUpperCase()}`,
-      resource: 'security',
+      action: event.toLowerCase(),
+      resource: 'authentication',
       status: details.success ? 'success' : 'failure',
-      errorMessage: details.error || null,
+      errorMessage: details.error ? `Security Event: ${details.error} | Event: ${event} | Attempts: ${details.attempts || 1} | Context: ${details.context || 'Security monitoring'}` : null,
       metadata: {
         event,
         details: this.sanitizeData(details),
@@ -82,11 +95,12 @@ class AuditService {
   async logSessionActivity(sessionId, action, userId = null, req = null) {
     try {
       const sessionData = {
-        action: `SESSION_${action.toUpperCase()}`,
-        resource: 'session',
+        action: action.toLowerCase(),
+        resource: 'authentication',
         resourceId: sessionId,
         metadata: {
           sessionId,
+          operationType: 'session',
           timestamp: new Date().toISOString()
         }
       };
@@ -109,14 +123,27 @@ class AuditService {
    * Log business operations (sales, orders, inventory)
    */
   async logBusinessOperation(userId, operation, entity, data = {}, req = null) {
+    // Map entity to consistent resource names
+    const entityResourceMap = {
+      'sale': 'pos',
+      'order': 'pos', 
+      'stock': 'stock_entries',
+      'stock_entry': 'stock_entries',
+      'material': 'material',
+      'user': 'user_management'
+    };
+    
+    const mappedResource = entityResourceMap[entity.toLowerCase()] || entity.toLowerCase();
+    
     const businessData = {
-      action: `${entity.toUpperCase()}_${operation.toUpperCase()}`,
-      resource: entity.toLowerCase(),
+      action: operation.toLowerCase(),
+      resource: mappedResource,
       resourceId: data.id?.toString() || data.resourceId?.toString(),
       oldValues: data.oldValues || null,
       newValues: data.newValues || null,
       metadata: {
         ...data.metadata,
+        operationType: entity.toLowerCase(),
         businessImpact: this.calculateBusinessImpact(entity, operation, data),
         timestamp: new Date().toISOString()
       }
@@ -132,10 +159,10 @@ class AuditService {
     try {
       await AuditLog.create({
         userId: null, // System event
-        action: `SYSTEM_${event.toUpperCase()}`,
+        action: event.toLowerCase(),
         resource: 'system',
         status: details.success !== false ? 'success' : 'failure',
-        errorMessage: details.error || null,
+        errorMessage: details.error ? `System Event: ${details.error} | Event: ${event} | Context: Automated system process` : null,
         metadata: {
           event,
           details: this.sanitizeData(details),
@@ -169,7 +196,7 @@ class AuditService {
 
     if (actions) {
       whereClause.action = {
-        [AuditLog.sequelize.Sequelize.Op.in]: actions.map(a => a.toUpperCase())
+        [AuditLog.sequelize.Sequelize.Op.in]: actions.map(a => a.toLowerCase())
       };
     }
 
@@ -200,8 +227,9 @@ class AuditService {
       timestamp: {
         [AuditLog.sequelize.Sequelize.Op.gte]: since
       },
+      resource: 'authentication',
       action: {
-        [AuditLog.sequelize.Sequelize.Op.like]: 'SECURITY_%'
+        [AuditLog.sequelize.Sequelize.Op.in]: ['login', 'logout', 'login_failed', 'password_change', 'account_locked', 'permission_denied']
       }
     };
 
@@ -238,7 +266,7 @@ class AuditService {
           [AuditLog.sequelize.Sequelize.Op.between]: [startDate, endDate]
         },
         resource: {
-          [AuditLog.sequelize.Sequelize.Op.in]: ['sale', 'order', 'stock_entry']
+          [AuditLog.sequelize.Sequelize.Op.in]: ['pos', 'stock_entries', 'material']
         }
       },
       attributes: [
@@ -267,16 +295,13 @@ class AuditService {
             [AuditLog.sequelize.Sequelize.Op.lt]: cutoffDate
           },
           // Keep security and critical business events longer
-          action: {
-            [AuditLog.sequelize.Sequelize.Op.notLike]: 'SECURITY_%'
-          },
           resource: {
-            [AuditLog.sequelize.Sequelize.Op.notIn]: ['sale', 'order']
+            [AuditLog.sequelize.Sequelize.Op.notIn]: ['authentication', 'pos']
           }
         }
       });
 
-      await this.logSystemEvent('AUDIT_CLEANUP', {
+      await this.logSystemEvent('audit_cleanup', {
         success: true,
         deletedCount,
         retentionDays,
@@ -285,7 +310,7 @@ class AuditService {
 
       return deletedCount;
     } catch (error) {
-      await this.logSystemEvent('AUDIT_CLEANUP', {
+      await this.logSystemEvent('audit_cleanup', {
         success: false,
         error: error.message
       });

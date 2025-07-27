@@ -92,9 +92,17 @@ const authController = {
   logout: async (req, res, next) => {
     try {
       if (req.session) {
+        const sessionData = {
+          sessionId: req.session.id,
+          userId: req.user.id,
+          username: req.user.username,
+          sessionDuration: new Date() - new Date(req.session.createdAt),
+          lastActivity: req.session.lastActivity
+        };
+        
         await req.session.update({ isActive: false });
 
-        await AuditLog.logUserAction(req.user.id, "logout", "authentication", null, null, { sessionId: req.session.id }, req);
+        await AuditLog.logUserAction(req.user.id, "logout", "authentication", null, null, sessionData, req);
       }
 
       res.status(200).json({

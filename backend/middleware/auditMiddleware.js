@@ -27,11 +27,32 @@ const sanitizeData = (data) => {
   return sanitized;
 };
 
-// Helper function to determine resource type from URL
+// Helper function to determine resource type from URL with better consistency
 const getResourceFromUrl = (url) => {
   const pathSegments = url.split('/').filter(segment => segment);
   if (pathSegments.length >= 2 && pathSegments[0] === 'api') {
-    return pathSegments[1].replace(/s$/, ''); // Remove trailing 's' for plurals
+    const resource = pathSegments[1];
+    
+    // Map specific resources for better consistency
+    const resourceMap = {
+      'auth': 'authentication',
+      'login': 'authentication', 
+      'logout': 'authentication',
+      'register': 'authentication',
+      'users': 'user_management',
+      'stock-entries': 'stock_entries',
+      'stockentries': 'stock_entries',
+      'materials': 'material',
+      'menu-items': 'menu_item',
+      'menuitems': 'menu_item',
+      'orders': 'pos',
+      'sales': 'pos',
+      'tables': 'pos',
+      'sections': 'section',
+      'day-operations': 'day_operations'
+    };
+    
+    return resourceMap[resource] || resource.replace(/s$/, ''); // Remove trailing 's' for plurals
   }
   return 'unknown';
 };
@@ -49,32 +70,67 @@ const getResourceIdFromUrl = (url, method) => {
   return null;
 };
 
+// Store recent logout actions to prevent duplicates
+const recentLogouts = new Map();
+const LOGOUT_DEDUP_WINDOW = 5000; // 5 seconds
+
 // Helper function to determine action from method and URL
 const getActionFromRequest = (method, url) => {
   const lowerUrl = url.toLowerCase();
   
   // Special action mappings
-  if (lowerUrl.includes('/login')) return 'LOGIN';
-  if (lowerUrl.includes('/logout')) return 'LOGOUT';
-  if (lowerUrl.includes('/register')) return 'REGISTER';
-  if (lowerUrl.includes('/reset-password')) return 'PASSWORD_RESET';
-  if (lowerUrl.includes('/change-password')) return 'PASSWORD_CHANGE';
-  if (lowerUrl.includes('/revert')) return 'REVERT';
-  if (lowerUrl.includes('/void')) return 'VOID';
-  if (lowerUrl.includes('/complete')) return 'COMPLETE';
-  if (lowerUrl.includes('/cancel')) return 'CANCEL';
-  if (lowerUrl.includes('/waste')) return 'WASTE';
-  if (lowerUrl.includes('/add-stock')) return 'ADD_STOCK';
+  if (lowerUrl.includes('/login')) return 'login';
+  if (lowerUrl.includes('/logout')) return 'logout';
+  if (lowerUrl.includes('/register')) return 'register';
+  if (lowerUrl.includes('/reset-password')) return 'password_reset';
+  if (lowerUrl.includes('/change-password')) return 'password_change';
+  if (lowerUrl.includes('/revert')) return 'revert';
+  if (lowerUrl.includes('/void')) return 'void';
+  if (lowerUrl.includes('/complete')) return 'complete';
+  if (lowerUrl.includes('/cancel')) return 'cancel';
+  if (lowerUrl.includes('/waste')) return 'waste';
+  if (lowerUrl.includes('/add-stock')) return 'add_stock';
   
   // Standard CRUD mappings
   switch (method) {
-    case 'POST': return 'CREATE';
-    case 'GET': return 'READ';
+    case 'POST': return 'create';
+    case 'GET': return 'read';
     case 'PUT': 
-    case 'PATCH': return 'UPDATE';
-    case 'DELETE': return 'DELETE';
-    default: return method;
+    case 'PATCH': return 'update';
+    case 'DELETE': return 'delete';
+    default: return method.toLowerCase();
   }
+};
+
+// Helper function to check if logout should be deduplicated
+const shouldDeduplicateLogout = (userId, sessionId, requestData, responseData) => {
+  const key = `${userId || 'anonymous'}_${sessionId || 'no-session'}`;
+  const now = Date.now();
+  
+  // Skip middleware-generated logout logs (response-based)
+  // Keep only the explicit logout logs from authController (with sessionId in newValues)
+  if (responseData && responseData.message === 'Logout successful' && 
+      (!requestData || !requestData.sessionId)) {
+    return true; // Skip response-based logout logs
+  }
+  
+  if (recentLogouts.has(key)) {
+    const lastLogout = recentLogouts.get(key);
+    if (now - lastLogout < LOGOUT_DEDUP_WINDOW) {
+      return true; // Skip duplicate logout within time window
+    }
+  }
+  
+  recentLogouts.set(key, now);
+  
+  // Clean up old entries
+  for (const [k, timestamp] of recentLogouts.entries()) {
+    if (now - timestamp > LOGOUT_DEDUP_WINDOW) {
+      recentLogouts.delete(k);
+    }
+  }
+  
+  return false;
 };
 
 // Main audit middleware
@@ -162,35 +218,59 @@ export const auditMiddleware = (options = {}) => {
             requestData = sanitizeData(req.body);
           }
         }
+        
+        // Skip duplicate logout entries
+        if (action === 'logout' && shouldDeduplicateLogout(userId, sessionId, requestData, responseData)) {
+          return;
+        }
+
+        // Prepare enhanced error message
+        let errorMessage = null;
+        if (status === 'failure' && responseData) {
+          const baseError = responseData.error || responseData.message || 'Unknown error';
+          const statusCode = responseStatus;
+          const endpoint = req.path;
+          const method = req.method;
+          
+          errorMessage = `${baseError} | Status: ${statusCode} | Endpoint: ${method} ${endpoint}`;
+          
+          // Add additional context for common errors
+          if (statusCode === 401) {
+            errorMessage += ' | Context: Authentication required or token expired';
+          } else if (statusCode === 403) {
+            errorMessage += ' | Context: Insufficient permissions for this operation';
+          } else if (statusCode === 404) {
+            errorMessage += ' | Context: Resource not found or endpoint does not exist';
+          } else if (statusCode === 422) {
+            errorMessage += ' | Context: Validation failed or invalid input data';
+          } else if (statusCode >= 500) {
+            errorMessage += ' | Context: Internal server error - check server logs';
+          }
+        }
 
         // Prepare audit log data
         const auditData = {
           userId,
-          sessionId,
           action,
           resource,
           resourceId,
-          endpoint: req.path,
-          method: req.method,
-          ipAddress: req.ip || req.connection.remoteAddress,
-          userAgent: req.get('User-Agent'),
-          requestData,
-          responseData: logResponseBody ? sanitizeData(responseData) : null,
-          status,
-          duration,
+          oldValues: null,
+          newValues: requestData,
           metadata: {
+            endpoint: req.path,
+            method: req.method,
             query: Object.keys(req.query).length > 0 ? req.query : null,
             params: Object.keys(req.params).length > 0 ? req.params : null,
             statusCode: responseStatus,
+            duration: `${duration}ms`,
             contentLength: res.get('Content-Length'),
+            responseData: logResponseBody ? sanitizeData(responseData) : null,
             timestamp: new Date().toISOString()
-          }
+          },
+          ipAddress: req.ip || req.connection.remoteAddress,
+          status,
+          errorMessage
         };
-
-        // Add error message for failed requests
-        if (status === 'failure' && responseData) {
-          auditData.errorMessage = responseData.error || responseData.message || 'Unknown error';
-        }
 
         // Create audit log
         await AuditLog.create(auditData);
@@ -208,23 +288,24 @@ export const auditSalesOperation = async (userId, action, saleData, oldData = nu
   try {
     const auditData = {
       userId,
-      action: `SALE_${action.toUpperCase()}`,
-      resource: 'sale',
+      action: `${action.toLowerCase()}`,
+      resource: 'pos',
       resourceId: saleData.id?.toString(),
       oldValues: oldData ? sanitizeData(oldData) : null,
       newValues: sanitizeData(saleData),
       metadata: {
+        operationType: 'sale',
         totalAmount: saleData.totalAmount,
         itemCount: saleData.items?.length || 0,
         menuItemCount: saleData.menuItems?.length || 0,
         sectionId: saleData.sectionId,
         timestamp: new Date().toISOString()
-      }
+      },
+      status: 'success'
     };
 
     if (req) {
       auditData.ipAddress = req.ip || req.connection.remoteAddress;
-      auditData.userAgent = req.get('User-Agent');
     }
 
     await AuditLog.create(auditData);
@@ -237,12 +318,13 @@ export const auditOrderOperation = async (userId, action, orderData, oldData = n
   try {
     const auditData = {
       userId,
-      action: `ORDER_${action.toUpperCase()}`,
-      resource: 'order',
+      action: `${action.toLowerCase()}`,
+      resource: 'pos',
       resourceId: orderData.id?.toString(),
       oldValues: oldData ? sanitizeData(oldData) : null,
       newValues: sanitizeData(orderData),
       metadata: {
+        operationType: 'order',
         orderNumber: orderData.orderNumber,
         orderType: orderData.orderType,
         status: orderData.status,
@@ -250,12 +332,12 @@ export const auditOrderOperation = async (userId, action, orderData, oldData = n
         total: orderData.total,
         itemCount: orderData.items?.length || 0,
         timestamp: new Date().toISOString()
-      }
+      },
+      status: 'success'
     };
 
     if (req) {
       auditData.ipAddress = req.ip || req.connection.remoteAddress;
-      auditData.userAgent = req.get('User-Agent');
     }
 
     await AuditLog.create(auditData);
@@ -268,8 +350,8 @@ export const auditStockOperation = async (userId, action, stockData, oldData = n
   try {
     const auditData = {
       userId,
-      action: `STOCK_${action.toUpperCase()}`,
-      resource: 'stock_entry',
+      action: `${action.toLowerCase()}`,
+      resource: 'stock_entries',
       resourceId: stockData.id?.toString(),
       oldValues: oldData ? sanitizeData(oldData) : null,
       newValues: sanitizeData(stockData),
@@ -281,12 +363,12 @@ export const auditStockOperation = async (userId, action, stockData, oldData = n
         purchasedUnit: stockData.purchasedUnit,
         totalCost: stockData.totalCost,
         timestamp: new Date().toISOString()
-      }
+      },
+      status: 'success'
     };
 
     if (req) {
       auditData.ipAddress = req.ip || req.connection.remoteAddress;
-      auditData.userAgent = req.get('User-Agent');
     }
 
     await AuditLog.create(auditData);
@@ -299,8 +381,8 @@ export const auditUserOperation = async (userId, action, userData, oldData = nul
   try {
     const auditData = {
       userId,
-      action: `USER_${action.toUpperCase()}`,
-      resource: 'user',
+      action: `${action.toLowerCase()}`,
+      resource: 'user_management',
       resourceId: userData.id?.toString(),
       oldValues: oldData ? sanitizeData(oldData) : null,
       newValues: sanitizeData(userData),
@@ -309,12 +391,12 @@ export const auditUserOperation = async (userId, action, userData, oldData = nul
         role: userData.role,
         email: userData.email,
         timestamp: new Date().toISOString()
-      }
+      },
+      status: 'success'
     };
 
     if (req) {
       auditData.ipAddress = req.ip || req.connection.remoteAddress;
-      auditData.userAgent = req.get('User-Agent');
     }
 
     await AuditLog.create(auditData);
@@ -328,10 +410,10 @@ export const auditSecurityEvent = async (userId, event, details, req = null) => 
   try {
     const auditData = {
       userId,
-      action: `SECURITY_${event.toUpperCase()}`,
-      resource: 'security',
+      action: `${event.toLowerCase()}`,
+      resource: 'authentication',
       status: details.success ? 'success' : 'failure',
-      errorMessage: details.error || null,
+      errorMessage: details.error ? `Security Event: ${details.error} | Event: ${event} | Context: ${details.context || 'Security monitoring'}` : null,
       metadata: {
         event,
         details: sanitizeData(details),
@@ -341,7 +423,6 @@ export const auditSecurityEvent = async (userId, event, details, req = null) => 
 
     if (req) {
       auditData.ipAddress = req.ip || req.connection.remoteAddress;
-      auditData.userAgent = req.get('User-Agent');
     }
 
     await AuditLog.create(auditData);
