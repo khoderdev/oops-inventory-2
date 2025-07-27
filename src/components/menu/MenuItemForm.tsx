@@ -149,9 +149,9 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   const validateForm = useCallback(() => {
     const newErrors: typeof errors = {};
-    if (!name.trim()) newErrors.name = "Name is required";
-    if (!category) newErrors.category = "Category is required";
-    if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) newErrors.price = "Valid price is required";
+    if (!name.trim()) newErrors.name = "required";
+    if (!category) newErrors.category = "required";
+    if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) newErrors.price = "required";
     if (ingredients.length === 0) newErrors.ingredients = "At least one ingredient is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -261,28 +261,37 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   }, [onCancel]);
 
   // Handle Enter key press to add ingredient
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddIngredient();
-    }
-  }, [handleAddIngredient]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleAddIngredient();
+      }
+    },
+    [handleAddIngredient]
+  );
 
   return (
     <div className="space-y-6 p-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
+      {/* Custom grid: Name (3 cols), Category (2 cols), Price (1 col), POS (2 cols) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4">
+        {/* Name field - takes 3 columns on large screens, 2 on medium */}
+        <div className="md:col-span-2 lg:col-span-3">
           <label htmlFor="name" className="block text-sm font-medium mb-1">
             Name <span className="text-red-500">*</span>
           </label>
           <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Hamburger" aria-invalid={!!errors.name} aria-describedby={errors.name ? "name-error" : undefined} />
-          {errors.name && (
+          {errors.name ? (
             <p id="name-error" className="text-sm text-red-500 mt-1">
               {errors.name}
             </p>
+          ) : (
+            <p className="text-sm text-gray-500 mt-1">Name is required</p>
           )}
         </div>
-        <div>
+
+        {/* Category field - takes 2 columns */}
+        <div className="md:col-span-1 lg:col-span-2">
           <label htmlFor="category" className="block text-sm font-medium mb-1">
             Category <span className="text-red-500">*</span>
           </label>
@@ -294,32 +303,41 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
               </option>
             ))}
           </select>
-          {errors.category && (
+          {errors.category ? (
             <p id="category-error" className="text-sm text-red-500 mt-1">
               {errors.category}
             </p>
+          ) : (
+            <p className="text-sm text-gray-500 mt-1">Category is required</p>
           )}
         </div>
-      </div>
 
-      <div>
-        <label htmlFor="price" className="block text-sm font-medium mb-1">
-          Price <span className="text-red-500">*</span>
-        </label>
-        <Input id="price" type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" min="0" step="0.01" aria-invalid={!!errors.price} aria-describedby={errors.price ? "price-error" : undefined} />
-        {errors.price && (
-          <p id="price-error" className="text-sm text-red-500 mt-1">
-            {errors.price}
-          </p>
-        )}
-      </div>
+        {/* Price field - takes 1 column (half the original width) */}
+        <div className="md:col-span-1 lg:col-span-1">
+          <label htmlFor="price" className="block text-sm font-medium mb-1">
+            Price <span className="text-red-500">*</span>
+          </label>
+          <Input id="price" type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" min="0" step="0.01" aria-invalid={!!errors.price} aria-describedby={errors.price ? "price-error" : undefined} />
+          {errors.price ? (
+            <p id="price-error" className="text-sm text-red-500 mt-1">
+              {errors.price}
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500 mt-1">price is required</p>
+          )}
+        </div>
 
-      <div className="flex items-center space-x-2">
-        <Switch id="isPOSItem" checked={isPOSItem} onCheckedChange={setIsPOSItem} />
-        <label htmlFor="isPOSItem" className="text-sm font-medium cursor-pointer">
-          Show in POS
-        </label>
-        <span className="text-xs text-muted-foreground">(Make this item available for sale in the POS system)</span>
+        {/* POS toggle - takes 2 columns */}
+        <div className="md:col-span-1 lg:col-span-2">
+          <label className="block text-sm font-medium mb-1">Show in POS</label>
+          <div className="flex items-center space-x-2 mt-2">
+            <Switch id="isPOSItem" checked={isPOSItem} onCheckedChange={setIsPOSItem} />
+            <label htmlFor="isPOSItem" className="text-sm font-medium cursor-pointer">
+              Available in POS
+            </label>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">(Make this item available for sale in the POS system)</p>
+        </div>
       </div>
 
       <div className="border-t pt-4">
