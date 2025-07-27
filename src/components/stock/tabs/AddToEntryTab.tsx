@@ -34,11 +34,12 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       const stockEntryCost = typeof stockEntry.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry.costPerPurchasedUnit || 0;
 
       let defaultCost: number;
-      if (selectedMaterial.unitType === "package" && watchedUnit === "piece" && selectedMaterial.packageQuantity) {
-        defaultCost = packageCost / selectedMaterial.packageQuantity;
-        form.clearErrors("costPerPurchasedUnit"); // Clear errors when switching to piece
+      if (selectedMaterial.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && selectedMaterial.packageQuantity) {
+        // For bottle/piece units, use the stock entry's cost per box divided by package quantity
+        defaultCost = stockEntryCost > 0 ? stockEntryCost / selectedMaterial.packageQuantity : packageCost / selectedMaterial.packageQuantity;
+        form.clearErrors("costPerPurchasedUnit"); // Clear errors when switching to piece or bottle
       } else if (selectedMaterial.unitType === "package" && watchedUnit === selectedMaterial.inputUnit) {
-        defaultCost = packageCost;
+        defaultCost = stockEntryCost || packageCost;
       } else {
         defaultCost = stockEntryCost || packageCost || 0;
       }
@@ -60,8 +61,8 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       const totalCost = (currentCost * quantity).toFixed(4);
       form.setValue("totalCost", totalCost);
 
-      // Validate cost for non-piece units
-      if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && selectedMaterial.inputUnit === watchedUnit) {
+      // Validate cost for non-piece/non-bottle units
+      if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && watchedUnit !== "bottle" && selectedMaterial.inputUnit === watchedUnit) {
         const packageCost = typeof selectedMaterial.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial.costPerUnit || 0;
         if (packageCost > 0 && Math.abs(currentCost - packageCost) / packageCost > 0.5) {
           form.setError("costPerPurchasedUnit", {
@@ -171,9 +172,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         className="h-11 w-11 border-gray-300 hover:border-red-500 hover:bg-red-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const decrement = selectedMaterial?.unitType === "package" && watchedUnit === "piece" ? 1 : 1;
+                          const decrement = selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") ? 1 : 1;
                           const newValue = Math.max(0, currentValue - decrement);
-                          field.onChange(watchedUnit === "piece" ? Math.round(newValue) : newValue);
+                          field.onChange((watchedUnit === "piece" || watchedUnit === "bottle") ? Math.round(newValue) : newValue);
                         }}
                         disabled={parseFloat(field.value) <= 0}
                       >
@@ -181,11 +182,11 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                       </Button>
                       <Input
                         type="number"
-                        step={selectedMaterial?.unitType === "package" && watchedUnit === "piece" ? 1 : 1}
+                        step={selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") ? 1 : 1}
                         min="0"
                         placeholder="0"
                         {...field}
-                        onChange={e => field.onChange(watchedUnit === "piece" ? Math.round(parseFloat(e.target.value) || 0) : e.target.value)}
+                        onChange={e => field.onChange((watchedUnit === "piece" || watchedUnit === "bottle") ? Math.round(parseFloat(e.target.value) || 0) : e.target.value)}
                         className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <Button
@@ -195,9 +196,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         className="h-11 w-11 border-gray-300 hover:border-green-500 hover:bg-green-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const increment = selectedMaterial?.unitType === "package" && watchedUnit === "piece" ? 1 : 1;
+                          const increment = selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") ? 1 : 1;
                           const newValue = currentValue + increment;
-                          field.onChange(watchedUnit === "piece" ? Math.round(newValue) : newValue);
+                          field.onChange((watchedUnit === "piece" || watchedUnit === "bottle") ? Math.round(newValue) : newValue);
                         }}
                       >
                         <Plus className="h-4 w-4" />
@@ -206,7 +207,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                   </FormControl>
                   <p className="text-xs text-green-600 mt-1">
                     This will be added to the existing {stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}
-                    {selectedMaterial?.unitType === "package" && watchedUnit === "piece" && <span className="block text-xs text-green-600 mt-1">Partial pack quantities are allowed</span>}
+                    {selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && <span className="block text-xs text-green-600 mt-1">Individual {watchedUnit} quantities are allowed</span>}
                   </p>
                   <FormMessage />
                 </FormItem>
@@ -241,7 +242,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
               )}
             />
 
-            {watchedUnit !== "piece" || selectedMaterial?.unitType !== "package" ? (
+            {(watchedUnit !== "piece" && watchedUnit !== "bottle") || selectedMaterial?.unitType !== "package" ? (
               <FormField
                 control={form.control}
                 name="costPerPurchasedUnit"
@@ -263,10 +264,20 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
               <FormItem>
                 <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   <Package className="h-4 w-4 text-green-600" />
-                  Cost per Piece
+                  Cost per {watchedUnit === "bottle" ? "Bottle" : "Piece"}
                 </FormLabel>
-                <p className="text-sm font-medium text-gray-900">${((typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0) / (selectedMaterial?.packageQuantity || 1)).toFixed(4)} (fixed)</p>
-                <p className="text-xs text-green-600 mt-1">Fixed cost: ${((typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0) / (selectedMaterial?.packageQuantity || 1)).toFixed(4)} per piece</p>
+                <p className="text-sm font-medium text-gray-900">${(() => {
+                  const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+                  const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
+                  const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
+                  return (boxCost / (selectedMaterial?.packageQuantity || 1)).toFixed(4);
+                })()} (fixed)</p>
+                <p className="text-xs text-green-600 mt-1">Fixed cost: ${(() => {
+                  const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+                  const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
+                  const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
+                  return (boxCost / (selectedMaterial?.packageQuantity || 1)).toFixed(4);
+                })()} per {watchedUnit}</p>
               </FormItem>
             )}
 
