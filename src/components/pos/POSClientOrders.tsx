@@ -12,6 +12,7 @@ import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertCircle, Calendar, Check, Clock, Eye, Package, Printer, Search, ShoppingBag, Truck, User, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
 interface POSClientOrdersProps {
@@ -46,6 +47,7 @@ const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
 };
 
 export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
@@ -164,7 +166,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
         id: orderData.orderNumber || orderData.id,
         date: new Date(orderData.createdAt).toLocaleDateString(),
         time: new Date(orderData.createdAt).toLocaleTimeString(),
-        cashier: "POS System",
+        cashier: user?.fullName || "POS System",
         items: orderData.items.map(item => ({
           name: item.name,
           quantity: item.quantity,
@@ -190,7 +192,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   // Handle filter changes
   const handleFilterChange = useCallback((key: keyof OrderFilters, value: any) => {
