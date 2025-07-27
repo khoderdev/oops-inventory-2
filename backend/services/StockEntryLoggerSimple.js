@@ -1,5 +1,6 @@
 import StockEntryLogSimple from "../models/StockEntryLogSimple.js";
 import { Material } from "../models/index.js";
+import { Op } from "sequelize";
 
 /**
  * Simple Stock Entry Logger Service
@@ -419,19 +420,48 @@ class StockEntryLoggerSimple {
    * @returns {Promise<Array>} History records
    */
   async getMaterialHistory(materialId, options = {}) {
-    const { limit = 100, actionTypes = null } = options;
+    const { limit = 100, actionTypes = null, startDate, endDate } = options;
 
+    // Build where clause
     let whereClause = { materialId };
 
     if (actionTypes && actionTypes.length > 0) {
       whereClause.actionType = actionTypes;
     }
 
+    // Add date filtering if provided
+    if (startDate && endDate) {
+      whereClause.actionTimestamp = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    } else if (startDate) {
+      whereClause.actionTimestamp = {
+        [Op.gte]: new Date(startDate)
+      };
+    } else if (endDate) {
+      whereClause.actionTimestamp = {
+        [Op.lte]: new Date(endDate)
+      };
+    }
+
     return await StockEntryLogSimple.findAll({
       where: whereClause,
       order: [["actionTimestamp", "DESC"]],
       limit,
-      attributes: ["id", "actionType", "actionTimestamp", "stockEntryId", "quantityDelta", "costDelta", "userName", "status"]
+      attributes: [
+        "id", 
+        "actionType", 
+        "actionTimestamp", 
+        "stockEntryId",
+        "materialId",
+        "materialName",
+        "userId",
+        "userName", 
+        "quantityDelta", 
+        "costDelta", 
+        "status",
+        "actionDescription"
+      ]
     });
   }
 
@@ -442,13 +472,44 @@ class StockEntryLoggerSimple {
    * @returns {Promise<Array>} Activity records
    */
   async getUserActivity(userId, options = {}) {
-    const { limit = 50 } = options;
+    const { limit = 50, startDate, endDate } = options;
+
+    // Build where clause
+    const whereClause = { userId };
+    
+    // Add date filtering if provided
+    if (startDate && endDate) {
+      whereClause.actionTimestamp = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    } else if (startDate) {
+      whereClause.actionTimestamp = {
+        [Op.gte]: new Date(startDate)
+      };
+    } else if (endDate) {
+      whereClause.actionTimestamp = {
+        [Op.lte]: new Date(endDate)
+      };
+    }
 
     return await StockEntryLogSimple.findAll({
-      where: { userId },
+      where: whereClause,
       order: [["actionTimestamp", "DESC"]],
       limit,
-      attributes: ["id", "actionType", "actionTimestamp", "materialName", "quantityDelta", "status"]
+      attributes: [
+        "id", 
+        "actionType", 
+        "actionTimestamp", 
+        "stockEntryId",
+        "materialId",
+        "materialName", 
+        "userId",
+        "userName",
+        "quantityDelta", 
+        "costDelta",
+        "status",
+        "actionDescription"
+      ]
     });
   }
 }
