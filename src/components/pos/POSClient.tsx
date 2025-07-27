@@ -148,12 +148,76 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     if (clearOrder) {
       clearOrder();
     }
-
     // Clear all order persistence data (localStorage)
     OrderPersistence.clearAllData();
-
     // Show success message
   }, [clearOrder]);
+
+  // Handle order selection for editing
+  const handleOrderSelect = useCallback(
+    async (order: any) => {
+      try {
+
+
+        setIsLoading(true);
+        setError(null);
+
+        // Clear current cart and state
+        setCart([]);
+        setHasUnsavedChanges(false);
+
+        // Load the order using the order management hook
+        if (loadOrder) {
+          await loadOrder(order.id);
+        }
+
+        // Set order type and table if applicable
+        setOrderType(order.orderType || "takeaway");
+        if (order.orderType === "table" && order.table) {
+          setSelectedTable(order.table);
+        } else {
+          setSelectedTable(undefined);
+        }
+
+        // Convert order items to cart items
+        const cartItems: POSCartItem[] =
+          order.items?.map((item: any) => {
+
+            
+            // Find the original item for proper saving
+            let originalItem: StockEntryWithMaterial | MenuItem | undefined;
+            
+            if (item.materialId) {
+              // Find stock entry by materialId
+              originalItem = stockEntries.find(se => se.materialId === item.materialId);
+            } else if (item.menuItemId) {
+              // Find menu item by menuItemId
+              originalItem = menuItems.find(mi => mi.id === item.menuItemId);
+            }
+            
+            return {
+              id: item.id || `${item.materialId || item.menuItemId}-${Date.now()}`,
+              stockEntryId: item.materialId, // materialId maps to stockEntryId
+              menuItemId: item.menuItemId,
+              name: item.name,
+              price: parseFloat(item.unitPrice) || 0,
+              quantity: parseInt(item.quantity) || 1,
+              type: item.materialId ? "material" : "menu",
+              originalItem // This is crucial for saving
+            };
+          }) || [];
+
+        setCart(cartItems);
+        setHasUnsavedChanges(false); // This is an existing order, not unsaved
+      } catch (error) {
+        console.error("Failed to load order for editing:", error);
+        showError("Failed to load order for editing. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [loadOrder, showError, stockEntries, menuItems]
+  );
 
   // Update optimistic assignments when props change
   useEffect(() => {
@@ -634,7 +698,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         clearCartWithAnimation();
         setHasUnsavedChanges(false);
         OrderPersistence.clearCurrentOrder();
-        
+
         // Clear current order from order management (voidOrder hook may handle this, but ensure it's cleared)
         if (clearOrder) {
           clearOrder();
@@ -1015,7 +1079,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       )}
 
       {/* Orders Management Dialog */}
-      <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} />
+      <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} onOrderSelect={handleOrderSelect} />
     </div>
   );
 };

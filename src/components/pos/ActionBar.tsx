@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calculator, DollarSign, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, X } from "lucide-react";
+import { Calculator, DollarSign, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
 import React from "react";
 
 // Action button configuration interface
@@ -78,7 +78,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
   let buttons: ActionButtonConfig[];
   let columns: number;
   let className: string;
-  
+
   // Check if user has access to Back Office (Admin or Manager only)
   const canAccessBackOffice = user?.role === "admin" || user?.role === "manager";
 
@@ -98,7 +98,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
       { id: "cancel", icon: X, label: "Cancel", active: false, onClick: onCancelOrder, disabled: !onCancelOrder },
       {
         id: "void",
-        icon: X,
+        icon: Trash,
         label: "Void",
         active: canVoidOrder,
         onClick: onVoidOrder,
@@ -113,9 +113,11 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         label: "Back Office",
         active: false,
         disabled: !canAccessBackOffice,
-        onClick: canAccessBackOffice ? () => {
-          window.location.href = "/";
-        } : undefined
+        onClick: canAccessBackOffice
+          ? () => {
+              window.location.href = "/";
+            }
+          : undefined
       }
     ];
     columns = 6;

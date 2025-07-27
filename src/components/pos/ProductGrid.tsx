@@ -10,7 +10,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ filteredItems, filtere
       <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7">
         {/* Material Items */}
         {filteredItems.map(assignment => (
-          <Card key={assignment.id} className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => onAddToCart(assignment, "material")}>
+          <Card key={assignment.id} className="cursor-pointer select-none transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => onAddToCart(assignment, "material")}>
             <CardContent className="p-4 text-center">
               <div className="w-10 h-10 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
                 <Package className="w-6 h-6 text-gray-400" />
@@ -21,25 +21,25 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ filteredItems, filtere
                   (() => {
                     // assignment IS the stock entry, not a container
                     const stockEntry = assignment as any;
-                    
+
                     // Try to get cost per base unit first (most accurate)
                     if (stockEntry.costPerBaseUnit && stockEntry.costPerBaseUnit !== "0") {
                       return parseFloat(stockEntry.costPerBaseUnit);
                     }
-                    
+
                     // Fallback: calculate from total cost and quantity
                     if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity && stockEntry.purchasedIndividualQuantity > 0) {
                       const calculated = parseFloat(stockEntry.totalCost) / stockEntry.purchasedIndividualQuantity;
                       return calculated;
                     }
-                    
+
                     // Last fallback: use cost per purchased unit
                     if (stockEntry.costPerPurchasedUnit) {
-                      console.log('Using costPerPurchasedUnit:', stockEntry.costPerPurchasedUnit);
+                      console.log("Using costPerPurchasedUnit:", stockEntry.costPerPurchasedUnit);
                       return parseFloat(stockEntry.costPerPurchasedUnit);
                     }
-                    
-                    console.log('No price found, returning 0');
+
+                    console.log("No price found, returning 0");
                     return 0;
                   })()
                 )}
@@ -50,7 +50,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ filteredItems, filtere
 
         {/* Menu Items */}
         {filteredMenuItems.map(menuItem => (
-          <Card key={menuItem.id} className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => onAddToCart(menuItem, "menu")}>
+          <Card key={menuItem.id} className="cursor-pointer select-none transition-all hover:shadow-lg hover:scale-105 border-2 border-teal-200 hover:border-teal-300" onClick={() => onAddToCart(menuItem, "menu")}>
             <CardContent className="p-4 text-center">
               <div className="w-10 h-10 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
                 <ShoppingCart className="w-6 h-6 text-gray-400" />

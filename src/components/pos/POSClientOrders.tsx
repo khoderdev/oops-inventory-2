@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ReceiptData } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { AlertCircle, Calendar, Check, Clock, Eye, Package, Printer, Search, ShoppingBag, Truck, User, X } from "lucide-react";
+import { AlertCircle, Calendar, Check, Clock, Edit, Eye, Package, Printer, Search, ShoppingBag, Truck, User, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptPrinter } from "./ReceiptPrinter";
@@ -18,6 +18,7 @@ import { ReceiptPrinter } from "./ReceiptPrinter";
 interface POSClientOrdersProps {
   isOpen: boolean;
   onClose: () => void;
+  onOrderSelect?: (order: Order) => void;
 }
 
 interface OrderFilters {
@@ -46,7 +47,7 @@ const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
   table: <ShoppingBag className="w-4 h-4" />
 };
 
-export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClose }) => {
+export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClose, onOrderSelect }) => {
   const { user } = useAuth();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -214,6 +215,32 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   const clearFilters = useCallback(() => {
     setFilters({});
   }, []);
+
+  // Handle order selection for editing
+  const handleOrderSelect = useCallback(async (orderSummary: OrderSummary) => {
+    if (!onOrderSelect) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await ordersAPI.getOrder(orderSummary.id);
+      // Handle nested response structure
+      const responseData = response.data as any;
+      const orderData = responseData.data || responseData;
+
+      // Call the parent callback to load order into POS cart
+      onOrderSelect(orderData);
+      
+      // Close the orders dialog
+      onClose();
+    } catch (error) {
+      console.error("Failed to load order for editing:", error);
+      setError("Failed to load order for editing. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onOrderSelect, onClose]);
 
   // Handle order status update
   const handleUpdateOrderStatus = useCallback(
@@ -400,7 +427,11 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                   {orders.map(order => (
-                    <Card key={order.id} className="hover:shadow-md transition-shadow">
+                    <Card 
+                      key={order.id} 
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => handleOrderSelect(order)}
+                    >
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-lg font-semibold">{order.orderNumber}</CardTitle>
@@ -433,11 +464,39 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                           <div className="flex items-center justify-between pt-2 border-t">
                             <span className="text-lg font-semibold text-green-600">{formatCurrency(order.total)}</span>
                             <div className="flex space-x-2">
-                              <Button variant="outline" size="sm" onClick={() => handleViewOrderDetails(order)} className="flex items-center space-x-1">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOrderSelect(order);
+                                }} 
+                                className="flex items-center space-x-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200"
+                              >
+                                <Edit className="w-4 h-4" />
+                                <span>Edit</span>
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewOrderDetails(order);
+                                }} 
+                                className="flex items-center space-x-1"
+                              >
                                 <Eye className="w-4 h-4" />
                                 <span>View</span>
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => handlePrintOrderReceipt(order)} className="flex items-center space-x-1">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrintOrderReceipt(order);
+                                }} 
+                                className="flex items-center space-x-1"
+                              >
                                 <Printer className="w-4 h-4" />
                                 <span>Print</span>
                               </Button>

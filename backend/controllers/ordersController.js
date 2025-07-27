@@ -161,7 +161,8 @@ export const ordersController = {
             ]
           },
           { model: Table, as: "table" },
-          { model: User, as: "creator" }
+          { model: User, as: "creator", attributes: ["id", "username"] }
+          // { model: User, as: "updater", attributes: ["id", "name"] }
         ],
         order: [[orderBy, order.toUpperCase()]],
         limit: parseInt(limit),
@@ -207,8 +208,8 @@ export const ordersController = {
             ]
           },
           { model: Table, as: "table" },
-          { model: User, as: "creator" },
-          { model: User, as: "updater" }
+          { model: User, as: "creator", attributes: ["id", "username"] },
+          { model: User, as: "updater", attributes: ["id", "username"] }
         ]
       });
 
@@ -412,8 +413,8 @@ export const ordersController = {
       }
 
       // Log order data for debugging
-      console.log('Order data:', JSON.stringify(order, null, 2));
-      console.log('Order items:', JSON.stringify(order.items, null, 2));
+      console.log("Order data:", JSON.stringify(order, null, 2));
+      console.log("Order items:", JSON.stringify(order.items, null, 2));
 
       // Convert order to sale format
       const saleData = {
@@ -451,12 +452,11 @@ export const ordersController = {
       };
 
       // Log the sale data for debugging
-      console.log('Sale data being sent:', JSON.stringify(saleData, null, 2));
+      console.log("Sale data being sent:", JSON.stringify(saleData, null, 2));
 
       const saleResult = await new Promise((resolve, reject) => {
-        const originalJson = mockRes.json;
         mockRes.json = data => {
-          console.log('Sales controller response:', JSON.stringify(data, null, 2));
+          console.log("Sales controller response:", JSON.stringify(data, null, 2));
           if (data.error || data.message?.includes("failed")) {
             reject(new Error(`Sale creation failed: ${data.error || data.message}`));
           } else {
@@ -465,7 +465,7 @@ export const ordersController = {
         };
 
         salesController.createSales(mockReq, mockRes).catch(error => {
-          console.log('Sales controller threw error:', error);
+          console.log("Sales controller threw error:", error);
           reject(error);
         });
       });
@@ -576,7 +576,7 @@ export const ordersController = {
   // Void order - Enhanced cancellation with stock restoration
   voidOrder: async (req, res) => {
     const transaction = await sequelize.transaction();
-    
+
     try {
       const { orderId } = req.params;
       const { reason, restoreStock = true } = req.body;
@@ -610,13 +610,13 @@ export const ordersController = {
       const stockRestorations = [];
       if (restoreStock && order.items && order.items.length > 0) {
         console.log("📦 Restoring stock for voided order items...");
-        
+
         for (const item of order.items) {
           if (item.materialId && item.type === "material") {
             try {
               // Find the material's stock entries to restore stock
               const { StockEntry } = await import("../models/index.js");
-              
+
               // Find the most recent stock entry for this material
               const stockEntry = await StockEntry.findOne({
                 where: { materialId: item.materialId },
@@ -627,9 +627,12 @@ export const ordersController = {
               if (stockEntry) {
                 // Restore the quantity that was consumed
                 const restoredQuantity = stockEntry.purchasedIndividualQuantity + item.quantity;
-                await stockEntry.update({
-                  purchasedIndividualQuantity: restoredQuantity
-                }, { transaction });
+                await stockEntry.update(
+                  {
+                    purchasedIndividualQuantity: restoredQuantity
+                  },
+                  { transaction }
+                );
 
                 stockRestorations.push({
                   materialId: item.materialId,
@@ -648,12 +651,15 @@ export const ordersController = {
       }
 
       // Update order status to cancelled (voided)
-      await order.update({
-        status: "cancelled",
-        cancelReason: reason || "Order voided",
-        cancelledAt: new Date(),
-        updatedBy: userId
-      }, { transaction });
+      await order.update(
+        {
+          status: "cancelled",
+          cancelReason: reason || "Order voided",
+          cancelledAt: new Date(),
+          updatedBy: userId
+        },
+        { transaction }
+      );
 
       // Free up table when order is voided
       if (order.tableId) {
@@ -686,8 +692,8 @@ export const ordersController = {
 
       console.log("✅ Order voided successfully:", orderId);
 
-      res.json({ 
-        message: "Order voided successfully", 
+      res.json({
+        message: "Order voided successfully",
         order: voidedOrder,
         stockRestorations: stockRestorations.length > 0 ? stockRestorations : null
       });
