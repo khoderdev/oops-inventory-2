@@ -3,28 +3,47 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import UserManagementPage from "./components/admin/UserManagementPage";
-import { ReportGenerator } from "./components/analytics/ReportGenerator";
-import LoginPage from "./components/auth/LoginPage";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
-import { InventoryManagementPanel } from "./components/inventory/InventoryManagementPanel";
-import ProtectedNavigation from "./components/layout/ProtectedNavigation";
-import { MenuItemBuilder } from "./components/menu/MenuBuilder";
-import { POSPanel } from "./components/POSPanel";
-import ProfilePage from "./components/profile/ProfilePage";
-import SessionManagementPage from "./components/profile/SessionManagementPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 import { useInventoryData } from "./hooks/useInventoryData";
-import DayOperationsPage from "./pages/DayOperationsPage";
-import NotFound from "./pages/NotFound";
-import POSClientPage from "./pages/POSClientPage";
-import { SalesHistoryPage } from "./pages/SalesHistoryPage";
 import { PERMISSIONS } from "./types/auth";
 import { InventoryManagementPanelProps } from "./types/inventory";
 
+// Lazy load components for better performance
+const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
+const PermissionsManagementDashboard = lazy(() => import("./components/admin/PermissionsManagementDashboard"));
+const ReportGenerator = lazy(() => import("./components/analytics/ReportGenerator").then(m => ({ default: m.ReportGenerator })));
+const LoginPage = lazy(() => import("./components/auth/LoginPage"));
+const ProtectedRoute = lazy(() => import("./components/auth/ProtectedRoute"));
+const InventoryManagementPanel = lazy(() => import("./components/inventory/InventoryManagementPanel").then(m => ({ default: m.InventoryManagementPanel })));
+const ProtectedNavigation = lazy(() => import("./components/layout/ProtectedNavigation"));
+const MenuItemBuilder = lazy(() => import("./components/menu/MenuBuilder").then(m => ({ default: m.MenuItemBuilder })));
+const POSPanel = lazy(() => import("./components/POSPanel").then(m => ({ default: m.POSPanel })));
+const ProfilePage = lazy(() => import("./components/profile/ProfilePage"));
+const SessionManagementPage = lazy(() => import("./components/profile/SessionManagementPage"));
+const DayOperationsPage = lazy(() => import("./pages/DayOperationsPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const POSClientPage = lazy(() => import("./pages/POSClientPage"));
+const SalesHistoryPage = lazy(() => import("./pages/SalesHistoryPage").then(m => ({ default: m.SalesHistoryPage })));
+
+// Placeholder components for future implementation
+const PlaceholderPage = ({ title, description }: { title: string; description: string }) => (
+  <div className="p-8 text-center">
+    <h1 className="text-2xl font-bold text-gray-900 mb-4">{title}</h1>
+    <p className="text-gray-600">{description}</p>
+  </div>
+);
+
 const queryClient = new QueryClient();
+
+// Loading component for Suspense fallback
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
+);
 
 // Layout component for authenticated pages
 const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
@@ -32,14 +51,18 @@ const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ProtectedNavigation />
-      <main className={`px-4 transition-all duration-300 ease-in-out ${isCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>{children}</main>
+      <Suspense fallback={<LoadingFallback />}>
+        <ProtectedNavigation />
+      </Suspense>
+      <main className={`px-4 transition-all duration-300 ease-in-out ${isCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
+        <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
+      </main>
     </div>
   );
 };
 
 // Role-based route wrapper that redirects STAFF users to POS client
-const RoleBasedRoute = ({ children, fallbackPath = "/pos-client" }: { children: React.ReactNode; fallbackPath?: string }) => {
+const RoleBasedRoute = ({ children, fallbackPath = "/pos" }: { children: React.ReactNode; fallbackPath?: string }) => {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -71,199 +94,531 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
         <BrowserRouter>
           <AuthProvider>
             <SidebarProvider>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/login" element={<LoginPage />} />
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/login" element={<LoginPage />} />
 
-                {/* Protected routes */}
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <DayOperationsPage />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Dashboard - Default route */}
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <DayOperationsPage />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* POS - Backoffice */}
-                <Route
-                  path="/pos"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* POS System Routes */}
+                  <Route
+                    path="/backoffice-pos"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/pos"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
+                        <POSClientPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* POS Client - Full Screen */}
-                <Route
-                  path="/pos-client"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SALES_CREATE}>
-                      <POSClientPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/inventory"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Materials Management */}
+                  <Route
+                    path="/materials"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/materials/create"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_CREATE}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Create Material" description="Material creation functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/materials/categories"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_MANAGE_CATEGORIES}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Material Categories" description="Category management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Sales */}
-                <Route
-                  path="/sales"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <SalesHistoryPage />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/sales-history"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <SalesHistoryPage />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/menu-items"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} sections={sections} />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Inventory & Stock Management */}
+                  <Route
+                    path="/inventory"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/inventory/adjustments"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_ADJUST}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Stock Adjustments" description="Stock adjustment functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/inventory/transfers"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_TRANSFER}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Stock Transfers" description="Stock transfer functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/inventory/waste"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_WASTE_RECORD}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Waste Management" description="Waste tracking functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/inventory/assignments"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.ASSIGNMENTS_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <InventoryManagementPanel />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Day Operations */}
-                <Route
-                  path="/day-operations"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <DayOperationsPage />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Sales & Transactions */}
+                  <Route
+                    path="/sales"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <SalesHistoryPage />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/sales/history"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <SalesHistoryPage />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/sales/refunds"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SALES_REFUND}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Refunds Management" description="Refund processing functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Profile Management */}
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <ProfilePage />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Orders Management */}
+                  <Route
+                    path="/orders"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Orders Management" description="Order management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/orders/queue"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_MANAGE_QUEUE}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Order Queue" description="Order queue management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/profile/sessions"
-                  element={
-                    <ProtectedRoute>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <SessionManagementPage />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Menu Management */}
+                  <Route
+                    path="/menu"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} sections={sections} />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/menu/categories"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_CATEGORIES}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Menu Categories" description="Menu category management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/menu/recipes"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_RECIPES}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Recipe Management" description="Recipe management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/menu/pricing"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_PRICING}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Menu Pricing" description="Menu pricing management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Admin Routes */}
-                <Route
-                  path="/admin/users"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.USERS_READ} requiredRole={["admin", "manager"]}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <UserManagementPage />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Day Operations */}
+                  <Route
+                    path="/day-operations"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <DayOperationsPage />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/day-operations/close"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CLOSE}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Close Day" description="Day closing functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/day-operations/cash-count"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CASH_COUNT}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Cash Count" description="Cash counting functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Reports */}
-                <Route
-                  path="/reports"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_READ}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <ReportGenerator className="w-full" />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Reports & Analytics */}
+                  <Route
+                    path="/reports"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <ReportGenerator className="w-full" />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/reports/sales"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <ReportGenerator className="w-full" />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/reports/inventory"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_INVENTORY}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Inventory Reports" description="Inventory reporting functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/reports/financial"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_FINANCIAL}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Financial Reports" description="Financial reporting functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/analytics"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_DASHBOARD}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Analytics Dashboard" description="Analytics dashboard functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/analytics/trends"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_TRENDS}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Trend Analysis" description="Trend analysis functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Analytics */}
-                <Route
-                  path="/analytics"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_READ}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <div className="p-8 text-center">
-                            <h1 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h1>
-                            <p className="text-gray-600">Analytics functionality coming soon...</p>
-                          </div>
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/inventory/assignments"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ASSIGNMENTS_READ}>
-                      <RoleBasedRoute>
-                        <AuthenticatedLayout>
-                          <InventoryManagementPanel />
-                        </AuthenticatedLayout>
-                      </RoleBasedRoute>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Financial Management */}
+                  <Route
+                    path="/finance"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.FINANCE_VIEW_COSTS}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Financial Management" description="Financial management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/finance/budgets"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.FINANCE_BUDGETS}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Budget Management" description="Budget management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* 404 */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  {/* Customer Management */}
+                  <Route
+                    path="/customers"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.CUSTOMERS_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Customer Management" description="Customer management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/customers/loyalty"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.CUSTOMERS_LOYALTY}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Loyalty Program" description="Loyalty program functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Suppliers & Procurement */}
+                  <Route
+                    path="/suppliers"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SUPPLIERS_READ}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Supplier Management" description="Supplier management functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/procurement"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.PROCUREMENT_ORDERS}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Procurement" description="Procurement functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Profile Management */}
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <ProfilePage />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile/sessions"
+                    element={
+                      <ProtectedRoute>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <SessionManagementPage />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Admin Routes */}
+                  <Route
+                    path="/admin/users"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.USERS_READ} requiredRole={["admin", "manager"]}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <UserManagementPage />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/permissions"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.USERS_MANAGE_PERMISSIONS} requiredRole={["admin"]}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PermissionsManagementDashboard />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/system"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="System Administration" description="System administration functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/audit"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.AUDIT_TRAILS} requiredRole={["admin", "manager"]}>
+                        <RoleBasedRoute>
+                          <AuthenticatedLayout>
+                            <PlaceholderPage title="Audit & Compliance" description="Audit and compliance functionality coming soon..." />
+                          </AuthenticatedLayout>
+                        </RoleBasedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* 404 */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </SidebarProvider>
           </AuthProvider>
         </BrowserRouter>

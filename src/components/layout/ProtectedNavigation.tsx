@@ -51,8 +51,14 @@ const ProtectedNavigation: React.FC = () => {
         icon: ShoppingCart,
         children: [
           {
-            label: "POS System",
+            label: "POS Client",
             href: "/pos",
+            icon: ShoppingCart,
+            permission: PERMISSIONS.SALES_CREATE
+          },
+          {
+            label: "POS Backoffice",
+            href: "/backoffice-pos",
             icon: ShoppingCart,
             permission: PERMISSIONS.SALES_CREATE
           },

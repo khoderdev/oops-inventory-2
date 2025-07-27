@@ -188,7 +188,7 @@ const DayOperationsPage: React.FC = () => {
           </button>
           <span className="text-gray-400">•</span>
         </div>
-        <button onClick={() => navigate("/pos-client")} className="flex items-center text-gray-600 hover:text-gray-900 transition-colors">
+        <button onClick={() => navigate("/pos")} className="flex items-center text-gray-600 hover:text-gray-900 transition-colors">
           <BarChart3 className="h-5 w-5 mr-2" />
           POS Client
         </button>
