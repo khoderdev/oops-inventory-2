@@ -48,14 +48,6 @@ const Material = sequelize.define(
       comment: "Original input unit from MaterialForm (e.g., 'box', 'pack')"
     },
 
-    // costPerBaseUnit: {
-    //   type: DataTypes.DECIMAL(10, 2),
-    //   allowNull: true,
-    //   validate: {
-    //     isDecimal: { msg: "Cost per base unit must be a decimal number" }
-    //   }
-    // },
-
     packageQuantity: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -75,13 +67,6 @@ const Material = sequelize.define(
           }
         }
       }
-    },
-
-    isPOSItem: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-      comment: "Whether this material should be visible in the POS system"
     }
   },
   {

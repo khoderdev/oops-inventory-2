@@ -94,7 +94,7 @@ const materialController = {
   updateMaterial: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { name, baseUnit, unitType, inputUnit, packageQuantity, category, isPOSItem } = req.body;
+      const { name, baseUnit, unitType, inputUnit, packageQuantity, category } = req.body;
 
       const material = await Material.findByPk(id);
       if (!material) {
@@ -126,27 +126,9 @@ const materialController = {
         unitType: unitType !== undefined ? unitType : material.unitType,
         inputUnit: inputUnit !== undefined ? inputUnit : material.inputUnit,
         packageQuantity: packageQuantity !== undefined ? packageQuantity : material.packageQuantity,
-        category: category !== undefined ? category : material.category,
-        isPOSItem: isPOSItem !== undefined ? isPOSItem : material.isPOSItem
+        category: category !== undefined ? category : material.category
       });
 
-      res.status(200).json(material);
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  updateMaterialPOS: async (req, res, next) => {
-    try {
-      const { id } = req.params;
-      const { isPOSItem } = req.body;
-      const material = await Material.findByPk(id);
-
-      if (!material) {
-        return res.status(404).json({ error: "Material not found" });
-      }
-
-      await material.update({ isPOSItem });
       res.status(200).json(material);
     } catch (err) {
       next(err);

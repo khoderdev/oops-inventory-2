@@ -237,7 +237,7 @@ const salesController = {
 
           // Check if this is a POS item (no assignment required)
           if (!item.assignmentId || item.assignmentId === null) {
-            // Fetch material directly to check if it's a POS item
+            // For items without assignment, check if there are POS-enabled stock entries
             material = await Material.findByPk(item.materialId, { transaction });
 
             if (!material) {
@@ -245,15 +245,23 @@ const salesController = {
               return res.status(400).json({ error: `Material ${item.materialId} not found` });
             }
 
-            isPOSItem = material.isPOSItem;
+            // Find POS-enabled stock entries for this material
+            const posStockEntries = await StockEntry.findAll({
+              where: {
+                materialId: item.materialId,
+                isPOSItem: true
+              },
+              order: [["createdAt", "ASC"]], // FIFO
+              transaction
+            });
 
-            if (!isPOSItem) {
+            if (posStockEntries.length === 0) {
               await transaction.rollback();
-              return res.status(400).json({ error: `Assignment required for non-POS item: ${material.name}` });
+              return res.status(400).json({ error: `No POS-enabled stock entries found for material: ${material.name}. Either assign to a section or enable POS visibility for stock entries.` });
             }
 
-            // For POS items, we don't need assignment or stock entry validation
-            console.log(`Processing POS item: ${material.name} (no assignment required)`);
+            isPOSItem = true;
+            console.log(`Processing POS item: ${material.name} (${posStockEntries.length} POS-enabled stock entries found)`);
           } else {
             // Regular item with assignment
             assignment = await Assignment.findByPk(item.assignmentId, {
@@ -292,10 +300,11 @@ const salesController = {
               stockDeductionQuantity = item.quantity;
             }
 
-            // Find stock entries for this POS material using FIFO
+            // Find POS-enabled stock entries for this material using FIFO
             const stockEntries = await StockEntry.findAll({
               where: {
-                materialId: material.id
+                materialId: material.id,
+                isPOSItem: true
               },
               order: [["createdAt", "ASC"]], // FIFO - First In, First Out
               transaction

@@ -48,6 +48,7 @@ router.post("/record-waste", requirePermission("stock.update"), warnIfDayClosed,
 router.post("/:id/add-to-entry", requirePermission("stock.update"), warnIfDayClosed, logStockActivity, auditAction("stock_add_to_entry", "stock"), stockEntriesController.addToSpecificEntry);
 router.post("/:id/waste-from-entry", requirePermission("stock.update"), warnIfDayClosed, logStockActivity, auditAction("stock_waste_from_entry", "stock"), stockEntriesController.wasteFromSpecificEntry);
 router.put("/:id", requirePermission("stock.update"), warnIfDayClosed, logStockActivity, auditAction("stock_update", "stock"), stockEntriesController.updateStockEntries);
+router.patch("/:id/pos", requirePermission("stock.update"), auditAction("stock_pos_update", "stock"), stockEntriesController.updateStockEntryPOS);
 router.delete("/:id", requirePermission("stock.delete"), warnIfDayClosed, logStockActivity, auditAction("stock_delete", "stock"), stockEntriesController.deleteStockEntries);
 
 export default router;

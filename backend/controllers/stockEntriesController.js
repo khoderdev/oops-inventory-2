@@ -66,7 +66,7 @@ const stockEntriesController = {
   // Create new stock entry
   createStockEntries: async (req, res, next) => {
     try {
-      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate } = req.body;
+      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
 
       if (!materialId || !supplier || !purchasedQuantity || !purchasedUnit || !costPerPurchasedUnit || !totalCost || !purchaseDate) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -127,7 +127,8 @@ const stockEntriesController = {
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: numericTotalCost,
         purchaseDate,
-        expiryDate
+        expiryDate,
+        isPOSItem: isPOSItem !== undefined ? isPOSItem : false
       });
 
       const createdStockEntry = await StockEntry.findByPk(stockEntry.id, {
@@ -151,7 +152,7 @@ const stockEntriesController = {
   updateStockEntries: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate } = req.body;
+      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
 
       const numericPurchasedQuantity = purchasedQuantity ? parseFloat(purchasedQuantity) : undefined;
       const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
@@ -228,7 +229,8 @@ const stockEntriesController = {
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: finalTotalCost,
         purchaseDate: purchaseDate ?? stockEntry.purchaseDate,
-        expiryDate: expiryDate ?? stockEntry.expiryDate
+        expiryDate: expiryDate ?? stockEntry.expiryDate,
+        isPOSItem: isPOSItem !== undefined ? isPOSItem : stockEntry.isPOSItem
       });
 
       const updatedStockEntry = await StockEntry.findByPk(id, {
@@ -854,6 +856,49 @@ const stockEntriesController = {
       });
     } catch (error) {
       console.error("Error recording waste:", error);
+      next(error);
+    }
+  },
+
+  // Update POS visibility for a stock entry
+  updateStockEntryPOS: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { isPOSItem } = req.body;
+
+      if (isPOSItem === undefined) {
+        return res.status(400).json({ error: "isPOSItem field is required" });
+      }
+
+      const stockEntry = await StockEntry.findByPk(id, {
+        include: { model: Material, as: "material" }
+      });
+
+      if (!stockEntry) {
+        return res.status(404).json({ error: "Stock entry not found" });
+      }
+
+      // Store original stock entry data for audit
+      const originalStockEntry = stockEntry.toJSON();
+
+      await stockEntry.update({ isPOSItem });
+
+      const updatedStockEntry = await StockEntry.findByPk(id, {
+        include: { model: Material, as: "material" }
+      });
+
+      // Log successful POS visibility update
+      const userId = req.user?.id;
+      if (userId) {
+        await auditStockOperation(userId, 'UPDATE', updatedStockEntry.toJSON(), originalStockEntry, req);
+      }
+
+      res.status(200).json({
+        message: `Stock entry POS visibility updated to ${isPOSItem ? 'visible' : 'hidden'}`,
+        stockEntry: updatedStockEntry
+      });
+    } catch (error) {
+      console.error("Error updating stock entry POS visibility:", error);
       next(error);
     }
   }

@@ -14,7 +14,6 @@ router.get("/", requirePermission("materials.read"), materialController.getAllMa
 // Write operations
 router.post("/", requirePermission("materials.create"), auditAction("material_create", "material"), materialController.createMaterial);
 router.put("/:id", requirePermission("materials.update"), auditAction("material_update", "material"), materialController.updateMaterial);
-router.patch("/:id", requirePermission("materials.update"), auditAction("material_update", "material"), materialController.updateMaterialPOS);
 router.delete("/:id", requirePermission("materials.delete"), auditAction("material_delete", "material"), materialController.deleteMaterial);
 
 export default router;
