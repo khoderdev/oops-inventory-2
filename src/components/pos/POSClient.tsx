@@ -100,6 +100,61 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setHasUnsavedChanges(false);
   }, []);
 
+  // Comprehensive reset function - clears everything in POS system
+  const handleCancelOrder = useCallback(() => {
+    // Clear cart and local state
+    setCart([]);
+    setHasUnsavedChanges(false);
+    
+    // Reset order type and table selection
+    setOrderType("takeaway");
+    setSelectedTable(undefined);
+    setShowTablesLayout(false);
+    
+    // Clear search and filters
+    setActiveCategory("all");
+    
+    // Clear any dialogs
+    setShowPaymentDialog(false);
+    setShowReceiptDialog(false);
+    setShowVoidDialog(false);
+    setShowOrdersDialog(false);
+    setShowNegativeStockDialog(false);
+    setShowUnsavedDialog(false);
+    
+    // Clear payment amount
+    setPaymentAmount("");
+    
+    // Clear messages
+    setError(null);
+    setSuccessMessage(null);
+    
+    // Clear any timeouts
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+    }
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
+    }
+    if (checkmarkTimeoutRef.current) {
+      clearTimeout(checkmarkTimeoutRef.current);
+      checkmarkTimeoutRef.current = null;
+    }
+    
+    // Clear current order from order management
+    if (clearOrder) {
+      clearOrder();
+    }
+    
+    // Clear all order persistence data (localStorage)
+    OrderPersistence.clearAllData();
+    
+    // Show success message
+    showSuccess("POS system reset successfully");
+  }, [clearOrder, showSuccess]);
+
   // Update optimistic assignments when props change
   useEffect(() => {
     setOptimisticAssignments(sectionAssignments);
@@ -838,7 +893,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         {/* Bottom Action Bar - Fixed Footer */}
         <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} canVoidOrder={!!currentOrder} />
+          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} canVoidOrder={!!currentOrder} />
         </div>
       </div>
 

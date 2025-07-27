@@ -95,7 +95,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         onClick: onPrintReceipt,
         disabled: !canPrintReceipt || !onPrintReceipt
       },
-      { id: "cancel", icon: Package, label: "Cancel", active: false, onClick: onCancelOrder, disabled: !onCancelOrder },
+      { id: "cancel", icon: X, label: "Cancel", active: false, onClick: onCancelOrder, disabled: !onCancelOrder },
       {
         id: "void",
         icon: X,
