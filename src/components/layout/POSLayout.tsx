@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { POSLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
-import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power } from "lucide-react";
+import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power, TrendingUp, ShoppingCart } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout }) => {
@@ -70,118 +70,182 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   };
 
   return (
-    <div className="h-screen w-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
+    <div className="h-screen w-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 flex flex-col overflow-hidden relative">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/10 to-cyan-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
+      
       {/* POS Header */}
-      <header className="bg-teal-500 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm px-6 py-0 flex items-center justify-between shrink-0">
+      <header className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 border-b border-slate-200/20 dark:border-slate-600/30 shadow-xl backdrop-blur-sm px-4 py-3 flex items-center justify-between shrink-0">
+        {/* Glass morphism overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 dark:from-white/5 dark:to-white/10 backdrop-blur-sm" />
         {/* Left Section - Branding */}
-        <div className="flex items-center py-1">
+        <div className="relative flex items-center py-2 z-10">
           {/* Cached Logo with Loading State and Performance Optimization */}
-          <div className="relative w-24 h-8 flex items-center justify-center">
+          <div className="relative w-32 h-10 flex items-center justify-center group">
             {!isLoaded && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
               </div>
             )}
-            <img
-              src={logoSrc}
-              alt={LOGO_CONFIGS.MAIN_LOGO.alt}
-              className={`w-24 transition-opacity duration-300 ${isLoaded ? "opacity-100" : "opacity-0"}`}
-              style={{
-                // Critical performance optimizations
-                display: "block",
-                maxWidth: "100%",
-                height: "auto",
-                // Prevent layout shifts
-                aspectRatio: "3/1",
-                objectFit: "contain",
-                // GPU acceleration for smooth transitions
-                transform: "translateZ(0)",
-                willChange: "opacity"
-              }}
-              // Preload hint for browser optimization
-              loading="eager"
-              decoding="sync"
-              onLoad={() => {}}
-              onError={e => {
-                console.error("POS Logo failed to load:", error);
-                const target = e.target as HTMLImageElement;
-                target.style.display = "none";
-              }}
-            />
-            {error && !isLoaded && <div className="absolute inset-0 flex items-center justify-center text-xs text-white font-bold">oOps POS</div>}
+            {isLoaded && (
+              <img 
+                src={logoSrc} 
+                alt={LOGO_CONFIGS.MAIN_LOGO.alt}
+                className="w-full h-full object-contain transition-all duration-300 group-hover:scale-105 filter drop-shadow-lg"
+                style={{
+                  transform: 'translateZ(0)',
+                  willChange: 'transform',
+                  objectFit: 'contain'
+                }}
+                loading="eager"
+                decoding="sync"
+              />
+            )}
+            {error && (
+              <div className="text-white font-bold text-lg tracking-wide">
+                oOps Resto
+              </div>
+            )}
+            {/* Development indicator */}
+            {process.env.NODE_ENV === 'development' && isPreloaded && (
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" 
+                   title="Logo preloaded" />
+            )}
           </div>
         </div>
 
         {/* Center Section - Date & Time */}
-        <div className="flex items-center space-x-6">
-          <div className="text-center">
-            <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
-              <Calendar className="w-4 h-4" />
-              <span className="text-lg font-mono font-bold">{formatDate(currentTime)}</span>
+        <div className="relative flex items-center space-x-8 z-10">
+          <div className="group">
+            <div className="flex items-center space-x-3 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 hover:scale-105">
+              <Calendar className="w-5 h-5 text-blue-300 group-hover:text-blue-200 transition-colors" />
+              <span className="text-lg font-mono font-semibold text-white/90 group-hover:text-white transition-colors">
+                {formatDate(currentTime)}
+              </span>
             </div>
           </div>
-          <div className="text-center">
-            <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
-              <Clock className="w-4 h-4" />
-              <span className="text-lg font-mono font-bold">{formatTime(currentTime)}</span>
+          <div className="group">
+            <div className="flex items-center space-x-3 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 hover:scale-105">
+              <Clock className="w-5 h-5 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
+              <span className="text-lg font-mono font-semibold text-white/90 group-hover:text-white transition-colors tabular-nums">
+                {formatTime(currentTime)}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Right Section - User & Controls */}
-        <div className="flex items-center space-x-4">
+        <div className="relative flex items-center space-x-6 z-10">
           {/* Session Stats */}
-          <div className="flex items-center space-x-4 mr-10">
-            {/* <Card className="px-3 py-0"> */}
-            <div className="flex space-x-2 items-center text-center">
-              <div className="text-lg font-semibold text-black dark:text-slate-400">Total Sales</div>
-              <div className="text-lg font-bold text-[#9d3623]">{formatCurrency(currentTotal)}</div>
+          <div className="flex items-center space-x-4">
+            {/* Total Sales Card */}
+            <div className="group relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
+              <div className="relative flex items-center space-x-3 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 hover:scale-105">
+                <TrendingUp className="w-5 h-5 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
+                <div className="flex flex-col">
+                  <div className="text-xs font-medium text-white/70 uppercase tracking-wide">Total Sales</div>
+                  <div className="text-lg font-bold text-emerald-300 group-hover:text-emerald-200 transition-colors tabular-nums">
+                    {formatCurrency(currentTotal)}
+                  </div>
+                </div>
+              </div>
             </div>
-            {/* </Card> */}
-            {/* <Card className="px-3 py-0"> */}
-            <div className="flex space-x-2 items-center text-center">
-              <div className="text-lg font-semibold text-black dark:text-slate-400">Transactions</div>
-              <div className="text-lg font-bold text-[#9d3623]">{transactionCount}</div>
+
+            {/* Transactions Card */}
+            <div className="group relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
+              <div className="relative flex items-center space-x-3 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 hover:scale-105">
+                <ShoppingCart className="w-5 h-5 text-blue-300 group-hover:text-blue-200 transition-colors" />
+                <div className="flex flex-col">
+                  <div className="text-xs font-medium text-white/70 uppercase tracking-wide">Transactions</div>
+                  <div className="text-lg font-bold text-blue-300 group-hover:text-blue-200 transition-colors tabular-nums">
+                    {transactionCount}
+                  </div>
+                </div>
+              </div>
             </div>
-            {/* </Card> */}
           </div>
 
           {/* User Info */}
-          <div className="text-center">
-            <div className="text-md font-medium text-black dark:text-slate-100">{user?.username || "User"}</div>
+          <div className="group">
+            <div className="flex items-center space-x-3 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                {(user?.username || "U").charAt(0).toUpperCase()}
+              </div>
+              <div className="flex flex-col">
+                <div className="text-xs font-medium text-white/70 uppercase tracking-wide">Cashier</div>
+                <div className="text-sm font-semibold text-white/90 group-hover:text-white transition-colors">
+                  {user?.username || "User"}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Control Buttons */}
           <div className="flex items-center space-x-2">
-            {/* <Button variant="outline" size="sm" onClick={toggleFullscreen} className="p-2"> */}
-            {isFullscreen ? <Minimize2 className="w-6 h-6 cursor-pointer text-white hover:text-white/50" onClick={toggleFullscreen} /> : <Maximize2 className="w-6 h-6 cursor-pointer text-white hover:text-white/50" onClick={toggleFullscreen} />}
-            {/* </Button> */}
+            <button
+              onClick={toggleFullscreen}
+              className="group relative p-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 hover:scale-110 active:scale-95"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {isFullscreen ? (
+                <Minimize2 className="w-5 h-5 text-white/80 group-hover:text-white transition-colors relative z-10" />
+              ) : (
+                <Maximize2 className="w-5 h-5 text-white/80 group-hover:text-white transition-colors relative z-10" />
+              )}
+            </button>
 
-            {/* <Button variant="ghost" size="sm" onClick={() => setShowLogoutDialog(true)} className="!p-0"> */}
-            <Power className="w-6 h-6 cursor-pointer text-white hover:text-white/50" onClick={() => setShowLogoutDialog(true)} />
-            {/* </Button> */}
+            <button
+              onClick={() => setShowLogoutDialog(true)}
+              className="group relative p-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-red-500/20 hover:scale-110 active:scale-95"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-pink-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <Power className="w-5 h-5 text-red-400 group-hover:text-red-300 transition-colors relative z-10" />
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main POS Content */}
-      <main className="flex-1 overflow-hidden">{children}</main>
+      <main className="relative flex-1 overflow-hidden z-10">
+        <div className="h-full w-full bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
+          {children}
+        </div>
+      </main>
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
-              <span>Confirm Logout</span>
+        <DialogContent className="sm:max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 shadow-2xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-orange-500/5 rounded-lg" />
+          <DialogHeader className="relative z-10">
+            <DialogTitle className="flex items-center space-x-3 text-lg">
+              <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full">
+                <AlertCircle className="w-5 h-5 text-white" />
+              </div>
+              <span className="bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent font-semibold">
+                Confirm Logout
+              </span>
             </DialogTitle>
-            <DialogDescription>Are you sure you want to logout from the POS system? Make sure all transactions are completed.</DialogDescription>
+            <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+              Are you sure you want to logout from the POS system? Make sure all transactions are completed before logging out.
+            </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowLogoutDialog(false)}>
+          <DialogFooter className="relative z-10 flex space-x-3 mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowLogoutDialog(false)}
+              className="flex-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border-slate-200 dark:border-slate-700 hover:bg-white/80 dark:hover:bg-slate-800/80 transition-all duration-300"
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleLogout}>
+            <Button 
+              onClick={handleLogout}
+              className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
+            >
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>

@@ -671,14 +671,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setShowTablesLayout(false);
   }, []);
 
-  // Calculate totals
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // Calculate totals - with safety check for undefined cart
+  const subtotal = (cart || []).reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = 0; // No tax applied
   const total = subtotal; // Total equals subtotal (no tax)
 
   // Print current order receipt
   const handlePrintReceipt = useCallback(() => {
-    if (cart.length === 0) {
+    if (!cart || cart.length === 0) {
       showError("No items in cart to print");
       return;
     }
@@ -717,7 +717,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       return;
     }
 
-    if (cart.length === 0 && !currentOrder.items?.length) {
+    if ((!cart || cart.length === 0) && !currentOrder.items?.length) {
       showError("Cannot void an empty order");
       return;
     }
@@ -918,7 +918,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                         <span>#{currentOrder.orderNumber}</span>
                         <span className="text-xs opacity-75">({currentOrder.status})</span>
                       </div>
-                    ) : cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
+                    ) : (cart && cart.length > 0) && (orderType === "delivery" || orderType === "takeaway") ? (
                       <div className="flex items-center space-x-1">
                         <span>#{generatePreviewOrderNumber()}</span>
                         <span className="text-xs opacity-75">(Preview)</span>
@@ -930,7 +930,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 </div>
               )}
             </div>
-            {cart.length > 0 && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
+            {(cart && cart.length > 0) && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
           </div>
         </div>
 

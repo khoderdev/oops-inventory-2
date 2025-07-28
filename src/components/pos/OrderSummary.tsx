@@ -5,7 +5,7 @@ import React from "react";
 import { ActionButton } from "./ActionBar";
 
 export const OrderSummary: React.FC<OrderSummaryProps> = ({ cart, subtotal, total, onPaymentClick, onSaveClick }) => {
-  if (cart.length === 0) {
+  if (!cart || cart.length === 0) {
     return null;
   }
 
