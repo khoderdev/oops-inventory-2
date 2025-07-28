@@ -24,7 +24,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
-      <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden" onOpenAutoFocus={e => e.preventDefault()}>
+      <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden" onOpenAutoFocus={e => e.preventDefault()} aria-hidden={false}>
         <div className="w-full h-full flex flex-col overflow-hidden">
           {/* Header */}
           <DialogHeader className="flex-shrink-0 px-8 pt-8 pb-4 border-b">
@@ -52,7 +52,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
 
             {/* Quick Amount Buttons */}
             <div className="p-4">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {quickAmounts.map(amount => {
                   const isTotal = amount === total;
                   const isSelected = parseFloat(paymentAmount) === amount;

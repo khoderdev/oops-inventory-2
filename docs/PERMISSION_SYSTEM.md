@@ -1,15 +1,18 @@
-# Enhanced Permission System Documentation
+# Permission System Documentation
 
 ## Overview
 
-The enhanced permission system provides comprehensive role-based access control (RBAC) throughout the application using Jotai atoms for state management and custom React hooks for easy integration.
+The permission system provides comprehensive role-based access control (RBAC)
+throughout the application using Jotai atoms for state management and custom
+React hooks for easy integration.
 
 ## Architecture
 
 ### Core Components
 
 1. **Permission Atoms** (`src/store/permissionAtoms.ts`)
-   - Centralized state management for user permissions, roles, and authentication
+   - Centralized state management for user permissions, roles, and
+     authentication
    - Cached permission checks for performance optimization
    - Automatic synchronization with AuthContext
 
@@ -25,9 +28,9 @@ The enhanced permission system provides comprehensive role-based access control 
    - `usePermissionRender`: Hook for inline conditional rendering
    - `RoleBasedUI`: Component for role-specific UI variants
 
-4. **Enhanced Routing** (`src/components/EnhancedApp.tsx`)
+4. ** Routing** (`src/components/App.tsx`)
    - Complete route coverage for all 133 permissions
-   - Enhanced route protection with role-based redirects
+   - route protection with role-based redirects
    - Placeholder pages for unimplemented features
 
 ## Usage Examples
@@ -64,14 +67,14 @@ function UserManagement() {
   return (
     <div>
       <h1>User Management</h1>
-      
+
       {/* Only show create button if user has create permission */}
       <PermissionWrapper requiredPermission={PERMISSIONS.USERS_CREATE}>
         <Button onClick={createUser}>Create User</Button>
       </PermissionWrapper>
 
       {/* Show fallback message if permission is missing */}
-      <PermissionWrapper 
+      <PermissionWrapper
         requiredPermission={PERMISSIONS.USERS_DELETE}
         showFallback={true}
         fallback={<div>Contact admin to delete users</div>}
@@ -80,7 +83,7 @@ function UserManagement() {
       </PermissionWrapper>
 
       {/* Multiple permission requirements */}
-      <PermissionWrapper 
+      <PermissionWrapper
         requiredAllPermissions={[PERMISSIONS.USERS_READ, PERMISSIONS.USERS_UPDATE]}
       >
         <UserEditForm />
@@ -161,7 +164,7 @@ function MyComponent() {
         <ReportsSection />,
         <div>Reports not available</div>
       )}
-      
+
       {renderIfRole(
         'admin',
         <AdminControls />,
@@ -174,9 +177,11 @@ function MyComponent() {
 
 ## Permission Constants
 
-All permissions are defined in `src/types/auth.ts` under the `PERMISSIONS` constant. The system includes 133 granular permissions covering:
+All permissions are defined in `src/types/auth.ts` under the `PERMISSIONS`
+constant. The system includes 133 granular permissions covering:
 
-- **POS Operations**: Transaction processing, payment handling, receipt management
+- **POS Operations**: Transaction processing, payment handling, receipt
+  management
 - **Inventory Management**: Materials, suppliers, stock tracking, adjustments
 - **Sales Management**: Orders, customers, pricing, promotions
 - **Menu Management**: Items, categories, modifiers, pricing
@@ -191,22 +196,29 @@ All permissions are defined in `src/types/auth.ts` under the `PERMISSIONS` const
 The system supports three main roles with inherited permissions:
 
 1. **Staff**: Basic operational permissions (POS, basic inventory viewing)
-2. **Manager**: Staff permissions + management operations (reports, user management, advanced inventory)
+2. **Manager**: Staff permissions + management operations (reports, user
+   management, advanced inventory)
 3. **Admin**: All permissions including system administration and configuration
 
 ## Performance Considerations
 
-- **Caching**: Permission checks are cached using Jotai atoms to prevent repeated calculations
+- **Caching**: Permission checks are cached using Jotai atoms to prevent
+  repeated calculations
 - **Lazy Loading**: Route components are lazy-loaded for better performance
 - **Memoization**: Permission hooks use React.useMemo for expensive operations
-- **Batch Updates**: Permission state updates are batched to prevent unnecessary re-renders
+- **Batch Updates**: Permission state updates are batched to prevent unnecessary
+  re-renders
 
 ## Security Features
 
-- **Permission Violation Tracking**: Failed permission checks are logged for security auditing
-- **Route Protection**: All routes are protected with appropriate permission checks
-- **Graceful Degradation**: UI gracefully handles missing permissions with fallback content
-- **Role-Based Redirects**: Staff users are automatically redirected to appropriate interfaces
+- **Permission Violation Tracking**: Failed permission checks are logged for
+  security auditing
+- **Route Protection**: All routes are protected with appropriate permission
+  checks
+- **Graceful Degradation**: UI gracefully handles missing permissions with
+  fallback content
+- **Role-Based Redirects**: Staff users are automatically redirected to
+  appropriate interfaces
 
 ## Migration Guide
 
@@ -220,20 +232,27 @@ To migrate existing components to use the new permission system:
 
 ## Best Practices
 
-1. **Granular Permissions**: Use specific permissions rather than broad role checks
-2. **Fallback Content**: Always provide meaningful fallback content for restricted features
+1. **Granular Permissions**: Use specific permissions rather than broad role
+   checks
+2. **Fallback Content**: Always provide meaningful fallback content for
+   restricted features
 3. **Performance**: Use permission caching for frequently checked permissions
 4. **User Experience**: Provide clear feedback when access is denied
-5. **Security**: Never rely solely on frontend permission checks - always validate on the backend
+5. **Security**: Never rely solely on frontend permission checks - always
+   validate on the backend
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Permission not updating**: Ensure permission atoms are properly synchronized with AuthContext
-2. **Component not re-rendering**: Check if permission dependencies are correctly specified
-3. **Navigation items not filtering**: Verify navigation items have correct permission metadata
-4. **Route access denied**: Ensure routes have appropriate permission requirements
+1. **Permission not updating**: Ensure permission atoms are properly
+   synchronized with AuthContext
+2. **Component not re-rendering**: Check if permission dependencies are
+   correctly specified
+3. **Navigation items not filtering**: Verify navigation items have correct
+   permission metadata
+4. **Route access denied**: Ensure routes have appropriate permission
+   requirements
 
 ### Debugging
 
@@ -242,9 +261,9 @@ Use the browser's React DevTools to inspect Jotai atoms and permission state:
 ```typescript
 // Add to component for debugging
 const { user, userPermissions, permissionCache } = usePermissions();
-console.log('User:', user);
-console.log('Permissions:', userPermissions);
-console.log('Cache:', permissionCache);
+console.log("User:", user);
+console.log("Permissions:", userPermissions);
+console.log("Cache:", permissionCache);
 ```
 
 ## Future Enhancements

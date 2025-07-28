@@ -287,22 +287,36 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       return;
     }
 
+    console.log("💾 Starting manual save...");
+    console.log("🛒 Cart for saving:", cart);
+
     try {
       const orderData = {
         orderType,
         tableId: selectedTable?.id,
-        items: cart.map(item => ({
-          materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
-          menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
-          assignmentId: undefined,
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.price,
-          totalPrice: item.price * item.quantity,
-          type: item.type,
-          notes: undefined
-        }))
+        items: cart.map(item => {
+          console.log("📝 Processing save item:", item);
+          console.log("🔍 Item type:", item.type);
+          console.log("🔍 Original item:", item.originalItem);
+          
+          const orderItem = {
+            materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
+            menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
+            assignmentId: undefined,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.price * item.quantity,
+            type: item.type,
+            notes: undefined
+          };
+          
+          console.log("📋 Created save item:", orderItem);
+          return orderItem;
+        })
       };
+      
+      console.log("📦 Final save data:", orderData);
 
       if (currentOrder) {
         // Update existing order
@@ -510,7 +524,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
       }
     });
-  }, []);
+  }, [menuItems, stockEntries]);
 
   // Legacy addToCart function for backward compatibility (used in order editing)
   const addToCartLegacy = useCallback((item: StockEntryWithMaterial | MenuItem, type: "material" | "menu") => {
@@ -808,6 +822,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       return;
     }
 
+    console.log("💰 Starting payment process...");
+    console.log("🛒 Current cart:", cart);
+    
+    // Check each cart item in detail
+    cart.forEach((item, index) => {
+      console.log(`🔍 Cart item ${index}:`, {
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        originalItem: item.originalItem,
+        hasOriginalItem: !!item.originalItem,
+        originalItemType: typeof item.originalItem,
+        menuItemId: item.menuItemId,
+        stockEntryId: item.stockEntryId
+      });
+    });
+    
     setIsLoading(true);
     try {
       let orderToComplete = currentOrder;
@@ -818,18 +849,29 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         const orderData = {
           orderType,
           tableId: selectedTable?.id,
-          items: cart.map(item => ({
-            materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
-            menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
-            assignmentId: undefined,
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.price * item.quantity,
-            type: item.type,
-            notes: undefined
-          }))
+          items: cart.map(item => {
+            console.log("📝 Processing cart item:", item);
+            console.log("🔍 Item type:", item.type);
+            console.log("🔍 Original item:", item.originalItem);
+            
+            const orderItem = {
+              materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
+              menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
+              assignmentId: undefined,
+              name: item.name,
+              quantity: item.quantity,
+              unitPrice: item.price,
+              totalPrice: item.price * item.quantity,
+              type: item.type,
+              notes: undefined
+            };
+            
+            console.log("📋 Created order item:", orderItem);
+            return orderItem;
+          })
         };
+        
+        console.log("📦 Final order data:", orderData);
 
         orderToComplete = await createOrder(orderData);
       }
@@ -847,29 +889,62 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       };
 
       // Call the API directly with the order ID to avoid state timing issues
+      console.log("📡 Calling completeOrder API with:", {
+        orderId: orderToComplete.id,
+        paymentData
+      });
+      
       const response = await ordersAPI.completeOrder(orderToComplete.id, paymentData);
-      const { order, saleId } = response.data;
+      console.log("📨 API Response received:", response);
+      console.log("📨 Response data:", response.data);
+      
+      // Handle API response - the response should have { order, saleId } structure
+      let order, saleId;
+      if (response.data) {
+        // Direct access to response.data which should have { order, saleId }
+        order = response.data.order;
+        saleId = response.data.saleId;
+        
+        // Fallback if the structure is different
+        if (!order && response.data) {
+          // Maybe the response.data IS the order
+          order = response.data as any;
+          saleId = (response.data as any).id || `sale-${Date.now()}`;
+        }
+      } else {
+        throw new Error('No data in API response');
+      }
+      
+      console.log("📝 Final extracted order:", order);
+      console.log("📝 Final extracted saleId:", saleId);
+      
+      // Validate that we have the required data
+      if (!order) {
+        throw new Error('Order data not found in API response');
+      }
 
-      // Prepare receipt data from completed order
+      // Prepare receipt data from completed order with defensive handling
       const receiptData = {
-        id: saleId,
+        id: saleId || `receipt-${Date.now()}`,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
         cashier: "Current User",
-        items: order.items.map(item => ({
+        items: (order.items || cart).map(item => ({
           name: item.name,
           quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: item.totalPrice,
+          unitPrice: item.unitPrice || item.price,
+          totalPrice: item.totalPrice || (item.price * item.quantity),
           type: item.type
         })),
-        subtotal: order.subtotal,
-        tax: order.tax,
-        total: order.total,
+        subtotal: order.subtotal || subtotal,
+        tax: order.tax || tax,
+        total: order.total || total,
         paymentAmount: paymentData.paymentAmount,
         change: paymentData.change || 0,
         paymentMethod: paymentData.paymentMethod
       };
+      
+      console.log("📧 Created receipt data:", receiptData);
 
       setLastSaleData(receiptData);
       showSuccess(`Order completed successfully! Total: ${formatCurrency(order.total)}`);
@@ -911,6 +986,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         onSaleComplete(response);
       }
     } catch (error: unknown) {
+      console.error("❌ Payment failed with error:", error);
+      console.error("❌ Error details:", {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        fullError: error
+      });
+      
       const errorMessage = error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object" && "data" in error.response && error.response.data && typeof error.response.data === "object" && "message" in error.response.data ? (error.response.data.message as string) : "Sale failed. Please try again.";
       showError(errorMessage);
       // Close payment dialog even on error
@@ -918,7 +1000,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
 
   return (
     <div className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
