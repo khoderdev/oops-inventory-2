@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { PaymentDialogProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { Check, CreditCard, Loader2, DollarSign, ArrowRight, Calculator } from "lucide-react";
+import { ArrowRight, Calculator, Check, CreditCard, DollarSign, Loader2 } from "lucide-react";
 import React from "react";
 
 export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, total, paymentAmount, onPaymentAmountChange, onPayment, isLoading }) => {
@@ -14,12 +14,14 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
   const roundedUpTen = Math.ceil(total / 10) * 10; // Round to nearest $10
 
   // Combine and sort amounts, remove duplicates and filter intelligently
-  const quickAmounts = [...new Set([
-    ...baseAmounts.filter(amount => amount >= total), // Only show base amounts >= total
-    totalAmount, 
-    roundedUpAmount,
-    roundedUpTen
-  ])]
+  const quickAmounts = [
+    ...new Set([
+      ...baseAmounts.filter(amount => amount >= total), // Only show base amounts >= total
+      totalAmount,
+      roundedUpAmount,
+      roundedUpTen
+    ])
+  ]
     .sort((a, b) => a - b)
     .filter(amount => amount > 0 && amount <= total + 100) // Cap at total + $100
     .slice(0, 6); // Limit to 6 amounts for better layout
@@ -35,23 +37,23 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
-      <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gradient-to-br from-slate-50 via-white to-blue-50 overflow-hidden" onOpenAutoFocus={e => e.preventDefault()} aria-hidden={false}>
+      <DialogContent className="w-[90vw] max-w-2xl h-[90vh] max-h-[90vh] m-0 p-0 bg-gradient-to-br from-slate-50 via-white to-blue-50 overflow-hidden fixed top-[5vh] left-1/2 transform -translate-x-1/2" onOpenAutoFocus={e => e.preventDefault()} aria-hidden={false}>
         <div className="w-full h-full flex flex-col">
           {/* Compact Header */}
-          <DialogHeader className="flex-shrink-0 px-4 sm:px-6 pt-4 pb-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-            <DialogTitle className="flex items-center justify-center space-x-3 text-xl sm:text-2xl font-bold">
-              <div className="p-2 bg-white/20 rounded-full backdrop-blur-sm">
-                <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" />
+          <DialogHeader className="flex-shrink-0 px-3 sm:px-4 pt-3 pb-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+            <DialogTitle className="flex items-center justify-center space-x-2 text-lg sm:text-xl font-bold">
+              <div className="p-1.5 bg-white/20 rounded-full backdrop-blur-sm">
+                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <span>Complete Payment</span>
             </DialogTitle>
-            <p className="text-center text-blue-100 mt-1 text-sm sm:text-base font-medium">
+            <p className="text-center text-blue-100 mt-1 text-xs sm:text-sm font-medium">
               Process your transaction securely
             </p>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 min-h-full flex flex-col">
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
               {/* Compact Total Amount Display */}
               <div className="relative bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-200 p-4 sm:p-6 rounded-2xl shadow-lg">
                 <div className="absolute top-3 right-3">
@@ -71,32 +73,21 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
 
               {/* Responsive Payment Input */}
               <div className="space-y-3">
-                <label className="block text-lg sm:text-xl font-bold text-gray-800 text-center">
-                  Enter Payment Amount
-                </label>
+                <label className="block text-lg sm:text-xl font-bold text-gray-800 text-center">Enter Payment Amount</label>
                 <div className="flex justify-center">
-                  <div className="relative w-full max-w-sm">
+                  <div className="relative w-full max-w-xs">
                     <div className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
                       <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
-                    <Input 
-                      type="number" 
-                      step="0.01" 
-                      placeholder="0.00" 
-                      value={paymentAmount} 
-                      onChange={e => onPaymentAmountChange(e.target.value)} 
-                      className="h-14 sm:h-16 pl-10 sm:pl-12 pr-4 sm:pr-6 text-xl sm:text-2xl text-center font-bold border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-xl bg-white shadow-lg transition-all duration-200 w-full" 
-                    />
+                    <Input type="number" step="0.01" placeholder="0.00" value={paymentAmount} onChange={e => onPaymentAmountChange(e.target.value)} className="h-14 sm:h-16 pl-10 sm:pl-12 pr-4 sm:pr-6 text-xl sm:text-3xl text-center font-bold border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-xl bg-white shadow-lg transition-all duration-200 w-full" />
                   </div>
                 </div>
-                
+
                 {/* Payment Status Indicators */}
                 {isInsufficientPayment && (
                   <div className="flex items-center justify-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg mx-4">
                     <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                    <span className="text-red-700 font-semibold text-sm sm:text-base">
-                      Need {formatCurrency(shortfallAmount)} more
-                    </span>
+                    <span className="text-red-700 font-semibold text-sm sm:text-base">Need {formatCurrency(shortfallAmount)} more</span>
                   </div>
                 )}
               </div>
@@ -111,29 +102,17 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
                     const changeForAmount = amount > total ? amount - total : 0;
 
                     return (
-                      <Button 
-                        key={amount} 
-                        variant={isSelected ? "default" : "outline"} 
-                        size="sm" 
-                        onClick={() => onPaymentAmountChange(amount.toString())} 
-                        className={`h-12 sm:h-14 p-2 sm:p-3 text-sm sm:text-base font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
-                          isSelected 
-                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg scale-105" 
-                            : "hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 hover:border-blue-300 border-2"
-                        }`}
+                      <Button
+                        key={amount}
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => onPaymentAmountChange(amount.toString())}
+                        className={`h-12 sm:h-14 p-2 sm:p-3 text-sm sm:text-base font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${isSelected ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg scale-105" : "hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 hover:border-blue-300 border-2"}`}
                       >
                         <div className="flex flex-col items-center space-y-0.5">
                           <span className="text-base sm:text-lg font-black">{formatCurrency(amount)}</span>
-                          {isTotal && (
-                            <div className="px-1.5 py-0.5 bg-emerald-500 text-white text-xs rounded-full font-bold uppercase tracking-wide">
-                              Exact
-                            </div>
-                          )}
-                          {!isTotal && changeForAmount > 0 && (
-                            <div className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">
-                              +{formatCurrency(changeForAmount)}
-                            </div>
-                          )}
+                          {isTotal && <div className="px-1.5 py-0.5 bg-emerald-500 text-white text-xs rounded-full font-bold uppercase tracking-wide">Exact</div>}
+                          {!isTotal && changeForAmount > 0 && <div className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">+{formatCurrency(changeForAmount)}</div>}
                         </div>
                       </Button>
                     );
@@ -174,15 +153,10 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
           </div>
 
           {/* Compact Footer */}
-          <DialogFooter className="flex-shrink-0 px-4 sm:px-6 py-4 bg-gradient-to-r from-gray-50 to-slate-50 border-t-2 border-gray-200">
+          <DialogFooter className="flex-shrink-0 px-3 sm:px-4 py-3 bg-gradient-to-r from-gray-50 to-slate-50 border-t-2 border-gray-200">
             <div className="w-full space-y-3">
               <div className="flex w-full space-x-3 sm:space-x-4">
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  onClick={onClose} 
-                  className="flex-1 h-12 sm:h-14 text-base sm:text-lg font-bold border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
-                >
+                <Button variant="outline" size="lg" onClick={onClose} className="flex-1 h-12 sm:h-14 text-base sm:text-lg font-bold border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200">
                   Cancel
                 </Button>
                 <Button
@@ -192,11 +166,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
                   }}
                   disabled={isButtonDisabled}
                   size="lg"
-                  className={`flex-1 h-12 sm:h-14 text-base sm:text-lg font-bold transition-all duration-300 transform ${
-                    isButtonDisabled 
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
-                      : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
-                  }`}
+                  className={`flex-1 h-12 sm:h-14 text-base sm:text-lg font-bold transition-all duration-300 transform ${isButtonDisabled ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"}`}
                 >
                   {isLoading ? (
                     <>
@@ -212,14 +182,18 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
                   )}
                 </Button>
               </div>
-              
+
               {/* Compact Payment Summary */}
               {paymentValue > 0 && (
                 <div className="text-center text-xs sm:text-sm text-gray-600">
                   <div className="flex items-center justify-center space-x-2 sm:space-x-3 flex-wrap">
-                    <span>Payment: <strong>{formatCurrency(paymentValue)}</strong></span>
+                    <span>
+                      Payment: <strong>{formatCurrency(paymentValue)}</strong>
+                    </span>
                     <span className="hidden sm:inline">•</span>
-                    <span>Total: <strong>{formatCurrency(total)}</strong></span>
+                    <span>
+                      Total: <strong>{formatCurrency(total)}</strong>
+                    </span>
                     {hasChange && (
                       <>
                         <span className="hidden sm:inline">•</span>

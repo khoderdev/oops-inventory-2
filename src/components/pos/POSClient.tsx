@@ -1354,7 +1354,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           {/* Bottom Action Bar - Fixed Footer */}
           <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
-            <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} incompleteOrdersCount={incompleteOrdersCount} />
+            <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} incompleteOrdersCount={incompleteOrdersCount} incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount} />
           </div>
         </div>
       </div>

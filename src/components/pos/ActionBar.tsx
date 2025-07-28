@@ -2,8 +2,6 @@ import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
 import React from "react";
-import { PermissionWrapper } from "@/components/auth/PermissionWrapper";
-import { PERMISSIONS } from "@/types/auth";
 
 // Action button configuration interface
 export interface ActionButtonConfig {
@@ -76,11 +74,7 @@ export const ActionButton: React.FC<ActionButtonConfig & { className?: string; c
     <Button variant="outline" className={`${baseClasses} ${heightClass} ${activeClasses} ${className} relative`} onClick={onClick} disabled={disabled}>
       <IconComponent className={`${iconSize} ${iconMargin}`} />
       <span className={textSize}>{label}</span>
-      {badgeCount && badgeCount > 0 && (
-        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-          {badgeCount > 99 ? '99+' : badgeCount}
-        </span>
-      )}
+      {badgeCount && badgeCount > 0 && <span className="absolute top-1.5 right-3 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{badgeCount > 99 ? "99+" : badgeCount}</span>}
     </Button>
   );
 };
@@ -128,7 +122,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         active: false,
         disabled: !canAccessBackOffice,
         requiredRole: ["admin", "manager"],
-        onClick: canAccessBackOffice ? () => window.location.href = "/" : undefined
+        onClick: canAccessBackOffice ? () => (window.location.href = "/") : undefined
       }
     ];
     columns = 7;
@@ -152,18 +146,18 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
     if (button.requiredPermission && !hasPermission(button.requiredPermission)) {
       return false;
     }
-    
+
     // Check role requirement
     if (button.requiredRole && !hasRole(button.requiredRole)) {
       return false;
     }
-    
+
     return true;
   });
 
   // Update columns based on visible buttons
-  const actualColumns = isLegacyProps(props) ? Math.min(visibleButtons.length, 7) : (props.columns || Math.min(visibleButtons.length, 8));
-  
+  const actualColumns = isLegacyProps(props) ? Math.min(visibleButtons.length, 7) : props.columns || Math.min(visibleButtons.length, 8);
+
   const actualGridStyle = {
     display: "grid",
     gridTemplateColumns: `repeat(${actualColumns}, 1fr)`
