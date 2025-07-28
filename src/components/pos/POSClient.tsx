@@ -899,8 +899,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       clearOrder();
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
-
-      // Automatically select TAKE AWAY after payment completion//////////////////////////////////////////////////////////////////////////////////////
       resetToTakeaway();
 
       // Callback for parent component

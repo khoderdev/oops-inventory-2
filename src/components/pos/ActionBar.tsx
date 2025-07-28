@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
 import React from "react";
+import { PermissionWrapper } from "@/components/auth/PermissionWrapper";
+import { PERMISSIONS } from "@/types/auth";
 
 // Action button configuration interface
 export interface ActionButtonConfig {
@@ -13,6 +15,8 @@ export interface ActionButtonConfig {
   onClick?: () => void;
   className?: string;
   compact?: boolean;
+  requiredPermission?: string;
+  requiredRole?: string | string[];
 }
 
 // Default button configurations
@@ -75,13 +79,13 @@ export const ActionButton: React.FC<ActionButtonConfig & { className?: string; c
 
 // Main ActionBar Component
 export const ActionBar: React.FC<ActionBarProps> = props => {
-  const { user } = useAuth();
+  const { user, hasPermission, hasRole } = usePermissions();
   let buttons: ActionButtonConfig[];
   let columns: number;
   let className: string;
 
   // Check if user has access to Back Office (Admin or Manager only)
-  const canAccessBackOffice = user?.role === "admin" || user?.role === "manager";
+  const canAccessBackOffice = hasRole(["admin", "manager"]);
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
@@ -115,11 +119,8 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         label: "Back Office",
         active: false,
         disabled: !canAccessBackOffice,
-        onClick: canAccessBackOffice
-          ? () => {
-              window.location.href = "/";
-            }
-          : undefined
+        requiredRole: ["admin", "manager"],
+        onClick: canAccessBackOffice ? () => window.location.href = "/" : undefined
       }
     ];
     columns = 7;
@@ -137,10 +138,33 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
     gridTemplateColumns: `repeat(${columns}, 1fr)`
   };
 
+  // Filter buttons based on permissions
+  const visibleButtons = buttons.filter(button => {
+    // Check permission requirement
+    if (button.requiredPermission && !hasPermission(button.requiredPermission)) {
+      return false;
+    }
+    
+    // Check role requirement
+    if (button.requiredRole && !hasRole(button.requiredRole)) {
+      return false;
+    }
+    
+    return true;
+  });
+
+  // Update columns based on visible buttons
+  const actualColumns = isLegacyProps(props) ? Math.min(visibleButtons.length, 7) : (props.columns || Math.min(visibleButtons.length, 8));
+  
+  const actualGridStyle = {
+    display: "grid",
+    gridTemplateColumns: `repeat(${actualColumns}, 1fr)`
+  };
+
   return (
     <div className={`border-t border-gray-200 bg-gray-50 ${className}`}>
-      <div style={gridStyle}>
-        {buttons.map((button, index) => (
+      <div style={actualGridStyle}>
+        {visibleButtons.map((button, index) => (
           <ActionButton key={button.id || index} {...button} />
         ))}
       </div>

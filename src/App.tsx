@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,7 +7,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/types/auth";
 import { InventoryManagementPanelProps } from "@/types/inventory";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { lazy, Suspense } from "react";
+import { AlertTriangle } from "lucide-react";
+import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -30,47 +32,120 @@ const PlaceholderPage = lazy(() => import("./components/common/PlaceholderPage")
 
 const queryClient = new QueryClient();
 
-// Loading component for Suspense fallback
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+// Enhanced loading component for Suspense fallback
+const LoadingFallback = ({ message = "Loading..." }: { message?: string }) => (
+  <div className="flex flex-col items-center justify-center min-h-screen bg-background safe-area-padding">
+    <div className="flex flex-col items-center gap-4 animate-fade-in">
+      {/* Loading spinner */}
+      <div className="relative">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-muted border-t-primary"></div>
+        <div className="absolute inset-0 rounded-full h-12 w-12 border-4 border-transparent border-t-primary/30 animate-pulse"></div>
+      </div>
+
+      {/* Loading text */}
+      <div className="text-center space-y-2">
+        <p className="text-sm font-medium text-foreground animate-pulse-gentle">{message}</p>
+        <p className="text-xs text-muted-foreground">Please wait while we prepare your experience</p>
+      </div>
+    </div>
   </div>
 );
 
-// Layout component for authenticated pages
-const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
+// Page-specific loading component
+const PageLoadingFallback = ({ pageName }: { pageName?: string }) => (
+  <div className="flex items-center justify-center min-h-[50vh] w-full">
+    <div className="flex flex-col items-center gap-3 animate-fade-in">
+      <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted border-t-primary"></div>
+      <p className="text-sm text-muted-foreground">Loading {pageName || "page"}...</p>
+    </div>
+  </div>
+);
+
+// Enhanced layout component for authenticated pages
+const AuthenticatedLayout = ({ children, pageTitle, showSearch = true, showNotifications = true }: { children: React.ReactNode; pageTitle?: string; showSearch?: boolean; showNotifications?: boolean }) => {
   return (
-    <div className="min-h-screen">
-      <Suspense fallback={<LoadingFallback />}>
-        <SidebarLayout>
-          <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
+    <div className="min-h-screen bg-background">
+      <Suspense fallback={<LoadingFallback message="Loading application..." />}>
+        <SidebarLayout pageTitle={pageTitle} showSearch={showSearch} showNotifications={showNotifications}>
+          <Suspense fallback={<PageLoadingFallback pageName={pageTitle} />}>
+            <div className="animate-fade-in">{children}</div>
+          </Suspense>
         </SidebarLayout>
       </Suspense>
     </div>
   );
 };
 
-// Role-based route wrapper that redirects STAFF users to appropriate interface
-const RoleBasedRoute = ({ children, fallbackPath = "/pos" }: { children: React.ReactNode; fallbackPath?: string }) => {
-  const { isStaffOnly } = usePermissions();
+// Enhanced role-based route wrapper with better UX
+const RoleBasedRoute = ({ children, fallbackPath = "/pos", allowedPaths = ["/pos", "/profile"] }: { children: React.ReactNode; fallbackPath?: string; allowedPaths?: string[] }) => {
+  const { isStaffOnly, isLoading } = usePermissions();
   const location = useLocation();
 
-  // Redirect staff users to POS if they try to access other areas
-  if (isStaffOnly && !location.pathname.startsWith("/pos") && !location.pathname.startsWith("/profile")) {
+  // Show loading while checking permissions
+  if (isLoading) {
+    return <LoadingFallback message="Checking permissions..." />;
+  }
+
+  // Redirect staff users to appropriate interface
+  if (isStaffOnly && !allowedPaths.some(path => location.pathname.startsWith(path))) {
     return <Navigate to={fallbackPath} replace />;
   }
 
   return <>{children}</>;
 };
 
-//  route protection with permission and role checking
-const ProtectedRoute = ({ children, requiredPermission, requiredRole, fallbackPath = "/login" }: { children: React.ReactNode; requiredPermission?: string; requiredRole?: string | string[]; fallbackPath?: string }) => {
+// Enhanced route protection with better error handling
+const ProtectedRoute = ({ children, requiredPermission, requiredRole, fallbackPath = "/login", pageTitle }: { children: React.ReactNode; requiredPermission?: string; requiredRole?: string | string[]; fallbackPath?: string; pageTitle?: string }) => {
   return (
     <ProtectedRoutes requiredPermission={requiredPermission} requiredRole={requiredRole} fallbackPath={fallbackPath}>
-      <RoleBasedRoute>{children}</RoleBasedRoute>
+      <RoleBasedRoute>
+        <ErrorBoundary fallback={<ErrorFallback pageTitle={pageTitle} />}>{children}</ErrorBoundary>
+      </RoleBasedRoute>
     </ProtectedRoutes>
   );
 };
+
+// Error boundary fallback component
+const ErrorFallback = ({ pageTitle }: { pageTitle?: string }) => (
+  <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
+    <div className="animate-fade-in space-y-4">
+      <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto">
+        <AlertTriangle className="w-8 h-8 text-destructive" />
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold text-foreground">Something went wrong</h2>
+        <p className="text-sm text-muted-foreground max-w-md">{pageTitle ? `There was an error loading ${pageTitle}.` : "An unexpected error occurred."} Please try refreshing the page or contact support if the problem persists.</p>
+      </div>
+      <Button onClick={() => window.location.reload()} variant="outline" className="btn-touch">
+        Refresh Page
+      </Button>
+    </div>
+  </div>
+);
+
+// Simple error boundary component
+class ErrorBoundary extends React.Component<{ children: React.ReactNode; fallback: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Error boundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+
+    return this.props.children;
+  }
+}
 
 export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps = {}) {
   const { materialsWithStock, stockEntries, sections, sectionAssignments, menuItems, fetchTabData, handleCreateMenuItem: storeCreateMenuItem, handleUpdateMenuItem: storeUpdateMenuItem, handleDeleteMenuItem: storeDeleteMenuItem } = useInventoryStore();
@@ -96,8 +171,8 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
-                      <AuthenticatedLayout>
+                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ} pageTitle="Dashboard">
+                      <AuthenticatedLayout pageTitle="Dashboard" showSearch={true} showNotifications={true}>
                         <DayOperationsPage />
                       </AuthenticatedLayout>
                     </ProtectedRoute>

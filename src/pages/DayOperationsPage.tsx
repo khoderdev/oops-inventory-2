@@ -1,4 +1,4 @@
-import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Home, Plus, ToggleLeft, ToggleRight, TrendingUp, XCircle } from "lucide-react";
+import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Plus, ToggleLeft, ToggleRight, TrendingUp, XCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { closeDay, getCurrentDayActivities, getCurrentDayOperation, getDayOperations, openDay } from "../api/dayOperations.api";
@@ -174,26 +174,6 @@ const DayOperationsPage: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Navigation Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button onClick={() => navigate("/")} className="flex items-center text-gray-600 hover:text-gray-900 transition-colors">
-            <Home className="h-5 w-5 mr-2" />
-            Home
-          </button>
-          <span className="text-gray-400">•</span>
-          <button onClick={() => navigate("/sales-history")} className="flex items-center text-gray-600 hover:text-gray-900 transition-colors">
-            <BarChart3 className="h-5 w-5 mr-2" />
-            Sales History
-          </button>
-          <span className="text-gray-400">•</span>
-        </div>
-        <button onClick={() => navigate("/pos")} className="flex items-center text-gray-600 hover:text-gray-900 transition-colors">
-          <BarChart3 className="h-5 w-5 mr-2" />
-          POS Client
-        </button>
-      </div>
-
       {/* Alerts */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">

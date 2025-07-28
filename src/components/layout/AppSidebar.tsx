@@ -4,7 +4,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, useSidebar } from "@/components/ui/sidebar";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { NavigationItem } from "@/types/inventory";
-import { ChevronDown, ChevronRight, LogOut, Shield, User, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronRight, LogOut, Shield, User } from "lucide-react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { navigationItems } from "./navigationItems";
@@ -141,12 +141,20 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar>
+    <Sidebar className="border-r border-sidebar-border">
       {/* Header */}
-      <SidebarHeader>
-        <div className="flex items-center justify-center py-2">
-          <div className="flex items-center justify-center">
-            <div className="relative flex items-center justify-center">{state === "expanded" && <img src={"/oops-logo.png"} alt="Logo" className="w-44" />}</div>
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div className="flex items-center justify-center py-3">
+          <div className="flex items-center justify-center transition-all duration-200">
+            <div className="relative flex items-center justify-center">
+              {state === "expanded" ? (
+                <img src="/oops-logo.png" alt="Restaurant Management System" className="w-44 h-auto transition-all duration-200 crisp-edges" />
+              ) : (
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <span className="text-primary-foreground font-bold text-sm">R</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </SidebarHeader>
@@ -161,39 +169,44 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* Footer */}
-      <SidebarFooter>
+      <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton className="w-full">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs font-medium">{user?.firstName?.charAt(0)?.toUpperCase() || "U"}</span>
+                <SidebarMenuButton className="w-full transition-colors-smooth hover:bg-sidebar-accent">
+                  <div className="flex items-center gap-3 w-full">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200">
+                      <span className="text-primary-foreground text-sm font-medium">{user?.firstName?.charAt(0)?.toUpperCase() || "U"}</span>
                     </div>
                     {state === "expanded" && (
-                      <div className="flex-1 text-left">
-                        <p className="text-sm font-medium">{user?.fullName || "User"}</p>
-                        <p className="text-xs text-gray-500">{user?.username}</p>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.fullName || "User"}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user?.username}</p>
                       </div>
                     )}
+                    {state === "expanded" && <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
                   </div>
-                  <ChevronRight className="h-4 w-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuContent align="end" className="w-64 z-popover">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user?.fullName || "User"}</p>
+                    <p className="text-xs leading-none text-muted-foreground">@{user?.username}</p>
+                  </div>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/profile")}>
+                <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer transition-colors-smooth">
                   <User className="mr-2 h-4 w-4" />
                   Profile Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/profile/sessions")}>
+                <DropdownMenuItem onClick={() => navigate("/profile/sessions")} className="cursor-pointer transition-colors-smooth">
                   <Shield className="mr-2 h-4 w-4" />
                   Active Sessions
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                <DropdownMenuItem onClick={logout} className="text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors-smooth">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign Out
                 </DropdownMenuItem>
