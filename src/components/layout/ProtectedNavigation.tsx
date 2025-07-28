@@ -1,29 +1,20 @@
-import { Activity, BarChart3, Calendar, ChevronDown, ChevronLeft, ChevronRight, FileText, Home, LogOut, Menu, Package, Receipt, Shield, ShoppingCart, User, Users, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { NavigationItem } from "@/types/inventory";
+import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu, Shield, User, X } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSidebar } from "../../contexts/SidebarContext";
-import { PERMISSIONS } from "../../types/auth";
 import { LOGO_CONFIGS, useCachedLogo } from "../../utils/logoCache";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-
-interface NavigationItem {
-  label: string;
-  href?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  permission?: string;
-  role?: string | string[];
-  children?: NavigationItem[];
-  badge?: string;
-  badgeVariant?: "default" | "destructive" | "secondary";
-}
+import { navigationItems } from "./navigationItems";
 
 const ProtectedNavigation: React.FC = () => {
-  const { user, logout, hasPermission, hasRole } = useAuth();
+  const { logout, hasPermission, hasRole } = useAuth();
   const { isCollapsed, isMobileMenuOpen, toggleCollapse, closeMobileMenu, toggleMobileMenu } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
@@ -31,110 +22,7 @@ const ProtectedNavigation: React.FC = () => {
 
   // Cached logos with preloading and fallback - different logos for collapsed/expanded states
   const logoConfig = isCollapsed ? LOGO_CONFIGS.SIDEBAR_ICON : LOGO_CONFIGS.SIDEBAR_LOGO;
-  const { logoSrc, isLoaded, error, isPreloaded } = useCachedLogo(logoConfig);
-
-  // Memoized navigation items to prevent re-renders
-  const navigationItems: NavigationItem[] = useMemo(
-    () => [
-      {
-        label: "Dashboard",
-        href: "/",
-        icon: Home
-      },
-      {
-        label: "Inventory",
-        icon: Package,
-        children: [
-          {
-            label: "Stock",
-            href: "/inventory",
-            icon: Package,
-            permission: PERMISSIONS.MENU_ITEMS_READ
-          },
-          {
-            label: "Menu Items",
-            href: "/inventory/menu-items",
-            icon: Package,
-            permission: PERMISSIONS.MENU_ITEMS_READ
-          }
-        ]
-      },
-      {
-        label: "Sales",
-        icon: ShoppingCart,
-        children: [
-          {
-            label: "POS Client",
-            href: "/pos",
-            icon: ShoppingCart,
-            permission: PERMISSIONS.SALES_CREATE
-          },
-          {
-            label: "POS Backoffice",
-            href: "/backoffice-pos",
-            icon: ShoppingCart,
-            permission: PERMISSIONS.SALES_CREATE
-          },
-          {
-            label: "Sales History",
-            href: "/sales",
-            icon: FileText,
-            permission: PERMISSIONS.SALES_READ
-          },
-          {
-            label: "Menu Items",
-            href: "/menu",
-            icon: Package,
-            permission: PERMISSIONS.MENU_ITEMS_READ
-          }
-        ]
-      },
-      {
-        label: "Operations",
-        icon: Calendar,
-        children: [
-          {
-            label: "Day Operations",
-            href: "/day-operations",
-            icon: Calendar,
-            permission: PERMISSIONS.DAY_OPERATIONS_READ
-          }
-        ]
-      },
-      {
-        label: "Reports",
-        href: "/reports",
-        icon: BarChart3,
-        permission: PERMISSIONS.AUDIT_REPORTS
-      },
-      {
-        label: "Analytics",
-        href: "/analytics",
-        icon: Activity,
-        permission: PERMISSIONS.ANALYTICS_TRENDS
-      },
-      {
-        label: "Administration",
-        icon: Shield,
-        role: ["admin", "manager"],
-        children: [
-          {
-            label: "User Management",
-            href: "/admin/users",
-            icon: Users,
-            permission: PERMISSIONS.USERS_READ
-          },
-          {
-            label: "System Logs",
-            href: "/admin/system-logs",
-            icon: Receipt,
-            permission: PERMISSIONS.SYSTEM_LOGS
-          }
-        ]
-      }
-    ],
-    []
-  );
+  const { logoSrc, isLoaded, error } = useCachedLogo(logoConfig);
 
   // Performance optimizations with useCallback
   const handleLogout = useCallback(async () => {
@@ -222,27 +110,45 @@ const ProtectedNavigation: React.FC = () => {
       if (hasChildren) {
         return (
           <TooltipWrapper key={item.label} content={item.label}>
-            <Collapsible open={isOpen} onOpenChange={() => toggleSection(item.label)}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className={`w-full justify-between text-left font-normal ${paddingClass} ${isActive ? "bg-blue-100 text-blue-900" : "hover:bg-gray-100"}`}>
-                  <div className="flex items-center gap-3">
-                    <item.icon className="h-4 w-4 flex-shrink-0" />
-                    {!isCollapsed && (
-                      <>
-                        <span className="truncate">{item.label}</span>
-                        {item.badge && (
-                          <Badge variant={item.badgeVariant || "default"} className="text-xs">
-                            {item.badge}
-                          </Badge>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {!isCollapsed && <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />}
+            {hasChildren ? (
+              <Collapsible open={isOpen} onOpenChange={() => toggleSection(item.label)}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className={cn(baseItemClass, paddingClass, isActive ? activeClass : hoverClass)}>
+                    <div className="flex items-center gap-3">
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      {!isCollapsed && (
+                        <>
+                          <span className="truncate">{item.label}</span>
+                          {item.badge && (
+                            <Badge variant={item.badgeVariant || "default"} className="text-xs">
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {!isCollapsed && <ChevronDown className={cn("h-4 w-4 transition-transform", { "rotate-180": isOpen })} />}
+                  </Button>
+                </CollapsibleTrigger>
+                {!isCollapsed && <CollapsibleContent className="pl-4 space-y-1">{item.children?.map(child => renderNavigationItem(child, level + 1))}</CollapsibleContent>}
+              </Collapsible>
+            ) : (
+              <Link to={item.href!}>
+                <Button variant="ghost" className={cn(baseItemClass, paddingClass, isActive ? activeClass : hoverClass)} onClick={closeMobileMenu}>
+                  <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+                  {!isCollapsed && (
+                    <>
+                      <span className="truncate">{item.label}</span>
+                      {item.badge && (
+                        <Badge variant={item.badgeVariant || "default"} className="ml-auto text-xs">
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </>
+                  )}
                 </Button>
-              </CollapsibleTrigger>
-              {!isCollapsed && <CollapsibleContent className="space-y-1">{item.children?.map(child => renderNavigationItem(child, level + 1))}</CollapsibleContent>}
-            </Collapsible>
+              </Link>
+            )}
           </TooltipWrapper>
         );
       }
@@ -270,25 +176,21 @@ const ProtectedNavigation: React.FC = () => {
     [isItemVisible, openSections, isActiveLink, toggleSection, closeMobileMenu, isCollapsed]
   );
 
+  const baseItemClass = "w-full justify-start text-left font-normal transition-colors duration-200";
+  const activeClass = "bg-blue-100 text-blue-900";
+  const hoverClass = "hover:bg-gray-100";
+
   return (
     <>
       {/* Mobile Menu Button */}
-      <Button variant="outline" size="sm" onClick={toggleMobileMenu} className="lg:hidden fixed top-4 left-4 z-50 shadow-lg bg-white hover:bg-gray-50">
+      <Button variant="outline" size="sm" onClick={toggleMobileMenu} className="lg:hidden fixed top-4 left-4 z-50 shadow-md bg-white hover:bg-gray-100">
         {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
       </Button>
 
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && <div className="lg:hidden fixed inset-0 bg-black/50 z-30" onClick={closeMobileMenu} />}
+      {isMobileMenuOpen && <div className="lg:hidden fixed inset-0 bg-black/40 z-30 backdrop-blur-sm" onClick={closeMobileMenu} />}
 
       {/* Sidebar */}
-      <aside
-        className={`
-        fixed top-0 left-0 z-40 h-screen bg-white border-r border-gray-200 shadow-lg
-        transition-all duration-300 ease-in-out
-        ${isCollapsed ? "w-16" : "w-64"}
-        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-      `}
-      >
+      <aside className={cn("fixed top-0 left-0 z-40 h-screen bg-white border-r border-gray-200 shadow-lg transition-all duration-300 ease-in-out flex flex-col", isCollapsed ? "w-16" : "w-64", isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0")}>
         {/* Collapse Toggle Button */}
         <div className="hidden lg:block absolute -right-3 top-6 z-50">
           <Button variant="outline" size="sm" onClick={toggleCollapse} className="h-6 w-6 p-0 rounded-full bg-white shadow-md hover:shadow-lg transition-all duration-200">
@@ -300,38 +202,25 @@ const ProtectedNavigation: React.FC = () => {
           {/* Header */}
           <div className="p-2 flex items-center justify-center border-b border-gray-200">
             {/* Dynamic Cached Logo - Icon when collapsed, Full logo when expanded */}
-            <div className={`relative flex items-center justify-center transition-all duration-300 ${isCollapsed ? "w-12 h-12" : "w-36 h-12"}`}>
-              {!isLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className={`border-2 border-blue-500 border-t-transparent rounded-full animate-spin ${isCollapsed ? "w-6 h-6" : "w-8 h-8"}`} />
-                </div>
-              )}
-              <img
-                src={logoSrc}
-                alt={logoConfig.alt}
-                className={`transition-all duration-300 ${isLoaded ? "opacity-100" : "opacity-0"} ${isCollapsed ? "w-10 h-10" : "w-36"}`}
-                style={{
-                  // Ensure logo is always rendered for best performance
-                  display: "block",
-                  maxWidth: "100%",
-                  height: "auto",
-                  // Smooth transitions for size changes
-                  objectFit: "contain"
-                }}
-                onLoad={() => {
-                  // Additional load handler for any missed cases
-                  if (!isLoaded && process.env.NODE_ENV === "development") {
-                    console.log(`${isCollapsed ? "Icon" : "Logo"} loaded successfully`);
-                  }
-                }}
-                onError={e => {
-                  console.error(`${isCollapsed ? "Icon" : "Logo"} failed to load:`, error);
-                  // Fallback to text if image fails completely
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = "none";
-                }}
-              />
-              {error && !isLoaded && <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 font-semibold">{isCollapsed ? "oO" : "oOps Resto"}</div>}
+            <div className="p-4 flex items-center justify-center">
+              <div className={`relative flex items-center justify-center transition-all duration-300 ${isCollapsed ? "w-12 h-12" : "w-36 h-12"}`}>
+                {!isLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className={`border-2 border-blue-500 border-t-transparent rounded-full animate-spin ${isCollapsed ? "w-6 h-6" : "w-8 h-8"}`} />
+                  </div>
+                )}
+                <img
+                  src={logoSrc}
+                  alt={logoConfig.alt}
+                  className={cn("transition-all duration-300 object-contain", {
+                    "opacity-100": isLoaded,
+                    "opacity-0": !isLoaded,
+                    "w-10 h-10": isCollapsed,
+                    "w-36 h-auto": !isCollapsed
+                  })}
+                />
+                {error && !isLoaded && <span className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 font-semibold">{isCollapsed ? "oO" : "oOps Resto"}</span>}
+              </div>
             </div>
           </div>
 

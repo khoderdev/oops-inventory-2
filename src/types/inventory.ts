@@ -931,3 +931,14 @@ export interface InventoryManagementPanelProps {
   onUpdateSection?: (id: string, data: { name: string; description?: string }) => void;
   onDeleteSection?: (id: string) => void;
 }
+
+export interface NavigationItem {
+  label: string;
+  href?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  permission?: string;
+  role?: string | string[];
+  children?: NavigationItem[];
+  badge?: string;
+  badgeVariant?: "default" | "destructive" | "secondary";
+}

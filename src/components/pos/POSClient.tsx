@@ -439,14 +439,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Filter POS items by category
   const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
 
-  // Legacy filtering for backward compatibility (keep for order editing)
-  const availableStockEntries = stockEntries.filter(stockEntry => {
-    const hasQuantity = stockEntry.purchasedIndividualQuantity && stockEntry.purchasedIndividualQuantity > 0;
-    const matchesSearch = searchTerm === "" || stockEntry.material?.name.toLowerCase().includes(searchTerm.toLowerCase()) || stockEntry.material?.category?.toLowerCase().includes(searchTerm.toLowerCase());
-    const isPOSItem = stockEntry.material?.isPOSItem === true;
-    return hasQuantity && matchesSearch && isPOSItem;
-  });
-
   // Cart operations - Updated for unified POS items
   const addToCart = useCallback((posItem: POSItem) => {
     console.log("🛒 Adding to cart:", posItem);
@@ -491,7 +483,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           return newCart;
         } else {
           // Handle stock entry items
-          const stockEntry = stockEntries.find(se => se.materialId === posItem.materialId);
+          const stockEntry = stockEntries.find(se => {
+            // Convert both to strings for comparison since stockEntry.materialId is string and posItem.materialId is number
+            const stockEntryMaterialId = String(se.materialId);
+            const posItemMaterialId = String(posItem.materialId);
+            return stockEntryMaterialId === posItemMaterialId;
+          });
           if (!stockEntry) {
             console.warn("Stock entry not found:", posItem);
             return currentCart; // Return current cart if stock entry not found
@@ -927,32 +924,27 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   return (
     <div className="h-full flex bg-gray-100">
       {/* Left Panel - Cart/Order Details */}
-      <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col h-full">
+      <div className="cart hidden md:block w-1/3 bg-white border-r border-gray-200  flex-col h-full">
         {/* Cart Header - Fixed */}
         <div className="border-b border-gray-200 p-3 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
+            <div className="flex flex-col sm:flex-row items-center space-x-1">
+              <h2 className="text-lg font-bold text-gray-800">Order# :</h2>
 
               {/* Order Status Indicator */}
               {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
-                <div className="flex items-center space-x-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md">
-                  <span className="text-xs text-blue-800">
-                    {currentOrder ? (
-                      <div className="flex items-center space-x-1">
-                        <span>#{currentOrder.orderNumber}</span>///////////////////////////////////////////////////////////////
-                        <span className="text-xs opacity-75">({currentOrder.status})</span>
-                      </div>
-                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
-                      <div className="flex items-center space-x-1">
-                        <span>#{generatePreviewOrderNumber()}</span>
-                        <span className="text-xs opacity-75">(Preview)</span>
-                      </div>
-                    ) : hasUnsavedChanges ? (
-                      "Unsaved"
-                    ) : null}
-                  </span>
-                </div>
+                <span className="text-md text-blue-800">
+                  {currentOrder ? (
+                    <div className="flex items-center space-x-1">
+                      <span>#{currentOrder.orderNumber}</span>
+                      <span className="text-xs opacity-75">({currentOrder.status})</span>
+                    </div>
+                  ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
+                    <span>{generatePreviewOrderNumber()}</span>
+                  ) : hasUnsavedChanges ? (
+                    "Unsaved"
+                  ) : null}
+                </span>
               )}
             </div>
             {cart && cart.length > 0 && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}

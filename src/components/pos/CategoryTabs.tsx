@@ -10,7 +10,7 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCa
         ref={containerRef}
         className="rounded-none"
         style={{
-          // overflowX: "scroll",
+          overflowX: "scroll",
           whiteSpace: "nowrap",
           width: "100%"
           // maxWidth: "600px"
