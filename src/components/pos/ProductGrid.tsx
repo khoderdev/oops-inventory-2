@@ -7,7 +7,7 @@ import React from "react";
 export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart }) => {
   return (
     <div className="flex-1 p-4 overflow-y-auto">
-      <div className="grid gap-5 grid-cols-2 sm:grid-cols-2 md:grid-cols-3  xl:grid-cols-5 ">
+      <div className="grid gap-5 grid-cols-2 sm:grid-cols-2 md:grid-cols-4  xl:grid-cols-5 ">
         {/* Unified POS Items */}
         {posItems.map(item => (
           <Card key={item.id} className="items-card w-44 cursor-pointer select-none transition-all hover:shadow-lg hover:scale-105 border-2 border-primary hover:border-primary rounded-lg" onClick={() => onAddToCart(item)}>

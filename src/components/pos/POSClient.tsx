@@ -952,7 +952,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </div>
 
         {/* Order Items List - Scrollable */}
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 h-full relative overflow-hidden">
           <div className="h-full overflow-y-auto">
             <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
           </div>

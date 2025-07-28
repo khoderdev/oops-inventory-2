@@ -8,25 +8,27 @@ import { InventoryManagementPanelProps } from "@/types/inventory";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider } from "../contexts/AuthContext";
 
 // Lazy load components for better performance
-const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
-const ReportGenerator = lazy(() => import("./components/analytics/ReportGenerator").then(m => ({ default: m.ReportGenerator })));
-const LoginPage = lazy(() => import("./components/auth/LoginPage"));
-const ProtectedRoutes = lazy(() => import("./components/auth/ProtectedRoute"));
-const InventoryManagementPanel = lazy(() => import("./components/inventory/InventoryManagementPanel").then(m => ({ default: m.InventoryManagementPanel })));
-const SidebarLayout = lazy(() => import("./components/layout/SidebarLayout").then(module => ({ default: module.SidebarLayout })));
-const MenuItemBuilder = lazy(() => import("./components/menu/MenuBuilder").then(m => ({ default: m.MenuItemBuilder })));
-const POSPanel = lazy(() => import("./components/POSPanel").then(m => ({ default: m.POSPanel })));
-const ProfilePage = lazy(() => import("./components/profile/ProfilePage"));
-const SessionManagementPage = lazy(() => import("./components/profile/SessionManagementPage"));
-const DayOperationsPage = lazy(() => import("./pages/DayOperationsPage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const POSClientPage = lazy(() => import("./pages/POSClientPage"));
-const SalesHistoryPage = lazy(() => import("./pages/SalesHistoryPage").then(m => ({ default: m.SalesHistoryPage })));
-const SystemLogs = lazy(() => import("./pages/SystemLogs"));
-const PlaceholderPage = lazy(() => import("./components/common/PlaceholderPage"));
+const UserManagementPage = lazy(() => import("../components/admin/UserManagementPage"));
+const ReportGenerator = lazy(() => import("../components/analytics/ReportGenerator").then(m => ({ default: m.ReportGenerator })));
+const LoginPage = lazy(() => import("../components/auth/LoginPage"));
+const ProtectedRoute = lazy(() => import("../components/auth/ProtectedRoute"));
+const InventoryManagementPanel = lazy(() => import("../components/inventory/InventoryManagementPanel").then(m => ({ default: m.InventoryManagementPanel })));
+const SidebarLayout = lazy(() => import("../components/layout/SidebarLayout").then(module => ({ default: module.SidebarLayout })));
+const MenuItemBuilder = lazy(() => import("../components/menu/MenuBuilder").then(m => ({ default: m.MenuItemBuilder })));
+const POSPanel = lazy(() => import("../components/POSPanel").then(m => ({ default: m.POSPanel })));
+const ProfilePage = lazy(() => import("../components/profile/ProfilePage"));
+const SessionManagementPage = lazy(() => import("../components/profile/SessionManagementPage"));
+const DayOperationsPage = lazy(() => import("../pages/DayOperationsPage"));
+const NotFound = lazy(() => import("../pages/NotFound"));
+const POSClientPage = lazy(() => import("../pages/POSClientPage"));
+const SalesHistoryPage = lazy(() => import("../pages/SalesHistoryPage").then(m => ({ default: m.SalesHistoryPage })));
+const SystemLogs = lazy(() => import("../pages/SystemLogs"));
+
+// Placeholder components for routes not yet implemented
+const PlaceholderPage = lazy(() => import("./common/PlaceholderPage"));
 
 const queryClient = new QueryClient();
 
@@ -52,7 +54,7 @@ const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
 
 // Role-based route wrapper that redirects STAFF users to appropriate interface
 const RoleBasedRoute = ({ children, fallbackPath = "/pos" }: { children: React.ReactNode; fallbackPath?: string }) => {
-  const { isStaffOnly } = usePermissions();
+  const { userRole, isStaffOnly } = usePermissions();
   const location = useLocation();
 
   // Redirect staff users to POS if they try to access other areas
@@ -63,16 +65,16 @@ const RoleBasedRoute = ({ children, fallbackPath = "/pos" }: { children: React.R
   return <>{children}</>;
 };
 
-//  route protection with permission and role checking
-const ProtectedRoute = ({ children, requiredPermission, requiredRole, fallbackPath = "/login" }: { children: React.ReactNode; requiredPermission?: string; requiredRole?: string | string[]; fallbackPath?: string }) => {
+// Enhanced route protection with permission and role checking
+const EnhancedProtectedRoute = ({ children, requiredPermission, requiredRole, fallbackPath = "/login" }: { children: React.ReactNode; requiredPermission?: string; requiredRole?: string | string[]; fallbackPath?: string }) => {
   return (
-    <ProtectedRoutes requiredPermission={requiredPermission} requiredRole={requiredRole} fallbackPath={fallbackPath}>
+    <ProtectedRoute requiredPermission={requiredPermission} requiredRole={requiredRole} fallbackPath={fallbackPath}>
       <RoleBasedRoute>{children}</RoleBasedRoute>
-    </ProtectedRoutes>
+    </ProtectedRoute>
   );
 };
 
-export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps = {}) {
+export default function EnhancedApp({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps = {}) {
   const { materialsWithStock, stockEntries, sections, sectionAssignments, menuItems, fetchTabData, handleCreateMenuItem: storeCreateMenuItem, handleUpdateMenuItem: storeUpdateMenuItem, handleDeleteMenuItem: storeDeleteMenuItem } = useInventoryStore();
 
   // Use store handlers or provided props (store handlers make actual API calls)
@@ -96,11 +98,11 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
                       <AuthenticatedLayout>
                         <DayOperationsPage />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -108,39 +110,39 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/pos"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
                       <POSClientPage />
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/backoffice-pos"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
                       <AuthenticatedLayout>
                         <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/pos/kitchen-display"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_KITCHEN_DISPLAY}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.POS_KITCHEN_DISPLAY}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Kitchen Display" description="Kitchen order display system" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/pos/customer-display"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_CUSTOMER_DISPLAY}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.POS_CUSTOMER_DISPLAY}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Customer Display" description="Customer-facing display system" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -148,11 +150,11 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/materials"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
                       <AuthenticatedLayout>
                         <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -160,61 +162,61 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/inventory"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ}>
                       <AuthenticatedLayout>
                         <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/inventory/adjustments"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_ADJUST}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.STOCK_ADJUST}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Stock Adjustments" description="Adjust stock quantities and manage inventory discrepancies" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/inventory/transfers"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_TRANSFER}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.STOCK_TRANSFER}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Stock Transfers" description="Transfer stock between locations and sections" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/inventory/waste"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_WASTE_RECORD}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.STOCK_WASTE_RECORD}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Waste Management" description="Record and track inventory waste" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/inventory/assignments"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ASSIGNMENTS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.ASSIGNMENTS_READ}>
                       <AuthenticatedLayout>
                         <InventoryManagementPanel />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/inventory/sections"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SECTIONS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.SECTIONS_READ}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Section Management" description="Manage inventory sections and organization" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -222,31 +224,31 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/sales"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
                       <AuthenticatedLayout>
                         <SalesHistoryPage />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/sales/history"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
                       <AuthenticatedLayout>
                         <SalesHistoryPage />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/sales/refunds"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SALES_REFUND}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.SALES_REFUND}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Sales Refunds" description="Process and manage sales refunds" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -254,21 +256,21 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/orders"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.ORDERS_READ}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Orders Management" description="View and manage customer orders" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/orders/queue"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_MANAGE_QUEUE}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.ORDERS_MANAGE_QUEUE}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Order Queue" description="Manage order processing queue" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -276,51 +278,51 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/menu"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
                       <AuthenticatedLayout>
                         <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} sections={sections} />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/inventory/menu-items"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
                       <AuthenticatedLayout>
                         <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} sections={sections} />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/menu/categories"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Menu Categories" description="Manage menu categories and organization" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/menu/recipes"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Recipe Management" description="Create and manage item recipes" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/menu/pricing"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_PRICING}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_PRICING}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Menu Pricing" description="Manage menu item pricing and cost analysis" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -328,31 +330,31 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/day-operations"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
                       <AuthenticatedLayout>
                         <DayOperationsPage />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/day-operations/close"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CLOSE}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CLOSE}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Close Day" description="Close daily operations and generate reports" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/day-operations/cash-count"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CASH_COUNT}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CASH_COUNT}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Cash Count" description="Perform cash drawer counting and reconciliation" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -360,61 +362,61 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/reports"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
                       <AuthenticatedLayout>
                         <ReportGenerator className="w-full" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/reports/sales"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
                       <AuthenticatedLayout>
                         <ReportGenerator className="w-full" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/reports/inventory"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_INVENTORY}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.REPORTS_INVENTORY}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Inventory Reports" description="Generate inventory and stock reports" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/reports/financial"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_FINANCIAL}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.REPORTS_FINANCIAL}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Financial Reports" description="Generate financial and accounting reports" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/analytics"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_DASHBOARD}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_DASHBOARD}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Analytics Dashboard" description="Business intelligence and analytics overview" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/analytics/trends"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_TRENDS}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_TRENDS}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Trends Analysis" description="Sales and inventory trend analysis" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -422,31 +424,31 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/finance"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.FINANCE_VIEW_COSTS}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.FINANCE_VIEW_COSTS}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Financial Overview" description="Financial management and cost analysis" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/finance/budgets"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.FINANCE_BUDGETS}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.FINANCE_BUDGETS}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Budget Management" description="Create and manage budgets" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/finance/expenses"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.FINANCE_EXPENSES}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.FINANCE_EXPENSES}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Expense Tracking" description="Track and categorize business expenses" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -454,31 +456,31 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/customers"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.CUSTOMERS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.CUSTOMERS_READ}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Customer Management" description="Manage customer information and relationships" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/suppliers"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SUPPLIERS_READ}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.SUPPLIERS_READ}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Supplier Management" description="Manage supplier relationships and contracts" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/procurement"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.PROCUREMENT_ORDERS}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.PROCUREMENT_ORDERS}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Procurement" description="Manage procurement orders and receiving" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -486,21 +488,21 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/profile"
                   element={
-                    <ProtectedRoute>
+                    <EnhancedProtectedRoute>
                       <AuthenticatedLayout>
                         <ProfilePage />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/profile/sessions"
                   element={
-                    <ProtectedRoute>
+                    <EnhancedProtectedRoute>
                       <AuthenticatedLayout>
                         <SessionManagementPage />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -508,51 +510,51 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/admin/users"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.USERS_READ} requiredRole={["admin", "manager"]}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.USERS_READ} requiredRole={["admin", "manager"]}>
                       <AuthenticatedLayout>
                         <UserManagementPage />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/admin/permissions"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.USERS_MANAGE_PERMISSIONS} requiredRole={["admin"]}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.USERS_MANAGE_PERMISSIONS} requiredRole={["admin"]}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Permission Management" description="Manage user permissions and access control" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/admin/system"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="System Settings" description="Configure system-wide settings and preferences" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/admin/system-logs"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_LOGS}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_LOGS}>
                       <AuthenticatedLayout>
                         <SystemLogs />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/admin/audit"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.AUDIT_TRAILS} requiredRole={["admin", "manager"]}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.AUDIT_TRAILS} requiredRole={["admin", "manager"]}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Audit & Compliance" description="Audit trails and compliance reporting" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 
@@ -560,21 +562,21 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/communication/announcements"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.COMMUNICATION_ANNOUNCEMENTS}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.COMMUNICATION_ANNOUNCEMENTS}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Announcements" description="Create and manage system announcements" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
                 <Route
                   path="/communication/messages"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.COMMUNICATION_MESSAGES}>
+                    <EnhancedProtectedRoute requiredPermission={PERMISSIONS.COMMUNICATION_MESSAGES}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Messages" description="Internal messaging and communication" />
                       </AuthenticatedLayout>
-                    </ProtectedRoute>
+                    </EnhancedProtectedRoute>
                   }
                 />
 

@@ -2,9 +2,9 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, useSidebar } from "@/components/ui/sidebar";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { NavigationItem } from "@/types/inventory";
-import { ChevronDown, ChevronRight, LogOut, Shield, User } from "lucide-react";
+import { ChevronDown, ChevronRight, LogOut, Shield, User, AlertTriangle } from "lucide-react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { navigationItems } from "./navigationItems";
@@ -12,7 +12,7 @@ import { navigationItems } from "./navigationItems";
 export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, hasRole, hasPermission } = useAuth();
+  const { user, logout, hasRole, hasPermission } = usePermissions();
   const { state } = useSidebar();
   const [openSections, setOpenSections] = React.useState<string[]>([]);
 

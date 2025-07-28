@@ -1,7 +1,8 @@
 import { Activity, AlertTriangle, Edit, Key, Loader2, Lock, MoreHorizontal, Plus, RefreshCw, Search, Shield, ShieldCheck, Trash2, Unlock, Users } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { userAPI } from "../../api/auth";
-import { useAuth } from "../../contexts/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
+import { PermissionWrapper } from "../auth/PermissionWrapper";
 import type { CreateUserRequest, User } from "../../types/auth";
 import { PERMISSIONS } from "../../types/auth";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -20,7 +21,7 @@ import UserActivityModal from "./UserActivityModal";
 import UserPermissionsModal from "./UserPermissionsModal";
 
 const UserManagementPage: React.FC = () => {
-  const { user: currentUser, hasPermission } = useAuth();
+  const { user: currentUser, hasPermission } = usePermissions();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
