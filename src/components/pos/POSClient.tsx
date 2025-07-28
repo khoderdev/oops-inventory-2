@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
+import { Order } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
@@ -54,6 +55,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showVoidDialog, setShowVoidDialog] = useState(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showReportsDialog, setShowReportsDialog] = useState(false);
+  const [useMockPayment, setUseMockPayment] = useState(true); // Toggle for testing
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -805,6 +807,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Handle payment
   const handlePayment = useCallback(async () => {
+    console.log("🔄 handlePayment started", { cartLength: cart.length, paymentAmount, total });
+    
     if (cart.length === 0) {
       showError("Cart is empty");
       return;
@@ -812,6 +816,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     setIsLoading(true);
     try {
+      let orderToComplete = currentOrder;
+      
       // Always create/update order first, then complete it
       if (!currentOrder) {
         // Create a new order first
@@ -831,17 +837,45 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }))
         };
 
-        await createOrder(orderData);
+        console.log("📄 Creating new order with data:", orderData);
+        
+        // Add timeout to prevent hanging
+        console.log("⏱️ Setting up 10-second timeout for order creation");
+        const createOrderPromise = createOrder(orderData);
+        const timeoutPromise = new Promise((_, reject) => {
+          const timeoutId = setTimeout(() => {
+            console.log("⏰ Order creation timeout reached - rejecting after 10 seconds");
+            reject(new Error("Order creation timeout after 10 seconds"));
+          }, 10000);
+          console.log("🕰️ Timeout set with ID:", timeoutId);
+          return timeoutId;
+        });
+        
+        console.log("🏁 Starting Promise.race between order creation and timeout");
+        orderToComplete = await Promise.race([createOrderPromise, timeoutPromise]) as Order;
+        console.log("✅ Order created successfully:", orderToComplete);
       }
 
-      // Now complete the order with payment
+      // Ensure we have a valid order with ID
+      console.log("🔍 Validating order:", { orderToComplete, hasId: !!orderToComplete?.id });
+      if (!orderToComplete || !orderToComplete.id) {
+        console.error("❌ Order validation failed:", { orderToComplete });
+        throw new Error("Failed to create or retrieve order ID");
+      }
+      console.log("✅ Order validation passed, proceeding with completion");
+
+      // Now complete the order with payment using the order ID directly
       const paymentData = {
         paymentMethod: "cash",
         paymentAmount: parseFloat(paymentAmount) || total,
         change: Math.max(0, (parseFloat(paymentAmount) || total) - total)
       };
 
-      const { order, saleId } = await completeOrder(paymentData);
+      // Call the API directly with the order ID to avoid state timing issues
+      console.log("💳 Calling completeOrder API with:", { orderId: orderToComplete.id, paymentData });
+      const response = await ordersAPI.completeOrder(orderToComplete.id, paymentData);
+      const { order, saleId } = response.data;
+      console.log("✅ Order completed successfully:", { orderId: order.id, saleId });
 
       // Prepare receipt data from completed order
       const receiptData = {
@@ -865,6 +899,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       };
 
       setLastSaleData(receiptData);
+      console.log("🧾 Setting receipt data:", receiptData);
       showSuccess(`Order completed successfully! Total: ${formatCurrency(order.total)}`);
 
       // Update table status if this was a table order
@@ -883,11 +918,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
 
       // Clear cart with animation after successful payment
+      console.log("🗪ef Clearing cart with animation, current cart length:", cart.length);
       clearCartWithAnimation();
       setPaymentAmount("");
+      console.log("🔒 Closing payment dialog and opening receipt dialog");
       setShowPaymentDialog(false);
       setShouldAutoPrint(true); // Enable auto-print for payment receipts
       setShowReceiptDialog(true);
+      console.log("🎆 Receipt dialog state set to true, shouldAutoPrint:", true);
 
       // Clear current order and local storage
       clearOrder();
@@ -910,10 +948,81 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.error("Sale failed:", error);
       const errorMessage = error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object" && "data" in error.response && error.response.data && typeof error.response.data === "object" && "message" in error.response.data ? (error.response.data.message as string) : "Sale failed. Please try again.";
       showError(errorMessage);
+      // Close payment dialog even on error
+      setShowPaymentDialog(false);
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, completeOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
+  }, [cart, total, paymentAmount, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
+
+  // Temporary mock payment completion for testing (remove when order creation is fixed)
+  const handleMockPayment = useCallback(async () => {
+    console.log("🧪 Mock payment started for testing");
+    
+    if (cart.length === 0) {
+      showError("Cart is empty");
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Create mock receipt data
+      const now = new Date();
+      const mockReceiptData: ReceiptData = {
+        id: `MOCK-${Date.now()}`,
+        date: now.toLocaleDateString(),
+        time: now.toLocaleTimeString(),
+        cashier: "POS System",
+        items: cart.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.price,
+          totalPrice: item.price * item.quantity,
+          type: item.type
+        })),
+        subtotal: total * 0.9, // Mock subtotal
+        tax: total * 0.1, // Mock tax
+        total: total,
+        paymentAmount: parseFloat(paymentAmount),
+        change: Math.max(0, parseFloat(paymentAmount) - total),
+        paymentMethod: "cash"
+      };
+
+      setLastSaleData(mockReceiptData);
+      console.log("🧾 Mock receipt data set:", mockReceiptData);
+      
+      showSuccess(`Mock order completed! Total: ${formatCurrency(total)}`);
+
+      // Clear cart with animation
+      console.log("🗪ef Mock: Clearing cart, current length:", cart.length);
+      clearCartWithAnimation();
+      setPaymentAmount("");
+      
+      // Close payment dialog and open receipt dialog
+      console.log("🔒 Mock: Closing payment dialog and opening receipt dialog");
+      setShowPaymentDialog(false);
+      setShouldAutoPrint(true);
+      setShowReceiptDialog(true);
+      console.log("🎆 Mock: Receipt dialog state set to true");
+
+      // Clear current order and reset
+      clearOrder();
+      OrderPersistence.clearCurrentOrder();
+      setHasUnsavedChanges(false);
+      resetToTakeaway();
+      
+    } catch (error) {
+      console.error("Mock payment failed:", error);
+      showError("Mock payment failed");
+      setShowPaymentDialog(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cart, total, paymentAmount, showError, showSuccess, clearCartWithAnimation, selectedTable, orderType, clearOrder, resetToTakeaway]);
 
   return (
     <div className="h-full flex bg-gray-100">
@@ -924,6 +1033,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
+              {/* Development Toggle */}
+              <button
+                onClick={() => setUseMockPayment(!useMockPayment)}
+                className={`px-2 py-1 text-xs rounded ${
+                  useMockPayment 
+                    ? 'bg-green-100 text-green-800 border border-green-300' 
+                    : 'bg-red-100 text-red-800 border border-red-300'
+                }`}
+                title="Toggle between mock and real payment for testing"
+              >
+                {useMockPayment ? 'MOCK' : 'REAL'}
+              </button>
               {/* Order Status Indicator */}
               {(hasUnsavedChanges || currentOrder || (cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
                 <div className="flex items-center space-x-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md">
@@ -970,7 +1091,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         {/* Order Summary - Fixed Footer */}
         {!showSuccessCheckmark && (
           <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-            <OrderSummary cart={cart} subtotal={subtotal} total={total} onPaymentClick={() => setShowPaymentDialog(true)} onSaveClick={handleManualSave} />
+            <OrderSummary 
+              cart={cart} 
+              subtotal={subtotal} 
+              total={total} 
+              onPaymentClick={() => {
+                console.log("💰 Opening payment dialog, auto-filling amount:", total);
+                setPaymentAmount(total.toString());
+                setShowPaymentDialog(true);
+              }} 
+              onSaveClick={handleManualSave} 
+            />
           </div>
         )}
       </div>
@@ -1040,6 +1171,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }}
         receiptData={lastSaleData}
         autoPrint={shouldAutoPrint}
+      />
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        isOpen={showPaymentDialog}
+        onClose={() => setShowPaymentDialog(false)}
+        total={total}
+        paymentAmount={paymentAmount}
+        onPaymentAmountChange={setPaymentAmount}
+        onPayment={useMockPayment ? handleMockPayment : handlePayment}
+        isLoading={isLoading}
       />
 
       {/* Void Order Dialog */}

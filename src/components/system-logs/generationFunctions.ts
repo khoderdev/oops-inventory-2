@@ -31,14 +31,17 @@ export async function generateStockEntryLogsReport(
 
     return response.data.logs.map(log => ({
       Timestamp: log.actionTimestamp,
-      "Action Type": log.actionType,
-      Material: log.materialName,
       User: log.userName || "System",
+      Action: log.actionType,
+      Item: log.materialName,
+      // Keep original data for Item column formatting
+      Material: log.materialName,
       "Stock Entry": log.stockEntryId,
+      stockEntryId: log.stockEntryId,
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
-      Status: log.status,
-      Description: log.actionDescription || "-"
+      Description: log.actionDescription || "-",
+      Status: log.status
     }));
   } catch (error) {
     console.error("Error generating stock entry logs report:", error);
@@ -66,13 +69,17 @@ export async function generateUserActivityLogsReport(
 
     return response.data.activity.map(log => ({
       Timestamp: log.actionTimestamp,
-      "Action Type": log.actionType,
+      User: log.userName || "System",
+      Action: log.actionType,
+      Item: log.materialName,
+      // Keep original data for Item column formatting
       Material: log.materialName,
       "Stock Entry": log.stockEntryId,
+      stockEntryId: log.stockEntryId,
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
-      Status: log.status,
-      Description: log.actionDescription || "-"
+      Description: log.actionDescription || "-",
+      Status: log.status
     }));
   } catch (error) {
     console.error("Error generating user activity logs report:", error);
@@ -100,13 +107,17 @@ export async function generateMaterialActivityLogsReport(
 
     return response.data.activity.map(log => ({
       Timestamp: log.actionTimestamp,
-      "Action Type": log.actionType,
       User: log.userName || "System",
+      Action: log.actionType,
+      Item: log.materialName,
+      // Keep original data for Item column formatting
+      Material: log.materialName,
       "Stock Entry": log.stockEntryId,
+      stockEntryId: log.stockEntryId,
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
-      Status: log.status,
-      Description: log.actionDescription || "-"
+      Description: log.actionDescription || "-",
+      Status: log.status
     }));
   } catch (error) {
     console.error("Error generating material activity logs report:", error);
@@ -136,15 +147,18 @@ export async function generateFailedOperationsReport(
 
     return response.data.logs.map(log => ({
       Timestamp: log.actionTimestamp,
-      "Action Type": log.actionType,
-      Material: log.materialName,
       User: log.userName || "System",
+      Action: log.actionType,
+      Item: log.materialName,
+      // Keep original data for Item column formatting
+      Material: log.materialName,
       "Stock Entry": log.stockEntryId,
-      "Error Message": log.errorMessage || "Unknown error",
+      stockEntryId: log.stockEntryId,
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
+      Description: log.actionDescription || "-",
       Status: log.status,
-      Description: log.actionDescription || "-"
+      "Error Message": log.errorMessage || "Unknown error"
     }));
   } catch (error) {
     console.error("Error generating failed operations report:", error);
@@ -173,14 +187,17 @@ export async function generateRecentActivityReport(
 
     return response.data.logs.map(log => ({
       Timestamp: log.actionTimestamp,
-      "Action Type": log.actionType,
-      Material: log.materialName,
       User: log.userName || "System",
+      Action: log.actionType,
+      Item: log.materialName,
+      // Keep original data for Item column formatting
+      Material: log.materialName,
       "Stock Entry": log.stockEntryId,
+      stockEntryId: log.stockEntryId,
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
-      Status: log.status,
-      Description: log.actionDescription || "-"
+      Description: log.actionDescription || "-",
+      Status: log.status
     }));
   } catch (error) {
     console.error("Error generating recent activity report:", error);
@@ -214,15 +231,18 @@ export async function generateTodayLogsReport(
     }
 
     return response.data.logs.map(log => ({
-      Time: format(new Date(log.actionTimestamp), "HH:mm:ss"),
-      "Action Type": log.actionType,
-      Material: log.materialName,
+      Timestamp: log.actionTimestamp,
       User: log.userName || "System",
+      Action: log.actionType,
+      Item: log.materialName,
+      // Keep original data for Item column formatting
+      Material: log.materialName,
       "Stock Entry": log.stockEntryId,
+      stockEntryId: log.stockEntryId,
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
-      Status: log.status,
-      Description: log.actionDescription || "-"
+      Description: log.actionDescription || "-",
+      Status: log.status
     }));
   } catch (error) {
     console.error("Error generating today's logs report:", error);
@@ -253,13 +273,17 @@ export async function generateActionTypeLogsReport(
 
     return response.data.logs.map(log => ({
       Timestamp: log.actionTimestamp,
-      Material: log.materialName,
       User: log.userName || "System",
+      Action: log.actionType,
+      Item: log.materialName,
+      // Keep original data for Item column formatting
+      Material: log.materialName,
       "Stock Entry": log.stockEntryId,
+      stockEntryId: log.stockEntryId,
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
-      Status: log.status,
-      Description: log.actionDescription || "-"
+      Description: log.actionDescription || "-",
+      Status: log.status
     }));
   } catch (error) {
     console.error("Error generating action type logs report:", error);
@@ -367,14 +391,17 @@ export async function generateSearchLogsReport(
 
     return response.data.logs.map((log, index) => ({
       Timestamp: log.actionTimestamp,
-      "Action Type": log.actionType,
-      Material: log.materialName,
       User: log.userName || "System",
+      Action: log.actionType,
+      Item: log.materialName,
+      // Keep original data for Item column formatting
+      Material: log.materialName,
       "Stock Entry": log.stockEntryId,
+      stockEntryId: log.stockEntryId,
       Quantity: log.quantityDelta || 0,
       Cost: log.costDelta || 0,
-      Status: log.status,
       Description: log.actionDescription || "-",
+      Status: log.status,
       Relevance: `${Math.max(100 - index * 2, 10)}%` // Simple relevance calculation
     }));
   } catch (error) {

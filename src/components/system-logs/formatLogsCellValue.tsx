@@ -1,8 +1,10 @@
 import { LogType } from "@/components/system-logs/configs";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { format } from "date-fns";
 import { AlertTriangle, CheckCircle, Clock, Package, TrendingDown, TrendingUp, User, XCircle } from "lucide-react";
+import React from "react";
 
 export function formatLogsCellValue(row: Record<string, unknown>, header: string, logType: LogType): React.ReactNode {
   const value = row[header];
@@ -16,32 +18,52 @@ export function formatLogsCellValue(row: Record<string, unknown>, header: string
     try {
       const date = new Date(String(value));
       if (header === "Time") {
-        return format(date, "HH:mm:ss");
+        return (
+          <span className="font-mono text-sm text-gray-600 dark:text-gray-400">
+            {format(date, "HH:mm:ss")}
+          </span>
+        );
       }
-      return format(date, "MMM dd, yyyy HH:mm:ss");
+      return (
+        <div className="flex flex-col">
+          <span className="font-medium text-sm">{format(date, "dd-MM-yyyy")}</span>
+          <span className="font-mono text-xs text-gray-500">{format(date, "HH:mm:ss")}</span>
+        </div>
+      );
     } catch {
       return String(value);
     }
   }
 
   // Handle action type badges
-  if (header === "Action Type") {
+  if (header === "Action") {
     const actionType = String(value);
     const actionColors: Record<string, string> = {
-      create: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300",
-      update: "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300",
-      delete: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300",
-      add_to_stock: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300",
-      waste_from_stock: "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300",
-      pos_toggle: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300"
+      create: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800",
+      update: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800",
+      delete: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800",
+      add_to_stock: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800",
+      waste_from_stock: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800",
+      pos_toggle: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800"
     };
 
-    const colorClass = actionColors[actionType] || "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300";
+    const colorClass = actionColors[actionType] || "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300 dark:border-gray-800";
+    
+    // Format action text for better readability
+    const formatActionText = (action: string) => {
+      return action
+        .replace(/_/g, " ")
+        .split(" ")
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
+    };
 
     return (
-      <Badge variant="outline" className={colorClass}>
-        {actionType.replace(/_/g, " ").toUpperCase()}
-      </Badge>
+      <div className="flex justify-center">
+        <Badge variant="outline" className={`${colorClass} font-medium text-xs px-3 py-1 text-center min-w-[80px]`}>
+          {formatActionText(actionType)}
+        </Badge>
+      </div>
     );
   }
 
@@ -161,25 +183,66 @@ export function formatLogsCellValue(row: Record<string, unknown>, header: string
     );
   }
 
-  // Handle material names with icon
-  if (header === "Material") {
+  // Handle Item column (Material + Stock Entry combined)
+  if (header === "Item") {
+    // Check if we have both material and stock entry data
+    const materialName = row["Material"] || row["materialName"] || value;
+    const stockEntryId = row["Stock Entry"] || row["stockEntryId"] || row["stockEntry"];
+    
     return (
-      <div className="flex items-center gap-2">
-        <Package className="w-4 h-4 text-gray-400" />
-        <span className="font-medium">{String(value)}</span>
+      <div className="flex items-center gap-3">
+        <Package className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <div className="flex flex-col min-w-0">
+          <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+            {String(materialName || "-")}
+          </span>
+          {stockEntryId && (
+            <Badge variant="outline" className="font-mono text-xs w-fit mt-1 px-2 py-0.5 bg-gray-50 dark:bg-gray-800">
+              #{String(stockEntryId)}
+            </Badge>
+          )}
+        </div>
       </div>
     );
   }
 
-  // Handle user names with icon
+  // Handle user names with avatar
   if (header === "User") {
     const userName = String(value);
     const isSystem = userName === "System";
+    
+    // Get user initials
+    const getInitials = (name: string) => {
+      if (name === "System") return "SY";
+      return name
+        .split(" ")
+        .map(word => word.charAt(0))
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    };
 
     return (
-      <div className="flex items-center gap-2">
-        <User className={`w-4 h-4 ${isSystem ? "text-blue-400" : "text-gray-400"}`} />
-        <span className={`${isSystem ? "font-medium text-blue-600 dark:text-blue-400" : ""}`}>{userName}</span>
+      <div className="flex items-center gap-3">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback className={`text-xs font-semibold ${
+            isSystem 
+              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300" 
+              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+          }`}>
+            {getInitials(userName)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col">
+          <span className={`text-sm font-medium ${
+            isSystem ? "text-blue-600 dark:text-blue-400" : "text-gray-900 dark:text-gray-100"
+          }`}>
+            {userName}
+          </span>
+          {isSystem && (
+            <span className="text-xs text-blue-500 dark:text-blue-400">Automated</span>
+          )}
+        </div>
       </div>
     );
   }

@@ -1,10 +1,10 @@
-import { cn } from "@/lib/utils";
 import { LogType } from "@/components/system-logs/configs";
+import { cn } from "@/lib/utils";
 import { getLogsTableHeaders } from "@/utils/getLogsTableHeaders";
-import { Activity, Database, FileText } from "lucide-react";
+import { Database, FileText } from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { getColumnAlignment, getInitialWidth, getResponsiveColumnClasses } from "../analytics/columnFunctions";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { formatLogsCellValue } from "./formatLogsCellValue";
 
 export interface LogsTableProps {
@@ -192,13 +192,7 @@ export function LogsTable({ logType, data }: LogsTableProps) {
       <div className="hidden sm:flex flex-col h-full">
         <div className={cn("flex-1 overflow-hidden relative", isResizing && "select-none")}>
           <div
-            className={cn(
-              "h-full overflow-auto",
-              "scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400",
-              "dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600",
-              "scroll-smooth",
-              "scrollbar-gutter-stable"
-            )}
+            className={cn("h-full overflow-auto", "scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400", "dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600", "scroll-smooth", "scrollbar-gutter-stable")}
             style={{
               height: "100%",
               minHeight: "200px",
@@ -276,32 +270,13 @@ export function LogsTable({ logType, data }: LogsTableProps) {
 
               <TableBody>
                 {data.map((row, index) => (
-                  <TableRow
-                    key={index}
-                    className={cn(
-                      "group transition-colors duration-200 ease-in-out",
-                      "hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-indigo-50/60",
-                      "dark:hover:from-blue-900/40 dark:hover:to-indigo-900/30",
-                      "border-b border-slate-200/60 dark:border-slate-700/60",
-                      index % 2 === 0 && "bg-gradient-to-r from-slate-50/60 to-gray-50/40 dark:from-slate-800/60 dark:to-gray-800/40"
-                    )}
-                  >
+                  <TableRow key={index} className={cn("group transition-colors duration-200 ease-in-out", "hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-indigo-50/60", "dark:hover:from-blue-900/40 dark:hover:to-indigo-900/30", "border-b border-slate-200/60 dark:border-slate-700/60", index % 2 === 0 && "bg-gradient-to-r from-slate-50/60 to-gray-50/40 dark:from-slate-800/60 dark:to-gray-800/40")}>
                     {headers.map((header, cellIndex) => {
                       const alignment = getColumnAlignment(header);
                       return (
                         <TableCell
                           key={header}
-                          className={cn(
-                            "text-sm sm:text-base lg:text-sm",
-                            "py-4 px-3 sm:py-5 sm:px-4 lg:px-5",
-                            cellIndex < headers.length - 1 && "border-r border-slate-200/40 dark:border-slate-600/40",
-                            cellIndex === headers.length - 1 && "border-r-0",
-                            "transition-colors duration-200 ease-in-out",
-                            "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60",
-                            "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20",
-                            getResponsiveColumnClasses(header),
-                            alignment
-                          )}
+                          className={cn("text-sm sm:text-base lg:text-sm", "py-4 px-3 sm:py-5 sm:px-4 lg:px-5", cellIndex < headers.length - 1 && "border-r border-slate-200/40 dark:border-slate-600/40", cellIndex === headers.length - 1 && "border-r-0", "transition-colors duration-200 ease-in-out", "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60", "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20", getResponsiveColumnClasses(header), alignment)}
                           style={{
                             width: `${getColumnWidth(header)}px`,
                             textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"

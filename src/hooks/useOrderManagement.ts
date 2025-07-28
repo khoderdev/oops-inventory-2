@@ -67,12 +67,30 @@ export const useOrderManagement = () => {
       };
 
       console.log("Creating order - backend will generate order number");
+      console.log("🚀 Making API call to ordersAPI.createOrder with:", orderData);
+      
       const response = await ordersAPI.createOrder(orderData);
+      console.log("📦 API response received:", response);
+      
       const newOrder = response.data;
+      console.log("🎆 New order created:", newOrder);
+      
       setCurrentOrder(newOrder);
+      console.log("💾 Order saved to state");
+      
       return newOrder;
     } catch (error: unknown) {
+      console.error("❌ Order creation failed with error:", error);
+      console.error("🔍 Error details:", {
+        message: (error as any)?.message,
+        response: (error as any)?.response,
+        status: (error as any)?.response?.status,
+        data: (error as any)?.response?.data
+      });
+      
       const errorMessage = (error as any)?.response?.data?.message || "Failed to create order";
+      console.error("🚨 Setting error message:", errorMessage);
+      
       setError(errorMessage);
       toast({
         title: "Error",

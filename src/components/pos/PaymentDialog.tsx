@@ -18,10 +18,22 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
   const isExactAmount = parseFloat(paymentAmount) === total;
   const hasChange = parseFloat(paymentAmount) > total;
   const changeAmount = hasChange ? parseFloat(paymentAmount) - total : 0;
+  
+  // Debug logging
+  const isButtonDisabled = isLoading || !paymentAmount || parseFloat(paymentAmount) < total;
+  console.log("🔍 PaymentDialog state:", { 
+    paymentAmount, 
+    total, 
+    isLoading, 
+    isButtonDisabled,
+    hasPaymentAmount: !!paymentAmount,
+    parsedAmount: parseFloat(paymentAmount),
+    isAmountValid: parseFloat(paymentAmount) >= total
+  });
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+    <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
+      <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
         <div className="w-full h-full flex flex-col overflow-hidden">
         {/* Header */}
         <DialogHeader className="flex-shrink-0 px-8 pt-8 pb-4 border-b">
@@ -90,7 +102,15 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
             <Button variant="outline" size="lg" onClick={onClose} className="flex-1 h-14 text-lg font-semibold">
               Cancel
             </Button>
-            <Button onClick={onPayment} disabled={isLoading || !paymentAmount || parseFloat(paymentAmount) < total} size="lg" className="flex-1 h-14 text-lg font-semibold bg-green-600 hover:bg-green-700 text-white">
+            <Button 
+              onClick={() => {
+                console.log("💆 Payment button clicked!", { paymentAmount, total, isLoading });
+                onPayment();
+              }} 
+              disabled={isLoading || !paymentAmount || parseFloat(paymentAmount) < total} 
+              size="lg" 
+              className="flex-1 h-14 text-lg font-semibold bg-green-600 hover:bg-green-700 text-white"
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
