@@ -82,7 +82,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
         {/* Glass morphism overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 dark:from-white/5 dark:to-white/10 backdrop-blur-sm" />
         {/* Left Section - Branding */}
-        <div className="relative flex items-center z-10 select-none">
+        <div className="hidden md:block items-center z-10 select-none">
           {!isLoaded && (
             <div className="flex items-center justify-center">
               <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />

@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 const POSClientPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, hasPermission, logout, isAuthenticated, isLoading } = useAuth();
-  const { materialsWithStock, sectionAssignments, fetchTabData } = useInventoryStore();
+  const { sectionAssignments, fetchTabData } = useInventoryStore();
   const [sessionStats, setSessionStats] = useState({
     totalSales: 0,
     transactionCount: 0
@@ -41,27 +41,27 @@ const POSClientPage: React.FC = () => {
     try {
       const response = await salesAPI.getSales();
       const allSales = response.data || [];
-      
+
       // Filter sales for today
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
       const todaysSales = allSales.filter(sale => {
-        const saleDate = new Date(sale.saleDate || sale.createdAt || '').toISOString().split('T')[0];
+        const saleDate = new Date(sale.saleDate || sale.createdAt || "").toISOString().split("T")[0];
         return saleDate === today;
       });
-      
+
       // Calculate total from today's sales
       const totalSales = todaysSales.reduce((sum, sale) => {
         const saleAmount = Number(sale.totalAmount) || 0;
         return sum + (isNaN(saleAmount) ? 0 : saleAmount);
       }, 0);
-      
+
       setSessionStats(prev => ({
         ...prev,
         totalSales: isNaN(totalSales) ? 0 : totalSales,
         transactionCount: todaysSales.length
       }));
     } catch (error) {
-      console.error('Failed to fetch today\'s sales:', error);
+      console.error("Failed to fetch today's sales:", error);
       // Keep default values if fetch fails
     }
   };
@@ -70,7 +70,7 @@ const POSClientPage: React.FC = () => {
   const handleSaleComplete = (saleData: SaleResponse) => {
     const saleAmount = Number(saleData.totalAmount) || 0;
     const validSaleAmount = isNaN(saleAmount) ? 0 : saleAmount;
-    
+
     setSessionStats(prev => ({
       totalSales: prev.totalSales + validSaleAmount,
       transactionCount: prev.transactionCount + 1

@@ -166,7 +166,7 @@ class ApiClient {
     // Handle standard Axios errors
     if (axios.isAxiosError(error)) {
       const errorData = error.response?.data;
-      
+
       return {
         message: errorData?.message || "Request failed",
         code: errorData?.code || error.code,
@@ -178,13 +178,13 @@ class ApiClient {
         details: errorData
       };
     }
-    
+
     // Handle case where error is already transformed but contains the right data
     const errorObj = error as Record<string, unknown>;
-    if (errorObj && typeof errorObj === 'object' && errorObj.message) {
+    if (errorObj && typeof errorObj === "object" && errorObj.message) {
       return {
         message: errorObj.message as string,
-        code: errorObj.code === 'ERR_BAD_REQUEST' ? undefined : (errorObj.code as string), // Ignore generic axios codes
+        code: errorObj.code === "ERR_BAD_REQUEST" ? undefined : (errorObj.code as string), // Ignore generic axios codes
         status: errorObj.status as number,
         field: errorObj.field as string,
         fields: errorObj.fields as string[],
@@ -193,7 +193,7 @@ class ApiClient {
         details: errorObj
       };
     }
-    
+
     // Fallback for unknown error types
     return {
       message: "An unexpected error occurred"
@@ -203,7 +203,7 @@ class ApiClient {
 
 // Create API instance
 const api = new ApiClient({
-  baseURL: "http://localhost:3000/api",
+  baseURL: "http://192.168.88.89:3000/api",
   timeout: 15000
 });
 
