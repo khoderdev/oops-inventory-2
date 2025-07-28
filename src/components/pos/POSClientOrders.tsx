@@ -492,42 +492,28 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                               </div>
 
                               {/* Action Buttons */}
-                              <div className="grid grid-cols-3 gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
+                              <div className="flex w-full items-center justify-around">
+                                <Edit
+                                  className="w-6 h-6 hover:text-blue-600 cursor-pointer"
                                   onClick={e => {
                                     e.stopPropagation();
                                     handleOrderSelect(order);
                                   }}
-                                  className="h-9 text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 hover:border-blue-300 transition-all group-hover:scale-105"
-                                >
-                                  <Edit className="w-4 h-4 mr-1.5" />
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
+                                />
+                                <Eye
+                                  className="w-6 h-6 hover:text-blue-600 cursor-pointer"
                                   onClick={e => {
                                     e.stopPropagation();
                                     handleViewOrderDetails(order);
                                   }}
-                                  className="h-9 text-sm hover:bg-gray-50 border-gray-200 hover:border-gray-300 transition-all group-hover:scale-105"
-                                >
-                                  <Eye className="w-4 h-4 mr-1.5" />
-                                  View
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
+                                />
+                                <Printer
+                                  className="w-6 h-6 hover:text-blue-600 cursor-pointer"
                                   onClick={e => {
                                     e.stopPropagation();
                                     handlePrintOrderReceipt(order);
                                   }}
-                                  className="h-9 px-3 hover:bg-gray-50 border-gray-200 hover:border-gray-300 transition-all group-hover:scale-105"
-                                >
-                                  <Printer className="w-4 h-4" />
-                                </Button>
+                                />
                               </div>
                             </div>
                           </CardContent>

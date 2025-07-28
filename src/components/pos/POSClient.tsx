@@ -26,7 +26,6 @@ import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete }) => {
-  const [selectedSectionId] = useState<string>("");
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -904,7 +903,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
 
-      // Automatically select TAKE AWAY after payment completion
+      // Automatically select TAKE AWAY after payment completion//////////////////////////////////////////////////////////////////////////////////////
       resetToTakeaway();
 
       // Callback for parent component
@@ -941,7 +940,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   <span className="text-xs text-blue-800">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
-                        <span>#{currentOrder.orderNumber}</span>
+                        <span>#{currentOrder.orderNumber}</span>///////////////////////////////////////////////////////////////
                         <span className="text-xs opacity-75">({currentOrder.status})</span>
                       </div>
                     ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
