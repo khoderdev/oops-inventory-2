@@ -551,6 +551,7 @@ export interface TablesLayoutProps {
   selectedTable?: Table;
   onTableSelect: (table: Table) => void;
   onClose: () => void;
+  tableOrders?: {[tableId: string]: number}; // For notification badges
 }
 
 export interface CategoryTabsProps {

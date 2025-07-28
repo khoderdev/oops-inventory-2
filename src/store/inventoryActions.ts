@@ -365,6 +365,7 @@ export const updateStockEntryAction = atom(null, async (get, set, { id, data }: 
 export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) => {
   switch (tabValue) {
     case "material":
+    case "materials":
       await set(fetchMaterialsAction);
       break;
     case "stock":

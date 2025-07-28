@@ -5,7 +5,7 @@ import { formatCurrency } from "@/utils/conversionLogic";
 import { Clock, Users, X } from "lucide-react";
 import React, { useState } from "react";
 
-export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose }) => {
+export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
   // Ensure tables is always an array
   const safeTablesList = Array.isArray(tables) ? tables : [];
 
@@ -137,14 +137,23 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                       }}
                     >
                       {/* Table */}
-                      <div className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} onClick={() => onTableSelect(table)} onMouseEnter={e => handleTableHover(table, e)} onMouseLeave={handleTableLeave}>
-                        <div className="text-center">
-                          <div className="font-bold text-lg text-gray-800">{table.number}</div>
-                          <div className="text-xs text-gray-600 flex items-center justify-center">
-                            <Users className="w-3 h-3 mr-1" />
-                            {table.seats}
+                      <div className="relative">
+                        <div className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} onClick={() => onTableSelect(table)} onMouseEnter={e => handleTableHover(table, e)} onMouseLeave={handleTableLeave}>
+                          <div className="text-center">
+                            <div className="font-bold text-lg text-gray-800">{table.number}</div>
+                            <div className="text-xs text-gray-600 flex items-center justify-center">
+                              <Users className="w-3 h-3 mr-1" />
+                              {table.seats}
+                            </div>
                           </div>
                         </div>
+                        
+                        {/* Red notification badge for tables with saved orders */}
+                        {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && (
+                          <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">
+                            {tableOrders[table.number.toString()]}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

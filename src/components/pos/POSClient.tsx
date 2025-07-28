@@ -54,6 +54,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showReportsDialog, setShowReportsDialog] = useState(false);
   const [activeView, setActiveView] = useState<"cart" | "products">("products");
+  const [incompleteOrdersCount, setIncompleteOrdersCount] = useState(0);
+  const [tableOrders, setTableOrders] = useState<{ [tableId: string]: number }>({});
 
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -107,6 +109,61 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleShowReports = useCallback(() => {
     setShowReportsDialog(true);
+  }, []);
+
+  // Fetch incomplete orders count and table orders for notifications
+  const fetchIncompleteOrders = useCallback(async () => {
+    try {
+      // Fetch all orders (we'll filter on frontend since backend doesn't support multiple status filtering)
+      const response = await ordersAPI.getOrders();
+
+      console.log("Orders API response:", response);
+
+      if (response?.data) {
+        // Handle the nested response structure: {data: {data: Array}}
+        let allOrders: any = response.data;
+        
+        // The actual orders are in response.data.data
+        if (allOrders.data && Array.isArray(allOrders.data)) {
+          allOrders = allOrders.data;
+        } else if (!Array.isArray(allOrders)) {
+          console.warn("Unexpected orders API response structure:", allOrders);
+          setIncompleteOrdersCount(0);
+          setTableOrders({});
+          return;
+        }
+
+        // Filter for incomplete orders (not paid or cancelled)
+        const incompleteOrders = allOrders.filter(order =>
+          order.status !== "paid" && order.status !== "cancelled"
+        );
+
+        console.log("Incomplete orders found:", incompleteOrders.length);
+
+        // Count total incomplete orders
+        setIncompleteOrdersCount(incompleteOrders.length);
+
+        // Group orders by table for table notifications
+        const tableOrdersMap: { [tableId: string]: number } = {};
+        incompleteOrders.forEach(order => {
+          if (order.tableNumber) {
+            const tableKey = order.tableNumber.toString();
+            tableOrdersMap[tableKey] = (tableOrdersMap[tableKey] || 0) + 1;
+          }
+        });
+        setTableOrders(tableOrdersMap);
+      } else {
+        // No data received
+        setIncompleteOrdersCount(0);
+        setTableOrders({});
+      }
+    } catch (error) {
+      console.error("Error fetching incomplete orders:", error);
+      // Reset counts on error
+      setIncompleteOrdersCount(0);
+      setTableOrders({});
+      // Don't show error to user as this is background functionality
+    }
   }, []);
 
   // Comprehensive reset function - clears everything in POS system
@@ -439,6 +496,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     fetchMenuItems();
   }, [showError]);
+
+  // Fetch incomplete orders for notifications
+  useEffect(() => {
+    // Initial fetch
+    fetchIncompleteOrders();
+
+    // Set up interval to refresh every 30 seconds
+    const interval = setInterval(fetchIncompleteOrders, 30000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, [fetchIncompleteOrders]);
 
   // Get available POS items (filter by search term and category)
   const availablePosItems = posItems.filter(posItem => {
@@ -879,22 +948,22 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         console.log("🚀 Calling createOrder function...");
         const createOrderResponse = await createOrder(orderData);
         console.log("📝 createOrder returned:", createOrderResponse);
-        
+
         // Extract the actual order from the response
-        if (createOrderResponse && typeof createOrderResponse === 'object' && 'order' in createOrderResponse) {
+        if (createOrderResponse && typeof createOrderResponse === "object" && "order" in createOrderResponse) {
           orderToComplete = (createOrderResponse as any).order;
           console.log("✅ Extracted order from response.order:", orderToComplete);
         } else {
           orderToComplete = createOrderResponse;
           console.log("⚠️ Using response directly as order:", orderToComplete);
         }
-        
+
         console.log("🔍 Order structure analysis:", {
           hasOrder: !!orderToComplete,
           orderType: typeof orderToComplete,
-          hasId: orderToComplete ? 'id' in orderToComplete : false,
+          hasId: orderToComplete ? "id" in orderToComplete : false,
           idValue: orderToComplete?.id,
-          orderKeys: orderToComplete ? Object.keys(orderToComplete) : 'no order',
+          orderKeys: orderToComplete ? Object.keys(orderToComplete) : "no order",
           fullOrder: orderToComplete
         });
       }
@@ -909,15 +978,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       if (!orderToComplete) {
         throw new Error("No order available - both orderToComplete and currentOrder are null");
       }
-      
+
       if (!orderToComplete.id) {
         console.log("⚠️ Order missing ID, checking for alternative ID fields:", {
           order: orderToComplete,
-          hasOrderId: 'orderId' in orderToComplete,
-          hasOrderNumber: 'orderNumber' in orderToComplete,
-          hasAnyId: Object.keys(orderToComplete).filter(key => key.toLowerCase().includes('id'))
+          hasOrderId: "orderId" in orderToComplete,
+          hasOrderNumber: "orderNumber" in orderToComplete,
+          hasAnyId: Object.keys(orderToComplete).filter(key => key.toLowerCase().includes("id"))
         });
-        
+
         // Try to find an ID field with proper type assertion
         const orderAny = orderToComplete as any;
         const orderId = orderToComplete.id || orderAny.orderId || orderAny.orderNumber;
@@ -943,27 +1012,22 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       });
 
       // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Order completion timeout - API call took too long')), 15000)
-      );
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Order completion timeout - API call took too long")), 15000));
 
-      const response = await Promise.race([
-        ordersAPI.completeOrder(orderToComplete.id, paymentData),
-        timeoutPromise
-      ]) as any; // Type assertion for API response flexibility
-      
+      const response = (await Promise.race([ordersAPI.completeOrder(orderToComplete.id, paymentData), timeoutPromise])) as any; // Type assertion for API response flexibility
+
       console.log("📨 API Response received:", response);
       console.log("📨 Response data:", response?.data);
 
       // Handle API response - the response should have { order, saleId } structure
       let order: any, saleId: string;
-      
+
       console.log("🔍 Analyzing API response structure:", {
         hasData: !!response?.data,
         responseType: typeof response?.data,
-        responseKeys: response?.data ? Object.keys(response.data) : 'no data'
+        responseKeys: response?.data ? Object.keys(response.data) : "no data"
       });
-      
+
       if (response?.data) {
         // Try different response structures
         if (response.data.order && response.data.saleId) {
@@ -990,7 +1054,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             subtotal: subtotal,
             tax: tax,
             total: total,
-            status: 'completed'
+            status: "completed"
           };
           saleId = `sale-${Date.now()}`;
         }
@@ -1003,7 +1067,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           subtotal: subtotal,
           tax: tax,
           total: total,
-          status: 'completed'
+          status: "completed"
         };
         saleId = `sale-${Date.now()}`;
       }
@@ -1035,11 +1099,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.log("📧 Created receipt data:", receiptData);
 
       console.log("🔄 Starting completion sequence...");
-      
+
       // Set receipt data first
       console.log("💾 Setting receipt data...");
       setLastSaleData(receiptData);
-      
+
       // Show success message
       console.log("✅ Showing success message...");
       showSuccess(`Order completed successfully! Total: ${formatCurrency(order.total || total)}`);
@@ -1064,16 +1128,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Clear cart with animation after successful payment
       console.log("🗑️ Clearing cart with animation...");
       clearCartWithAnimation();
-      
+
       console.log("💰 Resetting payment state...");
       setPaymentAmount("");
-      
+
       console.log("❌ Closing payment dialog...");
       setShowPaymentDialog(false);
-      
+
       console.log("🖨️ Setting print preferences...");
       setShouldAutoPrint(false); // Let users choose when to print receipts
-      
+
       console.log("📧 Opening receipt dialog...");
       setShowReceiptDialog(true);
 
@@ -1083,7 +1147,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
       resetToTakeaway();
-      
+
       console.log("✅ Payment completion sequence finished successfully!");
 
       // Callback for parent component
@@ -1265,7 +1329,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           {/* Bottom Action Bar - Fixed Footer */}
           <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
-            <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} />
+            <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} incompleteOrdersCount={incompleteOrdersCount} />
           </div>
         </div>
       </div>
@@ -1388,6 +1452,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       {/* Orders Management Dialog */}
       <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} onOrderSelect={handleOrderSelect} />
+
+      {/* Tables Layout Dialog */}
+      {showTablesLayout && (
+        <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
+          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+            <div className="w-full h-full flex flex-col overflow-hidden">
+              <TablesLayout
+                tables={tables}
+                selectedTable={selectedTable}
+                onTableSelect={handleTableSelection}
+                onClose={handleCloseTablesLayout}
+                tableOrders={tableOrders}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Reports Dialog */}
       {showReportsDialog && (
