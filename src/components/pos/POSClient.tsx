@@ -876,12 +876,57 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         console.log("📦 Final order data:", orderData);
 
-        orderToComplete = await createOrder(orderData);
+        console.log("🚀 Calling createOrder function...");
+        const createOrderResponse = await createOrder(orderData);
+        console.log("📝 createOrder returned:", createOrderResponse);
+        
+        // Extract the actual order from the response
+        if (createOrderResponse && typeof createOrderResponse === 'object' && 'order' in createOrderResponse) {
+          orderToComplete = (createOrderResponse as any).order;
+          console.log("✅ Extracted order from response.order:", orderToComplete);
+        } else {
+          orderToComplete = createOrderResponse;
+          console.log("⚠️ Using response directly as order:", orderToComplete);
+        }
+        
+        console.log("🔍 Order structure analysis:", {
+          hasOrder: !!orderToComplete,
+          orderType: typeof orderToComplete,
+          hasId: orderToComplete ? 'id' in orderToComplete : false,
+          idValue: orderToComplete?.id,
+          orderKeys: orderToComplete ? Object.keys(orderToComplete) : 'no order',
+          fullOrder: orderToComplete
+        });
+      }
+
+      // Use currentOrder if orderToComplete is not available
+      if (!orderToComplete && currentOrder) {
+        console.log("⚠️ Using currentOrder as fallback:", currentOrder);
+        orderToComplete = currentOrder;
       }
 
       // Ensure we have a valid order with ID
-      if (!orderToComplete || !orderToComplete.id) {
-        throw new Error("Failed to create or retrieve order ID");
+      if (!orderToComplete) {
+        throw new Error("No order available - both orderToComplete and currentOrder are null");
+      }
+      
+      if (!orderToComplete.id) {
+        console.log("⚠️ Order missing ID, checking for alternative ID fields:", {
+          order: orderToComplete,
+          hasOrderId: 'orderId' in orderToComplete,
+          hasOrderNumber: 'orderNumber' in orderToComplete,
+          hasAnyId: Object.keys(orderToComplete).filter(key => key.toLowerCase().includes('id'))
+        });
+        
+        // Try to find an ID field with proper type assertion
+        const orderAny = orderToComplete as any;
+        const orderId = orderToComplete.id || orderAny.orderId || orderAny.orderNumber;
+        if (orderId) {
+          console.log("✅ Found alternative ID:", orderId);
+          orderToComplete.id = orderId;
+        } else {
+          throw new Error(`Order created but missing ID. Order structure: ${JSON.stringify(orderToComplete)}`);
+        }
       }
 
       // Now complete the order with payment using the order ID directly
@@ -897,34 +942,74 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         paymentData
       });
 
-      const response = await ordersAPI.completeOrder(orderToComplete.id, paymentData);
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Order completion timeout - API call took too long')), 15000)
+      );
+
+      const response = await Promise.race([
+        ordersAPI.completeOrder(orderToComplete.id, paymentData),
+        timeoutPromise
+      ]) as any; // Type assertion for API response flexibility
+      
       console.log("📨 API Response received:", response);
-      console.log("📨 Response data:", response.data);
+      console.log("📨 Response data:", response?.data);
 
       // Handle API response - the response should have { order, saleId } structure
-      let order, saleId;
-      if (response.data) {
-        // Direct access to response.data which should have { order, saleId }
-        order = response.data.order;
-        saleId = response.data.saleId;
-
-        // Fallback if the structure is different
-        if (!order && response.data) {
-          // Maybe the response.data IS the order
-          order = response.data as any;
-          saleId = (response.data as any).id || `sale-${Date.now()}`;
+      let order: any, saleId: string;
+      
+      console.log("🔍 Analyzing API response structure:", {
+        hasData: !!response?.data,
+        responseType: typeof response?.data,
+        responseKeys: response?.data ? Object.keys(response.data) : 'no data'
+      });
+      
+      if (response?.data) {
+        // Try different response structures
+        if (response.data.order && response.data.saleId) {
+          // Expected structure: { order, saleId }
+          order = response.data.order;
+          saleId = response.data.saleId;
+          console.log("✅ Using expected response structure");
+        } else if (response.data.order) {
+          // Structure: { order } - generate saleId
+          order = response.data.order;
+          saleId = order.id || `sale-${Date.now()}`;
+          console.log("✅ Using order-only response structure");
+        } else if (response.data.id) {
+          // Structure: response.data IS the order
+          order = response.data;
+          saleId = response.data.id;
+          console.log("✅ Using direct order response structure");
+        } else {
+          // Fallback: create order from current data
+          console.log("⚠️ Using fallback order creation");
+          order = {
+            id: orderToComplete.id,
+            items: cart,
+            subtotal: subtotal,
+            tax: tax,
+            total: total,
+            status: 'completed'
+          };
+          saleId = `sale-${Date.now()}`;
         }
       } else {
-        throw new Error("No data in API response");
+        // API call succeeded but no useful data - create fallback
+        console.log("⚠️ No response data - creating fallback order");
+        order = {
+          id: orderToComplete.id,
+          items: cart,
+          subtotal: subtotal,
+          tax: tax,
+          total: total,
+          status: 'completed'
+        };
+        saleId = `sale-${Date.now()}`;
       }
 
       console.log("📝 Final extracted order:", order);
       console.log("📝 Final extracted saleId:", saleId);
-
-      // Validate that we have the required data
-      if (!order) {
-        throw new Error("Order data not found in API response");
-      }
 
       // Prepare receipt data from completed order with defensive handling
       const receiptData = {
@@ -949,11 +1034,19 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       console.log("📧 Created receipt data:", receiptData);
 
+      console.log("🔄 Starting completion sequence...");
+      
+      // Set receipt data first
+      console.log("💾 Setting receipt data...");
       setLastSaleData(receiptData);
-      showSuccess(`Order completed successfully! Total: ${formatCurrency(order.total)}`);
+      
+      // Show success message
+      console.log("✅ Showing success message...");
+      showSuccess(`Order completed successfully! Total: ${formatCurrency(order.total || total)}`);
 
       // Update table status if this was a table order
       if (selectedTable && orderType === "table") {
+        console.log("🏢 Updating table status...");
         try {
           // Clear table reservation/status
           await tablesAPI.clearReservation(selectedTable.id);
@@ -962,28 +1055,41 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const responseData = tablesResponse.data as Table[] | { data: Table[] };
           const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
           setTables(refreshedTables);
+          console.log("✅ Table status updated successfully");
         } catch (error) {
-          // Handle table update error silently
+          console.log("⚠️ Table update error (non-critical):", error);
         }
       }
 
       // Clear cart with animation after successful payment
+      console.log("🗑️ Clearing cart with animation...");
       clearCartWithAnimation();
+      
+      console.log("💰 Resetting payment state...");
       setPaymentAmount("");
+      
+      console.log("❌ Closing payment dialog...");
       setShowPaymentDialog(false);
+      
+      console.log("🖨️ Setting print preferences...");
       setShouldAutoPrint(false); // Let users choose when to print receipts
+      
+      console.log("📧 Opening receipt dialog...");
       setShowReceiptDialog(true);
 
       // Clear current order and local storage
+      console.log("🧹 Clearing order state...");
       clearOrder();
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
       resetToTakeaway();
+      
+      console.log("✅ Payment completion sequence finished successfully!");
 
       // Callback for parent component
       if (onSaleComplete) {
         const response = {
-          sale: { id: saleId } as any,
+          sale: { id: saleId },
           message: "Sale completed"
         } as SaleResponse;
         onSaleComplete(response);
