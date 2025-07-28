@@ -54,8 +54,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showReportsDialog, setShowReportsDialog] = useState(false);
   const [activeView, setActiveView] = useState<"cart" | "products">("products");
-  const [incompleteOrdersCount, setIncompleteOrdersCount] = useState(0);
+  const [incompleteOrdersCount, setIncompleteOrdersCount] = useState<number>(0);
   const [tableOrders, setTableOrders] = useState<{ [tableId: string]: number }>({});
+  const [incompleteTableOrdersCount, setIncompleteTableOrdersCount] = useState<number>(0);
+  const [incompleteDeliveryTakeawayCount, setIncompleteDeliveryTakeawayCount] = useState<number>(0);
+  const [incompleteDeliveryCount, setIncompleteDeliveryCount] = useState<number>(0);
+  const [incompleteTakeawayCount, setIncompleteTakeawayCount] = useState<number>(0);
 
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -122,7 +126,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       if (response?.data) {
         // Handle the nested response structure: {data: {data: Array}}
         let allOrders: any = response.data;
-        
+
         // The actual orders are in response.data.data
         if (allOrders.data && Array.isArray(allOrders.data)) {
           allOrders = allOrders.data;
@@ -134,14 +138,35 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
 
         // Filter for incomplete orders (not paid or cancelled)
-        const incompleteOrders = allOrders.filter(order =>
-          order.status !== "paid" && order.status !== "cancelled"
-        );
+        const incompleteOrders = allOrders.filter(order => order.status !== "paid" && order.status !== "cancelled");
 
         console.log("Incomplete orders found:", incompleteOrders.length);
+        console.log(
+          "Orders by type:",
+          incompleteOrders.map(o => ({ id: o.id, type: o.orderType, status: o.status }))
+        );
 
         // Count total incomplete orders
         setIncompleteOrdersCount(incompleteOrders.length);
+
+        // Separate counts by order type
+        const deliveryCount = incompleteOrders.filter(order => order.orderType === "delivery").length;
+        const takeawayCount = incompleteOrders.filter(order => order.orderType === "takeaway").length;
+        const deliveryTakeawayCount = deliveryCount + takeawayCount;
+
+        // Count unique tables with incomplete orders (not total orders)
+        const uniqueTablesWithOrders = new Set(incompleteOrders.filter(order => order.orderType === "table" && order.tableNumber).map(order => order.tableNumber));
+        const tableOrdersCount = uniqueTablesWithOrders.size;
+
+        setIncompleteTableOrdersCount(tableOrdersCount);
+        setIncompleteDeliveryTakeawayCount(deliveryTakeawayCount);
+        setIncompleteDeliveryCount(deliveryCount);
+        setIncompleteTakeawayCount(takeawayCount);
+
+        console.log("Tables with incomplete orders count:", tableOrdersCount);
+        console.log("Delivery orders count:", deliveryCount);
+        console.log("Takeaway orders count:", takeawayCount);
+        console.log("Delivery/Takeaway orders count:", deliveryTakeawayCount);
 
         // Group orders by table for table notifications
         const tableOrdersMap: { [tableId: string]: number } = {};
@@ -156,12 +181,20 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // No data received
         setIncompleteOrdersCount(0);
         setTableOrders({});
+        setIncompleteTableOrdersCount(0);
+        setIncompleteDeliveryTakeawayCount(0);
+        setIncompleteDeliveryCount(0);
+        setIncompleteTakeawayCount(0);
       }
     } catch (error) {
       console.error("Error fetching incomplete orders:", error);
       // Reset counts on error
       setIncompleteOrdersCount(0);
       setTableOrders({});
+      setIncompleteTableOrdersCount(0);
+      setIncompleteDeliveryTakeawayCount(0);
+      setIncompleteDeliveryCount(0);
+      setIncompleteTakeawayCount(0);
       // Don't show error to user as this is background functionality
     }
   }, []);
@@ -1199,11 +1232,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-600">{cart && cart.length > 0 ? `${cart.length} items` : "Empty"}</span>
-            {cart && cart.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700 btn-touch">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+            {cart && cart.length > 0 && <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" onClick={clearCart} />}
           </div>
         </div>
       </div>
@@ -1211,8 +1240,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {/* Left Panel - Cart/Order Details (Desktop) / Full Width (Mobile) */}
       <div className="cart flex flex-col h-full lg:w-1/3 bg-white lg:border-r lg:border-gray-200">
         {/* Cart Header - Fixed (Desktop Only) */}
-        <div className="hidden lg:block border-b border-gray-200 p-3 flex-shrink-0">
-          <div className="flex items-center justify-between">
+        <div className="hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
+          <div className="flex items-center justify-between py-2">
             <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
               <h2 className="text-lg font-bold text-gray-800">Order#:</h2>
 
@@ -1232,18 +1261,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 </span>
               )}
             </div>
-            {cart && cart.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700 btn-touch">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+            {cart && cart.length > 0 && <Trash2 className="w-5 h-5 text-red-600 cursor-pointer" onClick={clearCart} />}
           </div>
         </div>
 
         {/* Order Items List - Scrollable */}
         <div className="flex-1 h-full relative overflow-hidden">
           <div className="h-full overflow-y-auto">
-            <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
+            <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} />
           </div>
 
           {/* Success Animation Overlay */}
@@ -1294,7 +1319,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <div className={`lg:hidden ${activeView === "cart" ? "flex" : "hidden"} flex-col h-full`}>
           {/* Order Items List - Mobile */}
           <div className="flex-1 overflow-y-auto">
-            <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
+            <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} />
           </div>
 
           {/* Order Summary - Mobile */}
@@ -1458,13 +1483,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
           <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
             <div className="w-full h-full flex flex-col overflow-hidden">
-              <TablesLayout
-                tables={tables}
-                selectedTable={selectedTable}
-                onTableSelect={handleTableSelection}
-                onClose={handleCloseTablesLayout}
-                tableOrders={tableOrders}
-              />
+              <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} />
             </div>
           </DialogContent>
         </Dialog>

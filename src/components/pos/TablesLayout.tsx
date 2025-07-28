@@ -147,13 +147,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Red notification badge for tables with saved orders */}
-                        {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && (
-                          <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">
-                            {tableOrders[table.number.toString()]}
-                          </div>
-                        )}
+                        {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
                       </div>
                     </div>
                   );
@@ -238,7 +234,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 <div className="space-y-3">
                   {/* Order Number */}
                   <div className="text-center">
-                    <div className="font-bold text-lg text-gray-800 mb-1">{hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}</div>
+                    <div className="font-bold text-lg text-gray-800 m">{hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}</div>
                   </div>
 
                   {/* Time */}

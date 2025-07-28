@@ -45,6 +45,7 @@ interface LegacyActionBarProps {
   canVoidOrder?: boolean;
   onCancelOrder?: () => void;
   incompleteOrdersCount?: number;
+  incompleteDeliveryTakeawayCount?: number;
 }
 
 // New flexible props interface
@@ -96,7 +97,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
-    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, onShowReports, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, incompleteOrdersCount = 0 } = props;
+    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, onShowReports, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, incompleteOrdersCount = 0, incompleteDeliveryTakeawayCount = 0 } = props;
 
     buttons = [
       {
@@ -118,7 +119,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
       },
       { id: "refund", icon: DollarSign, label: "Refund", active: false },
 
-      { id: "orders", icon: ShoppingCart, label: "Orders", active: false, onClick: onShowOrders, disabled: !onShowOrders, badgeCount: incompleteOrdersCount },
+      { id: "orders", icon: ShoppingCart, label: "Orders", active: false, onClick: onShowOrders, disabled: !onShowOrders, badgeCount: incompleteDeliveryTakeawayCount },
       { id: "reports", icon: FileText, label: "Reports", active: false, onClick: onShowReports },
       {
         id: "back-office",

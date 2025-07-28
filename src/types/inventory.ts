@@ -518,6 +518,7 @@ export interface OrderItemsListProps {
   selectedTable?: Table;
   onOrderTypeChange: (type: OrderType) => void;
   onTableSelect: () => void;
+  incompleteTableOrdersCount?: number;
 }
 
 export interface POSLayoutProps {

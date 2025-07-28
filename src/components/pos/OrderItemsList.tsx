@@ -4,7 +4,7 @@ import { formatCurrency } from "@/utils/conversionLogic";
 import { Car, Minus, Plus, ShoppingBag, Users } from "lucide-react";
 import React from "react";
 
-export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, onOrderTypeChange, onTableSelect }) => {
+export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, onOrderTypeChange, onTableSelect, incompleteTableOrdersCount }) => {
   const getOrderTypeIcon = (type: OrderType) => {
     switch (type) {
       case "delivery":
@@ -35,12 +35,19 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
       {/* Order Type Selector - Fixed */}
       <div className="flex-shrink-0 border-b border-gray-100 bg-white">
         <div className="grid grid-cols-3">
-          {(["delivery", "takeaway", "table"] as OrderType[]).map(type => (
-            <Button key={type} variant={orderType === type ? "default" : "outline"} size="sm" onClick={() => (type === "table" ? onTableSelect() : onOrderTypeChange(type))} className={`flex items-center justify-center h-8 rounded-none ${orderType === type ? "bg-blue-500 hover:bg-blue-600 text-white" : "hover:bg-gray-50"}`}>
-              {getOrderTypeIcon(type)}
-              <span className="text-xs font-medium">{type === "delivery" ? "DELIVERY" : type === "takeaway" ? "TAKE AWAY" : "TABLE"}</span>
-            </Button>
-          ))}
+          {(["delivery", "takeaway", "table"] as OrderType[]).map(type => {
+            // Only show badge for table orders
+            let badgeCount = 0;
+            if (type === "table" && incompleteTableOrdersCount) badgeCount = incompleteTableOrdersCount;
+            
+            return (
+              <Button key={type} variant={orderType === type ? "default" : "outline"} size="sm" onClick={() => (type === "table" ? onTableSelect() : onOrderTypeChange(type))} className={`relative flex items-center justify-center h-8 rounded-none ${orderType === type ? "bg-teal-500 hover:bg-teal-600 text-white" : "hover:bg-gray-50"}`}>
+                {getOrderTypeIcon(type)}
+                <span className="text-xs font-medium mr-2">{type === "delivery" ? "DELIVERY" : type === "takeaway" ? "TAKE AWAY" : "TABLE"}</span>
+                {badgeCount > 0 && <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">{badgeCount > 99 ? "99+" : badgeCount}</span>}
+              </Button>
+            );
+          })}
         </div>
 
         {/* Current Order Type Display */}
