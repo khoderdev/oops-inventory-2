@@ -55,7 +55,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showVoidDialog, setShowVoidDialog] = useState(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showReportsDialog, setShowReportsDialog] = useState(false);
-  const [useMockPayment, setUseMockPayment] = useState(true); // Toggle for testing
+
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -211,12 +211,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               type: item.materialId ? "material" : "menu",
               originalItem // This is crucial for saving
             };
-          }) || [];
+          }).filter(Boolean) || [];
 
         setCart(cartItems);
         setHasUnsavedChanges(false); // This is an existing order, not unsaved
       } catch (error) {
-        console.error("Failed to load order for editing:", error);
         showError("Failed to load order for editing. Please try again.");
       } finally {
         setIsLoading(false);
@@ -271,7 +270,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
         setTables(tablesData);
       } catch (error) {
-        console.error("Failed to fetch initial data:", error);
         showError("Failed to load data");
       } finally {
         setIsLoading(false);
@@ -335,7 +333,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
           setTables(refreshedTables);
         } catch (error) {
-          console.error("Failed to refresh tables:", error);
+          // Handle table refresh error silently
         }
       }
 
@@ -351,7 +349,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Clear order persistence data
       OrderPersistence.clearCurrentOrder();
     } catch (error) {
-      console.error("Failed to save order:", error);
       showError("Failed to save order");
     }
   }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation, clearOrder]);
@@ -367,13 +364,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           if (item.type === "material" && item.materialId) {
             // Find the stock entry by materialId
-            originalItem = stockEntries.find(se => se.materialId === item.materialId) || stockEntries[0];
+            originalItem = stockEntries.find(se => se.materialId === item.materialId);
           } else if (item.type === "menu" && item.menuItemId) {
             // Find the menu item by menuItemId
-            originalItem = menuItems.find(m => m.id === item.menuItemId) || menuItems[0];
-          } else {
-            // Fallback to first available item
-            originalItem = stockEntries[0] || menuItems[0];
+            originalItem = menuItems.find(m => m.id === item.menuItemId);
+          }
+
+          if (!originalItem) {
+            return null;
           }
 
           return {
@@ -420,7 +418,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         const response = await menuAPI.getMenus();
         setMenuItems(response.data);
       } catch (error) {
-        console.error("Failed to fetch menu items:", error);
         showError("Failed to load menu items");
       }
     };
@@ -460,56 +457,31 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       if (existingItem) {
         return prevCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
       } else {
-        // Create a mock original item for backward compatibility
-        let originalItem: StockEntryWithMaterial | MenuItem;
-        const itemType = posItem.type === "menu_item" ? "menu" : "material";
-
-        if (posItem.type === "menu_item") {
-          // Create a mock MenuItem for backward compatibility
-          // Menu item IDs are just numbers, not prefixed strings
-          const menuItemId = typeof posItem.id === "string" ? parseInt(posItem.id) : posItem.id;
-          originalItem = {
-            id: menuItemId || 0,
-            name: posItem.name,
-            description: posItem.description || "",
-            price: posItem.price,
-            category: posItem.category,
-            isPOSItem: true,
-            ingredients: posItem.ingredients || [],
-            menuItemIngredients: [],
-            createdAt: new Date(posItem.createdAt),
-            updatedAt: new Date(posItem.updatedAt)
-          } as unknown as MenuItem;
-        } else {
-          // Create a mock StockEntryWithMaterial for backward compatibility
-          // Stock entry IDs are prefixed with 'material_'
-          const stockEntryId = typeof posItem.id === "string" && posItem.id.includes("material_") ? parseInt(posItem.id.replace("material_", "")) : typeof posItem.id === "string" ? parseInt(posItem.id) : posItem.id;
-          originalItem = {
-            id: stockEntryId || 0,
-            materialId: posItem.materialId || 0,
-            material: posItem.material,
-            purchasedIndividualQuantity: posItem.availableQuantity,
-            costPerBaseUnit: posItem.costPerUnit,
-            totalCost: posItem.costPerUnit * posItem.availableQuantity,
-            supplier: "POS",
-            purchasedQuantity: posItem.availableQuantity,
-            purchasedUnit: posItem.unit,
-            costPerPurchasedUnit: posItem.costPerUnit,
-            createdAt: new Date(posItem.createdAt),
-            updatedAt: new Date(posItem.updatedAt)
-          } as unknown as StockEntryWithMaterial;
+        // Find actual menu item
+        const menuItemId = typeof posItem.id === "string" ? parseInt(posItem.id) : posItem.id;
+        const menuItem = menuItems.find(mi => mi.id === menuItemId);
+        if (!menuItem) {
+          return; // Skip if no menu item found
         }
+        const originalItem = menuItem;
+
+        // Find actual stock entry for material items
+        const stockEntry = stockEntries.find(se => se.materialId === posItem.materialId);
+        if (!stockEntry) {
+          return; // Skip if no stock entry found
+        }
+        const originalItemMaterial = stockEntry;
 
         const newItem: POSCartItem = {
           id: cartId,
           name: posItem.name,
           price: posItem.price,
           quantity: 1,
-          type: itemType,
-          originalItem,
+          type: posItem.type === "menu_item" ? "menu" : "material",
+          originalItem: posItem.type === "menu_item" ? originalItem : originalItemMaterial,
           posItem,
           stockEntryId: posItem.materialId,
-          menuItemId: posItem.type === "menu_item" ? (typeof posItem.id === "string" ? parseInt(posItem.id) : posItem.id) : undefined
+          menuItemId: posItem.type === "menu_item" ? menuItemId : undefined
         };
         return [...prevCart, newItem];
       }
@@ -597,13 +569,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
               if (item.type === "material" && item.materialId) {
                 // Find the stock entry by materialId
-                originalItem = stockEntries.find(se => se.materialId === item.materialId) || stockEntries[0];
+                originalItem = stockEntries.find(se => se.materialId === item.materialId);
               } else if (item.type === "menu" && item.menuItemId) {
                 // Find the menu item by menuItemId
-                originalItem = menuItems.find(m => m.id === item.menuItemId) || menuItems[0];
-              } else {
-                // Fallback to first available item
-                originalItem = stockEntries[0] || menuItems[0];
+                originalItem = menuItems.find(m => m.id === item.menuItemId);
+              }
+
+              if (!originalItem) {
+                return null;
               }
 
               const cartItem = {
@@ -679,7 +652,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
           setTables(refreshedTables);
         } catch (error) {
-          console.error("Failed to refresh tables:", error);
+          // Handle table refresh error silently
         }
       }
 
@@ -690,7 +663,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Automatically select TAKE AWAY after saving
       resetToTakeaway();
     } catch (error) {
-      console.error("Failed to save order:", error);
       showError("Failed to save order");
     }
   }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation, resetToTakeaway]);
@@ -793,7 +765,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
         showSuccess(successMessage);
       } catch (error) {
-        console.error("Failed to void order:", error);
         // Error is already handled by the voidOrder function
       }
     },
@@ -807,8 +778,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Handle payment
   const handlePayment = useCallback(async () => {
-    console.log("🔄 handlePayment started", { cartLength: cart.length, paymentAmount, total });
-    
     if (cart.length === 0) {
       showError("Cart is empty");
       return;
@@ -837,32 +806,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }))
         };
 
-        console.log("📄 Creating new order with data:", orderData);
-        
-        // Add timeout to prevent hanging
-        console.log("⏱️ Setting up 10-second timeout for order creation");
-        const createOrderPromise = createOrder(orderData);
-        const timeoutPromise = new Promise((_, reject) => {
-          const timeoutId = setTimeout(() => {
-            console.log("⏰ Order creation timeout reached - rejecting after 10 seconds");
-            reject(new Error("Order creation timeout after 10 seconds"));
-          }, 10000);
-          console.log("🕰️ Timeout set with ID:", timeoutId);
-          return timeoutId;
-        });
-        
-        console.log("🏁 Starting Promise.race between order creation and timeout");
-        orderToComplete = await Promise.race([createOrderPromise, timeoutPromise]) as Order;
-        console.log("✅ Order created successfully:", orderToComplete);
+        orderToComplete = await createOrder(orderData);
       }
 
       // Ensure we have a valid order with ID
-      console.log("🔍 Validating order:", { orderToComplete, hasId: !!orderToComplete?.id });
       if (!orderToComplete || !orderToComplete.id) {
-        console.error("❌ Order validation failed:", { orderToComplete });
         throw new Error("Failed to create or retrieve order ID");
       }
-      console.log("✅ Order validation passed, proceeding with completion");
 
       // Now complete the order with payment using the order ID directly
       const paymentData = {
@@ -872,10 +822,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       };
 
       // Call the API directly with the order ID to avoid state timing issues
-      console.log("💳 Calling completeOrder API with:", { orderId: orderToComplete.id, paymentData });
       const response = await ordersAPI.completeOrder(orderToComplete.id, paymentData);
       const { order, saleId } = response.data;
-      console.log("✅ Order completed successfully:", { orderId: order.id, saleId });
 
       // Prepare receipt data from completed order
       const receiptData = {
@@ -899,7 +847,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       };
 
       setLastSaleData(receiptData);
-      console.log("🧾 Setting receipt data:", receiptData);
       showSuccess(`Order completed successfully! Total: ${formatCurrency(order.total)}`);
 
       // Update table status if this was a table order
@@ -913,19 +860,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
           setTables(refreshedTables);
         } catch (error) {
-          console.error("Failed to clear table:", error);
+          // Handle table update error silently
         }
       }
 
       // Clear cart with animation after successful payment
-      console.log("🗪ef Clearing cart with animation, current cart length:", cart.length);
       clearCartWithAnimation();
       setPaymentAmount("");
-      console.log("🔒 Closing payment dialog and opening receipt dialog");
       setShowPaymentDialog(false);
-      setShouldAutoPrint(true); // Enable auto-print for payment receipts
+      setShouldAutoPrint(false); // Let users choose when to print receipts
       setShowReceiptDialog(true);
-      console.log("🎆 Receipt dialog state set to true, shouldAutoPrint:", true);
 
       // Clear current order and local storage
       clearOrder();
@@ -937,15 +881,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       // Callback for parent component
       if (onSaleComplete) {
-        // Create a mock response for the callback
-        const mockResponse = {
-          sale: { id: Date.now().toString() } as any,
+        const response = {
+          sale: { id: saleId } as any,
           message: "Sale completed"
         } as SaleResponse;
-        onSaleComplete(mockResponse);
+        onSaleComplete(response);
       }
     } catch (error: unknown) {
-      console.error("Sale failed:", error);
       const errorMessage = error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object" && "data" in error.response && error.response.data && typeof error.response.data === "object" && "message" in error.response.data ? (error.response.data.message as string) : "Sale failed. Please try again.";
       showError(errorMessage);
       // Close payment dialog even on error
@@ -955,74 +897,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [cart, total, paymentAmount, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
 
-  // Temporary mock payment completion for testing (remove when order creation is fixed)
-  const handleMockPayment = useCallback(async () => {
-    console.log("🧪 Mock payment started for testing");
-    
-    if (cart.length === 0) {
-      showError("Cart is empty");
-      return;
-    }
 
-    setIsLoading(true);
-    
-    try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Create mock receipt data
-      const now = new Date();
-      const mockReceiptData: ReceiptData = {
-        id: `MOCK-${Date.now()}`,
-        date: now.toLocaleDateString(),
-        time: now.toLocaleTimeString(),
-        cashier: "POS System",
-        items: cart.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.price,
-          totalPrice: item.price * item.quantity,
-          type: item.type
-        })),
-        subtotal: total * 0.9, // Mock subtotal
-        tax: total * 0.1, // Mock tax
-        total: total,
-        paymentAmount: parseFloat(paymentAmount),
-        change: Math.max(0, parseFloat(paymentAmount) - total),
-        paymentMethod: "cash"
-      };
-
-      setLastSaleData(mockReceiptData);
-      console.log("🧾 Mock receipt data set:", mockReceiptData);
-      
-      showSuccess(`Mock order completed! Total: ${formatCurrency(total)}`);
-
-      // Clear cart with animation
-      console.log("🗪ef Mock: Clearing cart, current length:", cart.length);
-      clearCartWithAnimation();
-      setPaymentAmount("");
-      
-      // Close payment dialog and open receipt dialog
-      console.log("🔒 Mock: Closing payment dialog and opening receipt dialog");
-      setShowPaymentDialog(false);
-      setShouldAutoPrint(true);
-      setShowReceiptDialog(true);
-      console.log("🎆 Mock: Receipt dialog state set to true");
-
-      // Clear current order and reset
-      clearOrder();
-      OrderPersistence.clearCurrentOrder();
-      setHasUnsavedChanges(false);
-      resetToTakeaway();
-      
-    } catch (error) {
-      console.error("Mock payment failed:", error);
-      showError("Mock payment failed");
-      setShowPaymentDialog(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [cart, total, paymentAmount, showError, showSuccess, clearCartWithAnimation, selectedTable, orderType, clearOrder, resetToTakeaway]);
 
   return (
     <div className="h-full flex bg-gray-100">
@@ -1033,18 +908,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
-              {/* Development Toggle */}
-              <button
-                onClick={() => setUseMockPayment(!useMockPayment)}
-                className={`px-2 py-1 text-xs rounded ${
-                  useMockPayment 
-                    ? 'bg-green-100 text-green-800 border border-green-300' 
-                    : 'bg-red-100 text-red-800 border border-red-300'
-                }`}
-                title="Toggle between mock and real payment for testing"
-              >
-                {useMockPayment ? 'MOCK' : 'REAL'}
-              </button>
+
               {/* Order Status Indicator */}
               {(hasUnsavedChanges || currentOrder || (cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
                 <div className="flex items-center space-x-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md">
@@ -1180,7 +1044,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         total={total}
         paymentAmount={paymentAmount}
         onPaymentAmountChange={setPaymentAmount}
-        onPayment={useMockPayment ? handleMockPayment : handlePayment}
+        onPayment={handlePayment}
         isLoading={isLoading}
       />
 
