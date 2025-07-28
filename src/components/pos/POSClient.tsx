@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { Order } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
@@ -189,29 +188,31 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         // Convert order items to cart items
         const cartItems: POSCartItem[] =
-          order.items?.map((item: any) => {
-            // Find the original item for proper saving
-            let originalItem: StockEntryWithMaterial | MenuItem | undefined;
+          order.items
+            ?.map((item: any) => {
+              // Find the original item for proper saving
+              let originalItem: StockEntryWithMaterial | MenuItem | undefined;
 
-            if (item.materialId) {
-              // Find stock entry by materialId
-              originalItem = stockEntries.find(se => se.materialId === item.materialId);
-            } else if (item.menuItemId) {
-              // Find menu item by menuItemId
-              originalItem = menuItems.find(mi => mi.id === item.menuItemId);
-            }
+              if (item.materialId) {
+                // Find stock entry by materialId
+                originalItem = stockEntries.find(se => se.materialId === item.materialId);
+              } else if (item.menuItemId) {
+                // Find menu item by menuItemId
+                originalItem = menuItems.find(mi => mi.id === item.menuItemId);
+              }
 
-            return {
-              id: item.id || `${item.materialId || item.menuItemId}-${Date.now()}`,
-              stockEntryId: item.materialId, // materialId maps to stockEntryId
-              menuItemId: item.menuItemId,
-              name: item.name,
-              price: parseFloat(item.unitPrice) || 0,
-              quantity: parseInt(item.quantity) || 1,
-              type: item.materialId ? "material" : "menu",
-              originalItem // This is crucial for saving
-            };
-          }).filter(Boolean) || [];
+              return {
+                id: item.id || `${item.materialId || item.menuItemId}-${Date.now()}`,
+                stockEntryId: item.materialId, // materialId maps to stockEntryId
+                menuItemId: item.menuItemId,
+                name: item.name,
+                price: parseFloat(item.unitPrice) || 0,
+                quantity: parseInt(item.quantity) || 1,
+                type: item.materialId ? "material" : "menu",
+                originalItem // This is crucial for saving
+              };
+            })
+            .filter(Boolean) || [];
 
         setCart(cartItems);
         setHasUnsavedChanges(false); // This is an existing order, not unsaved
@@ -404,7 +405,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Track unsaved changes when cart changes
   useEffect(() => {
-    if (cart.length > 0) {
+    if (cart && cart.length > 0) {
       setHasUnsavedChanges(true);
     } else {
       setHasUnsavedChanges(false);
@@ -449,41 +450,67 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Cart operations - Updated for unified POS items
   const addToCart = useCallback((posItem: POSItem) => {
+    console.log("🛒 Adding to cart:", posItem);
     const cartId = `pos-${posItem.id}`;
 
     setCart(prevCart => {
-      const existingItem = prevCart.find(cartItem => cartItem.id === cartId);
+      const currentCart = prevCart || [];
+      const existingItem = currentCart.find(cartItem => cartItem.id === cartId);
 
       if (existingItem) {
-        return prevCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
+        return currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
       } else {
-        // Find actual menu item
-        const menuItemId = typeof posItem.id === "string" ? parseInt(posItem.id) : posItem.id;
-        const menuItem = menuItems.find(mi => mi.id === menuItemId);
-        if (!menuItem) {
-          return; // Skip if no menu item found
-        }
-        const originalItem = menuItem;
+        if (posItem.type === "menu_item") {
+          // Handle menu items
+          const menuItemId = typeof posItem.id === "string" ? parseInt(posItem.id) || 0 : posItem.id;
+          const menuItem = menuItems.find(mi => {
+            const miId = typeof mi.id === "string" ? parseInt(mi.id) || 0 : mi.id;
+            return miId === menuItemId;
+          });
+          if (!menuItem) {
+            console.warn("❌ Menu item not found:", posItem, "Available menu items:", menuItems);
+            return currentCart; // Return current cart if menu item not found
+          }
+          console.log("✅ Menu item found:", menuItem);
+          console.log("📝 Creating menu item for cart with ID:", menuItemId);
 
-        // Find actual stock entry for material items
-        const stockEntry = stockEntries.find(se => se.materialId === posItem.materialId);
-        if (!stockEntry) {
-          return; // Skip if no stock entry found
-        }
-        const originalItemMaterial = stockEntry;
+          const newItem: POSCartItem = {
+            id: cartId,
+            name: posItem.name,
+            price: posItem.price,
+            quantity: 1,
+            type: "menu",
+            originalItem: menuItem,
+            posItem,
+            stockEntryId: undefined,
+            menuItemId: menuItemId
+          };
+          console.log("🎉 Adding menu item to cart:", newItem);
+          console.log("📊 Cart before adding:", currentCart);
+          const newCart = [...currentCart, newItem];
+          console.log("📊 Cart after adding:", newCart);
+          return newCart;
+        } else {
+          // Handle stock entry items
+          const stockEntry = stockEntries.find(se => se.materialId === posItem.materialId);
+          if (!stockEntry) {
+            console.warn("Stock entry not found:", posItem);
+            return currentCart; // Return current cart if stock entry not found
+          }
 
-        const newItem: POSCartItem = {
-          id: cartId,
-          name: posItem.name,
-          price: posItem.price,
-          quantity: 1,
-          type: posItem.type === "menu_item" ? "menu" : "material",
-          originalItem: posItem.type === "menu_item" ? originalItem : originalItemMaterial,
-          posItem,
-          stockEntryId: posItem.materialId,
-          menuItemId: posItem.type === "menu_item" ? menuItemId : undefined
-        };
-        return [...prevCart, newItem];
+          const newItem: POSCartItem = {
+            id: cartId,
+            name: posItem.name,
+            price: posItem.price,
+            quantity: 1,
+            type: "material",
+            originalItem: stockEntry,
+            posItem,
+            stockEntryId: posItem.materialId,
+            menuItemId: undefined
+          };
+          return [...currentCart, newItem];
+        }
       }
     });
   }, []);
@@ -493,10 +520,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const cartId = type === "material" ? `material-${item.id}` : `menu-${item.id}`;
 
     setCart(prevCart => {
-      const existingItem = prevCart.find(cartItem => cartItem.id === cartId);
+      const currentCart = prevCart || [];
+      const existingItem = currentCart.find(cartItem => cartItem.id === cartId);
 
       if (existingItem) {
-        return prevCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
+        return currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
       } else {
         let itemPrice = 0;
         if (type === "material") {
@@ -518,7 +546,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           type,
           originalItem: item
         };
-        return [...prevCart, newItem];
+        return [...currentCart, newItem];
       }
     });
   }, []);
@@ -723,7 +751,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
 
     setShowVoidDialog(true);
-  }, [currentOrder, cart.length, showError]);
+  }, [currentOrder, cart, showError]);
 
   // Confirm void order
   const handleConfirmVoid = useCallback(
@@ -786,7 +814,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setIsLoading(true);
     try {
       let orderToComplete = currentOrder;
-      
+
       // Always create/update order first, then complete it
       if (!currentOrder) {
         // Create a new order first
@@ -897,12 +925,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [cart, total, paymentAmount, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
 
-
-
   return (
     <div className="h-full flex bg-gray-100">
       {/* Left Panel - Cart/Order Details */}
-      <div className="min-w-96 bg-white border-r border-gray-200 flex flex-col h-full">
+      <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col h-full">
         {/* Cart Header - Fixed */}
         <div className="border-b border-gray-200 p-3 flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -910,7 +936,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               <h2 className="text-lg font-bold text-gray-800">Current Order</h2>
 
               {/* Order Status Indicator */}
-              {(hasUnsavedChanges || currentOrder || (cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
+              {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
                 <div className="flex items-center space-x-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md">
                   <span className="text-xs text-blue-800">
                     {currentOrder ? (
@@ -918,7 +944,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                         <span>#{currentOrder.orderNumber}</span>
                         <span className="text-xs opacity-75">({currentOrder.status})</span>
                       </div>
-                    ) : (cart && cart.length > 0) && (orderType === "delivery" || orderType === "takeaway") ? (
+                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
                       <div className="flex items-center space-x-1">
                         <span>#{generatePreviewOrderNumber()}</span>
                         <span className="text-xs opacity-75">(Preview)</span>
@@ -930,7 +956,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 </div>
               )}
             </div>
-            {(cart && cart.length > 0) && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
+            {cart && cart.length > 0 && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
           </div>
         </div>
 
@@ -955,16 +981,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         {/* Order Summary - Fixed Footer */}
         {!showSuccessCheckmark && (
           <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-            <OrderSummary 
-              cart={cart} 
-              subtotal={subtotal} 
-              total={total} 
+            <OrderSummary
+              cart={cart}
+              subtotal={subtotal}
+              total={total}
               onPaymentClick={() => {
                 console.log("💰 Opening payment dialog, auto-filling amount:", total);
                 setPaymentAmount(total.toString());
                 setShowPaymentDialog(true);
-              }} 
-              onSaveClick={handleManualSave} 
+              }}
+              onSaveClick={handleManualSave}
             />
           </div>
         )}
@@ -984,7 +1010,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         {/* Bottom Action Bar - Fixed Footer */}
         <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart.length > 0} canVoidOrder={!!currentOrder} />
+          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} />
         </div>
       </div>
 
@@ -1038,15 +1064,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       />
 
       {/* Payment Dialog */}
-      <PaymentDialog
-        isOpen={showPaymentDialog}
-        onClose={() => setShowPaymentDialog(false)}
-        total={total}
-        paymentAmount={paymentAmount}
-        onPaymentAmountChange={setPaymentAmount}
-        onPayment={handlePayment}
-        isLoading={isLoading}
-      />
+      <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
 
       {/* Void Order Dialog */}
       <VoidOrderDialog isOpen={showVoidDialog} onClose={() => setShowVoidDialog(false)} onConfirm={handleConfirmVoid} order={currentOrder} isLoading={orderLoading} />

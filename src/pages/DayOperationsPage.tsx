@@ -373,7 +373,7 @@ const DayOperationsPage: React.FC = () => {
                       setShowOpenModal(true);
                     }
                   }}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-10 py-4 rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center mx-auto text-lg font-semibold"
+                  className="bg-gradient-to-r from-[#4682b4] to-[#6ba4d3] text-white px-10 py-4 rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center mx-auto text-lg font-semibold"
                 >
                   <Plus className="h-6 w-6 mr-3" />
                   Open Day

@@ -58,7 +58,7 @@ function isLegacyProps(props: ActionBarProps): props is LegacyActionBarProps {
 
 // Individual Action Button Component
 export const ActionButton: React.FC<ActionButtonConfig & { className?: string; compact?: boolean }> = ({ icon: IconComponent, label, active = false, disabled = false, onClick, className = "", compact = false }) => {
-  const baseClasses = "flex flex-col items-center justify-center rounded-none";
+  const baseClasses = "flex flex-col items-center justify-center rounded-none select-none";
   const heightClass = compact ? "h-12 p-2" : "h-16 p-3";
   const activeClasses = active ? "bg-teal-500 text-white hover:text-white hover:bg-teal-600" : "";
   const iconSize = compact ? "w-4 h-4" : "!w-6 !h-6";

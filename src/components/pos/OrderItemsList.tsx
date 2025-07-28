@@ -53,14 +53,14 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
 
       {/* Cart Items - Scrollable */}
       <div className="flex-1 overflow-y-auto">
-        {cart.length === 0 ? (
+        {!cart || cart.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
             <div className="text-sm font-medium mb-2">{getOrderTypeLabel(orderType)}</div>
             <div className="text-xs text-gray-400">No items in cart</div>
           </div>
         ) : (
           <div className="p-4 space-y-3">
-            {cart.map(item => (
+            {(cart || []).map(item => (
               <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
                 <div className="flex-1">
                   <div className="font-medium text-gray-800">{item.name}</div>

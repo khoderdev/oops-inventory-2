@@ -165,6 +165,11 @@ export function calculateIngredientCost(material: Material, quantity: number, un
 //   }).format(amount);
 // }
 export function formatCurrency(amount: number): string {
+  // Handle invalid inputs (NaN, undefined, null)
+  if (amount == null || isNaN(amount) || !isFinite(amount)) {
+    return "$0.00";
+  }
+  
   // For very small amounts, use more decimal places and adjust minimum digits
   if (amount < 0.01 && amount > 0) {
     return new Intl.NumberFormat("en-US", {

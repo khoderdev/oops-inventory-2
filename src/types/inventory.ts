@@ -435,7 +435,6 @@ export interface POSCartItem {
 }
 
 export interface POSClientProps {
-  materials: MenuItem[];
   sectionAssignments: SectionAssignment[];
   onSaleComplete?: (saleData: SaleResponse) => void;
 }

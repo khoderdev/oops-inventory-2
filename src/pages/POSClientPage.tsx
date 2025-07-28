@@ -1,3 +1,4 @@
+import { salesAPI } from "@/api/sales.api.ts.tsx";
 import POSLayout from "@/components/layout/POSLayout";
 import { POSClient } from "@/components/pos/POSClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,15 +30,49 @@ const POSClientPage: React.FC = () => {
     }
   }, [isAuthenticated, isLoading, hasPermission, navigate]);
 
-  // Load initial data
+  // Load initial data and fetch today's sales
   useEffect(() => {
     fetchTabData("materials");
+    fetchTodaysSales();
   }, [fetchTabData]);
+
+  // Fetch today's sales total
+  const fetchTodaysSales = async () => {
+    try {
+      const response = await salesAPI.getSales();
+      const allSales = response.data || [];
+      
+      // Filter sales for today
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const todaysSales = allSales.filter(sale => {
+        const saleDate = new Date(sale.saleDate || sale.createdAt || '').toISOString().split('T')[0];
+        return saleDate === today;
+      });
+      
+      // Calculate total from today's sales
+      const totalSales = todaysSales.reduce((sum, sale) => {
+        const saleAmount = Number(sale.totalAmount) || 0;
+        return sum + (isNaN(saleAmount) ? 0 : saleAmount);
+      }, 0);
+      
+      setSessionStats(prev => ({
+        ...prev,
+        totalSales: isNaN(totalSales) ? 0 : totalSales,
+        transactionCount: todaysSales.length
+      }));
+    } catch (error) {
+      console.error('Failed to fetch today\'s sales:', error);
+      // Keep default values if fetch fails
+    }
+  };
 
   // Handle sale completion
   const handleSaleComplete = (saleData: SaleResponse) => {
+    const saleAmount = Number(saleData.totalAmount) || 0;
+    const validSaleAmount = isNaN(saleAmount) ? 0 : saleAmount;
+    
     setSessionStats(prev => ({
-      totalSales: prev.totalSales + (saleData.totalAmount || 0),
+      totalSales: prev.totalSales + validSaleAmount,
       transactionCount: prev.transactionCount + 1
     }));
 
@@ -76,7 +111,7 @@ const POSClientPage: React.FC = () => {
 
   return (
     <POSLayout currentTotal={sessionStats.totalSales} transactionCount={sessionStats.transactionCount} onLogout={handleLogout}>
-      <POSClient materials={materialsWithStock} sectionAssignments={sectionAssignments} onSaleComplete={handleSaleComplete} />
+      <POSClient sectionAssignments={sectionAssignments} onSaleComplete={handleSaleComplete} />
     </POSLayout>
   );
 };

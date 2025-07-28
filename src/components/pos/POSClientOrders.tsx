@@ -66,7 +66,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
     setError(null);
 
     try {
-      const params: Record<string, any> = {};
+      const params: Record<string, string | number> = {};
 
       // Only include delivery and takeaway orders
       if (filters.orderType) {
@@ -95,8 +95,8 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
       console.log("Orders API response:", response);
 
       // Handle nested response structure
-      const responseData = response.data as any;
-      let fetchedOrders = responseData?.data || responseData || [];
+      const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
+      let fetchedOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
 
       // Filter out table orders and apply search term
       fetchedOrders = fetchedOrders.filter(order => {
@@ -138,8 +138,8 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
     try {
       const response = await ordersAPI.getOrder(orderSummary.id);
       // Handle nested response structure
-      const responseData = response.data as any;
-      const orderData = responseData.data || responseData;
+      const responseData = response.data as { data?: Order } | Order;
+      const orderData = "data" in responseData ? responseData.data : responseData;
 
       setSelectedOrder(orderData);
       setShowOrderDetails(true);
@@ -199,7 +199,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   );
 
   // Handle filter changes
-  const handleFilterChange = useCallback((key: keyof OrderFilters, value: any) => {
+  const handleFilterChange = useCallback((key: keyof OrderFilters, value: string | undefined) => {
     setFilters(prev => ({
       ...prev,
       [key]: value
@@ -359,58 +359,66 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-screen min-h-[95vh] m-0 p-0 bg-white overflow-hidden">
+        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden">
           {/* Fixed Header */}
-          <DialogTitle className="text-xl font-bold p-4 text-gray-900">Orders Management</DialogTitle>
-
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-h-[90vh] overflow-hidden">
-            {/* Enhanced Filters Section */}
-            <div className="flex-shrink-0 p-4 bg-gray-50/50 border-b">
-              <div className="flex flex-col lg:flex-row gap-4">
-                {/* Search Bar */}
-                <div className="flex-1 min-w-0">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input placeholder="Search by order number, customer name..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-10 bg-white border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100" />
-                  </div>
-                </div>
-
-                {/* Filter Controls */}
-                <div className="flex flex-wrap gap-3">
-                  <Select value={filters.status || "all"} onValueChange={value => handleFilterChange("status", value === "all" ? undefined : value)}>
-                    <SelectTrigger className="w-44 bg-white border-gray-200">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="confirmed">Confirmed</SelectItem>
-                      <SelectItem value="preparing">Preparing</SelectItem>
-                      <SelectItem value="ready">Ready</SelectItem>
-                      <SelectItem value="served">Served</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={filters.orderType || "all"} onValueChange={value => handleFilterChange("orderType", value === "all" ? undefined : value)}>
-                    <SelectTrigger className="w-44 bg-white border-gray-200">
-                      <SelectValue placeholder="Filter by type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="delivery">Delivery</SelectItem>
-                      <SelectItem value="takeaway">Takeaway</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Button variant="outline" onClick={clearFilters} className="bg-white border-gray-200 hover:bg-gray-50">
-                    Clear Filters
-                  </Button>
+          <div className="flex-shrink-0 p-4 px-6 border-b bg-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div>
+                  <DialogTitle className="text-2xl font-bold text-gray-900">Orders Management</DialogTitle>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden !p-0">
+            {/* Enhanced Filters Section */}
+            {/* <div className="flex-shrink-0 p-4 bg-red-50 border-b"> */}
+            <div className="flex flex-col xl:flex-row gap-4 py-2 px-4">
+              {/* Search Bar */}
+              <div className="min-w-0">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input placeholder="Search by order number, customer name, or ID..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-11 h-11 bg-white border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 text-base" />
+                </div>
+              </div>
+
+              {/* Filter Controls */}
+              <div className="flex flex-wrap gap-3">
+                <Select value={filters.status || "all"} onValueChange={value => handleFilterChange("status", value === "all" ? undefined : value)}>
+                  <SelectTrigger className="w-48 h-11 bg-white border-gray-200 focus:border-blue-400">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="preparing">Preparing</SelectItem>
+                    <SelectItem value="ready">Ready</SelectItem>
+                    <SelectItem value="served">Served</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={filters.orderType || "all"} onValueChange={value => handleFilterChange("orderType", value === "all" ? undefined : value)}>
+                  <SelectTrigger className="w-48 h-11 bg-white border-gray-200 focus:border-blue-400">
+                    <SelectValue placeholder="Filter by type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="delivery">Delivery</SelectItem>
+                    <SelectItem value="takeaway">Takeaway</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button variant="outline" onClick={clearFilters} className="h-11 px-4 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300">
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+            {/* </div> */}
 
             {/* Orders Grid - Scrollable Content */}
             <div className="flex-1 min-h-0 overflow-hidden">
@@ -437,54 +445,54 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                       <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No delivery or takeaway orders available at the moment"}</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                       {orders.map(order => (
-                        <Card key={order.id} className="hover:shadow-lg transition-all duration-200 cursor-pointer border-gray-200 hover:border-blue-300 group" onClick={() => handleOrderSelect(order)}>
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
+                        <Card key={order.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" onClick={() => handleOrderSelect(order)}>
+                          <CardHeader className="pb-4">
+                            <div className="flex items-start justify-between mb-3">
                               <div className="flex-1 min-w-0">
-                                <CardTitle className="text-base font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{order.orderNumber}</CardTitle>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  <div className="flex items-center space-x-1">
+                                <CardTitle className="text-lg font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{order.orderNumber}</CardTitle>
+                                <div className="flex items-center space-x-3 mt-2">
+                                  <div className="flex items-center space-x-1.5">
                                     {ORDER_TYPE_ICONS[order.orderType]}
-                                    <span className="text-xs text-gray-500 capitalize">{order.orderType}</span>
+                                    <span className="text-sm text-gray-600 capitalize font-medium">{order.orderType}</span>
                                   </div>
                                 </div>
                               </div>
-                              <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-xs font-medium`}>{order.status}</Badge>
+                              <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-sm font-semibold px-3 py-1`}>{order.status}</Badge>
                             </div>
 
-                            <CardDescription className="flex flex-col space-y-1 text-xs">
-                              <div className="flex items-center space-x-3">
-                                <span className="flex items-center space-x-1">
-                                  <Calendar className="w-3 h-3" />
+                            <CardDescription className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="flex items-center space-x-1.5 text-gray-600">
+                                  <Calendar className="w-4 h-4" />
                                   <span>{formatDate(order.createdAt)}</span>
                                 </span>
-                                <span className="flex items-center space-x-1">
-                                  <Clock className="w-3 h-3" />
+                                <span className="flex items-center space-x-1.5 text-gray-600">
+                                  <Clock className="w-4 h-4" />
                                   <span>{formatTime(order.createdAt)}</span>
                                 </span>
                               </div>
                               {order.customerName && (
-                                <div className="flex items-center space-x-1 text-gray-600">
-                                  <User className="w-3 h-3" />
-                                  <span className="truncate">{order.customerName}</span>
+                                <div className="flex items-center space-x-1.5 text-gray-700">
+                                  <User className="w-4 h-4" />
+                                  <span className="truncate font-medium">{order.customerName}</span>
                                 </div>
                               )}
                             </CardDescription>
                           </CardHeader>
 
                           <CardContent className="pt-0">
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-lg font-bold text-green-600">{formatCurrency(order.total)}</span>
-                                <Badge variant="outline" className="text-xs">
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
+                                <span className="text-2xl font-bold text-green-600">{formatCurrency(order.total)}</span>
+                                <Badge variant="outline" className="text-sm font-medium border-green-200 text-green-700">
                                   {order.itemCount || 0} items
                                 </Badge>
                               </div>
 
                               {/* Action Buttons */}
-                              <div className="flex space-x-1">
+                              <div className="grid grid-cols-3 gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -492,9 +500,9 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                                     e.stopPropagation();
                                     handleOrderSelect(order);
                                   }}
-                                  className="flex-1 h-8 text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200"
+                                  className="h-9 text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 hover:border-blue-300 transition-all group-hover:scale-105"
                                 >
-                                  <Edit className="w-3 h-3 mr-1" />
+                                  <Edit className="w-4 h-4 mr-1.5" />
                                   Edit
                                 </Button>
                                 <Button
@@ -504,9 +512,9 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                                     e.stopPropagation();
                                     handleViewOrderDetails(order);
                                   }}
-                                  className="flex-1 h-8 text-xs hover:bg-gray-50"
+                                  className="h-9 text-sm hover:bg-gray-50 border-gray-200 hover:border-gray-300 transition-all group-hover:scale-105"
                                 >
-                                  <Eye className="w-3 h-3 mr-1" />
+                                  <Eye className="w-4 h-4 mr-1.5" />
                                   View
                                 </Button>
                                 <Button
@@ -516,9 +524,9 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                                     e.stopPropagation();
                                     handlePrintOrderReceipt(order);
                                   }}
-                                  className="h-8 px-2 hover:bg-gray-50"
+                                  className="h-9 px-3 hover:bg-gray-50 border-gray-200 hover:border-gray-300 transition-all group-hover:scale-105"
                                 >
-                                  <Printer className="w-3 h-3" />
+                                  <Printer className="w-4 h-4" />
                                 </Button>
                               </div>
                             </div>
@@ -532,19 +540,33 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
             </div>
 
             {/* Fixed Footer */}
-            <div className="flex-shrink-0 p-4 border-t bg-gray-50/50">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  {orders.length > 0 && (
-                    <span>
-                      Showing {orders.length} order{orders.length !== 1 ? "s" : ""}
-                    </span>
+            <div className="flex-shrink-0 p-4 sm:p-6 border-t bg-gradient-to-r from-gray-50 to-slate-50">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center space-x-4">
+                  <div className="text-base font-medium text-gray-700">
+                    {orders.length > 0 ? (
+                      <span className="flex items-center space-x-2">
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          {orders.length}
+                        </Badge>
+                        <span>order{orders.length !== 1 ? "s" : ""} found</span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">No orders to display</span>
+                    )}
+                  </div>
+                  {(filters.searchTerm || filters.status || filters.orderType) && (
+                    <Badge variant="secondary" className="text-xs">
+                      Filtered
+                    </Badge>
                   )}
                 </div>
-                <Button variant="outline" onClick={onClose} className="bg-white">
-                  <X className="w-4 h-4 mr-2" />
-                  Close
-                </Button>
+                <div className="flex items-center space-x-3">
+                  <Button variant="outline" onClick={onClose} className="bg-white hover:bg-gray-50 border-gray-300 h-10 px-6">
+                    <X className="w-4 h-4 mr-2" />
+                    Close
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -566,12 +588,6 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                     <DialogTitle className="text-xl font-bold text-gray-900">Order Details - {selectedOrder?.orderNumber}</DialogTitle>
                     <DialogDescription className="text-sm text-gray-600">Complete order information and items</DialogDescription>
                   </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  {selectedOrder && <Badge className={`${ORDER_STATUS_COLORS[selectedOrder.status]} font-medium`}>{selectedOrder.status}</Badge>}
-                  <Button variant="outline" size="sm" onClick={() => setShowOrderDetails(false)} className="hidden sm:flex">
-                    <X className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
             </DialogHeader>
@@ -719,10 +735,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                               <span className="text-gray-600">Subtotal</span>
                               <span className="font-semibold text-gray-900">{formatCurrency(selectedOrder.subtotal)}</span>
                             </div>
-                            <div className="flex justify-between items-center py-2">
-                              <span className="text-gray-600">Tax</span>
-                              <span className="font-semibold text-gray-900">{formatCurrency(selectedOrder.tax)}</span>
-                            </div>
+
                             <div className="flex justify-between items-center py-3 border-t border-gray-200">
                               <span className="text-xl font-bold text-gray-900">Total</span>
                               <span className="text-2xl font-bold text-green-600">{formatCurrency(selectedOrder.total)}</span>
@@ -752,7 +765,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
             )}
 
             {/* Fixed Footer */}
-            <div className="flex-shrink-0 p-4 sm:p-6 border-t bg-gray-50/50">
+            <div className="flex-shrink-0 p-4 sm:p-6 border-t bg-red-500">
               <div className="max-w-6xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   {/* Action Buttons */}
