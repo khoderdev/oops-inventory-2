@@ -70,15 +70,17 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   };
 
   return (
-    <div className="h-screen w-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 flex flex-col overflow-hidden relative">
+    <div className="h-screen w-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 flex flex-col overflow-hidden relative safe-area-padding">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/10 to-cyan-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
       </div>
 
-      {/* POS Header */}
-      <header className="relative bg-gradient-to-r from-slate-800 via-slate-00 to-slate-900 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 border-b border-slate-200/20 dark:border-slate-600/30 shadow-xl backdrop-blur-sm px-4 py-2 flex items-center justify-between shrink-0">
+      {/* POS Header - Enhanced Responsive */}
+      <header className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-900 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 border-b border-slate-200/20 dark:border-slate-600/30 shadow-xl backdrop-blur-sm safe-area-top flex items-center justify-between shrink-0 z-fixed">
+        {/* Responsive padding */}
+        <div className="w-full px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
         {/* Glass morphism overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 dark:from-white/5 dark:to-white/10 backdrop-blur-sm" />
         {/* Left Section - Branding */}
@@ -156,6 +158,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
               <Power className="w-4 h-4 text-red-400 group-hover:text-red-300 transition-colors relative z-10" />
             </button>
           </div>
+        </div>
         </div>
       </header>
 

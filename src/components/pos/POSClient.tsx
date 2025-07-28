@@ -53,6 +53,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showVoidDialog, setShowVoidDialog] = useState(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showReportsDialog, setShowReportsDialog] = useState(false);
+  const [activeView, setActiveView] = useState<"cart" | "products">("products");
 
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -920,18 +921,49 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [cart, total, paymentAmount, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
 
   return (
-    <div className="h-full flex bg-gray-100">
-      {/* Left Panel - Cart/Order Details */}
-      <div className="cart hidden md:block w-1/3 bg-white border-r border-gray-200  flex-col h-full">
-        {/* Cart Header - Fixed */}
-        <div className="border-b border-gray-200 p-3 flex-shrink-0">
+    <div className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
+      {/* Mobile Header - Order Summary (visible on mobile only) */}
+      <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <h2 className="text-lg font-bold text-gray-800">Order</h2>
+            {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
+              <span className="text-sm text-blue-600 font-medium">
+                {currentOrder ? (
+                  <div className="flex items-center space-x-1">
+                    <span>#{currentOrder.orderNumber}</span>
+                    <span className="text-xs opacity-75">({currentOrder.status})</span>
+                  </div>
+                ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
+                  <span>{generatePreviewOrderNumber()}</span>
+                ) : hasUnsavedChanges ? (
+                  "Unsaved"
+                ) : null}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">{cart && cart.length > 0 ? `${cart.length} items` : "Empty"}</span>
+            {cart && cart.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700 btn-touch">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Left Panel - Cart/Order Details (Desktop) / Full Width (Mobile) */}
+      <div className="cart flex flex-col h-full lg:w-1/3 bg-white lg:border-r lg:border-gray-200">
+        {/* Cart Header - Fixed (Desktop Only) */}
+        <div className="hidden lg:block border-b border-gray-200 p-3 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex flex-col sm:flex-row items-center space-x-1">
-              <h2 className="text-lg font-bold text-gray-800">Order# :</h2>
+            <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
+              <h2 className="text-lg font-bold text-gray-800">Order#:</h2>
 
               {/* Order Status Indicator */}
               {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
-                <span className="text-md text-blue-800">
+                <span className="text-sm text-blue-600 font-medium">
                   {currentOrder ? (
                     <div className="flex items-center space-x-1">
                       <span>#{currentOrder.orderNumber}</span>
@@ -945,7 +977,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 </span>
               )}
             </div>
-            {cart && cart.length > 0 && <Trash2 className="w-6 h-6 mr-1 cursor-pointer text-red-600 hover:text-red-700" onClick={clearCart} />}
+            {cart && cart.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearCart} className="text-red-600 hover:text-red-700 btn-touch">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -985,21 +1021,61 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         )}
       </div>
 
-      {/* Right Panel - Product Grid */}
-      <div className="flex-1 flex flex-col bg-white h-full">
-        {/* Top Controls - Fixed Header */}
-        <div className="flex-shrink-0 border-b border-gray-200 bg-white">
-          <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
+      {/* Right Panel - Product Grid (Desktop) / Mobile Product Section */}
+      <div className="flex-1 flex flex-col bg-white h-full lg:h-auto">
+        {/* Mobile Toggle Buttons (visible on mobile only) */}
+        <div className="lg:hidden bg-gray-50 border-b border-gray-200 p-2 flex-shrink-0">
+          <div className="flex space-x-2">
+            <Button variant={activeView === "cart" ? "default" : "outline"} size="sm" onClick={() => setActiveView("cart")} className="flex-1 btn-touch">
+              Cart ({cart?.length || 0})
+            </Button>
+            <Button variant={activeView === "products" ? "default" : "outline"} size="sm" onClick={() => setActiveView("products")} className="flex-1 btn-touch">
+              Products
+            </Button>
+          </div>
         </div>
 
-        {/* Product Grid - Scrollable */}
-        <div className="flex-1 overflow-y-auto">
-          <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} />
+        {/* Mobile Cart View */}
+        <div className={`lg:hidden ${activeView === "cart" ? "flex" : "hidden"} flex-col h-full`}>
+          {/* Order Items List - Mobile */}
+          <div className="flex-1 overflow-y-auto">
+            <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} />
+          </div>
+
+          {/* Order Summary - Mobile */}
+          {!showSuccessCheckmark && (
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
+              <OrderSummary
+                cart={cart}
+                subtotal={subtotal}
+                total={total}
+                onPaymentClick={() => {
+                  console.log("💰 Opening payment dialog, auto-filling amount:", total);
+                  setPaymentAmount(total.toString());
+                  setShowPaymentDialog(true);
+                }}
+                onSaveClick={handleManualSave}
+              />
+            </div>
+          )}
         </div>
 
-        {/* Bottom Action Bar - Fixed Footer */}
-        <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-          <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} />
+        {/* Desktop/Mobile Product View */}
+        <div className={`${activeView === "products" || window.innerWidth >= 1024 ? "flex" : "hidden"} lg:flex flex-col h-full`}>
+          {/* Top Controls - Fixed Header */}
+          <div className="flex-shrink-0 border-b border-gray-200 bg-white">
+            <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
+          </div>
+
+          {/* Product Grid - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
+            <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} />
+          </div>
+
+          {/* Bottom Action Bar - Fixed Footer */}
+          <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
+            <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} />
+          </div>
         </div>
       </div>
 

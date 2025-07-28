@@ -5,12 +5,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/types/auth";
-import { InventoryManagementPanelProps } from "@/types/inventory";
+import { InventoryManagementPanelProps, MenuItem, OrderType, POSCartItem, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useCallback, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { POSClientOrders } from "./components/pos/POSClientOrders";
 import { AuthProvider } from "./contexts/AuthContext";
+import { useOrderManagement } from "./hooks/useOrderManagement";
 
 // Lazy load components for better performance
 const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
@@ -154,6 +156,75 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
   const handleCreateMenuItem = onCreateMenuItem || storeCreateMenuItem;
   const handleUpdateMenuItem = onUpdateMenuItem || storeUpdateMenuItem;
   const handleDeleteMenuItem = onDeleteMenuItem || storeDeleteMenuItem;
+
+  const [showOrdersDialog, setShowOrdersDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cart, setCart] = useState<POSCartItem[]>([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { isLoading: orderLoading, error: orderError, loadOrder, updateOrder, completeOrder } = useOrderManagement();
+  const [orderType, setOrderType] = useState<OrderType>("takeaway");
+  const [selectedTable, setSelectedTable] = useState<Table | undefined>(undefined);
+
+  const handleOrderSelect = useCallback(
+    async (order: any) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Clear current cart and state
+        setCart([]);
+        setHasUnsavedChanges(false);
+
+        // Load the order using the order management hook
+        if (loadOrder) {
+          await loadOrder(order.id);
+        }
+
+        // Set order type and table if applicable
+        setOrderType(order.orderType || "takeaway");
+        if (order.orderType === "table" && order.table) {
+          setSelectedTable(order.table);
+        } else {
+          setSelectedTable(undefined);
+        }
+
+        // Convert order items to cart items
+        const cartItems: POSCartItem[] =
+          order.items
+            ?.map((item: any) => {
+              // Find the original item for proper saving
+              let originalItem: StockEntryWithMaterial | MenuItem | undefined;
+
+              if (item.materialId) {
+                // Find stock entry by materialId
+                originalItem = stockEntries.find(se => se.materialId === item.materialId);
+              } else if (item.menuItemId) {
+                // Find menu item by menuItemId
+                originalItem = menuItems.find(mi => mi.id === item.menuItemId);
+              }
+
+              return {
+                id: item.id || `${item.materialId || item.menuItemId}-${Date.now()}`,
+                stockEntryId: item.materialId, // materialId maps to stockEntryId
+                menuItemId: item.menuItemId,
+                name: item.name,
+                price: parseFloat(item.unitPrice) || 0,
+                quantity: parseInt(item.quantity) || 1,
+                type: item.materialId ? "material" : "menu",
+                originalItem // This is crucial for saving
+              };
+            })
+            .filter(Boolean) || [];
+
+        setCart(cartItems);
+        setHasUnsavedChanges(false); // This is an existing order, not unsaved
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [loadOrder, stockEntries, menuItems]
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -331,7 +402,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_READ}>
                       <AuthenticatedLayout>
-                        <PlaceholderPage title="Orders Management" description="View and manage customer orders" />
+                        <POSClientOrders />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }

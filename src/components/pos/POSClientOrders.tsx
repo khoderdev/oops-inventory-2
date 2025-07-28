@@ -16,8 +16,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
 interface POSClientOrdersProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
   onOrderSelect?: (order: Order) => void;
 }
 
@@ -60,7 +60,8 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
 
   // Fetch orders based on filters
   const fetchOrders = useCallback(async () => {
-    if (!isOpen) return;
+    // If used as dialog, only fetch when open
+    if (isOpen !== undefined && !isOpen) return;
 
     setIsLoading(true);
     setError(null);
@@ -236,8 +237,10 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
         // Call the parent callback to load order into POS cart
         onOrderSelect(orderData);
 
-        // Close the orders dialog
-        onClose();
+        // Close the orders dialog if onClose is provided
+        if (onClose) {
+          onClose();
+        }
       } catch (error) {
         console.error("Failed to load order for editing:", error);
         setError("Failed to load order for editing. Please try again.");
@@ -354,25 +357,29 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
     });
   };
 
-  if (!isOpen) return null;
+  // Determine if this is being used as a dialog
+  const isDialog = isOpen !== undefined;
 
-  return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden">
-          {/* Fixed Header */}
-          <div className="flex-shrink-0 p-4 px-6 border-b bg-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div>
-                  <DialogTitle className="text-2xl font-bold text-gray-900">Orders Management</DialogTitle>
-                </div>
-              </div>
+  // Main content component
+  const MainContent = () => (
+    <div className={isDialog ? "w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden" : "h-full w-full bg-gray-50 overflow-hidden flex flex-col"}>
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 p-4 px-6 border-b bg-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div>
+              {isDialog ? (
+                <DialogTitle className="text-2xl font-bold text-gray-900">Orders Management</DialogTitle>
+              ) : (
+                <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
+              )}
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden !p-0">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Enhanced Filters Section */}
             {/* <div className="flex-shrink-0 p-4 bg-red-50 border-b"> */}
             <div className="flex flex-col xl:flex-row gap-4 py-2 px-4">
@@ -525,39 +532,56 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
               </ScrollArea>
             </div>
 
-            {/* Fixed Footer */}
-            <div className="flex-shrink-0 p-4 sm:p-6 border-t bg-gradient-to-r from-gray-50 to-slate-50">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center space-x-4">
-                  <div className="text-base font-medium text-gray-700">
-                    {orders.length > 0 ? (
-                      <span className="flex items-center space-x-2">
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          {orders.length}
-                        </Badge>
-                        <span>order{orders.length !== 1 ? "s" : ""} found</span>
-                      </span>
-                    ) : (
-                      <span className="text-gray-500">No orders to display</span>
-                    )}
-                  </div>
-                  {(filters.searchTerm || filters.status || filters.orderType) && (
-                    <Badge variant="secondary" className="text-xs">
-                      Filtered
+        {/* Fixed Footer */}
+        <div className="flex-shrink-0 p-4 sm:p-6 border-t bg-gradient-to-r from-gray-50 to-slate-50">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="text-base font-medium text-gray-700">
+                {orders.length > 0 ? (
+                  <span className="flex items-center space-x-2">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      {orders.length}
                     </Badge>
-                  )}
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Button variant="outline" onClick={onClose} className="bg-white hover:bg-gray-50 border-gray-300 h-10 px-6">
-                    <X className="w-4 h-4 mr-2" />
-                    Close
-                  </Button>
-                </div>
+                    <span>order{orders.length !== 1 ? "s" : ""} found</span>
+                  </span>
+                ) : (
+                  <span className="text-gray-500">No orders to display</span>
+                )}
               </div>
+              {(filters.searchTerm || filters.status || filters.orderType) && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtered
+                </Badge>
+              )}
             </div>
+            {isDialog && onClose && (
+              <div className="flex items-center space-x-3">
+                <Button variant="outline" onClick={onClose} className="bg-white hover:bg-gray-50 border-gray-300 h-10 px-6">
+                  <X className="w-4 h-4 mr-2" />
+                  Close
+                </Button>
+              </div>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
+    </div>
+  );
+
+  // If not used as dialog, return early if isOpen is false
+  if (isDialog && !isOpen) return null;
+
+  return (
+    <>
+      {isDialog ? (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden">
+            <MainContent />
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <MainContent />
+      )}
 
       {/* Order Details Dialog */}
       <Dialog open={showOrderDetails} onOpenChange={setShowOrderDetails}>

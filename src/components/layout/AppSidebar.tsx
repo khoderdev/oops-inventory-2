@@ -143,18 +143,16 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border">
       {/* Header */}
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center justify-center py-3">
-          <div className="flex items-center justify-center transition-all duration-200">
-            <div className="relative flex items-center justify-center">
-              {state === "expanded" ? (
-                <img src="/oops-logo.png" alt="Restaurant Management System" className="w-44 h-auto transition-all duration-200 crisp-edges" />
-              ) : (
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-sm">R</span>
-                </div>
-              )}
-            </div>
+      <SidebarHeader className="border-b border-sidebar-border h-16 flex items-center justify-center">
+        <div className="flex items-center justify-center transition-all duration-200">
+          <div className="relative flex items-center justify-center">
+            {state === "expanded" ? (
+              <img src="/oops-logo.png" alt="Restaurant Management System" className="w-32 h-auto transition-all duration-200 crisp-edges" />
+            ) : (
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">R</span>
+              </div>
+            )}
           </div>
         </div>
       </SidebarHeader>
