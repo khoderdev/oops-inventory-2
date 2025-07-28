@@ -60,7 +60,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Order management hook
-  const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, updateOrderStatus, completeOrder, voidOrder, clearOrder } = useOrderManagement();
+  const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
 
   // Helper functions
   const showError = useCallback((message: string) => {
@@ -298,7 +298,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           console.log("📝 Processing save item:", item);
           console.log("🔍 Item type:", item.type);
           console.log("🔍 Original item:", item.originalItem);
-          
+
           const orderItem = {
             materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
             menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
@@ -310,12 +310,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             type: item.type,
             notes: undefined
           };
-          
+
           console.log("📋 Created save item:", orderItem);
           return orderItem;
         })
       };
-      
+
       console.log("📦 Final save data:", orderData);
 
       if (currentOrder) {
@@ -455,76 +455,79 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
 
   // Cart operations - Updated for unified POS items
-  const addToCart = useCallback((posItem: POSItem) => {
-    console.log("🛒 Adding to cart:", posItem);
-    const cartId = `pos-${posItem.id}`;
+  const addToCart = useCallback(
+    (posItem: POSItem) => {
+      console.log("🛒 Adding to cart:", posItem);
+      const cartId = `pos-${posItem.id}`;
 
-    setCart(prevCart => {
-      const currentCart = prevCart || [];
-      const existingItem = currentCart.find(cartItem => cartItem.id === cartId);
+      setCart(prevCart => {
+        const currentCart = prevCart || [];
+        const existingItem = currentCart.find(cartItem => cartItem.id === cartId);
 
-      if (existingItem) {
-        return currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
-      } else {
-        if (posItem.type === "menu_item") {
-          // Handle menu items
-          const menuItemId = typeof posItem.id === "string" ? parseInt(posItem.id) || 0 : posItem.id;
-          const menuItem = menuItems.find(mi => {
-            const miId = typeof mi.id === "string" ? parseInt(mi.id) || 0 : mi.id;
-            return miId === menuItemId;
-          });
-          if (!menuItem) {
-            console.warn("❌ Menu item not found:", posItem, "Available menu items:", menuItems);
-            return currentCart; // Return current cart if menu item not found
-          }
-          console.log("✅ Menu item found:", menuItem);
-          console.log("📝 Creating menu item for cart with ID:", menuItemId);
-
-          const newItem: POSCartItem = {
-            id: cartId,
-            name: posItem.name,
-            price: posItem.price,
-            quantity: 1,
-            type: "menu",
-            originalItem: menuItem,
-            posItem,
-            stockEntryId: undefined,
-            menuItemId: menuItemId
-          };
-          console.log("🎉 Adding menu item to cart:", newItem);
-          console.log("📊 Cart before adding:", currentCart);
-          const newCart = [...currentCart, newItem];
-          console.log("📊 Cart after adding:", newCart);
-          return newCart;
+        if (existingItem) {
+          return currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
         } else {
-          // Handle stock entry items
-          const stockEntry = stockEntries.find(se => {
-            // Convert both to strings for comparison since stockEntry.materialId is string and posItem.materialId is number
-            const stockEntryMaterialId = String(se.materialId);
-            const posItemMaterialId = String(posItem.materialId);
-            return stockEntryMaterialId === posItemMaterialId;
-          });
-          if (!stockEntry) {
-            console.warn("Stock entry not found:", posItem);
-            return currentCart; // Return current cart if stock entry not found
-          }
+          if (posItem.type === "menu_item") {
+            // Handle menu items
+            const menuItemId = typeof posItem.id === "string" ? parseInt(posItem.id) || 0 : posItem.id;
+            const menuItem = menuItems.find(mi => {
+              const miId = typeof mi.id === "string" ? parseInt(mi.id) || 0 : mi.id;
+              return miId === menuItemId;
+            });
+            if (!menuItem) {
+              console.warn("❌ Menu item not found:", posItem, "Available menu items:", menuItems);
+              return currentCart; // Return current cart if menu item not found
+            }
+            console.log("✅ Menu item found:", menuItem);
+            console.log("📝 Creating menu item for cart with ID:", menuItemId);
 
-          const newItem: POSCartItem = {
-            id: cartId,
-            name: posItem.name,
-            price: posItem.price,
-            quantity: 1,
-            type: "material",
-            originalItem: stockEntry,
-            posItem,
-            stockEntryId: posItem.materialId,
-            menuItemId: undefined
-          };
-          return [...currentCart, newItem];
+            const newItem: POSCartItem = {
+              id: cartId,
+              name: posItem.name,
+              price: posItem.price,
+              quantity: 1,
+              type: "menu",
+              originalItem: menuItem,
+              posItem,
+              stockEntryId: undefined,
+              menuItemId: menuItemId
+            };
+            console.log("🎉 Adding menu item to cart:", newItem);
+            console.log("📊 Cart before adding:", currentCart);
+            const newCart = [...currentCart, newItem];
+            console.log("📊 Cart after adding:", newCart);
+            return newCart;
+          } else {
+            // Handle stock entry items
+            const stockEntry = stockEntries.find(se => {
+              // Convert both to strings for comparison since stockEntry.materialId is string and posItem.materialId is number
+              const stockEntryMaterialId = String(se.materialId);
+              const posItemMaterialId = String(posItem.materialId);
+              return stockEntryMaterialId === posItemMaterialId;
+            });
+            if (!stockEntry) {
+              console.warn("Stock entry not found:", posItem);
+              return currentCart; // Return current cart if stock entry not found
+            }
+
+            const newItem: POSCartItem = {
+              id: cartId,
+              name: posItem.name,
+              price: posItem.price,
+              quantity: 1,
+              type: "material",
+              originalItem: stockEntry,
+              posItem,
+              stockEntryId: posItem.materialId,
+              menuItemId: undefined
+            };
+            return [...currentCart, newItem];
+          }
         }
-      }
-    });
-  }, [menuItems, stockEntries]);
+      });
+    },
+    [menuItems, stockEntries]
+  );
 
   // Legacy addToCart function for backward compatibility (used in order editing)
   const addToCartLegacy = useCallback((item: StockEntryWithMaterial | MenuItem, type: "material" | "menu") => {
@@ -824,7 +827,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     console.log("💰 Starting payment process...");
     console.log("🛒 Current cart:", cart);
-    
+
     // Check each cart item in detail
     cart.forEach((item, index) => {
       console.log(`🔍 Cart item ${index}:`, {
@@ -838,7 +841,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         stockEntryId: item.stockEntryId
       });
     });
-    
+
     setIsLoading(true);
     try {
       let orderToComplete = currentOrder;
@@ -853,7 +856,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             console.log("📝 Processing cart item:", item);
             console.log("🔍 Item type:", item.type);
             console.log("🔍 Original item:", item.originalItem);
-            
+
             const orderItem = {
               materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
               menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
@@ -865,12 +868,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               type: item.type,
               notes: undefined
             };
-            
+
             console.log("📋 Created order item:", orderItem);
             return orderItem;
           })
         };
-        
+
         console.log("📦 Final order data:", orderData);
 
         orderToComplete = await createOrder(orderData);
@@ -893,18 +896,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         orderId: orderToComplete.id,
         paymentData
       });
-      
+
       const response = await ordersAPI.completeOrder(orderToComplete.id, paymentData);
       console.log("📨 API Response received:", response);
       console.log("📨 Response data:", response.data);
-      
+
       // Handle API response - the response should have { order, saleId } structure
       let order, saleId;
       if (response.data) {
         // Direct access to response.data which should have { order, saleId }
         order = response.data.order;
         saleId = response.data.saleId;
-        
+
         // Fallback if the structure is different
         if (!order && response.data) {
           // Maybe the response.data IS the order
@@ -912,15 +915,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           saleId = (response.data as any).id || `sale-${Date.now()}`;
         }
       } else {
-        throw new Error('No data in API response');
+        throw new Error("No data in API response");
       }
-      
+
       console.log("📝 Final extracted order:", order);
       console.log("📝 Final extracted saleId:", saleId);
-      
+
       // Validate that we have the required data
       if (!order) {
-        throw new Error('Order data not found in API response');
+        throw new Error("Order data not found in API response");
       }
 
       // Prepare receipt data from completed order with defensive handling
@@ -933,7 +936,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           name: item.name,
           quantity: item.quantity,
           unitPrice: item.unitPrice || item.price,
-          totalPrice: item.totalPrice || (item.price * item.quantity),
+          totalPrice: item.totalPrice || item.price * item.quantity,
           type: item.type
         })),
         subtotal: order.subtotal || subtotal,
@@ -943,7 +946,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         change: paymentData.change || 0,
         paymentMethod: paymentData.paymentMethod
       };
-      
+
       console.log("📧 Created receipt data:", receiptData);
 
       setLastSaleData(receiptData);
@@ -988,11 +991,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } catch (error: unknown) {
       console.error("❌ Payment failed with error:", error);
       console.error("❌ Error details:", {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace',
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : "No stack trace",
         fullError: error
       });
-      
+
       const errorMessage = error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object" && "data" in error.response && error.response.data && typeof error.response.data === "object" && "message" in error.response.data ? (error.response.data.message as string) : "Sale failed. Please try again.";
       showError(errorMessage);
       // Close payment dialog even on error
