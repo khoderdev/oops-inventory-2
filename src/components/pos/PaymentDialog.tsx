@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PaymentDialogProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
@@ -37,20 +37,17 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
-      <DialogContent className="w-[90vw] max-w-2xl h-[90vh] max-h-[90vh] m-0 p-0 bg-gradient-to-br from-slate-50 via-white to-blue-50 overflow-hidden fixed top-[5vh] left-1/2 transform -translate-x-1/2" onOpenAutoFocus={e => e.preventDefault()} aria-hidden={false}>
+      <DialogContent className="xm-0 p-0 bg-secondary overflow-hidden " onOpenAutoFocus={e => e.preventDefault()} aria-hidden={false}>
         <div className="w-full h-full flex flex-col">
           {/* Compact Header */}
-          <DialogHeader className="flex-shrink-0 px-3 sm:px-4 pt-3 pb-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-            <DialogTitle className="flex items-center justify-center space-x-2 text-lg sm:text-xl font-bold">
-              <div className="p-1.5 bg-white/20 rounded-full backdrop-blur-sm">
-                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-              <span>Complete Payment</span>
-            </DialogTitle>
-            <p className="text-center text-blue-100 mt-1 text-xs sm:text-sm font-medium">
-              Process your transaction securely
-            </p>
-          </DialogHeader>
+          {/* <DialogHeader className="flex-shrink-0 px-3 sm:px-4 pt-3 pb-2 bg-primary text-white"> */}
+          <DialogTitle className="flex items-center justify-center space-x-2 text-lg sm:text-xl font-bold bg-primary border-t border-red-200">
+            <div className="p-1.5 bg-white/20 rounded-full backdrop-blur-sm">
+              <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <span>Complete Payment</span>
+          </DialogTitle>
+          {/* </DialogHeader> */}
 
           <div className="flex-1 overflow-y-auto min-h-0">
             <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">

@@ -8,12 +8,28 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { OrderFilters, POSClientOrdersProps, ReceiptData } from "@/types/inventory";
+import { ReceiptData } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { AlertCircle, Calendar, Check, Clock, Edit, Eye, Package, Printer, Search, ShoppingBag, Truck, User, X } from "lucide-react";
+import { AlertCircle, Calendar, Clock, Edit, Eye, Package, Printer, Search, ShoppingBag, Truck, User } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { ReceiptPrinter } from "./ReceiptPrinter";
+
+interface POSClientOrdersProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onOrderSelect?: (order: Order) => void;
+}
+
+interface OrderFilters {
+  status?: OrderStatus;
+  orderType?: OrderType;
+  searchTerm?: string;
+  dateRange?: {
+    startDate?: string;
+    endDate?: string;
+  };
+}
 
 const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -235,94 +251,6 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
     [onOrderSelect, onClose]
   );
 
-  // Handle order status update
-  const handleUpdateOrderStatus = useCallback(
-    async (orderId: string, status: OrderStatus) => {
-      setIsLoading(true);
-      try {
-        await ordersAPI.updateOrderStatus(orderId, status);
-
-        // Refresh orders list by triggering effect
-        setFilters(prev => ({ ...prev }));
-
-        // Update selected order if it's the same one
-        if (selectedOrder && selectedOrder.id === orderId) {
-          setSelectedOrder(prev => (prev ? { ...prev, status } : null));
-        }
-
-        setError(null);
-        setShowOrderDetails(false);
-      } catch (error) {
-        console.error(`Failed to update order status to ${status}:`, error);
-        setError(`Failed to ${status} order. Please try again.`);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [selectedOrder]
-  );
-
-  // Handle complete order with payment
-  const handleCompleteOrder = useCallback(
-    async (orderId: string) => {
-      setIsLoading(true);
-      try {
-        // For simplicity, we'll complete with cash payment for the full amount
-        const paymentData = {
-          paymentMethod: "cash",
-          paymentAmount: selectedOrder?.total || 0,
-          change: 0
-        };
-
-        await ordersAPI.completeOrder(orderId, paymentData);
-
-        // Refresh orders list by triggering effect
-        setFilters(prev => ({ ...prev }));
-
-        // Update selected order status
-        if (selectedOrder && selectedOrder.id === orderId) {
-          setSelectedOrder(prev => (prev ? { ...prev, status: "paid" as OrderStatus } : null));
-        }
-
-        setError(null);
-        setShowOrderDetails(false);
-      } catch (error) {
-        console.error("Failed to complete order:", error);
-        setError("Failed to complete order. Please try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [selectedOrder]
-  );
-
-  // Handle cancel order
-  const handleCancelOrder = useCallback(
-    async (orderId: string, reason?: string) => {
-      setIsLoading(true);
-      try {
-        await ordersAPI.cancelOrder(orderId, reason);
-
-        // Refresh orders list by triggering effect
-        setFilters(prev => ({ ...prev }));
-
-        // Update selected order status
-        if (selectedOrder && selectedOrder.id === orderId) {
-          setSelectedOrder(prev => (prev ? { ...prev, status: "cancelled" as OrderStatus } : null));
-        }
-
-        setError(null);
-        setShowOrderDetails(false);
-      } catch (error) {
-        console.error("Failed to cancel order:", error);
-        setError("Failed to cancel order. Please try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [selectedOrder]
-  );
-
   // Format date for display
   const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString("en-US", {
@@ -348,18 +276,15 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   const MainContent = () => (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50">
       {/* Fixed Header */}
-      <div className="flex-shrink-0 p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="flex-shrink-0 p-4 border-b bg-primary">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <ShoppingBag className="w-6 h-6 text-blue-600" />
-            </div>
             <div>
-              {isDialog ? <DialogTitle className="text-2xl font-bold text-gray-900">Orders Management</DialogTitle> : <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>}
+              {isDialog ? <DialogTitle className="text-3xl font-bold text-gray-900">Orders</DialogTitle> : <h1 className="text-3xl font-bold text-gray-900">Orders</h1>}
               <p className="text-sm text-gray-600 mt-1">
                 {orders.length > 0 ? (
                   <span className="flex items-center space-x-2">
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    <Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-500">
                       {orders.length}
                     </Badge>
                     <span>order{orders.length !== 1 ? "s" : ""} found</span>
@@ -373,11 +298,13 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
         </div>
       </div>
 
-      {/* Enhanced Filters Section */}
-      <div className="flex-shrink-0 p-4 bg-white border-b">
-        <div className="flex flex-col xl:flex-row gap-4">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Enhanced Filters Section */}
+        {/* <div className="flex-shrink-0 p-4 bg-red-50 border-b"> */}
+        <div className="flex flex-col xl:flex-row gap-4 py-2 px-4">
           {/* Search Bar */}
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input placeholder="Search by order number, customer name, or ID..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-11 h-11 bg-white border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 text-base" />
@@ -418,150 +345,111 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
             </Button>
           </div>
         </div>
-      </div>
+        {/* </div> */}
 
-      {/* Orders Grid - Scrollable Content */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="p-6">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <div className="text-gray-500 font-medium text-lg">Loading orders...</div>
+        {/* Orders Grid - Scrollable Content */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="p-4">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <div className="text-gray-500 font-medium">Loading orders...</div>
+                  </div>
                 </div>
-              </div>
-            ) : error ? (
-              <Alert variant="destructive" className="max-w-2xl mx-auto">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : orders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                <div className="p-6 bg-gray-100 rounded-full mb-6">
-                  <ShoppingBag className="w-16 h-16 opacity-50" />
+              ) : error ? (
+                <Alert variant="destructive" className="max-w-2xl mx-auto">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              ) : orders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                  <div className="p-4 bg-gray-100 rounded-full mb-4">
+                    <ShoppingBag className="w-12 h-12 opacity-50" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">No orders found</h3>
+                  <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No delivery or takeaway orders available at the moment"}</p>
                 </div>
-                <h3 className="text-xl font-medium mb-3">No orders found</h3>
-                <p className="text-base text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No delivery or takeaway orders available at the moment"}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                {orders.map(order => (
-                  <Card key={order.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" onClick={() => handleOrderSelect(order)}>
-                    <CardHeader className="pb-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{order.orderNumber}</CardTitle>
-                          <div className="flex items-center space-x-3 mt-2">
-                            <div className="flex items-center space-x-1.5">
-                              {ORDER_TYPE_ICONS[order.orderType]}
-                              <span className="text-sm text-gray-600 capitalize font-medium">{order.orderType}</span>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                  {orders.map(order => (
+                    <Card key={order.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" onClick={() => handleOrderSelect(order)}>
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{order.orderNumber}</CardTitle>
+                            <div className="flex items-center space-x-3 mt-2">
+                              <div className="flex items-center space-x-1.5">
+                                {ORDER_TYPE_ICONS[order.orderType]}
+                                <span className="text-sm text-gray-600 capitalize font-medium">{order.orderType}</span>
+                              </div>
                             </div>
                           </div>
+                          <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-sm font-semibold px-3 py-1`}>{order.status}</Badge>
                         </div>
-                        <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-sm font-semibold px-3 py-1.5`}>{order.status}</Badge>
-                      </div>
 
-                      <CardDescription className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="flex items-center space-x-1.5 text-gray-600">
-                            <Calendar className="w-4 h-4" />
-                            <span>{formatDate(order.createdAt)}</span>
-                          </span>
-                          <span className="flex items-center space-x-1.5 text-gray-600">
-                            <Clock className="w-4 h-4" />
-                            <span>{formatTime(order.createdAt)}</span>
-                          </span>
-                        </div>
-                        {order.customerName && (
-                          <div className="flex items-center space-x-1.5 text-gray-700">
-                            <User className="w-4 h-4" />
-                            <span className="truncate font-medium">{order.customerName}</span>
+                        <CardDescription className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="flex items-center space-x-1.5 text-gray-600">
+                              <Calendar className="w-4 h-4" />
+                              <span>{formatDate(order.createdAt)}</span>
+                            </span>
+                            <span className="flex items-center space-x-1.5 text-gray-600">
+                              <Clock className="w-4 h-4" />
+                              <span>{formatTime(order.createdAt)}</span>
+                            </span>
                           </div>
-                        )}
-                      </CardDescription>
-                    </CardHeader>
+                          {order.customerName && (
+                            <div className="flex items-center space-x-1.5 text-gray-700">
+                              <User className="w-4 h-4" />
+                              <span className="truncate font-medium">{order.customerName}</span>
+                            </div>
+                          )}
+                        </CardDescription>
+                      </CardHeader>
 
-                    <CardContent className="pt-0">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
-                          <span className="text-2xl font-bold text-green-600">{formatCurrency(order.total)}</span>
-                          <Badge variant="outline" className="text-sm font-medium border-green-200 text-green-700 px-3 py-1">
-                            {order.itemCount || 0} items
-                          </Badge>
+                      <CardContent className="pt-0">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
+                            <span className="text-2xl font-bold text-green-600">{formatCurrency(order.total)}</span>
+                            <Badge variant="outline" className="text-sm font-medium border-green-200 text-green-700">
+                              {order.itemCount || 0} items
+                            </Badge>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex w-full items-center justify-around">
+                            <Edit
+                              className="w-6 h-6 hover:text-blue-600 cursor-pointer"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleOrderSelect(order);
+                              }}
+                            />
+                            <Eye
+                              className="w-6 h-6 hover:text-blue-600 cursor-pointer"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleViewOrderDetails(order);
+                              }}
+                            />
+                            <Printer
+                              className="w-6 h-6 hover:text-blue-600 cursor-pointer"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handlePrintOrderReceipt(order);
+                              }}
+                            />
+                          </div>
                         </div>
-
-                        {/* Action Buttons */}
-                        <div className="grid grid-cols-3 gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-9 text-xs hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleOrderSelect(order);
-                            }}
-                          >
-                            <Edit className="w-3 h-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-9 text-xs hover:bg-green-50 hover:border-green-300 hover:text-green-700"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleViewOrderDetails(order);
-                            }}
-                          >
-                            <Eye className="w-3 h-3 mr-1" />
-                            View
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-9 text-xs hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handlePrintOrderReceipt(order);
-                            }}
-                          >
-                            <Printer className="w-3 h-3 mr-1" />
-                            Print
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </div>
-
-      {/* Fixed Footer */}
-      <div className="flex-shrink-0 p-4 sm:p-6 border-t bg-gradient-to-r from-gray-50 to-slate-50">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="text-base font-medium text-gray-700">
-              {orders.length > 0 ? (
-                <span className="flex items-center space-x-2">
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
-                    {orders.length}
-                  </Badge>
-                  <span>order{orders.length !== 1 ? "s" : ""} found</span>
-                </span>
-              ) : (
-                <span className="text-gray-500">No orders to display</span>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
             </div>
-            {(filters.searchTerm || filters.status || filters.orderType) && (
-              <Badge variant="secondary" className="text-xs px-2 py-1">
-                Filtered
-              </Badge>
-            )}
-          </div>
+          </ScrollArea>
         </div>
       </div>
     </div>
@@ -573,11 +461,9 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   return (
     <>
       {isDialog ? (
-        <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
-          <DialogContent className="fixed inset-0 w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", maxWidth: "none", maxHeight: "none", margin: 0, padding: 0, transform: "none", zIndex: 9999 }}>
-            <div className="w-full h-full flex flex-col overflow-hidden">
-              <MainContent />
-            </div>
+        <Dialog open={isOpen} onOpenChange={onClose}>
+          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden">
+            <MainContent />
           </DialogContent>
         </Dialog>
       ) : (
@@ -586,7 +472,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
 
       {/* Order Details Dialog */}
       <Dialog open={showOrderDetails} onOpenChange={setShowOrderDetails}>
-        <DialogContent className="fixed inset-0 w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden z-50">
+        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
           <div className="w-full h-full flex flex-col overflow-hidden">
             {/* Fixed Header */}
             <DialogHeader className="flex-shrink-0 p-4 sm:p-6 border-b bg-gradient-to-r from-green-50 to-emerald-50">
@@ -774,61 +660,6 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                 </ScrollArea>
               </div>
             )}
-
-            {/* Fixed Footer */}
-            <div className="flex-shrink-0 p-3 border-t">
-              <div className="max-w-6xl mx-auto">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-2">
-                    {selectedOrder && selectedOrder.status === "draft" && (
-                      <Button onClick={() => handleUpdateOrderStatus(selectedOrder.id, "confirmed")} className="flex items-center space-x-2 bg-green-600 hover:bg-green-700" disabled={isLoading}>
-                        <Check className="w-4 h-4" />
-                        <span>Confirm Order</span>
-                      </Button>
-                    )}
-
-                    {selectedOrder && selectedOrder.status !== "paid" && selectedOrder.status !== "cancelled" && (
-                      <Button onClick={() => handleCompleteOrder(selectedOrder.id)} className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                        <Check className="w-4 h-4" />
-                        <span>Complete & Pay</span>
-                      </Button>
-                    )}
-
-                    {selectedOrder && selectedOrder.status !== "paid" && selectedOrder.status !== "cancelled" && (
-                      <Button onClick={() => handleCancelOrder(selectedOrder.id, "Cancelled from orders management")} variant="destructive" className="flex items-center space-x-2" disabled={isLoading}>
-                        <X className="w-4 h-4" />
-                        <span>Cancel Order</span>
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Secondary Actions */}
-                  <div className="flex flex-wrap gap-2">
-                    {selectedOrder && (
-                      <Button
-                        onClick={() =>
-                          handlePrintOrderReceipt({
-                            id: selectedOrder.id,
-                            orderNumber: selectedOrder.orderNumber,
-                            status: selectedOrder.status,
-                            orderType: selectedOrder.orderType,
-                            customerName: selectedOrder.customerName,
-                            total: selectedOrder.total,
-                            itemCount: selectedOrder.items.length,
-                            createdAt: selectedOrder.createdAt
-                          })
-                        }
-                        className="flex items-center space-x-2 bg-gray-600 hover:bg-gray-700"
-                      >
-                        <Printer className="w-4 h-4" />
-                        <span>Print Receipt</span>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </DialogContent>
       </Dialog>

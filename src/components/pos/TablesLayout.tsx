@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { Clock, Users, X } from "lucide-react";
+import { Clock, Users } from "lucide-react";
 import React, { useState } from "react";
 
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
@@ -93,22 +93,19 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-2">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-xl w-full h-full max-h-[100vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-1 border-b border-gray-200">
+        <div className="flex items-center justify-center px-6 py-2 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Restaurant Tables</h2>
-            <p className="text-gray-600 mt-1">Select a table to start taking orders</p>
+            {/* <p className="text-gray-600 mt-1">Select a table to start taking orders</p> */}
           </div>
-          <Button variant="outline" onClick={onClose} className="p-2">
-            <X className="w-5 h-5" />
-          </Button>
         </div>
 
         {/* Tables Layout */}
         <div className="flex-1 overflow-auto">
-          <div className="relative bg-gray-50 rounded-lg min-h-full">
+          <div className="relative bg-gray-50 rounded-lg min-h-full p-4">
             {/* Restaurant Floor Plan */}
             <div className="relative w-full h-full min-h-[600px]">
               {safeTablesList.length === 0 ? (

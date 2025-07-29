@@ -60,7 +60,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [incompleteDeliveryTakeawayCount, setIncompleteDeliveryTakeawayCount] = useState<number>(0);
   const [incompleteDeliveryCount, setIncompleteDeliveryCount] = useState<number>(0);
   const [incompleteTakeawayCount, setIncompleteTakeawayCount] = useState<number>(0);
-
+  const [open, setOpen] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -631,42 +631,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     [menuItems, stockEntries]
   );
 
-  // Legacy addToCart function for backward compatibility (used in order editing)
-  const addToCartLegacy = useCallback((item: StockEntryWithMaterial | MenuItem, type: "material" | "menu") => {
-    const cartId = type === "material" ? `material-${item.id}` : `menu-${item.id}`;
-
-    setCart(prevCart => {
-      const currentCart = prevCart || [];
-      const existingItem = currentCart.find(cartItem => cartItem.id === cartId);
-
-      if (existingItem) {
-        return currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
-      } else {
-        let itemPrice = 0;
-        if (type === "material") {
-          const stockEntry = item as StockEntryWithMaterial;
-          if (stockEntry.costPerBaseUnit && stockEntry.costPerBaseUnit.toString() !== "0") {
-            itemPrice = parseFloat(stockEntry.costPerBaseUnit.toString());
-          } else if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
-            itemPrice = parseFloat(stockEntry.totalCost.toString()) / stockEntry.purchasedIndividualQuantity;
-          }
-        } else {
-          itemPrice = (item as MenuItem).price || 0;
-        }
-
-        const newItem: POSCartItem = {
-          id: cartId,
-          name: type === "material" ? (item as StockEntryWithMaterial).material?.name || "Unknown" : (item as MenuItem).name,
-          price: itemPrice,
-          quantity: 1,
-          type,
-          originalItem: item
-        };
-        return [...currentCart, newItem];
-      }
-    });
-  }, []);
-
   const updateCartQuantity = useCallback((cartId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       setCart(prevCart => prevCart.filter(item => item.id !== cartId));
@@ -1143,43 +1107,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [cart, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
 
   return (
-    <div className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
-      {/* Mobile Header - Order Summary (visible on mobile only) */}
-      <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <h2 className="text-lg font-bold text-gray-800">Order</h2>
-            {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
-              <span className="text-sm text-blue-600 font-medium">
-                {currentOrder ? (
-                  <div className="flex items-center space-x-1">
-                    <span>#{currentOrder.orderNumber}</span>
-                    <span className="text-xs opacity-75">({currentOrder.status})</span>
-                  </div>
-                ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
-                  <span>{generatePreviewOrderNumber()}</span>
-                ) : hasUnsavedChanges ? (
-                  "Unsaved"
-                ) : null}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">{cart && cart.length > 0 ? `${cart.length} items` : "Empty"}</span>
-            {cart && cart.length > 0 && <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" onClick={clearCart} />}
-          </div>
-        </div>
-      </div>
-
-      {/* Left Panel - Cart/Order Details (Desktop) / Full Width (Mobile) */}
-      <div className="cart flex flex-col h-full lg:w-1/3 bg-white lg:border-r lg:border-gray-200">
-        {/* Cart Header - Fixed (Desktop Only) */}
-        <div className="hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
-          <div className="flex items-center justify-between py-2">
-            <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
-              <h2 className="text-lg font-bold text-gray-800">Order#:</h2>
-
-              {/* Order Status Indicator */}
+    <>
+      <div className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
+        {/* Mobile Header - Order Summary (visible on mobile only) */}
+        <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-lg font-bold text-gray-800">Order</h2>
               {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
                 <span className="text-sm text-blue-600 font-medium">
                   {currentOrder ? (
@@ -1195,70 +1129,62 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 </span>
               )}
             </div>
-            {cart && cart.length > 0 && <Trash2 className="w-5 h-5 text-red-600 cursor-pointer" onClick={clearCart} />}
-          </div>
-        </div>
-
-        {/* Order Items List - Scrollable */}
-        <div className="flex-1 h-full relative overflow-hidden">
-          <div className="h-full overflow-y-auto">
-            <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} />
-          </div>
-
-          {/* Success Animation Overlay */}
-          {showSuccessCheckmark && (
-            <div className="absolute inset-0 flex items-center justify-center bg-green-50/90 backdrop-blur-sm z-10">
-              <div className="text-center">
-                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-scale-in" />
-                <p className="text-green-700 font-medium text-lg">Order Completed!</p>
-                <p className="text-green-600 text-sm mt-1">Cart cleared successfully</p>
-              </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">{cart && cart.length > 0 ? `${cart.length} items` : "Empty"}</span>
+              {cart && cart.length > 0 && <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" onClick={clearCart} />}
             </div>
-          )}
-        </div>
-
-        {/* Order Summary - Fixed Footer */}
-        {!showSuccessCheckmark && (
-          <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-            <OrderSummary
-              cart={cart}
-              subtotal={subtotal}
-              total={total}
-              onPaymentClick={() => {
-                console.log("💰 Opening payment dialog, auto-filling amount:", total);
-                setPaymentAmount(total.toString());
-                setShowPaymentDialog(true);
-              }}
-              onSaveClick={handleManualSave}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Right Panel - Product Grid (Desktop) / Mobile Product Section */}
-      <div className="flex-1 flex flex-col bg-white h-full lg:h-auto">
-        {/* Mobile Toggle Buttons (visible on mobile only) */}
-        <div className="lg:hidden bg-gray-50 border-b border-gray-200 p-2 flex-shrink-0">
-          <div className="flex space-x-2">
-            <Button variant={activeView === "cart" ? "default" : "outline"} size="sm" onClick={() => setActiveView("cart")} className="flex-1 btn-touch">
-              Cart ({cart?.length || 0})
-            </Button>
-            <Button variant={activeView === "products" ? "default" : "outline"} size="sm" onClick={() => setActiveView("products")} className="flex-1 btn-touch">
-              Products
-            </Button>
           </div>
         </div>
 
-        {/* Mobile Cart View */}
-        <div className={`lg:hidden ${activeView === "cart" ? "flex" : "hidden"} flex-col h-full`}>
-          {/* Order Items List - Mobile */}
-          <div className="flex-1 overflow-y-auto">
-            <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} />
+        {/* Left Panel - Cart/Order Details (Desktop) / Full Width (Mobile) */}
+        <div className="cart flex flex-col h-full lg:w-1/3 bg-white lg:border-r lg:border-gray-200">
+          {/* Cart Header - Fixed (Desktop Only) */}
+          <div className="hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
+            <div className="flex items-center justify-between py-2">
+              <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
+                <h2 className="text-lg font-bold text-gray-800">Order#:</h2>
+
+                {/* Order Status Indicator */}
+                {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
+                  <span className="text-sm text-blue-600 font-medium">
+                    {currentOrder ? (
+                      <div className="flex items-center space-x-1">
+                        <span>#{currentOrder.orderNumber}</span>
+                        <span className="text-xs opacity-75">({currentOrder.status})</span>
+                      </div>
+                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
+                      <span>{generatePreviewOrderNumber()}</span>
+                    ) : hasUnsavedChanges ? (
+                      "Unsaved"
+                    ) : null}
+                  </span>
+                )}
+              </div>
+              {cart && cart.length > 0 && <Trash2 className="w-5 h-5 text-red-600 cursor-pointer" onClick={clearCart} />}
+            </div>
           </div>
 
-          {/* Order Summary - Mobile */}
+          {/* Order Items List - Scrollable */}
+          <div className="flex-1 h-full relative overflow-hidden">
+            <div className="h-full overflow-y-auto">
+              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} />
+            </div>
+
+            {/* Success Animation Overlay */}
+            {showSuccessCheckmark && (
+              <div className="absolute inset-0 flex items-center justify-center bg-green-50/90 backdrop-blur-sm z-10">
+                <div className="text-center">
+                  <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-scale-in" />
+                  <p className="text-green-700 font-medium text-lg">Order Completed!</p>
+                  <p className="text-green-600 text-sm mt-1">Cart cleared successfully</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Order Summary - Fixed Footer */}
           {!showSuccessCheckmark && (
-            <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white">
               <OrderSummary
                 cart={cart}
                 subtotal={subtotal}
@@ -1274,165 +1200,205 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           )}
         </div>
 
-        {/* Desktop/Mobile Product View */}
-        <div className={`${activeView === "products" || window.innerWidth >= 1024 ? "flex" : "hidden"} lg:flex flex-col h-full`}>
-          {/* Top Controls - Fixed Header */}
-          <div className="flex-shrink-0 border-b border-gray-200 bg-white">
-            <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
+        {/* Right Panel - Product Grid (Desktop) / Mobile Product Section */}
+        <div className="flex-1 flex flex-col bg-white h-full lg:h-auto">
+          {/* Mobile Toggle Buttons (visible on mobile only) */}
+          <div className="lg:hidden bg-gray-50 border-b border-gray-200 p-2 flex-shrink-0">
+            <div className="flex space-x-2">
+              <Button variant={activeView === "cart" ? "default" : "outline"} size="sm" onClick={() => setActiveView("cart")} className="flex-1 btn-touch">
+                Cart ({cart?.length || 0})
+              </Button>
+              <Button variant={activeView === "products" ? "default" : "outline"} size="sm" onClick={() => setActiveView("products")} className="flex-1 btn-touch">
+                Products
+              </Button>
+            </div>
           </div>
 
-          {/* Product Grid - Scrollable */}
-          <div className="flex-1 overflow-y-auto">
-            <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} />
-          </div>
-
-          {/* Bottom Action Bar - Fixed Footer */}
-          <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
-            <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} incompleteOrdersCount={incompleteOrdersCount} incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount} />
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Dialog */}
-      <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
-
-      {/* Negative Stock Warning Dialog */}
-      <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
-        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
-          <div className="w-full h-full flex flex-col overflow-hidden">
-            <DialogHeader className="flex-shrink-0 p-6 border-b">
-              <DialogTitle className="flex items-center space-x-2">
-                <AlertTriangle className="w-5 h-5 text-amber-500" />
-                <span>Stock Warning</span>
-              </DialogTitle>
-              <DialogDescription>Some items have low or negative stock levels</DialogDescription>
-            </DialogHeader>
-
-            <div className="flex-1 p-6 overflow-y-auto">
-              <div className="space-y-2">
-                {negativeStockWarnings.map((warning, index) => (
-                  <Alert key={index}>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>{warning.materialName}</strong>: Low stock - Available: {warning.availableQuantity}, Required: {warning.requiredQuantity}
-                    </AlertDescription>
-                  </Alert>
-                ))}
-              </div>
+          {/* Mobile Cart View */}
+          <div className={`lg:hidden ${activeView === "cart" ? "flex" : "hidden"} flex-col h-full`}>
+            {/* Order Items List - Mobile */}
+            <div className="flex-1 overflow-y-auto">
+              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} />
             </div>
 
-            <DialogFooter className="flex-shrink-0 p-6 border-t">
-              <Button onClick={() => setShowNegativeStockDialog(false)}>Acknowledge</Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Tables Layout Dialog */}
-      {showTablesLayout && <TablesLayout tables={Array.isArray(tables) ? tables : []} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} />}
-
-      {/* Receipt Printer Dialog */}
-      <ReceiptPrinter
-        isOpen={showReceiptDialog}
-        onClose={() => {
-          setShowReceiptDialog(false);
-          setShouldAutoPrint(false); // Reset auto-print flag
-        }}
-        receiptData={lastSaleData}
-        autoPrint={shouldAutoPrint}
-      />
-
-      {/* Payment Dialog */}
-      <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
-
-      {/* Void Order Dialog */}
-      <VoidOrderDialog isOpen={showVoidDialog} onClose={() => setShowVoidDialog(false)} onConfirm={handleConfirmVoid} order={currentOrder} isLoading={orderLoading} />
-
-      {/* Unsaved Changes Dialog */}
-      <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
-        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
-          <div className="w-full h-full flex flex-col overflow-hidden">
-            <DialogHeader className="flex-shrink-0 p-6 border-b">
-              <DialogTitle className="flex items-center space-x-2">
-                <AlertTriangle className="w-5 h-5 text-amber-500" />
-                <span>Unsaved Changes</span>
-              </DialogTitle>
-              <DialogDescription>You have unsaved changes in your current order. Would you like to save them?</DialogDescription>
-            </DialogHeader>
-
-            <div className="flex-1 flex items-center justify-center p-6">
-              <div className="text-center space-y-4">
-                <div className="text-lg text-gray-600">Your current order has unsaved changes that will be lost if you continue.</div>
-                <div className="text-sm text-gray-500">Choose whether to save your progress or discard the changes.</div>
+            {/* Order Summary - Mobile */}
+            {!showSuccessCheckmark && (
+              <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
+                <OrderSummary
+                  cart={cart}
+                  subtotal={subtotal}
+                  total={total}
+                  onPaymentClick={() => {
+                    console.log("💰 Opening payment dialog, auto-filling amount:", total);
+                    setPaymentAmount(total.toString());
+                    setShowPaymentDialog(true);
+                  }}
+                  onSaveClick={handleManualSave}
+                />
               </div>
+            )}
+          </div>
+
+          {/* Desktop/Mobile Product View */}
+          <div className={`${activeView === "products" || window.innerWidth >= 1024 ? "flex" : "hidden"} lg:flex flex-col h-full`}>
+            {/* Top Controls - Fixed Header */}
+            <div className="flex-shrink-0 border-b border-gray-200 bg-white">
+              <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
             </div>
 
-            <DialogFooter className="flex-shrink-0 p-6 border-t">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowUnsavedDialog(false);
-                  // Continue with the action that triggered this dialog
-                }}
-              >
-                Discard Changes
-              </Button>
-              <Button
-                onClick={() => {
-                  handleManualSave();
-                  setShowUnsavedDialog(false);
-                }}
-              >
-                Save Order
-              </Button>
-            </DialogFooter>
+            {/* Product Grid - Scrollable */}
+            <div className="flex-1 overflow-y-auto">
+              <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} />
+            </div>
+
+            {/* Bottom Action Bar - Fixed Footer */}
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
+              <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} incompleteOrdersCount={incompleteOrdersCount} incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount} />
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Success/Error Messages */}
-      {successMessage && (
-        <div className="fixed top-4 right-4 z-50">
-          <Alert className="bg-green-50 border-green-200">
-            <Check className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
-          </Alert>
         </div>
-      )}
 
-      {error && (
-        <div className="fixed top-4 right-4 z-50">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </div>
-      )}
+        {/* Payment Dialog */}
+        <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
 
-      {/* Orders Management Dialog */}
-      <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} onOrderSelect={handleOrderSelect} />
-
-      {/* Tables Layout Dialog */}
-      {showTablesLayout && (
-        <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
+        {/* Negative Stock Warning Dialog */}
+        <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
           <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
             <div className="w-full h-full flex flex-col overflow-hidden">
-              <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} />
+              <DialogHeader className="flex-shrink-0 p-6 border-b">
+                <DialogTitle className="flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  <span>Stock Warning</span>
+                </DialogTitle>
+                <DialogDescription>Some items have low or negative stock levels</DialogDescription>
+              </DialogHeader>
+
+              <div className="flex-1 p-6 overflow-y-auto">
+                <div className="space-y-2">
+                  {negativeStockWarnings.map((warning, index) => (
+                    <Alert key={index}>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>{warning.materialName}</strong>: Low stock - Available: {warning.availableQuantity}, Required: {warning.requiredQuantity}
+                      </AlertDescription>
+                    </Alert>
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter className="flex-shrink-0 p-6 border-t">
+                <Button onClick={() => setShowNegativeStockDialog(false)}>Acknowledge</Button>
+              </DialogFooter>
             </div>
           </DialogContent>
         </Dialog>
-      )}
 
-      {/* Reports Dialog */}
-      {showReportsDialog && (
-        <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
+        {/* Tables Layout Dialog */}
+        {showTablesLayout && <TablesLayout tables={Array.isArray(tables) ? tables : []} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} />}
+
+        {/* Receipt Printer Dialog */}
+        <ReceiptPrinter
+          isOpen={showReceiptDialog}
+          onClose={() => {
+            setShowReceiptDialog(false);
+            setShouldAutoPrint(false); // Reset auto-print flag
+          }}
+          receiptData={lastSaleData}
+          autoPrint={shouldAutoPrint}
+        />
+
+        {/* Payment Dialog */}
+        <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
+
+        {/* Void Order Dialog */}
+        <VoidOrderDialog isOpen={showVoidDialog} onClose={() => setShowVoidDialog(false)} onConfirm={handleConfirmVoid} order={currentOrder} isLoading={orderLoading} />
+
+        {/* Unsaved Changes Dialog */}
+        <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
           <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
             <div className="w-full h-full flex flex-col overflow-hidden">
+              <DialogHeader className="flex-shrink-0 p-6 border-b">
+                <DialogTitle className="flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  <span>Unsaved Changes</span>
+                </DialogTitle>
+                <DialogDescription>You have unsaved changes in your current order. Would you like to save them?</DialogDescription>
+              </DialogHeader>
+
+              <div className="flex-1 flex items-center justify-center p-6">
+                <div className="text-center space-y-4">
+                  <div className="text-lg text-gray-600">Your current order has unsaved changes that will be lost if you continue.</div>
+                  <div className="text-sm text-gray-500">Choose whether to save your progress or discard the changes.</div>
+                </div>
+              </div>
+
+              <DialogFooter className="flex-shrink-0 p-6 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowUnsavedDialog(false);
+                    // Continue with the action that triggered this dialog
+                  }}
+                >
+                  Discard Changes
+                </Button>
+                <Button
+                  onClick={() => {
+                    handleManualSave();
+                    setShowUnsavedDialog(false);
+                  }}
+                >
+                  Save Order
+                </Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Success/Error Messages */}
+        {successMessage && (
+          <div className="fixed top-4 right-4 z-50">
+            <Alert className="bg-green-50 border-green-200">
+              <Check className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        {error && (
+          <div className="fixed top-4 right-4 z-50">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        {/* Orders Management Dialog */}
+        <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} onOrderSelect={handleOrderSelect} />
+
+        {/* Tables Layout Dialog */}
+        {showTablesLayout && (
+          <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
+            <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+              <div className="w-full h-full flex flex-col overflow-hidden">
+                <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
+          <DialogContent className="w-screen h-screen max-w-none !z-50 max-h-none m-0 p-0 bg-white overflow-hidden">
+            <div className="w-full h-full flex flex-col overflow-hidden">
+              <div className="flex-shrink-0 flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+                <h2 className="text-lg font-semibold text-gray-900">Reports & Analytics</h2>
+              </div>
               <ReportGenerator className="flex-1 overflow-hidden" />
             </div>
           </DialogContent>
         </Dialog>
-      )}
-    </div>
+      </div>
+    </>
   );
 };
