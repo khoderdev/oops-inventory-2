@@ -1146,7 +1146,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
                 {/* Order Status Indicator */}
                 {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
-                  <span className="text-sm text-blue-600 font-medium">
+                  <span className="text-md text-blue-600 font-medium">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
                         <span>#{currentOrder.orderNumber}</span>
@@ -1172,7 +1172,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Success Animation Overlay */}
             {showSuccessCheckmark && (
-              <div className="absolute inset-0 flex items-center justify-center bg-green-50/90 backdrop-blur-sm z-10">
+              <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="text-center">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-scale-in" />
                   <p className="text-green-700 font-medium text-lg">Order Completed!</p>
@@ -1380,7 +1380,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         {/* Tables Layout Dialog */}
         {showTablesLayout && (
           <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
-            <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+            <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 !z-50 bg-white overflow-hidden">
               <div className="w-full h-full flex flex-col overflow-hidden">
                 <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} />
               </div>
