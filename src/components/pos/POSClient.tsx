@@ -11,7 +11,7 @@ import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps,
 import { formatCurrency } from "@/utils/conversionLogic";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, FileText, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
@@ -1391,8 +1391,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
           <DialogContent className="w-screen h-screen max-w-none !z-50 max-h-none m-0 p-0 bg-white overflow-hidden">
             <div className="w-full h-full flex flex-col overflow-hidden">
-              <div className="flex-shrink-0 flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-                <h2 className="text-lg font-semibold text-gray-900">Reports & Analytics</h2>
+              <div className="flex-shrink-0 flex items-center justify-between p-4 bg-primary">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-white" />
+                  <h2 className="text-2xl font-bold text-white">Reports & Analytics</h2>
+                </div>
               </div>
               <ReportGenerator className="flex-1 overflow-hidden" />
             </div>

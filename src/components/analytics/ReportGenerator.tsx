@@ -185,10 +185,10 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
       <Card className="flex flex-col h-full">
         <CardHeader className="flex-shrink-0 p-4 px-6">
           <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
               Report Generator
-            </div>
+            </div> */}
             {currentReportConfig && !isChangingReportType && hasGenerated && (
               <div className="flex items-center gap-1 text-sm text-muted-foreground bg-primary/10 px-3 py-1 rounded-full mr-4 sm:mr-10">
                 {currentReportConfig.icon}
