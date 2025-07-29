@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { PaymentDialogProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { ArrowRight, Calculator, Check, CreditCard, DollarSign, Loader2 } from "lucide-react";
+import { ArrowRight, Calculator, Check, DollarSign, HandCoins, Loader2 } from "lucide-react";
 import React from "react";
 
 export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, total, paymentAmount, onPaymentAmountChange, onPayment, isLoading }) => {
@@ -25,13 +25,11 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
-      <DialogContent className="!w-full !sm:w-[95vw] !h-[95vh] max-w- !z-50 max-h- m-0 p-0 bg-gray-100 overflow-hidden">
+      <DialogContent className="w-full h-full sm:w-[95vw] sm:h-[95vh] md:w-[90vw] md:h-[98vh] lg:w-[85vw] lg:h-[98vh] xl:w-[80vw] xl:h-[98vh] max-w-7xl max-h-screen z-50 m-0 p-0 bg-gray-50 overflow-hidden border-0 rounded-none sm:rounded-lg">
         <div className="w-full h-full flex flex-col overflow-hidden">
-          <DialogTitle className="flex items-center justify-center space-x-2 text-lg sm:text-xl font-bold bg-primary border-t border-red-200">
-            <div className="p-1.5 bg-white/20 rounded-full backdrop-blur-sm">
-              <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <span>Complete Payment</span>
+          <DialogTitle className="flex items-center justify-center space-x-2 text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-primary to-primary/90 text-white py-3 sm:py-4 shadow-lg">
+            <HandCoins className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" />
+            <span className="tracking-wide">Complete Payment</span>
           </DialogTitle>
 
           <div className="flex-1 overflow-y-auto min-h-0">
@@ -49,7 +47,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
                 </div>
 
                 <div className="flex flex-col justify-center space-y-4">
-                  <label className="block text-xl font-bold text-primary text-center">Enter Payment Amount</label>
+                  <label className="block text-xl font-bold -mb-2 text-primary text-center">Enter Payment Amount</label>
                   <div className="flex justify-center">
                     <div className="relative w-full max-w-72">
                       <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary">
@@ -69,7 +67,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-base font-bold font-mono text-emerald-600 text-center">Quick Payment Options</h3>
+                <h3 className="text-sm font-bold text-primary text-center">Quick Payment Options</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5">
                   {quickAmounts.map(amount => {
                     const isTotal = amount === total;
@@ -90,16 +88,14 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
               </div>
 
               {hasChange && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 p-3 sm:p-4 rounded-xl">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center space-x-2 mb-2">
-                      <ArrowRight className="w-4 h-4 text-primary font-mono" />
-                      <span className="text-xs sm:text-sm font-bold text-primary tracking-wider uppercase">Change Due</span>
-                    </div>
-                    <div className="text-2xl sm:text-3xl font-black text-primary mb-2">{formatCurrency(changeAmount)}</div>
-                    <div className="inline-flex items-center px-3 py-1 bg-primary text-white font-semibold rounded-full text-xs sm:text-sm">
-                      <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                      Return to Customer
+                <div className="w-full flex items-center !mt-6 justify-center overflow-visible">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 p-3 sm:p-4 rounded-xl shadow-lg animate-bounce-zoom transform-gpu">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center space-x-2 mb-2">
+                        <ArrowRight className="w-4 h-4 text-primary font-mono" />
+                        <span className="text-[0.7rem] font-bold font-mono text-primary tracking-wider uppercase">Change to return</span>
+                      </div>
+                      <div className="text-2xl sm:text-4xl font-black text-emerald-400 font-mono">{formatCurrency(changeAmount)}</div>
                     </div>
                   </div>
                 </div>
