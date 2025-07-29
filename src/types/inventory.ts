@@ -3,6 +3,7 @@ import { assignmentSchema } from "@/components/sections/assignmentSchema";
 import { stockSchema } from "@/components/stock/stockSchema";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
+import { Order, OrderStatus } from "./orders";
 
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets";
 
@@ -528,6 +529,22 @@ export interface POSLayoutProps {
   onLogout?: () => void;
 }
 
+export interface POSClientOrdersProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onOrderSelect?: (order: Order) => void;
+}
+
+export interface OrderFilters {
+  status?: OrderStatus;
+  orderType?: OrderType;
+  searchTerm?: string;
+  dateRange?: {
+    startDate?: string;
+    endDate?: string;
+  };
+}
+
 export type OrderType = "delivery" | "takeaway" | "table";
 
 export interface Table {
@@ -552,7 +569,7 @@ export interface TablesLayoutProps {
   selectedTable?: Table;
   onTableSelect: (table: Table) => void;
   onClose: () => void;
-  tableOrders?: {[tableId: string]: number}; // For notification badges
+  tableOrders?: { [tableId: string]: number }; // For notification badges
 }
 
 export interface CategoryTabsProps {

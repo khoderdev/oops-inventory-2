@@ -8,28 +8,12 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { ReceiptData } from "@/types/inventory";
+import { OrderFilters, POSClientOrdersProps, ReceiptData } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertCircle, Calendar, Check, Clock, Edit, Eye, Package, Printer, Search, ShoppingBag, Truck, User, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { ReceiptPrinter } from "./ReceiptPrinter";
-
-interface POSClientOrdersProps {
-  isOpen?: boolean;
-  onClose?: () => void;
-  onOrderSelect?: (order: Order) => void;
-}
-
-interface OrderFilters {
-  status?: OrderStatus;
-  orderType?: OrderType;
-  searchTerm?: string;
-  dateRange?: {
-    startDate?: string;
-    endDate?: string;
-  };
-}
 
 const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -362,23 +346,38 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
 
   // Main content component
   const MainContent = () => (
-    <div className={isDialog ? "w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden" : "h-full w-full bg-gray-50 overflow-hidden flex flex-col"}>
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50">
       {/* Fixed Header */}
-      <div className="flex-shrink-0 p-4 px-6 border-b bg-gray-100">
+      <div className="flex-shrink-0 p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div>{isDialog ? <DialogTitle className="text-2xl font-bold text-gray-900">Orders Management</DialogTitle> : <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>}</div>
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <ShoppingBag className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              {isDialog ? <DialogTitle className="text-2xl font-bold text-gray-900">Orders Management</DialogTitle> : <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>}
+              <p className="text-sm text-gray-600 mt-1">
+                {orders.length > 0 ? (
+                  <span className="flex items-center space-x-2">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      {orders.length}
+                    </Badge>
+                    <span>order{orders.length !== 1 ? "s" : ""} found</span>
+                  </span>
+                ) : (
+                  "Manage delivery and takeaway orders"
+                )}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Enhanced Filters Section */}
-        {/* <div className="flex-shrink-0 p-4 bg-red-50 border-b"> */}
-        <div className="flex flex-col xl:flex-row gap-4 py-2 px-4">
+      {/* Enhanced Filters Section */}
+      <div className="flex-shrink-0 p-4 bg-white border-b">
+        <div className="flex flex-col xl:flex-row gap-4">
           {/* Search Bar */}
-          <div className="min-w-0">
+          <div className="flex-1 min-w-0">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input placeholder="Search by order number, customer name, or ID..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-11 h-11 bg-white border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 text-base" />
@@ -419,142 +418,148 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
             </Button>
           </div>
         </div>
-        {/* </div> */}
+      </div>
 
-        {/* Orders Grid - Scrollable Content */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="p-4">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <div className="text-gray-500 font-medium">Loading orders...</div>
-                  </div>
+      {/* Orders Grid - Scrollable Content */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <div className="text-gray-500 font-medium text-lg">Loading orders...</div>
                 </div>
-              ) : error ? (
-                <Alert variant="destructive" className="max-w-2xl mx-auto">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              ) : orders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                  <div className="p-4 bg-gray-100 rounded-full mb-4">
-                    <ShoppingBag className="w-12 h-12 opacity-50" />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2">No orders found</h3>
-                  <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No delivery or takeaway orders available at the moment"}</p>
+              </div>
+            ) : error ? (
+              <Alert variant="destructive" className="max-w-2xl mx-auto">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : orders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                <div className="p-6 bg-gray-100 rounded-full mb-6">
+                  <ShoppingBag className="w-16 h-16 opacity-50" />
                 </div>
+                <h3 className="text-xl font-medium mb-3">No orders found</h3>
+                <p className="text-base text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No delivery or takeaway orders available at the moment"}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                {orders.map(order => (
+                  <Card key={order.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" onClick={() => handleOrderSelect(order)}>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{order.orderNumber}</CardTitle>
+                          <div className="flex items-center space-x-3 mt-2">
+                            <div className="flex items-center space-x-1.5">
+                              {ORDER_TYPE_ICONS[order.orderType]}
+                              <span className="text-sm text-gray-600 capitalize font-medium">{order.orderType}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-sm font-semibold px-3 py-1.5`}>{order.status}</Badge>
+                      </div>
+
+                      <CardDescription className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="flex items-center space-x-1.5 text-gray-600">
+                            <Calendar className="w-4 h-4" />
+                            <span>{formatDate(order.createdAt)}</span>
+                          </span>
+                          <span className="flex items-center space-x-1.5 text-gray-600">
+                            <Clock className="w-4 h-4" />
+                            <span>{formatTime(order.createdAt)}</span>
+                          </span>
+                        </div>
+                        {order.customerName && (
+                          <div className="flex items-center space-x-1.5 text-gray-700">
+                            <User className="w-4 h-4" />
+                            <span className="truncate font-medium">{order.customerName}</span>
+                          </div>
+                        )}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="pt-0">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
+                          <span className="text-2xl font-bold text-green-600">{formatCurrency(order.total)}</span>
+                          <Badge variant="outline" className="text-sm font-medium border-green-200 text-green-700 px-3 py-1">
+                            {order.itemCount || 0} items
+                          </Badge>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 text-xs hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleOrderSelect(order);
+                            }}
+                          >
+                            <Edit className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 text-xs hover:bg-green-50 hover:border-green-300 hover:text-green-700"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleViewOrderDetails(order);
+                            }}
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 text-xs hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handlePrintOrderReceipt(order);
+                            }}
+                          >
+                            <Printer className="w-3 h-3 mr-1" />
+                            Print
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Fixed Footer */}
+      <div className="flex-shrink-0 p-4 sm:p-6 border-t bg-gradient-to-r from-gray-50 to-slate-50">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <div className="text-base font-medium text-gray-700">
+              {orders.length > 0 ? (
+                <span className="flex items-center space-x-2">
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
+                    {orders.length}
+                  </Badge>
+                  <span>order{orders.length !== 1 ? "s" : ""} found</span>
+                </span>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                  {orders.map(order => (
-                    <Card key={order.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" onClick={() => handleOrderSelect(order)}>
-                      <CardHeader className="pb-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{order.orderNumber}</CardTitle>
-                            <div className="flex items-center space-x-3 mt-2">
-                              <div className="flex items-center space-x-1.5">
-                                {ORDER_TYPE_ICONS[order.orderType]}
-                                <span className="text-sm text-gray-600 capitalize font-medium">{order.orderType}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-sm font-semibold px-3 py-1`}>{order.status}</Badge>
-                        </div>
-
-                        <CardDescription className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="flex items-center space-x-1.5 text-gray-600">
-                              <Calendar className="w-4 h-4" />
-                              <span>{formatDate(order.createdAt)}</span>
-                            </span>
-                            <span className="flex items-center space-x-1.5 text-gray-600">
-                              <Clock className="w-4 h-4" />
-                              <span>{formatTime(order.createdAt)}</span>
-                            </span>
-                          </div>
-                          {order.customerName && (
-                            <div className="flex items-center space-x-1.5 text-gray-700">
-                              <User className="w-4 h-4" />
-                              <span className="truncate font-medium">{order.customerName}</span>
-                            </div>
-                          )}
-                        </CardDescription>
-                      </CardHeader>
-
-                      <CardContent className="pt-0">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
-                            <span className="text-2xl font-bold text-green-600">{formatCurrency(order.total)}</span>
-                            <Badge variant="outline" className="text-sm font-medium border-green-200 text-green-700">
-                              {order.itemCount || 0} items
-                            </Badge>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex w-full items-center justify-around">
-                            <Edit
-                              className="w-6 h-6 hover:text-blue-600 cursor-pointer"
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleOrderSelect(order);
-                              }}
-                            />
-                            <Eye
-                              className="w-6 h-6 hover:text-blue-600 cursor-pointer"
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleViewOrderDetails(order);
-                              }}
-                            />
-                            <Printer
-                              className="w-6 h-6 hover:text-blue-600 cursor-pointer"
-                              onClick={e => {
-                                e.stopPropagation();
-                                handlePrintOrderReceipt(order);
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                <span className="text-gray-500">No orders to display</span>
               )}
             </div>
-          </ScrollArea>
-        </div>
-
-        {/* Fixed Footer */}
-        <div className="flex-shrink-0 p-4 sm:p-6 border-t bg-gradient-to-r from-gray-50 to-slate-50">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center space-x-4">
-              <div className="text-base font-medium text-gray-700">
-                {orders.length > 0 ? (
-                  <span className="flex items-center space-x-2">
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                      {orders.length}
-                    </Badge>
-                    <span>order{orders.length !== 1 ? "s" : ""} found</span>
-                  </span>
-                ) : (
-                  <span className="text-gray-500">No orders to display</span>
-                )}
-              </div>
-              {(filters.searchTerm || filters.status || filters.orderType) && (
-                <Badge variant="secondary" className="text-xs">
-                  Filtered
-                </Badge>
-              )}
-            </div>
-            {isDialog && onClose && (
-              <div className="flex items-center space-x-3">
-                <Button variant="outline" onClick={onClose} className="bg-white hover:bg-gray-50 border-gray-300 h-10 px-6">
-                  <X className="w-4 h-4 mr-2" />
-                  Close
-                </Button>
-              </div>
+            {(filters.searchTerm || filters.status || filters.orderType) && (
+              <Badge variant="secondary" className="text-xs px-2 py-1">
+                Filtered
+              </Badge>
             )}
           </div>
         </div>
@@ -568,9 +573,11 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   return (
     <>
       {isDialog ? (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden">
-            <MainContent />
+        <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
+          <DialogContent className="fixed inset-0 w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", maxWidth: "none", maxHeight: "none", margin: 0, padding: 0, transform: "none", zIndex: 9999 }}>
+            <div className="w-full h-full flex flex-col overflow-hidden">
+              <MainContent />
+            </div>
           </DialogContent>
         </Dialog>
       ) : (
@@ -579,7 +586,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
 
       {/* Order Details Dialog */}
       <Dialog open={showOrderDetails} onOpenChange={setShowOrderDetails}>
-        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+        <DialogContent className="fixed inset-0 w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden z-50">
           <div className="w-full h-full flex flex-col overflow-hidden">
             {/* Fixed Header */}
             <DialogHeader className="flex-shrink-0 p-4 sm:p-6 border-b bg-gradient-to-r from-green-50 to-emerald-50">
@@ -818,10 +825,6 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                         <span>Print Receipt</span>
                       </Button>
                     )}
-                    <Button variant="outline" onClick={() => setShowOrderDetails(false)} className="bg-white !text-red-600 hover:!bg-red-100">
-                      <X className="w-4 h-4 mr-2 text-red-600" />
-                      Close
-                    </Button>
                   </div>
                 </div>
               </div>

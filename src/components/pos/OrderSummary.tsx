@@ -25,8 +25,8 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({ cart, subtotal, tota
       </div>
 
       <div className="flex">
-        <ActionButton className="flex-1" id="save" icon={Save} label="Save" onClick={onSaveClick} compact={false} />
         <ActionButton className="flex-1" id="pay" icon={HandCoins} label={`Pay & Close`} active={true} onClick={onPaymentClick} compact={false} />
+        <ActionButton className="flex-1" id="save" icon={Save} label="Save" onClick={onSaveClick} compact={false} />
       </div>
     </div>
   );

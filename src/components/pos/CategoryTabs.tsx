@@ -22,13 +22,8 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCa
   return (
     <div className="relative bg-gradient-to-r from-slate-50 to-gray-50 select-none safe-area-padding">
       {/* Left Scroll Button - Hidden on mobile */}
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={scrollLeft} 
-        className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all duration-200 rounded-full btn-touch"
-      >
-        <ChevronLeft className="h-4 w-4" />
+      <Button variant="ghost" size="sm" onClick={scrollLeft} className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 h-7 w-7 p-0 bg-white/90 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 rounded-full">
+        <ChevronLeft className="h-3 w-3" />
       </Button>
 
       {/* Categories Container */}
@@ -70,13 +65,8 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCa
       </div>
 
       {/* Right Scroll Button - Hidden on mobile */}
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={scrollRight} 
-        className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all duration-200 rounded-full btn-touch"
-      >
-        <ChevronRight className="h-4 w-4" />
+      <Button variant="ghost" size="sm" onClick={scrollRight} className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 h-7 w-7 p-0 bg-white/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all duration-200 rounded-full">
+        <ChevronRight className="h-3 w-3" />
       </Button>
 
       {/* Gradient overlays for scroll indication - Desktop only */}
