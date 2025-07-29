@@ -106,8 +106,8 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
               )}
 
               {isExactAmount && (
-                <div className="w-full flex items-center justify-center animate-out scale-105 !mt-10">
-                  <div className="w-fit text-center bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 p-3 sm:p-4 rounded-xl">
+                <div className="w-full flex items-center justify-center !mt-10">
+                  <div className="w-fit text-center bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 p-3 sm:p-4 rounded-xl shadow-lg animate-bounce-zoom">
                     <div className="flex items-center justify-center space-x-2 mb-1">
                       <Check className="w-5 h-5 text-emerald-600" />
                       <span className="text-lg sm:text-xl font-bold text-emerald-600">NO CHANGE TO RETURN</span>

@@ -356,6 +356,27 @@ All colors MUST be HSL.
   }
 }
 
+@keyframes bounce-zoom {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  85% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* Animation classes */
 .animate-scale-in {
   animation: scale-in 0.3s ease-out;
@@ -375,6 +396,10 @@ All colors MUST be HSL.
 
 .animate-pulse-gentle {
   animation: pulse-gentle 2s ease-in-out infinite;
+}
+
+.animate-bounce-zoom {
+  animation: bounce-zoom 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 /* Smooth transitions for interactive elements */
