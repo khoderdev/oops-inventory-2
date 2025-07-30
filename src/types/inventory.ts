@@ -510,6 +510,8 @@ export interface OrderSummaryProps {
   total: number;
   onPaymentClick: () => void;
   onSaveClick: () => void;
+  orderStatus?: OrderStatus;
+  isOrderCompleted?: boolean;
 }
 
 export interface OrderItemsListProps {
@@ -520,6 +522,8 @@ export interface OrderItemsListProps {
   onOrderTypeChange: (type: OrderType) => void;
   onTableSelect: () => void;
   incompleteTableOrdersCount?: number;
+  orderStatus?: OrderStatus;
+  isOrderCompleted?: boolean;
 }
 
 export interface POSLayoutProps {

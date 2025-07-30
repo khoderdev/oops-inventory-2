@@ -4,7 +4,32 @@ import { formatCurrency } from "@/utils/conversionLogic";
 import { Car, Minus, Plus, ShoppingBag, Users } from "lucide-react";
 import React from "react";
 
-export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, onOrderTypeChange, onTableSelect, incompleteTableOrdersCount }) => {
+export const OrderItemsList: React.FC<OrderItemsListProps> = ({ 
+  cart, 
+  updateCartQuantity, 
+  orderType, 
+  selectedTable, 
+  onOrderTypeChange, 
+  onTableSelect, 
+  incompleteTableOrdersCount,
+  orderStatus,
+  isOrderCompleted 
+}) => {
+  // Check if order is completed (paid status or explicitly marked as completed)
+  const isCompleted = isOrderCompleted || orderStatus === 'paid' || orderStatus === 'served';
+  
+  // Handle quantity updates for completed orders
+  const handleQuantityUpdate = (cartId: string, newQuantity: number) => {
+    if (isCompleted) {
+      console.log('Cannot update quantity - order is already completed:', {
+        orderStatus,
+        isOrderCompleted
+      });
+      return;
+    }
+    updateCartQuantity(cartId, newQuantity);
+  };
+
   const getOrderTypeIcon = (type: OrderType) => {
     switch (type) {
       case "delivery":
@@ -74,11 +99,23 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="w-6 h-6 p-0">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleQuantityUpdate(item.id, item.quantity - 1)} 
+                      className="w-6 h-6 p-0"
+                      disabled={isCompleted}
+                    >
                       <Minus className="w-3 h-3" />
                     </Button>
                     <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                    <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="w-6 h-6 p-0">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleQuantityUpdate(item.id, item.quantity + 1)} 
+                      className="w-6 h-6 p-0"
+                      disabled={isCompleted}
+                    >
                       <Plus className="w-3 h-3" />
                     </Button>
                   </div>

@@ -1118,7 +1118,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           {/* Order Items List - Scrollable */}
           <div className="flex-1 h-full relative overflow-hidden">
             <div className="h-full overflow-y-auto">
-              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} />
+              <OrderItemsList 
+                cart={cart} 
+                updateCartQuantity={updateCartQuantity} 
+                orderType={orderType} 
+                selectedTable={selectedTable} 
+                onOrderTypeChange={handleOrderTypeChange} 
+                onTableSelect={handleTableSelect} 
+                incompleteTableOrdersCount={incompleteTableOrdersCount}
+                orderStatus={currentOrder?.status}
+                isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
+              />
             </div>
 
             {/* Success Animation Overlay */}
@@ -1140,6 +1150,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 cart={cart}
                 subtotal={subtotal}
                 total={total}
+                orderStatus={currentOrder?.status}
+                isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
                 onPaymentClick={() => {
                   // Check if current order is already completed
                   if (currentOrder && currentOrder.status === "paid") {
@@ -1179,7 +1191,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className={`lg:hidden ${activeView === "cart" ? "flex" : "hidden"} flex-col h-full`}>
             {/* Order Items List - Mobile */}
             <div className="flex-1 overflow-y-auto">
-              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} />
+              <OrderItemsList 
+                cart={cart} 
+                updateCartQuantity={updateCartQuantity} 
+                orderType={orderType} 
+                selectedTable={selectedTable} 
+                onOrderTypeChange={handleOrderTypeChange} 
+                onTableSelect={handleTableSelect} 
+                incompleteTableOrdersCount={incompleteTableOrdersCount}
+                orderStatus={currentOrder?.status}
+                isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
+              />
             </div>
 
             {/* Order Summary - Mobile */}
@@ -1189,6 +1211,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   cart={cart}
                   subtotal={subtotal}
                   total={total}
+                  orderStatus={currentOrder?.status}
+                  isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
                   onPaymentClick={() => {
                     console.log("💰 Opening payment dialog, auto-filling amount:", total);
                     setPaymentAmount(total.toString());
