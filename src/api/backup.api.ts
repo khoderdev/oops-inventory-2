@@ -94,7 +94,7 @@ class BackupApiClient {
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
-  private clearCache(): void {
+  public clearCache(): void {
     this.cache.clear();
   }
 

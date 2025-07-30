@@ -6,6 +6,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { promisify } from "util";
 import { v4 as uuidv4 } from "uuid";
+import BackupSchedule from "../models/BackupSchedule.js";
+import ScheduleExecution from "../models/ScheduleExecution.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -102,20 +104,41 @@ function createCronExpression(schedule) {
 
 // Helper function to execute backup
 async function executeBackup(schedule) {
-  const executionId = uuidv4();
-  const execution = {
-    id: executionId,
-    scheduleId: schedule.id,
-    scheduleName: schedule.name,
-    startTime: new Date().toISOString(),
-    status: "running"
-  };
+  let execution;
 
-  executions.unshift(execution);
+  try {
+    // Create execution record in database
+    execution = await ScheduleExecution.create({
+      scheduleId: schedule.id,
+      scheduleName: schedule.name,
+      startTime: new Date(),
+      status: "running"
+    });
 
-  // Keep only last 100 executions
-  if (executions.length > 100) {
-    executions = executions.slice(0, 100);
+    console.log(`📅 Schedule execution started in database:`, {
+      id: execution.id,
+      scheduleId: execution.scheduleId,
+      scheduleName: execution.scheduleName,
+      startTime: execution.startTime
+    });
+
+    // Also add to in-memory array for compatibility
+    const executionObj = {
+      id: execution.id,
+      scheduleId: execution.scheduleId,
+      scheduleName: execution.scheduleName,
+      startTime: execution.startTime.toISOString(),
+      status: "running"
+    };
+    executions.unshift(executionObj);
+
+    // Keep only last 100 executions in memory
+    if (executions.length > 100) {
+      executions = executions.slice(0, 100);
+    }
+  } catch (dbError) {
+    console.error("Failed to create execution record in database:", dbError);
+    // Continue with backup execution even if database logging fails
   }
 
   try {
@@ -193,8 +216,29 @@ async function executeBackup(schedule) {
       console.warn("Could not calculate backup size:", error.message);
     }
 
-    // Update execution record
-    const completedExecution = executions.find(e => e.id === executionId);
+    // Update execution record in database
+    if (execution) {
+      try {
+        await execution.update({
+          endTime: new Date(),
+          status: "completed",
+          backupId: backupName,
+          duration: Math.floor((new Date() - execution.startTime) / 1000)
+        });
+
+        console.log(`✅ Schedule execution completed in database:`, {
+          id: execution.id,
+          status: "completed",
+          backupId: backupName,
+          duration: Math.floor((new Date() - execution.startTime) / 1000)
+        });
+      } catch (dbError) {
+        console.error("Failed to update execution record in database:", dbError);
+      }
+    }
+
+    // Update execution record in memory
+    const completedExecution = executions.find(e => e.id === execution?.id);
     if (completedExecution) {
       completedExecution.endTime = new Date().toISOString();
       completedExecution.status = "completed";
@@ -202,7 +246,28 @@ async function executeBackup(schedule) {
       completedExecution.duration = Math.floor((new Date(completedExecution.endTime) - new Date(completedExecution.startTime)) / 1000);
     }
 
-    // Update schedule last run time
+    // Update schedule last run time in database
+    try {
+      await BackupSchedule.update(
+        {
+          lastRun: new Date(),
+          nextRun: calculateNextRun(schedule)
+        },
+        {
+          where: { id: schedule.id }
+        }
+      );
+
+      console.log(`✅ Schedule updated in database:`, {
+        id: schedule.id,
+        lastRun: new Date(),
+        nextRun: calculateNextRun(schedule)
+      });
+    } catch (dbError) {
+      console.error("Failed to update schedule in database:", dbError);
+    }
+
+    // Update schedule in memory
     const scheduleIndex = schedules.findIndex(s => s.id === schedule.id);
     if (scheduleIndex !== -1) {
       schedules[scheduleIndex].lastRun = new Date().toISOString();
@@ -216,13 +281,55 @@ async function executeBackup(schedule) {
   } catch (error) {
     console.error(`Scheduled backup failed: ${schedule.name}`, error);
 
-    // Update execution record with error
-    const failedExecution = executions.find(e => e.id === executionId);
+    // Update execution record with error in database
+    if (execution) {
+      try {
+        await execution.update({
+          endTime: new Date(),
+          status: "failed",
+          error: error.message,
+          duration: Math.floor((new Date() - execution.startTime) / 1000)
+        });
+
+        console.log(`❌ Schedule execution failed in database:`, {
+          id: execution.id,
+          status: "failed",
+          error: error.message,
+          duration: Math.floor((new Date() - execution.startTime) / 1000)
+        });
+      } catch (dbError) {
+        console.error("Failed to update execution record in database:", dbError);
+      }
+    }
+
+    // Update execution record with error in memory
+    const failedExecution = executions.find(e => e.id === execution?.id);
     if (failedExecution) {
       failedExecution.endTime = new Date().toISOString();
       failedExecution.status = "failed";
       failedExecution.error = error.message;
       failedExecution.duration = Math.floor((new Date(failedExecution.endTime) - new Date(failedExecution.startTime)) / 1000);
+    }
+
+    // Update schedule with error in database
+    try {
+      await BackupSchedule.update(
+        {
+          lastError: error.message,
+          status: "error"
+        },
+        {
+          where: { id: schedule.id }
+        }
+      );
+
+      console.log(`❌ Schedule error updated in database:`, {
+        id: schedule.id,
+        lastError: error.message,
+        status: "error"
+      });
+    } catch (dbError) {
+      console.error("Failed to update schedule error in database:", dbError);
     }
 
     // Update scheduler status with error
@@ -272,7 +379,7 @@ function startScheduler() {
 
   // Start cron jobs for all enabled schedules
   const activeSchedules = schedules.filter(s => s.enabled && s.status === "active");
-  
+
   activeSchedules.forEach(schedule => {
     startScheduleCronJob(schedule);
   });
@@ -354,13 +461,46 @@ function updateSchedulerStatus() {
 // Routes
 
 // Get all schedules
-router.get("/schedules", (req, res) => {
+router.get("/schedules", async (req, res) => {
   try {
+    // Load schedules from database
+    const dbSchedules = await BackupSchedule.findAll({
+      order: [["createdAt", "DESC"]]
+    });
+
+    console.log(`📅 Loaded ${dbSchedules.length} schedules from database`);
+
+    // Update in-memory schedules array for compatibility
+    schedules.length = 0; // Clear existing
+    dbSchedules.forEach(schedule => {
+      schedules.push({
+        id: schedule.id,
+        name: schedule.name,
+        enabled: schedule.enabled,
+        frequency: schedule.frequency,
+        time: schedule.time,
+        dayOfWeek: schedule.dayOfWeek,
+        dayOfMonth: schedule.dayOfMonth,
+        intervalMinutes: 1, // Default for compatibility
+        backupType: schedule.backupType,
+        includeData: schedule.includeData,
+        includeSchema: schedule.includeSchema,
+        retentionDays: schedule.retentionDays,
+        status: schedule.status,
+        lastRun: schedule.lastRun?.toISOString(),
+        nextRun: schedule.nextRun?.toISOString(),
+        lastError: schedule.lastError,
+        createdAt: schedule.createdAt.toISOString(),
+        updatedAt: schedule.updatedAt.toISOString()
+      });
+    });
+
     res.json({
       success: true,
-      data: schedules
+      data: dbSchedules
     });
   } catch (error) {
+    console.error("Failed to fetch schedules from database:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch schedules",
@@ -394,7 +534,7 @@ router.get("/schedules/:id", (req, res) => {
 });
 
 // Create new schedule
-router.post("/schedules", (req, res) => {
+router.post("/schedules", async (req, res) => {
   try {
     const { name, frequency, time, dayOfWeek, dayOfMonth, intervalMinutes, backupType, includeData, includeSchema, retentionDays } = req.body;
 
@@ -406,32 +546,58 @@ router.post("/schedules", (req, res) => {
       });
     }
 
-    const schedule = {
-      id: uuidv4(),
+    const scheduleData = {
       name,
       enabled: true,
       frequency,
       time,
       dayOfWeek,
       dayOfMonth,
-      intervalMinutes: intervalMinutes || 1,
       backupType,
       includeData: includeData !== false,
       includeSchema: includeSchema !== false,
       retentionDays: retentionDays || 30,
-      status: "active",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      status: "active"
     };
 
     // Calculate next run time
-    schedule.nextRun = calculateNextRun(schedule).toISOString();
+    const nextRun = calculateNextRun({ ...scheduleData, intervalMinutes: intervalMinutes || 1 });
+    scheduleData.nextRun = nextRun;
 
-    schedules.push(schedule);
+    // Save to database
+    const schedule = await BackupSchedule.create(scheduleData);
+
+    console.log(`✅ Schedule created in database:`, {
+      id: schedule.id,
+      name: schedule.name,
+      frequency: schedule.frequency,
+      nextRun: schedule.nextRun
+    });
+
+    // Add to in-memory array for compatibility (TODO: remove when fully migrated)
+    const scheduleObj = {
+      id: schedule.id,
+      name: schedule.name,
+      enabled: schedule.enabled,
+      frequency: schedule.frequency,
+      time: schedule.time,
+      dayOfWeek: schedule.dayOfWeek,
+      dayOfMonth: schedule.dayOfMonth,
+      intervalMinutes: intervalMinutes || 1,
+      backupType: schedule.backupType,
+      includeData: schedule.includeData,
+      includeSchema: schedule.includeSchema,
+      retentionDays: schedule.retentionDays,
+      status: schedule.status,
+      nextRun: schedule.nextRun.toISOString(),
+      createdAt: schedule.createdAt.toISOString(),
+      updatedAt: schedule.updatedAt.toISOString()
+    };
+    schedules.push(scheduleObj);
 
     // Start cron job if scheduler is running
     if (schedulerStatus.isRunning && schedule.enabled) {
-      startScheduleCronJob(schedule);
+      startScheduleCronJob(scheduleObj);
     }
 
     updateSchedulerStatus();
@@ -505,7 +671,7 @@ router.post("/schedules/:id/toggle", (req, res) => {
   try {
     const { enabled } = req.body;
     const scheduleIndex = schedules.findIndex(s => s.id === req.params.id);
-    
+
     if (scheduleIndex === -1) {
       return res.status(404).json({
         success: false,
@@ -514,21 +680,21 @@ router.post("/schedules/:id/toggle", (req, res) => {
     }
 
     const schedule = schedules[scheduleIndex];
-    
+
     // Stop existing cron job
     stopScheduleCronJob(schedule.id);
-    
+
     // Update enabled status
     schedules[scheduleIndex].enabled = enabled;
     schedules[scheduleIndex].updatedAt = new Date().toISOString();
-    
+
     // Start cron job if scheduler is running and schedule is enabled
     if (schedulerStatus.isRunning && enabled && schedule.status === "active") {
       startScheduleCronJob(schedules[scheduleIndex]);
     }
-    
+
     updateSchedulerStatus();
-    
+
     res.json({
       success: true,
       data: schedules[scheduleIndex]
@@ -667,20 +833,53 @@ router.post("/schedules/:id/run", (req, res) => {
 });
 
 // Get execution history
-router.get("/executions", (req, res) => {
+router.get("/executions", async (req, res) => {
   try {
     const { scheduleId, limit = 50 } = req.query;
 
-    let filteredExecutions = executions;
+    // Build query options
+    const queryOptions = {
+      order: [["startTime", "DESC"]],
+      limit: parseInt(limit),
+      include: [
+        {
+          model: BackupSchedule,
+          as: "schedule",
+          attributes: ["name"]
+        }
+      ]
+    };
+
+    // Add schedule filter if provided
     if (scheduleId) {
-      filteredExecutions = executions.filter(e => e.scheduleId === scheduleId);
+      queryOptions.where = { scheduleId };
     }
 
-    const limitedExecutions = filteredExecutions.slice(0, parseInt(limit));
+    // Load executions from database
+    const dbExecutions = await ScheduleExecution.findAll(queryOptions);
+
+    console.log(`📅 Loaded ${dbExecutions.length} schedule executions from database`);
+
+    // Update in-memory executions array for compatibility
+    executions.length = 0; // Clear existing
+    dbExecutions.forEach(execution => {
+      executions.push({
+        id: execution.id,
+        scheduleId: execution.scheduleId,
+        scheduleName: execution.scheduleName,
+        startTime: execution.startTime.toISOString(),
+        endTime: execution.endTime?.toISOString(),
+        status: execution.status,
+        backupId: execution.backupId,
+        error: execution.error,
+        duration: execution.duration,
+        backupSize: execution.backupSize
+      });
+    });
 
     res.json({
       success: true,
-      data: limitedExecutions
+      data: dbExecutions
     });
   } catch (error) {
     res.status(500).json({

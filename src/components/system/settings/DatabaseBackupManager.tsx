@@ -129,7 +129,7 @@ const CreateBackupDialog: React.FC<CreateBackupDialogProps> = ({ open, onOpenCha
 
           <div>
             <Label htmlFor="backup-type">Backup Type</Label>
-            <Select value={backupType} onValueChange={(value: any) => setBackupType(value)} disabled={loading}>
+            <Select value={backupType} onValueChange={(value: "custom" | "directory" | "sql") => setBackupType(value)} disabled={loading}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -339,6 +339,336 @@ const RestoreBackupDialog: React.FC<RestoreBackupDialogProps> = ({ open, onOpenC
   );
 };
 
+interface UploadBackupDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onBackupUploaded: () => void;
+}
+
+const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenChange, onBackupUploaded }) => {
+  const [loading, setLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [backupName, setBackupName] = useState("");
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [validationResult, setValidationResult] = useState<{
+    valid: boolean;
+    issues: string[];
+    metadata?: any;
+  } | null>(null);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Reset state when dialog opens/closes
+  React.useEffect(() => {
+    if (!open) {
+      setSelectedFile(null);
+      setBackupName("");
+      setValidationResult(null);
+      setUploadProgress(0);
+    }
+  }, [open]);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileSelect = (file: File) => {
+    // Validate file type
+    const validExtensions = ['.sql', '.custom', '.zip', '.tar', '.gz'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    
+    if (!validExtensions.includes(fileExtension)) {
+      alert(`Invalid file type. Please select a backup file with one of these extensions: ${validExtensions.join(', ')}`);
+      return;
+    }
+
+    // Validate file size (max 1GB)
+    const maxSize = 1024 * 1024 * 1024; // 1GB
+    if (file.size > maxSize) {
+      alert('File size too large. Maximum allowed size is 1GB.');
+      return;
+    }
+
+    setSelectedFile(file);
+    
+    // Auto-generate backup name from filename
+    if (!backupName) {
+      const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.'));
+      setBackupName(`uploaded_${nameWithoutExt}_${new Date().toISOString().split('T')[0]}`);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileSelect(e.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert('Please select a backup file to upload.');
+      return;
+    }
+
+    if (!backupName.trim()) {
+      alert('Please enter a backup name.');
+      return;
+    }
+
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`📤 [${timestamp}] Starting backup upload:`, {
+      fileName: selectedFile.name,
+      fileSize: selectedFile.size,
+      backupName: backupName
+    });
+
+    setLoading(true);
+    setUploadProgress(0);
+
+    try {
+      // Simulate upload progress (since we don't have real progress from API)
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      const response = await backupAPI.uploadBackup(selectedFile, backupName);
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      console.log(`✅ [${timestamp}] Backup uploaded successfully:`, {
+        backupId: response.data.backup.id,
+        backupName: response.data.backup.name,
+        message: response.data.message
+      });
+
+      if (response.success) {
+        // Validate the uploaded backup
+        try {
+          const validation = await backupAPI.validateBackup(response.data.backup.id);
+          setValidationResult(validation);
+          
+          if (validation.valid) {
+            console.log(`🔄 [${timestamp}] Triggering forced data refresh after successful upload and validation...`);
+            setTimeout(() => {
+              onBackupUploaded();
+              console.log(`🚪 [${timestamp}] Closing upload dialog after success...`);
+              onOpenChange(false);
+            }, 1000);
+          }
+        } catch (validationError) {
+          console.warn('Backup uploaded but validation failed:', validationError);
+          // Notify parent component to refresh data
+          console.log(`🔄 [${timestamp}] Triggering data refresh after upload...`);
+          onBackupUploaded();
+          // Close dialog after successful upload
+          setTimeout(() => {
+            console.log(`🚪 [${timestamp}] Closing upload dialog...`);
+            onOpenChange(false);
+          }, 1500);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to upload backup:', error);
+      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Upload Database Backup</DialogTitle>
+          <DialogDescription>
+            Upload a backup file to restore or store in your backup collection.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Supported formats: .sql, .custom, .zip, .tar, .gz (max 1GB)
+            </AlertDescription>
+          </Alert>
+
+          {/* File Upload Area */}
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+              dragActive
+                ? 'border-primary bg-primary/5'
+                : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+            }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            {selectedFile ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-center space-x-2">
+                  <FileText className="h-8 w-8 text-primary" />
+                  <div className="text-left">
+                    <p className="font-medium">{selectedFile.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatFileSize(selectedFile.size)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedFile(null)}
+                    disabled={loading}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Drop your backup file here</p>
+                  <p className="text-xs text-muted-foreground">or click to browse</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading}
+                >
+                  Browse Files
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".sql,.custom,.zip,.tar,.gz"
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+
+          {/* Backup Name Input */}
+          <div>
+            <Label htmlFor="backup-name">Backup Name</Label>
+            <Input
+              id="backup-name"
+              placeholder="Enter backup name"
+              value={backupName}
+              onChange={(e) => setBackupName(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          {/* Upload Progress */}
+          {loading && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span>Uploading backup...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} />
+            </div>
+          )}
+
+          {/* Validation Results */}
+          {validationResult && (
+            <Alert variant={validationResult.valid ? "default" : "destructive"}>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {validationResult.valid ? (
+                  <div>
+                    <p className="font-medium">✅ Backup validated successfully!</p>
+                    {validationResult.metadata && (
+                      <div className="mt-2 text-xs">
+                        <p>Database: {validationResult.metadata.database}</p>
+                        <p>Tables: {validationResult.metadata.tables}</p>
+                        <p>Records: {validationResult.metadata.records?.toLocaleString()}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-medium">❌ Backup validation issues:</p>
+                    <ul className="mt-1 text-xs list-disc list-inside">
+                      {validationResult.issues.map((issue, index) => (
+                        <li key={index}>{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={loading || !selectedFile || !backupName.trim()}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Backup
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const DatabaseBackupManager: React.FC = () => {
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [databaseInfo, setDatabaseInfo] = useState<DatabaseInfo | null>(null);
@@ -351,10 +681,20 @@ const DatabaseBackupManager: React.FC = () => {
   const [schedulerRefreshTrigger, setSchedulerRefreshTrigger] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (forceRefresh = false) => {
     try {
       const timestamp = new Date().toLocaleTimeString();
-      console.log(`🔄 [${timestamp}] Loading database backup data...`);
+      console.log(`🔄 [${timestamp}] Loading database backup data${forceRefresh ? ' (forced refresh)' : ''}...`);
+      
+      // Clear cache if this is a forced refresh (e.g., after upload)
+      if (forceRefresh) {
+        console.log(`🗑️ [${timestamp}] Clearing API cache for fresh data...`);
+        // Explicitly clear the backup API cache
+        backupAPI.clearCache();
+        // Add a small delay to ensure backend has processed the upload
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
       const [dbInfo, backupsResponse] = await Promise.all([backupAPI.getDatabaseInfo(), backupAPI.getBackups()]);
 
       console.log(`📊 [${timestamp}] Database Info loaded:`, {
@@ -364,6 +704,21 @@ const DatabaseBackupManager: React.FC = () => {
         records: dbInfo.records
       });
       console.log(`💾 [${timestamp}] Backups loaded:`, backupsResponse.data.backups.length, "backups found");
+      console.log(`🔍 [${timestamp}] Raw API Response:`, {
+        success: backupsResponse.success,
+        message: backupsResponse.message,
+        dataKeys: Object.keys(backupsResponse.data),
+        backupsArray: backupsResponse.data.backups
+      });
+      
+      // Log ALL backup details for verification
+      console.log(`📋 [${timestamp}] Complete backup list:`, backupsResponse.data.backups.map(backup => ({
+        id: backup.id,
+        name: backup.name,
+        createdAt: backup.createdAt,
+        formats: backup.formats.length,
+        totalSize: backup.totalSize
+      })));
       
       // Log backup details for verification
       if (backupsResponse.data.backups.length > 0) {
@@ -393,10 +748,16 @@ const DatabaseBackupManager: React.FC = () => {
     console.log("🔄 Refresh button clicked - refreshing all tabs...");
     setRefreshing(true);
     await loadData();
-    // Trigger scheduler refresh by updating the trigger state
     setSchedulerRefreshTrigger(prev => prev + 1);
     console.log("✅ All tabs refreshed successfully!");
   };
+
+  const handleUploadComplete = async () => {
+    console.log("📤 Upload completed - forcing data refresh...");
+    await loadData(true); // Force refresh after upload
+  };
+
+
 
   const handleDeleteBackup = async (backupId: string) => {
     if (!confirm("Are you sure you want to delete this backup?")) return;
@@ -644,6 +1005,8 @@ const DatabaseBackupManager: React.FC = () => {
       <CreateBackupDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} onBackupCreated={loadData} />
 
       <RestoreBackupDialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen} backup={selectedBackup} onRestoreCompleted={loadData} />
+
+      <UploadBackupDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} onBackupUploaded={handleUploadComplete} />
     </div>
   );
 };

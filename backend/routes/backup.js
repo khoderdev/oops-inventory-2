@@ -292,10 +292,8 @@ router.get("/progress/:backupId", async (req, res) => {
 router.get("/list", async (req, res) => {
   try {
     const backupDirs = await fs.readdir(BACKUP_DIR);
-    // Include both manual backups (pgdump_) and scheduled backups (scheduled_)
-    const allBackupDirs = backupDirs.filter(dir => 
-      dir.startsWith("pgdump_") || dir.startsWith("scheduled_")
-    );
+    // Include manual backups (pgdump_), scheduled backups (scheduled_), and uploaded backups (uploaded_)
+    const allBackupDirs = backupDirs.filter(dir => dir.startsWith("pgdump_") || dir.startsWith("scheduled_") || dir.startsWith("uploaded_"));
 
     const backups = [];
 
@@ -406,7 +404,7 @@ router.delete("/:backupId", async (req, res) => {
     // Extract the directory name from the backup ID
     // Handle both format-specific IDs (pgdump_2025-07-30_4-23-AM_custom) and directory IDs (pgdump_2025-07-30_4-23-AM)
     let dirName;
-    if (backupId.endsWith('_custom') || backupId.endsWith('_sql') || backupId.endsWith('_directory')) {
+    if (backupId.endsWith("_custom") || backupId.endsWith("_sql") || backupId.endsWith("_directory")) {
       // Format-specific ID - remove the format suffix
       dirName = backupId.split("_").slice(0, -1).join("_");
     } else {
