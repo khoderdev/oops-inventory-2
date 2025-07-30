@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { formatCurrency } from "@/utils/conversionLogic";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, FileText, Trash2 } from "lucide-react";
@@ -825,8 +824,31 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       return;
     }
 
+    // Check if current order is already completed
+    if (currentOrder && currentOrder.status === "paid") {
+      console.log("⚠️ Order is already completed:", {
+        id: currentOrder.id,
+        orderNumber: currentOrder.orderNumber,
+        status: currentOrder.status,
+        completedAt: currentOrder.completedAt
+      });
+      showError(`Order ${currentOrder.orderNumber || currentOrder.id} is already completed`);
+      setShowPaymentDialog(false);
+      // Clear the current order since it's completed
+      clearOrder();
+      return;
+    }
+
     console.log("💰 Starting payment process...");
     console.log("🛒 Current cart:", cart);
+    if (currentOrder) {
+      console.log("📋 Current order status:", {
+        id: currentOrder.id,
+        orderNumber: currentOrder.orderNumber,
+        status: currentOrder.status,
+        total: currentOrder.total
+      });
+    }
 
     // Check each cart item in detail
     cart.forEach((item, index) => {
@@ -911,18 +933,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
 
       if (!orderToComplete.id) {
-        console.log("⚠️ Order missing ID, checking for alternative ID fields:", {
-          order: orderToComplete,
-          hasOrderId: "orderId" in orderToComplete,
-          hasOrderNumber: "orderNumber" in orderToComplete,
-          hasAnyId: Object.keys(orderToComplete).filter(key => key.toLowerCase().includes("id"))
-        });
-
-        // Try to find an ID field with proper type assertion
         const orderAny = orderToComplete as any;
         const orderId = orderToComplete.id || orderAny.orderId || orderAny.orderNumber;
         if (orderId) {
-          console.log("✅ Found alternative ID:", orderId);
           orderToComplete.id = orderId;
         } else {
           throw new Error(`Order created but missing ID. Order structure: ${JSON.stringify(orderToComplete)}`);
@@ -936,49 +949,26 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         change: Math.max(0, (parseFloat(paymentAmount) || total) - total)
       };
 
-      // Call the API directly with the order ID to avoid state timing issues
-      console.log("📡 Calling completeOrder API with:", {
-        orderId: orderToComplete.id,
-        paymentData
-      });
-
-      // Add timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Order completion timeout - API call took too long")), 15000));
 
-      const response = (await Promise.race([ordersAPI.completeOrder(orderToComplete.id, paymentData), timeoutPromise])) as any; // Type assertion for API response flexibility
+      const response = (await Promise.race([ordersAPI.completeOrder(orderToComplete.id, paymentData), timeoutPromise])) as any;
 
       console.log("📨 API Response received:", response);
       console.log("📨 Response data:", response?.data);
 
-      // Handle API response - the response should have { order, saleId } structure
       let order: any, saleId: string;
 
-      console.log("🔍 Analyzing API response structure:", {
-        hasData: !!response?.data,
-        responseType: typeof response?.data,
-        responseKeys: response?.data ? Object.keys(response.data) : "no data"
-      });
-
       if (response?.data) {
-        // Try different response structures
         if (response.data.order && response.data.saleId) {
-          // Expected structure: { order, saleId }
           order = response.data.order;
           saleId = response.data.saleId;
-          console.log("✅ Using expected response structure");
         } else if (response.data.order) {
-          // Structure: { order } - generate saleId
           order = response.data.order;
           saleId = order.id || `sale-${Date.now()}`;
-          console.log("✅ Using order-only response structure");
         } else if (response.data.id) {
-          // Structure: response.data IS the order
           order = response.data;
           saleId = response.data.id;
-          console.log("✅ Using direct order response structure");
         } else {
-          // Fallback: create order from current data
-          console.log("⚠️ Using fallback order creation");
           order = {
             id: orderToComplete.id,
             items: cart,
@@ -990,8 +980,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           saleId = `sale-${Date.now()}`;
         }
       } else {
-        // API call succeeded but no useful data - create fallback
-        console.log("⚠️ No response data - creating fallback order");
         order = {
           id: orderToComplete.id,
           items: cart,
@@ -1003,10 +991,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         saleId = `sale-${Date.now()}`;
       }
 
-      console.log("📝 Final extracted order:", order);
-      console.log("📝 Final extracted saleId:", saleId);
-
-      // Prepare receipt data from completed order with defensive handling
       const receiptData = {
         id: saleId || `receipt-${Date.now()}`,
         date: new Date().toLocaleDateString(),
@@ -1027,18 +1011,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         paymentMethod: paymentData.paymentMethod
       };
 
-      console.log("📧 Created receipt data:", receiptData);
-
-      console.log("🔄 Starting completion sequence...");
-
-      // Set receipt data first
-      console.log("💾 Setting receipt data...");
-      setLastSaleData(receiptData);
-
-      // Show success message
-      console.log("✅ Showing success message...");
-      showSuccess(`Order completed successfully! Total: ${formatCurrency(order.total || total)}`);
-
       // Update table status if this was a table order
       if (selectedTable && orderType === "table") {
         console.log("🏢 Updating table status...");
@@ -1056,30 +1028,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
       }
 
-      // Clear cart with animation after successful payment
-      console.log("🗑️ Clearing cart with animation...");
       clearCartWithAnimation();
-
-      console.log("💰 Resetting payment state...");
       setPaymentAmount("");
-
-      console.log("❌ Closing payment dialog...");
       setShowPaymentDialog(false);
-
-      console.log("🖨️ Setting print preferences...");
-      setShouldAutoPrint(false); // Let users choose when to print receipts
-
-      console.log("📧 Opening receipt dialog...");
+      setShouldAutoPrint(false);
       setShowReceiptDialog(true);
 
-      // Clear current order and local storage
-      console.log("🧹 Clearing order state...");
       clearOrder();
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
       resetToTakeaway();
-
-      console.log("✅ Payment completion sequence finished successfully!");
 
       // Callback for parent component
       if (onSaleComplete) {
@@ -1190,6 +1148,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 subtotal={subtotal}
                 total={total}
                 onPaymentClick={() => {
+                  // Check if current order is already completed
+                  if (currentOrder && currentOrder.status === "paid") {
+                    console.log("⚠️ Cannot open payment dialog - order is already completed:", {
+                      id: currentOrder.id,
+                      orderNumber: currentOrder.orderNumber,
+                      status: currentOrder.status
+                    });
+                    showError(`Order ${currentOrder.orderNumber || currentOrder.id} is already completed`);
+                    return;
+                  }
                   console.log("💰 Opening payment dialog, auto-filling amount:", total);
                   setPaymentAmount(total.toString());
                   setShowPaymentDialog(true);

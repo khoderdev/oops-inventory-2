@@ -15,7 +15,8 @@ const sequelize = new Sequelize({
   username: "postgres",
   password: "postgres",
   port: 5432,
-  logging: console.log, // Enable SQL logging to see the problematic query
+  logging: customLogger,
+  // logging: console.log,
   benchmark: true
 });
 

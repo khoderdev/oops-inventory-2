@@ -411,19 +411,52 @@ export const ordersController = {
       const { paymentData } = req.body;
       const userId = req.user?.id;
 
+      console.log(`🔄 Attempting to complete order ${orderId}`);
+      console.log(`💰 Payment data:`, JSON.stringify(paymentData, null, 2));
+
       const order = await Order.findByPk(orderId, {
         include: [{ model: OrderItem, as: "items" }],
         transaction
       });
 
       if (!order) {
+        console.log(`❌ Order ${orderId} not found`);
         await transaction.rollback();
         return res.status(404).json({ message: "Order not found" });
       }
 
+      console.log(`📋 Order ${orderId} current status: ${order.status}`);
+      console.log(`📋 Order completion details:`, {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        total: order.total,
+        completedAt: order.completedAt,
+        saleId: order.saleId
+      });
+
+      // Check if order is already completed
       if (order.status === "paid") {
+        console.log(`⚠️ Order ${orderId} is already completed (status: paid)`);
         await transaction.rollback();
-        return res.status(400).json({ message: "Order already completed" });
+        return res.status(400).json({
+          message: "Order already completed",
+          currentStatus: order.status,
+          completedAt: order.completedAt,
+          saleId: order.saleId
+        });
+      }
+
+      // Check if order is in a completable state
+      const completableStatuses = ["draft", "confirmed", "preparing", "ready", "served"];
+      if (!completableStatuses.includes(order.status)) {
+        console.log(`⚠️ Order ${orderId} cannot be completed from status: ${order.status}`);
+        await transaction.rollback();
+        return res.status(400).json({
+          message: `Order cannot be completed from status: ${order.status}`,
+          currentStatus: order.status,
+          allowedStatuses: completableStatuses
+        });
       }
 
       // Log order data for debugging
@@ -484,8 +517,10 @@ export const ordersController = {
         });
       });
 
-      // Update order with completion details
-      await order.update(
+      // Update order with completion details - with race condition protection
+      console.log(`🔄 Updating order ${orderId} to completed status`);
+
+      const updateResult = await Order.update(
         {
           status: "paid",
           paymentMethod: paymentData.paymentMethod,
@@ -495,8 +530,26 @@ export const ordersController = {
           completedAt: new Date(),
           updatedBy: userId
         },
-        { transaction }
+        {
+          where: {
+            id: orderId,
+            status: { [Op.ne]: "paid" } // Only update if not already paid
+          },
+          transaction
+        }
       );
+
+      // Check if the update actually happened
+      if (updateResult[0] === 0) {
+        console.log(`⚠️ Order ${orderId} was already completed by another request`);
+        await transaction.rollback();
+        return res.status(400).json({
+          message: "Order was already completed by another request",
+          note: "This can happen if multiple completion requests are made simultaneously"
+        });
+      }
+
+      console.log(`✅ Order ${orderId} successfully updated to paid status`);
 
       // Free up table when order is completed
       if (order.tableId) {
