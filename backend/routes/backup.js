@@ -292,11 +292,14 @@ router.get("/progress/:backupId", async (req, res) => {
 router.get("/list", async (req, res) => {
   try {
     const backupDirs = await fs.readdir(BACKUP_DIR);
-    const pgdumpDirs = backupDirs.filter(dir => dir.startsWith("pgdump_"));
+    // Include both manual backups (pgdump_) and scheduled backups (scheduled_)
+    const allBackupDirs = backupDirs.filter(dir => 
+      dir.startsWith("pgdump_") || dir.startsWith("scheduled_")
+    );
 
     const backups = [];
 
-    for (const dirName of pgdumpDirs) {
+    for (const dirName of allBackupDirs) {
       const backupDir = path.join(BACKUP_DIR, dirName);
       const backupFiles = await fs.readdir(backupDir);
 

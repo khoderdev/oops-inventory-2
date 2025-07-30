@@ -37,7 +37,11 @@ class BackupSchedulerAPI {
   }
 
   async toggleSchedule(id: string, enabled: boolean): Promise<{ success: boolean; data: BackupSchedule }> {
-    return this.updateSchedule(id, { enabled });
+    const response = await api.post<{ success: boolean; data: BackupSchedule }, { enabled: boolean }>(
+      `${this.baseUrl}/schedules/${id}/toggle`,
+      { enabled }
+    );
+    return response.data;
   }
 
   // Scheduler Control
@@ -95,8 +99,10 @@ class BackupSchedulerAPI {
     });
   }
 
-  formatFrequency(frequency: string, dayOfWeek?: number, dayOfMonth?: number): string {
+  formatFrequency(frequency: string, dayOfWeek?: number, dayOfMonth?: number, intervalMinutes?: number): string {
     switch (frequency) {
+      case "minutely":
+        return `Every ${intervalMinutes || 1} minute(s)`;
       case "daily":
         return "Daily";
       case "weekly": {
@@ -124,19 +130,29 @@ class BackupSchedulerAPI {
 
   getNextRunTime(schedule: BackupSchedule): Date {
     const now = new Date();
-    const [hours, minutes] = schedule.time.split(":").map(Number);
-
     const nextRun = new Date();
-    nextRun.setHours(hours, minutes, 0, 0);
 
     switch (schedule.frequency) {
-      case "daily":
+      case "minutely": {
+        const intervalMinutes = schedule.intervalMinutes || 1;
+        nextRun.setTime(now.getTime() + (intervalMinutes * 60 * 1000));
+        break;
+      }
+
+      case "daily": {
+        const [hours, minutes] = schedule.time.split(":").map(Number);
+        nextRun.setHours(hours, minutes, 0, 0);
+        
         if (nextRun <= now) {
           nextRun.setDate(nextRun.getDate() + 1);
         }
         break;
+      }
 
       case "weekly": {
+        const [hours, minutes] = schedule.time.split(":").map(Number);
+        nextRun.setHours(hours, minutes, 0, 0);
+        
         const targetDay = schedule.dayOfWeek || 0;
         const currentDay = nextRun.getDay();
         let daysUntilTarget = targetDay - currentDay;
@@ -150,6 +166,9 @@ class BackupSchedulerAPI {
       }
 
       case "monthly": {
+        const [hours, minutes] = schedule.time.split(":").map(Number);
+        nextRun.setHours(hours, minutes, 0, 0);
+        
         const targetDate = schedule.dayOfMonth || 1;
         nextRun.setDate(targetDate);
 

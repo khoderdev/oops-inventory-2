@@ -31,19 +31,27 @@ const activeCronJobs = new Map();
 // Helper function to calculate next run time
 function calculateNextRun(schedule) {
   const now = new Date();
-  const [hours, minutes] = schedule.time.split(":").map(Number);
-
-  let nextRun = new Date();
-  nextRun.setHours(hours, minutes, 0, 0);
+  const nextRun = new Date();
 
   switch (schedule.frequency) {
+    case "minutely":
+      const intervalMinutes = schedule.intervalMinutes || 1;
+      nextRun.setTime(now.getTime() + intervalMinutes * 60 * 1000);
+      break;
+
     case "daily":
+      const [hoursDaily, minutesDaily] = schedule.time.split(":").map(Number);
+      nextRun.setHours(hoursDaily, minutesDaily, 0, 0);
+
       if (nextRun <= now) {
         nextRun.setDate(nextRun.getDate() + 1);
       }
       break;
 
     case "weekly":
+      const [hoursWeekly, minutesWeekly] = schedule.time.split(":").map(Number);
+      nextRun.setHours(hoursWeekly, minutesWeekly, 0, 0);
+
       const targetDay = schedule.dayOfWeek || 0;
       const currentDay = nextRun.getDay();
       let daysUntilTarget = targetDay - currentDay;
@@ -56,6 +64,9 @@ function calculateNextRun(schedule) {
       break;
 
     case "monthly":
+      const [hoursMonthly, minutesMonthly] = schedule.time.split(":").map(Number);
+      nextRun.setHours(hoursMonthly, minutesMonthly, 0, 0);
+
       const targetDate = schedule.dayOfMonth || 1;
       nextRun.setDate(targetDate);
 
@@ -71,15 +82,19 @@ function calculateNextRun(schedule) {
 
 // Helper function to create cron expression
 function createCronExpression(schedule) {
-  const [hours, minutes] = schedule.time.split(":").map(Number);
-
   switch (schedule.frequency) {
+    case "minutely":
+      const intervalMinutes = schedule.intervalMinutes || 1;
+      return `*/${intervalMinutes} * * * *`; // Every N minutes (minute hour day month weekday)
     case "daily":
-      return `${minutes} ${hours} * * *`;
+      const [hoursDaily, minutesDaily] = schedule.time.split(":").map(Number);
+      return `${minutesDaily} ${hoursDaily} * * *`;
     case "weekly":
-      return `${minutes} ${hours} * * ${schedule.dayOfWeek || 0}`;
+      const [hoursWeekly, minutesWeekly] = schedule.time.split(":").map(Number);
+      return `${minutesWeekly} ${hoursWeekly} * * ${schedule.dayOfWeek || 0}`;
     case "monthly":
-      return `${minutes} ${hours} ${schedule.dayOfMonth || 1} * *`;
+      const [hoursMonthly, minutesMonthly] = schedule.time.split(":").map(Number);
+      return `${minutesMonthly} ${hoursMonthly} ${schedule.dayOfMonth || 1} * *`;
     default:
       throw new Error(`Invalid frequency: ${schedule.frequency}`);
   }
@@ -113,13 +128,13 @@ async function executeBackup(schedule) {
     // Ensure backup directory exists
     await fs.mkdir(backupDir, { recursive: true });
 
-    // Database connection details (should match your backup.js configuration)
+    // Database connection details (should match your database.js configuration)
     const dbConfig = {
       host: process.env.DB_HOST || "localhost",
       port: process.env.DB_PORT || 5432,
-      database: process.env.DB_NAME || "test_restore",
+      database: process.env.DB_NAME || "inventory_db",
       username: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "password"
+      password: process.env.DB_PASSWORD || "postgres"
     };
 
     const pgDumpPath = process.env.PG_DUMP_PATH || "C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe";
@@ -247,6 +262,7 @@ async function cleanupOldBackups(schedule) {
 // Helper function to start all active schedules
 function startScheduler() {
   if (schedulerStatus.isRunning) {
+    console.log("⚠️ Scheduler is already running");
     return;
   }
 
@@ -255,14 +271,14 @@ function startScheduler() {
   schedulerStatus.lastError = null;
 
   // Start cron jobs for all enabled schedules
-  schedules.forEach(schedule => {
-    if (schedule.enabled && schedule.status === "active") {
-      startScheduleCronJob(schedule);
-    }
+  const activeSchedules = schedules.filter(s => s.enabled && s.status === "active");
+  
+  activeSchedules.forEach(schedule => {
+    startScheduleCronJob(schedule);
   });
 
   updateSchedulerStatus();
-  console.log("Backup scheduler started");
+  console.log(`Backup scheduler started with ${activeSchedules.length} active schedules`);
 }
 
 // Helper function to stop all schedules
@@ -298,12 +314,13 @@ function startScheduleCronJob(schedule) {
       },
       {
         scheduled: false,
-        timezone: "Asia/Lebanon" // Adjust timezone as needed
+        timezone: "Asia/Beirut" // Lebanon timezone
       }
     );
 
     job.start();
     activeCronJobs.set(schedule.id, job);
+    console.log(`✅ Cron job started successfully for: ${schedule.name}`);
   } catch (error) {
     console.error(`Failed to start cron job for schedule: ${schedule.name}`, error);
     schedulerStatus.lastError = `Failed to start ${schedule.name}: ${error.message}`;
@@ -379,7 +396,7 @@ router.get("/schedules/:id", (req, res) => {
 // Create new schedule
 router.post("/schedules", (req, res) => {
   try {
-    const { name, frequency, time, dayOfWeek, dayOfMonth, backupType, includeData, includeSchema, retentionDays } = req.body;
+    const { name, frequency, time, dayOfWeek, dayOfMonth, intervalMinutes, backupType, includeData, includeSchema, retentionDays } = req.body;
 
     // Validation
     if (!name || !frequency || !time || !backupType) {
@@ -397,6 +414,7 @@ router.post("/schedules", (req, res) => {
       time,
       dayOfWeek,
       dayOfMonth,
+      intervalMinutes: intervalMinutes || 1,
       backupType,
       includeData: includeData !== false,
       includeSchema: includeSchema !== false,
@@ -456,7 +474,7 @@ router.put("/schedules/:id", (req, res) => {
     };
 
     // Recalculate next run time if timing changed
-    if (updates.frequency || updates.time || updates.dayOfWeek || updates.dayOfMonth) {
+    if (updates.frequency || updates.time || updates.dayOfWeek || updates.dayOfMonth || updates.intervalMinutes) {
       updatedSchedule.nextRun = calculateNextRun(updatedSchedule).toISOString();
     }
 
@@ -477,6 +495,48 @@ router.put("/schedules/:id", (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update schedule",
+      error: error.message
+    });
+  }
+});
+
+// Toggle schedule enabled/disabled
+router.post("/schedules/:id/toggle", (req, res) => {
+  try {
+    const { enabled } = req.body;
+    const scheduleIndex = schedules.findIndex(s => s.id === req.params.id);
+    
+    if (scheduleIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Schedule not found"
+      });
+    }
+
+    const schedule = schedules[scheduleIndex];
+    
+    // Stop existing cron job
+    stopScheduleCronJob(schedule.id);
+    
+    // Update enabled status
+    schedules[scheduleIndex].enabled = enabled;
+    schedules[scheduleIndex].updatedAt = new Date().toISOString();
+    
+    // Start cron job if scheduler is running and schedule is enabled
+    if (schedulerStatus.isRunning && enabled && schedule.status === "active") {
+      startScheduleCronJob(schedules[scheduleIndex]);
+    }
+    
+    updateSchedulerStatus();
+    
+    res.json({
+      success: true,
+      data: schedules[scheduleIndex]
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to toggle schedule",
       error: error.message
     });
   }
@@ -654,5 +714,11 @@ router.get("/executions/:id", (req, res) => {
     });
   }
 });
+
+// Auto-start scheduler when module loads
+setTimeout(() => {
+  console.log("Auto-starting backup scheduler...");
+  startScheduler();
+}, 2000); // Wait 2 seconds for server to fully start
 
 export default router;

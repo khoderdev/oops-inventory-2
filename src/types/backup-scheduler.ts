@@ -2,8 +2,9 @@ export interface BackupSchedule {
   id: string;
   name: string;
   enabled: boolean;
-  frequency: 'daily' | 'weekly' | 'monthly';
-  time: string; // HH:MM format
+  frequency: 'minutely' | 'daily' | 'weekly' | 'monthly';
+  time: string; // HH:MM format (or minutes for minutely)
+  intervalMinutes?: number; // For minutely frequency
   dayOfWeek?: number; // 0-6 for weekly (0 = Sunday)
   dayOfMonth?: number; // 1-31 for monthly
   backupType: 'custom' | 'directory' | 'sql';
@@ -19,8 +20,9 @@ export interface BackupSchedule {
 
 export interface ScheduleCreateRequest {
   name: string;
-  frequency: 'daily' | 'weekly' | 'monthly';
+  frequency: 'minutely' | 'daily' | 'weekly' | 'monthly';
   time: string;
+  intervalMinutes?: number;
   dayOfWeek?: number;
   dayOfMonth?: number;
   backupType: 'custom' | 'directory' | 'sql';
