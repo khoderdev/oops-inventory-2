@@ -1,4 +1,4 @@
-import { AlertCircle, Database, Download, FileText, HardDrive, Loader2, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertCircle, Database, Download, FileText, HardDrive, Loader2, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -340,23 +340,45 @@ const RestoreBackupDialog: React.FC<RestoreBackupDialogProps> = ({ open, onOpenC
 };
 
 const DatabaseBackupManager: React.FC = () => {
-  const [databaseInfo, setDatabaseInfo] = useState<DatabaseInfo | null>(null);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
+  const [databaseInfo, setDatabaseInfo] = useState<DatabaseInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<BackupInfo | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [schedulerRefreshTrigger, setSchedulerRefreshTrigger] = useState(0);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const loadData = useCallback(async () => {
     try {
+      const timestamp = new Date().toLocaleTimeString();
+      console.log(`🔄 [${timestamp}] Loading database backup data...`);
       const [dbInfo, backupsResponse] = await Promise.all([backupAPI.getDatabaseInfo(), backupAPI.getBackups()]);
+
+      console.log(`📊 [${timestamp}] Database Info loaded:`, {
+        name: dbInfo.name,
+        size: dbInfo.size,
+        tables: dbInfo.tables,
+        records: dbInfo.records
+      });
+      console.log(`💾 [${timestamp}] Backups loaded:`, backupsResponse.data.backups.length, "backups found");
+      
+      // Log backup details for verification
+      if (backupsResponse.data.backups.length > 0) {
+        console.log(`📄 [${timestamp}] Latest backup:`, {
+          name: backupsResponse.data.backups[0].name,
+          createdAt: backupsResponse.data.backups[0].createdAt,
+          formats: backupsResponse.data.backups[0].formats.length
+        });
+      }
 
       setDatabaseInfo(dbInfo);
       setBackups(backupsResponse.data.backups);
+      setLastRefresh(new Date());
     } catch (error) {
-      console.error("Failed to load data:", error);
+      console.error("❌ Failed to load data:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -368,8 +390,12 @@ const DatabaseBackupManager: React.FC = () => {
   }, [loadData]);
 
   const handleRefresh = async () => {
+    console.log("🔄 Refresh button clicked - refreshing all tabs...");
     setRefreshing(true);
     await loadData();
+    // Trigger scheduler refresh by updating the trigger state
+    setSchedulerRefreshTrigger(prev => prev + 1);
+    console.log("✅ All tabs refreshed successfully!");
   };
 
   const handleDeleteBackup = async (backupId: string) => {
@@ -413,7 +439,14 @@ const DatabaseBackupManager: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Database Backup Manager</h2>
-          <p className="text-muted-foreground">Manage database backups and restore operations</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
+            <p className="text-muted-foreground">Manage database backups and restore operations</p>
+            {lastRefresh && (
+              <p className="text-xs text-muted-foreground">
+                Last refreshed: {lastRefresh.toLocaleTimeString()}
+              </p>
+            )}
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
@@ -603,7 +636,7 @@ const DatabaseBackupManager: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="schedule" className="space-y-4">
-          <BackupScheduler />
+          <BackupScheduler refreshTrigger={schedulerRefreshTrigger} />
         </TabsContent>
       </Tabs>
 

@@ -1,4 +1,4 @@
-import { Activity, AlertCircle, Calendar, CheckCircle, Clock, Database, Edit, Loader2, Pause, Play, Plus, Power, PowerOff, RefreshCw, Settings, Trash2, XCircle } from "lucide-react";
+import { Activity, AlertCircle, Calendar, CheckCircle, Clock, Database, Edit, Loader2, Pause, Play, Plus, Power, PowerOff, Settings, Trash2, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -206,12 +206,15 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
   );
 };
 
-const BackupScheduler: React.FC = () => {
+interface BackupSchedulerProps {
+  refreshTrigger?: number;
+}
+
+const BackupScheduler: React.FC<BackupSchedulerProps> = ({ refreshTrigger }) => {
   const [schedules, setSchedules] = useState<BackupSchedule[]>([]);
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const [executionHistory, setExecutionHistory] = useState<ScheduleExecution[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editSchedule, setEditSchedule] = useState<BackupSchedule | null>(null);
 
@@ -226,7 +229,6 @@ const BackupScheduler: React.FC = () => {
       console.error("Failed to load scheduler data:", error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
@@ -238,10 +240,12 @@ const BackupScheduler: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadData]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-  };
+  // Effect to handle refresh trigger from parent
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      loadData();
+    }
+  }, [refreshTrigger, loadData]);
 
   const handleToggleScheduler = async () => {
     try {
@@ -358,10 +362,6 @@ const BackupScheduler: React.FC = () => {
           <p className="text-muted-foreground">Manage automatic database backup schedules</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
           <Button variant={schedulerStatus?.isRunning ? "destructive" : "default"} size="sm" onClick={handleToggleScheduler}>
             {schedulerStatus?.isRunning ? (
               <>
