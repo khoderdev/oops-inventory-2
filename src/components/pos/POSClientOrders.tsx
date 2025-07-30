@@ -218,7 +218,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   const handleFilterChange = useCallback((key: keyof OrderFilters, value: string | undefined) => {
     setFilters(prev => ({
       ...prev,
-      [key]: value
+      [key]: value === "all" ? undefined : value
     }));
   }, []);
 
@@ -332,32 +332,32 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
 
             {/* Filter Controls */}
             <div className="flex flex-wrap gap-3 items-center">
-              <Select value={filters.status || "all"} onValueChange={value => handleFilterChange("status", value === "all" ? undefined : value)}>
-                <SelectTrigger className="w-48 h-11 bg-white border-gray-200 focus:border-blue-400">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="confirmed">Confirmed</SelectItem>
-                  <SelectItem value="preparing">Preparing</SelectItem>
-                  <SelectItem value="ready">Ready</SelectItem>
-                  <SelectItem value="served">Served</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Status Filter - Native Select */}
+              <select 
+                value={filters.status || "all"} 
+                onChange={(e) => handleFilterChange("status", e.target.value as OrderStatus | "all")}
+                className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              >
+                <option value="all">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="preparing">Preparing</option>
+                <option value="ready">Ready</option>
+                <option value="served">Served</option>
+                <option value="paid">Paid</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
 
-              <Select value={filters.orderType || "all"} onValueChange={value => handleFilterChange("orderType", value === "all" ? undefined : value)}>
-                <SelectTrigger className="w-48 h-11 bg-white border-gray-200 focus:border-blue-400">
-                  <SelectValue placeholder="Filter by type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="delivery">Delivery</SelectItem>
-                  <SelectItem value="takeaway">Takeaway</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Order Type Filter - Native Select */}
+              <select 
+                value={filters.orderType || "all"} 
+                onChange={(e) => handleFilterChange("orderType", e.target.value as OrderType | "all")}
+                className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              >
+                <option value="all">All Types</option>
+                <option value="delivery">Delivery</option>
+                <option value="takeaway">Takeaway</option>
+              </select>
 
               <Button variant="outline" onClick={clearFilters} className="h-11 px-4 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300">
                 Clear Filters
@@ -377,7 +377,6 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
             </div>
           </div>
         </div>
-        {/* </div> */}
 
         {/* Orders Content - Scrollable */}
         <div className="flex-1 min-h-0 overflow-hidden">
@@ -607,7 +606,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
     <>
       {isDialog ? (
         <Dialog open={isOpen} onOpenChange={onClose}>
-          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden">
+          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden z-50">
             <MainContent />
           </DialogContent>
         </Dialog>
