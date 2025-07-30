@@ -106,12 +106,11 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="frequency">Frequency</Label>
-              <Select value={formData.frequency} onValueChange={(value: "minutely" | "daily" | "weekly" | "monthly") => setFormData(prev => ({ ...prev, frequency: value }))} disabled={loading}>
+              <Select value={formData.frequency} onValueChange={(value: "daily" | "weekly" | "monthly") => setFormData(prev => ({ ...prev, frequency: value }))} disabled={loading}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="minutely">Every N Minutes (Testing)</SelectItem>
                   <SelectItem value="daily">Daily</SelectItem>
                   <SelectItem value="weekly">Weekly</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
@@ -120,21 +119,8 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
             </div>
 
             <div>
-              <Label htmlFor="time">{formData.frequency === "minutely" ? "Interval (Minutes)" : "Time"}</Label>
-              {formData.frequency === "minutely" ? (
-                <Input 
-                  id="interval" 
-                  type="number" 
-                  min="1" 
-                  max="60" 
-                  placeholder="1" 
-                  value={formData.intervalMinutes || 1} 
-                  onChange={e => setFormData(prev => ({ ...prev, intervalMinutes: parseInt(e.target.value) || 1 }))} 
-                  disabled={loading} 
-                />
-              ) : (
-                <Input id="time" type="time" value={formData.time} onChange={e => setFormData(prev => ({ ...prev, time: e.target.value }))} disabled={loading} />
-              )}
+              <Label htmlFor="time">{formData.frequency === "daily" ? "Interval (Minutes)" : "Time"}</Label>
+              {formData.frequency === "daily" ? <Input id="interval" type="number" min="1" max="60" placeholder="1" value={formData.intervalMinutes || 1} onChange={e => setFormData(prev => ({ ...prev, intervalMinutes: parseInt(e.target.value) || 1 }))} disabled={loading} /> : <Input id="time" type="time" value={formData.time} onChange={e => setFormData(prev => ({ ...prev, time: e.target.value }))} disabled={loading} />}
             </div>
           </div>
 
@@ -172,9 +158,9 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="custom">Custom Format (Recommended)</SelectItem>
+                <SelectItem value="sql">Plain SQL (Recommended)</SelectItem>
+                <SelectItem value="custom">Custom Format </SelectItem>
                 <SelectItem value="directory">Directory Format</SelectItem>
-                <SelectItem value="sql">Plain SQL</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -475,8 +461,8 @@ const BackupScheduler: React.FC = () => {
                           <h3 className="font-semibold">{schedule.name}</h3>
                           <p className="text-sm text-muted-foreground">
                             {backupSchedulerAPI.formatFrequency(schedule.frequency, schedule.dayOfWeek, schedule.dayOfMonth, schedule.intervalMinutes)}
-                            {schedule.frequency !== "minutely" && " at "}
-                            {schedule.frequency !== "minutely" && backupSchedulerAPI.formatTime(schedule.time)}
+                            {schedule.frequency !== "daily" && " at "}
+                            {schedule.frequency !== "daily" && backupSchedulerAPI.formatTime(schedule.time)}
                           </p>
                         </div>
                       </div>

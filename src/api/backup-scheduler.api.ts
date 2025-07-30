@@ -1,5 +1,5 @@
-import { BackupSchedule, ScheduleCreateRequest, ScheduleExecution, ScheduleUpdateRequest, SchedulerStatus } from "@/types/backup-scheduler";
 import api from "@/lib/http";
+import { BackupSchedule, ScheduleCreateRequest, ScheduleExecution, ScheduleUpdateRequest, SchedulerStatus } from "@/types/backup-scheduler";
 
 class BackupSchedulerAPI {
   private baseUrl = "/backup-scheduler";
@@ -16,18 +16,12 @@ class BackupSchedulerAPI {
   }
 
   async createSchedule(schedule: ScheduleCreateRequest): Promise<{ success: boolean; data: BackupSchedule }> {
-    const response = await api.post<{ success: boolean; data: BackupSchedule }, ScheduleCreateRequest>(
-      `${this.baseUrl}/schedules`,
-      schedule
-    );
+    const response = await api.post<{ success: boolean; data: BackupSchedule }, ScheduleCreateRequest>(`${this.baseUrl}/schedules`, schedule);
     return response.data;
   }
 
   async updateSchedule(id: string, updates: ScheduleUpdateRequest): Promise<{ success: boolean; data: BackupSchedule }> {
-    const response = await api.put<{ success: boolean; data: BackupSchedule }, ScheduleUpdateRequest>(
-      `${this.baseUrl}/schedules/${id}`,
-      updates
-    );
+    const response = await api.put<{ success: boolean; data: BackupSchedule }, ScheduleUpdateRequest>(`${this.baseUrl}/schedules/${id}`, updates);
     return response.data;
   }
 
@@ -37,10 +31,7 @@ class BackupSchedulerAPI {
   }
 
   async toggleSchedule(id: string, enabled: boolean): Promise<{ success: boolean; data: BackupSchedule }> {
-    const response = await api.post<{ success: boolean; data: BackupSchedule }, { enabled: boolean }>(
-      `${this.baseUrl}/schedules/${id}/toggle`,
-      { enabled }
-    );
+    const response = await api.post<{ success: boolean; data: BackupSchedule }, { enabled: boolean }>(`${this.baseUrl}/schedules/${id}/toggle`, { enabled });
     return response.data;
   }
 
@@ -51,26 +42,17 @@ class BackupSchedulerAPI {
   }
 
   async startScheduler(): Promise<{ success: boolean; message: string }> {
-    const response = await api.post<{ success: boolean; message: string }, Record<string, never>>(
-      `${this.baseUrl}/start`,
-      {}
-    );
+    const response = await api.post<{ success: boolean; message: string }, Record<string, never>>(`${this.baseUrl}/start`, {});
     return response.data;
   }
 
   async stopScheduler(): Promise<{ success: boolean; message: string }> {
-    const response = await api.post<{ success: boolean; message: string }, Record<string, never>>(
-      `${this.baseUrl}/stop`,
-      {}
-    );
+    const response = await api.post<{ success: boolean; message: string }, Record<string, never>>(`${this.baseUrl}/stop`, {});
     return response.data;
   }
 
   async runScheduleNow(id: string): Promise<{ success: boolean; data: ScheduleExecution }> {
-    const response = await api.post<{ success: boolean; data: ScheduleExecution }, Record<string, never>>(
-      `${this.baseUrl}/schedules/${id}/run`,
-      {}
-    );
+    const response = await api.post<{ success: boolean; data: ScheduleExecution }, Record<string, never>>(`${this.baseUrl}/schedules/${id}/run`, {});
     return response.data;
   }
 
@@ -80,9 +62,7 @@ class BackupSchedulerAPI {
     if (scheduleId) params.append("scheduleId", scheduleId);
     params.append("limit", limit.toString());
 
-    const response = await api.get<{ success: boolean; data: ScheduleExecution[] }>(
-      `${this.baseUrl}/executions?${params.toString()}`
-    );
+    const response = await api.get<{ success: boolean; data: ScheduleExecution[] }>(`${this.baseUrl}/executions?${params.toString()}`);
     return response.data;
   }
 
@@ -101,8 +81,6 @@ class BackupSchedulerAPI {
 
   formatFrequency(frequency: string, dayOfWeek?: number, dayOfMonth?: number, intervalMinutes?: number): string {
     switch (frequency) {
-      case "minutely":
-        return `Every ${intervalMinutes || 1} minute(s)`;
       case "daily":
         return "Daily";
       case "weekly": {
@@ -133,16 +111,10 @@ class BackupSchedulerAPI {
     const nextRun = new Date();
 
     switch (schedule.frequency) {
-      case "minutely": {
-        const intervalMinutes = schedule.intervalMinutes || 1;
-        nextRun.setTime(now.getTime() + (intervalMinutes * 60 * 1000));
-        break;
-      }
-
       case "daily": {
         const [hours, minutes] = schedule.time.split(":").map(Number);
         nextRun.setHours(hours, minutes, 0, 0);
-        
+
         if (nextRun <= now) {
           nextRun.setDate(nextRun.getDate() + 1);
         }
@@ -152,7 +124,7 @@ class BackupSchedulerAPI {
       case "weekly": {
         const [hours, minutes] = schedule.time.split(":").map(Number);
         nextRun.setHours(hours, minutes, 0, 0);
-        
+
         const targetDay = schedule.dayOfWeek || 0;
         const currentDay = nextRun.getDay();
         let daysUntilTarget = targetDay - currentDay;
@@ -168,7 +140,7 @@ class BackupSchedulerAPI {
       case "monthly": {
         const [hours, minutes] = schedule.time.split(":").map(Number);
         nextRun.setHours(hours, minutes, 0, 0);
-        
+
         const targetDate = schedule.dayOfMonth || 1;
         nextRun.setDate(targetDate);
 

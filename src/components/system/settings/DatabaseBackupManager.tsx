@@ -134,9 +134,9 @@ const CreateBackupDialog: React.FC<CreateBackupDialogProps> = ({ open, onOpenCha
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="custom">Custom Format (Recommended)</SelectItem>
+                <SelectItem value="sql">Plain SQL (Recommended)</SelectItem>
+                <SelectItem value="custom">Custom Format</SelectItem>
                 <SelectItem value="directory">Directory Format</SelectItem>
-                <SelectItem value="sql">Plain SQL</SelectItem>
               </SelectContent>
             </Select>
           </div>
