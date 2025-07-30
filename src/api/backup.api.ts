@@ -1,12 +1,19 @@
 import api from "@/lib/http";
 
+export interface BackupFormat {
+  type: "custom" | "directory" | "sql";
+  id: string;
+  path: string;
+  size: number;
+  filename: string;
+}
+
 export interface BackupInfo {
   id: string;
   name: string;
-  size: number;
+  formats: BackupFormat[];
+  totalSize: number;
   createdAt: string;
-  type: "custom" | "directory" | "sql";
-  path: string;
   metadata?: {
     database: string;
     version: string;

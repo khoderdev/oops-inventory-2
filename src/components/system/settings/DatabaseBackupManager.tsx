@@ -14,7 +14,44 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { backupAPI, BackupInfo, BackupProgress, DatabaseInfo, RestoreProgress } from "@/api/backup.api";
+import { backupAPI, BackupInfo, BackupFormat, BackupProgress, DatabaseInfo, RestoreProgress } from "@/api/backup.api";
+
+// Helper functions for backup type icons and badges
+const getBackupTypeIcon = (type: string) => {
+  switch (type) {
+    case "custom":
+      return <Database className="h-4 w-4" />;
+    case "directory":
+      return <HardDrive className="h-4 w-4" />;
+    case "sql":
+      return <FileText className="h-4 w-4" />;
+    default:
+      return <Database className="h-4 w-4" />;
+  }
+};
+
+const getBackupTypeBadge = (type: string) => {
+  const variants = {
+    custom: "default",
+    directory: "secondary",
+    sql: "outline"
+  } as const;
+
+  return (
+    <Badge variant={variants[type as keyof typeof variants] || "default"}>
+      {getBackupTypeIcon(type)}
+      <span className="ml-1">{type.toUpperCase()}</span>
+    </Badge>
+  );
+};
+
+const getMainBackupIcon = (backup: BackupInfo) => {
+  // Use the first available format's icon
+  if (backup.formats.length > 0) {
+    return getBackupTypeIcon(backup.formats[0].type);
+  }
+  return <Database className="h-4 w-4" />;
+};
 
 interface CreateBackupDialogProps {
   open: boolean;
@@ -162,14 +199,26 @@ const RestoreBackupDialog: React.FC<RestoreBackupDialogProps> = ({ open, onOpenC
   const [dropExisting, setDropExisting] = useState(false);
   const [restoreData, setRestoreData] = useState(true);
   const [restoreSchema, setRestoreSchema] = useState(true);
+  const [selectedFormat, setSelectedFormat] = useState<BackupFormat | null>(null);
   const [progress, setProgress] = useState<RestoreProgress | null>(null);
 
+  // Set default format when backup changes
+  React.useEffect(() => {
+    if (backup && backup.formats.length > 0) {
+      // Prefer custom format, then sql, then directory
+      const preferredFormat = backup.formats.find(f => f.type === "custom") ||
+                             backup.formats.find(f => f.type === "sql") ||
+                             backup.formats[0];
+      setSelectedFormat(preferredFormat);
+    }
+  }, [backup]);
+
   const handleRestore = async () => {
-    if (!backup) return;
+    if (!backup || !selectedFormat) return;
 
     setLoading(true);
     try {
-      const response = await backupAPI.restoreBackup(backup.id, {
+      const response = await backupAPI.restoreBackup(selectedFormat.id, {
         targetDatabase: targetDatabase || undefined,
         dropExisting,
         restoreData,
@@ -206,6 +255,29 @@ const RestoreBackupDialog: React.FC<RestoreBackupDialogProps> = ({ open, onOpenC
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>This operation will modify your database. Make sure to backup current data if needed.</AlertDescription>
           </Alert>
+
+          <div>
+            <Label htmlFor="backup-format">Backup Format</Label>
+            <Select value={selectedFormat?.type || ""} onValueChange={(value) => {
+              const format = backup.formats.find(f => f.type === value);
+              if (format) setSelectedFormat(format);
+            }} disabled={loading}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select backup format" />
+              </SelectTrigger>
+              <SelectContent>
+                {backup.formats.map(format => (
+                  <SelectItem key={format.type} value={format.type}>
+                    <div className="flex items-center space-x-2">
+                      {getBackupTypeIcon(format.type)}
+                      <span>{format.type.toUpperCase()}</span>
+                      <span className="text-xs text-muted-foreground">({backupAPI.formatFileSize(format.size)})</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div>
             <Label htmlFor="target-db">Target Database (optional)</Label>
@@ -308,13 +380,13 @@ const DatabaseBackupManager: React.FC = () => {
     }
   };
 
-  const handleDownloadBackup = async (backup: BackupInfo) => {
+  const handleDownloadBackup = async (backup: BackupInfo, format: BackupFormat) => {
     try {
-      const blob = await backupAPI.downloadBackup(backup.id);
+      const blob = await backupAPI.downloadBackup(format.id);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${backup.name}.${backup.type === "sql" ? "sql" : backup.type === "custom" ? "custom" : "tar"}`;
+      a.download = `${backup.name}.${format.type === "sql" ? "sql" : format.type === "custom" ? "custom" : "zip"}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -324,33 +396,7 @@ const DatabaseBackupManager: React.FC = () => {
     }
   };
 
-  const getBackupTypeIcon = (type: string) => {
-    switch (type) {
-      case "custom":
-        return <Database className="h-4 w-4" />;
-      case "directory":
-        return <HardDrive className="h-4 w-4" />;
-      case "sql":
-        return <FileText className="h-4 w-4" />;
-      default:
-        return <Database className="h-4 w-4" />;
-    }
-  };
 
-  const getBackupTypeBadge = (type: string) => {
-    const variants = {
-      custom: "default",
-      directory: "secondary",
-      sql: "outline"
-    } as const;
-
-    return (
-      <Badge variant={variants[type as keyof typeof variants] || "default"}>
-        {getBackupTypeIcon(type)}
-        <span className="ml-1">{type.toUpperCase()}</span>
-      </Badge>
-    );
-  };
 
   if (loading) {
     return (
@@ -416,20 +462,30 @@ const DatabaseBackupManager: React.FC = () => {
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        {getBackupTypeIcon(backup.type)}
+                        {getMainBackupIcon(backup)}
                         <div>
                           <CardTitle className="text-lg">{backup.name}</CardTitle>
                           <CardDescription>Created {backupAPI.formatDate(backup.createdAt)}</CardDescription>
                         </div>
                       </div>
-                      {getBackupTypeBadge(backup.type)}
+                      <div className="flex items-center space-x-2">
+                        {backup.formats.map(format => (
+                          <div key={format.type}>
+                            {getBackupTypeBadge(format.type)}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                       <div>
-                        <p className="text-sm font-medium">Size</p>
-                        <p className="text-sm text-muted-foreground">{backupAPI.formatFileSize(backup.size)}</p>
+                        <p className="text-sm font-medium">Total Size</p>
+                        <p className="text-sm text-muted-foreground">{backupAPI.formatFileSize(backup.totalSize)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Formats</p>
+                        <p className="text-sm text-muted-foreground">{backup.formats.length} available</p>
                       </div>
                       {backup.metadata && (
                         <>
@@ -449,28 +505,50 @@ const DatabaseBackupManager: React.FC = () => {
                       )}
                     </div>
 
+                    {/* Format Details */}
+                    <div className="mb-4">
+                      <p className="text-sm font-medium mb-2">Available Formats:</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        {backup.formats.map(format => (
+                          <div key={format.type} className="flex items-center justify-between p-2 bg-muted rounded">
+                            <div className="flex items-center space-x-2">
+                              {getBackupTypeIcon(format.type)}
+                              <span className="text-sm font-medium">{format.type.toUpperCase()}</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">{backupAPI.formatFileSize(format.size)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     <Separator className="my-4" />
 
-                    <div className="flex items-center justify-end space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => handleDownloadBackup(backup)}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedBackup(backup);
-                          setRestoreDialogOpen(true);
-                        }}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Restore
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDeleteBackup(backup.id)}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </Button>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        {backup.formats.map(format => (
+                          <Button key={format.type} variant="outline" size="sm" onClick={() => handleDownloadBackup(backup, format)}>
+                            <Download className="h-4 w-4 mr-2" />
+                            {format.type.toUpperCase()}
+                          </Button>
+                        ))}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedBackup(backup);
+                            setRestoreDialogOpen(true);
+                          }}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Restore
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteBackup(backup.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

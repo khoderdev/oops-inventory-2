@@ -1,3 +1,4 @@
+import archiver from "archiver";
 import { exec } from "child_process";
 import express from "express";
 import fs from "fs/promises";
@@ -304,46 +305,72 @@ router.get("/list", async (req, res) => {
       const sqlFile = backupFiles.find(f => f.endsWith(".sql"));
       const dirFile = backupFiles.find(f => f === "backup_directory");
 
-      // Create entries for each backup type found
+      // Create a single backup entry with multiple formats
+      const availableFormats = [];
+      let primaryMetadata = null;
+      let totalSize = 0;
+      let createdAt = null;
+
       if (customFile) {
         const filePath = path.join(backupDir, customFile);
         const metadata = await getBackupMetadata(filePath, "custom");
-        backups.push({
-          id: `${dirName}_custom`,
-          name: `${dirName} (Custom)`,
+        availableFormats.push({
           type: "custom",
+          id: `${dirName}_custom`,
           path: filePath,
           size: metadata.size,
-          createdAt: metadata.createdAt,
-          metadata: metadata.metadata
+          filename: customFile
         });
+        totalSize += metadata.size;
+        if (!primaryMetadata) {
+          primaryMetadata = metadata.metadata;
+          createdAt = metadata.createdAt;
+        }
       }
 
       if (sqlFile) {
         const filePath = path.join(backupDir, sqlFile);
         const metadata = await getBackupMetadata(filePath, "sql");
-        backups.push({
-          id: `${dirName}_sql`,
-          name: `${dirName} (SQL)`,
+        availableFormats.push({
           type: "sql",
+          id: `${dirName}_sql`,
           path: filePath,
           size: metadata.size,
-          createdAt: metadata.createdAt,
-          metadata: metadata.metadata
+          filename: sqlFile
         });
+        totalSize += metadata.size;
+        if (!primaryMetadata) {
+          primaryMetadata = metadata.metadata;
+          createdAt = metadata.createdAt;
+        }
       }
 
       if (dirFile) {
         const dirPath = path.join(backupDir, dirFile);
         const metadata = await getBackupMetadata(dirPath, "directory");
-        backups.push({
-          id: `${dirName}_directory`,
-          name: `${dirName} (Directory)`,
+        availableFormats.push({
           type: "directory",
+          id: `${dirName}_directory`,
           path: dirPath,
           size: metadata.size,
-          createdAt: metadata.createdAt,
-          metadata: metadata.metadata
+          filename: "backup_directory"
+        });
+        totalSize += metadata.size;
+        if (!primaryMetadata) {
+          primaryMetadata = metadata.metadata;
+          createdAt = metadata.createdAt;
+        }
+      }
+
+      // Only add backup if at least one format is available
+      if (availableFormats.length > 0) {
+        backups.push({
+          id: dirName,
+          name: dirName,
+          formats: availableFormats,
+          totalSize: totalSize,
+          createdAt: createdAt,
+          metadata: primaryMetadata
         });
       }
     }
@@ -374,7 +401,15 @@ router.delete("/:backupId", async (req, res) => {
     const { backupId } = req.params;
 
     // Extract the directory name from the backup ID
-    const dirName = backupId.split("_").slice(0, -1).join("_");
+    // Handle both format-specific IDs (pgdump_2025-07-30_4-23-AM_custom) and directory IDs (pgdump_2025-07-30_4-23-AM)
+    let dirName;
+    if (backupId.endsWith('_custom') || backupId.endsWith('_sql') || backupId.endsWith('_directory')) {
+      // Format-specific ID - remove the format suffix
+      dirName = backupId.split("_").slice(0, -1).join("_");
+    } else {
+      // Directory ID - use as is
+      dirName = backupId;
+    }
     const backupDir = path.join(BACKUP_DIR, dirName);
 
     // Check if backup directory exists
@@ -437,9 +472,39 @@ router.get("/download/:backupId", async (req, res) => {
         break;
 
       case "directory":
-        // For directory backups, we'd need to create a tar/zip file
-        // For now, return an error
-        throw new Error("Directory backup download not implemented yet");
+        // For directory backups, create a ZIP file on-the-fly
+        fileName = `${dirName}.zip`;
+
+        // Set headers for ZIP download
+        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+        res.setHeader("Content-Type", "application/zip");
+
+        // Create archive and pipe to response
+        const archive = archiver("zip", {
+          zlib: { level: 9 } // Maximum compression
+        });
+
+        // Handle archive errors
+        archive.on("error", err => {
+          console.error("Archive error:", err);
+          if (!res.headersSent) {
+            res.status(500).json({
+              success: false,
+              message: "Failed to create archive",
+              error: err.message
+            });
+          }
+        });
+
+        // Pipe archive to response
+        archive.pipe(res);
+
+        // Add the entire backup directory to the archive
+        archive.directory(backupDir, false);
+
+        // Finalize the archive
+        await archive.finalize();
+        return; // Exit early since we've handled the response
 
       default:
         throw new Error("Invalid backup type");
