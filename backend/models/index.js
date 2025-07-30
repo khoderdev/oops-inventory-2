@@ -1,6 +1,7 @@
 import sequelize from "../config/database.js";
 import Assignment from "./Assignment.js";
 import AuditLog from "./AuditLog.js";
+import BackupSchedule from "./BackupSchedule.js";
 import DayOperation from "./dayOperation.js";
 import Material from "./materials.js";
 import { MenuItem, MenuItemIngredient } from "./menuItems.js";
@@ -13,6 +14,7 @@ import Session from "./Session.js";
 import StockEntry from "./StockEntry.js";
 // import StockEntryLog from "./StockEntryLog.js"; // Temporarily disabled due to syntax errors
 import StockEntryLogSimple from "./StockEntryLogSimple.js";
+import ScheduleExecution from "./ScheduleExecution.js";
 import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";

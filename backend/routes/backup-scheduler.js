@@ -1,0 +1,658 @@
+import { exec } from "child_process";
+import express from "express";
+import fs from "fs/promises";
+import cron from "node-cron";
+import path from "path";
+import { fileURLToPath } from "url";
+import { promisify } from "util";
+import { v4 as uuidv4 } from "uuid";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const router = express.Router();
+const execAsync = promisify(exec);
+
+// In-memory storage for schedules and executions
+// In production, this should be stored in a database
+let schedules = [];
+let executions = [];
+let schedulerStatus = {
+  isRunning: false,
+  nextScheduledRun: null,
+  activeSchedules: 0,
+  totalSchedules: 0,
+  lastError: null
+};
+
+// Active cron jobs
+const activeCronJobs = new Map();
+
+// Helper function to calculate next run time
+function calculateNextRun(schedule) {
+  const now = new Date();
+  const [hours, minutes] = schedule.time.split(":").map(Number);
+
+  let nextRun = new Date();
+  nextRun.setHours(hours, minutes, 0, 0);
+
+  switch (schedule.frequency) {
+    case "daily":
+      if (nextRun <= now) {
+        nextRun.setDate(nextRun.getDate() + 1);
+      }
+      break;
+
+    case "weekly":
+      const targetDay = schedule.dayOfWeek || 0;
+      const currentDay = nextRun.getDay();
+      let daysUntilTarget = targetDay - currentDay;
+
+      if (daysUntilTarget < 0 || (daysUntilTarget === 0 && nextRun <= now)) {
+        daysUntilTarget += 7;
+      }
+
+      nextRun.setDate(nextRun.getDate() + daysUntilTarget);
+      break;
+
+    case "monthly":
+      const targetDate = schedule.dayOfMonth || 1;
+      nextRun.setDate(targetDate);
+
+      if (nextRun <= now) {
+        nextRun.setMonth(nextRun.getMonth() + 1);
+        nextRun.setDate(targetDate);
+      }
+      break;
+  }
+
+  return nextRun;
+}
+
+// Helper function to create cron expression
+function createCronExpression(schedule) {
+  const [hours, minutes] = schedule.time.split(":").map(Number);
+
+  switch (schedule.frequency) {
+    case "daily":
+      return `${minutes} ${hours} * * *`;
+    case "weekly":
+      return `${minutes} ${hours} * * ${schedule.dayOfWeek || 0}`;
+    case "monthly":
+      return `${minutes} ${hours} ${schedule.dayOfMonth || 1} * *`;
+    default:
+      throw new Error(`Invalid frequency: ${schedule.frequency}`);
+  }
+}
+
+// Helper function to execute backup
+async function executeBackup(schedule) {
+  const executionId = uuidv4();
+  const execution = {
+    id: executionId,
+    scheduleId: schedule.id,
+    scheduleName: schedule.name,
+    startTime: new Date().toISOString(),
+    status: "running"
+  };
+
+  executions.unshift(execution);
+
+  // Keep only last 100 executions
+  if (executions.length > 100) {
+    executions = executions.slice(0, 100);
+  }
+
+  try {
+    console.log(`Starting scheduled backup: ${schedule.name}`);
+
+    // Create backup using the same logic as manual backups
+    const backupName = `scheduled_${schedule.name.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    const backupDir = path.join(__dirname, "../backups", backupName);
+
+    // Ensure backup directory exists
+    await fs.mkdir(backupDir, { recursive: true });
+
+    // Database connection details (should match your backup.js configuration)
+    const dbConfig = {
+      host: process.env.DB_HOST || "localhost",
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || "test_restore",
+      username: process.env.DB_USER || "postgres",
+      password: process.env.DB_PASSWORD || "password"
+    };
+
+    const pgDumpPath = process.env.PG_DUMP_PATH || "C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe";
+
+    // Build pg_dump command based on schedule settings
+    let command = `"${pgDumpPath}" -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d ${dbConfig.database}`;
+
+    // Add password via environment variable
+    const env = { ...process.env, PGPASSWORD: dbConfig.password };
+
+    // Configure backup options based on schedule
+    if (!schedule.includeData) {
+      command += " --schema-only";
+    } else if (!schedule.includeSchema) {
+      command += " --data-only";
+    }
+
+    // Execute backup based on type
+    let backupFile;
+    switch (schedule.backupType) {
+      case "custom":
+        backupFile = path.join(backupDir, "backup.custom");
+        command += ` --format=custom --file="${backupFile}"`;
+        break;
+      case "directory":
+        backupFile = backupDir;
+        command += ` --format=directory --file="${backupFile}"`;
+        break;
+      case "sql":
+        backupFile = path.join(backupDir, "backup.sql");
+        command += ` --file="${backupFile}"`;
+        break;
+    }
+
+    console.log(`Executing backup command for schedule: ${schedule.name}`);
+    await execAsync(command, { env });
+
+    // Get backup file size
+    let backupSize = 0;
+    try {
+      if (schedule.backupType === "directory") {
+        // Calculate directory size
+        const files = await fs.readdir(backupDir, { recursive: true });
+        for (const file of files) {
+          const filePath = path.join(backupDir, file);
+          const stats = await fs.stat(filePath);
+          if (stats.isFile()) {
+            backupSize += stats.size;
+          }
+        }
+      } else {
+        const stats = await fs.stat(backupFile);
+        backupSize = stats.size;
+      }
+    } catch (error) {
+      console.warn("Could not calculate backup size:", error.message);
+    }
+
+    // Update execution record
+    const completedExecution = executions.find(e => e.id === executionId);
+    if (completedExecution) {
+      completedExecution.endTime = new Date().toISOString();
+      completedExecution.status = "completed";
+      completedExecution.backupId = backupName;
+      completedExecution.duration = Math.floor((new Date(completedExecution.endTime) - new Date(completedExecution.startTime)) / 1000);
+    }
+
+    // Update schedule last run time
+    const scheduleIndex = schedules.findIndex(s => s.id === schedule.id);
+    if (scheduleIndex !== -1) {
+      schedules[scheduleIndex].lastRun = new Date().toISOString();
+      schedules[scheduleIndex].nextRun = calculateNextRun(schedules[scheduleIndex]).toISOString();
+    }
+
+    console.log(`Scheduled backup completed successfully: ${schedule.name}`);
+
+    // Clean up old backups based on retention policy
+    await cleanupOldBackups(schedule);
+  } catch (error) {
+    console.error(`Scheduled backup failed: ${schedule.name}`, error);
+
+    // Update execution record with error
+    const failedExecution = executions.find(e => e.id === executionId);
+    if (failedExecution) {
+      failedExecution.endTime = new Date().toISOString();
+      failedExecution.status = "failed";
+      failedExecution.error = error.message;
+      failedExecution.duration = Math.floor((new Date(failedExecution.endTime) - new Date(failedExecution.startTime)) / 1000);
+    }
+
+    // Update scheduler status with error
+    schedulerStatus.lastError = `${schedule.name}: ${error.message}`;
+  }
+}
+
+// Helper function to clean up old backups
+async function cleanupOldBackups(schedule) {
+  try {
+    const backupsDir = path.join(__dirname, "../backups");
+    const files = await fs.readdir(backupsDir);
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - schedule.retentionDays);
+
+    for (const file of files) {
+      if (file.startsWith(`scheduled_${schedule.name.replace(/[^a-zA-Z0-9]/g, "_")}`)) {
+        const filePath = path.join(backupsDir, file);
+        const stats = await fs.stat(filePath);
+
+        if (stats.mtime < cutoffDate) {
+          console.log(`Cleaning up old backup: ${file}`);
+          if (stats.isDirectory()) {
+            await fs.rmdir(filePath, { recursive: true });
+          } else {
+            await fs.unlink(filePath);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("Error during backup cleanup:", error.message);
+  }
+}
+
+// Helper function to start all active schedules
+function startScheduler() {
+  if (schedulerStatus.isRunning) {
+    return;
+  }
+
+  console.log("Starting backup scheduler...");
+  schedulerStatus.isRunning = true;
+  schedulerStatus.lastError = null;
+
+  // Start cron jobs for all enabled schedules
+  schedules.forEach(schedule => {
+    if (schedule.enabled && schedule.status === "active") {
+      startScheduleCronJob(schedule);
+    }
+  });
+
+  updateSchedulerStatus();
+  console.log("Backup scheduler started");
+}
+
+// Helper function to stop all schedules
+function stopScheduler() {
+  if (!schedulerStatus.isRunning) {
+    return;
+  }
+
+  console.log("Stopping backup scheduler...");
+  schedulerStatus.isRunning = false;
+
+  // Stop all cron jobs
+  activeCronJobs.forEach((job, scheduleId) => {
+    job.stop();
+    job.destroy();
+  });
+  activeCronJobs.clear();
+
+  updateSchedulerStatus();
+  console.log("Backup scheduler stopped");
+}
+
+// Helper function to start a cron job for a schedule
+function startScheduleCronJob(schedule) {
+  try {
+    const cronExpression = createCronExpression(schedule);
+    console.log(`Starting cron job for schedule: ${schedule.name} (${cronExpression})`);
+
+    const job = cron.schedule(
+      cronExpression,
+      () => {
+        executeBackup(schedule);
+      },
+      {
+        scheduled: false,
+        timezone: "Asia/Lebanon" // Adjust timezone as needed
+      }
+    );
+
+    job.start();
+    activeCronJobs.set(schedule.id, job);
+  } catch (error) {
+    console.error(`Failed to start cron job for schedule: ${schedule.name}`, error);
+    schedulerStatus.lastError = `Failed to start ${schedule.name}: ${error.message}`;
+  }
+}
+
+// Helper function to stop a cron job for a schedule
+function stopScheduleCronJob(scheduleId) {
+  const job = activeCronJobs.get(scheduleId);
+  if (job) {
+    job.stop();
+    job.destroy();
+    activeCronJobs.delete(scheduleId);
+  }
+}
+
+// Helper function to update scheduler status
+function updateSchedulerStatus() {
+  schedulerStatus.activeSchedules = schedules.filter(s => s.enabled && s.status === "active").length;
+  schedulerStatus.totalSchedules = schedules.length;
+
+  // Calculate next scheduled run
+  const nextRuns = schedules
+    .filter(s => s.enabled && s.status === "active")
+    .map(s => calculateNextRun(s))
+    .sort((a, b) => a - b);
+
+  schedulerStatus.nextScheduledRun = nextRuns.length > 0 ? nextRuns[0].toISOString() : null;
+}
+
+// Routes
+
+// Get all schedules
+router.get("/schedules", (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: schedules
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch schedules",
+      error: error.message
+    });
+  }
+});
+
+// Get single schedule
+router.get("/schedules/:id", (req, res) => {
+  try {
+    const schedule = schedules.find(s => s.id === req.params.id);
+    if (!schedule) {
+      return res.status(404).json({
+        success: false,
+        message: "Schedule not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: schedule
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch schedule",
+      error: error.message
+    });
+  }
+});
+
+// Create new schedule
+router.post("/schedules", (req, res) => {
+  try {
+    const { name, frequency, time, dayOfWeek, dayOfMonth, backupType, includeData, includeSchema, retentionDays } = req.body;
+
+    // Validation
+    if (!name || !frequency || !time || !backupType) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields"
+      });
+    }
+
+    const schedule = {
+      id: uuidv4(),
+      name,
+      enabled: true,
+      frequency,
+      time,
+      dayOfWeek,
+      dayOfMonth,
+      backupType,
+      includeData: includeData !== false,
+      includeSchema: includeSchema !== false,
+      retentionDays: retentionDays || 30,
+      status: "active",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Calculate next run time
+    schedule.nextRun = calculateNextRun(schedule).toISOString();
+
+    schedules.push(schedule);
+
+    // Start cron job if scheduler is running
+    if (schedulerStatus.isRunning && schedule.enabled) {
+      startScheduleCronJob(schedule);
+    }
+
+    updateSchedulerStatus();
+
+    res.json({
+      success: true,
+      data: schedule
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to create schedule",
+      error: error.message
+    });
+  }
+});
+
+// Update schedule
+router.put("/schedules/:id", (req, res) => {
+  try {
+    const scheduleIndex = schedules.findIndex(s => s.id === req.params.id);
+    if (scheduleIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Schedule not found"
+      });
+    }
+
+    const existingSchedule = schedules[scheduleIndex];
+    const updates = req.body;
+
+    // Stop existing cron job
+    stopScheduleCronJob(existingSchedule.id);
+
+    // Update schedule
+    const updatedSchedule = {
+      ...existingSchedule,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Recalculate next run time if timing changed
+    if (updates.frequency || updates.time || updates.dayOfWeek || updates.dayOfMonth) {
+      updatedSchedule.nextRun = calculateNextRun(updatedSchedule).toISOString();
+    }
+
+    schedules[scheduleIndex] = updatedSchedule;
+
+    // Start new cron job if scheduler is running and schedule is enabled
+    if (schedulerStatus.isRunning && updatedSchedule.enabled && updatedSchedule.status === "active") {
+      startScheduleCronJob(updatedSchedule);
+    }
+
+    updateSchedulerStatus();
+
+    res.json({
+      success: true,
+      data: updatedSchedule
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update schedule",
+      error: error.message
+    });
+  }
+});
+
+// Delete schedule
+router.delete("/schedules/:id", (req, res) => {
+  try {
+    const scheduleIndex = schedules.findIndex(s => s.id === req.params.id);
+    if (scheduleIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Schedule not found"
+      });
+    }
+
+    const schedule = schedules[scheduleIndex];
+
+    // Stop cron job
+    stopScheduleCronJob(schedule.id);
+
+    // Remove schedule
+    schedules.splice(scheduleIndex, 1);
+
+    updateSchedulerStatus();
+
+    res.json({
+      success: true,
+      message: "Schedule deleted successfully"
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete schedule",
+      error: error.message
+    });
+  }
+});
+
+// Get scheduler status
+router.get("/status", (req, res) => {
+  try {
+    updateSchedulerStatus();
+    res.json({
+      success: true,
+      data: schedulerStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch scheduler status",
+      error: error.message
+    });
+  }
+});
+
+// Start scheduler
+router.post("/start", (req, res) => {
+  try {
+    startScheduler();
+    res.json({
+      success: true,
+      message: "Scheduler started successfully"
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to start scheduler",
+      error: error.message
+    });
+  }
+});
+
+// Stop scheduler
+router.post("/stop", (req, res) => {
+  try {
+    stopScheduler();
+    res.json({
+      success: true,
+      message: "Scheduler stopped successfully"
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to stop scheduler",
+      error: error.message
+    });
+  }
+});
+
+// Run schedule now
+router.post("/schedules/:id/run", (req, res) => {
+  try {
+    const schedule = schedules.find(s => s.id === req.params.id);
+    if (!schedule) {
+      return res.status(404).json({
+        success: false,
+        message: "Schedule not found"
+      });
+    }
+
+    // Execute backup immediately
+    const executionId = uuidv4();
+    const execution = {
+      id: executionId,
+      scheduleId: schedule.id,
+      scheduleName: schedule.name,
+      startTime: new Date().toISOString(),
+      status: "running"
+    };
+
+    executions.unshift(execution);
+
+    // Execute backup asynchronously
+    executeBackup(schedule);
+
+    res.json({
+      success: true,
+      data: execution
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to run schedule",
+      error: error.message
+    });
+  }
+});
+
+// Get execution history
+router.get("/executions", (req, res) => {
+  try {
+    const { scheduleId, limit = 50 } = req.query;
+
+    let filteredExecutions = executions;
+    if (scheduleId) {
+      filteredExecutions = executions.filter(e => e.scheduleId === scheduleId);
+    }
+
+    const limitedExecutions = filteredExecutions.slice(0, parseInt(limit));
+
+    res.json({
+      success: true,
+      data: limitedExecutions
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch execution history",
+      error: error.message
+    });
+  }
+});
+
+// Get single execution
+router.get("/executions/:id", (req, res) => {
+  try {
+    const execution = executions.find(e => e.id === req.params.id);
+    if (!execution) {
+      return res.status(404).json({
+        success: false,
+        message: "Execution not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: execution
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch execution",
+      error: error.message
+    });
+  }
+});
+
+export default router;

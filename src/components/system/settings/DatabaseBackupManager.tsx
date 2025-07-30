@@ -14,7 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { backupAPI, BackupInfo, BackupFormat, BackupProgress, DatabaseInfo, RestoreProgress } from "@/api/backup.api";
+import { backupAPI, BackupFormat, BackupInfo, BackupProgress, DatabaseInfo, RestoreProgress } from "@/api/backup.api";
+import BackupScheduler from "@/components/system/settings/BackupScheduler";
 
 // Helper functions for backup type icons and badges
 const getBackupTypeIcon = (type: string) => {
@@ -206,9 +207,7 @@ const RestoreBackupDialog: React.FC<RestoreBackupDialogProps> = ({ open, onOpenC
   React.useEffect(() => {
     if (backup && backup.formats.length > 0) {
       // Prefer custom format, then sql, then directory
-      const preferredFormat = backup.formats.find(f => f.type === "custom") ||
-                             backup.formats.find(f => f.type === "sql") ||
-                             backup.formats[0];
+      const preferredFormat = backup.formats.find(f => f.type === "custom") || backup.formats.find(f => f.type === "sql") || backup.formats[0];
       setSelectedFormat(preferredFormat);
     }
   }, [backup]);
@@ -258,10 +257,14 @@ const RestoreBackupDialog: React.FC<RestoreBackupDialogProps> = ({ open, onOpenC
 
           <div>
             <Label htmlFor="backup-format">Backup Format</Label>
-            <Select value={selectedFormat?.type || ""} onValueChange={(value) => {
-              const format = backup.formats.find(f => f.type === value);
-              if (format) setSelectedFormat(format);
-            }} disabled={loading}>
+            <Select
+              value={selectedFormat?.type || ""}
+              onValueChange={value => {
+                const format = backup.formats.find(f => f.type === value);
+                if (format) setSelectedFormat(format);
+              }}
+              disabled={loading}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select backup format" />
               </SelectTrigger>
@@ -396,8 +399,6 @@ const DatabaseBackupManager: React.FC = () => {
     }
   };
 
-
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -470,9 +471,7 @@ const DatabaseBackupManager: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         {backup.formats.map(format => (
-                          <div key={format.type}>
-                            {getBackupTypeBadge(format.type)}
-                          </div>
+                          <div key={format.type}>{getBackupTypeBadge(format.type)}</div>
                         ))}
                       </div>
                     </div>
@@ -604,18 +603,7 @@ const DatabaseBackupManager: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="schedule" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Backup Schedule</CardTitle>
-              <CardDescription>Configure automatic backup scheduling</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>Backup scheduling feature is coming soon. For now, create backups manually.</AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
+          <BackupScheduler />
         </TabsContent>
       </Tabs>
 

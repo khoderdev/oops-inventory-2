@@ -5,6 +5,7 @@ import "./models/index.js";
 import assignmentsRoutes from "./routes/assignments.js";
 import authRoutes from "./routes/auth.js";
 import backupRoutes from "./routes/backup.js";
+import backupSchedulerRoutes from "./routes/backup-scheduler.js";
 import dayOperationsRoutes from "./routes/dayOperations.js";
 import logsRoutes from "./routes/logs.js";
 import materialRoutes from "./routes/materials.js";
@@ -47,6 +48,7 @@ app.use("/api/sales", salesRoutes);
 app.use("/api/day-operations", dayOperationsRoutes);
 app.use("/api/logs", logsRoutes);
 app.use("/api/backup", backupRoutes);
+app.use("/api/backup-scheduler", backupSchedulerRoutes);
 
 // Error handling middleware
 // IMPORTANT: app.use(errorHandler) should be the *last* middleware
