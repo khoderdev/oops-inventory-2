@@ -7,11 +7,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptData } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { AlertCircle, Calendar, Clock, Edit, Eye, Package, Printer, Search, ShoppingBag, Truck, User } from "lucide-react";
+import { AlertCircle, Calendar, Clock, Edit, Eye, Grid3X3, List, Package, Printer, Search, ShoppingBag, Truck, User } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
@@ -57,6 +59,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<OrderFilters>({});
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list'); // Default to list view
 
   // Fetch orders based on filters
   const fetchOrders = useCallback(async () => {
@@ -142,7 +145,12 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
       const responseData = response.data as { data?: Order } | Order;
       const orderData = "data" in responseData ? responseData.data : responseData;
 
-      setSelectedOrder(orderData);
+      if (!orderData) {
+        throw new Error('Order data not found');
+      }
+
+      // TypeScript now knows orderData is Order, not undefined
+      setSelectedOrder(orderData as Order);
       setShowOrderDetails(true);
     } catch (error) {
       console.error("Failed to fetch order details:", error);
@@ -161,26 +169,33 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
       try {
         const response = await ordersAPI.getOrder(orderSummary.id);
         // Handle nested response structure
-        const responseData = response.data as any;
-        const orderData = responseData.data || responseData;
+        const responseData = response.data as { data?: Order } | Order;
+        const orderData = "data" in responseData ? responseData.data : responseData;
+
+        if (!orderData) {
+          throw new Error('Order data not found');
+        }
+
+        // TypeScript now knows orderData is Order, not undefined
+        const typedOrderData = orderData as Order;
 
         // Convert order to receipt data
         const receiptData: ReceiptData = {
-          id: orderData.orderNumber || orderData.id,
-          date: new Date(orderData.createdAt).toLocaleDateString(),
-          time: new Date(orderData.createdAt).toLocaleTimeString(),
+          id: typedOrderData.orderNumber || typedOrderData.id,
+          date: new Date(typedOrderData.createdAt).toLocaleDateString(),
+          time: new Date(typedOrderData.createdAt).toLocaleTimeString(),
           cashier: user?.fullName || "POS System",
-          items: orderData.items.map(item => ({
+          items: typedOrderData.items.map(item => ({
             name: item.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             totalPrice: item.totalPrice,
             type: item.type
           })),
-          subtotal: orderData.subtotal,
-          tax: orderData.tax,
-          total: orderData.total,
-          paymentAmount: orderData.total,
+          subtotal: typedOrderData.subtotal,
+          tax: typedOrderData.tax,
+          total: typedOrderData.total,
+          paymentAmount: typedOrderData.total,
           change: 0,
           paymentMethod: "cash"
         };
@@ -231,11 +246,15 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
       try {
         const response = await ordersAPI.getOrder(orderSummary.id);
         // Handle nested response structure
-        const responseData = response.data as any;
-        const orderData = responseData.data || responseData;
+        const responseData = response.data as { data?: Order } | Order;
+        const orderData = "data" in responseData ? responseData.data : responseData;
+
+        if (!orderData) {
+          throw new Error('Order data not found');
+        }
 
         // Call the parent callback to load order into POS cart
-        onOrderSelect(orderData);
+        onOrderSelect(orderData as Order);
 
         // Close the orders dialog if onClose is provided
         if (onClose) {
@@ -301,53 +320,66 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Enhanced Filters Section */}
-        {/* <div className="flex-shrink-0 p-4 bg-red-50 border-b"> */}
-        <div className="flex flex-col xl:flex-row gap-4 py-2 px-4">
-          {/* Search Bar */}
-          <div className="min-w-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <Input placeholder="Search by order number, customer name, or ID..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-11 h-11 bg-white border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 text-base" />
+        <div className="flex-shrink-0 p-4 bg-white border-b">
+          <div className="flex flex-col xl:flex-row gap-4">
+            {/* Search Bar */}
+            <div className="flex-1 min-w-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Input placeholder="Search by order number, customer name, or ID..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-11 h-11 bg-white border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 text-base" />
+              </div>
             </div>
-          </div>
 
-          {/* Filter Controls */}
-          <div className="flex flex-wrap gap-3">
-            <Select value={filters.status || "all"} onValueChange={value => handleFilterChange("status", value === "all" ? undefined : value)}>
-              <SelectTrigger className="w-48 h-11 bg-white border-gray-200 focus:border-blue-400">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="preparing">Preparing</SelectItem>
-                <SelectItem value="ready">Ready</SelectItem>
-                <SelectItem value="served">Served</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Filter Controls */}
+            <div className="flex flex-wrap gap-3 items-center">
+              <Select value={filters.status || "all"} onValueChange={value => handleFilterChange("status", value === "all" ? undefined : value)}>
+                <SelectTrigger className="w-48 h-11 bg-white border-gray-200 focus:border-blue-400">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="preparing">Preparing</SelectItem>
+                  <SelectItem value="ready">Ready</SelectItem>
+                  <SelectItem value="served">Served</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={filters.orderType || "all"} onValueChange={value => handleFilterChange("orderType", value === "all" ? undefined : value)}>
-              <SelectTrigger className="w-48 h-11 bg-white border-gray-200 focus:border-blue-400">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="delivery">Delivery</SelectItem>
-                <SelectItem value="takeaway">Takeaway</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={filters.orderType || "all"} onValueChange={value => handleFilterChange("orderType", value === "all" ? undefined : value)}>
+                <SelectTrigger className="w-48 h-11 bg-white border-gray-200 focus:border-blue-400">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="delivery">Delivery</SelectItem>
+                  <SelectItem value="takeaway">Takeaway</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Button variant="outline" onClick={clearFilters} className="h-11 px-4 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300">
-              Clear Filters
-            </Button>
+              <Button variant="outline" onClick={clearFilters} className="h-11 px-4 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300">
+                Clear Filters
+              </Button>
+
+              {/* View Mode Toggle */}
+              <div className="border-l border-gray-200 pl-3 ml-3">
+                <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'list' | 'grid')} className="bg-gray-100 rounded-lg p-1">
+                  <ToggleGroupItem value="list" aria-label="List view" className="data-[state=on]:bg-white data-[state=on]:shadow-sm">
+                    <List className="h-4 w-4" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="grid" aria-label="Grid view" className="data-[state=on]:bg-white data-[state=on]:shadow-sm">
+                    <Grid3X3 className="h-4 w-4" />
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            </div>
           </div>
         </div>
         {/* </div> */}
 
-        {/* Orders Grid - Scrollable Content */}
+        {/* Orders Content - Scrollable */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="p-4">
@@ -371,7 +403,120 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                   <h3 className="text-lg font-medium mb-2">No orders found</h3>
                   <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No delivery or takeaway orders available at the moment"}</p>
                 </div>
+              ) : viewMode === 'list' ? (
+                /* List View */
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-semibold text-gray-900">Order</TableHead>
+                        <TableHead className="font-semibold text-gray-900">Customer</TableHead>
+                        <TableHead className="font-semibold text-gray-900">Type</TableHead>
+                        <TableHead className="font-semibold text-gray-900">Status</TableHead>
+                        <TableHead className="font-semibold text-gray-900">Date & Time</TableHead>
+                        <TableHead className="font-semibold text-gray-900 text-right">Total</TableHead>
+                        <TableHead className="font-semibold text-gray-900 text-center">Items</TableHead>
+                        <TableHead className="font-semibold text-gray-900 text-center">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orders.map(order => (
+                        <TableRow 
+                          key={order.id} 
+                          className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
+                          onClick={() => handleOrderSelect(order)}
+                        >
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-900">{order.orderNumber}</span>
+                              <span className="text-sm text-gray-500">#{String(order.id).slice(-8)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <User className="w-4 h-4 text-gray-400" />
+                              <span className="font-medium text-gray-900">
+                                {order.customerName || 'N/A'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              {ORDER_TYPE_ICONS[order.orderType]}
+                              <span className="capitalize font-medium text-gray-700">{order.orderType}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${ORDER_STATUS_COLORS[order.status]} font-semibold`}>
+                              {order.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col text-sm">
+                              <div className="flex items-center space-x-1 text-gray-900">
+                                <Calendar className="w-3 h-3" />
+                                <span>{formatDate(order.createdAt)}</span>
+                              </div>
+                              <div className="flex items-center space-x-1 text-gray-600">
+                                <Clock className="w-3 h-3" />
+                                <span>{formatTime(order.createdAt)}</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-lg font-bold text-green-600">
+                              {formatCurrency(order.total)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="font-medium">
+                              {order.itemCount || 0}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 hover:bg-blue-100"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleOrderSelect(order);
+                                }}
+                              >
+                                <Edit className="w-4 h-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 hover:bg-blue-100"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleViewOrderDetails(order);
+                                }}
+                              >
+                                <Eye className="w-4 h-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 hover:bg-blue-100"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handlePrintOrderReceipt(order);
+                                }}
+                              >
+                                <Printer className="w-4 h-4 text-blue-600" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               ) : (
+                /* Grid View */
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                   {orders.map(order => (
                     <Card key={order.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" onClick={() => handleOrderSelect(order)}>

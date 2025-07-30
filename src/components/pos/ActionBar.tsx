@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 // Action button configuration interface
 export interface ActionButtonConfig {
@@ -88,6 +89,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
 
   // Check if user has access to Back Office (Admin or Manager only)
   const canAccessBackOffice = hasRole(["admin", "manager"]);
+  const navigate = useNavigate();
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
@@ -122,7 +124,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         active: false,
         disabled: !canAccessBackOffice,
         requiredRole: ["admin", "manager"],
-        onClick: canAccessBackOffice ? () => (window.location.href = "/") : undefined
+        onClick: canAccessBackOffice ? () => navigate("/") : undefined
       }
     ];
     columns = 7;

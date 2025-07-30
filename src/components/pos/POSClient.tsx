@@ -1049,15 +1049,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
     } catch (error: unknown) {
       console.error("❌ Payment failed with error:", error);
-      console.error("❌ Error details:", {
-        message: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : "No stack trace",
-        fullError: error
-      });
-
       const errorMessage = error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object" && "data" in error.response && error.response.data && typeof error.response.data === "object" && "message" in error.response.data ? (error.response.data.message as string) : "Sale failed. Please try again.";
       showError(errorMessage);
-      // Close payment dialog even on error
       setShowPaymentDialog(false);
     } finally {
       setIsLoading(false);
