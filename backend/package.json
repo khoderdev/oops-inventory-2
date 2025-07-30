@@ -6,10 +6,7 @@
   "scripts": {
     "start": "nodemon index.js",
     "sync": "node ./config/sync.js",
-    "backup": "node scripts/workingBackup.js",
-    "backup:pgdump": "node scripts/pgDumpFixed.js",
-    "backup:custom": "node scripts/simpleBackup.js",
-    "backup:full": "node scripts/dbBackup.js"
+    "backup": "node scripts/pgDumpFixed.js"
   },
   "author": "",
   "license": "ISC",
