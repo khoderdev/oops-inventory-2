@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -89,6 +90,14 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
     }
   };
 
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Ensure time is in HH:MM format
+    if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value)) {
+      setFormData(prev => ({ ...prev, time: value }));
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -119,8 +128,41 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
             </div>
 
             <div>
-              <Label htmlFor="time">{formData.frequency === "daily" ? "Interval (Minutes)" : "Time"}</Label>
-              {formData.frequency === "daily" ? <Input id="interval" type="number" min="1" max="60" placeholder="1" value={formData.intervalMinutes || 1} onChange={e => setFormData(prev => ({ ...prev, intervalMinutes: parseInt(e.target.value) || 1 }))} disabled={loading} /> : <Input id="time" type="time" value={formData.time} onChange={e => setFormData(prev => ({ ...prev, time: e.target.value }))} disabled={loading} />}
+              {formData.frequency === "daily" ? (
+                <>
+                  <Label htmlFor="interval">Interval (Minutes)</Label>
+                  <Input
+                    id="interval"
+                    type="number"
+                    min="1"
+                    max="1440"
+                    placeholder="1"
+                    value={formData.intervalMinutes || 1}
+                    onChange={e => {
+                      const value = parseInt(e.target.value);
+                      if (!isNaN(value) && value >= 1 && value <= 1440) {
+                        setFormData(prev => ({ ...prev, intervalMinutes: value }));
+                      }
+                    }}
+                    disabled={loading}
+                  />
+                </>
+              ) : (
+                <>
+                  <Label htmlFor="time">Time</Label>
+                  <div className="relative">
+                    <Input
+                      id="time"
+                      type="time"
+                      value={formData.time}
+                      onChange={handleTimeChange}
+                      disabled={loading}
+                      className="pr-10" // Add padding for the clock icon
+                    />
+                    <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -147,7 +189,36 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
           {formData.frequency === "monthly" && (
             <div>
               <Label htmlFor="day-of-month">Day of Month</Label>
-              <Input id="day-of-month" type="number" min="1" max="31" value={formData.dayOfMonth || 1} onChange={e => setFormData(prev => ({ ...prev, dayOfMonth: parseInt(e.target.value) }))} disabled={loading} />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="relative">
+                    <Input
+                      id="day-of-month"
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={formData.dayOfMonth || 1}
+                      onChange={e => {
+                        const value = parseInt(e.target.value);
+                        if (!isNaN(value) && value >= 1 && value <= 31) {
+                          setFormData(prev => ({ ...prev, dayOfMonth: value }));
+                        }
+                      }}
+                      disabled={loading}
+                    />
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-2">
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                      <Button key={day} variant={formData.dayOfMonth === day ? "default" : "ghost"} size="sm" className="h-8 w-8 p-0" onClick={() => setFormData(prev => ({ ...prev, dayOfMonth: day }))}>
+                        {day}
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
@@ -167,7 +238,20 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
 
           <div>
             <Label htmlFor="retention">Retention (Days)</Label>
-            <Input id="retention" type="number" min="1" max="365" value={formData.retentionDays} onChange={e => setFormData(prev => ({ ...prev, retentionDays: parseInt(e.target.value) }))} disabled={loading} />
+            <Input
+              id="retention"
+              type="number"
+              min="1"
+              max="365"
+              value={formData.retentionDays}
+              onChange={e => {
+                const value = parseInt(e.target.value);
+                if (!isNaN(value) && value >= 1 && value <= 365) {
+                  setFormData(prev => ({ ...prev, retentionDays: value }));
+                }
+              }}
+              disabled={loading}
+            />
             <p className="text-xs text-muted-foreground mt-1">Backups older than this will be automatically deleted</p>
           </div>
 
