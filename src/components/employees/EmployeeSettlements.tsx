@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { approveSettlementAtom, createSettlementAtom, employeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom } from "@/store/employeeAtoms";
+import { approveSettlementAtom, createSettlementAtom, employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom, settlementStatsLoadingAtom } from "@/store/employeeAtoms";
 import type { CreateSettlementData, EmployeeSettlement, SettlementStatus } from "@/types/employee";
 import { useAtom } from "jotai";
 import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus } from "lucide-react";
@@ -34,23 +34,38 @@ const usageTypeColors = {
 };
 
 export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmployeeSelect }) => {
+  // Data atoms
   const [settlements] = useAtom(settlementsAtom);
-  const [loading] = useAtom(settlementsLoadingAtom);
-  const [filters, setFilters] = useAtom(settlementsFiltersAtom);
-  const [settlementStats] = useAtom(settlementStatsAtom);
   const [employees] = useAtom(employeesAtom);
+  const [settlementStats] = useAtom(settlementStatsAtom);
   const [selectedSettlement, setSelectedSettlement] = useAtom(selectedSettlementAtom);
+
+  // Loading states
+  const [loading] = useAtom(settlementsLoadingAtom);
+  const [statsLoading] = useAtom(settlementStatsLoadingAtom);
+  const [formLoading] = useAtom(settlementFormLoadingAtom);
+
+  // Filters
+  const [filters, setFilters] = useAtom(settlementsFiltersAtom);
+
+  // Action atoms
   const [, fetchSettlements] = useAtom(fetchSettlementsAtom);
+  const [, fetchEmployees] = useAtom(fetchEmployeesAtom);
   const [, fetchStats] = useAtom(fetchSettlementStatsAtom);
   const [, approveSettlement] = useAtom(approveSettlementAtom);
   const [, markAsPaid] = useAtom(markSettlementAsPaidAtom);
   const [, createSettlement] = useAtom(createSettlementAtom);
-  const [formLoading] = useAtom(settlementFormLoadingAtom);
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [settlementFormOpen, setSettlementFormOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | undefined>(undefined);
+
+  // Initial data loading
+  useEffect(() => {
+    fetchEmployees();
+    fetchStats();
+  }, [fetchEmployees, fetchStats]);
 
   // Load data when employee, year, or month changes
   useEffect(() => {
@@ -72,7 +87,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     };
 
     loadData();
-  }, [selectedEmployeeId, selectedYear, selectedMonth]);
+  }, [selectedEmployeeId, selectedYear, selectedMonth, fetchSettlements, fetchStats, setFilters]);
 
   const handleEmployeeChange = (employeeId: string) => {
     const id = employeeId === "all" ? null : parseInt(employeeId);
