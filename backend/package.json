@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon index.js",
-    "sync": "node ./config/sync.js"
+    "sync": "node ./config/sync.js",
+    "backup": "node scripts/workingBackup.js"
   },
   "author": "",
   "license": "ISC",
