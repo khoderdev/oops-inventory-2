@@ -60,15 +60,30 @@ try {
   }
   console.log(`   📊 Total estimated rows: ${totalRows}`);
   
-  // Create backup directory
-  const backupDir = path.join(__dirname, '..', 'backups');
-  if (!fs.existsSync(backupDir)) {
-    fs.mkdirSync(backupDir, { recursive: true });
+  // Create backup directory structure
+  const baseBackupDir = path.join(__dirname, '..', 'backups');
+  if (!fs.existsSync(baseBackupDir)) {
+    fs.mkdirSync(baseBackupDir, { recursive: true });
   }
   
-  // Generate backup filename
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const backupFile = path.join(backupDir, `complete_backup_${timestamp}.sql`);
+  // Generate backup folder and filename with readable format
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = now.getHours();
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  
+  const backupFolderName = `backup_${year}-${month}-${day}_${displayHours}-${minutes}-${ampm}`;
+  const backupDir = path.join(baseBackupDir, backupFolderName);
+  
+  // Create individual backup folder
+  fs.mkdirSync(backupDir, { recursive: true });
+  console.log(`📁 Created backup folder: ${backupFolderName}`);
+  
+  const backupFile = path.join(backupDir, 'backup.sql');
   
   console.log('🏗️  Generating backup SQL...');
   
@@ -320,19 +335,25 @@ try {
     }))
   };
   
-  const metadataFile = `${backupFile}.metadata.json`;
+  const metadataFile = path.join(backupDir, 'metadata.json');
   fs.writeFileSync(metadataFile, JSON.stringify(metadata, null, 2));
   
   // Create restore instructions
   const restoreInstructions = `# Database Restore Instructions
 
 ## Backup Information
-- **File**: ${path.basename(backupFile)}
+- **Folder**: ${backupFolderName}
+- **File**: backup.sql
 - **Created**: ${new Date().toISOString()}
 - **Database**: ${dbInfo[0].database_name}
 - **Size**: ${fileSizeMB} MB
 - **Tables**: ${tables.length}
 - **Rows**: ${totalRows}
+
+## Files in this backup:
+- **backup.sql** - Complete database backup
+- **metadata.json** - Database structure and statistics
+- **RESTORE.md** - This instruction file
 
 ## How to Restore
 
@@ -342,13 +363,14 @@ try {
 psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS inventory_db;"
 psql -h localhost -U postgres -c "CREATE DATABASE inventory_db;"
 
-# Restore from backup
-psql -h localhost -U postgres -d inventory_db -f "${path.basename(backupFile)}"
+# Restore from backup (run from the backup folder)
+psql -h localhost -U postgres -d inventory_db -f "backup.sql"
 \`\`\`
 
 ### Option 2: Restore to existing database (will overwrite data)
 \`\`\`bash
-psql -h localhost -U postgres -d inventory_db -f "${path.basename(backupFile)}"
+# Run from the backup folder
+psql -h localhost -U postgres -d inventory_db -f "backup.sql"
 \`\`\`
 
 ## Verification
@@ -368,7 +390,7 @@ ${tables.map(t => `SELECT '${t.table_name}' as table_name, count(*) as rows FROM
 - Verify sufficient disk space for restore
 `;
 
-  const instructionsFile = `${backupFile}.RESTORE.md`;
+  const instructionsFile = path.join(backupDir, 'RESTORE.md');
   fs.writeFileSync(instructionsFile, restoreInstructions);
   
   // Close database connection
@@ -376,14 +398,18 @@ ${tables.map(t => `SELECT '${t.table_name}' as table_name, count(*) as rows FROM
   
   console.log('\n🎉 Backup completed successfully!');
   console.log('=====================================');
-  console.log(`📁 Backup file: ${backupFile}`);
-  console.log(`📊 File size: ${fileSizeMB} MB`);
+  console.log(`📁 Backup folder: ${backupDir}`);
+  console.log(`📄 Main file: backup.sql (${fileSizeMB} MB)`);
   console.log(`📋 Tables backed up: ${tables.length}`);
   console.log(`📊 Total rows: ${totalRows}`);
-  console.log(`📄 Metadata: ${metadataFile}`);
-  console.log(`📖 Instructions: ${instructionsFile}`);
+  console.log('');
+  console.log('📦 Files created:');
+  console.log(`   📄 backup.sql - Main database backup`);
+  console.log(`   📊 metadata.json - Database statistics`);
+  console.log(`   📖 RESTORE.md - Restore instructions`);
   console.log('\n✅ Your complete database backup is ready!');
-  console.log('   You can now import this backup.sql file on any PostgreSQL server.');
+  console.log(`   Navigate to: ${backupFolderName}`);
+  console.log('   Run: psql -h localhost -U postgres -d inventory_db -f "backup.sql"');
   
 } catch (error) {
   console.error('\n❌ Backup failed!');
