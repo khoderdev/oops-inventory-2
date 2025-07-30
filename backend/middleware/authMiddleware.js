@@ -77,7 +77,20 @@ export const authenticate = async (req, res, next) => {
           "reports.read": true,
           "reports.export": true,
           "analytics.read": true,
-          "system.settings": true
+          "system.settings": true,
+          // Employee Management Permissions
+          "employee.create": true,
+          "employee.read": true,
+          "employee.update": true,
+          "employee.delete": true,
+          "employee.view_salary": true,
+          "employee.manage_salary": true,
+          "employee.usage.record": true,
+          "employee.usage.view": true,
+          "employee.settlement.create": true,
+          "employee.settlement.approve": true,
+          "employee.settlement.process": true,
+          "employee.settlement.view": true
         }),
         isLocked: () => false
       };
@@ -354,7 +367,7 @@ export const auditAction = (action, resource) => {
     res.json = function (data) {
       // Log successful actions, but skip logout actions to prevent duplicates
       // (logout is already logged explicitly in the auth controller with detailed session data)
-      if (res.statusCode >= 200 && res.statusCode < 300 && req.user && action !== 'logout') {
+      if (res.statusCode >= 200 && res.statusCode < 300 && req.user && action !== "logout") {
         AuditLog.logUserAction(req.user.id, action, resource, req.params.id || null, req.auditOldValues || null, req.auditNewValues || data, req).catch(error => {
           console.error("Error logging audit action:", error);
         });

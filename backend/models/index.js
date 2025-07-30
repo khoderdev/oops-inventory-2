@@ -3,18 +3,20 @@ import Assignment from "./Assignment.js";
 import AuditLog from "./AuditLog.js";
 import BackupSchedule from "./BackupSchedule.js";
 import DayOperation from "./dayOperation.js";
+import Employee from "./Employee.js";
+import EmployeeSettlement from "./EmployeeSettlement.js";
+import EmployeeUsage from "./EmployeeUsage.js";
 import Material from "./materials.js";
 import { MenuItem, MenuItemIngredient } from "./menuItems.js";
 import Order from "./Order.js";
 import OrderItem from "./OrderItem.js";
 import Sale from "./sale.js";
 import SaleMenuItem from "./SaleMenuItem.js";
+import ScheduleExecution from "./ScheduleExecution.js";
 import Section from "./sections.js";
 import Session from "./Session.js";
 import StockEntry from "./StockEntry.js";
-// import StockEntryLog from "./StockEntryLog.js"; // Temporarily disabled due to syntax errors
 import StockEntryLogSimple from "./StockEntryLogSimple.js";
-import ScheduleExecution from "./ScheduleExecution.js";
 import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";
@@ -381,4 +383,138 @@ StockEntryLogSimple.belongsTo(Material, {
 });
 */
 
-export { Assignment, AuditLog, DayOperation, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Sale, SaleMenuItem, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };
+// Employee Model Associations
+
+// User ↔ Employee (One-to-One)
+User.hasOne(Employee, {
+  foreignKey: "userId",
+  as: "employee",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+Employee.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Employee ↔ EmployeeUsage (One-to-Many)
+Employee.hasMany(EmployeeUsage, {
+  foreignKey: "employeeId",
+  as: "usages",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+EmployeeUsage.belongsTo(Employee, {
+  foreignKey: "employeeId",
+  as: "employee",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Employee ↔ EmployeeSettlement (One-to-Many)
+Employee.hasMany(EmployeeSettlement, {
+  foreignKey: "employeeId",
+  as: "settlements",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+EmployeeSettlement.belongsTo(Employee, {
+  foreignKey: "employeeId",
+  as: "employee",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// EmployeeUsage ↔ Material
+EmployeeUsage.belongsTo(Material, {
+  foreignKey: "materialId",
+  as: "material",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Material.hasMany(EmployeeUsage, {
+  foreignKey: "materialId",
+  as: "employeeUsages",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// EmployeeUsage ↔ MenuItem
+EmployeeUsage.belongsTo(MenuItem, {
+  foreignKey: "menuItemId",
+  as: "menuItem",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+MenuItem.hasMany(EmployeeUsage, {
+  foreignKey: "menuItemId",
+  as: "employeeUsages",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// EmployeeUsage ↔ StockEntry
+EmployeeUsage.belongsTo(StockEntry, {
+  foreignKey: "stockEntryId",
+  as: "stockEntry",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+StockEntry.hasMany(EmployeeUsage, {
+  foreignKey: "stockEntryId",
+  as: "employeeUsages",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// EmployeeUsage ↔ EmployeeSettlement
+EmployeeUsage.belongsTo(EmployeeSettlement, {
+  foreignKey: "settlementId",
+  as: "settlement",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+EmployeeSettlement.hasMany(EmployeeUsage, {
+  foreignKey: "settlementId",
+  as: "usageItems",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// User relationships for Employee management (createdBy/updatedBy)
+Employee.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "creator",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Employee.belongsTo(User, {
+  foreignKey: "updatedBy",
+  as: "updater",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+EmployeeUsage.belongsTo(User, {
+  foreignKey: "recordedBy",
+  as: "recorder",
+  onDelete: "RESTRICT",
+  onUpdate: "CASCADE"
+});
+
+EmployeeSettlement.belongsTo(User, {
+  foreignKey: "processedBy",
+  as: "processor",
+  onDelete: "RESTRICT",
+  onUpdate: "CASCADE"
+});
+EmployeeSettlement.belongsTo(User, {
+  foreignKey: "approvedBy",
+  as: "approver",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };

@@ -300,6 +300,20 @@ export const PERMISSIONS = {
   CUSTOMERS_LOYALTY: "customers.loyalty",
   CUSTOMERS_FEEDBACK: "customers.feedback",
 
+  // === EMPLOYEE MANAGEMENT ===
+  EMPLOYEE_CREATE: "employee.create",
+  EMPLOYEE_READ: "employee.read",
+  EMPLOYEE_UPDATE: "employee.update",
+  EMPLOYEE_DELETE: "employee.delete",
+  EMPLOYEE_VIEW_SALARY: "employee.viewSalary",
+  EMPLOYEE_MANAGE_SALARY: "employee.manageSalary",
+  EMPLOYEE_USAGE_RECORD: "employee.usageRecord",
+  EMPLOYEE_USAGE_VIEW: "employee.usageView",
+  EMPLOYEE_SETTLEMENT_CREATE: "employee.settlementCreate",
+  EMPLOYEE_SETTLEMENT_APPROVE: "employee.settlementApprove",
+  EMPLOYEE_SETTLEMENT_PROCESS: "employee.settlementProcess",
+  EMPLOYEE_SETTLEMENT_VIEW: "employee.settlementView",
+
   // === SUPPLIERS & PROCUREMENT ===
   SUPPLIERS_CREATE: "suppliers.create",
   SUPPLIERS_READ: "suppliers.read",

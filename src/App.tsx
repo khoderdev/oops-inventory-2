@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { EmployeeManagement } from "./components/employees";
 import { POSClientOrders } from "./components/pos/POSClientOrders";
 import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -526,6 +527,18 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     <ProtectedRoute requiredPermission={PERMISSIONS.FINANCE_EXPENSES}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Expense Tracking" description="Track and categorize business expenses" />
+                      </AuthenticatedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Employee Management */}
+                <Route
+                  path="/employees"
+                  element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_READ}>
+                      <AuthenticatedLayout>
+                        <EmployeeManagement />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }

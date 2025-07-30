@@ -315,6 +315,20 @@ User.prototype.getRolePermissions = function () {
       "audit.trails": true,
       "audit.reports": true,
 
+      // === EMPLOYEE MANAGEMENT ===
+      "employee.create": true,
+      "employee.read": true,
+      "employee.update": true,
+      "employee.delete": true,
+      "employee.viewSalary": true,
+      "employee.manageSalary": true,
+      "employee.usageRecord": true,
+      "employee.usageView": true,
+      "employee.settlementCreate": true,
+      "employee.settlementApprove": true,
+      "employee.settlementProcess": true,
+      "employee.settlementView": true,
+
       // === COMMUNICATION ===
       "communication.announcements": true,
       "communication.messages": true,
@@ -487,6 +501,20 @@ User.prototype.getRolePermissions = function () {
       "audit.trails": true,
       "audit.reports": true,
 
+      // === EMPLOYEE MANAGEMENT ===
+      "employee.create": true,
+      "employee.read": true,
+      "employee.update": true,
+      "employee.delete": false,
+      "employee.viewSalary": true,
+      "employee.manageSalary": false,
+      "employee.usageRecord": true,
+      "employee.usageView": true,
+      "employee.settlementCreate": true,
+      "employee.settlementApprove": false,
+      "employee.settlementProcess": false,
+      "employee.settlementView": true,
+
       // === COMMUNICATION ===
       "communication.announcements": true,
       "communication.messages": true,
@@ -602,6 +630,20 @@ User.prototype.getRolePermissions = function () {
       "customers.delete": false,
       "customers.loyalty": false,
       "customers.feedback": false,
+
+      // === EMPLOYEE MANAGEMENT ===
+      "employee.create": false,
+      "employee.read": false,
+      "employee.update": false,
+      "employee.delete": false,
+      "employee.viewSalary": false,
+      "employee.manageSalary": false,
+      "employee.usageRecord": false,
+      "employee.usageView": false,
+      "employee.settlementCreate": false,
+      "employee.settlementApprove": false,
+      "employee.settlementProcess": false,
+      "employee.settlementView": false,
 
       // === All Other Permissions ===
       "finance.viewCosts": false,

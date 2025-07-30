@@ -232,6 +232,30 @@ export const navigationItems: NavigationItem[] = [
     ]
   },
   {
+    label: "Employee Management",
+    icon: UserCheck,
+    children: [
+      {
+        label: "Employees",
+        href: "/employees",
+        icon: Users,
+        permission: PERMISSIONS.EMPLOYEE_READ
+      },
+      {
+        label: "Usage Tracking",
+        href: "/employees/usage",
+        icon: Activity,
+        permission: PERMISSIONS.EMPLOYEE_USAGE_VIEW
+      },
+      {
+        label: "Settlements",
+        href: "/employees/settlements",
+        icon: Calendar,
+        permission: PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW
+      }
+    ]
+  },
+  {
     label: "Customer & Suppliers",
     icon: Users,
     children: [
