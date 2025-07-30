@@ -139,7 +139,7 @@ export const getUsageHistory = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username", "employeeNumber"]
+              attributes: ["firstName", "lastName", "username"]
             }
           ]
         },

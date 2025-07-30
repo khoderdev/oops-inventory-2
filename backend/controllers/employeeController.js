@@ -4,12 +4,17 @@ import { AuditLog, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuIt
 // Get all employees
 export const getAllEmployees = async (req, res) => {
   try {
-    const { department, isActive = true, page = 1, limit = 50, search } = req.query;
+    const { department, isActive, page = 1, limit = 50, search } = req.query;
 
     const where = {};
 
     if (department) where.department = department;
-    if (isActive !== undefined) where.isActive = isActive === "true";
+    // Handle isActive parameter - default to true if not provided
+    if (isActive !== undefined) {
+      where.isActive = isActive === "true" || isActive === true;
+    } else {
+      where.isActive = true; // Default to active employees
+    }
 
     const userWhere = {};
     if (search) {
