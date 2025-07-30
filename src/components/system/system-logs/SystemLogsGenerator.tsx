@@ -15,8 +15,8 @@ import { format, isValid } from "date-fns";
 import { CalendarIcon, Database, Download, RotateCcw, TrendingUp, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ACTION_TYPE_OPTIONS, LOG_CONFIGS, LogType } from "./configs.tsx";
-import { generateActionTypeLogsReport, generateFailedOperationsReport, generateMaterialActivityLogsReport, generateRecentActivityReport, generateSearchLogsReport, generateStockEntryLogsReport, generateSummaryOverviewReport, generateTodayLogsReport, generateUserActivityLogsReport } from "./generationFunctions";
-import { LogsTable } from "./LogsTable";
+import { generateActionTypeLogsReport, generateFailedOperationsReport, generateMaterialActivityLogsReport, generateRecentActivityReport, generateSearchLogsReport, generateStockEntryLogsReport, generateSummaryOverviewReport, generateTodayLogsReport, generateUserActivityLogsReport } from "./generationFunctions.ts";
+import { LogsTable } from "./LogsTable.tsx";
 
 export interface SystemLogsGeneratorProps {
   className?: string;

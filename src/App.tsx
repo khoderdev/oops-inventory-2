@@ -11,6 +11,7 @@ import { AlertTriangle } from "lucide-react";
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { POSClientOrders } from "./components/pos/POSClientOrders";
+import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
 
 // Lazy load components for better performance
@@ -611,6 +612,16 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="System Settings" description="Configure system-wide settings and preferences" />
+                      </AuthenticatedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/system/backup"
+                  element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
+                      <AuthenticatedLayout>
+                        <DatabaseBackupManager />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }

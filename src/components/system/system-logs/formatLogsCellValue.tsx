@@ -1,6 +1,6 @@
-import { LogType } from "@/components/system-logs/configs";
-import { Badge } from "@/components/ui/badge";
+import { LogType } from "@/components/system/system-logs/configs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { format } from "date-fns";
 import { AlertTriangle, CheckCircle, Clock, Package, TrendingDown, TrendingUp, User, XCircle } from "lucide-react";
@@ -18,11 +18,7 @@ export function formatLogsCellValue(row: Record<string, unknown>, header: string
     try {
       const date = new Date(String(value));
       if (header === "Time") {
-        return (
-          <span className="font-mono text-sm text-gray-600 dark:text-gray-400">
-            {format(date, "HH:mm:ss")}
-          </span>
-        );
+        return <span className="font-mono text-sm text-gray-600 dark:text-gray-400">{format(date, "HH:mm:ss")}</span>;
       }
       return (
         <div className="flex flex-col">
@@ -48,7 +44,7 @@ export function formatLogsCellValue(row: Record<string, unknown>, header: string
     };
 
     const colorClass = actionColors[actionType] || "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300 dark:border-gray-800";
-    
+
     // Format action text for better readability
     const formatActionText = (action: string) => {
       return action
@@ -188,14 +184,12 @@ export function formatLogsCellValue(row: Record<string, unknown>, header: string
     // Check if we have both material and stock entry data
     const materialName = row["Material"] || row["materialName"] || value;
     const stockEntryId = row["Stock Entry"] || row["stockEntryId"] || row["stockEntry"];
-    
+
     return (
       <div className="flex items-center gap-3">
         <Package className="w-4 h-4 text-gray-400 flex-shrink-0" />
         <div className="flex flex-col min-w-0">
-          <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-            {String(materialName || "-")}
-          </span>
+          <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{String(materialName || "-")}</span>
           {stockEntryId && (
             <Badge variant="outline" className="font-mono text-xs w-fit mt-1 px-2 py-0.5 bg-gray-50 dark:bg-gray-800">
               #{String(stockEntryId)}
@@ -210,7 +204,7 @@ export function formatLogsCellValue(row: Record<string, unknown>, header: string
   if (header === "User") {
     const userName = String(value);
     const isSystem = userName === "System";
-    
+
     // Get user initials
     const getInitials = (name: string) => {
       if (name === "System") return "SY";
@@ -225,23 +219,11 @@ export function formatLogsCellValue(row: Record<string, unknown>, header: string
     return (
       <div className="flex items-center gap-3">
         <Avatar className="h-8 w-8">
-          <AvatarFallback className={`text-xs font-semibold ${
-            isSystem 
-              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300" 
-              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-          }`}>
-            {getInitials(userName)}
-          </AvatarFallback>
+          <AvatarFallback className={`text-xs font-semibold ${isSystem ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300" : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>{getInitials(userName)}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col">
-          <span className={`text-sm font-medium ${
-            isSystem ? "text-blue-600 dark:text-blue-400" : "text-gray-900 dark:text-gray-100"
-          }`}>
-            {userName}
-          </span>
-          {isSystem && (
-            <span className="text-xs text-blue-500 dark:text-blue-400">Automated</span>
-          )}
+          <span className={`text-sm font-medium ${isSystem ? "text-blue-600 dark:text-blue-400" : "text-gray-900 dark:text-gray-100"}`}>{userName}</span>
+          {isSystem && <span className="text-xs text-blue-500 dark:text-blue-400">Automated</span>}
         </div>
       </div>
     );

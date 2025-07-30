@@ -1,10 +1,10 @@
-import { LogType } from "@/components/system-logs/configs";
+import { LogType } from "@/components/system/system-logs/configs";
 import { cn } from "@/lib/utils";
 import { getLogsTableHeaders } from "@/utils/getLogsTableHeaders";
 import { Database, FileText } from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
-import { getColumnAlignment, getInitialWidth, getResponsiveColumnClasses } from "../analytics/columnFunctions";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { getColumnAlignment, getInitialWidth, getResponsiveColumnClasses } from "../../analytics/columnFunctions";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui/table";
 import { formatLogsCellValue } from "./formatLogsCellValue";
 
 export interface LogsTableProps {

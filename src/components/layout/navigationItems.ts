@@ -282,9 +282,16 @@ export const navigationItems: NavigationItem[] = [
         role: ["admin"]
       },
       {
+        label: "System Backup",
+        href: "/admin/system/backup",
+        icon: Database,
+        permission: PERMISSIONS.SYSTEM_SETTINGS,
+        role: ["admin"]
+      },
+      {
         label: "System Logs",
         href: "/admin/system-logs",
-        icon: Database,
+        icon: FileText,
         permission: PERMISSIONS.SYSTEM_LOGS
       },
       {

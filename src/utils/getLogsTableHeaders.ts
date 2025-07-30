@@ -1,4 +1,4 @@
-import { LogType } from "@/components/system-logs/configs";
+import { LogType } from "@/components/system/system-logs/configs";
 
 // Get table headers based on log type
 export function getLogsTableHeaders(logType: LogType): string[] {

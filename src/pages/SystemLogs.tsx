@@ -1,4 +1,4 @@
-import { SystemLogsGenerator } from "@/components/system-logs";
+import { SystemLogsGenerator } from "@/components/system/system-logs";
 import React from "react";
 
 const SystemLogs: React.FC = () => {
