@@ -1,3 +1,6 @@
+import { ordersAPI } from "@/api/orders.api";
+import { POSClientOrders } from "@/components/pos/POSClientOrders";
+import { POSClientSales } from "@/components/pos/POSClientSales";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,8 +9,6 @@ import { formatCurrency } from "@/utils/conversionLogic";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power, ShoppingCart, TrendingUp } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
-import { POSClientOrders } from "@/components/pos/POSClientOrders";
-import { ordersAPI } from "@/api/orders.api";
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout }) => {
   const { user, logout } = useAuth();
@@ -15,30 +16,48 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
+  const [showSalesDialog, setShowSalesDialog] = useState(false);
   const [ordersCount, setOrdersCount] = useState(0);
+  const [salesCount, setSalesCount] = useState(0);
 
   // Cached logo with preloading and fallback
-  const { logoSrc, isLoaded, error, isPreloaded } = useCachedLogo(LOGO_CONFIGS.MAIN_LOGO);
+  const { logoSrc, isLoaded } = useCachedLogo(LOGO_CONFIGS.MAIN_LOGO);
 
   // Fetch orders count
   const fetchOrdersCount = useCallback(async () => {
     try {
       const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
       console.log("Orders API response for count:", response);
-      
+
       // Handle nested response structure
       const responseData = response.data as { data?: { orderType: string }[] } | { orderType: string }[];
       const orders = Array.isArray(responseData) ? responseData : responseData?.data || [];
-      
+
       // Filter for delivery and takeaway orders (excluding table orders)
-      const deliveryTakeawayOrders = orders.filter(order => 
-        order.orderType === "delivery" || order.orderType === "takeaway"
-      );
-      
+      const deliveryTakeawayOrders = orders.filter(order => order.orderType === "delivery" || order.orderType === "takeaway");
+
       setOrdersCount(deliveryTakeawayOrders.length);
     } catch (error) {
       console.error("Failed to fetch orders count:", error);
       setOrdersCount(0);
+    }
+  }, []);
+
+  // Fetch sales count
+  const fetchSalesCount = useCallback(async () => {
+    try {
+      const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
+      console.log("Sales API response for count:", response);
+
+      // Handle nested response structure
+      const responseData = response.data as { data?: { orderType: string }[] } | { orderType: string }[];
+      const sales = Array.isArray(responseData) ? responseData : responseData?.data || [];
+
+      // Include all order types for sales count
+      setSalesCount(sales.length);
+    } catch (error) {
+      console.error("Failed to fetch sales count:", error);
+      setSalesCount(0);
     }
   }, []);
 
@@ -51,15 +70,20 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch orders count on component mount and periodically
+  // Fetch orders and sales count on component mount and periodically
   useEffect(() => {
     fetchOrdersCount();
-    
-    // Refresh orders count every 30 seconds
+    fetchSalesCount();
+
+    // Refresh counts every 30 seconds
     const ordersTimer = setInterval(fetchOrdersCount, 30000);
-    
-    return () => clearInterval(ordersTimer);
-  }, [fetchOrdersCount]);
+    const salesTimer = setInterval(fetchSalesCount, 30000);
+
+    return () => {
+      clearInterval(ordersTimer);
+      clearInterval(salesTimer);
+    };
+  }, [fetchOrdersCount, fetchSalesCount]);
 
   // Handle fullscreen toggle
   const toggleFullscreen = async () => {
@@ -149,23 +173,23 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
           <div className="relative flex items-center space-x-3 z-10 select-none">
             {/* Session Stats */}
             <div className="flex items-center space-x-2 select-none">
-              {/* Total Sales Card */}
-              <div className="group relative select-none">
+              {/* Total Sales Card - Clickable */}
+              <button 
+                onClick={() => setShowSalesDialog(true)}
+                className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95"
+              >
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
-                <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20">
+                <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
                   <TrendingUp className="w-4 h-4 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
                   <div className="flex items-center space-x-1">
                     <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Sales:</span>
-                    <span className="text-sm font-bold text-emerald-300 group-hover:text-emerald-200 transition-colors tabular-nums">{formatCurrency(isNaN(currentTotal) ? 0 : currentTotal)}</span>
+                    <span className="text-sm font-bold text-emerald-300 group-hover:text-emerald-200 transition-colors tabular-nums">{salesCount}</span>
                   </div>
                 </div>
-              </div>
+              </button>
 
               {/* Transactions Card - Clickable */}
-              <button 
-                onClick={() => setShowOrdersDialog(true)}
-                className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95"
-              >
+              <button onClick={() => setShowOrdersDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
                 <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
                   <ShoppingCart className="w-4 h-4 text-blue-300 group-hover:text-blue-200 transition-colors" />
@@ -214,6 +238,17 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
           console.log('Selected order:', order);
           // Handle order selection if needed
           setShowOrdersDialog(false);
+        }}
+      />
+
+      {/* Sales Dialog */}
+      <POSClientSales 
+        isOpen={showSalesDialog} 
+        onClose={() => setShowSalesDialog(false)}
+        onOrderSelect={(order) => {
+          console.log('Selected sale:', order);
+          // Handle sale selection if needed
+          setShowSalesDialog(false);
         }}
       />
 
