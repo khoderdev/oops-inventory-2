@@ -1,8 +1,8 @@
 // Employee Management Components
 export { EmployeeForm } from "./EmployeeForm";
-export { EmployeeManagement } from "./EmployeeManagement";
 export { EmployeeSelector } from "./EmployeeSelector";
-export { EmployeeSettlementView } from "./EmployeeSettlementView";
+export { EmployeeSettlementForm } from "./EmployeeSettlementForm";
+export { EmployeeSettlements } from "./EmployeeSettlements";
 export { EmployeeStatsCards } from "./EmployeeStatsCards";
 export { EmployeeTable } from "./EmployeeTable";
 export { EmployeeUsageView } from "./EmployeeUsageView";

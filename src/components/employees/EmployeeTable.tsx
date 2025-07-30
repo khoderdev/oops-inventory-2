@@ -5,11 +5,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { employeesFiltersAtom, employeesLoadingAtom, fetchEmployeesAtom } from "@/store/employeeAtoms";
+import { employeesFiltersAtom, employeesLoadingAtom, employeeStatsAtom, fetchEmployeesAtom, fetchEmployeeStatsAtom } from "@/store/employeeAtoms";
 import type { Employee, EmployeeDepartment } from "@/types/employee";
 import { useAtom } from "jotai";
-import { Calendar, Edit, MoreHorizontal, Search, Trash2, TrendingUp } from "lucide-react";
-import React from "react";
+import { Calendar, Edit, MoreHorizontal, Plus, Search, Trash2, TrendingUp } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { EmployeeForm } from "./EmployeeForm";
+import { EmployeeStatsCards } from "./EmployeeStatsCards";
 
 interface EmployeeTableProps {
   employees: Employee[];
@@ -34,27 +36,75 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
   const [filters, setFilters] = useAtom(employeesFiltersAtom);
   const [loading] = useAtom(employeesLoadingAtom);
   const [, fetchEmployees] = useAtom(fetchEmployeesAtom);
+  const [, fetchStats] = useAtom(fetchEmployeeStatsAtom);
+  const [employeeStats] = useAtom(employeeStatsAtom);
+
+  // Employee form state
+  const [employeeFormOpen, setEmployeeFormOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+
+  // Fetch employees data and stats on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Use current filters from atom state
+        await fetchEmployees();
+        await fetchStats();
+      } catch (error) {
+        console.error('Failed to load employee data:', error);
+      }
+    };
+    
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array to prevent infinite loops
 
   const handleSearchChange = (value: string) => {
-    setFilters({ ...filters, search: value || undefined });
+    const updatedFilters = { ...filters, search: value || undefined };
+    setFilters(updatedFilters);
     // Debounce the search
-    setTimeout(() => fetchEmployees(), 300);
+    setTimeout(() => fetchEmployees(updatedFilters), 300);
   };
 
   const handleDepartmentFilter = (department: string) => {
-    setFilters({
+    const updatedFilters = {
       ...filters,
       department: department === "all" ? undefined : (department as EmployeeDepartment)
-    });
-    fetchEmployees();
+    };
+    setFilters(updatedFilters);
+    fetchEmployees(updatedFilters);
   };
 
   const handleStatusFilter = (status: string) => {
-    setFilters({
+    const updatedFilters = {
       ...filters,
       isActive: status === "all" ? undefined : status === "active"
-    });
-    fetchEmployees();
+    };
+    setFilters(updatedFilters);
+    fetchEmployees(updatedFilters);
+  };
+
+  // Employee form handlers
+  const handleAddEmployee = () => {
+    setSelectedEmployee(null);
+    setFormMode("create");
+    setEmployeeFormOpen(true);
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setFormMode("edit");
+    setEmployeeFormOpen(true);
+    onEdit(employee); // Call the original onEdit prop
+  };
+
+  const handleFormClose = () => {
+    setEmployeeFormOpen(false);
+    setSelectedEmployee(null);
+    // Refresh data after form operations
+    fetchEmployees(filters);
+    fetchStats();
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {
@@ -74,6 +124,16 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
 
   return (
     <div className="space-y-4">
+      <EmployeeStatsCards stats={employeeStats} />
+      {/* Header with Add Button */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tight">Employees</h2>
+        <Button onClick={handleAddEmployee} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Add Employee
+        </Button>
+      </div>
+
       {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
@@ -205,7 +265,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => onEdit(employee)}>
+                        <DropdownMenuItem onClick={() => handleEditEmployee(employee)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit Employee
                         </DropdownMenuItem>
@@ -234,6 +294,14 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
       </div>
 
       {/* Pagination would go here if needed */}
+
+      {/* Employee Form Dialog */}
+      <EmployeeForm
+        open={employeeFormOpen}
+        onClose={handleFormClose}
+        employee={selectedEmployee}
+        mode={formMode}
+      />
     </div>
   );
 };

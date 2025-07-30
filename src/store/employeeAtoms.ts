@@ -1,4 +1,4 @@
-import type { CreateEmployeeData, Employee, EmployeeFilters, EmployeeSettlement, EmployeeStats, EmployeeUsage, MonthlyUsageSummary, PaymentMethod, SettlementFilters, SettlementPreview, SettlementStats, UpdateEmployeeData, UsageFilters, UsageStats } from "@/types/employee";
+import type { CreateEmployeeData, CreateSettlementData, Employee, EmployeeFilters, EmployeeSettlement, EmployeeStats, EmployeeUsage, MonthlyUsageSummary, PaymentMethod, SettlementFilters, SettlementPreview, SettlementStats, UpdateEmployeeData, UsageFilters, UsageStats } from "@/types/employee";
 import { atom } from "jotai";
 import { atomWithReset } from "jotai/utils";
 
@@ -203,53 +203,6 @@ export const settlementDateRangeAtom = atomWithReset<{ start: string; end: strin
 // ============================================================================
 
 // Fetch atoms for loading data
-export const fetchEmployeesAtom = atom(null, async (get, set, filters?: EmployeeFilters) => {
-  set(employeesLoadingAtom, true);
-  set(employeesErrorAtom, null);
-
-  try {
-    const { employeeAPI } = await import("@/api/employee.api");
-    const response = await employeeAPI.getEmployees(filters);
-
-    if (response.success) {
-      set(employeesAtom, response.data.employees);
-      set(employeesTotalAtom, response.data.pagination.total);
-      set(employeesPageAtom, response.data.pagination.page);
-      return response.data;
-    } else {
-      throw new Error(response.message || "Failed to fetch employees");
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch employees";
-    set(employeesErrorAtom, errorMessage);
-    throw error;
-  } finally {
-    set(employeesLoadingAtom, false);
-  }
-});
-
-export const fetchEmployeeStatsAtom = atom(null, async (get, set) => {
-  set(employeeStatsLoadingAtom, true);
-  set(employeesErrorAtom, null);
-
-  try {
-    const { employeeAPI } = await import("@/api/employee.api");
-    const response = await employeeAPI.getEmployeeStats();
-
-    if (response.success) {
-      set(employeeStatsAtom, response.data);
-      return response.data;
-    } else {
-      throw new Error(response.message || "Failed to fetch employee stats");
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch employee stats";
-    set(employeesErrorAtom, errorMessage);
-    throw error;
-  } finally {
-    set(employeeStatsLoadingAtom, false);
-  }
-});
 
 export const fetchSettlementsAtom = atom(null, async (get, set, filters?: SettlementFilters) => {
   set(settlementsLoadingAtom, true);
@@ -403,13 +356,13 @@ export const createEmployeeAtom = atom(null, async (get, set, employeeData: Crea
   try {
     const { employeeAPI } = await import("@/api/employee.api");
     const response = await employeeAPI.createEmployee(employeeData);
-    
+
     if (response.success) {
       // Add the new employee to the list
       const employees = get(employeesAtom);
       set(employeesAtom, [...employees, response.data]);
       set(employeesTotalAtom, get(employeesTotalAtom) + 1);
-      
+
       return response.data;
     } else {
       throw new Error(response.message || "Failed to create employee");
@@ -430,7 +383,7 @@ export const updateEmployeeAtom = atom(null, async (get, set, { id, data }: { id
   try {
     const { employeeAPI } = await import("@/api/employee.api");
     const response = await employeeAPI.updateEmployee(id, data);
-    
+
     if (response.success) {
       // Update the employee in the list
       const employees = get(employeesAtom);
@@ -499,39 +452,117 @@ export const recordUsageAtom = atom(null, async (get, set, usage: Omit<EmployeeU
 });
 
 // Settlement actions
-export const createSettlementAtom = atom(null, async (get, set, settlement: Omit<EmployeeSettlement, "id" | "createdAt" | "updatedAt">) => {
+
+// export const approveSettlementAtom = atom(null, async (get, set, { id, notes }: { id: number; notes?: string }) => {
+//   set(settlementsLoadingAtom, true);
+//   set(settlementsErrorAtom, null);
+
+//   try {
+//     // Update settlement status optimistically
+//     const settlements = get(settlementsAtom);
+//     const updatedSettlements = settlements.map(settlement => (settlement.id === id ? { ...settlement, status: "approved" as const, approvedAt: new Date().toISOString() } : settlement));
+//     set(settlementsAtom, updatedSettlements);
+
+//     return true;
+//   } catch (error) {
+//     set(settlementsErrorAtom, error instanceof Error ? error.message : "Failed to approve settlement");
+//     return false;
+//   } finally {
+//     set(settlementsLoadingAtom, false);
+//   }
+// });
+
+export const createSettlementAtom = atom(null, async (get, set, data: CreateSettlementData) => {
   set(settlementFormLoadingAtom, true);
   set(settlementsErrorAtom, null);
 
   try {
-    // This would be handled by the component using the API
-    return true;
+    const { employeeAPI } = await import("@/api/employee.api");
+    const response = await employeeAPI.createSettlement(data);
+
+    if (response.success) {
+      // Add new settlement to list
+      const settlements = get(settlementsAtom);
+      set(settlementsAtom, [response.data, ...settlements]);
+      set(settlementsTotalAtom, get(settlementsTotalAtom) + 1);
+
+      // Clear preview
+      set(settlementPreviewAtom, null);
+
+      return response.data;
+    } else {
+      throw new Error(response.message || "Failed to create settlement");
+    }
   } catch (error) {
-    set(settlementsErrorAtom, error instanceof Error ? error.message : "Failed to create settlement");
-    return false;
+    const errorMessage = error instanceof Error ? error.message : "Failed to create settlement";
+    set(settlementsErrorAtom, errorMessage);
+    throw error;
   } finally {
     set(settlementFormLoadingAtom, false);
   }
 });
 
-export const approveSettlementAtom = atom(null, async (get, set, { id, notes }: { id: number; notes?: string }) => {
-  set(settlementsLoadingAtom, true);
+export const previewSettlementAtom = atom(null, async (get, set, data: CreateSettlementData) => {
+  set(settlementPreviewLoadingAtom, true);
   set(settlementsErrorAtom, null);
 
   try {
-    // Update settlement status optimistically
-    const settlements = get(settlementsAtom);
-    const updatedSettlements = settlements.map(settlement => (settlement.id === id ? { ...settlement, status: "approved" as const, approvedAt: new Date().toISOString() } : settlement));
-    set(settlementsAtom, updatedSettlements);
+    const { employeeAPI } = await import("@/api/employee.api");
+    const response = await employeeAPI.previewSettlement(data);
 
-    return true;
+    if (response.success) {
+      set(settlementPreviewAtom, response.data);
+      return response.data;
+    } else {
+      throw new Error(response.message || "Failed to preview settlement");
+    }
   } catch (error) {
-    set(settlementsErrorAtom, error instanceof Error ? error.message : "Failed to approve settlement");
-    return false;
+    const errorMessage = error instanceof Error ? error.message : "Failed to preview settlement";
+    set(settlementsErrorAtom, errorMessage);
+    throw error;
   } finally {
-    set(settlementsLoadingAtom, false);
+    set(settlementPreviewLoadingAtom, false);
   }
 });
+
+export const approveSettlementAtom = atom(
+  null,
+  async (
+    get,
+    set,
+    {
+      id,
+      notes
+    }: {
+      id: number;
+      notes?: string;
+    }
+  ) => {
+    set(settlementsLoadingAtom, true);
+    set(settlementsErrorAtom, null);
+
+    try {
+      const { employeeAPI } = await import("@/api/employee.api");
+      const response = await employeeAPI.approveSettlement(id, notes);
+
+      if (response.success) {
+        // Update the settlement in the list
+        const settlements = get(settlementsAtom);
+        const updatedSettlements = settlements.map(settlement => (settlement.id === id ? response.data : settlement));
+        set(settlementsAtom, updatedSettlements);
+        return response.data;
+      } else {
+        throw new Error(response.message || "Failed to approve settlement");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to approve settlement";
+      set(settlementsErrorAtom, errorMessage);
+      throw error;
+    } finally {
+      set(settlementsLoadingAtom, false);
+    }
+  }
+);
 
 export const markSettlementAsPaidAtom = atom(
   null,
@@ -552,30 +583,84 @@ export const markSettlementAsPaidAtom = atom(
     set(settlementsErrorAtom, null);
 
     try {
-      // Update settlement status optimistically
-      const settlements = get(settlementsAtom);
-      const updatedSettlements = settlements.map(settlement =>
-        settlement.id === id
-          ? {
-              ...settlement,
-              status: "paid" as const,
-              paymentDate: new Date().toISOString(),
-              paymentMethod: paymentMethod,
-              paymentReference
-            }
-          : settlement
-      );
-      set(settlementsAtom, updatedSettlements);
+      const { employeeAPI } = await import("@/api/employee.api");
+      const response = await employeeAPI.markSettlementAsPaid(id, {
+        paymentMethod,
+        paymentReference
+      });
 
-      return true;
+      if (response.success) {
+        // Update the settlement in the list
+        const settlements = get(settlementsAtom);
+        const updatedSettlements = settlements.map(settlement => (settlement.id === id ? response.data : settlement));
+        set(settlementsAtom, updatedSettlements);
+        return response.data;
+      } else {
+        throw new Error(response.message || "Failed to mark settlement as paid");
+      }
     } catch (error) {
-      set(settlementsErrorAtom, error instanceof Error ? error.message : "Failed to mark settlement as paid");
-      return false;
+      const errorMessage = error instanceof Error ? error.message : "Failed to mark settlement as paid";
+      set(settlementsErrorAtom, errorMessage);
+      throw error;
     } finally {
       set(settlementsLoadingAtom, false);
     }
   }
 );
+
+// ============================================================================
+// FETCH ATOMS
+// ============================================================================
+
+// Fetch employees with filters
+export const fetchEmployeesAtom = atom(null, async (get, set, filters?: EmployeeFilters) => {
+  set(employeesLoadingAtom, true);
+  set(employeesErrorAtom, null);
+
+  try {
+    const { employeeAPI } = await import("@/api/employee.api");
+    const response = await employeeAPI.getEmployees(filters);
+
+    if (response.success) {
+      set(employeesAtom, response.data.employees);
+      set(employeesTotalAtom, response.data.pagination.total);
+      set(employeesPageAtom, response.data.pagination.page);
+      return response.data;
+    } else {
+      throw new Error(response.message || "Failed to fetch employees");
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch employees";
+    set(employeesErrorAtom, errorMessage);
+    throw error;
+  } finally {
+    set(employeesLoadingAtom, false);
+  }
+});
+
+// Fetch employee statistics
+export const fetchEmployeeStatsAtom = atom(null, async (get, set) => {
+  set(employeeStatsLoadingAtom, true);
+  set(employeesErrorAtom, null);
+
+  try {
+    const { employeeAPI } = await import("@/api/employee.api");
+    const response = await employeeAPI.getEmployeeStats();
+
+    if (response.success) {
+      set(employeeStatsAtom, response.data);
+      return response.data;
+    } else {
+      throw new Error(response.message || "Failed to fetch employee stats");
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch employee stats";
+    set(employeesErrorAtom, errorMessage);
+    throw error;
+  } finally {
+    set(employeeStatsLoadingAtom, false);
+  }
+});
 
 // ============================================================================
 // RESET ATOMS

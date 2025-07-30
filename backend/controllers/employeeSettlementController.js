@@ -78,6 +78,7 @@ export const createSettlement = async (req, res) => {
       totalDeduction: calculatedSettlement.totalDeduction,
       bonusAmount: parseFloat(bonusAmount),
       penaltyAmount: parseFloat(penaltyAmount),
+      finalSalary: calculatedSettlement.finalSalary + parseFloat(bonusAmount) - parseFloat(penaltyAmount),
       usageItemsCount: calculatedSettlement.usageItemsCount,
       processedBy: req.user.id,
       notes,
@@ -605,7 +606,7 @@ export const previewSettlement = async (req, res) => {
     const preview = {
       employee: {
         id: employee.id,
-        name: employee.getFullName(),
+        name: employee.user ? `${employee.user.firstName} ${employee.user.lastName}` : "Unknown Employee",
         employeeNumber: employee.employeeNumber,
         department: employee.department,
         discountPercentage: employee.discountPercentage

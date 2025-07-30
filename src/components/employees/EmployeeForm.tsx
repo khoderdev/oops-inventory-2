@@ -87,9 +87,12 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
     }
   }, [open, users.length]);
 
-  // Reset form when employee changes
+  // Reset form when dialog opens or mode/employee changes
   useEffect(() => {
+    if (!open) return; // Only reset when dialog is open
+
     if (employee && mode === "edit") {
+      // Edit mode: populate with employee data
       form.reset({
         userId: employee.userId,
         employeeNumber: employee.employeeNumber,
@@ -110,17 +113,28 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         notes: employee.notes || ""
       });
     } else if (mode === "create") {
+      // Create mode: reset to clean defaults
       form.reset({
         userId: 0,
+        employeeNumber: "",
         department: "service",
         position: "",
         baseSalary: 0,
         discountPercentage: 0,
         hireDate: new Date().toISOString().split("T")[0],
-        isActive: true
+        isActive: true,
+        emergencyContactName: "",
+        emergencyContactPhone: "",
+        emergencyContactRelationship: "",
+        emergencyContactAddress: "",
+        bankAccountNumber: "",
+        bankName: "",
+        bankRoutingNumber: "",
+        bankAccountHolderName: "",
+        notes: ""
       });
     }
-  }, [employee, mode, form]);
+  }, [open, employee, mode, form]);
 
   const onSubmit = async (data: EmployeeFormData) => {
     try {
@@ -160,6 +174,8 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         await updateEmployee({ id: employee.id, data: formattedData as UpdateEmployeeData });
       }
 
+      // Reset form after successful submission
+      form.reset();
       onClose();
     } catch (error) {
       console.error("Error saving employee:", error);
@@ -168,8 +184,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
 
   const availableUsers = users.filter(user => (mode === "create" ? true : user.id === employee?.userId || true));
 
+  // Handle dialog close - reset form to ensure clean state
+  const handleClose = () => {
+    form.reset();
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -508,7 +530,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
 
             {/* Form Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>

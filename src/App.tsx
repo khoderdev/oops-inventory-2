@@ -4,13 +4,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { usePermissions } from "@/hooks/usePermissions";
+import { employeeFormModeAtom, employeeFormOpenAtom, employeesAtom, selectedEmployeeAtom } from "@/store/employeeAtoms";
 import { PERMISSIONS } from "@/types/auth";
 import { InventoryManagementPanelProps } from "@/types/inventory";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useAtom } from "jotai";
 import { AlertTriangle } from "lucide-react";
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { EmployeeManagement } from "./components/employees";
+import { Employee, EmployeeSettlements, EmployeeTable, EmployeeUsageView } from "./components/employees";
 import { POSClientOrders } from "./components/pos/POSClientOrders";
 import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -153,10 +155,26 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode; fallbac
 export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps = {}) {
   const { materialsWithStock, stockEntries, sections, sectionAssignments, menuItems, fetchTabData, handleCreateMenuItem: storeCreateMenuItem, handleUpdateMenuItem: storeUpdateMenuItem, handleDeleteMenuItem: storeDeleteMenuItem } = useInventoryStore();
 
+  const [employees] = useAtom(employeesAtom);
+  const [, setFormOpen] = useAtom(employeeFormOpenAtom);
+  const [, setFormMode] = useAtom(employeeFormModeAtom);
+  const [, setSelectedEmployee] = useAtom(selectedEmployeeAtom);
+
   // Use store handlers or provided props (store handlers make actual API calls)
   const handleCreateMenuItem = onCreateMenuItem || storeCreateMenuItem;
   const handleUpdateMenuItem = onUpdateMenuItem || storeUpdateMenuItem;
   const handleDeleteMenuItem = onDeleteMenuItem || storeDeleteMenuItem;
+
+  const handleEditEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setFormMode("edit");
+    setFormOpen(true);
+  };
+
+  const handleDeleteEmployee = (employeeId: number) => {
+    // TODO: Implement delete employee functionality
+    console.log("Delete employee:", employeeId);
+  };
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -538,7 +556,29 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_READ}>
                       <AuthenticatedLayout>
-                        <EmployeeManagement />
+                        <EmployeeTable employees={employees} onEdit={handleEditEmployee} onDelete={handleDeleteEmployee} />
+                      </AuthenticatedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/employees/usage"
+                  element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_USAGE_VIEW}>
+                      <AuthenticatedLayout>
+                        <EmployeeUsageView />
+                      </AuthenticatedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/employees/settlements"
+                  element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
+                      <AuthenticatedLayout>
+                        <EmployeeSettlements />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }

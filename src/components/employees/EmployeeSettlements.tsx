@@ -5,13 +5,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { approveSettlementAtom, employeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom } from "@/store/employeeAtoms";
-import type { EmployeeSettlement, SettlementStatus } from "@/types/employee";
+import { approveSettlementAtom, createSettlementAtom, employeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom } from "@/store/employeeAtoms";
+import type { CreateSettlementData, EmployeeSettlement, SettlementStatus } from "@/types/employee";
 import { useAtom } from "jotai";
 import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { EmployeeSettlementForm } from "./EmployeeSettlementForm";
 
-interface EmployeeSettlementViewProps {
+interface EmployeeSettlementsProps {
   selectedEmployeeId?: number | null;
   onEmployeeSelect?: (employeeId: number | null) => void;
 }
@@ -26,7 +27,13 @@ const statusColors = {
 
 const statuses: SettlementStatus[] = ["pending", "approved", "paid", "disputed", "cancelled"];
 
-export const EmployeeSettlementView: React.FC<EmployeeSettlementViewProps> = ({ selectedEmployeeId, onEmployeeSelect }) => {
+const usageTypeColors = {
+  material: "bg-blue-100 text-blue-800",
+  menu_item: "bg-green-100 text-green-800",
+  stock_entry: "bg-orange-100 text-orange-800"
+};
+
+export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmployeeSelect }) => {
   const [settlements] = useAtom(settlementsAtom);
   const [loading] = useAtom(settlementsLoadingAtom);
   const [filters, setFilters] = useAtom(settlementsFiltersAtom);
@@ -37,36 +44,48 @@ export const EmployeeSettlementView: React.FC<EmployeeSettlementViewProps> = ({ 
   const [, fetchStats] = useAtom(fetchSettlementStatsAtom);
   const [, approveSettlement] = useAtom(approveSettlementAtom);
   const [, markAsPaid] = useAtom(markSettlementAsPaidAtom);
+  const [, createSettlement] = useAtom(createSettlementAtom);
+  const [formLoading] = useAtom(settlementFormLoadingAtom);
 
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [settlementFormOpen, setSettlementFormOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | undefined>(undefined);
 
-  // Load data when filters change
+  // Load data when employee, year, or month changes
   useEffect(() => {
-    const updatedFilters = {
-      ...filters,
-      employeeId: selectedEmployeeId || undefined,
-      year: selectedYear,
-      month: selectedMonth
+    const loadData = async () => {
+      // Create updated filters
+      const updatedFilters = {
+        ...filters,
+        employeeId: selectedEmployeeId || undefined,
+        year: selectedYear,
+        month: selectedMonth
+      };
+
+      // Update filters state
+      setFilters(updatedFilters);
+
+      // Fetch data with updated filters
+      await fetchSettlements(updatedFilters);
+      await fetchStats(updatedFilters);
     };
 
-    setFilters(updatedFilters);
-    fetchSettlements();
-    fetchStats();
-  }, [selectedEmployeeId, selectedYear, selectedMonth, filters, setFilters, fetchSettlements, fetchStats]);
+    loadData();
+  }, [selectedEmployeeId, selectedYear, selectedMonth]);
 
   const handleEmployeeChange = (employeeId: string) => {
     const id = employeeId === "all" ? null : parseInt(employeeId);
     onEmployeeSelect?.(id);
   };
 
-  const handleStatusFilter = (status: string) => {
-    setFilters({
+  const handleStatusFilter = async (status: string) => {
+    const updatedFilters = {
       ...filters,
       status: status === "all" ? undefined : (status as SettlementStatus)
-    });
-    fetchSettlements();
+    };
+    setFilters(updatedFilters);
+    await fetchSettlements(updatedFilters);
   };
 
   const handleViewDetails = (settlement: EmployeeSettlement) => {
@@ -76,8 +95,12 @@ export const EmployeeSettlementView: React.FC<EmployeeSettlementViewProps> = ({ 
 
   const handleApprove = async (settlementId: number) => {
     try {
-      await approveSettlement(settlementId);
-      fetchSettlements();
+      await approveSettlement({
+        id: settlementId,
+        notes: "Approved via settlement management interface"
+      });
+      // Refresh the settlements list
+      await fetchSettlements(filters);
     } catch (error) {
       console.error("Error approving settlement:", error);
     }
@@ -87,15 +110,30 @@ export const EmployeeSettlementView: React.FC<EmployeeSettlementViewProps> = ({ 
     try {
       await markAsPaid({
         id: settlementId,
-        data: {
-          paymentMethod: "bank_transfer",
-          paymentReference: `PAY-${settlementId}-${Date.now()}`
-        }
+        paymentMethod: "bank_transfer",
+        paymentReference: `PAY-${settlementId}-${Date.now()}`
       });
-      fetchSettlements();
+      // Refresh the settlements list
+      await fetchSettlements(filters);
     } catch (error) {
       console.error("Error marking as paid:", error);
     }
+  };
+
+  const handleCreateSettlement = async (data: CreateSettlementData) => {
+    try {
+      await createSettlement(data);
+      setSettlementFormOpen(false);
+      // Refresh data
+      await fetchSettlements(filters);
+      await fetchStats({ year: selectedYear, month: selectedMonth });
+    } catch (error) {
+      console.error("Error creating settlement:", error);
+    }
+  };
+
+  const handleCancelForm = () => {
+    setSettlementFormOpen(false);
   };
 
   const formatCurrency = (amount: number) => {
@@ -125,7 +163,7 @@ export const EmployeeSettlementView: React.FC<EmployeeSettlementViewProps> = ({ 
           <h2 className="text-2xl font-bold tracking-tight">Employee Settlements</h2>
           <p className="text-muted-foreground">Process monthly salary settlements and track payments</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setSettlementFormOpen(true)} disabled={formLoading}>
           <Plus className="h-4 w-4" />
           Create Settlement
         </Button>
@@ -485,6 +523,17 @@ export const EmployeeSettlementView: React.FC<EmployeeSettlementViewProps> = ({ 
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Settlement Form Dialog */}
+      <Dialog open={settlementFormOpen} onOpenChange={setSettlementFormOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Settlement</DialogTitle>
+            <DialogDescription>Generate a monthly settlement for an employee based on their usage and salary</DialogDescription>
+          </DialogHeader>
+          <EmployeeSettlementForm onSubmit={handleCreateSettlement} onCancel={handleCancelForm} isLoading={formLoading} employees={employees} />
         </DialogContent>
       </Dialog>
     </div>

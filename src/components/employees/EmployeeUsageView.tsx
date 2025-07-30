@@ -41,39 +41,49 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     to: new Date()
   });
 
-  // Load data when filters change
+  // Load data when employee or date range changes
   useEffect(() => {
-    const updatedFilters = {
-      ...filters,
-      employeeId: selectedEmployeeId || undefined,
-      startDate: dateRange.from.toISOString().split("T")[0],
-      endDate: dateRange.to.toISOString().split("T")[0]
+    const loadData = async () => {
+      // Create updated filters
+      const updatedFilters = {
+        ...filters,
+        employeeId: selectedEmployeeId || undefined,
+        startDate: dateRange.from.toISOString().split("T")[0],
+        endDate: dateRange.to.toISOString().split("T")[0]
+      };
+      
+      // Update filters state
+      setFilters(updatedFilters);
+      
+      // Fetch data with updated filters
+      await fetchUsages(updatedFilters);
+      await fetchStats(updatedFilters);
     };
-
-    setFilters(updatedFilters);
-    fetchUsages();
-    fetchStats();
-  }, [selectedEmployeeId, dateRange, filters, setFilters, fetchUsages, fetchStats]);
+    
+    loadData();
+  }, [selectedEmployeeId, dateRange]); // Removed setFilters, fetchUsages, fetchStats from deps
 
   const handleEmployeeChange = (employeeId: string) => {
     const id = employeeId === "all" ? null : parseInt(employeeId);
     onEmployeeSelect?.(id);
   };
 
-  const handleUsageTypeFilter = (usageType: string) => {
-    setFilters({
+  const handleUsageTypeFilter = async (usageType: string) => {
+    const updatedFilters = {
       ...filters,
       usageType: usageType === "all" ? undefined : (usageType as EmployeeUsageType)
-    });
-    fetchUsages();
+    };
+    setFilters(updatedFilters);
+    await fetchUsages(updatedFilters);
   };
 
-  const handleSettledFilter = (settled: string) => {
-    setFilters({
+  const handleSettledFilter = async (settled: string) => {
+    const updatedFilters = {
       ...filters,
       isSettled: settled === "all" ? undefined : settled === "settled"
-    });
-    fetchUsages();
+    };
+    setFilters(updatedFilters);
+    await fetchUsages(updatedFilters);
   };
 
   const formatCurrency = (amount: number) => {

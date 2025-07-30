@@ -176,7 +176,9 @@ const Employee = sequelize.define(
 
 // Instance methods
 Employee.prototype.getFullName = function() {
-  return this.User ? `${this.User.firstName} ${this.User.lastName}` : 'Unknown';
+  // Check both User (capital U) and user (lowercase u) for compatibility
+  const userData = this.User || this.user;
+  return userData ? `${userData.firstName} ${userData.lastName}` : 'Unknown Employee';
 };
 
 Employee.prototype.calculateMonthlyDeduction = function(usageAmount) {
