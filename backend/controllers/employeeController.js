@@ -148,9 +148,25 @@ export const createEmployee = async (req, res) => {
       });
     }
 
-    // Check if employee number is unique (if provided)
-    if (employeeNumber) {
-      const existingNumber = await Employee.findOne({ where: { employeeNumber } });
+    // Generate employee number if not provided
+    let finalEmployeeNumber = employeeNumber;
+    if (!finalEmployeeNumber) {
+      // Generate employee number based on department and timestamp
+      const departmentCode = department.substring(0, 3).toUpperCase();
+      const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+      finalEmployeeNumber = `${departmentCode}${timestamp}`;
+      
+      // Ensure uniqueness
+      let counter = 1;
+      let testNumber = finalEmployeeNumber;
+      while (await Employee.findOne({ where: { employeeNumber: testNumber } })) {
+        testNumber = `${finalEmployeeNumber}${counter.toString().padStart(2, '0')}`;
+        counter++;
+      }
+      finalEmployeeNumber = testNumber;
+    } else {
+      // Check if provided employee number is unique
+      const existingNumber = await Employee.findOne({ where: { employeeNumber: finalEmployeeNumber } });
       if (existingNumber) {
         return res.status(400).json({
           success: false,
@@ -161,7 +177,7 @@ export const createEmployee = async (req, res) => {
 
     const employee = await Employee.create({
       userId,
-      employeeNumber,
+      employeeNumber: finalEmployeeNumber,
       department,
       position,
       baseSalary: parseFloat(baseSalary),
