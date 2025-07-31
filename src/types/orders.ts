@@ -57,7 +57,7 @@ export interface Order {
   subtotal: number;
   tax: number;
   total: number;
-  discountType?: 'percentage' | 'fixed';
+  discountType?: "percentage" | "fixed";
   discountValue?: number;
   discountAmount?: number;
   discountReason?: string;
@@ -82,7 +82,7 @@ export interface CreateOrderData {
   items: Omit<OrderItem, "id">[];
   notes?: string;
   sectionId?: string;
-  discountType?: 'percentage' | 'fixed';
+  discountType?: "percentage" | "fixed";
   discountValue?: number;
   discountAmount?: number;
   discountReason?: string;
@@ -96,7 +96,7 @@ export interface UpdateOrderData {
   customerAddress?: string;
   notes?: string;
   estimatedReadyTime?: Date;
-  discountType?: 'percentage' | 'fixed';
+  discountType?: "percentage" | "fixed";
   discountValue?: number;
   discountAmount?: number;
   discountReason?: string;
@@ -113,6 +113,7 @@ export interface OrderSummary {
   itemCount: number;
   createdAt: Date;
   estimatedReadyTime?: Date;
+  discountAmount: number;
 }
 
 export interface DiscountDialogProps {
@@ -124,7 +125,7 @@ export interface DiscountDialogProps {
 }
 
 export interface DiscountData {
-  type: 'percentage' | 'fixed';
+  type: "percentage" | "fixed";
   value: number;
   reason?: string;
 }

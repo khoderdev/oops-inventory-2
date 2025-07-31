@@ -555,6 +555,7 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
                         <TableHead className="font-semibold text-gray-900">Type</TableHead>
                         <TableHead className="font-semibold text-gray-900">Status</TableHead>
                         <TableHead className="font-semibold text-gray-900">Date & Time</TableHead>
+                        <TableHead className="font-semibold text-gray-900 text-right">Discount</TableHead>
                         <TableHead className="font-semibold text-gray-900 text-right">Total</TableHead>
                         <TableHead className="font-semibold text-gray-900 text-center">Items</TableHead>
                       </TableRow>
@@ -595,6 +596,7 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
                               </div>
                             </div>
                           </TableCell>
+                          <TableCell className="text-right">{order.discountAmount && parseFloat(order.discountAmount.toString()) > 0 ? <span className="text-sm font-semibold text-orange-600">-{formatCurrency(parseFloat(order.discountAmount.toString()))}</span> : <span className="text-sm text-gray-400">-</span>}</TableCell>
                           <TableCell className="text-right">
                             <span className="text-lg font-bold text-green-600">{formatCurrency(order.total)}</span>
                           </TableCell>
@@ -648,6 +650,14 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
 
                       <CardContent className="pt-0">
                         <div className="space-y-4">
+                          {/* Discount Information (if applicable) */}
+                          {order.discountAmount && parseFloat(order.discountAmount.toString()) > 0 && (
+                            <div className="flex items-center justify-between p-2 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-100">
+                              <span className="text-sm font-medium text-orange-700">Discount Applied</span>
+                              <span className="text-sm font-bold text-orange-600">-{formatCurrency(parseFloat(order.discountAmount.toString()))}</span>
+                            </div>
+                          )}
+
                           <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
                             <span className="text-2xl font-bold text-green-600">{formatCurrency(order.total)}</span>
                             <Badge variant="outline" className="text-sm font-medium border-green-200 text-green-700">

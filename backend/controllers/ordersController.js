@@ -190,6 +190,10 @@ export const ordersController = {
         tableNumber: order.table?.number,
         customerName: order.customerName,
         itemCount: order.items?.length || 0,
+        discountType: order.discountType,
+        discountValue: order.discountValue,
+        discountAmount: order.discountAmount,
+        discountReason: order.discountReason,
         total: parseFloat(order.total),
         createdAt: order.createdAt,
         updatedAt: order.updatedAt
@@ -871,7 +875,7 @@ export const ordersController = {
         const tax = 0; // No tax for now
         const discountAmountValue = parseFloat(discountAmount) || 0;
         const total = Math.max(0, subtotal - discountAmountValue);
-        
+
         await order.update({ subtotal, tax, total });
       }
 

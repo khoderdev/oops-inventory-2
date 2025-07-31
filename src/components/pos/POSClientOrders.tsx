@@ -193,11 +193,16 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
             type: item.type
           })),
           subtotal: typedOrderData.subtotal,
-          tax: typedOrderData.tax,
+          tax: typedOrderData.tax || 0,
           total: typedOrderData.total,
           paymentAmount: typedOrderData.total,
           change: 0,
-          paymentMethod: "cash"
+          paymentMethod: "cash",
+          // Include discount information
+          discountType: typedOrderData.discountType || null,
+          discountValue: typedOrderData.discountValue || null,
+          discountAmount: typedOrderData.discountAmount || null,
+          discountReason: typedOrderData.discountReason || null
         };
 
         setReceiptData(receiptData);
@@ -776,6 +781,27 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                               <span className="text-gray-600">Subtotal</span>
                               <span className="font-semibold text-gray-900">{formatCurrency(selectedOrder.subtotal)}</span>
                             </div>
+
+                            {/* Discount (if applied) */}
+                            {selectedOrder.discountAmount && parseFloat(selectedOrder.discountAmount.toString()) > 0 && (
+                              <div className="flex justify-between items-center py-2 text-orange-600">
+                                <span>
+                                  Discount ({selectedOrder.discountType === "percentage" ? `${selectedOrder.discountValue}%` : formatCurrency(parseFloat(selectedOrder.discountValue?.toString() || "0"))})
+                                  {selectedOrder.discountReason && (
+                                    <span className="text-sm text-gray-500 block">{selectedOrder.discountReason}</span>
+                                  )}
+                                </span>
+                                <span className="font-semibold">-{formatCurrency(parseFloat(selectedOrder.discountAmount.toString()))}</span>
+                              </div>
+                            )}
+
+                            {/* Tax (if applicable) */}
+                            {selectedOrder.tax && selectedOrder.tax > 0 && (
+                              <div className="flex justify-between items-center py-2">
+                                <span className="text-gray-600">Tax</span>
+                                <span className="font-semibold text-gray-900">{formatCurrency(selectedOrder.tax)}</span>
+                              </div>
+                            )}
 
                             <div className="flex justify-between items-center py-3 border-t border-gray-200">
                               <span className="text-xl font-bold text-gray-900">Total</span>
