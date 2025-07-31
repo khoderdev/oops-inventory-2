@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import { createServer } from "http";
 import sequelize from "./config/database.js";
 import "./models/index.js";
 import assignmentsRoutes from "./routes/assignments.js";
@@ -15,9 +16,11 @@ import ordersRoutes from "./routes/orders.js";
 import posRoutes from "./routes/pos.js";
 import salesRoutes from "./routes/sales.js";
 import sectionRoutes from "./routes/sections.js";
+import sessionsRoutes from "./routes/sessions.js";
 import stockEntriesRoutes from "./routes/stockEntries.js";
 import tablesRoutes from "./routes/tables.js";
 import userRoutes from "./routes/users.js";
+import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
 import { seedTables } from "./utils/seedTables.js";
 
@@ -48,6 +51,7 @@ process.on('SIGINT', () => {
 const app = express();
 const PORT = process.env.PORT || 3000;
 let server = null;
+let httpServer = null;
 
 // Enhanced middleware with error handling
 app.use(cors({
@@ -135,6 +139,7 @@ app.use("/api/tables", tablesRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/day-operations", dayOperationsRoutes);
 app.use("/api/logs", logsRoutes);
+app.use("/api/sessions", sessionsRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/backup-scheduler", backupSchedulerRoutes);
 
@@ -147,6 +152,9 @@ const gracefulShutdown = async () => {
   console.log('🔄 Starting graceful shutdown...');
   
   try {
+    // Shutdown real-time session service
+    realTimeSessionService.shutdown();
+    
     // Close server
     if (server) {
       await new Promise((resolve) => {
@@ -265,11 +273,18 @@ const startServer = async () => {
       console.log('⚠️ Server starting in limited mode (no database)');
     }
     
+    // Create HTTP server
+    httpServer = createServer(app);
+    
+    // Initialize real-time session service with WebSocket
+    realTimeSessionService.initialize(httpServer);
+    
     // Start HTTP server
-    server = app.listen(PORT, () => {
+    server = httpServer.listen(PORT, () => {
       console.log('✅ =================================');
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔌 WebSocket server: ws://localhost:${PORT}`);
       console.log(`📊 Database: ${dbConnected ? 'Connected' : 'Disconnected'}`);
       console.log(`🕰️ Started at: ${new Date().toLocaleString()}`);
       console.log('✅ =================================');
@@ -283,8 +298,9 @@ const startServer = async () => {
         
         // Try alternative port
         const altPort = PORT + 1;
-        server = app.listen(altPort, () => {
+        server = httpServer.listen(altPort, () => {
           console.log(`🚀 Server running on alternative port ${altPort}`);
+          console.log(`🔌 WebSocket server: ws://localhost:${altPort}`);
         });
       } else {
         console.error('🚨 Server error:', error.message);

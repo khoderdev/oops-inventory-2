@@ -6,7 +6,7 @@ const authController = {
   // User login
   login: async (req, res, next) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, deviceId, deviceName, deviceType = "web" } = req.body;
 
       if (!username || !password) {
         const missingFields = [];
@@ -77,16 +77,29 @@ const authController = {
       // Reset login attempts on successful login
       await User.resetLoginAttempts(user.id);
 
-      // Create new session
+      // Create new session with device tracking
       const session = await Session.create({
         userId: user.id,
+        deviceId: deviceId || `${getClientIP(req)}-${Date.now()}`, // Generate deviceId if not provided
+        deviceName: deviceName || `${deviceType} Device`,
+        deviceType,
         ipAddress: getClientIP(req),
         userAgent: req.get("User-Agent"),
+        status: "online",
+        lastHeartbeat: new Date(),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
       });
 
+      // Update user's last login time
+      await user.update({ lastLogin: new Date() });
+
       // Log successful login
-      await AuditLog.logUserAction(user.id, "login", "authentication", null, null, { sessionId: session.id }, req);
+      await AuditLog.logUserAction(user.id, "login", "authentication", null, null, { 
+        sessionId: session.id,
+        deviceId: session.deviceId,
+        deviceName: session.deviceName,
+        deviceType: session.deviceType
+      }, req);
 
       // Return user info and token
       res.status(200).json({
@@ -99,8 +112,18 @@ const authController = {
           fullName: user.getFullName(),
           role: user.role,
           permissions: user.getRolePermissions(),
-          lastLogin: user.lastLogin
+          lastLogin: new Date()
         },
+        session: {
+          token: session.token,
+          sessionId: session.id,
+          deviceId: session.deviceId,
+          deviceName: session.deviceName,
+          deviceType: session.deviceType,
+          status: session.status,
+          expiresAt: session.expiresAt
+        },
+        // Legacy fields for backward compatibility
         token: session.token,
         expiresAt: session.expiresAt
       });
