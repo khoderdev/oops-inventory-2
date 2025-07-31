@@ -1121,6 +1121,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
       }
 
+      // Set receipt data for printing
+      setLastSaleData(receiptData);
+      
       clearCartWithAnimation();
       setPaymentAmount("");
       setShowPaymentDialog(false);
@@ -1508,6 +1511,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Receipt Printer Dialog */}
+        <ReceiptPrinter
+          isOpen={showReceiptDialog}
+          onClose={() => setShowReceiptDialog(false)}
+          receiptData={lastSaleData}
+          autoPrint={shouldAutoPrint}
+        />
       </div>
     </>
   );

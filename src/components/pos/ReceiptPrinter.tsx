@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ReceiptPrinterProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { Printer } from "lucide-react";
-import React, { useCallback, useEffect, useRef } from "react";
+import { AlertCircle, CheckCircle, Loader2, Printer } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   isOpen,
@@ -17,131 +17,359 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   }
 }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
+  const [dataValidated, setDataValidated] = useState(false);
+  const [lastPrintTime, setLastPrintTime] = useState<number | null>(null);
 
-  // Handle print function
-  const handlePrint = useCallback(() => {
-    if (receiptRef.current) {
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Receipt #${receiptData.id}</title>
-              <style>
-                body {
-                  font-family: 'Courier New', monospace;
-                  font-size: 11px;
-                  line-height: 1.2;
-                  margin: 0;
-                  padding: 0;
-                  background: white;
-                }
-                .receipt {
-                  width: 80mm;
-                  max-width: 80mm;
-                  margin: 0 auto;
-                  background: white;
-                  padding: 2mm;
-                  box-sizing: border-box;
-                }
-                .header {
-                  text-align: center;
-                  border-bottom: 2px solid #000;
-                  padding-bottom: 3mm;
-                  margin-bottom: 4mm;
-                }
-                .business-name {
-                  font-size: 14px;
-                  font-weight: bold;
-                  margin-bottom: 1mm;
-                }
-                .business-info {
-                  font-size: 9px;
-                  line-height: 1.1;
-                }
-                .receipt-info {
-                  margin-bottom: 4mm;
-                  font-size: 9px;
-                }
-                .items {
-                  margin-bottom: 4mm;
-                }
-                .item {
-                  margin-bottom: 2mm;
-                  font-size: 9px;
-                }
-                .item-line {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 1mm;
-                }
-                .item-details {
-                  font-size: 8px;
-                  color: #666;
-                  margin-left: 3mm;
-                }
-                .totals {
-                  border-top: 1px solid #000;
-                  padding-top: 3mm;
-                  margin-top: 4mm;
-                }
-                .total-line {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 1mm;
-                  font-size: 9px;
-                }
-                .final-total {
-                  font-weight: bold;
-                  font-size: 11px;
-                  border-top: 1px solid #000;
-                  padding-top: 2mm;
-                  margin-top: 2mm;
-                }
-                .payment-info {
-                  margin-top: 4mm;
-                  padding-top: 3mm;
-                  border-top: 1px dashed #0000004D;
-                  font-size: 9px;
-                }
-                .footer {
-                  text-align: center;
-                  margin-top: 5mm;
-                  padding-top: 3mm;
-                  border-top: 1px dashed #0000004D;
-                  font-size: 8px;
-                }
-                @media print {
-                  @page {
-                    size: 80mm auto;
-                    margin: 0;
-                  }
-                  body { 
-                    margin: 0; 
-                    padding: 0;
-                    -webkit-print-color-adjust: exact;
-                    color-adjust: exact;
-                  }
-                  .receipt { 
-                    border: none; 
-                    box-shadow: none;
-                    width: 80mm;
-                    padding: 2mm;
-                  }
-                }
-              </style>
-            </head>
-            <body>
-              ${receiptRef.current.innerHTML}
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-        printWindow.close();
+  // Validate receipt data integrity
+  const validationResult = useMemo(() => {
+    if (!receiptData) {
+      return { isValid: false, errors: ["No receipt data provided"] };
+    }
+
+    const errors: string[] = [];
+
+    // Validate required fields
+    if (!receiptData.id) errors.push("Missing receipt ID");
+    if (!receiptData.date) errors.push("Missing receipt date");
+    if (!receiptData.time) errors.push("Missing receipt time");
+    if (!receiptData.cashier) errors.push("Missing cashier information");
+    if (!receiptData.items || receiptData.items.length === 0) {
+      errors.push("No items in receipt");
+    }
+
+    // Validate financial calculations
+    if (receiptData.items && receiptData.items.length > 0) {
+      const calculatedSubtotal = receiptData.items.reduce((sum, item) => {
+        const itemTotal = item.quantity * item.unitPrice;
+        if (Math.abs(itemTotal - item.totalPrice) > 0.01) {
+          errors.push(`Item "${item.name}" has incorrect total price`);
+        }
+        return sum + item.totalPrice;
+      }, 0);
+
+      if (Math.abs(calculatedSubtotal - receiptData.subtotal) > 0.01) {
+        errors.push("Subtotal calculation mismatch");
+      }
+
+      // Validate discount calculations
+      if (receiptData.discountAmount && receiptData.discountAmount > 0) {
+        if (receiptData.discountType === "percentage" && receiptData.discountValue) {
+          const expectedDiscount = (receiptData.subtotal * receiptData.discountValue) / 100;
+          if (Math.abs(expectedDiscount - receiptData.discountAmount) > 0.01) {
+            errors.push("Percentage discount calculation mismatch");
+          }
+        } else if (receiptData.discountType === "fixed" && receiptData.discountValue) {
+          if (Math.abs(receiptData.discountValue - receiptData.discountAmount) > 0.01) {
+            errors.push("Fixed discount amount mismatch");
+          }
+        }
+      }
+
+      // Validate final total
+      const expectedTotal = receiptData.subtotal - (receiptData.discountAmount || 0) + receiptData.tax;
+      if (Math.abs(expectedTotal - receiptData.total) > 0.01) {
+        errors.push("Final total calculation mismatch");
+      }
+
+      // Validate payment calculations
+      const expectedChange = receiptData.paymentAmount - receiptData.total;
+      if (Math.abs(expectedChange - receiptData.change) > 0.01) {
+        errors.push("Change calculation mismatch");
       }
     }
+
+    return { isValid: errors.length === 0, errors };
   }, [receiptData]);
+
+  // Update validation state
+  useEffect(() => {
+    setDataValidated(validationResult.isValid);
+    if (!validationResult.isValid) {
+      console.warn("Receipt data validation failed:", validationResult.errors);
+    }
+  }, [validationResult]);
+
+  // Enhanced print function with error handling and validation
+  const handlePrint = useCallback(async () => {
+    // Prevent multiple simultaneous print operations
+    if (isPrinting) {
+      console.warn("Print operation already in progress");
+      return;
+    }
+
+    // Validate data before printing
+    if (!validationResult.isValid) {
+      setPrintError(`Cannot print: ${validationResult.errors.join(", ")}`);
+      return;
+    }
+
+    if (!receiptRef.current || !receiptData) {
+      setPrintError("Receipt data or reference not available");
+      return;
+    }
+
+    setIsPrinting(true);
+    setPrintError(null);
+
+    try {
+      // Create enhanced print window with better error handling
+      const printWindow = window.open("", "_blank", "width=800,height=600,scrollbars=yes,resizable=yes");
+
+      if (!printWindow) {
+        throw new Error("Failed to open print window. Please check popup blocker settings.");
+      }
+
+      // Enhanced print styles with better cross-browser compatibility
+      const printHTML = `
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Receipt #${receiptData.id} - ${businessInfo.name}</title>
+            <style>
+              * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+              }
+              
+              body {
+                font-family: 'Courier New', 'Lucida Console', monospace;
+                font-size: 12px;
+                line-height: 1.3;
+                margin: 0;
+                padding: 8px;
+                background: white;
+                color: #000;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+              }
+              
+              .receipt {
+                width: 80mm;
+                max-width: 80mm;
+                margin: 0 auto;
+                background: white;
+                padding: 3mm;
+                border: 1px solid #ddd;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+              }
+              
+              .header {
+                text-align: center;
+                border-bottom: 2px solid #000;
+                padding-bottom: 4mm;
+                margin-bottom: 5mm;
+              }
+              
+              .business-name {
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 2mm;
+                text-transform: uppercase;
+              }
+              
+              .business-info {
+                font-size: 10px;
+                line-height: 1.2;
+                color: #333;
+              }
+              
+              .receipt-info {
+                margin-bottom: 5mm;
+                font-size: 10px;
+                border-bottom: 1px dashed #ccc;
+                padding-bottom: 3mm;
+              }
+              
+              .info-line {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 1mm;
+              }
+              
+              .items {
+                margin-bottom: 5mm;
+              }
+              
+              .item {
+                margin-bottom: 3mm;
+                font-size: 10px;
+                border-bottom: 1px dotted #eee;
+                padding-bottom: 2mm;
+              }
+              
+              .item-line {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 1mm;
+                font-weight: bold;
+              }
+              
+              .item-name {
+                flex: 1;
+                margin-right: 5mm;
+              }
+              
+              .item-price {
+                font-weight: bold;
+                min-width: 15mm;
+                text-align: right;
+              }
+              
+              .item-details {
+                font-size: 9px;
+                color: #666;
+                margin-left: 2mm;
+                font-style: italic;
+              }
+              
+              .totals {
+                border-top: 2px solid #000;
+                padding-top: 4mm;
+                margin-top: 5mm;
+              }
+              
+              .total-line {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 2mm;
+                font-size: 10px;
+              }
+              
+              .discount-line {
+                color: #d97706;
+                font-weight: bold;
+              }
+              
+              .final-total {
+                font-weight: bold;
+                font-size: 14px;
+                border-top: 2px solid #000;
+                border-bottom: 2px solid #000;
+                padding: 3mm 0;
+                margin: 3mm 0;
+                background: #f9f9f9;
+              }
+              
+              .payment-info {
+                margin-top: 5mm;
+                padding-top: 4mm;
+                border-top: 1px dashed #666;
+                font-size: 10px;
+              }
+              
+              .footer {
+                text-align: center;
+                margin-top: 8mm;
+                padding-top: 4mm;
+                border-top: 1px dashed #666;
+                font-size: 9px;
+                color: #666;
+                font-style: italic;
+              }
+              
+              .validation-info {
+                font-size: 8px;
+                color: #999;
+                text-align: center;
+                margin-top: 5mm;
+                padding-top: 3mm;
+                border-top: 1px dotted #ccc;
+              }
+              
+              @media print {
+                @page {
+                  size: 80mm auto;
+                  margin: 0;
+                }
+                
+                body {
+                  margin: 0;
+                  padding: 0;
+                  -webkit-print-color-adjust: exact;
+                  color-adjust: exact;
+                }
+                
+                .receipt {
+                  border: none;
+                  box-shadow: none;
+                  width: 80mm;
+                  padding: 2mm;
+                  margin: 0;
+                }
+                
+                .validation-info {
+                  display: none;
+                }
+              }
+              
+              @media screen {
+                body {
+                  background: #f5f5f5;
+                  padding: 20px;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            ${receiptRef.current.innerHTML}
+            <div class="validation-info">
+              Printed: ${new Date().toLocaleString()}<br>
+              Data validated: ${dataValidated ? "Yes" : "No"}
+            </div>
+          </body>
+        </html>
+      `;
+
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+
+      // Wait for content to load before printing
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error("Print window load timeout"));
+        }, 10000);
+
+        printWindow.onload = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+
+        // Fallback for browsers that don't fire onload
+        setTimeout(() => {
+          clearTimeout(timeout);
+          resolve();
+        }, 1000);
+      });
+
+      // Trigger print dialog
+      printWindow.focus();
+      printWindow.print();
+
+      // Track successful print
+      setLastPrintTime(Date.now());
+
+      // Close print window after a delay
+      setTimeout(() => {
+        try {
+          if (!printWindow.closed) {
+            printWindow.close();
+          }
+        } catch (e) {
+          console.warn("Could not close print window:", e);
+        }
+      }, 2000);
+    } catch (error) {
+      console.error("Print operation failed:", error);
+      setPrintError(error instanceof Error ? error.message : "Print operation failed");
+    } finally {
+      setIsPrinting(false);
+    }
+  }, [receiptData, businessInfo, validationResult, isPrinting, dataValidated]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -161,54 +389,57 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     };
   }, [isOpen, handlePrint]);
 
-  // Auto-print when dialog opens if autoPrint is true
+  // Enhanced auto-print with validation and error handling
   useEffect(() => {
-    if (isOpen && autoPrint && receiptData && receiptRef.current) {
-      // Small delay to ensure the dialog is fully rendered
+    if (isOpen && autoPrint && receiptData && receiptRef.current && dataValidated && !isPrinting) {
+      // Ensure dialog is fully rendered and data is validated
       const timer = setTimeout(() => {
-        if (receiptRef.current) {
-          const printWindow = window.open("", "_blank");
-          if (printWindow) {
-            printWindow.document.write(`
-              <html>
-                <head>
-                  <title>Receipt #${receiptData.id}</title>
-                  <style>
-                    body {
-                      font-family: 'Courier New', monospace;
-                      font-size: 12px;
-                      line-height: 1.4;
-                      margin: 0;
-                      padding: 20px;
-                      background: white;
-                    }
-                    .receipt {
-                      max-width: 300px;
-                      margin: 0 auto;
-                      background: white;
-                      padding: 20px;
-                      border: 1px solid #ddd;
-                    }
-                    @media print {
-                      body { margin: 0; padding: 0; }
-                      .receipt { border: none; box-shadow: none; }
-                    }
-                  </style>
-                </head>
-                <body>
-                  ${receiptRef.current.innerHTML}
-                </body>
-              </html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
-            printWindow.close();
-          }
+        if (receiptRef.current && validationResult.isValid) {
+          handlePrint();
+        } else {
+          console.warn("Auto-print skipped due to validation errors:", validationResult.errors);
         }
-      }, 500);
+      }, 800); // Increased delay for better reliability
+
       return () => clearTimeout(timer);
     }
-  }, [isOpen, autoPrint, receiptData]);
+  }, [isOpen, autoPrint, receiptData, dataValidated, validationResult.isValid, validationResult.errors, handlePrint, isPrinting]);
+
+  // Clear errors when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setPrintError(null);
+      setIsPrinting(false);
+    }
+  }, [isOpen]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isOpen) return;
+
+      if (event.key === "Enter" || event.key === "p") {
+        event.preventDefault();
+        handlePrint();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      } else if (event.key === "r" && event.ctrlKey) {
+        event.preventDefault();
+        // Refresh/revalidate data
+        setDataValidated(false);
+        setTimeout(() => setDataValidated(validationResult.isValid), 100);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, handlePrint, onClose, validationResult.isValid]);
 
   if (!receiptData) return null;
 
@@ -272,20 +503,15 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
                 <span>Subtotal:</span>
                 <span>{formatCurrency(receiptData.subtotal)}</span>
               </div>
-              
+
               {/* Discount (if applied) */}
               {receiptData.discountAmount && receiptData.discountAmount > 0 && (
                 <div className="total-line flex justify-between" style={{ fontSize: "13.5px", marginBottom: "1.5mm", color: "#d97706" }}>
-                  <span>
-                    Discount ({receiptData.discountType === "percentage" 
-                      ? `${receiptData.discountValue}%` 
-                      : formatCurrency(receiptData.discountValue || 0)
-                    }):
-                  </span>
+                  <span>Discount ({receiptData.discountType === "percentage" ? `${receiptData.discountValue}%` : formatCurrency(receiptData.discountValue || 0)}):</span>
                   <span>-{formatCurrency(receiptData.discountAmount)}</span>
                 </div>
               )}
-              
+
               {/* Tax (if applicable) */}
               {receiptData.tax > 0 && (
                 <div className="total-line flex justify-between" style={{ fontSize: "13.5px", marginBottom: "1.5mm" }}>
@@ -293,7 +519,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
                   <span>{formatCurrency(receiptData.tax)}</span>
                 </div>
               )}
-              
+
               <div className="final-total flex justify-between font-bold border-t border-black/25" style={{ fontSize: "16.5px", paddingTop: "2mm", marginTop: "2mm" }}>
                 <span>TOTAL:</span>
                 <span>{formatCurrency(receiptData.total)}</span>
@@ -325,14 +551,67 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           </div>
         </div>
 
+        {/* Status and Error Display */}
+        {(printError || !dataValidated || isPrinting) && (
+          <div className="p-4 border-t bg-gray-50">
+            {printError && (
+              <div className="flex items-center gap-2 text-red-600 text-sm mb-2">
+                <AlertCircle className="w-4 h-4" />
+                <span>{printError}</span>
+              </div>
+            )}
+            {!dataValidated && !printError && (
+              <div className="flex items-center gap-2 text-amber-600 text-sm mb-2">
+                <AlertCircle className="w-4 h-4" />
+                <span>Data validation issues detected. Please verify receipt accuracy.</span>
+              </div>
+            )}
+            {isPrinting && (
+              <div className="flex items-center gap-2 text-blue-600 text-sm">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Preparing receipt for printing...</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Action Buttons */}
         <div className="flex p-0 gap-0 flex-shrink-0">
-          <Button className="flex-1 h-14 rounded-bl-lg rounded-br-none rounded-tl-none rounded-tr-none border-none bg-gray-200 hover:bg-red-500 hover:text-white text-gray-700 font-medium transition-colors" variant="ghost" onClick={onClose}>
-            Close
+          <Button className="flex-1 h-14 rounded-bl-lg rounded-br-none rounded-tl-none rounded-tr-none border-none bg-gray-200 hover:bg-red-500 hover:text-white text-gray-700 font-medium transition-colors" variant="ghost" onClick={onClose} disabled={isPrinting}>
+            {isPrinting ? "Printing..." : "Close"}
           </Button>
-          <Button className="flex-1 h-14 rounded-br-lg rounded-bl-none rounded-tr-none rounded-tl-none border-none bg-blue-600 hover:bg-blue-700 hover:text-white text-white font-medium transition-colors" onClick={handlePrint}>
-            <Printer className="w-5 h-5 mr-2" />
-            Print
+
+          <Button className="flex-1 h-14 rounded-br-lg rounded-bl-none rounded-tr-none rounded-tl-none border-none bg-blue-600 hover:bg-blue-700 hover:text-white text-white font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed" onClick={handlePrint} disabled={isPrinting || !dataValidated} title={!dataValidated ? "Cannot print: Data validation failed" : "Print receipt (Enter or P)"}>
+            {isPrinting ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Printing...
+              </>
+            ) : (
+              <>
+                <Printer className="w-5 h-5 mr-2" />
+                Print
+              </>
+            )}
           </Button>
+
+          {/* Validation Status Indicator */}
+          <div className="absolute top-2 right-2 flex items-center gap-1">
+            {dataValidated ? (
+              <div title="Data validated successfully">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+              </div>
+            ) : (
+              <div title="Data validation issues detected">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+              </div>
+            )}
+            {lastPrintTime && (
+              <span className="text-xs text-gray-500 ml-1" title={`Last printed: ${new Date(lastPrintTime).toLocaleString()}`}>
+                ✓
+              </span>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
