@@ -99,6 +99,13 @@ export interface EmployeeUsage {
     lastName: string;
     username: string;
   };
+  order?: {
+    id: number | null;
+    orderNumber: string | null;
+    status: string | null;
+    orderType: string | null;
+    total: string | number | null;
+  } | null;
   settlement?: EmployeeSettlement;
 }
 

@@ -177,47 +177,75 @@ export const getUsageHistory = async (req, res) => {
 
     // Fetch order information separately for usages that have posTransactionId
     let usagesWithOrders = usages;
-    
+
     if (usages.length > 0) {
       const usageIds = usages.map(usage => usage.id);
-      const orderData = await sequelize.query(
-        `SELECT 
-          eu.id as usage_id,
-          o.id as order_id,
-          o."orderNumber",
-          o.status,
-          o."orderType",
-          o.total
-        FROM "employee_usages" eu
-        LEFT JOIN "Orders" o ON eu."posTransactionId" = o."orderNumber"
-        WHERE eu.id IN (:usageIds) AND eu."posTransactionId" IS NOT NULL`,
-        {
-          replacements: { usageIds },
-          type: sequelize.QueryTypes.SELECT
-        }
-      );
+      try {
+        const orderData = await sequelize.query(
+          `SELECT 
+            eu.id as usage_id,
+            o.id as order_id,
+            o."orderNumber",
+            o.status,
+            o."orderType",
+            o.total
+          FROM "employee_usages" eu
+          LEFT JOIN "Orders" o ON (
+            eu."posTransactionId" = o."orderNumber" OR 
+            eu."posTransactionId" = CAST(o.id AS TEXT)
+          )
+          WHERE eu.id IN (:usageIds) AND eu."posTransactionId" IS NOT NULL`,
+          {
+            replacements: { usageIds },
+            type: sequelize.QueryTypes.SELECT
+          }
+        );
 
-      // Create a map of usage_id to order data
-      const orderMap = new Map();
-      orderData.forEach(row => {
-        orderMap.set(row.usage_id, {
-          id: row.order_id,
-          orderNumber: row.orderNumber,
-          status: row.status,
-          orderType: row.orderType,
-          total: row.total
+        // Create a map of usage_id to order data
+        const orderMap = new Map();
+        orderData.forEach(row => {
+          orderMap.set(row.usage_id, {
+            id: row.order_id,
+            orderNumber: row.orderNumber,
+            status: row.status,
+            orderType: row.orderType,
+            total: row.total
+          });
         });
-      });
 
-      // Add order information to usage records
-      usagesWithOrders = usages.map(usage => {
-        const usageJson = usage.toJSON();
-        const orderInfo = orderMap.get(usage.id);
-        if (orderInfo) {
-          usageJson.order = orderInfo;
-        }
-        return usageJson;
-      });
+        // Add order information to usage records
+        usagesWithOrders = usages.map(usage => {
+          const usageJson = usage.toJSON();
+          const orderInfo = orderMap.get(usage.id);
+          if (orderInfo) {
+            usageJson.order = orderInfo;
+          } else {
+            // Add null order info for consistency
+            usageJson.order = {
+              id: null,
+              orderNumber: null,
+              status: null,
+              orderType: null,
+              total: null
+            };
+          }
+          return usageJson;
+        });
+      } catch (error) {
+        console.error("Error fetching order data:", error);
+        // If order fetching fails, add null order info to all usages
+        usagesWithOrders = usages.map(usage => {
+          const usageJson = usage.toJSON();
+          usageJson.order = {
+            id: null,
+            orderNumber: null,
+            status: null,
+            orderType: null,
+            total: null
+          };
+          return usageJson;
+        });
+      }
     }
 
     await AuditLog.logUserAction(req.user.id, "view", "employee_usage", null, null, { count, filters: { employeeId, startDate, endDate, usageType, isSettled } }, req);

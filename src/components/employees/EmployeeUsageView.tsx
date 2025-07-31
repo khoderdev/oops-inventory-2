@@ -432,11 +432,41 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                         </TableCell>
                         <TableCell className="font-mono">{formatCurrency(order.totalCost)}</TableCell>
                         <TableCell className="font-mono text-green-600">{order.totalDiscountAmount > 0 ? formatCurrency(order.totalDiscountAmount) : "-"}</TableCell>
-                        <TableCell className="font-mono font-medium">{formatCurrency(order.finalCost)}</TableCell>
+                        <TableCell className="font-mono font-medium">
+                          {formatCurrency(order.finalCost)}
+                          {/* Show order total if available and different from final cost */}
+                          {order.items[0]?.order?.total && <div className="text-xs text-muted-foreground mt-1">Order: {formatCurrency(parseFloat(order.items[0].order.total.toString()))}</div>}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={order.isSettled ? "default" : "secondary"} className={order.isSettled ? "bg-green-100 text-green-800" : ""}>
-                            {order.isSettled ? "Settled" : "Pending"}
-                          </Badge>
+                          {/* Show order status if available, otherwise show settlement status */}
+                          {order.items[0]?.order?.status ? (
+                            <Badge
+                              variant={order.items[0].order.status === "paid" ? "default" : "secondary"}
+                              className={`${
+                                order.items[0].order.status === "paid"
+                                  ? "bg-green-100 text-green-800"
+                                  : order.items[0].order.status === "draft"
+                                    ? "bg-gray-100 text-gray-800"
+                                    : order.items[0].order.status === "confirmed"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : order.items[0].order.status === "preparing"
+                                        ? "bg-orange-100 text-orange-800"
+                                        : order.items[0].order.status === "ready"
+                                          ? "bg-purple-100 text-purple-800"
+                                          : order.items[0].order.status === "served"
+                                            ? "bg-indigo-100 text-indigo-800"
+                                            : order.items[0].order.status === "cancelled"
+                                              ? "bg-red-100 text-red-800"
+                                              : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {order.items[0].order.status.charAt(0).toUpperCase() + order.items[0].order.status.slice(1)}
+                            </Badge>
+                          ) : (
+                            <Badge variant={order.isSettled ? "default" : "secondary"} className={order.isSettled ? "bg-green-100 text-green-800" : ""}>
+                              {order.isSettled ? "Settled" : "Pending"}
+                            </Badge>
+                          )}
                         </TableCell>
                       </TableRow>
 
@@ -472,6 +502,39 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                                   </div>
                                 ))}
                               </div>
+                              {/* Order Information Section */}
+                              {order.items[0]?.order && (
+                                <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                                  <div className="text-sm font-medium text-blue-900 mb-2 flex items-center gap-2">
+                                    <ShoppingCart className="h-4 w-4" />
+                                    Order Information
+                                  </div>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                    <div>
+                                      <span className="text-muted-foreground">Order Number:</span>
+                                      <div className="font-medium">{order.items[0].order.orderNumber}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Type:</span>
+                                      <div className="font-medium capitalize">{order.items[0].order.orderType}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Status:</span>
+                                      <div>
+                                        <Badge variant={order.items[0].order.status === "paid" ? "default" : "secondary"} className={`text-xs ${order.items[0].order.status === "paid" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                                          {order.items[0].order.status}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Order Total:</span>
+                                      <div className="font-medium font-mono">{formatCurrency(parseFloat(order.items[0].order.total?.toString() || "0"))}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Notes Section */}
                               {order.items[0]?.notes && (
                                 <div className="mt-3 p-2 bg-background rounded border">
                                   <div className="text-sm font-medium text-muted-foreground mb-1">Notes:</div>

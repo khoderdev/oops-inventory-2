@@ -1361,7 +1361,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         console.log("👤 Recording employee usage...");
         try {
           const { recordEmployeeUsage } = await import("@/utils/employeeUsageUtils");
-          await recordEmployeeUsage(selectedEmployee, cart, saleId);
+          // Use orderNumber as posTransactionId instead of saleId (order ID)
+          const posTransactionId = order.orderNumber || saleId;
+          console.log("📝 Using posTransactionId:", posTransactionId, "(orderNumber:", order.orderNumber, ", saleId:", saleId, ")");
+          await recordEmployeeUsage(selectedEmployee, cart, posTransactionId);
           console.log("✅ Employee usage recorded successfully");
         } catch (error) {
           console.log("⚠️ Employee usage recording error (non-critical):", error);
