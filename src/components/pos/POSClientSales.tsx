@@ -12,8 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptData } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { Document, Page, PDFDownloadLink, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { AlertCircle, Calendar, Clock, Download, Grid3X3, List, Package, Search, ShoppingBag, TrendingUp, Truck, User } from "lucide-react";
+import { Document, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
+import { AlertCircle, Calendar, Clock, Grid3X3, List, Package, Printer, Search, ShoppingBag, TrendingUp, Truck, User } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
@@ -55,6 +55,7 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [isPrintingReport, setIsPrintingReport] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -212,7 +213,6 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
       color: "#059669"
     },
     table: {
-      display: "table",
       width: "auto",
       borderStyle: "solid",
       borderWidth: 1,
@@ -411,6 +411,56 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
         </Page>
       </Document>
     );
+  };
+
+  const handlePrintSalesReport = async () => {
+    setIsPrintingReport(true);
+    try {
+      // Generate PDF blob
+      const blob = await pdf(<SalesReportPDF />).toBlob();
+
+      // Create object URL for the blob
+      const url = URL.createObjectURL(blob);
+
+      // Create an iframe to load the PDF and trigger print
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "absolute";
+      iframe.style.top = "-10000px";
+      iframe.style.left = "-10000px";
+      iframe.style.width = "1px";
+      iframe.style.height = "1px";
+      iframe.src = url;
+
+      document.body.appendChild(iframe);
+
+      iframe.onload = () => {
+        // Small delay to ensure PDF is fully loaded
+        setTimeout(() => {
+          // Trigger print dialog
+          iframe.contentWindow?.print();
+
+          // Clean up after user has time to print (extended delay)
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+            URL.revokeObjectURL(url);
+          }, 20000); // 20 seconds to allow user to complete printing
+        }, 500);
+      };
+
+      // Fallback cleanup in case onload doesn't fire
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+        URL.revokeObjectURL(url);
+      }, 15000); // 15 seconds total fallback
+    } catch (error) {
+      console.error("Error printing sales report:", error);
+    } finally {
+      setIsPrintingReport(false);
+    }
   };
 
   const isDialog = isOpen !== undefined;
@@ -633,23 +683,19 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
             </div>
 
             <div className="flex items-center space-x-3">
-              <PDFDownloadLink document={<SalesReportPDF />} fileName={`sales-report-${new Date().toISOString().split("T")[0]}.pdf`} className={`inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 ${sales.length === 0 ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`} style={{ textDecoration: "none" }}>
-                {({ blob, url, loading, error }) => (
+              <button onClick={handlePrintSalesReport} disabled={sales.length === 0 || isPrintingReport} className={`inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 ${sales.length === 0 || isPrintingReport ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`}>
+                {isPrintingReport ? (
                   <>
-                    {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Generating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4" />
-                        <span>Download Sales Report</span>
-                      </>
-                    )}
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Preparing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Printer className="w-4 h-4" />
+                    <span>Print Sales Report</span>
                   </>
                 )}
-              </PDFDownloadLink>
+              </button>
             </div>
           </div>
         </div>
