@@ -14,6 +14,7 @@ import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Employee, EmployeeSettlements, EmployeeTable, EmployeeUsageView } from "./components/employees";
 import { POSClientOrders } from "./components/pos/POSClientOrders";
+import System from "./components/system";
 import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -664,7 +665,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
                       <AuthenticatedLayout>
-                        <PlaceholderPage title="System Settings" description="Configure system-wide settings and preferences" />
+                        <System />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }

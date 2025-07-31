@@ -10,6 +10,9 @@ import Material from "./materials.js";
 import { MenuItem, MenuItemIngredient } from "./menuItems.js";
 import Order from "./Order.js";
 import OrderItem from "./OrderItem.js";
+import Printer from "./Printer.js";
+import PrinterChannel from "./PrinterChannel.js";
+import PrintJob from "./PrintJob.js";
 import Sale from "./sale.js";
 import SaleMenuItem from "./SaleMenuItem.js";
 import ScheduleExecution from "./ScheduleExecution.js";
@@ -353,38 +356,6 @@ User.hasMany(Order, {
   onUpdate: "CASCADE"
 });
 
-// StockEntry ↔ StockEntryLogSimple associations temporarily disabled to prevent FK constraint errors
-/*
-StockEntry.hasMany(StockEntryLogSimple, {
-  foreignKey: "stockEntryId",
-  as: "logs",
-  onDelete: "CASCADE",
-  onUpdate: "CASCADE"
-});
-StockEntryLogSimple.belongsTo(StockEntry, {
-  foreignKey: "stockEntryId",
-  as: "stockEntry",
-  onDelete: "CASCADE",
-  onUpdate: "CASCADE"
-});
-
-// Material ↔ StockEntryLogSimple associations temporarily disabled
-Material.hasMany(StockEntryLogSimple, {
-  foreignKey: "materialId",
-  as: "stockLogs",
-  onDelete: "CASCADE",
-  onUpdate: "CASCADE"
-});
-StockEntryLogSimple.belongsTo(Material, {
-  foreignKey: "materialId",
-  as: "material",
-  onDelete: "CASCADE",
-  onUpdate: "CASCADE"
-});
-*/
-
-// Employee Model Associations
-
 // User ↔ Employee (One-to-One)
 User.hasOne(Employee, {
   foreignKey: "userId",
@@ -517,4 +488,94 @@ EmployeeSettlement.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };
+// Printer System Relationships
+
+// User ↔ PrinterChannel (createdBy)
+User.hasMany(PrinterChannel, {
+  foreignKey: "createdBy",
+  as: "printerChannels",
+  onDelete: "RESTRICT",
+  onUpdate: "CASCADE"
+});
+PrinterChannel.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "creator",
+  onDelete: "RESTRICT",
+  onUpdate: "CASCADE"
+});
+
+// PrinterChannel ↔ Printer
+PrinterChannel.hasMany(Printer, {
+  foreignKey: "channelId",
+  as: "printers",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+Printer.belongsTo(PrinterChannel, {
+  foreignKey: "channelId",
+  as: "channel",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// User ↔ Printer (createdBy)
+User.hasMany(Printer, {
+  foreignKey: "createdBy",
+  as: "printers",
+  onDelete: "RESTRICT",
+  onUpdate: "CASCADE"
+});
+Printer.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "creator",
+  onDelete: "RESTRICT",
+  onUpdate: "CASCADE"
+});
+
+// PrinterChannel ↔ PrintJob
+PrinterChannel.hasMany(PrintJob, {
+  foreignKey: "channelId",
+  as: "printJobs",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+PrintJob.belongsTo(PrinterChannel, {
+  foreignKey: "channelId",
+  as: "channel",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Printer ↔ PrintJob
+Printer.hasMany(PrintJob, {
+  foreignKey: "printerId",
+  as: "printJobs",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+PrintJob.belongsTo(Printer, {
+  foreignKey: "printerId",
+  as: "printer",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// User ↔ PrintJob (metadata.userId)
+User.hasMany(PrintJob, {
+  foreignKey: "metadata",
+  sourceKey: "id",
+  as: "printJobs",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// Order ↔ PrintJob (metadata.orderId)
+Order.hasMany(PrintJob, {
+  foreignKey: "metadata",
+  sourceKey: "id",
+  as: "printJobs",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };

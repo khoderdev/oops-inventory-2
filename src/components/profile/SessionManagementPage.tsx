@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from "../ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent } from "../ui/card";
 
 const SessionManagementPage: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -298,24 +298,6 @@ const SessionManagementPage: React.FC = () => {
             </CardContent>
           </Card>
         )}
-
-        {/* Security Tips */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Security Tips
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="text-sm text-gray-600 space-y-2">
-              <p>• Regularly review your active sessions and revoke any you don't recognize</p>
-              <p>• Always sign out when using shared or public computers</p>
-              <p>• If you see suspicious activity, change your password immediately</p>
-              <p>• Sessions automatically expire after a period of inactivity</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
