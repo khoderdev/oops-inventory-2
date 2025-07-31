@@ -402,6 +402,11 @@ export interface ReceiptData {
   paymentAmount: number;
   change: number;
   paymentMethod: string;
+  // Discount information
+  discountType?: "percentage" | "fixed" | null;
+  discountValue?: number | null;
+  discountAmount?: number | null;
+  discountReason?: string | null;
 }
 
 export interface ReceiptPrinterProps {

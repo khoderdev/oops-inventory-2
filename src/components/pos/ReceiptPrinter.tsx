@@ -267,7 +267,34 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
 
             {/* Totals */}
             <div className="totals border-t border-black/25" style={{ paddingTop: "4.5mm", marginTop: "6mm" }}>
-              <div className="final-total flex justify-between font-bold" style={{ fontSize: "16.5px" }}>
+              {/* Subtotal */}
+              <div className="total-line flex justify-between" style={{ fontSize: "13.5px", marginBottom: "1.5mm" }}>
+                <span>Subtotal:</span>
+                <span>{formatCurrency(receiptData.subtotal)}</span>
+              </div>
+              
+              {/* Discount (if applied) */}
+              {receiptData.discountAmount && receiptData.discountAmount > 0 && (
+                <div className="total-line flex justify-between" style={{ fontSize: "13.5px", marginBottom: "1.5mm", color: "#d97706" }}>
+                  <span>
+                    Discount ({receiptData.discountType === "percentage" 
+                      ? `${receiptData.discountValue}%` 
+                      : formatCurrency(receiptData.discountValue || 0)
+                    }):
+                  </span>
+                  <span>-{formatCurrency(receiptData.discountAmount)}</span>
+                </div>
+              )}
+              
+              {/* Tax (if applicable) */}
+              {receiptData.tax > 0 && (
+                <div className="total-line flex justify-between" style={{ fontSize: "13.5px", marginBottom: "1.5mm" }}>
+                  <span>Tax:</span>
+                  <span>{formatCurrency(receiptData.tax)}</span>
+                </div>
+              )}
+              
+              <div className="final-total flex justify-between font-bold border-t border-black/25" style={{ fontSize: "16.5px", paddingTop: "2mm", marginTop: "2mm" }}>
                 <span>TOTAL:</span>
                 <span>{formatCurrency(receiptData.total)}</span>
               </div>

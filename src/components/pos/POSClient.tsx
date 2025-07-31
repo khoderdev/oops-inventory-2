@@ -795,37 +795,45 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Print current order receipt
   const handlePrintReceipt = useCallback(() => {
-    if (!cart || cart.length === 0) {
-      showError("No items in cart to print");
+    // Use current order data if available, otherwise use cart
+    const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
+    
+    if (!itemsToUse || itemsToUse.length === 0) {
+      showError("No items to print");
       return;
     }
 
-    // Create receipt data from current cart
+    // Create receipt data from current order or cart
     const receiptData = {
       id: currentOrder?.orderNumber || `DRAFT-${Date.now()}`,
       date: new Date().toLocaleDateString(),
       time: new Date().toLocaleTimeString(),
       cashier: "Current User",
-      items: cart.map(item => ({
+      items: itemsToUse.map(item => ({
         name: item.name,
         quantity: item.quantity,
-        unitPrice: item.price,
-        totalPrice: item.price * item.quantity,
+        unitPrice: item.unitPrice || item.price,
+        totalPrice: item.totalPrice || (item.price * item.quantity),
         type: item.type
       })),
-      subtotal,
-      tax,
-      total,
-      paymentAmount: total,
+      subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === 'string' ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
+      tax: currentOrder?.tax ? (typeof currentOrder.tax === 'string' ? parseFloat(currentOrder.tax) : currentOrder.tax) : tax,
+      total: currentOrder?.total ? (typeof currentOrder.total === 'string' ? parseFloat(currentOrder.total) : currentOrder.total) : total,
+      paymentAmount: currentOrder?.total ? (typeof currentOrder.total === 'string' ? parseFloat(currentOrder.total) : currentOrder.total) : total,
       change: 0,
-      paymentMethod: "cash"
+      paymentMethod: "cash",
+      // Include discount information if available
+      discountType: currentOrder?.discountType || appliedDiscount?.type || null,
+      discountValue: currentOrder?.discountValue ? (typeof currentOrder.discountValue === 'string' ? parseFloat(currentOrder.discountValue) : currentOrder.discountValue) : appliedDiscount?.value || null,
+      discountAmount: currentOrder?.discountAmount ? (typeof currentOrder.discountAmount === 'string' ? parseFloat(currentOrder.discountAmount) : currentOrder.discountAmount) : appliedDiscount?.amount || null,
+      discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
     };
 
     // Set receipt data and show receipt dialog
     setLastSaleData(receiptData);
     setShouldAutoPrint(false); // Manual print - don't auto-print
     setShowReceiptDialog(true);
-  }, [cart, currentOrder, subtotal, tax, total, showError]);
+  }, [cart, currentOrder, subtotal, tax, total, appliedDiscount, showError]);
 
   // Handle void order
   const handleVoidOrder = useCallback(() => {
@@ -1088,7 +1096,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         total: order.total || total,
         paymentAmount: paymentData.paymentAmount,
         change: paymentData.change || 0,
-        paymentMethod: paymentData.paymentMethod
+        paymentMethod: paymentData.paymentMethod,
+        // Include discount information
+        discountType: order.discountType || appliedDiscount?.type || null,
+        discountValue: order.discountValue ? (typeof order.discountValue === 'string' ? parseFloat(order.discountValue) : order.discountValue) : appliedDiscount?.value || null,
+        discountAmount: order.discountAmount ? (typeof order.discountAmount === 'string' ? parseFloat(order.discountAmount) : order.discountAmount) : appliedDiscount?.amount || null,
+        discountReason: order.discountReason || appliedDiscount?.reason || null
       };
 
       // Update table status if this was a table order

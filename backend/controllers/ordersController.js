@@ -104,9 +104,9 @@ export const ordersController = {
 
         // Calculate totals
         const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
-        const tax = subtotal * 0.1; // 10% tax
+        const tax = 0; // No tax for now - can be configured later
         const discountAmountValue = parseFloat(discountAmount) || 0;
-        const total = Math.max(0, subtotal + tax - discountAmountValue);
+        const total = Math.max(0, subtotal - discountAmountValue);
 
         await order.update({ subtotal, tax, total }, { transaction });
       }
@@ -333,8 +333,9 @@ export const ordersController = {
 
           // Recalculate totals
           const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
-          const tax = subtotal * 0.1;
-          const total = subtotal + tax;
+          const tax = 0; // No tax for now - can be configured later
+          const discountAmountValue = parseFloat(order.discountAmount) || 0;
+          const total = Math.max(0, subtotal - discountAmountValue);
 
           await order.update({ subtotal, tax, total }, { transaction });
         } else {
@@ -862,6 +863,17 @@ export const ordersController = {
       if (discountReason !== undefined) updateFields.discountReason = discountReason;
 
       await order.update(updateFields);
+
+      // Recalculate total if discount was updated
+      if (discountAmount !== undefined) {
+        const orderItems = await OrderItem.findAll({ where: { orderId } });
+        const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+        const tax = 0; // No tax for now
+        const discountAmountValue = parseFloat(discountAmount) || 0;
+        const total = Math.max(0, subtotal - discountAmountValue);
+        
+        await order.update({ subtotal, tax, total });
+      }
 
       res.json({ message: "Order auto-saved successfully" });
     } catch (error) {
