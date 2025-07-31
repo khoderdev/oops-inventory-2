@@ -1,26 +1,199 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ORDER_STATUS_COLORS } from "@/constants/constants";
-import { Order } from "@/types/orders";
+import { Order, OrderStatus } from "@/types/orders";
+import { ReceiptData } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import React from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { ordersAPI } from "@/api/orders.api";
+import { Printer, CheckCircle, Clock, ChefHat, Utensils, CreditCard, XCircle } from "lucide-react";
+import React, { useState } from "react";
+import { ReceiptPrinter } from "./ReceiptPrinter";
 
 interface OrderDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   order: Order | null;
   isLoading?: boolean;
+  onOrderUpdate?: (updatedOrder: Order) => void;
 }
 
-export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, onClose, order, isLoading = false }) => {
+export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ 
+  isOpen, 
+  onClose, 
+  order, 
+  isLoading = false, 
+  onOrderUpdate 
+}) => {
+  const { user } = useAuth();
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
+
+  // Check if user has admin or manager permissions
+  const canModifyOrders = user?.role === 'admin' || user?.role === 'manager';
+
+  // Define available status transitions based on current status
+  const getAvailableStatusTransitions = (currentStatus: OrderStatus): { status: OrderStatus; label: string; icon: React.ReactNode; color: string }[] => {
+    const transitions: { [key in OrderStatus]?: { status: OrderStatus; label: string; icon: React.ReactNode; color: string }[] } = {
+      draft: [
+        { status: 'confirmed', label: 'Confirm Order', icon: <CheckCircle className="w-4 h-4" />, color: 'bg-blue-600 hover:bg-blue-700' },
+        { status: 'cancelled', label: 'Cancel Order', icon: <XCircle className="w-4 h-4" />, color: 'bg-red-600 hover:bg-red-700' }
+      ],
+      confirmed: [
+        { status: 'preparing', label: 'Start Preparing', icon: <ChefHat className="w-4 h-4" />, color: 'bg-orange-600 hover:bg-orange-700' },
+        { status: 'cancelled', label: 'Cancel Order', icon: <XCircle className="w-4 h-4" />, color: 'bg-red-600 hover:bg-red-700' }
+      ],
+      preparing: [
+        { status: 'ready', label: 'Mark Ready', icon: <Clock className="w-4 h-4" />, color: 'bg-green-600 hover:bg-green-700' }
+      ],
+      ready: [
+        { status: 'served', label: 'Mark Served', icon: <Utensils className="w-4 h-4" />, color: 'bg-purple-600 hover:bg-purple-700' }
+      ],
+      served: [
+        { status: 'paid', label: 'Mark Paid', icon: <CreditCard className="w-4 h-4" />, color: 'bg-emerald-600 hover:bg-emerald-700' }
+      ]
+    };
+
+    return transitions[currentStatus] || [];
+  };
+
+  // Handle status update
+  const handleStatusUpdate = async (newStatus: OrderStatus) => {
+    if (!order || !canModifyOrders) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      const response = await ordersAPI.updateOrderStatus(order.id, newStatus);
+      console.log('Order status updated successfully:', response);
+      
+      // Create updated order with the new status
+      // Force the status to be what we requested, regardless of backend response
+      // This handles cases where backend returns stale data
+      const responseData = response as { data?: { order?: Partial<Order> }; order?: Partial<Order>; message?: string };
+      const responseOrder = responseData?.data?.order || responseData?.order;
+      
+      const updatedOrder: Order = {
+        ...order,
+        ...(responseOrder || {}),
+        status: newStatus, // ALWAYS use the requested status
+        updatedAt: responseOrder?.updatedAt ? new Date(responseOrder.updatedAt) : new Date()
+      };
+      
+      console.log('Forcing status update:', {
+        requestedStatus: newStatus,
+        backendReturnedStatus: responseOrder?.status,
+        finalStatus: updatedOrder.status
+      });
+      
+      console.log('Updated order object:', updatedOrder);
+      
+      // Call the callback to update the parent component
+      if (onOrderUpdate) {
+        onOrderUpdate(updatedOrder);
+      }
+      
+      // Force a small delay to ensure UI updates
+      setTimeout(() => {
+        console.log('Status update completed, new status:', newStatus);
+      }, 100);
+      
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+      // You might want to show an error toast here
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  // Handle print receipt
+  const handlePrintReceipt = async () => {
+    if (!order) return;
+
+    setIsPrintingReceipt(true);
+    try {
+      const receiptData: ReceiptData = {
+        id: order.orderNumber || order.id,
+        date: new Date(order.createdAt).toLocaleDateString(),
+        time: new Date(order.createdAt).toLocaleTimeString(),
+        cashier: user?.fullName || "System",
+        items: order.items?.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          type: item.type
+        })) || [],
+        subtotal: order.subtotal,
+        tax: order.tax || 0,
+        total: order.total,
+        paymentAmount: order.total,
+        change: 0,
+        paymentMethod: "cash",
+        // Include discount information
+        discountType: order.discountType || null,
+        discountValue: order.discountValue || null,
+        discountAmount: order.discountAmount || null,
+        discountReason: order.discountReason || null
+      };
+
+      setReceiptData(receiptData);
+      setShowReceiptDialog(true);
+    } catch (error) {
+      console.error('Failed to prepare receipt:', error);
+    } finally {
+      setIsPrintingReceipt(false);
+    }
+  };
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Order Details - {order?.orderNumber}</span>
+            <div className="flex items-center space-x-2">
+              {/* Print Receipt Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrintReceipt}
+                disabled={isPrintingReceipt || !order}
+                className="flex items-center space-x-2"
+              >
+                {isPrintingReceipt ? (
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Printer className="w-4 h-4" />
+                )}
+                <span>Print</span>
+              </Button>
+
+              {/* Status Action Buttons - Only for Admin/Manager */}
+              {canModifyOrders && order && (
+                <div className="flex items-center space-x-2">
+                  {getAvailableStatusTransitions(order.status).map((transition) => (
+                    <Button
+                      key={transition.status}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(transition.status)}
+                      disabled={isUpdatingStatus}
+                      className={`flex items-center space-x-2 text-white ${transition.color}`}
+                    >
+                      {isUpdatingStatus ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        transition.icon
+                      )}
+                      <span>{transition.label}</span>
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
           </DialogTitle>
         </DialogHeader>
 
@@ -176,6 +349,17 @@ export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, 
           </ScrollArea>
         ) : null}
       </DialogContent>
+      
+      {/* Receipt Printer Dialog */}
+      <ReceiptPrinter
+        isOpen={showReceiptDialog}
+        onClose={() => {
+          setShowReceiptDialog(false);
+          setReceiptData(null);
+        }}
+        receiptData={receiptData}
+        autoPrint={false}
+      />
     </Dialog>
   );
 };

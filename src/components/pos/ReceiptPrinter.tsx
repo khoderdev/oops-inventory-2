@@ -596,7 +596,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           </Button>
 
           {/* Validation Status Indicator */}
-          <div className="absolute top-2 right-2 flex items-center gap-1">
+          <div className="absolute top-4 left-3 flex items-center gap-1">
             {dataValidated ? (
               <div title="Data validated successfully">
                 <CheckCircle className="w-4 h-4 text-green-500" />

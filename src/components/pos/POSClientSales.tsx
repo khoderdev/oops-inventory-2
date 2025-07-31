@@ -53,6 +53,13 @@ interface RawOrderData {
   [key: string]: unknown;
 }
 
+// API response interface to handle nested data structure
+interface ApiOrderResponse {
+  data?: {
+    data?: RawOrderData;
+  } | RawOrderData;
+}
+
 export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose, onOrderSelect }) => {
   const { user } = useAuth();
   const [sales, setSales] = useState<OrderSummary[]>([]);
@@ -68,6 +75,7 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [totalSales, setTotalSales] = useState(0);
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, OrderStatus>>({});
 
   // Auto-clear errors after 10 seconds
   useEffect(() => {
@@ -126,7 +134,32 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
 
       fetchedSales.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-      setSales(fetchedSales);
+      // Apply any local status overrides to maintain UI consistency
+      const salesWithOverrides = fetchedSales.map(sale => {
+        const overrideStatus = statusOverrides[sale.id];
+        if (overrideStatus && overrideStatus !== sale.status) {
+          console.log(`POSClientSales: Applying status override for order ${sale.id}: ${sale.status} → ${overrideStatus}`);
+          return { ...sale, status: overrideStatus };
+        }
+        return sale;
+      });
+      
+      // Clean up status overrides that are no longer needed (backend caught up)
+      const overridesToRemove = Object.keys(statusOverrides).filter(orderId => {
+        const sale = fetchedSales.find(s => s.id === orderId);
+        return sale && sale.status === statusOverrides[orderId];
+      });
+      
+      if (overridesToRemove.length > 0) {
+        console.log('POSClientSales: Cleaning up status overrides that are no longer needed:', overridesToRemove);
+        setStatusOverrides(prev => {
+          const cleaned = { ...prev };
+          overridesToRemove.forEach(orderId => delete cleaned[orderId]);
+          return cleaned;
+        });
+      }
+
+      setSales(salesWithOverrides);
 
       const total = fetchedSales.reduce((sum, order) => sum + (order.total || 0), 0);
       setTotalSales(total);
@@ -136,7 +169,7 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
     } finally {
       setIsLoading(false);
     }
-  }, [isOpen, filters]);
+  }, [isOpen, filters, statusOverrides]);
 
   useEffect(() => {
     fetchSales();
@@ -216,17 +249,72 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
     });
   };
 
+  // Handle order update from OrderDetailsDialog
+  const handleOrderUpdate = useCallback((updatedOrder: Order) => {
+    console.log('POSClientSales: Handling order update:', {
+      orderId: updatedOrder.id,
+      oldStatus: selectedOrder?.status,
+      newStatus: updatedOrder.status,
+      updatedOrder
+    });
+    
+    // Store the status override to maintain consistency across refreshes
+    setStatusOverrides(prev => ({
+      ...prev,
+      [updatedOrder.id]: updatedOrder.status
+    }));
+    
+    // Update the order in the sales list
+    setSales(prevSales => {
+      const updatedSales = prevSales.map(sale => {
+        if (sale.id === updatedOrder.id) {
+          const updatedSale = { 
+            ...sale, 
+            status: updatedOrder.status, 
+            updatedAt: updatedOrder.updatedAt 
+          };
+          console.log('POSClientSales: Updated sale in list:', {
+            saleId: sale.id,
+            oldStatus: sale.status,
+            newStatus: updatedSale.status
+          });
+          return updatedSale;
+        }
+        return sale;
+      });
+      
+      console.log('POSClientSales: Sales list updated');
+      return updatedSales;
+    });
+    
+    // Update the selected order if it's the same one
+    if (selectedOrder && selectedOrder.id === updatedOrder.id) {
+      console.log('POSClientSales: Updating selected order:', {
+        oldStatus: selectedOrder.status,
+        newStatus: updatedOrder.status
+      });
+      setSelectedOrder(updatedOrder);
+    }
+    
+    // Force a re-render by updating a dummy state
+    setTimeout(() => {
+      console.log('POSClientSales: Order update completed');
+    }, 50);
+  }, [selectedOrder]);
+
   // Handle clicking on a sale row to show details
   const handleSaleRowClick = async (sale: OrderSummary) => {
     setIsLoadingOrderDetails(true);
     setError(null); // Clear any previous errors
 
     try {
-      const response = await ordersAPI.getOrder(sale.id);
+      const response = await ordersAPI.getOrder(sale.id) as ApiOrderResponse;
       console.log("Order details response:", response);
       
       // Handle nested data structure - API returns { data: { data: orderData } }
-      const rawOrderData = response.data?.data || response.data;
+      const rawOrderData = (response.data && typeof response.data === 'object' && 'data' in response.data) 
+        ? response.data.data as RawOrderData
+        : response.data as RawOrderData;
       const transformedOrder = transformOrderData(rawOrderData);
       setSelectedOrder(transformedOrder);
       setShowOrderDetails(true);
@@ -283,9 +371,11 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
       let receiptData: ReceiptData;
 
       try {
-        const response = await ordersAPI.getOrder(sale.id);
+        const response = await ordersAPI.getOrder(sale.id) as ApiOrderResponse;
         // Handle nested data structure - API returns { data: { data: orderData } }
-        const rawOrderData = response.data?.data || response.data;
+        const rawOrderData = (response.data && typeof response.data === 'object' && 'data' in response.data) 
+          ? response.data.data as RawOrderData
+          : response.data as RawOrderData;
         order = transformOrderData(rawOrderData);
 
         // Convert full order to receipt data - use API data as-is
@@ -679,7 +769,13 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
       )}
 
       {/* Order Details Dialog */}
-      <OrderDetailsDialog isOpen={showOrderDetails} onClose={() => setShowOrderDetails(false)} order={selectedOrder} isLoading={isLoadingOrderDetails} />
+      <OrderDetailsDialog 
+        isOpen={showOrderDetails} 
+        onClose={() => setShowOrderDetails(false)} 
+        order={selectedOrder} 
+        isLoading={isLoadingOrderDetails}
+        onOrderUpdate={handleOrderUpdate}
+      />
 
       <ReceiptPrinter
         isOpen={showReceiptDialog}
