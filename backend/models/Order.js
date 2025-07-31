@@ -46,6 +46,23 @@ const Order = sequelize.define(
       allowNull: false,
       defaultValue: 0.0
     },
+    discountType: {
+      type: DataTypes.ENUM('percentage', 'fixed'),
+      allowNull: true
+    },
+    discountValue: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true
+    },
+    discountAmount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0.0
+    },
+    discountReason: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
     paymentAmount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true

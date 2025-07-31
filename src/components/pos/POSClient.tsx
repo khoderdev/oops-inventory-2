@@ -10,7 +10,7 @@ import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, FileText, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
@@ -456,8 +456,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           console.log("🔍 Original item:", item.originalItem);
 
           const orderItem = {
-            materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
-            menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
+            materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+            menuItemId: item.type === "menu" ? String((item.originalItem as MenuItem).id) : undefined,
             assignmentId: undefined,
             name: item.name,
             quantity: item.quantity,
@@ -469,7 +469,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           console.log("📋 Created save item:", orderItem);
           return orderItem;
-        })
+        }),
+        discountType: appliedDiscount?.type,
+        discountValue: appliedDiscount?.value,
+        discountAmount: appliedDiscount?.amount || 0,
+        discountReason: appliedDiscount?.reason
       };
 
       console.log("📦 Final save data:", orderData);
@@ -511,6 +515,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Clear cart with animation after successful save
       clearCartWithAnimation();
       setHasUnsavedChanges(false);
+      
+      // Clear discount state
+      setAppliedDiscount(null);
+      setDiscountAmount(0);
 
       // Clear current order from order management
       if (clearOrder) {
@@ -522,7 +530,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } catch (error) {
       showError("Failed to save order");
     }
-  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation, clearOrder]);
+  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation, clearOrder, appliedDiscount]);
 
   // Load saved order on component mount
   useEffect(() => {
@@ -948,8 +956,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             console.log("🔍 Original item:", item.originalItem);
 
             const orderItem = {
-              materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
-              menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
+              materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+              menuItemId: item.type === "menu" ? String((item.originalItem as MenuItem).id) : undefined,
               assignmentId: undefined,
               name: item.name,
               quantity: item.quantity,
@@ -961,7 +969,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             console.log("📋 Created order item:", orderItem);
             return orderItem;
-          })
+          }),
+          discountType: appliedDiscount?.type,
+          discountValue: appliedDiscount?.value,
+          discountAmount: appliedDiscount?.amount || 0,
+          discountReason: appliedDiscount?.reason
         };
 
         console.log("📦 Final order data:", orderData);
@@ -1102,6 +1114,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setShouldAutoPrint(false);
       setShowReceiptDialog(true);
 
+      // Clear discount state
+      setAppliedDiscount(null);
+      setDiscountAmount(0);
+
       clearOrder();
       OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
@@ -1123,7 +1139,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount]);
 
   return (
     <>
@@ -1150,7 +1166,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">{cart && cart.length > 0 ? `${cart.length} items` : "Empty"}</span>
-              {cart && cart.length > 0 && <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" onClick={clearCart} />}
+              {cart && cart.length > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDiscountDialog(true)}
+                    className="text-xs px-2 py-1 h-6"
+                    disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}
+                  >
+                    <DollarSign className="w-3 h-3 mr-1" />
+                    Discount
+                  </Button>
+                  <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" onClick={clearCart} />
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1179,7 +1209,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   </span>
                 )}
               </div>
-              {cart && cart.length > 0 && <Trash2 className="w-5 h-5 text-red-600 cursor-pointer" onClick={clearCart} />}
+              <div className="flex items-center space-x-2">
+                {cart && cart.length > 0 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowDiscountDialog(true)}
+                      className="text-xs px-2 py-1 h-7"
+                      disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}
+                    >
+                      <DollarSign className="w-3 h-3 mr-1" />
+                      Discount
+                    </Button>
+                    <Trash2 className="w-5 h-5 text-red-600 cursor-pointer" onClick={clearCart} />
+                  </>
+                )}
+              </div>
             </div>
           </div>
 

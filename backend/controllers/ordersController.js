@@ -12,7 +12,7 @@ export const ordersController = {
     const transaction = await sequelize.transaction();
 
     try {
-      const { orderNumber, orderType, tableId, customerName, customerPhone, customerAddress, notes, items = [] } = req.body;
+      const { orderNumber, orderType, tableId, customerName, customerPhone, customerAddress, notes, items = [], discountType, discountValue, discountAmount, discountReason } = req.body;
       const userId = req.user?.id;
 
       console.log(" Creating order:", { orderNumber, orderType, tableId, itemsCount: items.length });
@@ -53,6 +53,10 @@ export const ordersController = {
           customerPhone,
           customerAddress,
           notes,
+          discountType: discountType || null,
+          discountValue: discountValue || null,
+          discountAmount: discountAmount || 0,
+          discountReason: discountReason || null,
           createdBy: userId,
           updatedBy: userId
         },
@@ -101,7 +105,8 @@ export const ordersController = {
         // Calculate totals
         const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
         const tax = subtotal * 0.1; // 10% tax
-        const total = subtotal + tax;
+        const discountAmountValue = parseFloat(discountAmount) || 0;
+        const total = Math.max(0, subtotal + tax - discountAmountValue);
 
         await order.update({ subtotal, tax, total }, { transaction });
       }
@@ -831,10 +836,21 @@ export const ordersController = {
         return res.status(400).json({ message: "Can only auto-save draft orders" });
       }
 
-      await order.update({
-        ...updateData,
+      // Extract discount fields if present
+      const { discountType, discountValue, discountAmount, discountReason, ...otherData } = updateData;
+
+      const updateFields = {
+        ...otherData,
         updatedBy: userId
-      });
+      };
+
+      // Add discount fields if they exist
+      if (discountType !== undefined) updateFields.discountType = discountType;
+      if (discountValue !== undefined) updateFields.discountValue = discountValue;
+      if (discountAmount !== undefined) updateFields.discountAmount = discountAmount;
+      if (discountReason !== undefined) updateFields.discountReason = discountReason;
+
+      await order.update(updateFields);
 
       res.json({ message: "Order auto-saved successfully" });
     } catch (error) {

@@ -82,6 +82,10 @@ export interface CreateOrderData {
   items: Omit<OrderItem, "id">[];
   notes?: string;
   sectionId?: string;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
+  discountAmount?: number;
+  discountReason?: string;
 }
 
 export interface UpdateOrderData {
@@ -92,6 +96,10 @@ export interface UpdateOrderData {
   customerAddress?: string;
   notes?: string;
   estimatedReadyTime?: Date;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
+  discountAmount?: number;
+  discountReason?: string;
 }
 
 export interface OrderSummary {

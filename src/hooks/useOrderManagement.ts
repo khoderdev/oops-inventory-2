@@ -20,7 +20,11 @@ export const useOrderManagement = () => {
       items: order.items,
       customerName: order.customerName,
       customerPhone: order.customerPhone,
-      notes: order.notes
+      notes: order.notes,
+      discountType: order.discountType,
+      discountValue: order.discountValue,
+      discountAmount: order.discountAmount,
+      discountReason: order.discountReason
     });
 
     // Only save if something actually changed
@@ -44,7 +48,11 @@ export const useOrderManagement = () => {
           })),
           customerName: order.customerName,
           customerPhone: order.customerPhone,
-          notes: order.notes
+          notes: order.notes,
+          discountType: order.discountType,
+          discountValue: order.discountValue,
+          discountAmount: order.discountAmount,
+          discountReason: order.discountReason
         });
         lastSavedRef.current = orderString;
         console.log("Order auto-saved successfully");
