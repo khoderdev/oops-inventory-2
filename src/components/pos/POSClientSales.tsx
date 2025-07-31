@@ -12,7 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptData } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { AlertCircle, Calendar, Clock, FileText, Grid3X3, List, Package, Search, ShoppingBag, TrendingUp, Truck, User } from "lucide-react";
+import { Document, Page, PDFDownloadLink, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { AlertCircle, Calendar, Clock, Download, Grid3X3, List, Package, Search, ShoppingBag, TrendingUp, Truck, User } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
@@ -158,102 +159,258 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
     });
   };
 
-  const handlePrintAllSalesReport = () => {
-    // Create a comprehensive sales report
+  // PDF Styles
+  const pdfStyles = StyleSheet.create({
+    page: {
+      flexDirection: "column",
+      backgroundColor: "#ffffff",
+      padding: 30,
+      fontFamily: "Helvetica"
+    },
+    header: {
+      marginBottom: 30,
+      textAlign: "center",
+      borderBottom: "2 solid #e5e7eb",
+      paddingBottom: 20
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: "#1f2937",
+      marginBottom: 10
+    },
+    subtitle: {
+      fontSize: 12,
+      color: "#6b7280",
+      marginBottom: 5
+    },
+    summarySection: {
+      backgroundColor: "#f9fafb",
+      padding: 15,
+      marginBottom: 20,
+      borderRadius: 8,
+      border: "1 solid #e5e7eb"
+    },
+    summaryTitle: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: "#374151",
+      marginBottom: 10
+    },
+    summaryRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 8
+    },
+    summaryLabel: {
+      fontSize: 12,
+      color: "#6b7280"
+    },
+    summaryValue: {
+      fontSize: 12,
+      fontWeight: "bold",
+      color: "#059669"
+    },
+    table: {
+      display: "table",
+      width: "auto",
+      borderStyle: "solid",
+      borderWidth: 1,
+      borderRightWidth: 0,
+      borderBottomWidth: 0,
+      borderColor: "#e5e7eb"
+    },
+    tableRow: {
+      margin: "auto",
+      flexDirection: "row"
+    },
+    tableColHeader: {
+      width: "14.28%",
+      borderStyle: "solid",
+      borderWidth: 1,
+      borderLeftWidth: 0,
+      borderTopWidth: 0,
+      borderColor: "#e5e7eb",
+      backgroundColor: "#f3f4f6",
+      padding: 8
+    },
+    tableCol: {
+      width: "14.28%",
+      borderStyle: "solid",
+      borderWidth: 1,
+      borderLeftWidth: 0,
+      borderTopWidth: 0,
+      borderColor: "#e5e7eb",
+      padding: 8
+    },
+    tableCellHeader: {
+      fontSize: 10,
+      fontWeight: "bold",
+      color: "#374151"
+    },
+    tableCell: {
+      fontSize: 9,
+      color: "#6b7280"
+    },
+    totalRow: {
+      backgroundColor: "#ecfdf5"
+    },
+    totalCell: {
+      fontSize: 10,
+      fontWeight: "bold",
+      color: "#059669"
+    },
+    footer: {
+      position: "absolute",
+      bottom: 30,
+      left: 30,
+      right: 30,
+      textAlign: "center",
+      borderTop: "1 solid #e5e7eb",
+      paddingTop: 10
+    },
+    footerText: {
+      fontSize: 8,
+      color: "#9ca3af"
+    }
+  });
+
+  // PDF Document Component
+  const SalesReportPDF = () => {
     const reportData = {
-      reportTitle: "All Sales Report",
-      reportDate: new Date().toLocaleDateString(),
-      reportTime: new Date().toLocaleTimeString(),
+      reportTitle: "Sales Report",
+      reportDate: new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      }),
+      reportTime: new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      }),
       totalSales: sales.length,
       totalAmount: totalSales,
-      sales: sales,
-      summary: {
-        byStatus: sales.reduce(
-          (acc, sale) => {
-            acc[sale.status] = (acc[sale.status] || 0) + 1;
-            return acc;
-          },
-          {} as Record<string, number>
-        ),
-        byType: sales.reduce(
-          (acc, sale) => {
-            acc[sale.orderType] = (acc[sale.orderType] || 0) + 1;
-            return acc;
-          },
-          {} as Record<string, number>
-        )
-      }
+      sales: sales
     };
 
-    // For now, we'll use the browser's print functionality
-    // In a real implementation, you might want to generate a PDF or send to a printer
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Sales Report</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .summary { margin: 20px 0; padding: 15px; background: #f5f5f5; }
-              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-              th { background-color: #f2f2f2; }
-              .total { font-weight: bold; background-color: #e8f5e8; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>Sales Report</h1>
-              <p>Generated on ${reportData.reportDate} at ${reportData.reportTime}</p>
-            </div>
-            <div class="summary">
-              <h3>Summary</h3>
-              <p><strong>Total Sales:</strong> ${reportData.totalSales}</p>
-              <p><strong>Total Amount:</strong> ${formatCurrency(reportData.totalAmount)}</p>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th>Items</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${sales
-                  .map(
-                    sale => `
-                  <tr>
-                    <td>${sale.id}</td>
-                    <td>${sale.customerName || "N/A"}</td>
-                    <td>${sale.orderType}</td>
-                    <td>${sale.status}</td>
-                    <td>${formatDate(sale.createdAt)}</td>
-                    <td>${formatCurrency(sale.total)}</td>
-                    <td>${sale.itemCount || 0}</td>
-                  </tr>
-                `
-                  )
-                  .join("")}
-                <tr class="total">
-                  <td colspan="5"><strong>TOTAL</strong></td>
-                  <td><strong>${formatCurrency(reportData.totalAmount)}</strong></td>
-                  <td><strong>${reportData.totalSales}</strong></td>
-                </tr>
-              </tbody>
-            </table>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
-    }
+    return (
+      <Document>
+        <Page size="A4" style={pdfStyles.page}>
+          {/* Header */}
+          <View style={pdfStyles.header}>
+            <Text style={pdfStyles.title}>Sales Report</Text>
+            <Text style={pdfStyles.subtitle}>
+              Generated on {reportData.reportDate} at {reportData.reportTime}
+            </Text>
+            <Text style={pdfStyles.subtitle}>Report Period: All Time</Text>
+          </View>
+
+          {/* Summary Section */}
+          <View style={pdfStyles.summarySection}>
+            <Text style={pdfStyles.summaryTitle}>Summary</Text>
+            <View style={pdfStyles.summaryRow}>
+              <Text style={pdfStyles.summaryLabel}>Total Sales Count:</Text>
+              <Text style={pdfStyles.summaryValue}>{reportData.totalSales}</Text>
+            </View>
+            <View style={pdfStyles.summaryRow}>
+              <Text style={pdfStyles.summaryLabel}>Total Sales Amount:</Text>
+              <Text style={pdfStyles.summaryValue}>{formatCurrency(reportData.totalAmount)}</Text>
+            </View>
+            <View style={pdfStyles.summaryRow}>
+              <Text style={pdfStyles.summaryLabel}>Average Sale Amount:</Text>
+              <Text style={pdfStyles.summaryValue}>{reportData.totalSales > 0 ? formatCurrency(reportData.totalAmount / reportData.totalSales) : "$0.00"}</Text>
+            </View>
+          </View>
+
+          {/* Sales Table */}
+          <View style={pdfStyles.table}>
+            {/* Table Header */}
+            <View style={pdfStyles.tableRow}>
+              <View style={pdfStyles.tableColHeader}>
+                <Text style={pdfStyles.tableCellHeader}>Order ID</Text>
+              </View>
+              <View style={pdfStyles.tableColHeader}>
+                <Text style={pdfStyles.tableCellHeader}>Customer</Text>
+              </View>
+              <View style={pdfStyles.tableColHeader}>
+                <Text style={pdfStyles.tableCellHeader}>Type</Text>
+              </View>
+              <View style={pdfStyles.tableColHeader}>
+                <Text style={pdfStyles.tableCellHeader}>Status</Text>
+              </View>
+              <View style={pdfStyles.tableColHeader}>
+                <Text style={pdfStyles.tableCellHeader}>Date</Text>
+              </View>
+              <View style={pdfStyles.tableColHeader}>
+                <Text style={pdfStyles.tableCellHeader}>Amount</Text>
+              </View>
+              <View style={pdfStyles.tableColHeader}>
+                <Text style={pdfStyles.tableCellHeader}>Items</Text>
+              </View>
+            </View>
+
+            {/* Table Rows */}
+            {sales.map((sale, index) => (
+              <View key={sale.id} style={pdfStyles.tableRow}>
+                <View style={pdfStyles.tableCol}>
+                  <Text style={pdfStyles.tableCell}>{sale.id}</Text>
+                </View>
+                <View style={pdfStyles.tableCol}>
+                  <Text style={pdfStyles.tableCell}>{sale.customerName || "N/A"}</Text>
+                </View>
+                <View style={pdfStyles.tableCol}>
+                  <Text style={pdfStyles.tableCell}>{sale.orderType}</Text>
+                </View>
+                <View style={pdfStyles.tableCol}>
+                  <Text style={pdfStyles.tableCell}>{sale.status}</Text>
+                </View>
+                <View style={pdfStyles.tableCol}>
+                  <Text style={pdfStyles.tableCell}>{formatDate(sale.createdAt)}</Text>
+                </View>
+                <View style={pdfStyles.tableCol}>
+                  <Text style={pdfStyles.tableCell}>{formatCurrency(sale.total)}</Text>
+                </View>
+                <View style={pdfStyles.tableCol}>
+                  <Text style={pdfStyles.tableCell}>{sale.itemCount || 0}</Text>
+                </View>
+              </View>
+            ))}
+
+            {/* Total Row */}
+            <View style={[pdfStyles.tableRow, pdfStyles.totalRow]}>
+              <View style={pdfStyles.tableCol}>
+                <Text style={pdfStyles.totalCell}>TOTAL</Text>
+              </View>
+              <View style={pdfStyles.tableCol}>
+                <Text style={pdfStyles.totalCell}>-</Text>
+              </View>
+              <View style={pdfStyles.tableCol}>
+                <Text style={pdfStyles.totalCell}>-</Text>
+              </View>
+              <View style={pdfStyles.tableCol}>
+                <Text style={pdfStyles.totalCell}>-</Text>
+              </View>
+              <View style={pdfStyles.tableCol}>
+                <Text style={pdfStyles.totalCell}>-</Text>
+              </View>
+              <View style={pdfStyles.tableCol}>
+                <Text style={pdfStyles.totalCell}>{formatCurrency(reportData.totalAmount)}</Text>
+              </View>
+              <View style={pdfStyles.tableCol}>
+                <Text style={pdfStyles.totalCell}>{reportData.totalSales}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Footer */}
+          <View style={pdfStyles.footer}>
+            <Text style={pdfStyles.footerText}>This report was generated automatically by the oOps POS System</Text>
+            <Text style={pdfStyles.footerText}>Page 1 of 1 • Generated at {new Date().toISOString()}</Text>
+          </View>
+        </Page>
+      </Document>
+    );
   };
 
   const isDialog = isOpen !== undefined;
@@ -476,10 +633,23 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
             </div>
 
             <div className="flex items-center space-x-3">
-              <Button onClick={handlePrintAllSalesReport} className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2" disabled={sales.length === 0}>
-                <FileText className="w-4 h-4" />
-                <span>Print All Sales Report</span>
-              </Button>
+              <PDFDownloadLink document={<SalesReportPDF />} fileName={`sales-report-${new Date().toISOString().split("T")[0]}.pdf`} className={`inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 ${sales.length === 0 ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`} style={{ textDecoration: "none" }}>
+                {({ blob, url, loading, error }) => (
+                  <>
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        <span>Download Sales Report</span>
+                      </>
+                    )}
+                  </>
+                )}
+              </PDFDownloadLink>
             </div>
           </div>
         </div>
