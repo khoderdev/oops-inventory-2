@@ -102,3 +102,11 @@ export interface OrderSummary {
   createdAt: Date;
   estimatedReadyTime?: Date;
 }
+
+export interface DiscountDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  discountAmount: number;
+  onDiscountAmountChange: (amount: number) => void;
+  onDiscount: () => void;
+}

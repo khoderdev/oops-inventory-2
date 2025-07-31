@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
+import { Banknote, Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -45,6 +45,7 @@ interface LegacyActionBarProps {
   onCancelOrder?: () => void;
   incompleteOrdersCount?: number;
   incompleteDeliveryTakeawayCount?: number;
+  onDiscount?: () => void;
 }
 
 // New flexible props interface
@@ -93,7 +94,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
-    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, onShowReports, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, incompleteOrdersCount = 0, incompleteDeliveryTakeawayCount = 0 } = props;
+    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, onShowReports, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, incompleteOrdersCount = 0, incompleteDeliveryTakeawayCount = 0, onDiscount = () => {} } = props;
 
     buttons = [
       {
@@ -114,8 +115,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         disabled: !canVoidOrder || !onVoidOrder
       },
       { id: "refund", icon: DollarSign, label: "Refund", active: false },
-
-      { id: "orders", icon: ShoppingCart, label: "Orders", active: false, onClick: onShowOrders, disabled: !onShowOrders, badgeCount: incompleteDeliveryTakeawayCount },
+      { id: "discount", icon: Banknote, label: "Discount", active: false, onClick: onDiscount },
       { id: "reports", icon: FileText, label: "Reports", active: false, onClick: onShowReports },
       {
         id: "back-office",

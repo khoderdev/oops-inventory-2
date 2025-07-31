@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
 import { CategoryTabs } from "./CategoryTabs";
+import { DiscountDialog } from "./DiscountDialog";
 import { OrderItemsList } from "./OrderItemsList";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentDialog } from "./PaymentDialog";
@@ -63,6 +64,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showDiscountDialog, setShowDiscountDialog] = useState(false);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
 
   // Order management hook
   const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
@@ -113,6 +116,26 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handleShowReports = useCallback(() => {
     setShowReportsDialog(true);
   }, []);
+
+  // Handle discount dialog
+  const handleShowDiscount = useCallback(() => {
+    setShowDiscountDialog(true);
+  }, []);
+
+  const handleDiscountAmountChange = useCallback((amount: number) => {
+    setDiscountAmount(amount);
+  }, []);
+
+  const handleApplyDiscount = useCallback(() => {
+    // TODO: Implement discount application logic
+    console.log('Applying discount:', discountAmount);
+    setShowDiscountDialog(false);
+    // You can add discount logic here, such as:
+    // - Apply discount to cart items
+    // - Update cart totals
+    // - Show success message
+    showSuccess(`Discount of $${discountAmount.toFixed(2)} applied`);
+  }, [discountAmount, showSuccess]);
 
   // Fetch incomplete orders count and table orders for notifications
   const fetchIncompleteOrders = useCallback(async () => {
@@ -220,6 +243,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setShowNegativeStockDialog(false);
     setShowUnsavedDialog(false);
     setShowReportsDialog(false);
+    setShowDiscountDialog(false);
 
     // Clear payment amount
     setPaymentAmount("");
@@ -1118,17 +1142,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           {/* Order Items List - Scrollable */}
           <div className="flex-1 h-full relative overflow-hidden">
             <div className="h-full overflow-y-auto">
-              <OrderItemsList 
-                cart={cart} 
-                updateCartQuantity={updateCartQuantity} 
-                orderType={orderType} 
-                selectedTable={selectedTable} 
-                onOrderTypeChange={handleOrderTypeChange} 
-                onTableSelect={handleTableSelect} 
-                incompleteTableOrdersCount={incompleteTableOrdersCount}
-                orderStatus={currentOrder?.status}
-                isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
-              />
+              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} orderStatus={currentOrder?.status} isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"} />
             </div>
 
             {/* Success Animation Overlay */}
@@ -1191,17 +1205,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className={`lg:hidden ${activeView === "cart" ? "flex" : "hidden"} flex-col h-full`}>
             {/* Order Items List - Mobile */}
             <div className="flex-1 overflow-y-auto">
-              <OrderItemsList 
-                cart={cart} 
-                updateCartQuantity={updateCartQuantity} 
-                orderType={orderType} 
-                selectedTable={selectedTable} 
-                onOrderTypeChange={handleOrderTypeChange} 
-                onTableSelect={handleTableSelect} 
-                incompleteTableOrdersCount={incompleteTableOrdersCount}
-                orderStatus={currentOrder?.status}
-                isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
-              />
+              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} orderStatus={currentOrder?.status} isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"} />
             </div>
 
             {/* Order Summary - Mobile */}
@@ -1238,7 +1242,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Bottom Action Bar - Fixed Footer */}
             <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
-              <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} incompleteOrdersCount={incompleteOrdersCount} incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount} />
+              <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} onDiscount={handleShowDiscount} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} incompleteOrdersCount={incompleteOrdersCount} incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount} />
             </div>
           </div>
         </div>
@@ -1290,6 +1294,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }}
           receiptData={lastSaleData}
           autoPrint={shouldAutoPrint}
+        />
+
+        {/* Discount Dialog */}
+        <DiscountDialog 
+          isOpen={showDiscountDialog} 
+          onClose={() => setShowDiscountDialog(false)}
+          discountAmount={discountAmount}
+          onDiscountAmountChange={handleDiscountAmountChange}
+          onDiscount={handleApplyDiscount}
         />
 
         {/* Payment Dialog */}
