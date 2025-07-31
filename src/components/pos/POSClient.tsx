@@ -336,8 +336,34 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         // Set order type and table if applicable
         setOrderType(order.orderType || "takeaway");
-        if (order.orderType === "table" && order.table) {
-          setSelectedTable(order.table);
+        if (order.orderType === "table" && order.tableId) {
+          // Create async function to fetch table data
+          const loadTableData = async () => {
+            try {
+              const tableResponse = await tablesAPI.getTable(order.tableId);
+              if (tableResponse.data) {
+                setSelectedTable(tableResponse.data);
+              } else {
+                // Fallback: create a minimal table object
+                if (order.tableNumber) {
+                  const fallbackTable: Table = {
+                    id: order.tableId,
+                    number: order.tableNumber,
+                    seats: 4,
+                    status: "opened",
+                    position: { x: 0, y: 0 },
+                    shape: "round"
+                  };
+                  setSelectedTable(fallbackTable);
+                }
+              }
+            } catch (error) {
+              console.error("Failed to fetch table:", error);
+              setSelectedTable(undefined);
+            }
+          };
+          
+          loadTableData();
         } else {
           setSelectedTable(undefined);
         }
@@ -605,13 +631,31 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         
         if (item.type === "material" && materialId) {
           // Find the stock entry by materialId (handle number type)
-          originalItem = stockEntries.find(se => se.materialId === materialId) || {
-            id: materialId,
-            materialId: materialId,
-            material: item.material || { id: materialId, name: item.name },
-            quantity: item.quantity,
-            unitPrice: parseFloat(item.unitPrice?.toString() || "0")
-          } as StockEntryWithMaterial;
+          const foundStockEntry = stockEntries.find(se => se.materialId === materialId);
+          
+          if (foundStockEntry) {
+            originalItem = foundStockEntry;
+          } else {
+            // Create a minimal fallback object with required properties
+            originalItem = {
+              id: materialId.toString(),
+              materialId: materialId.toString(),
+              material: item.material || { id: materialId, name: item.name },
+              quantity: item.quantity,
+              unitPrice: parseFloat(item.unitPrice?.toString() || "0"),
+              // Required StockEntry properties with sensible defaults
+              wasteReason: '',
+              supplier: 'Unknown',
+              purchasedQuantity: item.quantity || 0,
+              purchasedUnit: 'unit',
+              costPerPurchasedUnit: parseFloat(item.unitPrice?.toString() || "0"),
+              totalCost: (item.quantity || 0) * parseFloat(item.unitPrice?.toString() || "0"),
+              purchaseDate: new Date(),
+              isPOSItem: true,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            } as StockEntryWithMaterial;
+          }
         } else if (item.type === "menu" && menuItemId) {
           // Find the menu item by menuItemId (handle number type)
           originalItem = menuItems.find(m => m.id === menuItemId) || {
@@ -652,9 +696,34 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
       
       // Set table if it's a table order
-      if (currentOrder.tableId && currentOrder.table) {
-        console.log("🪑 Setting selected table:", currentOrder.table);
-        setSelectedTable(currentOrder.table);
+      if (currentOrder.tableId && currentOrder.orderType === "table") {
+        console.log("🪑 Loading table for order:", currentOrder.tableId);
+        // Create async function to fetch table data
+        const loadTableData = async () => {
+          try {
+            const tableResponse = await tablesAPI.getTable(currentOrder.tableId);
+            if (tableResponse.data) {
+              console.log("🪑 Setting selected table:", tableResponse.data);
+              setSelectedTable(tableResponse.data);
+            }
+          } catch (error) {
+            console.error("Failed to fetch table:", error);
+            // Fallback: create a minimal table object from available data
+            if (currentOrder.tableNumber) {
+              const fallbackTable: Table = {
+                id: currentOrder.tableId,
+                number: currentOrder.tableNumber,
+                seats: 4, // Default value
+                status: "opened",
+                position: { x: 0, y: 0 }, // Default position
+                shape: "round" // Default shape
+              };
+              setSelectedTable(fallbackTable);
+            }
+          }
+        };
+        
+        loadTableData();
       }
       
       // Set employee if it's an employee order
@@ -735,6 +804,24 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Filter POS items by category
   const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
 
+  // Function to recalculate employee discount when cart changes
+  const recalculateEmployeeDiscount = useCallback((newCart: POSCartItem[]) => {
+    if (selectedEmployee && selectedEmployee.discountPercentage > 0 && orderType === "employees") {
+      const currentSubtotal = newCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const discountAmount = (currentSubtotal * selectedEmployee.discountPercentage) / 100;
+      
+      const employeeDiscount = {
+        type: "percentage" as const,
+        value: selectedEmployee.discountPercentage,
+        amount: discountAmount,
+        reason: `Employee discount - ${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName} (${selectedEmployee.department})`
+      };
+      
+      setAppliedDiscount(employeeDiscount);
+      setDiscountAmount(discountAmount);
+    }
+  }, [selectedEmployee, orderType]);
+
   // Cart operations - Updated for unified POS items
   const addToCart = useCallback(
     (posItem: POSItem) => {
@@ -744,9 +831,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setCart(prevCart => {
         const currentCart = prevCart || [];
         const existingItem = currentCart.find(cartItem => cartItem.id === cartId);
+        let newCart: POSCartItem[];
 
         if (existingItem) {
-          return currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
+          newCart = currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
         } else {
           if (posItem.type === "menu_item") {
             // Handle menu items
@@ -802,21 +890,34 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               stockEntryId: posItem.materialId,
               menuItemId: undefined
             };
-            return [...currentCart, newItem];
+            newCart = [...currentCart, newItem];
           }
         }
+        
+        // Recalculate employee discount after cart update
+        setTimeout(() => {
+          recalculateEmployeeDiscount(newCart);
+        }, 0);
+        
+        return newCart;
       });
     },
-    [menuItems, stockEntries]
+    [menuItems, stockEntries, recalculateEmployeeDiscount]
   );
 
   const updateCartQuantity = useCallback((cartId: string, newQuantity: number) => {
+    let newCart: POSCartItem[];
     if (newQuantity <= 0) {
-      setCart(prevCart => prevCart.filter(item => item.id !== cartId));
+      newCart = cart.filter(item => item.id !== cartId);
+      setCart(newCart);
     } else {
-      setCart(prevCart => prevCart.map(item => (item.id === cartId ? { ...item, quantity: newQuantity } : item)));
+      newCart = cart.map(item => (item.id === cartId ? { ...item, quantity: newQuantity } : item));
+      setCart(newCart);
     }
-  }, []);
+    
+    // Recalculate employee discount if applicable
+    recalculateEmployeeDiscount(newCart);
+  }, [cart, recalculateEmployeeDiscount]);
 
   // Order type handlers
   const handleOrderTypeChange = useCallback((type: OrderType) => {
@@ -900,7 +1001,26 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handleEmployeeSelection = useCallback((employee: Employee) => {
     setSelectedEmployee(employee);
     setOrderType("employees");
-  }, []);
+    
+    // Automatically apply employee discount
+    if (employee.discountPercentage > 0) {
+      const discountValue = employee.discountPercentage;
+      const currentSubtotal = (cart || []).reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const discountAmount = (currentSubtotal * discountValue) / 100;
+      
+      const employeeDiscount = {
+        type: "percentage" as const,
+        value: discountValue,
+        amount: discountAmount,
+        reason: `Employee discount - ${employee.user?.firstName} ${employee.user?.lastName} (${employee.department})`
+      };
+      
+      setAppliedDiscount(employeeDiscount);
+      setDiscountAmount(discountAmount);
+      
+      showSuccess(`Applied ${discountValue}% employee discount for ${employee.user?.firstName} ${employee.user?.lastName}`);
+    }
+  }, [cart, showSuccess]);
 
   // Calculate totals - with safety check for undefined cart
   const subtotal = (cart || []).reduce((sum, item) => sum + item.price * item.quantity, 0);

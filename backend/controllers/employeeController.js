@@ -160,12 +160,12 @@ export const createEmployee = async (req, res) => {
       const departmentCode = department.substring(0, 3).toUpperCase();
       const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
       finalEmployeeNumber = `${departmentCode}${timestamp}`;
-      
+
       // Ensure uniqueness
       let counter = 1;
       let testNumber = finalEmployeeNumber;
       while (await Employee.findOne({ where: { employeeNumber: testNumber } })) {
-        testNumber = `${finalEmployeeNumber}${counter.toString().padStart(2, '0')}`;
+        testNumber = `${finalEmployeeNumber}${counter.toString().padStart(2, "0")}`;
         counter++;
       }
       finalEmployeeNumber = testNumber;

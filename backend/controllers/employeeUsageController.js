@@ -1,4 +1,5 @@
 import { Op } from "sequelize";
+import sequelize from "../config/database.js";
 import { AuditLog, Employee, EmployeeUsage, Material, MenuItem, StockEntry, User } from "../models/index.js";
 
 // Record employee usage
@@ -136,11 +137,11 @@ export const getUsageHistory = async (req, res) => {
       where.usageDate = {};
       if (startDate) {
         // Set start date to beginning of day
-        where.usageDate[Op.gte] = new Date(startDate + 'T00:00:00.000Z');
+        where.usageDate[Op.gte] = new Date(startDate + "T00:00:00.000Z");
       }
       if (endDate) {
         // Set end date to end of day to include entire day
-        where.usageDate[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
+        where.usageDate[Op.lte] = new Date(endDate + "T23:59:59.999Z");
       }
     }
 
@@ -174,12 +175,57 @@ export const getUsageHistory = async (req, res) => {
       offset
     });
 
+    // Fetch order information separately for usages that have posTransactionId
+    let usagesWithOrders = usages;
+    
+    if (usages.length > 0) {
+      const usageIds = usages.map(usage => usage.id);
+      const orderData = await sequelize.query(
+        `SELECT 
+          eu.id as usage_id,
+          o.id as order_id,
+          o."orderNumber",
+          o.status,
+          o."orderType",
+          o.total
+        FROM "employee_usages" eu
+        LEFT JOIN "Orders" o ON eu."posTransactionId" = o."orderNumber"
+        WHERE eu.id IN (:usageIds) AND eu."posTransactionId" IS NOT NULL`,
+        {
+          replacements: { usageIds },
+          type: sequelize.QueryTypes.SELECT
+        }
+      );
+
+      // Create a map of usage_id to order data
+      const orderMap = new Map();
+      orderData.forEach(row => {
+        orderMap.set(row.usage_id, {
+          id: row.order_id,
+          orderNumber: row.orderNumber,
+          status: row.status,
+          orderType: row.orderType,
+          total: row.total
+        });
+      });
+
+      // Add order information to usage records
+      usagesWithOrders = usages.map(usage => {
+        const usageJson = usage.toJSON();
+        const orderInfo = orderMap.get(usage.id);
+        if (orderInfo) {
+          usageJson.order = orderInfo;
+        }
+        return usageJson;
+      });
+    }
+
     await AuditLog.logUserAction(req.user.id, "view", "employee_usage", null, null, { count, filters: { employeeId, startDate, endDate, usageType, isSettled } }, req);
 
     res.json({
       success: true,
       data: {
-        usages,
+        usages: usagesWithOrders,
         pagination: {
           total: count,
           page: parseInt(page),
@@ -187,7 +233,7 @@ export const getUsageHistory = async (req, res) => {
           pages: Math.ceil(count / limit)
         }
       },
-      message: `Retrieved ${usages.length} usage records`
+      message: `Retrieved ${usagesWithOrders.length} usage records`
     });
   } catch (error) {
     console.error("Error fetching usage history:", error);
@@ -417,11 +463,11 @@ export const getUsageStats = async (req, res) => {
       where.usageDate = {};
       if (startDate) {
         // Set start date to beginning of day
-        where.usageDate[Op.gte] = new Date(startDate + 'T00:00:00.000Z');
+        where.usageDate[Op.gte] = new Date(startDate + "T00:00:00.000Z");
       }
       if (endDate) {
         // Set end date to end of day to include entire day
-        where.usageDate[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
+        where.usageDate[Op.lte] = new Date(endDate + "T23:59:59.999Z");
       }
     }
 
