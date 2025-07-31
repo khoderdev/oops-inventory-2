@@ -512,6 +512,13 @@ export interface OrderSummaryProps {
   onSaveClick: () => void;
   orderStatus?: OrderStatus;
   isOrderCompleted?: boolean;
+  appliedDiscount?: {
+    type: 'percentage' | 'fixed';
+    value: number;
+    amount: number;
+    reason?: string;
+  } | null;
+  onRemoveDiscount?: () => void;
 }
 
 export interface OrderItemsListProps {

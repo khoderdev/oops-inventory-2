@@ -57,6 +57,10 @@ export interface Order {
   subtotal: number;
   tax: number;
   total: number;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
+  discountAmount?: number;
+  discountReason?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -109,4 +113,15 @@ export interface DiscountDialogProps {
   discountAmount: number;
   onDiscountAmountChange: (amount: number) => void;
   onDiscount: () => void;
+}
+
+export interface DiscountData {
+  type: 'percentage' | 'fixed';
+  value: number;
+  reason?: string;
+}
+
+export interface ExtendedDiscountDialogProps extends DiscountDialogProps {
+  orderSubtotal: number;
+  onApplyDiscount: (discount: DiscountData) => void;
 }

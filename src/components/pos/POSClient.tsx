@@ -66,6 +66,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showDiscountDialog, setShowDiscountDialog] = useState(false);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    type: 'percentage' | 'fixed';
+    value: number;
+    amount: number;
+    reason?: string;
+  } | null>(null);
 
   // Order management hook
   const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
@@ -119,23 +125,60 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Handle discount dialog
   const handleShowDiscount = useCallback(() => {
+    if (cart.length === 0) {
+      showError("Cannot apply discount to empty cart");
+      return;
+    }
     setShowDiscountDialog(true);
-  }, []);
+  }, [cart.length, showError]);
 
   const handleDiscountAmountChange = useCallback((amount: number) => {
     setDiscountAmount(amount);
   }, []);
 
-  const handleApplyDiscount = useCallback(() => {
-    // TODO: Implement discount application logic
-    console.log('Applying discount:', discountAmount);
+  const handleApplyDiscount = useCallback((discountData: {
+    type: 'percentage' | 'fixed';
+    value: number;
+    reason?: string;
+  }) => {
+    if (cart.length === 0) {
+      showError("Cannot apply discount to empty cart");
+      return;
+    }
+
+    const currentSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    let discountAmount = 0;
+
+    if (discountData.type === 'percentage') {
+      const safePercentage = Math.min(discountData.value, 100);
+      discountAmount = (currentSubtotal * safePercentage) / 100;
+    } else {
+      discountAmount = Math.min(discountData.value, currentSubtotal);
+    }
+
+    // Apply the discount
+    setAppliedDiscount({
+      type: discountData.type,
+      value: discountData.value,
+      amount: discountAmount,
+      reason: discountData.reason
+    });
+
+    setDiscountAmount(discountAmount);
     setShowDiscountDialog(false);
-    // You can add discount logic here, such as:
-    // - Apply discount to cart items
-    // - Update cart totals
-    // - Show success message
-    showSuccess(`Discount of $${discountAmount.toFixed(2)} applied`);
-  }, [discountAmount, showSuccess]);
+    
+    const discountText = discountData.type === 'percentage' 
+      ? `${discountData.value}% discount` 
+      : `$${discountData.value} discount`;
+    
+    showSuccess(`${discountText} applied - Saved $${discountAmount.toFixed(2)}`);
+  }, [cart, showError, showSuccess]);
+
+  const handleRemoveDiscount = useCallback(() => {
+    setAppliedDiscount(null);
+    setDiscountAmount(0);
+    showSuccess("Discount removed");
+  }, [showSuccess]);
 
   // Fetch incomplete orders count and table orders for notifications
   const fetchIncompleteOrders = useCallback(async () => {
@@ -739,7 +782,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Calculate totals - with safety check for undefined cart
   const subtotal = (cart || []).reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = 0; // No tax applied
-  const total = subtotal; // Total equals subtotal (no tax)
+  const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
+  const total = Math.max(0, subtotal - discountAmountCalculated); // Total equals subtotal minus discount
 
   // Print current order receipt
   const handlePrintReceipt = useCallback(() => {
@@ -1166,6 +1210,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 total={total}
                 orderStatus={currentOrder?.status}
                 isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
+                appliedDiscount={appliedDiscount}
+                onRemoveDiscount={handleRemoveDiscount}
                 onPaymentClick={() => {
                   // Check if current order is already completed
                   if (currentOrder && currentOrder.status === "paid") {
@@ -1217,6 +1263,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   total={total}
                   orderStatus={currentOrder?.status}
                   isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
+                  appliedDiscount={appliedDiscount}
+                  onRemoveDiscount={handleRemoveDiscount}
                   onPaymentClick={() => {
                     console.log("💰 Opening payment dialog, auto-filling amount:", total);
                     setPaymentAmount(total.toString());
@@ -1302,7 +1350,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           onClose={() => setShowDiscountDialog(false)}
           discountAmount={discountAmount}
           onDiscountAmountChange={handleDiscountAmountChange}
-          onDiscount={handleApplyDiscount}
+          onDiscount={() => {}}
+          orderSubtotal={subtotal}
+          onApplyDiscount={handleApplyDiscount}
         />
 
         {/* Payment Dialog */}

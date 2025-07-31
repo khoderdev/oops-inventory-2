@@ -1,6 +1,6 @@
 import { OrderSummaryProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { HandCoins, Save } from "lucide-react";
+import { HandCoins, Save, X } from "lucide-react";
 import React from "react";
 import { ActionButton } from "./ActionBar";
 
@@ -11,7 +11,9 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
   onPaymentClick, 
   onSaveClick, 
   orderStatus,
-  isOrderCompleted 
+  isOrderCompleted,
+  appliedDiscount,
+  onRemoveDiscount
 }) => {
   if (!cart || cart.length === 0) {
     return null;
@@ -50,11 +52,47 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
           <span>Sub Total</span>
           <span>{formatCurrency(subtotal)}</span>
         </div>
+        
+        {/* Discount Information */}
+        {appliedDiscount && (
+          <div className="flex justify-between items-center text-red-600 bg-red-50 px-2 py-1 rounded">
+            <div className="flex flex-col">
+              <span className="text-xs font-medium">
+                {appliedDiscount.type === 'percentage' 
+                  ? `${appliedDiscount.value}% Discount` 
+                  : `$${appliedDiscount.value} Discount`}
+              </span>
+              {appliedDiscount.reason && (
+                <span className="text-xs opacity-75">{appliedDiscount.reason}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">-{formatCurrency(appliedDiscount.amount)}</span>
+              {onRemoveDiscount && !isCompleted && (
+                <button
+                  onClick={onRemoveDiscount}
+                  className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 transition-colors"
+                  title="Remove discount"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        
         <div className="border-t border-gray-300">
           <div className="flex justify-between font-bold text-lg">
             <span>TOTAL</span>
-            <span>{formatCurrency(total)}</span>
+            <span className={appliedDiscount ? "text-green-600" : ""}>
+              {formatCurrency(total)}
+            </span>
           </div>
+          {appliedDiscount && (
+            <div className="text-xs text-green-600 text-right">
+              You saved {formatCurrency(appliedDiscount.amount)}!
+            </div>
+          )}
         </div>
       </div>
 
