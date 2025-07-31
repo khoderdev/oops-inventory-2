@@ -1,5 +1,5 @@
-import { DataTypes } from "sequelize";
 import crypto from "crypto";
+import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 
 const Session = sequelize.define(
@@ -93,6 +93,8 @@ const Session = sequelize.define(
   },
   {
     tableName: "sessions",
+    schema: "public",
+    underscored: false,
     timestamps: true,
     indexes: [
       {
@@ -132,19 +134,17 @@ const Session = sequelize.define(
 );
 
 // Instance methods
-Session.prototype.isExpired = function() {
+Session.prototype.isExpired = function () {
   return this.expiresAt < new Date();
 };
 
-Session.prototype.isOnline = function() {
+Session.prototype.isOnline = function () {
   const now = new Date();
   const heartbeatThreshold = 5 * 60 * 1000; // 5 minutes
-  return this.isActive && 
-         this.status === "online" && 
-         (now - new Date(this.lastHeartbeat)) < heartbeatThreshold;
+  return this.isActive && this.status === "online" && now - new Date(this.lastHeartbeat) < heartbeatThreshold;
 };
 
-Session.prototype.updateHeartbeat = async function() {
+Session.prototype.updateHeartbeat = async function () {
   this.lastHeartbeat = new Date();
   this.lastActivity = new Date();
   if (this.status === "offline") {
@@ -154,7 +154,7 @@ Session.prototype.updateHeartbeat = async function() {
   return this;
 };
 
-Session.prototype.setOffline = async function() {
+Session.prototype.setOffline = async function () {
   this.status = "offline";
   this.logoutTime = new Date();
   this.socketId = null;
@@ -162,7 +162,7 @@ Session.prototype.setOffline = async function() {
   return this;
 };
 
-Session.prototype.updateSocketId = async function(socketId) {
+Session.prototype.updateSocketId = async function (socketId) {
   this.socketId = socketId;
   this.status = "online";
   this.lastActivity = new Date();
@@ -171,7 +171,7 @@ Session.prototype.updateSocketId = async function(socketId) {
   return this;
 };
 
-Session.prototype.extend = async function(hours = 24) {
+Session.prototype.extend = async function (hours = 24) {
   this.expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
   this.lastActivity = new Date();
   await this.save();
@@ -179,16 +179,16 @@ Session.prototype.extend = async function(hours = 24) {
 };
 
 // Static methods
-Session.getActiveUserSessions = async function(userId = null) {
+Session.getActiveUserSessions = async function (userId = null) {
   const whereClause = {
     isActive: true,
     status: ["online", "idle", "away"]
   };
-  
+
   if (userId) {
     whereClause.userId = userId;
   }
-  
+
   return await this.findAll({
     where: whereClause,
     include: [
@@ -202,10 +202,10 @@ Session.getActiveUserSessions = async function(userId = null) {
   });
 };
 
-Session.getOnlineUsers = async function() {
+Session.getOnlineUsers = async function () {
   const now = new Date();
   const heartbeatThreshold = 5 * 60 * 1000; // 5 minutes
-  
+
   return await this.findAll({
     where: {
       isActive: true,
@@ -225,7 +225,7 @@ Session.getOnlineUsers = async function() {
   });
 };
 
-Session.getUserDevices = async function(userId) {
+Session.getUserDevices = async function (userId) {
   return await this.findAll({
     where: {
       userId,
@@ -235,21 +235,21 @@ Session.getUserDevices = async function(userId) {
   });
 };
 
-Session.getSessionStats = async function() {
+Session.getSessionStats = async function () {
   const [totalSessions, activeSessions, onlineUsers] = await Promise.all([
     this.count(),
     this.count({ where: { isActive: true } }),
-    this.count({ 
-      where: { 
-        isActive: true, 
+    this.count({
+      where: {
+        isActive: true,
         status: "online",
         lastHeartbeat: {
           [sequelize.Sequelize.Op.gte]: new Date(Date.now() - 5 * 60 * 1000)
         }
-      } 
+      }
     })
   ]);
-  
+
   return {
     totalSessions,
     activeSessions,
@@ -258,30 +258,30 @@ Session.getSessionStats = async function() {
   };
 };
 
-Session.revokeDeviceSession = async function(userId, deviceId) {
+Session.revokeDeviceSession = async function (userId, deviceId) {
   const result = await this.update(
-    { 
-      isActive: false, 
+    {
+      isActive: false,
       status: "offline",
       logoutTime: new Date(),
       socketId: null
     },
-    { 
-      where: { 
-        userId, 
-        deviceId, 
-        isActive: true 
-      } 
+    {
+      where: {
+        userId,
+        deviceId,
+        isActive: true
+      }
     }
   );
-  
+
   return result[0]; // Number of affected rows
 };
 
-Session.cleanupExpired = async function() {
+Session.cleanupExpired = async function () {
   const result = await this.update(
-    { 
-      isActive: false, 
+    {
+      isActive: false,
       status: "offline",
       logoutTime: new Date()
     },
@@ -304,27 +304,27 @@ Session.cleanupExpired = async function() {
       }
     }
   );
-  
+
   console.log(`Cleaned up ${result[0]} expired/inactive sessions`);
   return result[0];
 };
 
-Session.revokeUserSessions = async function(userId, exceptToken = null) {
+Session.revokeUserSessions = async function (userId, exceptToken = null) {
   const whereClause = { userId, isActive: true };
   if (exceptToken) {
     whereClause.token = { [sequelize.Sequelize.Op.ne]: exceptToken };
   }
-  
+
   const result = await this.update(
-    { 
-      isActive: false, 
+    {
+      isActive: false,
       status: "offline",
       logoutTime: new Date(),
       socketId: null
     },
     { where: whereClause }
   );
-  
+
   return result[0]; // Number of affected rows
 };
 

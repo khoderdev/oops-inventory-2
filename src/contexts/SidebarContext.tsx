@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useState } from "react";
 
 interface SidebarContextType {
   isCollapsed: boolean;
@@ -14,7 +14,7 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 export const useSidebar = () => {
   const context = useContext(SidebarContext);
   if (context === undefined) {
-    throw new Error('useSidebar must be used within a SidebarProvider');
+    throw new Error("useSidebar must be used within a SidebarProvider");
   }
   return context;
 };
@@ -24,7 +24,7 @@ interface SidebarProviderProps {
 }
 
 export const SidebarProvider: React.FC<SidebarProviderProps> = ({ children }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const toggleCollapse = useCallback(() => {
@@ -53,12 +53,8 @@ export const SidebarProvider: React.FC<SidebarProviderProps> = ({ children }) =>
     toggleCollapse,
     closeMobileMenu,
     openMobileMenu,
-    toggleMobileMenu,
+    toggleMobileMenu
   };
 
-  return (
-    <SidebarContext.Provider value={value}>
-      {children}
-    </SidebarContext.Provider>
-  );
+  return <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>;
 };

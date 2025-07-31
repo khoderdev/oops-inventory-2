@@ -27,9 +27,9 @@ const PrinterChannel = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true
     },
-    is_active: {
+    isActive: {
       type: DataTypes.BOOLEAN,
-      field: "is_active", // Explicitly map to snake_case column
+      field: "isActive", // Explicitly map to snake_case column
       defaultValue: true,
       allowNull: false
     },
@@ -61,7 +61,7 @@ const PrinterChannel = sequelize.define(
     createdBy: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: "created_by", // Explicitly map to snake_case column
+      field: "createdBy", // Explicitly map to snake_case column
       references: {
         model: "users",
         key: "id"
@@ -69,12 +69,12 @@ const PrinterChannel = sequelize.define(
     },
     createdAt: {
       type: DataTypes.DATE,
-      field: "created_at",
+      field: "createdAt",
       allowNull: false
     },
     updatedAt: {
       type: DataTypes.DATE,
-      field: "updated_at",
+      field: "updatedAt",
       allowNull: false
     }
   },
@@ -87,10 +87,10 @@ const PrinterChannel = sequelize.define(
         fields: ["name"]
       },
       {
-        fields: ["is_active", "priority"]
+        fields: ["isActive", "priority"]
       },
       {
-        fields: ["created_by"]
+        fields: ["createdBy"]
       }
     ]
   }

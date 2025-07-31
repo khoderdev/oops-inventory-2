@@ -35,12 +35,14 @@ const Printer = sequelize.define(
     },
     connectionType: {
       type: DataTypes.ENUM("usb", "network", "bluetooth", "serial"),
-      allowNull: false
+      allowNull: false,
+      field: "connection_type"
     },
 
     // Network Configuration
     networkConfig: {
       type: DataTypes.JSONB,
+      field: "network_config",
       defaultValue: {
         ipAddress: null,
         port: 9100,
@@ -52,6 +54,7 @@ const Printer = sequelize.define(
     // OS Integration (Windows)
     osConfig: {
       type: DataTypes.JSONB,
+      field: "os_config",
       defaultValue: {
         printerName: null,
         driverName: null,
@@ -65,6 +68,7 @@ const Printer = sequelize.define(
     // Print Settings
     settings: {
       type: DataTypes.JSONB,
+      field: "settings",
       defaultValue: {
         paperSize: "80mm",
         orientation: "portrait",
@@ -101,20 +105,23 @@ const Printer = sequelize.define(
     },
     lastPing: {
       type: DataTypes.DATE,
+      field: "last_ping",
       allowNull: true
     },
     lastPrintJob: {
       type: DataTypes.DATE,
+      field: "last_print_job",
       allowNull: true
     },
     errorCount: {
       type: DataTypes.INTEGER,
+      field: "error_count",
       defaultValue: 0,
       allowNull: false
     },
     totalJobs: {
       type: DataTypes.INTEGER,
-      defaultValue: 0,
+      field: "total_jobs",
       allowNull: false
     },
 

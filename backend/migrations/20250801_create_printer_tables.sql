@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS printer_channels (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
-    is_active BOOLEAN NOT NULL DEFAULT true,
+    isActive BOOLEAN NOT NULL DEFAULT true,
     priority INTEGER NOT NULL DEFAULT 1 CHECK (priority >= 1 AND priority <= 10),
     settings JSONB NOT NULL DEFAULT '{
         "autoRetry": true,
@@ -15,9 +15,9 @@ CREATE TABLE IF NOT EXISTS printer_channels (
         "retryDelay": 5000,
         "fallbackChannelId": null
     }'::jsonb,
-    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    createdBy INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    createdAt TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updatedAt TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- Create printers table
@@ -75,12 +75,12 @@ CREATE TABLE IF NOT EXISTS printers (
     total_jobs INTEGER NOT NULL DEFAULT 0,
     
     -- Management
-    is_active BOOLEAN NOT NULL DEFAULT true,
+    isActive BOOLEAN NOT NULL DEFAULT true,
     location VARCHAR(200),
     description TEXT,
-    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    createdBy INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    createdAt TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updatedAt TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- Create print_jobs table
@@ -146,31 +146,31 @@ CREATE TABLE IF NOT EXISTS print_jobs (
         "dataSize": null
     }'::jsonb,
     
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    createdAt TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updatedAt TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_printer_channels_name ON printer_channels(name);
-CREATE INDEX IF NOT EXISTS idx_printer_channels_active_priority ON printer_channels(is_active, priority);
-CREATE INDEX IF NOT EXISTS idx_printer_channels_created_by ON printer_channels(created_by);
+CREATE INDEX IF NOT EXISTS idx_printer_channels_active_priority ON printer_channels(isActive, priority);
+CREATE INDEX IF NOT EXISTS idx_printer_channels_created_by ON printer_channels(createdBy);
 
-CREATE INDEX IF NOT EXISTS idx_printers_channel_active ON printers(channel_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_printers_channel_active ON printers(channel_id, isActive);
 CREATE INDEX IF NOT EXISTS idx_printers_status ON printers(status);
 CREATE INDEX IF NOT EXISTS idx_printers_connection_type ON printers(connection_type);
-CREATE INDEX IF NOT EXISTS idx_printers_created_by ON printers(created_by);
+CREATE INDEX IF NOT EXISTS idx_printers_created_by ON printers(createdBy);
 
-CREATE INDEX IF NOT EXISTS idx_print_jobs_status_created ON print_jobs(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_print_jobs_status_created ON print_jobs(status, createdAt DESC);
 CREATE INDEX IF NOT EXISTS idx_print_jobs_printer_status ON print_jobs(printer_id, status);
 CREATE INDEX IF NOT EXISTS idx_print_jobs_channel_status ON print_jobs(channel_id, status);
 CREATE INDEX IF NOT EXISTS idx_print_jobs_metadata ON print_jobs USING GIN(metadata);
 CREATE INDEX IF NOT EXISTS idx_print_jobs_settings ON print_jobs USING GIN(settings);
 
--- Create triggers for updated_at timestamps
+-- Create triggers for updatedAt timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
+    NEW.updatedAt = NOW();
     RETURN NEW;
 END;
 $$ language 'plpgsql';
@@ -188,7 +188,7 @@ CREATE TRIGGER update_print_jobs_updated_at
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default printer channel
-INSERT INTO printer_channels (name, description, priority, created_by)
+INSERT INTO printer_channels (name, description, priority, createdBy)
 SELECT 'Default Channel', 'Default printer channel for general printing', 1, 1
 WHERE NOT EXISTS (SELECT 1 FROM printer_channels WHERE name = 'Default Channel');
 
