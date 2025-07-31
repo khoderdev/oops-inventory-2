@@ -3,51 +3,55 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ORDER_STATUS_COLORS, ORDER_TYPE_ICONS } from "@/constants/constants";
 import { useAuth } from "@/contexts/AuthContext";
-import { ReceiptData } from "@/types/inventory";
+import { POSClientSalesProps, ReceiptData, SalesFilters } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { Document, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
-import { AlertCircle, Calendar, Clock, Grid3X3, List, Package, Printer, Search, ShoppingBag, TrendingUp, Truck, User } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertCircle, Calendar, Clock, Grid3X3, List, Printer, Search, TrendingUp, User, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { OrderDetailsDialog } from "./OrderDetailsDialog";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
-interface POSClientSalesProps {
-  isOpen?: boolean;
-  onClose?: () => void;
-  onOrderSelect?: (order: Order) => void;
+// Raw API response types to handle string numbers from backend
+interface RawOrderItem {
+  id: string | number;
+  name: string;
+  quantity: string | number;
+  unitPrice: string | number;
+  totalPrice: string | number;
+  type: "material" | "menu";
+  notes?: string;
+  [key: string]: unknown;
 }
 
-interface SalesFilters {
-  status?: OrderStatus;
-  orderType?: OrderType;
-  searchTerm?: string;
-  dateRange?: {
-    startDate?: string;
-    endDate?: string;
-  };
+interface RawOrderData {
+  id: string | number;
+  orderNumber: string;
+  status: OrderStatus;
+  orderType: OrderType;
+  subtotal: string | number;
+  total: string | number;
+  tax?: string | number;
+  discountType?: "percentage" | "fixed";
+  discountValue?: string | number;
+  discountAmount?: string | number;
+  paymentAmount?: string | number;
+  createdAt: string;
+  updatedAt: string;
+  estimatedReadyTime?: string;
+  completedAt?: string;
+  items?: RawOrderItem[];
+  createdBy?: string | number;
+  userId?: string;
+  userRole?: string;
+  [key: string]: unknown;
 }
-
-const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
-  draft: "bg-gray-100 text-gray-800",
-  confirmed: "bg-blue-100 text-blue-800",
-  preparing: "bg-yellow-100 text-yellow-800",
-  ready: "bg-green-100 text-green-800",
-  served: "bg-purple-100 text-purple-800",
-  paid: "bg-emerald-100 text-emerald-800",
-  cancelled: "bg-red-100 text-red-800"
-};
-
-const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
-  delivery: <Truck className="w-4 h-4" />,
-  takeaway: <Package className="w-4 h-4" />,
-  table: <ShoppingBag className="w-4 h-4" />
-};
 
 export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose, onOrderSelect }) => {
   const { user } = useAuth();
@@ -58,10 +62,23 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
   const [isPrintingReport, setIsPrintingReport] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<SalesFilters>({});
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [totalSales, setTotalSales] = useState(0);
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
+
+  // Auto-clear errors after 10 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 10000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   // Fetch sales based on filters
   const fetchSales = useCallback(async () => {
@@ -144,6 +161,59 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
     setFilters({});
   }, []);
 
+  // Transform API data to ensure numeric fields are numbers
+  const transformOrderData = (rawOrder: RawOrderData): Order => {
+    const parseNumber = (value: string | number | undefined): number => {
+      if (typeof value === 'number') return value;
+      return parseFloat(String(value)) || 0;
+    };
+    
+    const parseOptionalNumber = (value: string | number | undefined): number | undefined => {
+      if (value === undefined || value === null) return undefined;
+      if (typeof value === 'number') return value;
+      const parsed = parseFloat(String(value));
+      return isNaN(parsed) ? undefined : parsed;
+    };
+    
+    return {
+      ...rawOrder,
+      id: String(rawOrder.id),
+      subtotal: parseNumber(rawOrder.subtotal),
+      total: parseNumber(rawOrder.total),
+      tax: parseNumber(rawOrder.tax),
+      discountValue: parseOptionalNumber(rawOrder.discountValue),
+      discountAmount: parseOptionalNumber(rawOrder.discountAmount),
+      createdAt: new Date(rawOrder.createdAt),
+      updatedAt: new Date(rawOrder.updatedAt),
+      startTime: new Date(rawOrder.createdAt),
+      estimatedReadyTime: rawOrder.estimatedReadyTime ? new Date(rawOrder.estimatedReadyTime) : undefined,
+      completedAt: rawOrder.completedAt ? new Date(rawOrder.completedAt) : undefined,
+      items: rawOrder.items?.map((item: RawOrderItem) => {
+        const unitPrice = parseNumber(item.unitPrice);
+        const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(String(item.quantity)) || 0;
+        const apiTotalPrice = parseNumber(item.totalPrice);
+        
+        // Recalculate totalPrice to handle cases where API might have rounding issues
+        const calculatedTotalPrice = unitPrice * quantity;
+        
+        // Use calculated price if API price is 0 but calculated price is not
+        const finalTotalPrice = (apiTotalPrice === 0 && calculatedTotalPrice > 0) 
+          ? calculatedTotalPrice 
+          : apiTotalPrice;
+        
+        return {
+          ...item,
+          id: String(item.id),
+          unitPrice,
+          totalPrice: finalTotalPrice,
+          quantity
+        };
+      }) || [],
+      userId: String(rawOrder.createdBy || rawOrder.userId || ""),
+      userRole: rawOrder.userRole || "user"
+    };
+  };
+
   const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
@@ -160,304 +230,184 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
     });
   };
 
-  // PDF Styles
-  const pdfStyles = StyleSheet.create({
-    page: {
-      flexDirection: "column",
-      backgroundColor: "#ffffff",
-      padding: 30,
-      fontFamily: "Helvetica"
-    },
-    header: {
-      marginBottom: 30,
-      textAlign: "center",
-      borderBottom: "2 solid #e5e7eb",
-      paddingBottom: 20
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: "#1f2937",
-      marginBottom: 10
-    },
-    subtitle: {
-      fontSize: 12,
-      color: "#6b7280",
-      marginBottom: 5
-    },
-    summarySection: {
-      backgroundColor: "#f9fafb",
-      padding: 15,
-      marginBottom: 20,
-      borderRadius: 8,
-      border: "1 solid #e5e7eb"
-    },
-    summaryTitle: {
-      fontSize: 16,
-      fontWeight: "bold",
-      color: "#374151",
-      marginBottom: 10
-    },
-    summaryRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: 8
-    },
-    summaryLabel: {
-      fontSize: 12,
-      color: "#6b7280"
-    },
-    summaryValue: {
-      fontSize: 12,
-      fontWeight: "bold",
-      color: "#059669"
-    },
-    table: {
-      width: "auto",
-      borderStyle: "solid",
-      borderWidth: 1,
-      borderRightWidth: 0,
-      borderBottomWidth: 0,
-      borderColor: "#e5e7eb"
-    },
-    tableRow: {
-      margin: "auto",
-      flexDirection: "row"
-    },
-    tableColHeader: {
-      width: "14.28%",
-      borderStyle: "solid",
-      borderWidth: 1,
-      borderLeftWidth: 0,
-      borderTopWidth: 0,
-      borderColor: "#e5e7eb",
-      backgroundColor: "#f3f4f6",
-      padding: 8
-    },
-    tableCol: {
-      width: "14.28%",
-      borderStyle: "solid",
-      borderWidth: 1,
-      borderLeftWidth: 0,
-      borderTopWidth: 0,
-      borderColor: "#e5e7eb",
-      padding: 8
-    },
-    tableCellHeader: {
-      fontSize: 10,
-      fontWeight: "bold",
-      color: "#374151"
-    },
-    tableCell: {
-      fontSize: 9,
-      color: "#6b7280"
-    },
-    totalRow: {
-      backgroundColor: "#ecfdf5"
-    },
-    totalCell: {
-      fontSize: 10,
-      fontWeight: "bold",
-      color: "#059669"
-    },
-    footer: {
-      position: "absolute",
-      bottom: 30,
-      left: 30,
-      right: 30,
-      textAlign: "center",
-      borderTop: "1 solid #e5e7eb",
-      paddingTop: 10
-    },
-    footerText: {
-      fontSize: 8,
-      color: "#9ca3af"
-    }
-  });
+  // Handle clicking on a sale row to show details
+  const handleSaleRowClick = async (sale: OrderSummary) => {
+    setIsLoadingOrderDetails(true);
+    setError(null); // Clear any previous errors
 
-  // PDF Document Component
-  const SalesReportPDF = () => {
-    const reportData = {
-      reportTitle: "Sales Report",
-      reportDate: new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      }),
-      reportTime: new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true
-      }),
-      totalSales: sales.length,
-      totalAmount: totalSales,
-      sales: sales
-    };
-
-    return (
-      <Document>
-        <Page size="A4" style={pdfStyles.page}>
-          {/* Header */}
-          <View style={pdfStyles.header}>
-            <Text style={pdfStyles.title}>Sales Report</Text>
-            <Text style={pdfStyles.subtitle}>
-              Generated on {reportData.reportDate} at {reportData.reportTime}
-            </Text>
-            <Text style={pdfStyles.subtitle}>Report Period: All Time</Text>
-          </View>
-
-          {/* Summary Section */}
-          <View style={pdfStyles.summarySection}>
-            <Text style={pdfStyles.summaryTitle}>Summary</Text>
-            <View style={pdfStyles.summaryRow}>
-              <Text style={pdfStyles.summaryLabel}>Total Sales Count:</Text>
-              <Text style={pdfStyles.summaryValue}>{reportData.totalSales}</Text>
-            </View>
-            <View style={pdfStyles.summaryRow}>
-              <Text style={pdfStyles.summaryLabel}>Total Sales Amount:</Text>
-              <Text style={pdfStyles.summaryValue}>{formatCurrency(reportData.totalAmount)}</Text>
-            </View>
-            <View style={pdfStyles.summaryRow}>
-              <Text style={pdfStyles.summaryLabel}>Average Sale Amount:</Text>
-              <Text style={pdfStyles.summaryValue}>{reportData.totalSales > 0 ? formatCurrency(reportData.totalAmount / reportData.totalSales) : "$0.00"}</Text>
-            </View>
-          </View>
-
-          {/* Sales Table */}
-          <View style={pdfStyles.table}>
-            {/* Table Header */}
-            <View style={pdfStyles.tableRow}>
-              <View style={pdfStyles.tableColHeader}>
-                <Text style={pdfStyles.tableCellHeader}>Order ID</Text>
-              </View>
-              <View style={pdfStyles.tableColHeader}>
-                <Text style={pdfStyles.tableCellHeader}>Customer</Text>
-              </View>
-              <View style={pdfStyles.tableColHeader}>
-                <Text style={pdfStyles.tableCellHeader}>Type</Text>
-              </View>
-              <View style={pdfStyles.tableColHeader}>
-                <Text style={pdfStyles.tableCellHeader}>Status</Text>
-              </View>
-              <View style={pdfStyles.tableColHeader}>
-                <Text style={pdfStyles.tableCellHeader}>Date</Text>
-              </View>
-              <View style={pdfStyles.tableColHeader}>
-                <Text style={pdfStyles.tableCellHeader}>Amount</Text>
-              </View>
-              <View style={pdfStyles.tableColHeader}>
-                <Text style={pdfStyles.tableCellHeader}>Items</Text>
-              </View>
-            </View>
-
-            {/* Table Rows */}
-            {sales.map((sale, index) => (
-              <View key={sale.id} style={pdfStyles.tableRow}>
-                <View style={pdfStyles.tableCol}>
-                  <Text style={pdfStyles.tableCell}>{sale.id}</Text>
-                </View>
-                <View style={pdfStyles.tableCol}>
-                  <Text style={pdfStyles.tableCell}>{sale.customerName || "N/A"}</Text>
-                </View>
-                <View style={pdfStyles.tableCol}>
-                  <Text style={pdfStyles.tableCell}>{sale.orderType}</Text>
-                </View>
-                <View style={pdfStyles.tableCol}>
-                  <Text style={pdfStyles.tableCell}>{sale.status}</Text>
-                </View>
-                <View style={pdfStyles.tableCol}>
-                  <Text style={pdfStyles.tableCell}>{formatDate(sale.createdAt)}</Text>
-                </View>
-                <View style={pdfStyles.tableCol}>
-                  <Text style={pdfStyles.tableCell}>{formatCurrency(sale.total)}</Text>
-                </View>
-                <View style={pdfStyles.tableCol}>
-                  <Text style={pdfStyles.tableCell}>{sale.itemCount || 0}</Text>
-                </View>
-              </View>
-            ))}
-
-            {/* Total Row */}
-            <View style={[pdfStyles.tableRow, pdfStyles.totalRow]}>
-              <View style={pdfStyles.tableCol}>
-                <Text style={pdfStyles.totalCell}>TOTAL</Text>
-              </View>
-              <View style={pdfStyles.tableCol}>
-                <Text style={pdfStyles.totalCell}>-</Text>
-              </View>
-              <View style={pdfStyles.tableCol}>
-                <Text style={pdfStyles.totalCell}>-</Text>
-              </View>
-              <View style={pdfStyles.tableCol}>
-                <Text style={pdfStyles.totalCell}>-</Text>
-              </View>
-              <View style={pdfStyles.tableCol}>
-                <Text style={pdfStyles.totalCell}>-</Text>
-              </View>
-              <View style={pdfStyles.tableCol}>
-                <Text style={pdfStyles.totalCell}>{formatCurrency(reportData.totalAmount)}</Text>
-              </View>
-              <View style={pdfStyles.tableCol}>
-                <Text style={pdfStyles.totalCell}>{reportData.totalSales}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Footer */}
-          <View style={pdfStyles.footer}>
-            <Text style={pdfStyles.footerText}>This report was generated automatically by the oOps POS System</Text>
-            <Text style={pdfStyles.footerText}>Page 1 of 1 • Generated at {new Date().toISOString()}</Text>
-          </View>
-        </Page>
-      </Document>
-    );
-  };
-
-  const handlePrintSalesReport = async () => {
-    setIsPrintingReport(true);
     try {
-      // Generate PDF blob
-      const blob = await pdf(<SalesReportPDF />).toBlob();
+      const response = await ordersAPI.getOrder(sale.id);
+      console.log("Order details response:", response);
+      
+      // Handle nested data structure - API returns { data: { data: orderData } }
+      const rawOrderData = response.data?.data || response.data;
+      const transformedOrder = transformOrderData(rawOrderData);
+      setSelectedOrder(transformedOrder);
+      setShowOrderDetails(true);
+    } catch (error) {
+      console.error("Failed to fetch order details:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setError(`Failed to load order details: ${errorMessage}`);
 
-      // Create object URL for the blob
-      const url = URL.createObjectURL(blob);
-
-      // Create an iframe to load the PDF and trigger print
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "absolute";
-      iframe.style.top = "-10000px";
-      iframe.style.left = "-10000px";
-      iframe.style.width = "1px";
-      iframe.style.height = "1px";
-      iframe.src = url;
-
-      document.body.appendChild(iframe);
-
-      iframe.onload = () => {
-        // Small delay to ensure PDF is fully loaded
-        setTimeout(() => {
-          // Trigger print dialog
-          iframe.contentWindow?.print();
-
-          // Clean up after user has time to print (extended delay)
-          setTimeout(() => {
-            if (document.body.contains(iframe)) {
-              document.body.removeChild(iframe);
-            }
-            URL.revokeObjectURL(url);
-          }, 20000); // 20 seconds to allow user to complete printing
-        }, 500);
+      // Still show dialog with limited info from OrderSummary
+      const limitedOrder: Partial<Order> = {
+        id: sale.id,
+        orderNumber: sale.orderNumber,
+        status: sale.status,
+        orderType: sale.orderType,
+        tableNumber: sale.tableNumber,
+        customerName: sale.customerName,
+        total: sale.total,
+        createdAt: sale.createdAt,
+        updatedAt: sale.createdAt, // Fallback
+        items: [
+          {
+            id: "summary-item",
+            name: `Order Summary (${sale.itemCount} items)`,
+            quantity: sale.itemCount || 1,
+            unitPrice: sale.total / (sale.itemCount || 1),
+            totalPrice: sale.total,
+            type: "menu" as const,
+            notes: "Detailed item information unavailable"
+          }
+        ],
+        subtotal: sale.total - (sale.discountAmount || 0),
+        tax: 0,
+        discountAmount: sale.discountAmount,
+        userId: "",
+        userRole: "",
+        startTime: sale.createdAt
       };
 
-      // Fallback cleanup in case onload doesn't fire
-      setTimeout(() => {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
-        }
-        URL.revokeObjectURL(url);
-      }, 15000); // 15 seconds total fallback
+      setSelectedOrder(limitedOrder as Order);
+      setShowOrderDetails(true);
+    } finally {
+      setIsLoadingOrderDetails(false);
+    }
+  };
+
+  // Handle printing individual receipt
+  const handlePrintReceipt = async (sale: OrderSummary, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent row click
+    setPrintingOrderId(sale.id);
+
+    try {
+      // First try to get full order details
+      let order: Order;
+      let receiptData: ReceiptData;
+
+      try {
+        const response = await ordersAPI.getOrder(sale.id);
+        // Handle nested data structure - API returns { data: { data: orderData } }
+        const rawOrderData = response.data?.data || response.data;
+        order = transformOrderData(rawOrderData);
+
+        // Convert full order to receipt data - use API data as-is
+        receiptData = {
+          id: order.orderNumber || order.id,
+          date: new Date(order.createdAt).toLocaleDateString(),
+          time: new Date(order.createdAt).toLocaleTimeString(),
+          cashier: user?.fullName || "POS System",
+          items: order.items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            type: item.type
+          })),
+          subtotal: order.subtotal,
+          tax: order.tax || 0,
+          total: order.total,
+          paymentAmount: order.total,
+          change: 0,
+          paymentMethod: "cash",
+          // Include discount information exactly as stored
+          discountType: order.discountType || null,
+          discountValue: order.discountValue || null,
+          discountAmount: order.discountAmount || null,
+          discountReason: order.discountReason || null
+        };
+      } catch (orderError) {
+        console.warn("Failed to fetch full order details, using summary data:", orderError);
+
+        // Fallback: Create simplified receipt from OrderSummary data
+        // When we don't have full order details, create a simple receipt without discount complications
+        receiptData = {
+          id: sale.orderNumber,
+          date: new Date(sale.createdAt).toLocaleDateString(),
+          time: new Date(sale.createdAt).toLocaleTimeString(),
+          cashier: user?.fullName || "System",
+          items: [
+            {
+              name: `Order ${sale.orderNumber} (${sale.itemCount} items)`,
+              quantity: 1,
+              unitPrice: sale.total,
+              totalPrice: sale.total,
+              type: "menu" as const
+            }
+          ],
+          subtotal: sale.total, // Use total as subtotal for simplicity
+          tax: 0,
+          total: sale.total,
+          paymentAmount: sale.total,
+          change: 0,
+          paymentMethod: "cash",
+          // Don't include discount info in fallback to avoid validation issues
+          discountType: null,
+          discountValue: null,
+          discountAmount: null,
+          discountReason: null
+        };
+      }
+
+      setReceiptData(receiptData);
+      setShowReceiptDialog(true);
+
+      // Clear any previous errors
+      setError(null);
     } catch (error) {
-      console.error("Error printing sales report:", error);
+      console.error("Failed to prepare receipt:", error);
+      setError(`Failed to prepare receipt: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setPrintingOrderId(null);
+    }
+  };
+
+  // Handle printing sales report using ReceiptPrinter
+  const handlePrintSalesReport = async () => {
+    setIsPrintingReport(true);
+
+    try {
+      // Create a receipt-style sales report
+      const reportReceiptData: ReceiptData = {
+        id: "SALES-REPORT",
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString(),
+        cashier: user?.fullName || "System",
+        items: sales.map((sale, index) => ({
+          name: `${sale.orderNumber} - ${sale.customerName || "N/A"}`,
+          quantity: 1,
+          unitPrice: sale.total,
+          totalPrice: sale.total,
+          type: "menu" as const
+        })),
+        subtotal: totalSales,
+        tax: 0,
+        total: totalSales,
+        paymentAmount: totalSales,
+        change: 0,
+        paymentMethod: "report",
+        discountType: null,
+        discountValue: null,
+        discountAmount: null,
+        discountReason: null
+      };
+
+      setReceiptData(reportReceiptData);
+      setShowReceiptDialog(true);
+    } catch (error) {
+      console.error("Error preparing sales report:", error);
+      setError("Failed to prepare sales report");
     } finally {
       setIsPrintingReport(false);
     }
@@ -535,7 +485,12 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
               ) : error ? (
                 <Alert variant="destructive" className="max-w-2xl mx-auto">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{error}</span>
+                    <Button variant="ghost" size="sm" onClick={() => setError(null)} className="h-6 w-6 p-0 ml-2 hover:bg-red-100" title="Dismiss error">
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </AlertDescription>
                 </Alert>
               ) : sales.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-gray-500">
@@ -562,7 +517,7 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
                     </TableHeader>
                     <TableBody>
                       {sales.map(order => (
-                        <TableRow key={order.id} className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100">
+                        <TableRow key={order.id} className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100" onClick={() => handleSaleRowClick(order)}>
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span className="font-bold text-gray-900">{order.orderNumber}</span>
@@ -601,9 +556,14 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
                             <span className="text-lg font-bold text-green-600">{formatCurrency(order.total)}</span>
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge variant="outline" className="font-medium">
-                              {order.itemCount || 0}
-                            </Badge>
+                            <div className="flex items-center justify-center space-x-2">
+                              <Badge variant="outline" className="font-medium">
+                                {order.itemCount || 0}
+                              </Badge>
+                              <Button variant="ghost" size="sm" onClick={e => handlePrintReceipt(order, e)} disabled={printingOrderId === order.id} className="h-8 w-8 p-0 hover:bg-blue-100" title="Print Receipt">
+                                {printingOrderId === order.id ? <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <Printer className="w-4 h-4 text-blue-600" />}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -613,7 +573,7 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                   {sales.map(order => (
-                    <Card key={order.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]">
+                    <Card key={order.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" onClick={() => handleSaleRowClick(order)}>
                       <CardHeader className="pb-4">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1 min-w-0">
@@ -625,7 +585,12 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
                               </div>
                             </div>
                           </div>
-                          <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-sm font-semibold px-3 py-1`}>{order.status}</Badge>
+                          <div className="flex items-center space-x-2">
+                            <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-sm font-semibold px-3 py-1`}>{order.status}</Badge>
+                            <Button variant="ghost" size="sm" onClick={e => handlePrintReceipt(order, e)} disabled={printingOrderId === order.id} className="h-8 w-8 p-0 hover:bg-blue-100" title="Print Receipt">
+                              {printingOrderId === order.id ? <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <Printer className="w-4 h-4 text-blue-600" />}
+                            </Button>
+                          </div>
                         </div>
 
                         <CardDescription className="space-y-2">
@@ -727,7 +692,18 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
         <MainContent />
       )}
 
-      <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={receiptData} autoPrint={false} />
+      {/* Order Details Dialog */}
+      <OrderDetailsDialog isOpen={showOrderDetails} onClose={() => setShowOrderDetails(false)} order={selectedOrder} isLoading={isLoadingOrderDetails} />
+
+      <ReceiptPrinter
+        isOpen={showReceiptDialog}
+        onClose={() => {
+          setShowReceiptDialog(false);
+          setReceiptData(null);
+        }}
+        receiptData={receiptData}
+        autoPrint={false}
+      />
     </>
   );
 };

@@ -7,7 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
-import { MenuItem, NegativeStockWarning, OrderType, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
+import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
+import { OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, Trash2 } from "lucide-react";
@@ -67,7 +68,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showDiscountDialog, setShowDiscountDialog] = useState(false);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [appliedDiscount, setAppliedDiscount] = useState<{
-    type: 'percentage' | 'fixed';
+    type: "percentage" | "fixed";
     value: number;
     amount: number;
     reason?: string;
@@ -136,43 +137,40 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setDiscountAmount(amount);
   }, []);
 
-  const handleApplyDiscount = useCallback((discountData: {
-    type: 'percentage' | 'fixed';
-    value: number;
-    reason?: string;
-  }) => {
-    if (cart.length === 0) {
-      showError("Cannot apply discount to empty cart");
-      return;
-    }
+  const handleApplyDiscount = useCallback(
+    (discountData: { type: "percentage" | "fixed"; value: number; reason?: string }) => {
+      if (cart.length === 0) {
+        showError("Cannot apply discount to empty cart");
+        return;
+      }
 
-    const currentSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    let discountAmount = 0;
+      const currentSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      let discountAmount = 0;
 
-    if (discountData.type === 'percentage') {
-      const safePercentage = Math.min(discountData.value, 100);
-      discountAmount = (currentSubtotal * safePercentage) / 100;
-    } else {
-      discountAmount = Math.min(discountData.value, currentSubtotal);
-    }
+      if (discountData.type === "percentage") {
+        const safePercentage = Math.min(discountData.value, 100);
+        discountAmount = (currentSubtotal * safePercentage) / 100;
+      } else {
+        discountAmount = Math.min(discountData.value, currentSubtotal);
+      }
 
-    // Apply the discount
-    setAppliedDiscount({
-      type: discountData.type,
-      value: discountData.value,
-      amount: discountAmount,
-      reason: discountData.reason
-    });
+      // Apply the discount
+      setAppliedDiscount({
+        type: discountData.type,
+        value: discountData.value,
+        amount: discountAmount,
+        reason: discountData.reason
+      });
 
-    setDiscountAmount(discountAmount);
-    setShowDiscountDialog(false);
-    
-    const discountText = discountData.type === 'percentage' 
-      ? `${discountData.value}% discount` 
-      : `$${discountData.value} discount`;
-    
-    showSuccess(`${discountText} applied - Saved $${discountAmount.toFixed(2)}`);
-  }, [cart, showError, showSuccess]);
+      setDiscountAmount(discountAmount);
+      setShowDiscountDialog(false);
+
+      const discountText = discountData.type === "percentage" ? `${discountData.value}% discount` : `$${discountData.value} discount`;
+
+      showSuccess(`${discountText} applied - Saved $${discountAmount.toFixed(2)}`);
+    },
+    [cart, showError, showSuccess]
+  );
 
   const handleRemoveDiscount = useCallback(() => {
     setAppliedDiscount(null);
@@ -515,7 +513,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Clear cart with animation after successful save
       clearCartWithAnimation();
       setHasUnsavedChanges(false);
-      
+
       // Clear discount state
       setAppliedDiscount(null);
       setDiscountAmount(0);
@@ -797,7 +795,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handlePrintReceipt = useCallback(() => {
     // Use current order data if available, otherwise use cart
     const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
-    
+
     if (!itemsToUse || itemsToUse.length === 0) {
       showError("No items to print");
       return;
@@ -813,19 +811,19 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice || item.price,
-        totalPrice: item.totalPrice || (item.price * item.quantity),
+        totalPrice: item.totalPrice || item.price * item.quantity,
         type: item.type
       })),
-      subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === 'string' ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
-      tax: currentOrder?.tax ? (typeof currentOrder.tax === 'string' ? parseFloat(currentOrder.tax) : currentOrder.tax) : tax,
-      total: currentOrder?.total ? (typeof currentOrder.total === 'string' ? parseFloat(currentOrder.total) : currentOrder.total) : total,
-      paymentAmount: currentOrder?.total ? (typeof currentOrder.total === 'string' ? parseFloat(currentOrder.total) : currentOrder.total) : total,
+      subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === "string" ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
+      tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : tax,
+      total: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
+      paymentAmount: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
       change: 0,
       paymentMethod: "cash",
       // Include discount information if available
       discountType: currentOrder?.discountType || appliedDiscount?.type || null,
-      discountValue: currentOrder?.discountValue ? (typeof currentOrder.discountValue === 'string' ? parseFloat(currentOrder.discountValue) : currentOrder.discountValue) : appliedDiscount?.value || null,
-      discountAmount: currentOrder?.discountAmount ? (typeof currentOrder.discountAmount === 'string' ? parseFloat(currentOrder.discountAmount) : currentOrder.discountAmount) : appliedDiscount?.amount || null,
+      discountValue: currentOrder?.discountValue ? (typeof currentOrder.discountValue === "string" ? parseFloat(currentOrder.discountValue) : currentOrder.discountValue) : appliedDiscount?.value || null,
+      discountAmount: currentOrder?.discountAmount ? (typeof currentOrder.discountAmount === "string" ? parseFloat(currentOrder.discountAmount) : currentOrder.discountAmount) : appliedDiscount?.amount || null,
       discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
     };
 
@@ -1099,8 +1097,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         paymentMethod: paymentData.paymentMethod,
         // Include discount information
         discountType: order.discountType || appliedDiscount?.type || null,
-        discountValue: order.discountValue ? (typeof order.discountValue === 'string' ? parseFloat(order.discountValue) : order.discountValue) : appliedDiscount?.value || null,
-        discountAmount: order.discountAmount ? (typeof order.discountAmount === 'string' ? parseFloat(order.discountAmount) : order.discountAmount) : appliedDiscount?.amount || null,
+        discountValue: order.discountValue ? (typeof order.discountValue === "string" ? parseFloat(order.discountValue) : order.discountValue) : appliedDiscount?.value || null,
+        discountAmount: order.discountAmount ? (typeof order.discountAmount === "string" ? parseFloat(order.discountAmount) : order.discountAmount) : appliedDiscount?.amount || null,
         discountReason: order.discountReason || appliedDiscount?.reason || null
       };
 
@@ -1123,7 +1121,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       // Set receipt data for printing
       setLastSaleData(receiptData);
-      
+
       clearCartWithAnimation();
       setPaymentAmount("");
       setShowPaymentDialog(false);
@@ -1184,13 +1182,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               <span className="text-sm text-gray-600">{cart && cart.length > 0 ? `${cart.length} items` : "Empty"}</span>
               {cart && cart.length > 0 && (
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDiscountDialog(true)}
-                    className="text-xs px-2 py-1 h-6"
-                    disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setShowDiscountDialog(true)} className="text-xs px-2 py-1 h-6" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
                     <DollarSign className="w-3 h-3 mr-1" />
                     Discount
                   </Button>
@@ -1228,13 +1220,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               <div className="flex items-center space-x-2">
                 {cart && cart.length > 0 && (
                   <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowDiscountDialog(true)}
-                      className="text-xs px-2 py-1 h-7"
-                      disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setShowDiscountDialog(true)} className="text-xs px-2 py-1 h-7" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
                       <DollarSign className="w-3 h-3 mr-1" />
                       Discount
                     </Button>
@@ -1352,7 +1338,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Bottom Action Bar - Fixed Footer */}
             <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
-              <ActionBar onSaveOrder={handleManualSave} onPrintReceipt={handlePrintReceipt} onVoidOrder={handleVoidOrder} onShowOrders={handleShowOrders} onShowReports={handleShowReports} onCancelOrder={handleCancelOrder} onDiscount={handleShowDiscount} hasUnsavedChanges={hasUnsavedChanges} isOrderLoading={orderLoading} canPrintReceipt={cart && cart.length > 0} canVoidOrder={!!currentOrder} incompleteOrdersCount={incompleteOrdersCount} incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount} />
+              <ActionBar
+                onSaveOrder={handleManualSave}
+                onPrintReceipt={handlePrintReceipt}
+                onVoidOrder={handleVoidOrder}
+                onShowOrders={handleShowOrders}
+                onShowReports={handleShowReports}
+                onCancelOrder={handleCancelOrder}
+                onDiscount={handleShowDiscount}
+                hasUnsavedChanges={hasUnsavedChanges}
+                isOrderLoading={orderLoading}
+                canPrintReceipt={cart && cart.length > 0}
+                canVoidOrder={!!currentOrder}
+                incompleteOrdersCount={incompleteOrdersCount}
+                incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount}
+              />
             </div>
           </div>
         </div>
@@ -1407,15 +1407,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         />
 
         {/* Discount Dialog */}
-        <DiscountDialog 
-          isOpen={showDiscountDialog} 
-          onClose={() => setShowDiscountDialog(false)}
-          discountAmount={discountAmount}
-          onDiscountAmountChange={handleDiscountAmountChange}
-          onDiscount={() => {}}
-          orderSubtotal={subtotal}
-          onApplyDiscount={handleApplyDiscount}
-        />
+        <DiscountDialog isOpen={showDiscountDialog} onClose={() => setShowDiscountDialog(false)} discountAmount={discountAmount} onDiscountAmountChange={handleDiscountAmountChange} onDiscount={() => {}} orderSubtotal={subtotal} onApplyDiscount={handleApplyDiscount} />
 
         {/* Payment Dialog */}
         <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
@@ -1513,12 +1505,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </Dialog>
 
         {/* Receipt Printer Dialog */}
-        <ReceiptPrinter
-          isOpen={showReceiptDialog}
-          onClose={() => setShowReceiptDialog(false)}
-          receiptData={lastSaleData}
-          autoPrint={shouldAutoPrint}
-        />
+        <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} autoPrint={shouldAutoPrint} />
       </div>
     </>
   );

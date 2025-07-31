@@ -3,7 +3,7 @@ import { assignmentSchema } from "@/components/sections/assignmentSchema";
 import { stockSchema } from "@/components/stock/stockSchema";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
-import { Order, OrderStatus } from "./orders";
+import { Order, OrderStatus, OrderType } from "./orders";
 
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets";
 
@@ -518,7 +518,7 @@ export interface OrderSummaryProps {
   orderStatus?: OrderStatus;
   isOrderCompleted?: boolean;
   appliedDiscount?: {
-    type: 'percentage' | 'fixed';
+    type: "percentage" | "fixed";
     value: number;
     amount: number;
     reason?: string;
@@ -561,7 +561,21 @@ export interface OrderFilters {
   };
 }
 
-export type OrderType = "delivery" | "takeaway" | "table";
+export interface POSClientSalesProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onOrderSelect?: (order: Order) => void;
+}
+
+export interface SalesFilters {
+  status?: OrderStatus;
+  orderType?: OrderType;
+  searchTerm?: string;
+  dateRange?: {
+    startDate?: string;
+    endDate?: string;
+  };
+}
 
 export interface Table {
   id: string;
