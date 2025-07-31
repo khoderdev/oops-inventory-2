@@ -53,6 +53,13 @@ export const recordUsage = async (req, res) => {
     // Calculate costs
     const totalCost = parseFloat(quantity) * parseFloat(unitCost);
     const discountApplied = employee.discountPercentage;
+    const discountAmount = (totalCost * discountApplied) / 100;
+    const finalCost = totalCost - discountAmount;
+
+    // Get current date for month/year tracking
+    const currentDate = new Date();
+    const usageMonth = currentDate.getMonth() + 1; // getMonth() returns 0-11, we need 1-12
+    const usageYear = currentDate.getFullYear();
 
     const usageData = {
       employeeId,
@@ -65,6 +72,10 @@ export const recordUsage = async (req, res) => {
       unitCost: parseFloat(unitCost),
       totalCost,
       discountApplied,
+      discountAmount,
+      finalCost,
+      usageMonth,
+      usageYear,
       posTransactionId,
       recordedBy: req.user.id,
       notes
@@ -123,8 +134,14 @@ export const getUsageHistory = async (req, res) => {
 
     if (startDate || endDate) {
       where.usageDate = {};
-      if (startDate) where.usageDate[Op.gte] = new Date(startDate);
-      if (endDate) where.usageDate[Op.lte] = new Date(endDate);
+      if (startDate) {
+        // Set start date to beginning of day
+        where.usageDate[Op.gte] = new Date(startDate + 'T00:00:00.000Z');
+      }
+      if (endDate) {
+        // Set end date to end of day to include entire day
+        where.usageDate[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
+      }
     }
 
     const offset = (page - 1) * limit;
@@ -398,8 +415,14 @@ export const getUsageStats = async (req, res) => {
 
     if (startDate || endDate) {
       where.usageDate = {};
-      if (startDate) where.usageDate[Op.gte] = new Date(startDate);
-      if (endDate) where.usageDate[Op.lte] = new Date(endDate);
+      if (startDate) {
+        // Set start date to beginning of day
+        where.usageDate[Op.gte] = new Date(startDate + 'T00:00:00.000Z');
+      }
+      if (endDate) {
+        // Set end date to end of day to include entire day
+        where.usageDate[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
+      }
     }
 
     const stats = await EmployeeUsage.findAll({

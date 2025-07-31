@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
+import { Employee } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
@@ -45,6 +46,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [lastSaleData, setLastSaleData] = useState<ReceiptData | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("takeaway");
   const [selectedTable, setSelectedTable] = useState<Table | undefined>(undefined);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | undefined>(undefined);
   const [showTablesLayout, setShowTablesLayout] = useState(false);
   const [tables, setTables] = useState<Table[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -579,6 +581,111 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [optimisticAssignments, menuItems, stockEntries, tables, showSuccess]);
 
+  // Transform currentOrder items to cart when order is loaded
+  useEffect(() => {
+    if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
+      console.log("🔄 Transforming currentOrder items to cart:", currentOrder.items);
+      console.log("📊 Current order structure:", {
+        id: currentOrder.id,
+        orderNumber: currentOrder.orderNumber,
+        orderType: currentOrder.orderType,
+        itemsCount: currentOrder.items.length,
+        firstItem: currentOrder.items[0]
+      });
+      
+      // Transform order items to POSCartItem format
+      const cartItems: POSCartItem[] = currentOrder.items.map((item: any) => {
+        console.log("🔍 Processing item:", item);
+        
+        let originalItem: StockEntryWithMaterial | MenuItem;
+        
+        // Handle materialId as number (from your data)
+        const materialId = typeof item.materialId === 'number' ? item.materialId : parseInt(item.materialId || '0');
+        const menuItemId = typeof item.menuItemId === 'number' ? item.menuItemId : parseInt(item.menuItemId || '0');
+        
+        if (item.type === "material" && materialId) {
+          // Find the stock entry by materialId (handle number type)
+          originalItem = stockEntries.find(se => se.materialId === materialId) || {
+            id: materialId,
+            materialId: materialId,
+            material: item.material || { id: materialId, name: item.name },
+            quantity: item.quantity,
+            unitPrice: parseFloat(item.unitPrice?.toString() || "0")
+          } as StockEntryWithMaterial;
+        } else if (item.type === "menu" && menuItemId) {
+          // Find the menu item by menuItemId (handle number type)
+          originalItem = menuItems.find(m => m.id === menuItemId) || {
+            id: menuItemId,
+            name: item.name,
+            price: parseFloat(item.unitPrice?.toString() || "0")
+          } as MenuItem;
+        } else {
+          // Fallback: create a minimal original item
+          originalItem = {
+            id: item.id || item.materialId || item.menuItemId,
+            name: item.name,
+            price: parseFloat(item.unitPrice?.toString() || "0")
+          } as any;
+        }
+        
+        const cartItem = {
+          id: item.id.toString(),
+          name: item.name,
+          price: parseFloat(item.unitPrice?.toString() || "0"),
+          quantity: item.quantity,
+          type: item.type as "material" | "menu",
+          originalItem
+        };
+        
+        console.log("✨ Created cart item:", cartItem);
+        return cartItem;
+      }).filter(Boolean); // Remove any null items
+      
+      console.log("✅ Final transformed cart items:", cartItems);
+      console.log("📦 Setting cart with", cartItems.length, "items");
+      setCart(cartItems);
+      
+      // Set order type and related data
+      if (currentOrder.orderType) {
+        console.log("🏷️ Setting order type:", currentOrder.orderType);
+        setOrderType(currentOrder.orderType);
+      }
+      
+      // Set table if it's a table order
+      if (currentOrder.tableId && currentOrder.table) {
+        console.log("🪑 Setting selected table:", currentOrder.table);
+        setSelectedTable(currentOrder.table);
+      }
+      
+      // Set employee if it's an employee order
+      if (currentOrder.orderType === "employees" && currentOrder.employee) {
+        console.log("👤 Setting selected employee:", currentOrder.employee);
+        setSelectedEmployee(currentOrder.employee);
+      }
+      
+      // Apply discount if present
+      if (currentOrder.discountAmount && parseFloat(currentOrder.discountAmount.toString()) > 0) {
+        console.log("💰 Applying discount:", currentOrder.discountAmount);
+        setAppliedDiscount({
+          type: currentOrder.discountType as "percentage" | "fixed" || "fixed",
+          value: parseFloat(currentOrder.discountValue?.toString() || "0"),
+          amount: parseFloat(currentOrder.discountAmount.toString()),
+          reason: currentOrder.discountReason || undefined
+        });
+        setDiscountAmount(parseFloat(currentOrder.discountAmount.toString()));
+      }
+      
+    } else if (currentOrder && (!currentOrder.items || currentOrder.items.length === 0)) {
+      // If currentOrder exists but has no items, clear the cart
+      console.log("🔄 Current order has no items, clearing cart");
+      setCart([]);
+    } else if (!currentOrder) {
+      console.log("❌ No currentOrder available");
+    } else {
+      console.log("⚠️ CurrentOrder exists but no items:", currentOrder);
+    }
+  }, [currentOrder, stockEntries, menuItems]);
+  
   // Track unsaved changes when cart changes
   useEffect(() => {
     if (cart && cart.length > 0) {
@@ -783,6 +890,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleCloseTablesLayout = useCallback(() => {
     setShowTablesLayout(false);
+  }, []);
+
+  // Employee selection handlers
+  const handleEmployeeSelect = useCallback(() => {
+    // This will be handled by the EmployeeSelector component in OrderItemsList
+  }, []);
+
+  const handleEmployeeSelection = useCallback((employee: Employee) => {
+    setSelectedEmployee(employee);
+    setOrderType("employees");
   }, []);
 
   // Calculate totals - with safety check for undefined cart
@@ -1119,6 +1236,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
       }
 
+      // Record employee usage if this was an employee order
+      if (selectedEmployee && orderType === "employees") {
+        console.log("👤 Recording employee usage...");
+        try {
+          const { recordEmployeeUsage } = await import("@/utils/employeeUsageUtils");
+          await recordEmployeeUsage(selectedEmployee, cart, saleId);
+          console.log("✅ Employee usage recorded successfully");
+        } catch (error) {
+          console.log("⚠️ Employee usage recording error (non-critical):", error);
+        }
+      }
+
       // Set receipt data for printing
       setLastSaleData(receiptData);
 
@@ -1131,6 +1260,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Clear discount state
       setAppliedDiscount(null);
       setDiscountAmount(0);
+
+      // Clear employee selection
+      setSelectedEmployee(null);
 
       clearOrder();
       OrderPersistence.clearCurrentOrder();
@@ -1153,7 +1285,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount]);
 
   return (
     <>
@@ -1234,7 +1366,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           {/* Order Items List - Scrollable */}
           <div className="flex-1 h-full relative overflow-hidden">
             <div className="h-full overflow-y-auto">
-              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} orderStatus={currentOrder?.status} isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"} />
+              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} selectedEmployee={selectedEmployee} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} onEmployeeSelect={handleEmployeeSelection} incompleteTableOrdersCount={incompleteTableOrdersCount} orderStatus={currentOrder?.status} isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"} />
             </div>
 
             {/* Success Animation Overlay */}
@@ -1299,7 +1431,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className={`lg:hidden ${activeView === "cart" ? "flex" : "hidden"} flex-col h-full`}>
             {/* Order Items List - Mobile */}
             <div className="flex-1 overflow-y-auto">
-              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} incompleteTableOrdersCount={incompleteTableOrdersCount} orderStatus={currentOrder?.status} isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"} />
+              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} selectedEmployee={selectedEmployee} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} onEmployeeSelect={handleEmployeeSelection} incompleteTableOrdersCount={incompleteTableOrdersCount} orderStatus={currentOrder?.status} isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"} />
             </div>
 
             {/* Order Summary - Mobile */}

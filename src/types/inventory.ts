@@ -3,6 +3,7 @@ import { assignmentSchema } from "@/components/sections/assignmentSchema";
 import { stockSchema } from "@/components/stock/stockSchema";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
+import { Employee } from "./employee";
 import { Order, OrderStatus, OrderType } from "./orders";
 
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco";
@@ -531,8 +532,10 @@ export interface OrderItemsListProps {
   updateCartQuantity: (cartId: string, newQuantity: number) => void;
   orderType: OrderType;
   selectedTable?: Table;
+  selectedEmployee?: Employee;
   onOrderTypeChange: (type: OrderType) => void;
   onTableSelect: () => void;
+  onEmployeeSelect: (employee: Employee) => void;
   incompleteTableOrdersCount?: number;
   orderStatus?: OrderStatus;
   isOrderCompleted?: boolean;

@@ -1,6 +1,7 @@
+import { Employee } from "@/types/employee";
 import { Table } from "@/types/inventory";
 import { OrderStatus, OrderType } from "@/types/orders";
-import { Car, Package, ShoppingBag, Truck, Users } from "lucide-react";
+import { Car, Package, ShoppingBag, Truck, UserCheck, Utensils } from "lucide-react";
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -15,7 +16,8 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
 export const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
   delivery: <Truck className="w-4 h-4" />,
   takeaway: <Package className="w-4 h-4" />,
-  table: <ShoppingBag className="w-4 h-4" />
+  table: <ShoppingBag className="w-4 h-4" />,
+  employees: <UserCheck className="w-4 h-4" />
 };
 
 export const getOrderTypeIcon = (type: OrderType) => {
@@ -25,20 +27,24 @@ export const getOrderTypeIcon = (type: OrderType) => {
     case "takeaway":
       return <ShoppingBag className="w-4 h-4" />;
     case "table":
-      return <Users className="w-4 h-4" />;
+      return <Utensils className="w-4 h-4" />;
+    case "employees":
+      return <UserCheck className="w-4 h-4" />;
     default:
       return <ShoppingBag className="w-4 h-4" />;
   }
 };
 
-export const getOrderTypeLabel = (type: OrderType, selectedTable: Table | null) => {
+export const getOrderTypeLabel = (type: OrderType, selectedTable: Table | null, selectedEmployee?: Employee | null) => {
   switch (type) {
     case "delivery":
       return "DELIVERY";
     case "takeaway":
       return "TAKE AWAY";
     case "table":
-      return selectedTable ? `TABLE ${selectedTable.number}` : "SELECT TABLE";
+      return selectedTable ? `TABLE ${selectedTable.number}` : "TABLES";
+    case "employees":
+      return selectedEmployee ? `${selectedEmployee.user?.firstName || ""} ${selectedEmployee.user?.lastName || ""}`.trim() || selectedEmployee.employeeNumber : "STAFF";
     default:
       return "TAKE AWAY";
   }

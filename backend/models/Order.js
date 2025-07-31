@@ -15,7 +15,7 @@ const Order = sequelize.define(
       allowNull: false
     },
     orderType: {
-      type: DataTypes.ENUM("delivery", "takeaway", "table"),
+      type: DataTypes.ENUM("delivery", "takeaway", "table", "employees"),
       allowNull: false,
       defaultValue: "takeaway"
     },
@@ -47,7 +47,7 @@ const Order = sequelize.define(
       defaultValue: 0.0
     },
     discountType: {
-      type: DataTypes.ENUM('percentage', 'fixed'),
+      type: DataTypes.ENUM("percentage", "fixed"),
       allowNull: true
     },
     discountValue: {

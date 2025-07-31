@@ -100,7 +100,7 @@ export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, 
               {/* Order Items */}
               <div className="space-y-3">
                 <h3 className="font-semibold text-gray-900">Order Items</h3>
-                <div className="border rounded-lg overflow-hidden">
+                <div className="border rounded-lg overflow-hidden container mx-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
@@ -158,7 +158,7 @@ export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, 
                     <span>Tax:</span>
                     <span>{formatCurrency(order.tax)}</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold border-t pt-2">
+                  <div className="flex justify-between text-2xl font-bold border-t pt-2">
                     <span>Total:</span>
                     <span className="text-green-600">{formatCurrency(order.total)}</span>
                   </div>

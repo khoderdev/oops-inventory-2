@@ -1,13 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { getOrderTypeIcon, getOrderTypeLabel } from "@/constants/constants";
 import { OrderItemsListProps } from "@/types/inventory";
+import { Employee } from "@/types/employee";
 import { OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { Minus, Plus } from "lucide-react";
 import React from "react";
+import { EmployeeSelector } from "./EmployeeSelector";
 
-export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, onOrderTypeChange, onTableSelect, incompleteTableOrdersCount, orderStatus, isOrderCompleted }) => {
+export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, selectedEmployee, onOrderTypeChange, onTableSelect, onEmployeeSelect, incompleteTableOrdersCount, orderStatus, isOrderCompleted }) => {
   const isCompleted = isOrderCompleted || orderStatus === "paid" || orderStatus === "served";
+  const [showEmployeeSelector, setShowEmployeeSelector] = React.useState(false);
 
   const handleQuantityUpdate = (cartId: string, newQuantity: number) => {
     if (isCompleted) {
@@ -20,19 +23,41 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
     updateCartQuantity(cartId, newQuantity);
   };
 
+  const handleEmployeeSelectClick = () => {
+    setShowEmployeeSelector(true);
+  };
+
+  const handleEmployeeSelected = (employee: Employee | null) => {
+    if (employee) {
+      onEmployeeSelect(employee);
+      onOrderTypeChange("employees");
+    }
+    setShowEmployeeSelector(false);
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="flex-shrink-0 border-b border-gray-100 bg-white">
-        <div className="grid grid-cols-3">
-          {(["delivery", "takeaway", "table"] as OrderType[]).map(type => {
+        <div className="grid grid-cols-4">
+          {(["delivery", "takeaway", "table", "employees"] as OrderType[]).map(type => {
             // Only show badge for table orders
             let badgeCount = 0;
             if (type === "table" && incompleteTableOrdersCount) badgeCount = incompleteTableOrdersCount;
 
+            const handleClick = () => {
+              if (type === "table") {
+                onTableSelect();
+              } else if (type === "employees") {
+                handleEmployeeSelectClick();
+              } else {
+                onOrderTypeChange(type);
+              }
+            };
+
             return (
-              <Button key={type} variant={orderType === type ? "default" : "outline"} size="sm" onClick={() => (type === "table" ? onTableSelect() : onOrderTypeChange(type))} className={`relative flex items-center justify-center h-8 rounded-none ${orderType === type ? "bg-teal-500 hover:bg-teal-600 text-white" : "hover:bg-gray-50"}`}>
+              <Button key={type} variant={orderType === type ? "default" : "outline"} size="sm" onClick={handleClick} className={`relative flex items-center justify-center h-8 rounded-none ${orderType === type ? "bg-teal-500 hover:bg-teal-600 text-white" : "hover:bg-gray-50"}`}>
                 {getOrderTypeIcon(type)}
-                <span className="text-xs font-medium mr-2">{getOrderTypeLabel(type, selectedTable)}</span>
+                <span className="text-xs font-medium mr-2">{getOrderTypeLabel(type, selectedTable, selectedEmployee)}</span>
                 {badgeCount > 0 && <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">{badgeCount > 99 ? "99+" : badgeCount}</span>}
               </Button>
             );
@@ -42,8 +67,13 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
         {/* Current Order Type Display */}
         <div className="my-2 flex items-center justify-center space-x-2 text-sm font-medium text-blue-600">
           {getOrderTypeIcon(orderType)}
-          <span>{getOrderTypeLabel(orderType, selectedTable)}</span>
+          <span>{getOrderTypeLabel(orderType, selectedTable, selectedEmployee)}</span>
           {orderType === "table" && selectedTable && <span className="text-xs text-gray-500">({selectedTable.seats} seats)</span>}
+          {orderType === "employees" && selectedEmployee && (
+            <span className="text-xs text-gray-500">
+              ({selectedEmployee.department} - {selectedEmployee.discountPercentage}% discount)
+            </span>
+          )}
         </div>
       </div>
 
@@ -51,7 +81,7 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
       <div className="flex-1 overflow-y-auto">
         {!cart || cart.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
-            <div className="text-sm font-medium mb-2">{getOrderTypeLabel(orderType, selectedTable)}</div>
+            <div className="text-sm font-medium mb-2">{getOrderTypeLabel(orderType, selectedTable, selectedEmployee)}</div>
             <div className="text-xs text-gray-400">No items in cart</div>
           </div>
         ) : (
@@ -78,6 +108,14 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
           </div>
         )}
       </div>
+
+      {/* Employee Selector Dialog */}
+      <EmployeeSelector
+        isOpen={showEmployeeSelector}
+        onClose={() => setShowEmployeeSelector(false)}
+        onEmployeeSelect={handleEmployeeSelected}
+        selectedEmployee={selectedEmployee}
+      />
     </div>
   );
 };
