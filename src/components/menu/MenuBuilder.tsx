@@ -69,7 +69,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       { value: "burgers", label: "Burgers" },
       { value: "sandwiches", label: "Sandwiches" },
       { value: "plates", label: "Plates" },
-      { value: "desserts", label: "Desserts" }
+      { value: "salads", label: "Salads" },
+      { value: "desserts", label: "Desserts" },
+      { value: "shisha", label: "Shisha" }
     ],
     []
   );
@@ -83,17 +85,24 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 
   const filteredMenuItems = useMemo(() => {
-    return menuItems.filter(item => {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
-      const matchesIngredients = item.ingredients.some(ingredient => {
-        const materialName = getMaterialName(ingredient.materialId);
-        return materialName.toLowerCase().includes(searchLower);
+    return menuItems
+      .filter(item => {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
+        const matchesIngredients = item.ingredients.some(ingredient => {
+          const materialName = getMaterialName(ingredient.materialId);
+          return materialName.toLowerCase().includes(searchLower);
+        });
+        const matchesSearch = matchesNameOrDescription || matchesIngredients;
+        const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+      })
+      .sort((a, b) => {
+        // Sort by createdAt date in descending order (latest first)
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateB - dateA;
       });
-      const matchesSearch = matchesNameOrDescription || matchesIngredients;
-      const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
   }, [menuItems, searchTerm, selectedCategory, getMaterialName]);
 
   const calculateMenuItemCost = useCallback(

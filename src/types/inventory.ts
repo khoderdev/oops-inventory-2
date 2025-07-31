@@ -5,7 +5,7 @@ import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { Order, OrderStatus, OrderType } from "./orders";
 
-export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets";
+export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco";
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
 
@@ -610,7 +610,7 @@ export interface CategoryTabsProps {
 
 //-----------------------------------------------------------------------------
 
-export type MenuItemCategory = "appetizers" | "burgers" | "sandwiches" | "plates" | "desserts";
+export type MenuItemCategory = "appetizers" | "burgers" | "sandwiches" | "plates" | "salads" | "desserts" | "shisha";
 
 export interface MenuItem {
   id: string;
@@ -671,6 +671,7 @@ export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label
   { value: "spices", label: "Spices & Seasonings" },
   { value: "beverages", label: "Beverages" },
   { value: "alcohol", label: "Alcohol" },
+  { value: "tobacco", label: "Tobacco" },
   { value: "packaging", label: "Packaging Materials" },
   { value: "other", label: "Other" }
 ];
@@ -688,7 +689,9 @@ export const MENU_CATEGORIES = [
   { value: "burgers", label: "Burgers" },
   { value: "sandwiches", label: "Sandwiches" },
   { value: "plates", label: "Plates" },
-  { value: "desserts", label: "Desserts" }
+  { value: "salads", label: "Salads" },
+  { value: "desserts", label: "Desserts" },
+  { value: "shisha", label: "Shisha" }
 ];
 
 //-----------------------------------------------------------------------------

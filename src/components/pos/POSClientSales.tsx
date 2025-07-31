@@ -188,27 +188,13 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
       startTime: new Date(rawOrder.createdAt),
       estimatedReadyTime: rawOrder.estimatedReadyTime ? new Date(rawOrder.estimatedReadyTime) : undefined,
       completedAt: rawOrder.completedAt ? new Date(rawOrder.completedAt) : undefined,
-      items: rawOrder.items?.map((item: RawOrderItem) => {
-        const unitPrice = parseNumber(item.unitPrice);
-        const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(String(item.quantity)) || 0;
-        const apiTotalPrice = parseNumber(item.totalPrice);
-        
-        // Recalculate totalPrice to handle cases where API might have rounding issues
-        const calculatedTotalPrice = unitPrice * quantity;
-        
-        // Use calculated price if API price is 0 but calculated price is not
-        const finalTotalPrice = (apiTotalPrice === 0 && calculatedTotalPrice > 0) 
-          ? calculatedTotalPrice 
-          : apiTotalPrice;
-        
-        return {
-          ...item,
-          id: String(item.id),
-          unitPrice,
-          totalPrice: finalTotalPrice,
-          quantity
-        };
-      }) || [],
+      items: rawOrder.items?.map((item: RawOrderItem) => ({
+        ...item,
+        id: String(item.id),
+        unitPrice: parseNumber(item.unitPrice),
+        totalPrice: parseNumber(item.totalPrice),
+        quantity: typeof item.quantity === 'number' ? item.quantity : parseInt(String(item.quantity)) || 0
+      })) || [],
       userId: String(rawOrder.createdBy || rawOrder.userId || ""),
       userRole: rawOrder.userRole || "user"
     };

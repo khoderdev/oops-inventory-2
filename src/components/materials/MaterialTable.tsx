@@ -13,9 +13,18 @@ import { useState } from "react";
 export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
   const { setShowMaterialForm } = useInventoryStore();
   const [searchTerm, setSearchTerm] = useState("");
-  const searchFilteredMaterials = filteredMaterials.filter(material => {
-    return !searchTerm || material.name.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  
+  // Filter and sort materials - latest added first
+  const searchFilteredMaterials = filteredMaterials
+    .filter(material => {
+      return !searchTerm || material.name.toLowerCase().includes(searchTerm.toLowerCase());
+    })
+    .sort((a, b) => {
+      // Sort by createdAt date in descending order (latest first)
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
   return (
     <Card className="!border-none">
       <CardHeader>
