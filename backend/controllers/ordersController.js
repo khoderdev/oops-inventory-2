@@ -524,6 +524,12 @@ export const ordersController = {
 
       // Update order with completion details - with race condition protection
       console.log(`🔄 Updating order ${orderId} to completed status`);
+      console.log(`💰 Preserving discount data:`, {
+        discountType: order.discountType,
+        discountValue: order.discountValue,
+        discountAmount: order.discountAmount,
+        discountReason: order.discountReason
+      });
 
       const updateResult = await Order.update(
         {
@@ -533,7 +539,12 @@ export const ordersController = {
           change: paymentData.change,
           saleId: saleResult.sale?.id,
           completedAt: new Date(),
-          updatedBy: userId
+          updatedBy: userId,
+          // Preserve existing discount data from the order
+          discountType: order.discountType,
+          discountValue: order.discountValue,
+          discountAmount: order.discountAmount,
+          discountReason: order.discountReason
         },
         {
           where: {
