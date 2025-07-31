@@ -8,8 +8,8 @@ import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, usagesAtom, usagesF
 import type { EmployeeUsage, EmployeeUsageType } from "@/types/employee";
 import { addDays } from "date-fns";
 import { useAtom } from "jotai";
-import { Download, Filter, Plus, TrendingUp } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { ChevronDown, ChevronRight, Download, Filter, Plus, ShoppingCart, TrendingUp } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
 
 interface EmployeeUsageViewProps {
   selectedEmployeeId?: number | null;
@@ -24,6 +24,25 @@ const usageTypeColors = {
 
 const usageTypes: EmployeeUsageType[] = ["material", "menu_item", "stock_entry"];
 
+interface GroupedOrder {
+  posTransactionId: string;
+  employee: {
+    id: number;
+    employeeNumber: string;
+    user?: {
+      firstName: string;
+      lastName: string;
+    };
+  };
+  orderDate: string;
+  items: EmployeeUsage[];
+  totalCost: number;
+  totalDiscountAmount: number;
+  finalCost: number;
+  itemCount: number;
+  isSettled: boolean;
+}
+
 export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEmployeeId, onEmployeeSelect }) => {
   const [usages] = useAtom(usagesAtom);
   const [loading] = useAtom(usagesLoadingAtom);
@@ -32,6 +51,7 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
   const [employees] = useAtom(employeesAtom);
   const [, fetchUsages] = useAtom(fetchUsageAtom);
   const [, fetchStats] = useAtom(fetchUsageStatsAtom);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
 
   const [dateRange, setDateRange] = useState<{
     from: Date;
@@ -40,6 +60,79 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     from: addDays(new Date(), -30),
     to: new Date()
   });
+
+  // Group usage records by POS transaction ID
+  const groupedOrders = useMemo(() => {
+    const orderMap = new Map<string, GroupedOrder>();
+
+    usages.forEach(usage => {
+      const transactionId = usage.posTransactionId || `individual-${usage.id}`;
+
+      if (!orderMap.has(transactionId)) {
+        orderMap.set(transactionId, {
+          posTransactionId: transactionId,
+          employee: {
+            id: usage.employee?.id || 0,
+            employeeNumber: usage.employee?.employeeNumber || "",
+            user: usage.employee?.user
+          },
+          orderDate: usage.usageDate,
+          items: [],
+          totalCost: 0,
+          totalDiscountAmount: 0,
+          finalCost: 0,
+          itemCount: 0,
+          isSettled: usage.isSettled
+        });
+      }
+
+      const order = orderMap.get(transactionId)!;
+      order.items.push(usage);
+
+      // Convert string/number values to numbers with proper null/undefined handling
+      const totalCost = (() => {
+        const value = usage.totalCost;
+        if (value === null || value === undefined) return 0;
+        const parsed = typeof value === "string" ? parseFloat(value) : Number(value);
+        return isNaN(parsed) ? 0 : parsed;
+      })();
+
+      const discountAmount = (() => {
+        const value = usage.discountAmount;
+        if (value === null || value === undefined) return 0;
+        const parsed = typeof value === "string" ? parseFloat(value) : Number(value);
+        return isNaN(parsed) ? 0 : parsed;
+      })();
+
+      const finalCost = (() => {
+        const value = usage.finalCost;
+        if (value === null || value === undefined) return 0;
+        const parsed = typeof value === "string" ? parseFloat(value) : Number(value);
+        return isNaN(parsed) ? 0 : parsed;
+      })();
+
+      // Debug logging to check values (remove this after testing)
+      console.log("Usage cost values:", {
+        id: usage.id,
+        originalTotalCost: usage.totalCost,
+        originalDiscountAmount: usage.discountAmount,
+        originalFinalCost: usage.finalCost,
+        parsedTotalCost: totalCost,
+        parsedDiscountAmount: discountAmount,
+        parsedFinalCost: finalCost
+      });
+
+      order.totalCost += totalCost;
+      order.totalDiscountAmount += discountAmount;
+      order.finalCost += finalCost;
+      order.itemCount += 1;
+
+      // Order is settled only if ALL items are settled
+      order.isSettled = order.isSettled && usage.isSettled;
+    });
+
+    return Array.from(orderMap.values()).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+  }, [usages]);
 
   // Load data when employee or date range changes
   useEffect(() => {
@@ -51,17 +144,18 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
         startDate: dateRange.from.toISOString().split("T")[0],
         endDate: dateRange.to.toISOString().split("T")[0]
       };
-      
+
       // Update filters state
       setFilters(updatedFilters);
-      
+
       // Fetch data with updated filters
       await fetchUsages(updatedFilters);
       await fetchStats(updatedFilters);
     };
-    
+
     loadData();
-  }, [selectedEmployeeId, dateRange]); // Removed setFilters, fetchUsages, fetchStats from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEmployeeId, dateRange]); // Intentionally excluding setFilters, fetchUsages, fetchStats to prevent infinite loops
 
   const handleEmployeeChange = (employeeId: string) => {
     const id = employeeId === "all" ? null : parseInt(employeeId);
@@ -86,6 +180,16 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     await fetchUsages(updatedFilters);
   };
 
+  const toggleOrderExpansion = (transactionId: string) => {
+    const newExpanded = new Set(expandedOrders);
+    if (newExpanded.has(transactionId)) {
+      newExpanded.delete(transactionId);
+    } else {
+      newExpanded.add(transactionId);
+    }
+    setExpandedOrders(newExpanded);
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -95,6 +199,10 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
   };
 
   const getItemName = (usage: EmployeeUsage) => {
@@ -108,6 +216,13 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
       default:
         return "Unknown Item";
     }
+  };
+
+  const getOrderDisplayId = (transactionId: string) => {
+    if (transactionId.startsWith("individual-")) {
+      return "Individual Usage";
+    }
+    return `Order #${transactionId}`;
   };
 
   return (
@@ -247,23 +362,25 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
         </CardContent>
       </Card>
 
-      {/* Usage Table */}
+      {/* Orders Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Usage Records</CardTitle>
-          <CardDescription>Detailed list of employee usage records</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <ShoppingCart className="h-5 w-5" />
+            Employee Orders
+          </CardTitle>
+          <CardDescription>Employee orders grouped by transaction with expandable item details</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead>Order</TableHead>
                   <TableHead>Employee</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Unit Cost</TableHead>
+                  <TableHead>Date & Time</TableHead>
+                  <TableHead>Items</TableHead>
                   <TableHead>Total Cost</TableHead>
                   <TableHead>Discount</TableHead>
                   <TableHead>Final Cost</TableHead>
@@ -274,52 +391,98 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 10 }).map((_, j) => (
+                      {Array.from({ length: 9 }).map((_, j) => (
                         <TableCell key={j}>
                           <div className="h-4 w-16 bg-muted rounded animate-pulse" />
                         </TableCell>
                       ))}
                     </TableRow>
                   ))
-                ) : usages.length === 0 ? (
+                ) : groupedOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      No usage records found
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      No orders found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  usages.map(usage => (
-                    <TableRow key={usage.id}>
-                      <TableCell className="text-sm">{formatDate(usage.usageDate)}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">
-                          {usage.employee?.user?.firstName} {usage.employee?.user?.lastName}
-                        </div>
-                        <div className="text-sm text-muted-foreground">#{usage.employee?.employeeNumber}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={usageTypeColors[usage.usageType]}>
-                          {usage.usageType.replace("_", " ")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">{getItemName(usage)}</TableCell>
-                      <TableCell>
-                        {usage.quantity} {usage.unit}
-                      </TableCell>
-                      <TableCell className="font-mono">{formatCurrency(usage.unitCost)}</TableCell>
-                      <TableCell className="font-mono">{formatCurrency(usage.totalCost)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {usage.discountApplied}% ({formatCurrency(usage.discountAmount)})
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono font-medium">{formatCurrency(usage.finalCost)}</TableCell>
-                      <TableCell>
-                        <Badge variant={usage.isSettled ? "default" : "secondary"} className={usage.isSettled ? "bg-green-100 text-green-800" : ""}>
-                          {usage.isSettled ? "Settled" : "Pending"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
+                  groupedOrders.map(order => (
+                    <React.Fragment key={order.posTransactionId}>
+                      {/* Main Order Row */}
+                      <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => toggleOrderExpansion(order.posTransactionId)}>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                            {expandedOrders.has(order.posTransactionId) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{getOrderDisplayId(order.posTransactionId)}</div>
+                          <div className="text-sm text-muted-foreground">{order.posTransactionId.startsWith("individual-") ? "Individual usage record" : "POS Transaction"}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">
+                            {order.employee.user?.firstName} {order.employee.user?.lastName}
+                          </div>
+                          <div className="text-sm text-muted-foreground">#{order.employee.employeeNumber}</div>
+                        </TableCell>
+                        <TableCell className="text-sm">{formatDateTime(order.orderDate)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {order.itemCount} item{order.itemCount !== 1 ? "s" : ""}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono">{formatCurrency(order.totalCost)}</TableCell>
+                        <TableCell className="font-mono text-green-600">{order.totalDiscountAmount > 0 ? formatCurrency(order.totalDiscountAmount) : "-"}</TableCell>
+                        <TableCell className="font-mono font-medium">{formatCurrency(order.finalCost)}</TableCell>
+                        <TableCell>
+                          <Badge variant={order.isSettled ? "default" : "secondary"} className={order.isSettled ? "bg-green-100 text-green-800" : ""}>
+                            {order.isSettled ? "Settled" : "Pending"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Expanded Items */}
+                      {expandedOrders.has(order.posTransactionId) && (
+                        <TableRow>
+                          <TableCell colSpan={9} className="p-0">
+                            <div className="bg-muted/30 p-4">
+                              <div className="text-sm font-medium mb-3 text-muted-foreground">Order Items:</div>
+                              <div className="grid gap-2">
+                                {order.items.map(item => (
+                                  <div key={item.id} className="flex items-center justify-between p-3 bg-background rounded border">
+                                    <div className="flex items-center gap-3">
+                                      <Badge variant="secondary" className={usageTypeColors[item.usageType]}>
+                                        {item.usageType.replace("_", " ")}
+                                      </Badge>
+                                      <div>
+                                        <div className="font-medium">{getItemName(item)}</div>
+                                        <div className="text-sm text-muted-foreground">
+                                          {item.quantity} {item.unit} × {formatCurrency(item.unitCost)}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-mono">{formatCurrency(item.totalCost)}</div>
+                                      {item.discountAmount > 0 && (
+                                        <div className="text-sm text-green-600">
+                                          -{formatCurrency(item.discountAmount)} ({item.discountApplied}%)
+                                        </div>
+                                      )}
+                                      <div className="font-mono font-medium">{formatCurrency(item.finalCost)}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {order.items[0]?.notes && (
+                                <div className="mt-3 p-2 bg-background rounded border">
+                                  <div className="text-sm font-medium text-muted-foreground mb-1">Notes:</div>
+                                  <div className="text-sm">{order.items[0].notes}</div>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
                   ))
                 )}
               </TableBody>

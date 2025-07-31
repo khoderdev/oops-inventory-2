@@ -15,6 +15,7 @@ import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertCircle, Calendar, Clock, Edit, Eye, Grid3X3, List, Package, Printer, Search, ShoppingBag, Truck, User } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { OrderDetailsDialog } from "./OrderDetailsDialog";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
 interface POSClientOrdersProps {
@@ -46,7 +47,8 @@ const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
 const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
   delivery: <Truck className="w-4 h-4" />,
   takeaway: <Package className="w-4 h-4" />,
-  table: <ShoppingBag className="w-4 h-4" />
+  table: <ShoppingBag className="w-4 h-4" />,
+  employees: <User className="w-4 h-4" />
 };
 
 export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClose, onOrderSelect }) => {
@@ -57,6 +59,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<OrderFilters>({});
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list'); // Default to list view
@@ -136,8 +139,9 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
 
   // Handle view order details
   const handleViewOrderDetails = useCallback(async (orderSummary: OrderSummary) => {
-    setIsLoading(true);
+    setIsLoadingOrderDetails(true);
     setError(null);
+    setShowOrderDetails(true);
 
     try {
       const response = await ordersAPI.getOrder(orderSummary.id);
@@ -151,12 +155,11 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
 
       // TypeScript now knows orderData is Order, not undefined
       setSelectedOrder(orderData as Order);
-      setShowOrderDetails(true);
     } catch (error) {
       console.error("Failed to fetch order details:", error);
       setError("Failed to load order details. Please try again.");
     } finally {
-      setIsLoading(false);
+      setIsLoadingOrderDetails(false);
     }
   }, []);
 
@@ -620,219 +623,16 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
       )}
 
       {/* Order Details Dialog */}
-      <Dialog open={showOrderDetails} onOpenChange={setShowOrderDetails}>
-        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
-          <div className="w-full h-full flex flex-col overflow-hidden">
-            {/* Fixed Header */}
-            <DialogHeader className="flex-shrink-0 p-4 sm:p-6 border-b bg-gradient-to-r from-green-50 to-emerald-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <ShoppingBag className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <DialogTitle className="text-xl font-bold text-gray-900">Order Details - {selectedOrder?.orderNumber}</DialogTitle>
-                    <DialogDescription className="text-sm text-gray-600">Complete order information and items</DialogDescription>
-                  </div>
-                </div>
-              </div>
-            </DialogHeader>
-
-            {/* Scrollable Content */}
-            {selectedOrder && (
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <ScrollArea className="h-full">
-                  <div className="p-4 sm:p-6">
-                    <div className="max-w-6xl mx-auto space-y-6">
-                      {/* Order Information */}
-                      <Card className="border-gray-200">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            <span>Order Information</span>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <div className="space-y-1">
-                              <label className="text-sm font-medium text-gray-500">Order Number</label>
-                              <p className="font-semibold text-gray-900">{selectedOrder.orderNumber}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-sm font-medium text-gray-500">Type</label>
-                              <div className="flex items-center space-x-2">
-                                {ORDER_TYPE_ICONS[selectedOrder.orderType]}
-                                <span className="capitalize font-medium">{selectedOrder.orderType}</span>
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-sm font-medium text-gray-500">Status</label>
-                              <div>
-                                <Badge className={ORDER_STATUS_COLORS[selectedOrder.status]}>{selectedOrder.status}</Badge>
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-sm font-medium text-gray-500">Created</label>
-                              <p className="font-medium text-gray-900">
-                                {formatDate(selectedOrder.createdAt)} at {formatTime(selectedOrder.createdAt)}
-                              </p>
-                            </div>
-                            {selectedOrder.completedAt && (
-                              <div className="space-y-1">
-                                <label className="text-sm font-medium text-gray-500">Completed</label>
-                                <p className="font-medium text-gray-900">
-                                  {formatDate(selectedOrder.completedAt)} at {formatTime(selectedOrder.completedAt)}
-                                </p>
-                              </div>
-                            )}
-                            {selectedOrder.estimatedReadyTime && (
-                              <div className="space-y-1">
-                                <label className="text-sm font-medium text-gray-500">Ready Time</label>
-                                <p className="font-medium text-gray-900">
-                                  {formatDate(selectedOrder.estimatedReadyTime)} at {formatTime(selectedOrder.estimatedReadyTime)}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Customer Information */}
-                      {(selectedOrder.customerName || selectedOrder.customerPhone || selectedOrder.customerAddress) && (
-                        <Card className="border-gray-200">
-                          <CardHeader className="pb-4">
-                            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                              <span>Customer Information</span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              {selectedOrder.customerName && (
-                                <div className="space-y-1">
-                                  <label className="text-sm font-medium text-gray-500">Name</label>
-                                  <p className="font-medium text-gray-900">{selectedOrder.customerName}</p>
-                                </div>
-                              )}
-                              {selectedOrder.customerPhone && (
-                                <div className="space-y-1">
-                                  <label className="text-sm font-medium text-gray-500">Phone</label>
-                                  <p className="font-medium text-gray-900">{selectedOrder.customerPhone}</p>
-                                </div>
-                              )}
-                              {selectedOrder.customerAddress && (
-                                <div className="md:col-span-2 space-y-1">
-                                  <label className="text-sm font-medium text-gray-500">Address</label>
-                                  <p className="font-medium text-gray-900">{selectedOrder.customerAddress}</p>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Order Items */}
-                      <Card className="border-gray-200">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                            <span>Order Items</span>
-                            <Badge variant="outline" className="ml-2">
-                              {selectedOrder.items.length} items
-                            </Badge>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {selectedOrder.items.map((item, index) => (
-                              <div key={item.id || index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
-                                <div className="flex items-center space-x-4">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">{item.type === "material" ? <Package className="w-5 h-5 text-blue-600" /> : <ShoppingBag className="w-5 h-5 text-green-600" />}</div>
-                                  <div>
-                                    <p className="font-semibold text-gray-900">{item.name}</p>
-                                    <p className="text-sm text-gray-500">
-                                      {item.quantity} × {formatCurrency(item.unitPrice)}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-bold text-lg text-gray-900">{formatCurrency(item.totalPrice)}</p>
-                                  <Badge variant="outline" className="text-xs mt-1">
-                                    {item.type}
-                                  </Badge>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Order Summary */}
-                      <Card className="border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span>Order Summary</span>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-center py-2">
-                              <span className="text-gray-600">Subtotal</span>
-                              <span className="font-semibold text-gray-900">{formatCurrency(selectedOrder.subtotal)}</span>
-                            </div>
-
-                            {/* Discount (if applied) */}
-                            {selectedOrder.discountAmount && parseFloat(selectedOrder.discountAmount.toString()) > 0 && (
-                              <div className="flex justify-between items-center py-2 text-orange-600">
-                                <span>
-                                  Discount ({selectedOrder.discountType === "percentage" ? `${selectedOrder.discountValue}%` : formatCurrency(parseFloat(selectedOrder.discountValue?.toString() || "0"))})
-                                  {selectedOrder.discountReason && (
-                                    <span className="text-sm text-gray-500 block">{selectedOrder.discountReason}</span>
-                                  )}
-                                </span>
-                                <span className="font-semibold">-{formatCurrency(parseFloat(selectedOrder.discountAmount.toString()))}</span>
-                              </div>
-                            )}
-
-                            {/* Tax (if applicable) */}
-                            {selectedOrder.tax && selectedOrder.tax > 0 && (
-                              <div className="flex justify-between items-center py-2">
-                                <span className="text-gray-600">Tax</span>
-                                <span className="font-semibold text-gray-900">{formatCurrency(selectedOrder.tax)}</span>
-                              </div>
-                            )}
-
-                            <div className="flex justify-between items-center py-3 border-t border-gray-200">
-                              <span className="text-xl font-bold text-gray-900">Total</span>
-                              <span className="text-2xl font-bold text-green-600">{formatCurrency(selectedOrder.total)}</span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Notes */}
-                      {selectedOrder.notes && (
-                        <Card className="border-gray-200">
-                          <CardHeader className="pb-4">
-                            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                              <span>Notes</span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <p className="text-gray-700 bg-yellow-50 p-4 rounded-lg border border-yellow-200">{selectedOrder.notes}</p>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <OrderDetailsDialog
+        isOpen={showOrderDetails}
+        onClose={() => {
+          setShowOrderDetails(false);
+          setSelectedOrder(null);
+          setIsLoadingOrderDetails(false);
+        }}
+        order={selectedOrder}
+        isLoading={isLoadingOrderDetails}
+      />
 
       {/* Receipt Printer Dialog */}
       <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={receiptData} autoPrint={false} />
