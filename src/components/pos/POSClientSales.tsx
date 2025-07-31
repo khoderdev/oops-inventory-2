@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptData } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { AlertCircle, Calendar, Clock, Grid3X3, List, Package, Search, ShoppingBag, TrendingUp, Truck, User } from "lucide-react";
+import { AlertCircle, Calendar, Clock, FileText, Grid3X3, List, Package, Search, ShoppingBag, TrendingUp, Truck, User } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
@@ -158,29 +158,112 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
     });
   };
 
+  const handlePrintAllSalesReport = () => {
+    // Create a comprehensive sales report
+    const reportData = {
+      reportTitle: "All Sales Report",
+      reportDate: new Date().toLocaleDateString(),
+      reportTime: new Date().toLocaleTimeString(),
+      totalSales: sales.length,
+      totalAmount: totalSales,
+      sales: sales,
+      summary: {
+        byStatus: sales.reduce(
+          (acc, sale) => {
+            acc[sale.status] = (acc[sale.status] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>
+        ),
+        byType: sales.reduce(
+          (acc, sale) => {
+            acc[sale.orderType] = (acc[sale.orderType] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>
+        )
+      }
+    };
+
+    // For now, we'll use the browser's print functionality
+    // In a real implementation, you might want to generate a PDF or send to a printer
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Sales Report</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              .header { text-align: center; margin-bottom: 30px; }
+              .summary { margin: 20px 0; padding: 15px; background: #f5f5f5; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f2f2f2; }
+              .total { font-weight: bold; background-color: #e8f5e8; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Sales Report</h1>
+              <p>Generated on ${reportData.reportDate} at ${reportData.reportTime}</p>
+            </div>
+            <div class="summary">
+              <h3>Summary</h3>
+              <p><strong>Total Sales:</strong> ${reportData.totalSales}</p>
+              <p><strong>Total Amount:</strong> ${formatCurrency(reportData.totalAmount)}</p>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Items</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sales
+                  .map(
+                    sale => `
+                  <tr>
+                    <td>${sale.id}</td>
+                    <td>${sale.customerName || "N/A"}</td>
+                    <td>${sale.orderType}</td>
+                    <td>${sale.status}</td>
+                    <td>${formatDate(sale.createdAt)}</td>
+                    <td>${formatCurrency(sale.total)}</td>
+                    <td>${sale.itemCount || 0}</td>
+                  </tr>
+                `
+                  )
+                  .join("")}
+                <tr class="total">
+                  <td colspan="5"><strong>TOTAL</strong></td>
+                  <td><strong>${formatCurrency(reportData.totalAmount)}</strong></td>
+                  <td><strong>${reportData.totalSales}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   const isDialog = isOpen !== undefined;
 
   const MainContent = () => (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50 relative">
       <div className="flex-shrink-0 p-4 border-b bg-primary">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div>
-              {isDialog ? <DialogTitle className="text-3xl font-bold text-gray-900">Sales</DialogTitle> : <h1 className="text-3xl font-bold text-gray-900">Sales</h1>}
-              <p className="text-sm text-gray-600 mt-1">
-                {sales.length > 0 ? (
-                  <span className="flex items-center space-x-2">
-                    <Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-500">
-                      {sales.length}
-                    </Badge>
-                    <span>sale{sales.length !== 1 ? "s" : ""} found</span>
-                    <span className=" font-semibold">Total: {formatCurrency(totalSales)}</span>
-                  </span>
-                ) : (
-                  "View all sales transactions"
-                )}
-              </p>
-            </div>
+            <div>{isDialog ? <DialogTitle className="text-3xl font-bold text-white">Sales</DialogTitle> : <h1 className="text-3xl font-bold text-white">Sales</h1>}</div>
           </div>
         </div>
       </div>
@@ -372,6 +455,33 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
               )}
             </div>
           </ScrollArea>
+        </div>
+      </div>
+
+      {/* Fixed Footer */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-500 font-semibold">
+                  {sales.length}
+                </Badge>
+                <span className="text-gray-700 font-medium">sale{sales.length !== 1 ? "s" : ""} found</span>
+              </div>
+              <div className="h-4 w-px bg-gray-300" />
+              <div className="flex items-center space-x-2">
+                <span className="text-lg font-bold text-green-600">Total: {formatCurrency(totalSales)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Button onClick={handlePrintAllSalesReport} className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2" disabled={sales.length === 0}>
+                <FileText className="w-4 h-4" />
+                <span>Print All Sales Report</span>
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
