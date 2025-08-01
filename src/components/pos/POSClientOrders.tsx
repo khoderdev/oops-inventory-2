@@ -153,6 +153,17 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     }
   }, [isOpen, filters]);
 
+  // Stable callbacks to prevent re-renders from inline functions
+  const handleCloseOrderDetails = useCallback(() => {
+    setShowOrderDetails(false);
+    setSelectedOrder(null);
+    setIsLoadingOrderDetails(false);
+  }, []);
+
+  const handleCloseReceiptDialog = useCallback(() => {
+    setShowReceiptDialog(false);
+  }, []);
+
   // Fetch orders when component opens or filters change
   useEffect(() => {
     console.log("🔄 useEffect[fetchOrders]: Triggering fetch due to dependency change");
@@ -951,17 +962,13 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       {/* Order Details Dialog */}
       <OrderDetailsDialog
         isOpen={showOrderDetails}
-        onClose={() => {
-          setShowOrderDetails(false);
-          setSelectedOrder(null);
-          setIsLoadingOrderDetails(false);
-        }}
+        onClose={handleCloseOrderDetails}
         order={selectedOrder}
         isLoading={isLoadingOrderDetails}
       />
 
       {/* Receipt Printer Dialog */}
-      <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={receiptData} autoPrint={false} />
+      <ReceiptPrinter isOpen={showReceiptDialog} onClose={handleCloseReceiptDialog} receiptData={receiptData} autoPrint={false} />
     </>
   );
 };
@@ -970,13 +977,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 export const POSClientOrders = React.memo(POSClientOrdersComponent, (prevProps, nextProps) => {
   // Custom comparison function
   const isEqual = prevProps.isOpen === nextProps.isOpen && prevProps.onClose === nextProps.onClose && prevProps.onOrderSelect === nextProps.onOrderSelect;
-
-  console.log("🧪 React.memo: Props comparison:", {
-    isOpenChanged: prevProps.isOpen !== nextProps.isOpen,
-    onCloseChanged: prevProps.onClose !== nextProps.onClose,
-    onOrderSelectChanged: prevProps.onOrderSelect !== nextProps.onOrderSelect,
-    shouldRerender: !isEqual
-  });
 
   return isEqual;
 });

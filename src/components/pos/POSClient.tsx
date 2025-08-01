@@ -86,7 +86,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         onOrderSelect(order);
       }
     },
-    [onOrderSelect]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [] // onOrderSelect is a stable prop, no need to include in deps
   );
 
   // Order management hook

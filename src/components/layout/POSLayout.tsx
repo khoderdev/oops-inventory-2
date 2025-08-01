@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { POSLayoutProps } from "@/types/inventory";
+// Order types have complex inheritance, using any for callback parameter
 import { formatCurrency } from "@/utils/conversionLogic";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power, ShoppingCart, TrendingUp } from "lucide-react";
@@ -59,6 +60,33 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       console.error("Failed to fetch sales count:", error);
       setSalesCount(0);
     }
+  }, []);
+
+  // Stable callbacks to prevent POSClientOrders re-renders
+  const handleCloseOrdersDialog = useCallback(() => {
+    setShowOrdersDialog(false);
+  }, []);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleOrderSelect = useCallback((order: any) => {
+    console.log('Selected order:', order);
+    // Call the parent's onOrderSelect if provided
+    if (onOrderSelect) {
+      onOrderSelect(order);
+    }
+    setShowOrdersDialog(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // onOrderSelect is a stable prop, no need to include in deps
+
+  const handleCloseSalesDialog = useCallback(() => {
+    setShowSalesDialog(false);
+  }, []);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleSaleSelect = useCallback((order: any) => {
+    console.log('Selected sale:', order);
+    // Handle sale selection if needed
+    setShowSalesDialog(false);
   }, []);
 
   // Update time every second
@@ -233,26 +261,15 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       {/* Orders Dialog */}
       <POSClientOrders 
         isOpen={showOrdersDialog} 
-        onClose={() => setShowOrdersDialog(false)}
-        onOrderSelect={(order) => {
-          console.log('Selected order:', order);
-          // Call the parent's onOrderSelect if provided
-          if (onOrderSelect) {
-            onOrderSelect(order);
-          }
-          setShowOrdersDialog(false);
-        }}
+        onClose={handleCloseOrdersDialog}
+        onOrderSelect={handleOrderSelect}
       />
 
       {/* Sales Dialog */}
       <POSClientSales 
         isOpen={showSalesDialog} 
-        onClose={() => setShowSalesDialog(false)}
-        onOrderSelect={(order) => {
-          console.log('Selected sale:', order);
-          // Handle sale selection if needed
-          setShowSalesDialog(false);
-        }}
+        onClose={handleCloseSalesDialog}
+        onOrderSelect={handleSaleSelect}
       />
 
       {/* Logout Confirmation Dialog */}
