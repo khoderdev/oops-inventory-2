@@ -7,9 +7,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
-import { Employee } from "@/types/employee";
+import { Employee, EmployeeDepartment } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { OrderType } from "@/types/orders";
+import { Order, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, Trash2 } from "lucide-react";
@@ -27,7 +27,7 @@ import { ReceiptPrinter } from "./ReceiptPrinter";
 import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 
-export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete }) => {
+export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed }) => {
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -61,9 +61,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [tableOrders, setTableOrders] = useState<{ [tableId: string]: number }>({});
   const [incompleteTableOrdersCount, setIncompleteTableOrdersCount] = useState<number>(0);
   const [incompleteDeliveryTakeawayCount, setIncompleteDeliveryTakeawayCount] = useState<number>(0);
-  const [incompleteDeliveryCount, setIncompleteDeliveryCount] = useState<number>(0);
-  const [incompleteTakeawayCount, setIncompleteTakeawayCount] = useState<number>(0);
-  const [open, setOpen] = useState(false);
+  const [, setIncompleteDeliveryCount] = useState<number>(0);
+  const [, setIncompleteTakeawayCount] = useState<number>(0);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -190,7 +189,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       if (response?.data) {
         // Handle the nested response structure: {data: {data: Array}}
-        let allOrders: any = response.data;
+        let allOrders: { data?: Order[] } | Order[] = response.data;
 
         // The actual orders are in response.data.data
         if (allOrders.data && Array.isArray(allOrders.data)) {
@@ -325,87 +324,70 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setIsLoading(true);
         setError(null);
 
-        // Clear current cart and state
+        console.log("📋 Loading order for editing:", order);
+        console.log("🔍 Order details:", {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          orderType: order.orderType,
+          status: order.status,
+          hasItems: !!(order.items),
+          itemsLength: order.items?.length || 0
+        });
+
+        // Clear current cart and state first
+        console.log("🧹 Clearing current state before loading order");
         setCart([]);
         setHasUnsavedChanges(false);
+        setAppliedDiscount(null);
+        setDiscountAmount(0);
 
         // Load the order using the order management hook
+        // This will set currentOrder, which will trigger the useEffect to transform items to cart
         if (loadOrder) {
+          console.log("🔄 Calling loadOrder with ID:", order.id);
           await loadOrder(order.id);
-        }
-
-        // Set order type and table if applicable
-        setOrderType(order.orderType || "takeaway");
-        if (order.orderType === "table" && order.tableId) {
-          // Create async function to fetch table data
-          const loadTableData = async () => {
-            try {
-              const tableResponse = await tablesAPI.getTable(order.tableId);
-              if (tableResponse.data) {
-                setSelectedTable(tableResponse.data);
-              } else {
-                // Fallback: create a minimal table object
-                if (order.tableNumber) {
-                  const fallbackTable: Table = {
-                    id: order.tableId,
-                    number: order.tableNumber,
-                    seats: 4,
-                    status: "opened",
-                    position: { x: 0, y: 0 },
-                    shape: "round"
-                  };
-                  setSelectedTable(fallbackTable);
-                }
-              }
-            } catch (error) {
-              console.error("Failed to fetch table:", error);
-              setSelectedTable(undefined);
-            }
-          };
-
-          loadTableData();
+          console.log("✅ Order loaded successfully via loadOrder hook");
         } else {
-          setSelectedTable(undefined);
+          console.error("❌ loadOrder function is not available!");
         }
 
-        // Convert order items to cart items
-        const cartItems: POSCartItem[] =
-          order.items
-            ?.map((item: any) => {
-              // Find the original item for proper saving
-              let originalItem: StockEntryWithMaterial | MenuItem | undefined;
+        // The cart transformation will be handled by the useEffect that watches currentOrder
+        // No need to manually transform items here anymore
 
-              if (item.materialId) {
-                // Find stock entry by materialId
-                originalItem = stockEntries.find(se => se.materialId === item.materialId);
-              } else if (item.menuItemId) {
-                // Find menu item by menuItemId
-                originalItem = menuItems.find(mi => mi.id === item.menuItemId);
-              }
-
-              return {
-                id: item.id || `${item.materialId || item.menuItemId}-${Date.now()}`,
-                stockEntryId: item.materialId, // materialId maps to stockEntryId
-                menuItemId: item.menuItemId,
-                name: item.name,
-                price: parseFloat(item.unitPrice) || 0,
-                quantity: parseInt(item.quantity) || 1,
-                type: item.materialId ? "material" : "menu",
-                originalItem // This is crucial for saving
-              };
-            })
-            .filter(Boolean) || [];
-
-        setCart(cartItems);
         setHasUnsavedChanges(false); // This is an existing order, not unsaved
+
+        console.log("🎯 Order selection completed");
       } catch (error) {
+        console.error("❌ Failed to load order:", error);
         showError("Failed to load order for editing. Please try again.");
       } finally {
         setIsLoading(false);
       }
     },
-    [loadOrder, showError, stockEntries, menuItems]
+    [loadOrder, showError]
   );
+
+  // Handle selectedOrderForPOS prop changes
+  useEffect(() => {
+    if (selectedOrderForPOS) {
+      console.log("📎 POSClient: Processing selectedOrderForPOS:", selectedOrderForPOS);
+      
+      // Call the internal handleOrderSelect to load the order
+      handleOrderSelect(selectedOrderForPOS).then(() => {
+        console.log("✅ Order processed successfully");
+        // Notify parent that order has been processed
+        if (onOrderProcessed) {
+          onOrderProcessed();
+        }
+      }).catch((error) => {
+        console.error("❌ Failed to process order:", error);
+        // Still notify parent to clear the state
+        if (onOrderProcessed) {
+          onOrderProcessed();
+        }
+      });
+    }
+  }, [selectedOrderForPOS, handleOrderSelect, onOrderProcessed]);
 
   // Update optimistic assignments when props change
   useEffect(() => {
@@ -609,6 +591,28 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Transform currentOrder items to cart when order is loaded
   useEffect(() => {
+    console.log("🔄 useEffect triggered - currentOrder changed:", {
+      hasCurrentOrder: !!currentOrder,
+      currentOrderId: currentOrder?.id,
+      currentOrderNumber: currentOrder?.orderNumber,
+      hasItems: !!(currentOrder?.items),
+      itemsLength: currentOrder?.items?.length || 0,
+      stockEntriesLength: stockEntries.length,
+      menuItemsLength: menuItems.length
+    });
+
+    // Only proceed if we have the required data loaded
+    if (!stockEntries.length && !menuItems.length) {
+      console.log("⏳ Waiting for stock entries and menu items to load...");
+      console.log("📊 Current state:", {
+        stockEntriesLength: stockEntries.length,
+        menuItemsLength: menuItems.length,
+        hasCurrentOrder: !!currentOrder,
+        hasOrderItems: !!(currentOrder?.items?.length)
+      });
+      return;
+    }
+
     if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
       console.log("🔄 Transforming currentOrder items to cart:", currentOrder.items);
       console.log("📊 Current order structure:", {
@@ -617,6 +621,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         orderType: currentOrder.orderType,
         itemsCount: currentOrder.items.length,
         firstItem: currentOrder.items[0]
+      });
+      console.log("📦 Available data:", {
+        stockEntriesCount: stockEntries.length,
+        menuItemsCount: menuItems.length
       });
 
       // Transform order items to POSCartItem format
@@ -632,11 +640,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           if (item.type === "material" && materialId) {
             // Find the stock entry by materialId (handle number type)
-            const foundStockEntry = stockEntries.find(se => se.materialId === materialId);
+            const foundStockEntry = stockEntries.find(se => {
+              const stockMaterialId = typeof se.materialId === "string" ? parseInt(se.materialId) : se.materialId;
+              return stockMaterialId === materialId;
+            });
 
             if (foundStockEntry) {
+              console.log("✅ Found stock entry for materialId:", materialId, foundStockEntry);
               originalItem = foundStockEntry;
             } else {
+              console.log(
+                "⚠️ Stock entry not found for materialId:",
+                materialId,
+                "Available stock entries:",
+                stockEntries.map(se => ({ id: se.materialId, name: se.material?.name }))
+              );
               // Create a minimal fallback object with required properties
               originalItem = {
                 id: materialId.toString(),
@@ -659,14 +677,29 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             }
           } else if (item.type === "menu" && menuItemId) {
             // Find the menu item by menuItemId (handle number type)
-            originalItem =
-              menuItems.find(m => m.id === menuItemId) ||
-              ({
+            const foundMenuItem = menuItems.find(m => {
+              const menuId = typeof m.id === "string" ? parseInt(m.id) : m.id;
+              return menuId === menuItemId;
+            });
+
+            if (foundMenuItem) {
+              console.log("✅ Found menu item for menuItemId:", menuItemId, foundMenuItem);
+              originalItem = foundMenuItem;
+            } else {
+              console.log(
+                "⚠️ Menu item not found for menuItemId:",
+                menuItemId,
+                "Available menu items:",
+                menuItems.map(m => ({ id: m.id, name: m.name }))
+              );
+              originalItem = {
                 id: menuItemId,
                 name: item.name,
                 price: parseFloat(item.unitPrice?.toString() || "0")
-              } as MenuItem);
+              } as MenuItem;
+            }
           } else {
+            console.log("⚠️ Creating fallback original item for:", item);
             // Fallback: create a minimal original item
             originalItem = {
               id: item.id || item.materialId || item.menuItemId,
@@ -691,6 +724,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       console.log("✅ Final transformed cart items:", cartItems);
       console.log("📦 Setting cart with", cartItems.length, "items");
+      console.log("🔍 Cart items details:", cartItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        quantity: item.quantity,
+        price: item.price
+      })));
       setCart(cartItems);
 
       // Set order type and related data
@@ -732,8 +772,36 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       // Set employee if it's an employee order
       if (currentOrder.orderType === "employees" && currentOrder.employeeId) {
-        console.log("👤 Setting selected employee:", currentOrder.employeeId);
-        setSelectedEmployee(currentOrder.employeeId);
+        console.log("👤 Loading selected employee:", currentOrder.employeeId);
+        const loadEmployeeData = async () => {
+          try {
+            // Import employeeAPI if not already imported
+            const { employeeAPI } = await import("@/api/employee.api");
+            const employeeResponse = await employeeAPI.getEmployee(parseInt(currentOrder.employeeId.toString()));
+            if (employeeResponse.data) {
+              setSelectedEmployee(employeeResponse.data);
+              console.log("👤 Employee loaded:", employeeResponse.data);
+            }
+          } catch (error) {
+            console.error("Failed to load employee data:", error);
+            // Fallback: create a minimal employee object if API fails
+            const fallbackEmployee: Employee = {
+              id: parseInt(currentOrder.employeeId.toString()),
+              userId: 0,
+              employeeNumber: currentOrder.employeeId.toString(),
+              department: "other" as EmployeeDepartment,
+              position: "Unknown",
+              baseSalary: 0,
+              discountPercentage: 0,
+              hireDate: new Date().toISOString(),
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            setSelectedEmployee(fallbackEmployee);
+          }
+        };
+        loadEmployeeData();
       }
 
       // Apply discount if present
@@ -756,10 +824,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } else {
       console.log("⚠️ CurrentOrder exists but no items:", currentOrder);
     }
+
+    console.log("🏁 useEffect completed. Final state:", {
+      hasCurrentOrder: !!currentOrder,
+      orderItemsLength: currentOrder?.items?.length || 0,
+      stockEntriesLength: stockEntries.length,
+      menuItemsLength: menuItems.length,
+      cartWillBeSet: !!(currentOrder?.items?.length)
+    });
   }, [currentOrder, stockEntries, menuItems]);
 
   // Track unsaved changes when cart changes
   useEffect(() => {
+    console.log("🛍️ Cart state changed:", {
+      cartLength: cart?.length || 0,
+      cartItems: cart?.map(item => ({ id: item.id, name: item.name, quantity: item.quantity })) || []
+    });
+    
     if (cart && cart.length > 0) {
       setHasUnsavedChanges(true);
     } else {
@@ -1420,7 +1501,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, showSuccess, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount]);
 
   return (
     <>

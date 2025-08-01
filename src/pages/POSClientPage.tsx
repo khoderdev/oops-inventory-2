@@ -5,7 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { PERMISSIONS } from "@/types/auth";
 import { SaleResponse } from "@/types/inventory";
-import React, { useEffect, useState } from "react";
+import { Order } from "@/types/orders";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const POSClientPage: React.FC = () => {
@@ -16,6 +17,9 @@ const POSClientPage: React.FC = () => {
     totalSales: 0,
     transactionCount: 0
   });
+
+  // State to hold selected order that will be passed to POSClient
+  const [selectedOrderForPOS, setSelectedOrderForPOS] = useState<Order | null>(null);
 
   // Check authentication and permissions
   useEffect(() => {
@@ -80,6 +84,13 @@ const POSClientPage: React.FC = () => {
     fetchTabData("materials");
   };
 
+  // Handle order selection from POSLayout
+  const handleOrderSelect = useCallback(async (order: Order) => {
+    console.log("📎 POSClientPage: Order selected from POSLayout:", order);
+    // Set the selected order state which will trigger POSClient to load it
+    setSelectedOrderForPOS(order);
+  }, []);
+
   // Handle logout
   const handleLogout = async () => {
     try {
@@ -110,8 +121,18 @@ const POSClientPage: React.FC = () => {
   }
 
   return (
-    <POSLayout currentTotal={sessionStats.totalSales} transactionCount={sessionStats.transactionCount} onLogout={handleLogout}>
-      <POSClient sectionAssignments={sectionAssignments} onSaleComplete={handleSaleComplete} />
+    <POSLayout 
+      currentTotal={sessionStats.totalSales} 
+      transactionCount={sessionStats.transactionCount} 
+      onLogout={handleLogout}
+      onOrderSelect={handleOrderSelect}
+    >
+      <POSClient 
+        sectionAssignments={sectionAssignments} 
+        onSaleComplete={handleSaleComplete}
+        selectedOrderForPOS={selectedOrderForPOS}
+        onOrderProcessed={() => setSelectedOrderForPOS(null)}
+      />
     </POSLayout>
   );
 };

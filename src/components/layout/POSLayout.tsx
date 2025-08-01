@@ -10,7 +10,7 @@ import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power, ShoppingCart, TrendingUp } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
-const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout }) => {
+const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout, onOrderSelect }) => {
   const { user, logout } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -236,7 +236,10 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
         onClose={() => setShowOrdersDialog(false)}
         onOrderSelect={(order) => {
           console.log('Selected order:', order);
-          // Handle order selection if needed
+          // Call the parent's onOrderSelect if provided
+          if (onOrderSelect) {
+            onOrderSelect(order);
+          }
           setShowOrdersDialog(false);
         }}
       />

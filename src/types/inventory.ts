@@ -444,6 +444,9 @@ export interface POSCartItem {
 export interface POSClientProps {
   sectionAssignments: SectionAssignment[];
   onSaleComplete?: (saleData: SaleResponse) => void;
+  onOrderSelect?: (order: Order) => void;
+  selectedOrderForPOS?: Order | null;
+  onOrderProcessed?: () => void;
 }
 
 export interface PaymentDialogProps {
@@ -545,6 +548,7 @@ export interface POSLayoutProps {
   children: React.ReactNode;
   currentTotal?: number;
   transactionCount?: number;
+  onOrderSelect?: (order: Order) => void;
   onLogout?: () => void;
 }
 
