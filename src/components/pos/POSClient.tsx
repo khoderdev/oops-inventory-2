@@ -408,102 +408,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     fetchInitialData();
   }, [showError]);
 
-  // Manual save function
-  const handleManualSave = useCallback(async () => {
-    if (cart.length === 0) {
-      showError("Cannot save empty order");
-      return;
-    }
-
-    console.log("💾 Starting manual save...");
-    console.log("🛒 Cart for saving:", cart);
-
-    try {
-      const orderData = {
-        orderType,
-        tableId: selectedTable?.id,
-        items: cart.map(item => {
-          console.log("📝 Processing save item:", item);
-          console.log("🔍 Item type:", item.type);
-          console.log("🔍 Original item:", item.originalItem);
-
-          const orderItem = {
-            materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
-            menuItemId: item.type === "menu" ? String((item.originalItem as MenuItem).id) : undefined,
-            assignmentId: undefined,
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.price * item.quantity,
-            type: item.type,
-            notes: undefined
-          };
-
-          console.log("📋 Created save item:", orderItem);
-          return orderItem;
-        }),
-        discountType: appliedDiscount?.type,
-        discountValue: appliedDiscount?.value,
-        discountAmount: appliedDiscount?.amount || 0,
-        discountReason: appliedDiscount?.reason
-      };
-
-      console.log("📦 Final save data:", orderData);
-
-      if (currentOrder) {
-        // Update existing order
-        const updateItems = cart.map((item, index) => ({
-          id: currentOrder.items[index]?.id || `temp-${Date.now()}-${index}`,
-          materialId: item.type === "material" ? (item.originalItem as StockEntryWithMaterial).materialId : undefined,
-          menuItemId: item.type === "menu" ? (item.originalItem as MenuItem).id : undefined,
-          assignmentId: undefined,
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.price,
-          totalPrice: item.price * item.quantity,
-          type: item.type,
-          notes: undefined
-        }));
-        await updateOrder({ items: updateItems });
-        showSuccess("Order updated successfully");
-      } else {
-        // Create new order
-        await createOrder(orderData);
-        showSuccess("Order Saved");
-      }
-
-      // Refresh tables to update status in UI
-      if (orderType === "table") {
-        try {
-          const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
-          const responseData = tablesResponse.data as Table[] | { data: Table[] };
-          const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
-          setTables(refreshedTables);
-        } catch (error) {
-          // Handle table refresh error silently
-        }
-      }
-
-      // Clear cart with animation after successful save
-      clearCartWithAnimation();
-      setHasUnsavedChanges(false);
-
-      // Clear discount state
-      setAppliedDiscount(null);
-      setDiscountAmount(0);
-
-      // Clear current order from order management
-      if (clearOrder) {
-        clearOrder();
-      }
-
-      // Clear order persistence data
-      OrderPersistence.clearCurrentOrder();
-    } catch (error) {
-      showError("Failed to save order");
-    }
-  }, [cart, orderType, selectedTable, currentOrder, updateOrder, createOrder, showSuccess, showError, clearCartWithAnimation, clearOrder, appliedDiscount]);
-
   // Load saved order on component mount
   useEffect(() => {
     const loadSavedOrder = async () => {
@@ -1242,6 +1146,85 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     console.log("🧹 Order cancelled - all state cleared");
   }, [clearOrder]);
+
+  // Handle manual save order - save and then clear state
+  const handleManualSave = useCallback(async () => {
+    if (cart.length === 0) {
+      showError("Cannot save empty order");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Create order data
+      const orderData = {
+        orderType,
+        tableId: selectedTable?.id,
+        employeeId: selectedEmployee?.id,
+        items: cart.map(item => ({
+          materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+          menuItemId: item.type === "menu" ? String((item.originalItem as MenuItem).id) : undefined,
+          assignmentId: undefined,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.price,
+          totalPrice: item.price * item.quantity,
+          type: item.type,
+          notes: undefined
+        })),
+        discountType: appliedDiscount?.type,
+        discountValue: appliedDiscount?.value,
+        discountAmount: appliedDiscount?.amount || 0,
+        discountReason: appliedDiscount?.reason
+      };
+
+      // Save the order
+      const savedOrder = await createOrder(orderData);
+
+      // Show success message
+      showSuccess(`Order ${savedOrder.orderNumber || savedOrder.id} saved successfully!`);
+
+      // Clear all state after successful save (same as cancel)
+      // Clear cart
+      setCart([]);
+
+      // Reset order type to takeaway
+      setOrderType("takeaway");
+
+      // Clear selected table and employee
+      setSelectedTable(undefined);
+      setSelectedEmployee(undefined);
+
+      // Clear discount
+      setAppliedDiscount(null);
+      setDiscountAmount(0);
+
+      // Clear current order
+      if (clearOrder) {
+        clearOrder();
+      }
+
+      // Clear local storage
+      OrderPersistence.clearCurrentOrder();
+
+      // Reset unsaved changes flag
+      setHasUnsavedChanges(false);
+
+      // Hide tables layout
+      setShowTablesLayout(false);
+
+      // Reset payment amount
+      setPaymentAmount("");
+
+      console.log("💾 Order saved and state cleared");
+    } catch (error) {
+      console.error("Failed to save order:", error);
+      showError("Failed to save order. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, createOrder, clearOrder, showSuccess, showError]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
