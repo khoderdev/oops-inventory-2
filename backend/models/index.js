@@ -578,4 +578,7 @@ Order.hasMany(PrintJob, {
   onUpdate: "CASCADE"
 });
 
+// Printer relationships (simplified for now)
+// Note: Complex associations temporarily removed to resolve startup issues
+
 export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };

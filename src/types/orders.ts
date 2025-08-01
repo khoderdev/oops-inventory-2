@@ -45,6 +45,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
+  employeeId?: string;
   orderNumber: string;
   status: OrderStatus;
   orderType: OrderType;

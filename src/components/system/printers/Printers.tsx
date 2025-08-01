@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { CreatePrinterChannelRequest, CreatePrinterRequest, Printer, PrinterChannel } from "@/types/printer";
-import { AlertCircle, Monitor, Network, Plus, Printer as PrinterIcon, Settings, Trash2, Wifi } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2, Monitor, Network, Plus, Printer as PrinterIcon, Settings, Trash2, Wifi, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const Printers = () => {
@@ -28,6 +28,10 @@ const Printers = () => {
   const [editingChannel, setEditingChannel] = useState<PrinterChannel | null>(null);
   const [editingPrinter, setEditingPrinter] = useState<Printer | null>(null);
 
+  // Testing states
+  const [testingPrinters, setTestingPrinters] = useState<Set<number>>(new Set());
+  const [testResults, setTestResults] = useState<Map<number, { success: boolean; message: string; timestamp: Date }>>(new Map());
+
   // Form states
   const [channelForm, setChannelForm] = useState({
     name: "",
@@ -38,7 +42,7 @@ const Printers = () => {
   const [printerForm, setPrinterForm] = useState({
     name: "",
     channelId: "",
-    type: "thermal" as const,
+    type: "thermal" as "thermal" | "inkjet" | "laser" | "receipt" | "label",
     connectionType: "network" as "usb" | "network" | "bluetooth" | "serial",
     location: "",
     description: "",
@@ -89,6 +93,40 @@ const Printers = () => {
     }
   };
 
+  // Handle edit channel
+  const handleEditChannel = (channel: PrinterChannel) => {
+    setEditingChannel(channel);
+    setChannelForm({
+      name: channel.name,
+      description: channel.description || "",
+      priority: channel.priority
+    });
+    setChannelDialogOpen(true);
+  };
+
+  // Handle edit printer
+  const handleEditPrinter = (printer: Printer) => {
+    setEditingPrinter(printer);
+    setPrinterForm({
+      name: printer.name,
+      channelId: printer.channelId.toString(),
+      type: printer.type,
+      connectionType: printer.connectionType,
+      location: printer.location || "",
+      description: printer.description || "",
+      networkConfig: {
+        ipAddress: printer.networkConfig?.ipAddress || "",
+        port: printer.networkConfig?.port || 9100,
+        protocol: printer.networkConfig?.protocol || "raw"
+      },
+      osConfig: {
+        printerName: printer.osConfig?.printerName || "",
+        driverName: printer.osConfig?.driverName || ""
+      }
+    });
+    setPrinterDialogOpen(true);
+  };
+
   const handleCreateChannel = async () => {
     try {
       setOperationLoading(true);
@@ -100,17 +138,22 @@ const Printers = () => {
         priority: channelForm.priority
       };
 
-      const response = await printerAPI.createChannel(channelData);
+      let response;
+      if (editingChannel) {
+        response = await printerAPI.updateChannel(editingChannel.id, channelData);
+      } else {
+        response = await printerAPI.createChannel(channelData);
+      }
 
       if (response.success) {
-        setSuccess("Channel created successfully");
+        setSuccess(editingChannel ? "Channel updated successfully" : "Channel created successfully");
         await fetchData();
         setChannelDialogOpen(false);
         resetChannelForm();
       }
     } catch (err) {
-      console.error("Error creating channel:", err);
-      setError("Failed to create channel");
+      console.error("Error saving channel:", err);
+      setError(editingChannel ? "Failed to update channel" : "Failed to create channel");
     } finally {
       setOperationLoading(false);
     }
@@ -132,17 +175,22 @@ const Printers = () => {
         osConfig: printerForm.connectionType === "usb" ? printerForm.osConfig : undefined
       };
 
-      const response = await printerAPI.createPrinter(printerData);
+      let response;
+      if (editingPrinter) {
+        response = await printerAPI.updatePrinter(editingPrinter.id, printerData);
+      } else {
+        response = await printerAPI.createPrinter(printerData);
+      }
 
       if (response.success) {
-        setSuccess("Printer created successfully");
+        setSuccess(editingPrinter ? "Printer updated successfully" : "Printer created successfully");
         await fetchData();
         setPrinterDialogOpen(false);
         resetPrinterForm();
       }
     } catch (err) {
-      console.error("Error creating printer:", err);
-      setError("Failed to create printer");
+      console.error("Error saving printer:", err);
+      setError(editingPrinter ? "Failed to update printer" : "Failed to create printer");
     } finally {
       setOperationLoading(false);
     }
@@ -157,7 +205,7 @@ const Printers = () => {
     setPrinterForm({
       name: "",
       channelId: "",
-      type: "thermal" as const,
+      type: "thermal" as "thermal" | "inkjet" | "laser" | "receipt" | "label",
       connectionType: "network" as "usb" | "network" | "bluetooth" | "serial",
       location: "",
       description: "",
@@ -199,16 +247,61 @@ const Printers = () => {
 
   const handleTestPrinter = async (id: number) => {
     try {
+      // Add printer to testing set
+      setTestingPrinters(prev => new Set([...prev, id]));
+
+      // Clear previous test result and any global messages
+      setTestResults(prev => {
+        const newResults = new Map(prev);
+        newResults.delete(id);
+        return newResults;
+      });
+      clearMessages();
+
       const response = await printerAPI.testPrinter(id);
-      if (response.success && response.testResult.connected) {
-        setSuccess("Printer test successful");
+
+      const testResult = {
+        success: response.success,
+        message: response.success ? "Connected successfully" : (response.testResult?.error || response.message || "Connection failed"),
+        timestamp: new Date()
+      };
+
+      // Store test result
+      setTestResults(prev => new Map([...prev, [id, testResult]]));
+
+      // Update printer status in local state
+      if (response.success) {
+        setPrinters(prev => prev.map(p => p.id === id ? { ...p, status: 'online' } : p));
       } else {
-        setError(`Printer test failed: ${response.testResult.error || "Unknown error"}`);
+        setPrinters(prev => prev.map(p => p.id === id ? { ...p, status: 'error' } : p));
       }
     } catch (err) {
       console.error("Error testing printer:", err);
-      setError("Failed to test printer");
+      const errorResult = {
+        success: false,
+        message: "Connection failed",
+        timestamp: new Date()
+      };
+      setTestResults(prev => new Map([...prev, [id, errorResult]]));
+      setPrinters(prev => prev.map(p => p.id === id ? { ...p, status: 'error' } : p));
+    } finally {
+      // Remove printer from testing set
+      setTestingPrinters(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     }
+  };
+
+  // Get test result for a printer
+  const getTestResult = (printerId: number) => {
+    return testResults.get(printerId);
+  };
+
+  // Check if printer is currently being tested
+  const isPrinterTesting = (printerId: number) => {
+    return testingPrinters.has(printerId);
   };
 
   const clearMessages = () => {
@@ -268,13 +361,6 @@ const Printers = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Printer Management</h1>
-          <p className="text-gray-600">Manage printer channels and devices</p>
-        </div>
-      </div>
-
       {/* Success/Error Messages */}
       {(success || error) && (
         <div className="space-y-2">
@@ -315,8 +401,8 @@ const Printers = () => {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create Printer Channel</DialogTitle>
-                  <DialogDescription>Create a new printer channel to organize your printers</DialogDescription>
+                  <DialogTitle>{editingChannel ? "Edit Printer Channel" : "Create Printer Channel"}</DialogTitle>
+                  <DialogDescription>{editingChannel ? "Update the printer channel settings" : "Create a new printer channel to organize your printers"}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
@@ -336,7 +422,10 @@ const Printers = () => {
                   <Button variant="outline" onClick={() => setChannelDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreateChannel}>Create Channel</Button>
+                  <Button onClick={handleCreateChannel} disabled={operationLoading}>
+                    {operationLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {editingChannel ? "Update Channel" : "Create Channel"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -355,7 +444,7 @@ const Printers = () => {
                       <CardDescription>{channel.description}</CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" title="Edit Channel">
+                      <Button variant="outline" size="sm" onClick={() => handleEditChannel(channel)} title="Edit Channel">
                         <Settings className="h-4 w-4" />
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => handleDeleteChannel(channel.id)} title="Delete Channel" className="text-red-600 hover:text-red-700 hover:bg-red-50">
@@ -387,8 +476,8 @@ const Printers = () => {
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Add New Printer</DialogTitle>
-                  <DialogDescription>Configure a new printer for your system</DialogDescription>
+                  <DialogTitle>{editingPrinter ? "Edit Printer" : "Add New Printer"}</DialogTitle>
+                  <DialogDescription>{editingPrinter ? "Update the printer configuration" : "Configure a new printer for your system"}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -416,7 +505,7 @@ const Printers = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="type">Printer Type</Label>
-                      <Select value={printerForm.type} onValueChange={(value: any) => setPrinterForm({ ...printerForm, type: value })}>
+                      <Select value={printerForm.type} onValueChange={(value: "thermal" | "receipt" | "label" | "inkjet" | "laser") => setPrinterForm({ ...printerForm, type: value })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -504,7 +593,10 @@ const Printers = () => {
                   <Button variant="outline" onClick={() => setPrinterDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreatePrinter}>Add Printer</Button>
+                  <Button onClick={handleCreatePrinter} disabled={operationLoading}>
+                    {operationLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {editingPrinter ? "Update Printer" : "Add Printer"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -545,16 +637,44 @@ const Printers = () => {
                       <TableCell>{printer.location || "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleTestPrinter(printer.id)} title="Test Printer" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                            <PrinterIcon className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" title="Edit Printer">
+                          <div className="relative">
+                            <Button variant="outline" size="sm" onClick={() => handleTestPrinter(printer.id)} disabled={isPrinterTesting(printer.id)} title="Test Printer Connection" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                              {isPrinterTesting(printer.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <PrinterIcon className="h-4 w-4" />}
+                            </Button>
+                            {/* Test result indicator */}
+                            {(() => {
+                              const result = getTestResult(printer.id);
+                              if (result && !isPrinterTesting(printer.id)) {
+                                return <div className={`absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${result.success ? "bg-green-500" : "bg-red-500"}`} title={`Last test: ${result.message} (${result.timestamp.toLocaleTimeString()})`} />;
+                              }
+                              return null;
+                            })()}
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => handleEditPrinter(printer)} title="Edit Printer">
                             <Settings className="h-4 w-4" />
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => handleDeletePrinter(printer.id)} title="Delete Printer" className="text-red-600 hover:text-red-700 hover:bg-red-50">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
+                        {/* Test result details */}
+                        {(() => {
+                          const result = getTestResult(printer.id);
+                          if (result && !isPrinterTesting(printer.id)) {
+                            return (
+                              <div className={`mt-1 text-xs flex items-center gap-1 ${result.success ? "text-green-600" : "text-red-600"}`}>
+                                {result.success ? (
+                                  <CheckCircle className="h-3 w-3" />
+                                ) : (
+                                  <X className="h-3 w-3" />
+                                )}
+                                <span>{result.message}</span>
+                                <span className="text-gray-400 ml-1">({result.timestamp.toLocaleTimeString()})</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))}

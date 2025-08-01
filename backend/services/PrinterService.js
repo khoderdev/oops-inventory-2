@@ -200,25 +200,51 @@ class PrinterService extends EventEmitter {
   }
 
   async testNetworkConnection(host, port, timeout = 5000) {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
+      if (!host) {
+        return reject(new Error('Host address is required'));
+      }
+      
+      if (!port || isNaN(port) || port < 1 || port > 65535) {
+        return reject(new Error('Invalid port number'));
+      }
+
       const socket = new net.Socket();
+      let isResolved = false;
+
+      const cleanup = () => {
+        if (!isResolved) {
+          socket.destroy();
+          isResolved = true;
+        }
+      };
+
+      const onSuccess = () => {
+        if (!isResolved) {
+          cleanup();
+          resolve(true);
+        }
+      };
+
+      const onError = (error) => {
+        if (!isResolved) {
+          cleanup();
+          resolve(false);
+        }
+      };
 
       socket.setTimeout(timeout);
-      socket.on("connect", () => {
-        socket.destroy();
-        resolve(true);
-      });
+      
+      socket.once('connect', onSuccess);
+      socket.once('timeout', () => onError(new Error('Connection timeout')));
+      socket.once('error', onError);
 
-      socket.on("timeout", () => {
-        socket.destroy();
+      try {
+        socket.connect(port, host);
+      } catch (error) {
+        cleanup();
         resolve(false);
-      });
-
-      socket.on("error", () => {
-        resolve(false);
-      });
-
-      socket.connect(port, host);
+      }
     });
   }
 
