@@ -159,12 +159,42 @@ const Printer = sequelize.define(
     ],
     validate: {
       networkConfigRequired() {
-        if (this.connectionType === "network" && (!this.networkConfig || !this.networkConfig.ipAddress)) {
+        // Skip validation if only isActive is being updated
+        const changedFields = this.changed();
+        if (changedFields && changedFields.length === 1 && changedFields[0] === "isActive") {
+          return;
+        }
+
+        // Skip validation if only updating non-connection related fields
+        const connectionRelatedFields = ["connectionType", "osConfig", "networkConfig", "name", "type"];
+        const hasConnectionChanges = changedFields && changedFields.some(field => connectionRelatedFields.includes(field));
+
+        if (!hasConnectionChanges && !this.isNewRecord) {
+          return;
+        }
+
+        // Only validate network config if connection type is network and we're creating or updating connection-related fields
+        if (this.connectionType === "network" && (this.isNewRecord || this.changed("connectionType") || this.changed("networkConfig")) && (!this.networkConfig || !this.networkConfig.ipAddress)) {
           throw new Error("IP address is required for network printers");
         }
       },
       osConfigRequired() {
-        if (this.connectionType === "usb" && (!this.osConfig || !this.osConfig.printerName)) {
+        // Skip validation if only isActive is being updated
+        const changedFields = this.changed();
+        if (changedFields && changedFields.length === 1 && changedFields[0] === "isActive") {
+          return;
+        }
+
+        // Skip validation if only updating non-connection related fields
+        const connectionRelatedFields = ["connectionType", "osConfig", "networkConfig", "name", "type"];
+        const hasConnectionChanges = changedFields && changedFields.some(field => connectionRelatedFields.includes(field));
+
+        if (!hasConnectionChanges && !this.isNewRecord) {
+          return;
+        }
+
+        // Only validate OS config if connection type is USB and we're creating or updating connection-related fields
+        if (this.connectionType === "usb" && (this.isNewRecord || this.changed("connectionType") || this.changed("osConfig")) && (!this.osConfig || !this.osConfig.printerName)) {
           throw new Error("OS printer name is required for USB printers");
         }
       }

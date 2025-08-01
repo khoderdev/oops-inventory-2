@@ -117,6 +117,12 @@ export const printerAPI = {
     return response.data;
   },
 
+  // Alias for discoverWindowsPrinters for the scanning functionality
+  scanSystemPrinters: async (): Promise<WindowsPrinterDiscoveryResponse> => {
+    const response = await api.get<WindowsPrinterDiscoveryResponse>("/printers/discover/windows");
+    return response.data;
+  },
+
   getServiceStatus: async (): Promise<PrinterServiceStatus> => {
     const response = await api.get<PrinterServiceStatus>("/printers/service/status");
     return response.data;

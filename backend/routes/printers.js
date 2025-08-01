@@ -1,5 +1,6 @@
 import express from "express";
 import { createPrinter, createPrinterChannel, deletePrinter, deletePrinterChannel, getPrinterChannels, getPrinters, getPrinterStats, testPrinter, updatePrinter, updatePrinterChannel } from "../controllers/printerController.js";
+import { discoverWindowsPrinters } from "../controllers/windowsPrinterController.js";
 import { bulkCancelJobs, cancelPrintJob, createPrintJob, getPrintJob, getPrintJobs, getPrintJobStats, retryPrintJob } from "../controllers/printJobController.js";
 import { auditMiddleware } from "../middleware/auditMiddleware.js";
 import { authenticate } from "../middleware/authMiddleware.js";
@@ -62,33 +63,7 @@ router.get("/discover/network", auditMiddleware("discover_network_printers", "pr
   }
 });
 
-router.get("/discover/windows", auditMiddleware("discover_windows_printers", "printer"), async (req, res) => {
-  try {
-    const printerService = req.app.get("printerService");
-
-    if (!printerService) {
-      return res.status(500).json({
-        success: false,
-        message: "Printer service not available"
-      });
-    }
-
-    const printers = await printerService.getWindowsPrinters();
-
-    res.json({
-      success: true,
-      printers,
-      count: printers.length
-    });
-  } catch (error) {
-    console.error("Error discovering Windows printers:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to discover Windows printers",
-      error: error.message
-    });
-  }
-});
+router.get("/discover/windows", auditMiddleware("discover_windows_printers", "printer"), discoverWindowsPrinters);
 
 // Service status route
 router.get("/service/status", auditMiddleware("get_printer_service_status", "printer"), (req, res) => {

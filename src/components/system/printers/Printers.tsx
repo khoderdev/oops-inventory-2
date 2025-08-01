@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreatePrinterChannelRequest, CreatePrinterRequest, Printer, PrinterChannel } from "@/types/printer";
-import { AlertCircle, CheckCircle, Loader2, Monitor, Network, Plus, Printer as PrinterIcon, Settings, Trash2, Wifi, X } from "lucide-react";
+import type { CreatePrinterChannelRequest, CreatePrinterRequest, Printer, PrinterChannel, WindowsPrinter } from "@/types/printer";
+import { AlertCircle, CheckCircle, Loader2, Monitor, Network, Plus, Power, Printer as PrinterIcon, Search, Settings, Trash2, Wifi, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const Printers = () => {
@@ -31,6 +32,10 @@ const Printers = () => {
   // Testing states
   const [testingPrinters, setTestingPrinters] = useState<Set<number>>(new Set());
   const [testResults, setTestResults] = useState<Map<number, { success: boolean; message: string; timestamp: Date }>>(new Map());
+
+  // Printer scanning states
+  const [scanningPrinters, setScanningPrinters] = useState(false);
+  const [detectedPrinters, setDetectedPrinters] = useState<WindowsPrinter[]>([]);
 
   // Form states
   const [channelForm, setChannelForm] = useState({
@@ -262,7 +267,7 @@ const Printers = () => {
 
       const testResult = {
         success: response.success,
-        message: response.success ? "Connected successfully" : (response.testResult?.error || response.message || "Connection failed"),
+        message: response.success ? "Connected successfully" : response.testResult?.error || response.message || "Connection failed",
         timestamp: new Date()
       };
 
@@ -271,9 +276,9 @@ const Printers = () => {
 
       // Update printer status in local state
       if (response.success) {
-        setPrinters(prev => prev.map(p => p.id === id ? { ...p, status: 'online' } : p));
+        setPrinters(prev => prev.map(p => (p.id === id ? { ...p, status: "online" } : p)));
       } else {
-        setPrinters(prev => prev.map(p => p.id === id ? { ...p, status: 'error' } : p));
+        setPrinters(prev => prev.map(p => (p.id === id ? { ...p, status: "error" } : p)));
       }
     } catch (err) {
       console.error("Error testing printer:", err);
@@ -283,7 +288,7 @@ const Printers = () => {
         timestamp: new Date()
       };
       setTestResults(prev => new Map([...prev, [id, errorResult]]));
-      setPrinters(prev => prev.map(p => p.id === id ? { ...p, status: 'error' } : p));
+      setPrinters(prev => prev.map(p => (p.id === id ? { ...p, status: "error" } : p)));
     } finally {
       // Remove printer from testing set
       setTestingPrinters(prev => {
@@ -292,6 +297,79 @@ const Printers = () => {
         return newSet;
       });
     }
+  };
+
+  const handleTogglePrinterActive = async (id: number, isActive: boolean) => {
+    try {
+      setOperationLoading(true);
+      clearMessages();
+
+      const response = await printerAPI.updatePrinter(id, { isActive });
+
+      if (response.success) {
+        // Update local state
+        setPrinters(prev => prev.map(p => (p.id === id ? { ...p, isActive } : p)));
+      }
+    } catch (err) {
+      console.error("Error toggling printer status:", err);
+      setError(`Failed to ${isActive ? "activate" : "deactivate"} printer`);
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const handleToggleChannelActive = async (id: number, isActive: boolean) => {
+    try {
+      setOperationLoading(true);
+      clearMessages();
+
+      const response = await printerAPI.updateChannel(id, { isActive });
+
+      if (response.success) {
+        // Update local state
+        setChannels(prev => prev.map(c => (c.id === id ? { ...c, isActive } : c)));
+      }
+    } catch (err) {
+      console.error("Error toggling channel status:", err);
+      setError(`Failed to ${isActive ? "activate" : "deactivate"} channel`);
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const handleScanPrinters = async () => {
+    try {
+      setScanningPrinters(true);
+      clearMessages();
+
+      const response = await printerAPI.scanSystemPrinters();
+      
+      if (response.success && response.printers) {
+        setDetectedPrinters(response.printers);
+        setSuccess(`Found ${response.printers.length} system printer(s)`);
+      } else {
+        setDetectedPrinters([]);
+        setError("No printers detected or scan failed");
+      }
+    } catch (err) {
+      console.error("Error scanning printers:", err);
+      setError("Failed to scan for printers");
+      setDetectedPrinters([]);
+    } finally {
+      setScanningPrinters(false);
+    }
+  };
+
+  const handleSelectDetectedPrinter = (detectedPrinter: WindowsPrinter) => {
+    setPrinterForm({
+      ...printerForm,
+      name: detectedPrinter.name,
+      connectionType: "usb",
+      osConfig: {
+        printerName: detectedPrinter.name,
+        driverName: detectedPrinter.driverName || ""
+      }
+    });
   };
 
   // Get test result for a printer
@@ -444,6 +522,12 @@ const Printers = () => {
                       <CardDescription>{channel.description}</CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`channel-${channel.id}-active`} className="text-sm">
+                          {channel.isActive ? "Active" : "Inactive"}
+                        </Label>
+                        <Switch id={`channel-${channel.id}-active`} checked={channel.isActive} onCheckedChange={checked => handleToggleChannelActive(channel.id, checked)} disabled={operationLoading} />
+                      </div>
                       <Button variant="outline" size="sm" onClick={() => handleEditChannel(channel)} title="Edit Channel">
                         <Settings className="h-4 w-4" />
                       </Button>
@@ -480,6 +564,65 @@ const Printers = () => {
                   <DialogDescription>{editingPrinter ? "Update the printer configuration" : "Configure a new printer for your system"}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
+                  {/* Printer Scanner Section - Only show when adding new printer */}
+                  {!editingPrinter && (
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className="text-sm font-medium">Scan for System Printers</h4>
+                          <p className="text-xs text-gray-600">Automatically detect Windows printers installed on this system</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleScanPrinters}
+                          disabled={scanningPrinters}
+                        >
+                          {scanningPrinters ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Search className="h-4 w-4 mr-2" />
+                          )}
+                          {scanningPrinters ? "Scanning..." : "Scan Printers"}
+                        </Button>
+                      </div>
+                      
+                      {detectedPrinters.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-600 mb-2">Found {detectedPrinters.length} printer(s). Click to select:</p>
+                          <div className="max-h-32 overflow-y-auto space-y-1">
+                            {detectedPrinters.map((printer, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-2 bg-white rounded border hover:bg-blue-50 cursor-pointer"
+                                onClick={() => handleSelectDetectedPrinter(printer)}
+                              >
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <PrinterIcon className="h-4 w-4 text-gray-500" />
+                                    <span className="text-sm font-medium">{printer.name}</span>
+                                    {printer.isDefault && (
+                                      <Badge variant="secondary" className="text-xs">Default</Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Driver: {printer.driverName} | Port: {printer.portName} | Status: {printer.status}
+                                  </div>
+                                </div>
+                                <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                                  Select
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {detectedPrinters.length === 0 && !scanningPrinters && (
+                        <p className="text-xs text-gray-500 text-center py-2">No printers detected. Click "Scan Printers" to search for available printers.</p>
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="printer-name">Printer Name</Label>
@@ -610,16 +753,27 @@ const Printers = () => {
                     <TableHead>Name</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Connection</TableHead>
+                    <TableHead>IP Address</TableHead>
                     <TableHead>Channel</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Active</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {printers.map(printer => (
-                    <TableRow key={printer.id}>
-                      <TableCell className="font-medium">{printer.name}</TableCell>
+                    <TableRow key={printer.id} className={!printer.isActive ? "opacity-60" : ""}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {printer.name}
+                          {!printer.isActive && (
+                            <Badge variant="secondary" className="text-xs">
+                              Inactive
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {getTypeIcon(printer.type)}
@@ -632,8 +786,15 @@ const Printers = () => {
                           {printer.connectionType}
                         </div>
                       </TableCell>
+                      <TableCell>{printer.connectionType === "network" && printer.networkConfig?.ipAddress ? <span className="font-mono text-sm">{printer.networkConfig.ipAddress}</span> : <span className="text-gray-400 text-sm">-</span>}</TableCell>
                       <TableCell>{printer.channel?.name}</TableCell>
                       <TableCell>{getStatusBadge(printer.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={printer.isActive} onCheckedChange={checked => handleTogglePrinterActive(printer.id, checked)} disabled={operationLoading} />
+                          <span className="text-sm text-gray-600">{printer.isActive ? "Active" : "Inactive"}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>{printer.location || "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -663,11 +824,7 @@ const Printers = () => {
                           if (result && !isPrinterTesting(printer.id)) {
                             return (
                               <div className={`mt-1 text-xs flex items-center gap-1 ${result.success ? "text-green-600" : "text-red-600"}`}>
-                                {result.success ? (
-                                  <CheckCircle className="h-3 w-3" />
-                                ) : (
-                                  <X className="h-3 w-3" />
-                                )}
+                                {result.success ? <CheckCircle className="h-3 w-3" /> : <X className="h-3 w-3" />}
                                 <span>{result.message}</span>
                                 <span className="text-gray-400 ml-1">({result.timestamp.toLocaleTimeString()})</span>
                               </div>
