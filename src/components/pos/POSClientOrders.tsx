@@ -38,7 +38,16 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<OrderFilters>({});
+  // Initialize filters to show only today's orders by default
+  const [filters, setFilters] = useState<OrderFilters>(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return {
+      dateRange: {
+        startDate: today,
+        endDate: today
+      }
+    };
+  });
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [sortBy, setSortBy] = useState<"date" | "total" | "status">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");

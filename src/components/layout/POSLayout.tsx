@@ -31,13 +31,41 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       console.log("Orders API response for count:", response);
 
       // Handle nested response structure
-      const responseData = response.data as { data?: { orderType: string }[] } | { orderType: string }[];
+      interface OrderData {
+        id: string;
+        createdAt?: string;
+        status?: string;
+        orderType?: string;
+      }
+      const responseData = response.data as { data?: OrderData[] } | OrderData[];
       const orders = Array.isArray(responseData) ? responseData : responseData?.data || [];
 
-      // Filter for delivery and takeaway orders (excluding table orders)
-      const deliveryTakeawayOrders = orders.filter(order => order.orderType === "delivery" || order.orderType === "takeaway");
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Filter for incomplete orders from today only
+      const incompleteOrdersToday = orders.filter(order => {
+        // Check if order is from today
+        const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : null;
+        const isToday = orderDate === today;
+        
+        // Check if order is incomplete (not paid, served, or completed)
+        const isIncomplete = order.status && !['paid', 'served', 'completed'].includes(order.status);
+        
+        console.log('Order filter check:', {
+          orderId: order.id,
+          orderDate,
+          isToday,
+          status: order.status,
+          isIncomplete,
+          included: isToday && isIncomplete
+        });
+        
+        return isToday && isIncomplete;
+      });
 
-      setOrdersCount(deliveryTakeawayOrders.length);
+      console.log(`Found ${incompleteOrdersToday.length} incomplete orders for today`);
+      setOrdersCount(incompleteOrdersToday.length);
     } catch (error) {
       console.error("Failed to fetch orders count:", error);
       setOrdersCount(0);
