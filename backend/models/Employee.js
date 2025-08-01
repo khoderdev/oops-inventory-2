@@ -37,8 +37,8 @@ const Employee = sequelize.define(
     department: {
       type: DataTypes.ENUM("kitchen", "service", "management", "cleaning", "security", "other"),
       allowNull: false,
-      defaultValue: "service",
-      comment: "Employee department"
+      defaultValue: "service"
+      // Note: comment removed to avoid Sequelize enum ALTER TABLE bug
     },
     position: {
       type: DataTypes.STRING(100),
