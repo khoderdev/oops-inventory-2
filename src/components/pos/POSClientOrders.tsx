@@ -3,10 +3,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,7 +61,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<OrderFilters>({});
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list'); // Default to list view
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list"); // Default to list view
 
   // Fetch orders based on filters
   const fetchOrders = useCallback(async () => {
@@ -150,7 +149,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
       const orderData = "data" in responseData ? responseData.data : responseData;
 
       if (!orderData) {
-        throw new Error('Order data not found');
+        throw new Error("Order data not found");
       }
 
       // TypeScript now knows orderData is Order, not undefined
@@ -176,7 +175,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
         const orderData = "data" in responseData ? responseData.data : responseData;
 
         if (!orderData) {
-          throw new Error('Order data not found');
+          throw new Error("Order data not found");
         }
 
         // TypeScript now knows orderData is Order, not undefined
@@ -258,7 +257,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
         const orderData = "data" in responseData ? responseData.data : responseData;
 
         if (!orderData) {
-          throw new Error('Order data not found');
+          throw new Error("Order data not found");
         }
 
         // Call the parent callback to load order into POS cart
@@ -341,11 +340,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
             {/* Filter Controls */}
             <div className="flex flex-wrap gap-3 items-center">
               {/* Status Filter - Native Select */}
-              <select 
-                value={filters.status || "all"} 
-                onChange={(e) => handleFilterChange("status", e.target.value as OrderStatus | "all")}
-                className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
-              >
+              <select value={filters.status || "all"} onChange={e => handleFilterChange("status", e.target.value as OrderStatus | "all")} className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none">
                 <option value="all">All Statuses</option>
                 <option value="draft">Draft</option>
                 <option value="confirmed">Confirmed</option>
@@ -357,11 +352,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
               </select>
 
               {/* Order Type Filter - Native Select */}
-              <select 
-                value={filters.orderType || "all"} 
-                onChange={(e) => handleFilterChange("orderType", e.target.value as OrderType | "all")}
-                className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
-              >
+              <select value={filters.orderType || "all"} onChange={e => handleFilterChange("orderType", e.target.value as OrderType | "all")} className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none">
                 <option value="all">All Types</option>
                 <option value="delivery">Delivery</option>
                 <option value="takeaway">Takeaway</option>
@@ -373,7 +364,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
 
               {/* View Mode Toggle */}
               <div className="border-l border-gray-200 pl-3 ml-3">
-                <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'list' | 'grid')} className="bg-gray-100 rounded-lg p-1">
+                <ToggleGroup type="single" value={viewMode} onValueChange={value => value && setViewMode(value as "list" | "grid")} className="bg-gray-100 rounded-lg p-1">
                   <ToggleGroupItem value="list" aria-label="List view" className="data-[state=on]:bg-white data-[state=on]:shadow-sm">
                     <List className="h-4 w-4" />
                   </ToggleGroupItem>
@@ -410,7 +401,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                   <h3 className="text-lg font-medium mb-2">No orders found</h3>
                   <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No delivery or takeaway orders available at the moment"}</p>
                 </div>
-              ) : viewMode === 'list' ? (
+              ) : viewMode === "list" ? (
                 /* List View */
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                   <Table>
@@ -428,11 +419,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                     </TableHeader>
                     <TableBody>
                       {orders.map(order => (
-                        <TableRow 
-                          key={order.id} 
-                          className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
-                          onClick={() => handleOrderSelect(order)}
-                        >
+                        <TableRow key={order.id} className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100" onClick={() => handleOrderSelect(order)}>
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span className="font-bold text-gray-900">{order.orderNumber}</span>
@@ -442,9 +429,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                           <TableCell>
                             <div className="flex items-center space-x-2">
                               <User className="w-4 h-4 text-gray-400" />
-                              <span className="font-medium text-gray-900">
-                                {order.customerName || 'N/A'}
-                              </span>
+                              <span className="font-medium text-gray-900">{order.customerName || "N/A"}</span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -454,9 +439,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge className={`${ORDER_STATUS_COLORS[order.status]} font-semibold`}>
-                              {order.status}
-                            </Badge>
+                            <Badge className={`${ORDER_STATUS_COLORS[order.status]} font-semibold`}>{order.status}</Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col text-sm">
@@ -471,9 +454,7 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = ({ isOpen, onClos
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <span className="text-lg font-bold text-green-600">
-                              {formatCurrency(order.total)}
-                            </span>
+                            <span className="text-lg font-bold text-green-600">{formatCurrency(order.total)}</span>
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="outline" className="font-medium">

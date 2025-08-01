@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { Employee, EmployeeDepartment } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { Order, OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
+import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, Trash2 } from "lucide-react";
@@ -190,14 +190,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       if (response?.data) {
         // Handle the nested response structure: {data: {data: Array}}
         let ordersArray: OrderSummaryType[];
-        
+
         // Define type for nested response
         type NestedResponse = { data: OrderSummaryType[] };
-        
+
         // Check if response.data is a nested structure or direct array
         if (Array.isArray(response.data)) {
           ordersArray = response.data;
-        } else if (response.data && typeof response.data === 'object' && 'data' in response.data && Array.isArray((response.data as NestedResponse).data)) {
+        } else if (response.data && typeof response.data === "object" && "data" in response.data && Array.isArray((response.data as NestedResponse).data)) {
           ordersArray = (response.data as NestedResponse).data;
         } else {
           console.warn("Unexpected orders API response structure:", response.data);
@@ -335,7 +335,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           orderNumber: order.orderNumber,
           orderType: order.orderType,
           status: order.status,
-          hasItems: !!(order.items),
+          hasItems: !!order.items,
           itemsLength: order.items?.length || 0
         });
 
@@ -376,21 +376,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   useEffect(() => {
     if (selectedOrderForPOS) {
       console.log("📎 POSClient: Processing selectedOrderForPOS:", selectedOrderForPOS);
-      
+
       // Call the internal handleOrderSelect to load the order
-      handleOrderSelect(selectedOrderForPOS).then(() => {
-        console.log("✅ Order processed successfully");
-        // Notify parent that order has been processed
-        if (onOrderProcessed) {
-          onOrderProcessed();
-        }
-      }).catch((error) => {
-        console.error("❌ Failed to process order:", error);
-        // Still notify parent to clear the state
-        if (onOrderProcessed) {
-          onOrderProcessed();
-        }
-      });
+      handleOrderSelect(selectedOrderForPOS)
+        .then(() => {
+          console.log("✅ Order processed successfully");
+          // Notify parent that order has been processed
+          if (onOrderProcessed) {
+            onOrderProcessed();
+          }
+        })
+        .catch(error => {
+          console.error("❌ Failed to process order:", error);
+          // Still notify parent to clear the state
+          if (onOrderProcessed) {
+            onOrderProcessed();
+          }
+        });
     }
   }, [selectedOrderForPOS, handleOrderSelect, onOrderProcessed]);
 
@@ -600,7 +602,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       hasCurrentOrder: !!currentOrder,
       currentOrderId: currentOrder?.id,
       currentOrderNumber: currentOrder?.orderNumber,
-      hasItems: !!(currentOrder?.items),
+      hasItems: !!currentOrder?.items,
       itemsLength: currentOrder?.items?.length || 0,
       stockEntriesLength: stockEntries.length,
       menuItemsLength: menuItems.length
@@ -613,7 +615,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         stockEntriesLength: stockEntries.length,
         menuItemsLength: menuItems.length,
         hasCurrentOrder: !!currentOrder,
-        hasOrderItems: !!(currentOrder?.items?.length)
+        hasOrderItems: !!currentOrder?.items?.length
       });
       return;
     }
@@ -729,13 +731,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       console.log("✅ Final transformed cart items:", cartItems);
       console.log("📦 Setting cart with", cartItems.length, "items");
-      console.log("🔍 Cart items details:", cartItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        type: item.type,
-        quantity: item.quantity,
-        price: item.price
-      })));
+      console.log(
+        "🔍 Cart items details:",
+        cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      );
       setCart(cartItems);
 
       // Set order type and related data
@@ -835,7 +840,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       orderItemsLength: currentOrder?.items?.length || 0,
       stockEntriesLength: stockEntries.length,
       menuItemsLength: menuItems.length,
-      cartWillBeSet: !!(currentOrder?.items?.length)
+      cartWillBeSet: !!currentOrder?.items?.length
     });
   }, [currentOrder, stockEntries, menuItems]);
 
@@ -845,7 +850,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       cartLength: cart?.length || 0,
       cartItems: cart?.map(item => ({ id: item.id, name: item.name, quantity: item.quantity })) || []
     });
-    
+
     if (cart && cart.length > 0) {
       setHasUnsavedChanges(true);
     } else {
@@ -1515,13 +1520,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <h2 className="text-lg font-bold text-gray-800">Order</h2>
               {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
-                <span className="text-sm text-blue-600 font-medium">
+                <span className="text-sm text-blue-600 font-bold">
                   {currentOrder ? (
                     <div className="flex items-center space-x-1">
-                      <span>#{currentOrder.orderNumber}</span>
-                      <span className="text-xs opacity-75">({currentOrder.status})</span>
+                      <span>{currentOrder.orderNumber}</span>
+                      <span className={`text-xs font-medium ${currentOrder.status === "draft" ? "text-orange-600" : currentOrder.status === "paid" ? "text-green-600" : currentOrder.status === "cancelled" ? "text-red-600" : "text-gray-600"}`}>({currentOrder.status})</span>
                     </div>
                   ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
                     <span>{generatePreviewOrderNumber()}</span>
@@ -1552,15 +1556,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className="hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
             <div className="flex items-center justify-between py-2">
               <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
-                <h2 className="text-lg font-bold text-gray-800">Order#:</h2>
+                {/* <h2 className="text-lg font-bold text-gray-800">Order#:</h2> */}
 
                 {/* Order Status Indicator */}
                 {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
-                  <span className="text-md text-blue-600 font-medium">
+                  <span className="text-lg text-blue-600 font-bold">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
-                        <span>#{currentOrder.orderNumber}</span>
-                        <span className="text-xs opacity-75">({currentOrder.status})</span>
+                        <span>{currentOrder.orderNumber}</span>
+                        <span className={`text-xs font-medium ${currentOrder.status === "draft" ? "text-orange-600" : currentOrder.status === "paid" ? "text-green-600" : currentOrder.status === "cancelled" ? "text-red-600" : "text-gray-600"}`}>({currentOrder.status})</span>
                       </div>
                     ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway") ? (
                       <span>{generatePreviewOrderNumber()}</span>
