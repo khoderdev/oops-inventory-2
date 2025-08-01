@@ -3,16 +3,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ORDER_STATUS_COLORS, ORDER_TYPE_ICONS } from "@/constants/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { POSClientSalesProps, ReceiptData, SalesFilters } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertCircle, Calendar, Clock, Grid3X3, List, Printer, Search, TrendingUp, User, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { OrderDetailsDialog } from "./OrderDetailsDialog";
@@ -55,9 +55,11 @@ interface RawOrderData {
 
 // API response interface to handle nested data structure
 interface ApiOrderResponse {
-  data?: {
-    data?: RawOrderData;
-  } | RawOrderData;
+  data?:
+    | {
+        data?: RawOrderData;
+      }
+    | RawOrderData;
 }
 
 export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose, onOrderSelect }) => {
@@ -143,15 +145,15 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
         }
         return sale;
       });
-      
+
       // Clean up status overrides that are no longer needed (backend caught up)
       const overridesToRemove = Object.keys(statusOverrides).filter(orderId => {
         const sale = fetchedSales.find(s => s.id === orderId);
         return sale && sale.status === statusOverrides[orderId];
       });
-      
+
       if (overridesToRemove.length > 0) {
-        console.log('POSClientSales: Cleaning up status overrides that are no longer needed:', overridesToRemove);
+        console.log("POSClientSales: Cleaning up status overrides that are no longer needed:", overridesToRemove);
         setStatusOverrides(prev => {
           const cleaned = { ...prev };
           overridesToRemove.forEach(orderId => delete cleaned[orderId]);
@@ -197,17 +199,17 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
   // Transform API data to ensure numeric fields are numbers
   const transformOrderData = (rawOrder: RawOrderData): Order => {
     const parseNumber = (value: string | number | undefined): number => {
-      if (typeof value === 'number') return value;
+      if (typeof value === "number") return value;
       return parseFloat(String(value)) || 0;
     };
-    
+
     const parseOptionalNumber = (value: string | number | undefined): number | undefined => {
       if (value === undefined || value === null) return undefined;
-      if (typeof value === 'number') return value;
+      if (typeof value === "number") return value;
       const parsed = parseFloat(String(value));
       return isNaN(parsed) ? undefined : parsed;
     };
-    
+
     return {
       ...rawOrder,
       id: String(rawOrder.id),
@@ -221,13 +223,14 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
       startTime: new Date(rawOrder.createdAt),
       estimatedReadyTime: rawOrder.estimatedReadyTime ? new Date(rawOrder.estimatedReadyTime) : undefined,
       completedAt: rawOrder.completedAt ? new Date(rawOrder.completedAt) : undefined,
-      items: rawOrder.items?.map((item: RawOrderItem) => ({
-        ...item,
-        id: String(item.id),
-        unitPrice: parseNumber(item.unitPrice),
-        totalPrice: parseNumber(item.totalPrice),
-        quantity: typeof item.quantity === 'number' ? item.quantity : parseInt(String(item.quantity)) || 0
-      })) || [],
+      items:
+        rawOrder.items?.map((item: RawOrderItem) => ({
+          ...item,
+          id: String(item.id),
+          unitPrice: parseNumber(item.unitPrice),
+          totalPrice: parseNumber(item.totalPrice),
+          quantity: typeof item.quantity === "number" ? item.quantity : parseInt(String(item.quantity)) || 0
+        })) || [],
       userId: String(rawOrder.createdBy || rawOrder.userId || ""),
       userRole: rawOrder.userRole || "user"
     };
@@ -250,57 +253,60 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
   };
 
   // Handle order update from OrderDetailsDialog
-  const handleOrderUpdate = useCallback((updatedOrder: Order) => {
-    console.log('POSClientSales: Handling order update:', {
-      orderId: updatedOrder.id,
-      oldStatus: selectedOrder?.status,
-      newStatus: updatedOrder.status,
-      updatedOrder
-    });
-    
-    // Store the status override to maintain consistency across refreshes
-    setStatusOverrides(prev => ({
-      ...prev,
-      [updatedOrder.id]: updatedOrder.status
-    }));
-    
-    // Update the order in the sales list
-    setSales(prevSales => {
-      const updatedSales = prevSales.map(sale => {
-        if (sale.id === updatedOrder.id) {
-          const updatedSale = { 
-            ...sale, 
-            status: updatedOrder.status, 
-            updatedAt: updatedOrder.updatedAt 
-          };
-          console.log('POSClientSales: Updated sale in list:', {
-            saleId: sale.id,
-            oldStatus: sale.status,
-            newStatus: updatedSale.status
-          });
-          return updatedSale;
-        }
-        return sale;
+  const handleOrderUpdate = useCallback(
+    (updatedOrder: Order) => {
+      console.log("POSClientSales: Handling order update:", {
+        orderId: updatedOrder.id,
+        oldStatus: selectedOrder?.status,
+        newStatus: updatedOrder.status,
+        updatedOrder
       });
-      
-      console.log('POSClientSales: Sales list updated');
-      return updatedSales;
-    });
-    
-    // Update the selected order if it's the same one
-    if (selectedOrder && selectedOrder.id === updatedOrder.id) {
-      console.log('POSClientSales: Updating selected order:', {
-        oldStatus: selectedOrder.status,
-        newStatus: updatedOrder.status
+
+      // Store the status override to maintain consistency across refreshes
+      setStatusOverrides(prev => ({
+        ...prev,
+        [updatedOrder.id]: updatedOrder.status
+      }));
+
+      // Update the order in the sales list
+      setSales(prevSales => {
+        const updatedSales = prevSales.map(sale => {
+          if (sale.id === updatedOrder.id) {
+            const updatedSale = {
+              ...sale,
+              status: updatedOrder.status,
+              updatedAt: updatedOrder.updatedAt
+            };
+            console.log("POSClientSales: Updated sale in list:", {
+              saleId: sale.id,
+              oldStatus: sale.status,
+              newStatus: updatedSale.status
+            });
+            return updatedSale;
+          }
+          return sale;
+        });
+
+        console.log("POSClientSales: Sales list updated");
+        return updatedSales;
       });
-      setSelectedOrder(updatedOrder);
-    }
-    
-    // Force a re-render by updating a dummy state
-    setTimeout(() => {
-      console.log('POSClientSales: Order update completed');
-    }, 50);
-  }, [selectedOrder]);
+
+      // Update the selected order if it's the same one
+      if (selectedOrder && selectedOrder.id === updatedOrder.id) {
+        console.log("POSClientSales: Updating selected order:", {
+          oldStatus: selectedOrder.status,
+          newStatus: updatedOrder.status
+        });
+        setSelectedOrder(updatedOrder);
+      }
+
+      // Force a re-render by updating a dummy state
+      setTimeout(() => {
+        console.log("POSClientSales: Order update completed");
+      }, 50);
+    },
+    [selectedOrder]
+  );
 
   // Handle clicking on a sale row to load it into POS cart (similar to POSClientOrders)
   const handleSaleRowClick = async (sale: OrderSummary) => {
@@ -315,18 +321,16 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
     setError(null);
 
     try {
-      const response = await ordersAPI.getOrder(sale.id) as ApiOrderResponse;
+      const response = (await ordersAPI.getOrder(sale.id)) as ApiOrderResponse;
       // Handle nested response structure
-      const rawOrderData = (response.data && typeof response.data === 'object' && 'data' in response.data) 
-        ? response.data.data as RawOrderData
-        : response.data as RawOrderData;
+      const rawOrderData = response.data && typeof response.data === "object" && "data" in response.data ? (response.data.data as RawOrderData) : (response.data as RawOrderData);
 
       if (!rawOrderData) {
         throw new Error("Order data not found");
       }
 
       const transformedOrder = transformOrderData(rawOrderData);
-      
+
       console.log("✅ handleSaleRowClick: Calling parent onOrderSelect");
       // Call the parent callback to load order into POS cart
       onOrderSelect(transformedOrder);
@@ -355,11 +359,9 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
       let receiptData: ReceiptData;
 
       try {
-        const response = await ordersAPI.getOrder(sale.id) as ApiOrderResponse;
+        const response = (await ordersAPI.getOrder(sale.id)) as ApiOrderResponse;
         // Handle nested data structure - API returns { data: { data: orderData } }
-        const rawOrderData = (response.data && typeof response.data === 'object' && 'data' in response.data) 
-          ? response.data.data as RawOrderData
-          : response.data as RawOrderData;
+        const rawOrderData = response.data && typeof response.data === "object" && "data" in response.data ? (response.data.data as RawOrderData) : (response.data as RawOrderData);
         order = transformOrderData(rawOrderData);
 
         // Convert full order to receipt data - use API data as-is
@@ -656,9 +658,9 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                   {sales.map(order => (
-                    <Card 
-                      key={order.id} 
-                      className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" 
+                    <Card
+                      key={order.id}
+                      className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]"
                       onClick={e => {
                         const target = e.target as HTMLElement;
                         console.log("🕱️ Card clicked:", {
@@ -799,13 +801,7 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
       )}
 
       {/* Order Details Dialog */}
-      <OrderDetailsDialog 
-        isOpen={showOrderDetails} 
-        onClose={() => setShowOrderDetails(false)} 
-        order={selectedOrder} 
-        isLoading={isLoadingOrderDetails}
-        onOrderUpdate={handleOrderUpdate}
-      />
+      <OrderDetailsDialog isOpen={showOrderDetails} onClose={() => setShowOrderDetails(false)} order={selectedOrder} isLoading={isLoadingOrderDetails} onOrderUpdate={handleOrderUpdate} />
 
       <ReceiptPrinter
         isOpen={showReceiptDialog}

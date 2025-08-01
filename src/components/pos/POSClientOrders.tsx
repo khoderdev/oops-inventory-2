@@ -40,7 +40,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   const [error, setError] = useState<string | null>(null);
   // Initialize filters to show only today's orders by default
   const [filters, setFilters] = useState<OrderFilters>(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
     return {
       dateRange: {
         startDate: today,
@@ -969,12 +969,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       )}
 
       {/* Order Details Dialog */}
-      <OrderDetailsDialog
-        isOpen={showOrderDetails}
-        onClose={handleCloseOrderDetails}
-        order={selectedOrder}
-        isLoading={isLoadingOrderDetails}
-      />
+      <OrderDetailsDialog isOpen={showOrderDetails} onClose={handleCloseOrderDetails} order={selectedOrder} isLoading={isLoadingOrderDetails} />
 
       {/* Receipt Printer Dialog */}
       <ReceiptPrinter isOpen={showReceiptDialog} onClose={handleCloseReceiptDialog} receiptData={receiptData} autoPrint={false} />

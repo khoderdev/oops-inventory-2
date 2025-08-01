@@ -252,7 +252,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
                 <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
                   <TrendingUp className="w-4 h-4 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
                   <div className="flex items-center space-x-1">
-                    <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Sales:</span>
+                    <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Today's Sales:</span>
                     <span className="text-sm font-bold text-emerald-300 group-hover:text-emerald-200 transition-colors tabular-nums">{salesCount}</span>
                   </div>
                 </div>
