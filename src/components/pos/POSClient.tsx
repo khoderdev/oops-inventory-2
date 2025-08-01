@@ -279,60 +279,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, []);
 
-  // Comprehensive reset function - clears everything in POS system
-  const handleCancelOrder = useCallback(() => {
-    // Clear cart and local state
-    setCart([]);
-    setHasUnsavedChanges(false);
-
-    // Reset order type and table selection
-    setOrderType("takeaway");
-    setSelectedTable(undefined);
-    setShowTablesLayout(false);
-
-    // Clear search and filters
-    setActiveCategory("all");
-
-    // Clear any dialogs
-    setShowPaymentDialog(false);
-    setShowReceiptDialog(false);
-    setShowVoidDialog(false);
-    setShowOrdersDialog(false);
-    setShowNegativeStockDialog(false);
-    setShowUnsavedDialog(false);
-    setShowReportsDialog(false);
-    setShowDiscountDialog(false);
-
-    // Clear payment amount
-    setPaymentAmount("");
-
-    // Clear messages
-    setError(null);
-    setSuccessMessage(null);
-
-    // Clear any timeouts
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current);
-      errorTimeoutRef.current = null;
-    }
-    if (successTimeoutRef.current) {
-      clearTimeout(successTimeoutRef.current);
-      successTimeoutRef.current = null;
-    }
-    if (checkmarkTimeoutRef.current) {
-      clearTimeout(checkmarkTimeoutRef.current);
-      checkmarkTimeoutRef.current = null;
-    }
-
-    // Clear current order from order management
-    if (clearOrder) {
-      clearOrder();
-    }
-    // Clear all order persistence data (localStorage)
-    OrderPersistence.clearAllData();
-    // Show success message
-  }, [clearOrder]);
-
   // Handle order selection for editing
   const handleOrderSelect = useCallback(
     async (order: any) => {
@@ -1256,6 +1202,46 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handleShowOrders = useCallback(() => {
     setShowOrdersDialog(true);
   }, []);
+
+  // Handle cancel order - clear all state and reset to default
+  const handleCancelOrder = useCallback(() => {
+    // Clear cart
+    setCart([]);
+
+    // Reset order type to takeaway
+    setOrderType("takeaway");
+
+    // Clear selected table and employee
+    setSelectedTable(undefined);
+    setSelectedEmployee(undefined);
+
+    // Clear discount
+    setAppliedDiscount(null);
+    setDiscountAmount(0);
+
+    // Clear current order
+    if (clearOrder) {
+      clearOrder();
+    }
+
+    // Clear local storage
+    OrderPersistence.clearCurrentOrder();
+
+    // Reset unsaved changes flag
+    setHasUnsavedChanges(false);
+
+    // Hide tables layout
+    setShowTablesLayout(false);
+
+    // Reset payment amount
+    setPaymentAmount("");
+
+    // Clear any error or success messages
+    setError(null);
+    setSuccessMessage(null);
+
+    console.log("🧹 Order cancelled - all state cleared");
+  }, [clearOrder]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
