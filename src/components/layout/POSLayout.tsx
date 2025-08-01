@@ -8,8 +8,8 @@ import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
 import { POSLayoutProps } from "@/types/inventory";
 // Order types have complex inheritance, using any for callback parameter
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
-import { AlertCircle, Calendar, Clock, List, LogOut, Maximize2, Minimize2, Power, ShoppingCart, TrendingUp } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
+import { AlertCircle, Calendar, Clock, GripVertical, List, LogOut, Maximize2, Minimize2, Power, ShoppingCart, TrendingUp } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
   const { user, logout } = useAuth();
@@ -22,8 +22,75 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const [ordersCount, setOrdersCount] = useState(0);
   const [salesCount, setSalesCount] = useState(0);
 
+  // Resizable panel state
+  const [leftPanelWidth, setLeftPanelWidth] = useState(280); // Default 280px - smaller
+  const [isResizing, setIsResizing] = useState(false);
+  const [showLeftPanel, setShowLeftPanel] = useState(false); // Default hidden
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // Cached logo with preloading and fallback
   const { logoSrc, isLoaded } = useCachedLogo(LOGO_CONFIGS.MAIN_LOGO);
+
+  // Resizable panel handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = e.clientX - containerRect.left;
+
+      // Set min and max width constraints
+      const minWidth = 200;
+      const maxWidth = containerRect.width * 0.35; // Max 35% of container width
+
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        setLeftPanelWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  }, []);
+
+  // Handle panel toggle
+  const toggleLeftPanel = useCallback(() => {
+    setShowLeftPanel(prev => !prev);
+  }, []);
+
+  // Responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current) return;
+
+      const containerWidth = containerRef.current.offsetWidth;
+
+      // Auto-hide panel on mobile and smaller screens
+      if (containerWidth < 1024) {
+        setShowLeftPanel(false);
+      }
+
+      // Adjust panel width if it's too large for container
+      const maxWidth = containerWidth * 0.35;
+      if (leftPanelWidth > maxWidth) {
+        setLeftPanelWidth(Math.max(200, maxWidth));
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Initial check
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, [leftPanelWidth, showLeftPanel]);
 
   // Fetch orders count
   const fetchOrdersCount = useCallback(async () => {
@@ -305,9 +372,102 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
         </div>
       </header>
 
-      {/* Main POS Content */}
-      <main className="relative flex-1 overflow-hidden z-10">
-        <div className="h-full w-full bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">{children}</div>
+      {/* Main POS Content - Resizable Layout */}
+      <main className="relative flex-1 overflow-hidden z-10" ref={containerRef}>
+        <div className="h-full w-full flex bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
+          {/* Left Resizable Panel */}
+          {showLeftPanel && (
+            <>
+              <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-r border-slate-200/50 dark:border-slate-600/50 flex flex-col transition-all duration-300 ease-in-out shadow-lg" style={{ width: `${leftPanelWidth}px`, minWidth: "200px", maxWidth: "35%" }}>
+                {/* Left Panel Header */}
+                <div className="flex items-center justify-between p-3 border-b border-slate-200/50 dark:border-slate-600/50 bg-gradient-to-r from-slate-50/80 to-white/80 dark:from-slate-800/80 dark:to-slate-700/80">
+                  <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">Quick Actions</h3>
+                  <button onClick={toggleLeftPanel} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-600/50 transition-colors">
+                    <Minimize2 className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                  </button>
+                </div>
+
+                {/* Left Panel Content */}
+                <div className="flex-1 p-3 space-y-3 overflow-y-auto">
+                  {/* Quick Stats */}
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="p-2 bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 rounded-md border border-blue-200/50 dark:border-blue-700/50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Orders</p>
+                          <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{ordersCount}</p>
+                        </div>
+                        <ShoppingCart className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                      </div>
+                    </div>
+
+                    <div className="p-2 bg-gradient-to-r from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-md border border-emerald-200/50 dark:border-emerald-700/50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Sales</p>
+                          <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{salesCount}</p>
+                        </div>
+                        <TrendingUp className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Action Buttons */}
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Actions</h4>
+
+                    <button onClick={() => setShowOrdersDialog(true)} className="w-full p-2 bg-white/80 dark:bg-slate-700/80 hover:bg-white dark:hover:bg-slate-700 rounded-md border border-slate-200/50 dark:border-slate-600/50 transition-all duration-200 hover:shadow-sm flex items-center space-x-2 group">
+                      <ShoppingCart className="w-4 h-4 text-blue-500 group-hover:text-blue-600 transition-colors" />
+                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200">Orders</span>
+                    </button>
+
+                    <button onClick={() => setShowSalesDialog(true)} className="w-full p-2 bg-white/80 dark:bg-slate-700/80 hover:bg-white dark:hover:bg-slate-700 rounded-md border border-slate-200/50 dark:border-slate-600/50 transition-all duration-200 hover:shadow-sm flex items-center space-x-2 group">
+                      <TrendingUp className="w-4 h-4 text-emerald-500 group-hover:text-emerald-600 transition-colors" />
+                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200">Sales</span>
+                    </button>
+
+                    <button onClick={() => setShowSalesHistoryDialog(true)} className="w-full p-2 bg-white/80 dark:bg-slate-700/80 hover:bg-white dark:hover:bg-slate-700 rounded-md border border-slate-200/50 dark:border-slate-600/50 transition-all duration-200 hover:shadow-sm flex items-center space-x-2 group">
+                      <List className="w-4 h-4 text-purple-500 group-hover:text-purple-600 transition-colors" />
+                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200">History</span>
+                    </button>
+                  </div>
+
+                  {/* Current Session Info */}
+                  <div className="mt-4 p-2 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-800/50 dark:to-slate-700/50 rounded-md border border-slate-200/50 dark:border-slate-600/50">
+                    <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Session</h4>
+                    <div className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
+                      <p className="truncate">
+                        <span className="font-medium">User:</span> {user?.username || "User"}
+                      </p>
+                      <p>
+                        <span className="font-medium">Time:</span> {formatTime(currentTime)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Resize Handle */}
+              <div ref={resizeRef} onMouseDown={handleMouseDown} className={`w-1 bg-slate-300/50 dark:bg-slate-600/50 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors duration-200 relative group ${isResizing ? "bg-blue-500 dark:bg-blue-400" : ""}`}>
+                <div className="absolute inset-y-0 -left-1 -right-1 flex items-center justify-center">
+                  <GripVertical className="w-3 h-3 text-slate-400 dark:text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Toggle Button for Hidden Panel */}
+          {!showLeftPanel && (
+            <button onClick={toggleLeftPanel} className="absolute left-4 top-4 z-20 p-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg border border-slate-200/50 dark:border-slate-600/50 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 hover:shadow-md">
+              <Maximize2 className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+            </button>
+          )}
+
+          {/* Right Panel - Main Content */}
+          <div className="flex-1 relative overflow-hidden">
+            <div className="h-full w-full">{children}</div>
+          </div>
+        </div>
       </main>
 
       {/* Orders Dialog */}

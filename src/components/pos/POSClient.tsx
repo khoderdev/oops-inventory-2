@@ -12,7 +12,7 @@ import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, R
 import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, Trash2, GripVertical } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
@@ -66,6 +66,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Resizable panel state
+  const [leftPanelWidth, setLeftPanelWidth] = useState(33.33); // Default 33.33% (1/3)
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [showDiscountDialog, setShowDiscountDialog] = useState(false);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [appliedDiscount, setAppliedDiscount] = useState<{
@@ -100,6 +105,55 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setSuccessMessage(message);
     if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
     successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
+  // Resizable panel handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+      // Set min and max width constraints (20% to 60%)
+      const minWidth = 20;
+      const maxWidth = 60;
+
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        setLeftPanelWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  }, []);
+
+  // Responsive behavior for resizable panels
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      
+      const containerWidth = containerRef.current.offsetWidth;
+      
+      // Reset to default on mobile
+      if (containerWidth < 1024) {
+        setLeftPanelWidth(33.33);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Initial check
+
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Clear cart with animation
@@ -1513,7 +1567,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   return (
     <>
-      <div className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
+      <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
         {/* Mobile Header - Order Summary (visible on mobile only) */}
         <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -1549,7 +1603,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </div>
 
         {/* Left Panel - Cart/Order Details (Desktop) / Full Width (Mobile) */}
-        <div className="cart flex flex-col h-full lg:w-1/3 bg-white lg:border-r lg:border-gray-200">
+        <div 
+          className="cart flex flex-col h-full bg-white lg:border-r lg:border-gray-200"
+          style={{ 
+            width: window.innerWidth >= 1024 ? `${leftPanelWidth}%` : '100%'
+          }}
+        >
           {/* Cart Header - Fixed (Desktop Only) */}
           <div className="hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
             <div className="flex items-center justify-between py-2">
@@ -1647,8 +1706,27 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           )}
         </div>
 
+        {/* Resize Handle (Desktop Only) */}
+        {window.innerWidth >= 1024 && (
+          <div
+            onMouseDown={handleMouseDown}
+            className={`hidden lg:block w-1 bg-gray-300/50 hover:bg-blue-400 cursor-col-resize transition-colors duration-200 relative group ${
+              isResizing ? 'bg-blue-500' : ''
+            }`}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1 flex items-center justify-center">
+              <GripVertical className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors" />
+            </div>
+          </div>
+        )}
+
         {/* Right Panel - Product Grid (Desktop) / Mobile Product Section */}
-        <div className="flex-1 flex flex-col bg-white h-full lg:h-auto">
+        <div 
+          className="products flex flex-col h-full bg-white"
+          style={{ 
+            width: window.innerWidth >= 1024 ? `${100 - leftPanelWidth}%` : '100%'
+          }}
+        >
           {/* Mobile Toggle Buttons (visible on mobile only) */}
           <div className="lg:hidden bg-gray-50 border-b border-gray-200 p-2 flex-shrink-0">
             <div className="flex space-x-2">
