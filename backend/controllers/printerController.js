@@ -507,32 +507,39 @@ export const printTestPage = async (req, res) => {
 // Generate test page content
 function generateTestPageContent(printer) {
   const timestamp = new Date().toLocaleString();
-
-  // Generate plain text content for all printer types to avoid PostgreSQL JSON issues
-  // ESC/POS commands will be added by the printer service when processing the job
-  return (
-    `TEST PAGE\n` +
-    `\n` +
-    `Printer Information:\n` +
-    `Name: ${printer.name}\n` +
-    `Type: ${printer.type}\n` +
-    `Connection: ${printer.connectionType}\n` +
-    `Location: ${printer.location || "Not specified"}\n` +
-    `Status: ${printer.isActive ? "Active" : "Inactive"}\n` +
-    `\n` +
-    `Test Details:\n` +
-    `Date/Time: ${timestamp}\n` +
-    `\n` +
-    `This is a test page to verify that the printer is working\n` +
-    `correctly and can receive print jobs from the system.\n` +
-    `\n` +
-    `If you can read this message, the printer is functioning\n` +
-    `properly and is ready to handle print jobs.\n` +
-    `\n` +
-    `Test completed successfully!\n` +
-    `\n` +
-    `--- END OF TEST PAGE ---\n`
-  );
+  
+  // Base content for all printer types
+  let content = `TEST PAGE\n` +
+                `\n` +
+                `Printer Information:\n` +
+                `Name: ${printer.name}\n` +
+                `Type: ${printer.type}\n` +
+                `Connection: ${printer.connectionType}\n` +
+                `Location: ${printer.location || 'Not specified'}\n` +
+                `Status: ${printer.isActive ? 'Active' : 'Inactive'}\n` +
+                `\n` +
+                `Test Details:\n` +
+                `Date/Time: ${timestamp}\n` +
+                `\n` +
+                `This is a test page to verify that the printer is working\n` +
+                `correctly and can receive print jobs from the system.\n` +
+                `\n` +
+                `If you can read this message, the printer is functioning\n` +
+                `properly and is ready to handle print jobs.\n` +
+                `\n` +
+                `Test completed successfully!\n` +
+                `\n` +
+                `--- END OF TEST PAGE ---\n`;
+  
+  // Add paper cutting commands for thermal/receipt printers
+  if (printer.type === 'thermal' || printer.type === 'receipt') {
+    // Add feed lines and cut command
+    content += `\n\n\n`; // Extra line feeds before cutting
+    content += String.fromCharCode(27, 105); // ESC i - Full cut command
+    // Alternative: content += String.fromCharCode(27, 109); // ESC m - Partial cut
+  }
+  
+  return content;
 }
 
 // Get printer statistics
