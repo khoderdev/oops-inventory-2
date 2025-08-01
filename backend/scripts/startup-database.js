@@ -1,5 +1,6 @@
 import sequelize from "../config/database.js";
 import { seedTables } from "../utils/seedTables.js";
+import { seedMaterials } from "../utils/seedMaterials.js";
 
 async function initializeDatabase() {
   try {
@@ -112,8 +113,11 @@ async function initializeDatabase() {
     console.log("\n🌱 Seeding initial data...");
     
     try {
-      const seedResult = await seedTables();
-      console.log("✅ Table seeding completed:", seedResult);
+      const tableResult = await seedTables();
+      console.log("✅ Table seeding completed:", tableResult);
+      
+      const materialResult = await seedMaterials();
+      console.log("✅ Material seeding completed:", materialResult);
     } catch (seedError) {
       console.log("⚠️  Seeding issue:", seedError.message);
     }
