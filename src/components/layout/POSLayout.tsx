@@ -4,11 +4,11 @@ import { POSClientSales } from "@/components/pos/POSClientSales";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
 import { POSLayoutProps } from "@/types/inventory";
 // Order types have complex inheritance, using any for callback parameter
-import { formatCurrency } from "@/utils/conversionLogic";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
-import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power, ShoppingCart, TrendingUp } from "lucide-react";
+import { AlertCircle, Calendar, Clock, List, LogOut, Maximize2, Minimize2, Power, ShoppingCart, TrendingUp } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
@@ -18,6 +18,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showSalesDialog, setShowSalesDialog] = useState(false);
+  const [showSalesHistoryDialog, setShowSalesHistoryDialog] = useState(false);
   const [ordersCount, setOrdersCount] = useState(0);
   const [salesCount, setSalesCount] = useState(0);
 
@@ -41,18 +42,18 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       const orders = Array.isArray(responseData) ? responseData : responseData?.data || [];
 
       // Get today's date in YYYY-MM-DD format
-      const today = new Date().toISOString().split('T')[0];
-      
+      const today = new Date().toISOString().split("T")[0];
+
       // Filter for incomplete orders from today only
       const incompleteOrdersToday = orders.filter(order => {
         // Check if order is from today
-        const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : null;
+        const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : null;
         const isToday = orderDate === today;
-        
+
         // Check if order is incomplete (not paid, served, or completed)
-        const isIncomplete = order.status && !['paid', 'served', 'completed'].includes(order.status);
-        
-        console.log('Order filter check:', {
+        const isIncomplete = order.status && !["paid", "served", "completed"].includes(order.status);
+
+        console.log("Order filter check:", {
           orderId: order.id,
           orderDate,
           isToday,
@@ -60,7 +61,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
           isIncomplete,
           included: isToday && isIncomplete
         });
-        
+
         return isToday && isIncomplete;
       });
 
@@ -97,7 +98,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleOrderSelect = useCallback((order: any) => {
-    console.log('Selected order:', order);
+    console.log("Selected order:", order);
     // Call the parent's onOrderSelect if provided
     if (onOrderSelect) {
       onOrderSelect(order);
@@ -110,9 +111,13 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     setShowSalesDialog(false);
   }, []);
 
+  const handleCloseSalesHistoryDialog = useCallback(() => {
+    setShowSalesHistoryDialog(false);
+  }, []);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSaleSelect = useCallback((order: any) => {
-    console.log('Selected sale:', order);
+    console.log("Selected sale:", order);
     // Handle sale selection if needed
     setShowSalesDialog(false);
   }, []);
@@ -242,16 +247,23 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
             {/* Session Stats */}
             <div className="flex items-center space-x-2 select-none">
               {/* Total Sales Card - Clickable */}
-              <button 
-                onClick={() => setShowSalesDialog(true)}
-                className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95"
-              >
+              <button onClick={() => setShowSalesDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
                 <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
                   <TrendingUp className="w-4 h-4 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
                   <div className="flex items-center space-x-1">
                     <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Sales:</span>
                     <span className="text-sm font-bold text-emerald-300 group-hover:text-emerald-200 transition-colors tabular-nums">{salesCount}</span>
+                  </div>
+                </div>
+              </button>
+              {/* //////// */}
+              <button onClick={() => setShowSalesHistoryDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
+                <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
+                  <List className="w-4 h-4 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
+                  <div className="flex items-center space-x-1">
+                    <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Sales History</span>
                   </div>
                 </div>
               </button>
@@ -299,18 +311,19 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       </main>
 
       {/* Orders Dialog */}
-      <POSClientOrders 
-        isOpen={showOrdersDialog} 
-        onClose={handleCloseOrdersDialog}
-        onOrderSelect={handleOrderSelect}
-      />
+      <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelect} />
 
       {/* Sales Dialog */}
-      <POSClientSales 
-        isOpen={showSalesDialog} 
-        onClose={handleCloseSalesDialog}
-        onOrderSelect={handleSaleSelect}
-      />
+      <POSClientSales isOpen={showSalesDialog} onClose={handleCloseSalesDialog} onOrderSelect={handleSaleSelect} />
+
+      {/* Sales History Dialog */}
+      <Dialog open={showSalesHistoryDialog} onOpenChange={setShowSalesHistoryDialog}>
+        <DialogContent className="max-w-7xl w-[95vw] h-[90vh] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 shadow-2xl p-0 overflow-auto">
+          <div className="h-full overflow-auto">
+            <SalesHistoryPage isOpen={showSalesHistoryDialog} onClose={handleCloseSalesHistoryDialog} />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>

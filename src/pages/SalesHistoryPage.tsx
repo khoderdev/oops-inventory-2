@@ -19,7 +19,7 @@ import { AlertCircle, CheckCircle, CheckSquare, DollarSign, Loader2, Package, Pr
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-export function SalesHistoryPage() {
+export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const [selectedItem, setSelectedItem] = useAtom(selectedItemFilterAtom);
   const [selectedSection, setSelectedSection] = useAtom(selectedSectionFilterAtom);
@@ -352,11 +352,8 @@ export function SalesHistoryPage() {
   return (
     <div className="mx-auto p-4 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Sales History</h1>
-          <p className="text-muted-foreground">View and manage all completed sales</p>
-        </div>
+      <div className="flex items-center justify-center">
+        <h1 className="text-3xl font-bold">Sales History</h1>
       </div>
 
       {/* Error Alert */}

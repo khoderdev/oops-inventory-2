@@ -302,59 +302,43 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
     }, 50);
   }, [selectedOrder]);
 
-  // Handle clicking on a sale row to show details
+  // Handle clicking on a sale row to load it into POS cart (similar to POSClientOrders)
   const handleSaleRowClick = async (sale: OrderSummary) => {
+    console.log("🎯 handleSaleRowClick: Sale selected:", sale.orderNumber);
+
+    if (!onOrderSelect) {
+      console.log("❌ handleSaleRowClick: No onOrderSelect callback provided");
+      return;
+    }
+
     setIsLoadingOrderDetails(true);
-    setError(null); // Clear any previous errors
+    setError(null);
 
     try {
       const response = await ordersAPI.getOrder(sale.id) as ApiOrderResponse;
-      console.log("Order details response:", response);
-      
-      // Handle nested data structure - API returns { data: { data: orderData } }
+      // Handle nested response structure
       const rawOrderData = (response.data && typeof response.data === 'object' && 'data' in response.data) 
         ? response.data.data as RawOrderData
         : response.data as RawOrderData;
+
+      if (!rawOrderData) {
+        throw new Error("Order data not found");
+      }
+
       const transformedOrder = transformOrderData(rawOrderData);
-      setSelectedOrder(transformedOrder);
-      setShowOrderDetails(true);
+      
+      console.log("✅ handleSaleRowClick: Calling parent onOrderSelect");
+      // Call the parent callback to load order into POS cart
+      onOrderSelect(transformedOrder);
+
+      // Close the sales dialog if onClose is provided
+      if (onClose) {
+        console.log("✅ handleSaleRowClick: Closing dialog");
+        onClose();
+      }
     } catch (error) {
-      console.error("Failed to fetch order details:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      setError(`Failed to load order details: ${errorMessage}`);
-
-      // Still show dialog with limited info from OrderSummary
-      const limitedOrder: Partial<Order> = {
-        id: sale.id,
-        orderNumber: sale.orderNumber,
-        status: sale.status,
-        orderType: sale.orderType,
-        tableNumber: sale.tableNumber,
-        customerName: sale.customerName,
-        total: sale.total,
-        createdAt: sale.createdAt,
-        updatedAt: sale.createdAt, // Fallback
-        items: [
-          {
-            id: "summary-item",
-            name: `Order Summary (${sale.itemCount} items)`,
-            quantity: sale.itemCount || 1,
-            unitPrice: sale.total / (sale.itemCount || 1),
-            totalPrice: sale.total,
-            type: "menu" as const,
-            notes: "Detailed item information unavailable"
-          }
-        ],
-        subtotal: sale.total - (sale.discountAmount || 0),
-        tax: 0,
-        discountAmount: sale.discountAmount,
-        userId: "",
-        userRole: "",
-        startTime: sale.createdAt
-      };
-
-      setSelectedOrder(limitedOrder as Order);
-      setShowOrderDetails(true);
+      console.error("Failed to load sale for editing:", error);
+      setError("Failed to load sale for editing. Please try again.");
     } finally {
       setIsLoadingOrderDetails(false);
     }
@@ -593,7 +577,30 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
                     </TableHeader>
                     <TableBody>
                       {sales.map(order => (
-                        <TableRow key={order.id} className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100" onClick={() => handleSaleRowClick(order)}>
+                        <TableRow
+                          key={order.id}
+                          className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
+                          onClick={e => {
+                            const target = e.target as HTMLElement;
+                            console.log("🕱️ Table row clicked:", {
+                              orderNumber: order.orderNumber,
+                              targetTag: target.tagName,
+                              targetClass: target.className,
+                              hasButton: !!target.closest("button"),
+                              hasActionButton: !!target.closest(".action-button")
+                            });
+
+                            if (target.closest("button") || target.closest(".action-button")) {
+                              console.log("❌ Table row click: Prevented - clicked on action button");
+                              e.preventDefault();
+                              e.stopPropagation();
+                              return;
+                            }
+
+                            console.log("✅ Table row click: Calling handleSaleRowClick");
+                            handleSaleRowClick(order);
+                          }}
+                        >
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span className="font-bold text-gray-900">{order.orderNumber}</span>
@@ -649,7 +656,30 @@ export const POSClientSales: React.FC<POSClientSalesProps> = ({ isOpen, onClose,
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                   {sales.map(order => (
-                    <Card key={order.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" onClick={() => handleSaleRowClick(order)}>
+                    <Card 
+                      key={order.id} 
+                      className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]" 
+                      onClick={e => {
+                        const target = e.target as HTMLElement;
+                        console.log("🕱️ Card clicked:", {
+                          orderNumber: order.orderNumber,
+                          targetTag: target.tagName,
+                          targetClass: target.className,
+                          hasButton: !!target.closest("button"),
+                          hasActionButton: !!target.closest(".action-button")
+                        });
+
+                        if (target.closest("button") || target.closest(".action-button")) {
+                          console.log("❌ Card click: Prevented - clicked on action button");
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return;
+                        }
+
+                        console.log("✅ Card click: Calling handleSaleRowClick");
+                        handleSaleRowClick(order);
+                      }}
+                    >
                       <CardHeader className="pb-4">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1 min-w-0">
