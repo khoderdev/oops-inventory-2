@@ -1606,7 +1606,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <div 
           className="cart flex flex-col h-full bg-white lg:border-r lg:border-gray-200"
           style={{ 
-            width: window.innerWidth >= 1024 ? `${leftPanelWidth}%` : '100%'
+            width: typeof window !== 'undefined' && window.innerWidth >= 1024 ? `${leftPanelWidth}%` : '100%'
           }}
         >
           {/* Cart Header - Fixed (Desktop Only) */}
@@ -1707,7 +1707,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </div>
 
         {/* Resize Handle (Desktop Only) */}
-        {window.innerWidth >= 1024 && (
+        {typeof window !== 'undefined' && window.innerWidth >= 1024 && (
           <div
             onMouseDown={handleMouseDown}
             className={`hidden lg:block w-1 bg-gray-300/50 hover:bg-blue-400 cursor-col-resize transition-colors duration-200 relative group ${
@@ -1724,7 +1724,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <div 
           className="products flex flex-col h-full bg-white"
           style={{ 
-            width: window.innerWidth >= 1024 ? `${100 - leftPanelWidth}%` : '100%'
+            width: typeof window !== 'undefined' && window.innerWidth >= 1024 ? `${100 - leftPanelWidth}%` : '100%'
           }}
         >
           {/* Mobile Toggle Buttons (visible on mobile only) */}
@@ -1782,7 +1782,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           </div>
 
           {/* Desktop/Mobile Product View */}
-          <div className={`${activeView === "products" || window.innerWidth >= 1024 ? "flex" : "hidden"} lg:flex flex-col h-full`}>
+          <div className={`${activeView === "products" || (typeof window !== 'undefined' && window.innerWidth >= 1024) ? "flex" : "hidden"} lg:flex flex-col h-full`}>
             {/* Top Controls - Fixed Header */}
             <div className="flex-shrink-0 border-b border-gray-200 bg-white">
               <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
@@ -1813,9 +1813,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Payment Dialog */}
-        <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
+      {/* Payment Dialog */}
+      <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
 
         {/* Negative Stock Warning Dialog */}
         <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
@@ -1963,7 +1964,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         {/* Receipt Printer Dialog */}
         <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} autoPrint={shouldAutoPrint} />
-      </div>
     </>
   );
 };
