@@ -1,5 +1,5 @@
 import express from "express";
-import { createPrinter, createPrinterChannel, deletePrinter, deletePrinterChannel, getPrinterChannels, getPrinters, getPrinterStats, testPrinter, updatePrinter, updatePrinterChannel } from "../controllers/printerController.js";
+import { createPrinter, createPrinterChannel, deletePrinter, deletePrinterChannel, getPrinterChannels, getPrinters, getPrinterStats, printTestPage, testPrinter, updatePrinter, updatePrinterChannel } from "../controllers/printerController.js";
 import { discoverWindowsPrinters } from "../controllers/windowsPrinterController.js";
 import { bulkCancelJobs, cancelPrintJob, createPrintJob, getPrintJob, getPrintJobs, getPrintJobStats, retryPrintJob } from "../controllers/printJobController.js";
 import { auditMiddleware } from "../middleware/auditMiddleware.js";
@@ -22,6 +22,7 @@ router.post("/", auditMiddleware("create_printer", "printer"), createPrinter);
 router.put("/:id", auditMiddleware("update_printer", "printer"), updatePrinter);
 router.delete("/:id", auditMiddleware("delete_printer", "printer"), deletePrinter);
 router.post("/:id/test", auditMiddleware("test_printer", "printer"), testPrinter);
+router.post("/:id/test-page", auditMiddleware("print_test_page", "printer"), printTestPage);
 router.get("/:id/stats", auditMiddleware("get_printer_stats", "printer"), getPrinterStats);
 
 // Print Jobs Routes

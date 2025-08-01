@@ -54,6 +54,11 @@ export const printerAPI = {
     return response.data;
   },
 
+  printTestPage: async (id: number): Promise<{ success: boolean; message: string; jobId?: number }> => {
+    const response = await api.post<{ success: boolean; message: string; jobId?: number }, Record<string, never>>(`/printers/${id}/test-page`, {});
+    return response.data;
+  },
+
   getPrinterStats: async (id: number): Promise<{ success: boolean; stats: PrinterStats }> => {
     const response = await api.get<{ success: boolean; stats: PrinterStats }>(`/printers/${id}/stats`);
     return response.data;

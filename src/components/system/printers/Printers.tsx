@@ -33,6 +33,10 @@ const Printers = () => {
   const [testingPrinters, setTestingPrinters] = useState<Set<number>>(new Set());
   const [testResults, setTestResults] = useState<Map<number, { success: boolean; message: string; timestamp: Date }>>(new Map());
 
+  // Print test page states
+  const [printingTestPages, setPrintingTestPages] = useState<Set<number>>(new Set());
+  const [printTestResults, setPrintTestResults] = useState<Map<number, { success: boolean; message: string; jobId?: number; timestamp: Date }>>(new Map());
+
   // Printer scanning states
   const [scanningPrinters, setScanningPrinters] = useState(false);
   const [detectedPrinters, setDetectedPrinters] = useState<WindowsPrinter[]>([]);
@@ -299,6 +303,57 @@ const Printers = () => {
     }
   };
 
+  const handlePrintTestPage = async (id: number) => {
+    try {
+      // Add printer to printing test pages set
+      setPrintingTestPages(prev => new Set([...prev, id]));
+
+      // Clear previous print test result
+      setPrintTestResults(prev => {
+        const newResults = new Map(prev);
+        newResults.delete(id);
+        return newResults;
+      });
+      clearMessages();
+
+      const response = await printerAPI.printTestPage(id);
+
+      const printTestResult = {
+        success: response.success,
+        message: response.success 
+          ? `Test page sent successfully${response.jobId ? ` (Job ID: ${response.jobId})` : ''}` 
+          : response.message || "Failed to send test page",
+        jobId: response.jobId,
+        timestamp: new Date()
+      };
+
+      // Store print test result
+      setPrintTestResults(prev => new Map([...prev, [id, printTestResult]]));
+
+      if (response.success) {
+        setSuccess(`Test page sent to printer successfully${response.jobId ? ` (Job ID: ${response.jobId})` : ''}`);
+      } else {
+        setError(response.message || "Failed to send test page");
+      }
+    } catch (err) {
+      console.error("Error printing test page:", err);
+      const errorResult = {
+        success: false,
+        message: "Failed to send test page",
+        timestamp: new Date()
+      };
+      setPrintTestResults(prev => new Map([...prev, [id, errorResult]]));
+      setError("Failed to send test page");
+    } finally {
+      // Remove printer from printing test pages set
+      setPrintingTestPages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+    }
+  };
+
   const handleTogglePrinterActive = async (id: number, isActive: boolean) => {
     try {
       setOperationLoading(true);
@@ -380,6 +435,16 @@ const Printers = () => {
   // Check if printer is currently being tested
   const isPrinterTesting = (printerId: number) => {
     return testingPrinters.has(printerId);
+  };
+
+  // Get print test page result for a printer
+  const getPrintTestResult = (printerId: number) => {
+    return printTestResults.get(printerId);
+  };
+
+  // Check if printer is currently printing a test page
+  const isPrinterPrintingTestPage = (printerId: number) => {
+    return printingTestPages.has(printerId);
   };
 
   const clearMessages = () => {
@@ -811,6 +876,26 @@ const Printers = () => {
                               return null;
                             })()}
                           </div>
+                          <div className="relative">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handlePrintTestPage(printer.id)} 
+                              disabled={isPrinterPrintingTestPage(printer.id)} 
+                              title="Print Test Page" 
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            >
+                              {isPrinterPrintingTestPage(printer.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
+                            </Button>
+                            {/* Print test page result indicator */}
+                            {(() => {
+                              const result = getPrintTestResult(printer.id);
+                              if (result && !isPrinterPrintingTestPage(printer.id)) {
+                                return <div className={`absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${result.success ? "bg-green-500" : "bg-red-500"}`} title={`Last print test: ${result.message} (${result.timestamp.toLocaleTimeString()})`} />;
+                              }
+                              return null;
+                            })()}
+                          </div>
                           <Button variant="outline" size="sm" onClick={() => handleEditPrinter(printer)} title="Edit Printer">
                             <Settings className="h-4 w-4" />
                           </Button>
@@ -822,6 +907,20 @@ const Printers = () => {
                         {(() => {
                           const result = getTestResult(printer.id);
                           if (result && !isPrinterTesting(printer.id)) {
+                            return (
+                              <div className={`mt-1 text-xs flex items-center gap-1 ${result.success ? "text-green-600" : "text-red-600"}`}>
+                                {result.success ? <CheckCircle className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                                <span>{result.message}</span>
+                                <span className="text-gray-400 ml-1">({result.timestamp.toLocaleTimeString()})</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                        {/* Print test page result details */}
+                        {(() => {
+                          const result = getPrintTestResult(printer.id);
+                          if (result && !isPrinterPrintingTestPage(printer.id)) {
                             return (
                               <div className={`mt-1 text-xs flex items-center gap-1 ${result.success ? "text-green-600" : "text-red-600"}`}>
                                 {result.success ? <CheckCircle className="h-3 w-3" /> : <X className="h-3 w-3" />}

@@ -420,6 +420,151 @@ export const testPrinter = async (req, res) => {
   }
 };
 
+// Print test page
+export const printTestPage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const printer = await Printer.findByPk(id);
+    if (!printer) {
+      return res.status(404).json({
+        success: false,
+        message: "Printer not found"
+      });
+    }
+
+    if (!printer.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Printer is not active"
+      });
+    }
+
+    // Create test page content
+    const testPageContent = generateTestPageContent(printer);
+
+    // Create a print job for the test page
+    const printJob = await PrintJob.create({
+      printerId: printer.id,
+      jobType: "document",
+      content: testPageContent,
+      priority: 1,
+      metadata: {
+        isTestPage: true,
+        printerName: printer.name,
+        testTimestamp: new Date().toISOString()
+      },
+      createdBy: userId
+    });
+
+    // Get printer service instance
+    const printerService = req.app.get("printerService");
+    if (!printerService) {
+      // Update job status to failed
+      await printJob.update({
+        status: "failed",
+        errorMessage: "Printer service not available"
+      });
+      
+      return res.status(500).json({
+        success: false,
+        message: "Printer service not available",
+        jobId: printJob.id
+      });
+    }
+
+    try {
+      // Send the test page to printer
+      await printerService.printJob(printJob);
+      
+      res.json({
+        success: true,
+        message: "Test page sent successfully",
+        jobId: printJob.id
+      });
+    } catch (error) {
+      // Update job status to failed
+      await printJob.update({
+        status: "failed",
+        errorMessage: error.message
+      });
+      
+      res.json({
+        success: false,
+        message: "Failed to send test page",
+        error: error.message,
+        jobId: printJob.id
+      });
+    }
+  } catch (error) {
+    console.error("Error printing test page:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to print test page",
+      error: error.message
+    });
+  }
+};
+
+// Generate test page content
+function generateTestPageContent(printer) {
+  const timestamp = new Date().toLocaleString();
+  
+  // Generate different content based on printer type
+  if (printer.type === 'thermal' || printer.type === 'receipt') {
+    // ESC/POS commands for thermal/receipt printers
+    return `\x1B\x40` + // Initialize printer
+           `\x1B\x61\x01` + // Center align
+           `TEST PAGE\n` +
+           `\x1B\x61\x00` + // Left align
+           `\n` +
+           `Printer: ${printer.name}\n` +
+           `Type: ${printer.type}\n` +
+           `Connection: ${printer.connectionType}\n` +
+           `Location: ${printer.location || 'Not specified'}\n` +
+           `\n` +
+           `Test Time: ${timestamp}\n` +
+           `\n` +
+           `Status: ${printer.isActive ? 'Active' : 'Inactive'}\n` +
+           `\n` +
+           `This is a test page to verify\n` +
+           `that the printer is working\n` +
+           `correctly and can receive\n` +
+           `print jobs from the system.\n` +
+           `\n` +
+           `If you can read this message,\n` +
+           `the printer is functioning\n` +
+           `properly.\n` +
+           `\n` +
+           `\x1B\x61\x01` + // Center align
+           `--- END OF TEST ---\n` +
+           `\x1B\x64\x03` + // Feed 3 lines
+           `\x1B\x69`; // Cut paper (if supported)
+  } else {
+    // Plain text for other printer types
+    return `TEST PAGE\n` +
+           `\n` +
+           `Printer Information:\n` +
+           `Name: ${printer.name}\n` +
+           `Type: ${printer.type}\n` +
+           `Connection: ${printer.connectionType}\n` +
+           `Location: ${printer.location || 'Not specified'}\n` +
+           `Status: ${printer.isActive ? 'Active' : 'Inactive'}\n` +
+           `\n` +
+           `Test Details:\n` +
+           `Date/Time: ${timestamp}\n` +
+           `\n` +
+           `This is a test page to verify that the printer is working\n` +
+           `correctly and can receive print jobs from the system.\n` +
+           `\n` +
+           `If you can read this message, the printer is functioning\n` +
+           `properly and is ready to handle print jobs.\n` +
+           `\n` +
+           `--- END OF TEST PAGE ---\n`;
+  }
+}
+
 // Get printer statistics
 export const getPrinterStats = async (req, res) => {
   try {
