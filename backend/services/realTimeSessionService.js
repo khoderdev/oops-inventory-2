@@ -23,10 +23,16 @@ class RealTimeSessionService {
     });
 
     this.setupSocketHandlers();
-    this.startHeartbeatService();
-    this.startCleanupService();
     
-    console.log("🔌 Real-time session service initialized");
+    // Start services with error handling
+    try {
+      this.startHeartbeatService();
+      this.startCleanupService();
+      console.log("🔌 Real-time session service initialized successfully");
+    } catch (error) {
+      console.error("⚠️ Error starting session services:", error);
+      console.log("🔄 Session service will continue without background services");
+    }
   }
 
   setupSocketHandlers() {
@@ -377,6 +383,11 @@ class RealTimeSessionService {
     // Check for inactive sessions every 2 minutes
     this.heartbeatInterval = setInterval(async () => {
       try {
+        // Safety check: ensure Session model is available
+        if (!Session || typeof Session.findAll !== 'function') {
+          console.warn("⚠️ Session model not available, skipping heartbeat check");
+          return;
+        }
         const inactiveSessions = await Session.findAll({
           where: {
             isActive: true,

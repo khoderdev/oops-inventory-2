@@ -116,4 +116,55 @@ const Table = sequelize.define(
   }
 );
 
+// Function to create initial table data
+Table.createInitialTables = async function() {
+  try {
+    console.log("🏪 Checking and creating initial tables...");
+    
+    const initialTables = [
+      { number: 1, seats: 4, status: "available", shape: "square", position: { x: 20, y: 20 }, section: "outdoor", isActive: true },
+      { number: 2, seats: 4, status: "available", shape: "square", position: { x: 40, y: 20 }, section: "outdoor", isActive: true },
+      { number: 3, seats: 6, status: "available", shape: "rectangle", position: { x: 60, y: 20 }, section: "outdoor", isActive: true },
+      { number: 4, seats: 2, status: "available", shape: "round", position: { x: 80, y: 20 }, section: "outdoor", isActive: true },
+      { number: 5, seats: 4, status: "available", shape: "square", position: { x: 20, y: 50 }, section: "outdoor", isActive: true },
+      { number: 6, seats: 8, status: "available", shape: "rectangle", position: { x: 40, y: 50 }, section: "outdoor", isActive: true },
+      { number: 7, seats: 2, status: "available", shape: "round", position: { x: 60, y: 50 }, section: "outdoor", isActive: true },
+      { number: 8, seats: 4, status: "available", shape: "square", position: { x: 80, y: 50 }, section: "outdoor", isActive: true },
+      { number: 9, seats: 4, status: "available", shape: "square", position: { x: 20, y: 80 }, section: "indoor", isActive: true },
+      { number: 10, seats: 4, status: "available", shape: "square", position: { x: 40, y: 80 }, section: "indoor", isActive: true },
+      { number: 11, seats: 2, status: "available", shape: "round", position: { x: 60, y: 80 }, section: "indoor", isActive: true },
+      { number: 12, seats: 8, status: "available", shape: "rectangle", position: { x: 80, y: 80 }, section: "indoor", isActive: true },
+      { number: 13, seats: 4, status: "available", shape: "square", position: { x: 80, y: 50 }, section: "indoor", isActive: true }
+    ];
+    
+    let createdCount = 0;
+    let existingCount = 0;
+    
+    for (const tableData of initialTables) {
+      // Check if table with this number already exists
+      const existingTable = await Table.findOne({ where: { number: tableData.number } });
+      
+      if (!existingTable) {
+        await Table.create(tableData);
+        createdCount++;
+        console.log(`✅ Created table ${tableData.number} (${tableData.section})`);
+      } else {
+        existingCount++;
+        console.log(`⏭️  Table ${tableData.number} already exists, skipping`);
+      }
+    }
+    
+    console.log(`📊 Initial tables setup complete:`);
+    console.log(`   ✅ Created: ${createdCount} tables`);
+    console.log(`   ⏭️  Existing: ${existingCount} tables`);
+    console.log(`   📋 Total: ${initialTables.length} tables`);
+    
+    return { created: createdCount, existing: existingCount, total: initialTables.length };
+    
+  } catch (error) {
+    console.error("❌ Error creating initial tables:", error);
+    throw error;
+  }
+};
+
 export default Table;
