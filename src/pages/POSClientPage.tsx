@@ -21,6 +21,9 @@ const POSClientPage: React.FC = () => {
   // State to hold selected order that will be passed to POSClient
   const [selectedOrderForPOS, setSelectedOrderForPOS] = useState<Order | null>(null);
 
+  // Ref to store the refresh counts function from POSLayout
+  const refreshCountsRef = useRef<(() => Promise<void>) | null>(null);
+
   // Check authentication and permissions
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -91,6 +94,11 @@ const POSClientPage: React.FC = () => {
     setSelectedOrderForPOS(order);
   }, []);
 
+  // Handle refresh counts callback from POSLayout
+  const handleRefreshCounts = useCallback((refreshFn: () => Promise<void>) => {
+    refreshCountsRef.current = refreshFn;
+  }, []);
+
   // Handle logout
   const handleLogout = async () => {
     try {
@@ -126,12 +134,14 @@ const POSClientPage: React.FC = () => {
       transactionCount={sessionStats.transactionCount} 
       onLogout={handleLogout}
       onOrderSelect={handleOrderSelect}
+      onRefreshCounts={handleRefreshCounts}
     >
       <POSClient 
         sectionAssignments={sectionAssignments} 
         onSaleComplete={handleSaleComplete}
         selectedOrderForPOS={selectedOrderForPOS}
         onOrderProcessed={() => setSelectedOrderForPOS(null)}
+        refreshCountsRef={refreshCountsRef}
       />
     </POSLayout>
   );

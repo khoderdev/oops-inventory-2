@@ -11,7 +11,7 @@ import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { AlertCircle, Calendar, Clock, LogOut, Maximize2, Minimize2, Power, ShoppingCart, TrendingUp } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
-const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout, onOrderSelect }) => {
+const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
   const { user, logout } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -88,6 +88,18 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     // Handle sale selection if needed
     setShowSalesDialog(false);
   }, []);
+
+  // Combined refresh function for both counts
+  const refreshCounts = useCallback(async () => {
+    await Promise.all([fetchOrdersCount(), fetchSalesCount()]);
+  }, [fetchOrdersCount, fetchSalesCount]);
+
+  // Expose refresh function to parent component
+  useEffect(() => {
+    if (onRefreshCounts) {
+      onRefreshCounts(refreshCounts);
+    }
+  }, [onRefreshCounts, refreshCounts]);
 
   // Update time every second
   useEffect(() => {

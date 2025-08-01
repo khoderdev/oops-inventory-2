@@ -27,7 +27,7 @@ import { ReceiptPrinter } from "./ReceiptPrinter";
 import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 
-export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed }) => {
+export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -1185,6 +1185,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Show success message
       showSuccess(`Order ${savedOrder.orderNumber || savedOrder.id} saved successfully!`);
 
+      // Refresh counts immediately after saving
+      if (refreshCountsRef?.current) {
+        await refreshCountsRef.current();
+      }
+
       // Clear all state after successful save (same as cancel)
       // Clear cart
       setCart([]);
@@ -1224,7 +1229,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, createOrder, clearOrder, showSuccess, showError]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, createOrder, clearOrder, showSuccess, showError, refreshCountsRef]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
@@ -1483,6 +1488,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setHasUnsavedChanges(false);
       resetToTakeaway();
 
+      // Refresh counts immediately after payment completion
+      if (refreshCountsRef?.current) {
+        await refreshCountsRef.current();
+      }
+
       // Callback for parent component
       if (onSaleComplete) {
         const response = {
@@ -1499,7 +1509,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshCountsRef]);
 
   return (
     <>

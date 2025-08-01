@@ -447,6 +447,7 @@ export interface POSClientProps {
   onOrderSelect?: (order: Order) => void;
   selectedOrderForPOS?: Order | null;
   onOrderProcessed?: () => void;
+  refreshCountsRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
 export interface PaymentDialogProps {
@@ -551,6 +552,7 @@ export interface POSLayoutProps {
   transactionCount?: number;
   onOrderSelect?: (order: Order) => void;
   onLogout?: () => void;
+  onRefreshCounts?: (refreshFn: () => Promise<void>) => void;
 }
 
 export interface POSClientOrdersProps {
