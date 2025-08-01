@@ -80,15 +80,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setShowOrdersDialog(false);
   }, []);
 
-  const handleOrderSelectCallback = useCallback(
-    (order: any) => {
-      if (onOrderSelect) {
-        onOrderSelect(order);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [] // onOrderSelect is a stable prop, no need to include in deps
-  );
+  const handleOrderSelectCallback = useCallback((order: any) => {
+    if (onOrderSelect) {
+      onOrderSelect(order);
+    }
+  }, []);
 
   // Order management hook
   const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
@@ -1318,6 +1314,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         const orderData = {
           orderType,
           tableId: selectedTable?.id,
+          employeeId: selectedEmployee?.id,
           items: cart.map(item => {
             console.log("📝 Processing cart item:", item);
             console.log("🔍 Item type:", item.type);
@@ -1611,7 +1608,20 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           {/* Order Items List - Scrollable */}
           <div className="flex-1 h-full relative overflow-hidden">
             <div className="h-full overflow-y-auto">
-              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} selectedEmployee={selectedEmployee} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} onEmployeeSelect={handleEmployeeSelection} incompleteTableOrdersCount={incompleteTableOrdersCount} orderStatus={currentOrder?.status} isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"} />
+              <OrderItemsList
+                cart={cart}
+                updateCartQuantity={updateCartQuantity}
+                orderType={orderType}
+                selectedTable={selectedTable}
+                selectedEmployee={selectedEmployee}
+                onOrderTypeChange={handleOrderTypeChange}
+                onTableSelect={handleTableSelect}
+                onEmployeeSelect={handleEmployeeSelection}
+                incompleteTableOrdersCount={incompleteTableOrdersCount}
+                orderStatus={currentOrder?.status}
+                isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
+                discountReason={appliedDiscount?.reason || currentOrder?.discountReason}
+              />
             </div>
 
             {/* Success Animation Overlay */}
@@ -1676,7 +1686,20 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className={`lg:hidden ${activeView === "cart" ? "flex" : "hidden"} flex-col h-full`}>
             {/* Order Items List - Mobile */}
             <div className="flex-1 overflow-y-auto">
-              <OrderItemsList cart={cart} updateCartQuantity={updateCartQuantity} orderType={orderType} selectedTable={selectedTable} selectedEmployee={selectedEmployee} onOrderTypeChange={handleOrderTypeChange} onTableSelect={handleTableSelect} onEmployeeSelect={handleEmployeeSelection} incompleteTableOrdersCount={incompleteTableOrdersCount} orderStatus={currentOrder?.status} isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"} />
+              <OrderItemsList
+                cart={cart}
+                updateCartQuantity={updateCartQuantity}
+                orderType={orderType}
+                selectedTable={selectedTable}
+                selectedEmployee={selectedEmployee}
+                onOrderTypeChange={handleOrderTypeChange}
+                onTableSelect={handleTableSelect}
+                onEmployeeSelect={handleEmployeeSelection}
+                incompleteTableOrdersCount={incompleteTableOrdersCount}
+                orderStatus={currentOrder?.status}
+                isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
+                discountReason={appliedDiscount?.reason || currentOrder?.discountReason}
+              />
             </div>
 
             {/* Order Summary - Mobile */}
@@ -1709,7 +1732,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             </div>
 
             {/* Product Grid - Scrollable */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto !bg-gray-50">
               <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} />
             </div>
 

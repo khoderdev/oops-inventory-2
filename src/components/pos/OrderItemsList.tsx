@@ -8,7 +8,7 @@ import { Minus, Plus } from "lucide-react";
 import React from "react";
 import { EmployeeSelector } from "./EmployeeSelector";
 
-export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, selectedEmployee, onOrderTypeChange, onTableSelect, onEmployeeSelect, incompleteTableOrdersCount, orderStatus, isOrderCompleted }) => {
+export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, selectedEmployee, onOrderTypeChange, onTableSelect, onEmployeeSelect, incompleteTableOrdersCount, orderStatus, isOrderCompleted, discountReason }) => {
   const isCompleted = isOrderCompleted || orderStatus === "paid" || orderStatus === "served";
   const [showEmployeeSelector, setShowEmployeeSelector] = React.useState(false);
 
@@ -57,7 +57,7 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
             return (
               <Button key={type} variant={orderType === type ? "default" : "outline"} size="sm" onClick={handleClick} className={`relative flex items-center justify-center h-8 rounded-none ${orderType === type ? "bg-teal-500 hover:bg-teal-600 text-white" : "hover:bg-gray-50"}`}>
                 {getOrderTypeIcon(type)}
-                <span className="text-xs font-medium mr-2">{getOrderTypeLabel(type, selectedTable, selectedEmployee)}</span>
+                <span className="text-xs font-medium mr-2">{getOrderTypeLabel(type, selectedTable, selectedEmployee, discountReason)}</span>
                 {badgeCount > 0 && <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">{badgeCount > 99 ? "99+" : badgeCount}</span>}
               </Button>
             );
@@ -67,7 +67,7 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
         {/* Current Order Type Display */}
         <div className="my-2 flex items-center justify-center space-x-2 text-sm font-medium text-blue-600">
           {getOrderTypeIcon(orderType)}
-          <span>{getOrderTypeLabel(orderType, selectedTable, selectedEmployee)}</span>
+          <span>{getOrderTypeLabel(orderType, selectedTable, selectedEmployee, discountReason)}</span>
           {orderType === "table" && selectedTable && <span className="text-xs text-gray-500">({selectedTable.seats} seats)</span>}
           {orderType === "employees" && selectedEmployee && (
             <span className="text-xs text-gray-500">

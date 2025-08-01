@@ -542,6 +542,7 @@ export interface OrderItemsListProps {
   incompleteTableOrdersCount?: number;
   orderStatus?: OrderStatus;
   isOrderCompleted?: boolean;
+  discountReason?: string;
 }
 
 export interface POSLayoutProps {
