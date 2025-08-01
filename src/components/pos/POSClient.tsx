@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { Employee, EmployeeDepartment } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { Order, OrderType } from "@/types/orders";
+import { Order, OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, Trash2 } from "lucide-react";
@@ -189,20 +189,25 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       if (response?.data) {
         // Handle the nested response structure: {data: {data: Array}}
-        let allOrders: { data?: Order[] } | Order[] = response.data;
-
-        // The actual orders are in response.data.data
-        if (allOrders.data && Array.isArray(allOrders.data)) {
-          allOrders = allOrders.data;
-        } else if (!Array.isArray(allOrders)) {
-          console.warn("Unexpected orders API response structure:", allOrders);
+        let ordersArray: OrderSummaryType[];
+        
+        // Define type for nested response
+        type NestedResponse = { data: OrderSummaryType[] };
+        
+        // Check if response.data is a nested structure or direct array
+        if (Array.isArray(response.data)) {
+          ordersArray = response.data;
+        } else if (response.data && typeof response.data === 'object' && 'data' in response.data && Array.isArray((response.data as NestedResponse).data)) {
+          ordersArray = (response.data as NestedResponse).data;
+        } else {
+          console.warn("Unexpected orders API response structure:", response.data);
           setIncompleteOrdersCount(0);
           setTableOrders({});
           return;
         }
 
         // Filter for incomplete orders (not paid or cancelled)
-        const incompleteOrders = allOrders.filter(order => order.status !== "paid" && order.status !== "cancelled");
+        const incompleteOrders = ordersArray.filter(order => order.status !== "paid" && order.status !== "cancelled");
 
         console.log("Incomplete orders found:", incompleteOrders.length);
         console.log(
