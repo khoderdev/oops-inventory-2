@@ -560,23 +560,22 @@ PrintJob.belongsTo(Printer, {
   onUpdate: "CASCADE"
 });
 
-// User ↔ PrintJob (metadata.userId)
+// User ↔ PrintJob (proper foreign key)
 User.hasMany(PrintJob, {
-  foreignKey: "metadata",
-  sourceKey: "id",
+  foreignKey: "userId",
   as: "printJobs",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+PrintJob.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
   onDelete: "SET NULL",
   onUpdate: "CASCADE"
 });
 
-// Order ↔ PrintJob (metadata.orderId)
-Order.hasMany(PrintJob, {
-  foreignKey: "metadata",
-  sourceKey: "id",
-  as: "printJobs",
-  onDelete: "SET NULL",
-  onUpdate: "CASCADE"
-});
+// Note: Order ↔ PrintJob relationship is handled through metadata.orderId (JSONB field)
+// No direct foreign key association needed since it's stored in metadata JSONB
 
 // Printer relationships (simplified for now)
 // Note: Complex associations temporarily removed to resolve startup issues

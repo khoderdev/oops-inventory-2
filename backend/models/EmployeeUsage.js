@@ -21,8 +21,7 @@ const EmployeeUsage = sequelize.define(
     },
     usageType: {
       type: DataTypes.ENUM("material", "menu_item", "stock_entry"),
-      allowNull: false,
-      comment: "Type of item used by employee"
+      allowNull: false
     },
     materialId: {
       type: DataTypes.INTEGER,

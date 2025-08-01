@@ -134,7 +134,7 @@ const Printer = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "Users",
+        model: "users",
         key: "id"
       }
     }
@@ -145,16 +145,16 @@ const Printer = sequelize.define(
     underscored: true,
     indexes: [
       {
-        fields: ["channelId", "isActive"]
+        fields: ["channel_id", "is_active"]
       },
       {
         fields: ["status"]
       },
       {
-        fields: ["connectionType"]
+        fields: ["connection_type"]
       },
       {
-        fields: ["createdBy"]
+        fields: ["created_by"]
       }
     ],
     validate: {

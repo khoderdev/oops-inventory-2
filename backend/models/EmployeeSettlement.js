@@ -96,8 +96,7 @@ const EmployeeSettlement = sequelize.define(
     },
     paymentMethod: {
       type: DataTypes.ENUM("bank_transfer", "cash", "check", "mobile_payment", "other"),
-      allowNull: true,
-      comment: "Method used for salary payment"
+      allowNull: true
     },
     paymentReference: {
       type: DataTypes.STRING(100),
@@ -107,8 +106,7 @@ const EmployeeSettlement = sequelize.define(
     status: {
       type: DataTypes.ENUM("pending", "approved", "paid", "disputed", "cancelled"),
       allowNull: false,
-      defaultValue: "pending",
-      comment: "Settlement status"
+      defaultValue: "pending"
     },
     approvedBy: {
       type: DataTypes.INTEGER,
@@ -147,25 +145,26 @@ const EmployeeSettlement = sequelize.define(
   {
     tableName: "employee_settlements",
     timestamps: true,
+    underscored: true,
     indexes: [
       {
-        fields: ["employeeId"]
+        fields: ["employee_id"]
       },
       {
-        fields: ["settlementMonth", "settlementYear"]
+        fields: ["settlement_month", "settlement_year"]
       },
       {
         fields: ["status"]
       },
       {
-        fields: ["settlementDate"]
+        fields: ["settlement_date"]
       },
       {
-        fields: ["paymentDate"]
+        fields: ["payment_date"]
       },
       {
         unique: true,
-        fields: ["employeeId", "settlementMonth", "settlementYear"],
+        fields: ["employee_id", "settlement_month", "settlement_year"],
         name: "unique_employee_month_year"
       }
     ],

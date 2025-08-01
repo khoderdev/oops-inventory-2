@@ -113,18 +113,31 @@ const PrintJob = sequelize.define(
       defaultValue: null
     },
     
+    // User who created the print job
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      onDelete: 'SET NULL',
+      onUpdate: 'CASCADE'
+    },
+    
     // Metadata & Context
     metadata: {
       type: DataTypes.JSONB,
       defaultValue: {
-        userId: null,
         orderId: null,
         sessionId: null,
         clientIP: null,
         userAgent: null,
         source: 'pos'
       },
-      allowNull: false
+      allowNull: false,
+      // Explicitly ensure no foreign key constraints
+      references: null
     },
     
     // Performance Metrics
