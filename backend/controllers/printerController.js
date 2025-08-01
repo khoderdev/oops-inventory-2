@@ -1,42 +1,6 @@
 import { Op } from "sequelize";
 import { Printer, PrinterChannel, PrintJob, User } from "../models/index.js";
 
-// Get all printer channels
-// export const getPrinterChannels = async (req, res) => {
-//   try {
-//     const channels = await PrinterChannel.findAll({
-//       include: [
-//         {
-//           model: User,
-//           as: "creator",
-//           attributes: ["id", "username", "fullName"]
-//         },
-//         {
-//           model: Printer,
-//           as: "printers",
-//           attributes: ["id", "name", "type", "status", "isActive"]
-//         }
-//       ],
-//       order: [
-//         ["priority", "ASC"],
-//         ["name", "ASC"]
-//       ]
-//     });
-
-//     res.json({
-//       success: true,
-//       channels
-//     });
-//   } catch (error) {
-//     console.error("Error fetching printer channels:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch printer channels",
-//       error: error.message
-//     });
-//   }
-// };
-
 export const getPrinterChannels = async (req, res) => {
   try {
     const channels = await PrinterChannel.findAll({
@@ -44,7 +8,7 @@ export const getPrinterChannels = async (req, res) => {
         {
           model: User,
           as: "creator",
-          attributes: ["id", "username"] // Changed from fullName
+          attributes: ["id", "username"]
         },
         {
           model: Printer,
@@ -201,50 +165,6 @@ export const deletePrinterChannel = async (req, res) => {
     });
   }
 };
-
-// Get all printers
-// export const getPrinters = async (req, res) => {
-//   try {
-//     const { channelId, status, type } = req.query;
-//     const where = {};
-
-//     if (channelId) where.channelId = channelId;
-//     if (status) where.status = status;
-//     if (type) where.type = type;
-
-//     const printers = await Printer.findAll({
-//       where,
-//       include: [
-//         {
-//           model: PrinterChannel,
-//           as: "channel",
-//           attributes: ["id", "name", "priority"]
-//         },
-//         {
-//           model: User,
-//           as: "creator",
-//           attributes: ["id", "username", "fullName"]
-//         }
-//       ],
-//       order: [
-//         ["channel", "priority", "ASC"],
-//         ["name", "ASC"]
-//       ]
-//     });
-
-//     res.json({
-//       success: true,
-//       printers
-//     });
-//   } catch (error) {
-//     console.error("Error fetching printers:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch printers",
-//       error: error.message
-//     });
-//   }
-// };
 
 export const getPrinters = async (req, res) => {
   try {

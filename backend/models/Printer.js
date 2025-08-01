@@ -122,7 +122,7 @@ const Printer = sequelize.define(
     totalJobs: {
       type: DataTypes.INTEGER,
       field: "total_jobs",
-      allowNull: false
+      allowNull: true
     },
 
     // Management
