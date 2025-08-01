@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { getOrderTypeIcon, getOrderTypeLabel } from "@/constants/constants";
-import { OrderItemsListProps } from "@/types/inventory";
 import { Employee } from "@/types/employee";
+import { OrderItemsListProps } from "@/types/inventory";
 import { OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { Minus, Plus } from "lucide-react";
@@ -37,7 +37,7 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      <div className="flex-shrink-0 border-b border-gray-100 bg-white">
+      <div className="flex-shrink-0 border-b border-gray-100 bg-teal-500/25">
         <div className="grid grid-cols-4">
           {(["delivery", "takeaway", "table", "employees"] as OrderType[]).map(type => {
             // Only show badge for table orders
@@ -110,12 +110,7 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
       </div>
 
       {/* Employee Selector Dialog */}
-      <EmployeeSelector
-        isOpen={showEmployeeSelector}
-        onClose={() => setShowEmployeeSelector(false)}
-        onEmployeeSelect={handleEmployeeSelected}
-        selectedEmployee={selectedEmployee}
-      />
+      <EmployeeSelector isOpen={showEmployeeSelector} onClose={() => setShowEmployeeSelector(false)} onEmployeeSelect={handleEmployeeSelected} selectedEmployee={selectedEmployee} />
     </div>
   );
 };

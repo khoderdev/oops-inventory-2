@@ -75,6 +75,20 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     reason?: string;
   } | null>(null);
 
+  // Stable callbacks to prevent POSClientOrders re-renders
+  const handleCloseOrdersDialog = useCallback(() => {
+    setShowOrdersDialog(false);
+  }, []);
+
+  const handleOrderSelectCallback = useCallback(
+    (order: any) => {
+      if (onOrderSelect) {
+        onOrderSelect(order);
+      }
+    },
+    [onOrderSelect]
+  );
+
   // Order management hook
   const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
 
@@ -757,8 +771,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           try {
             const tableResponse = await tablesAPI.getTable(currentOrder.tableId);
             if (tableResponse.data) {
-              console.log("🪑 Setting selected table:", tableResponse.data);
-              setSelectedTable(tableResponse.data);
+              console.log("🪑 API response structure:", tableResponse);
+              console.log("🪑 Table data to set:", tableResponse.data);
+
+              // Handle nested API response structure
+              // Check if the response has nested data (backend returns {data: {data: tableObject}})
+              const nestedResponse = tableResponse.data as Table | { data: Table };
+              const tableData = "data" in nestedResponse ? nestedResponse.data : nestedResponse;
+              console.log("🪑 Final table data:", tableData);
+              setSelectedTable(tableData);
             }
           } catch (error) {
             console.error("Failed to fetch table:", error);
@@ -1556,8 +1577,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className="hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
             <div className="flex items-center justify-between py-2">
               <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
-                {/* <h2 className="text-lg font-bold text-gray-800">Order#:</h2> */}
-
                 {/* Order Status Indicator */}
                 {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway"))) && !showSuccessCheckmark && (
                   <span className="text-lg text-blue-600 font-bold">
@@ -1834,7 +1853,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         )}
 
         {/* Orders Management Dialog */}
-        <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} onOrderSelect={handleOrderSelect} />
+        <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelectCallback} />
 
         {/* Tables Layout Dialog */}
         {showTablesLayout && (

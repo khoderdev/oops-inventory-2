@@ -1,6 +1,5 @@
 export type OrderStatus = "draft" | "confirmed" | "preparing" | "ready" | "served" | "paid" | "cancelled";
 export type OrderType = "delivery" | "takeaway" | "table" | "employees";
-
 export type TableStatus = "available" | "opened" | "reserved" | "cleaning";
 
 export interface CreateTableData {

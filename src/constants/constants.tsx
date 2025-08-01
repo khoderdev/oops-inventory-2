@@ -35,17 +35,47 @@ export const getOrderTypeIcon = (type: OrderType) => {
   }
 };
 
-export const getOrderTypeLabel = (type: OrderType, selectedTable: Table | null, selectedEmployee?: Employee | null) => {
+export const getOrderTypeLabel = (type: OrderType, selectedTable: Table | null | undefined, selectedEmployee?: Employee | null) => {
   switch (type) {
     case "delivery":
       return "DELIVERY";
     case "takeaway":
       return "TAKE AWAY";
     case "table":
-      return selectedTable ? `TABLE ${selectedTable.number}` : "TABLES";
+      if (selectedTable) {
+        // Debug logging to understand the selectedTable structure
+        console.log("🪑 Selected table data:", selectedTable);
+        
+        // Check for name property first, then number, then id as fallback
+        const tableWithName = selectedTable as Table & { name?: string };
+        const tableName = tableWithName.name || 
+                         (selectedTable.number !== undefined && selectedTable.number !== null ? selectedTable.number : null) ||
+                         selectedTable.id;
+        
+        console.log("🏷️ Table name resolved to:", tableName);
+        return `TABLE ${tableName}`;
+      }
+      return "TABLES";
     case "employees":
       return selectedEmployee ? `${selectedEmployee.user?.firstName || ""} ${selectedEmployee.user?.lastName || ""}`.trim() || selectedEmployee.employeeNumber : "STAFF";
     default:
       return "TAKE AWAY";
   }
 };
+
+// export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
+//   draft: "bg-gray-100 text-gray-800",
+//   confirmed: "bg-blue-100 text-blue-800",
+//   preparing: "bg-yellow-100 text-yellow-800",
+//   ready: "bg-green-100 text-green-800",
+//   served: "bg-purple-100 text-purple-800",
+//   paid: "bg-emerald-100 text-emerald-800",
+//   cancelled: "bg-red-100 text-red-800"
+// };
+
+// export const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
+//   delivery: <Truck className="w-4 h-4" />,
+//   takeaway: <Package className="w-4 h-4" />,
+//   table: <ShoppingBag className="w-4 h-4" />,
+//   employees: <User className="w-4 h-4" />
+// };
