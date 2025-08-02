@@ -1162,6 +1162,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     
     content += `\n=== END ${printerName.toUpperCase()} ORDER ===\n\n`;
     
+    // Add thermal printer paper cut command (ESC/POS)
+    content += "\x1B\x69"; // ESC i - Full cut command
+    
     return content;
   }, [currentOrder, orderType, selectedTable, selectedEmployee]);
 
