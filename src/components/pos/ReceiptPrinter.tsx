@@ -119,114 +119,175 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       const printStyles = `
         <style id="receipt-print-styles">
           @media print {
-            body * {
-              visibility: hidden;
+            /* Hide everything except our receipt */
+            body > *:not(.receipt-print-container) {
+              display: none !important;
             }
             
-            .receipt-print-container,
-            .receipt-print-container * {
-              visibility: visible;
+            body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
             }
             
             .receipt-print-container {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 80mm;
-              font-family: 'Courier New', 'Lucida Console', monospace;
-              font-size: 12px;
-              line-height: 1.3;
-              color: #000;
-              background: white;
+              display: block !important;
+              position: static !important;
+              width: 100mm !important;
+              max-width: 100mm !important;
+              margin: 0 auto !important;
+              padding: 2mm !important;
+              font-family: 'Courier New', 'Lucida Console', monospace !important;
+              font-size: 12px !important;
+              line-height: 1.3 !important;
+              color: #000 !important;
+              background: white !important;
             }
             
-            .receipt-print-container .header {
-              text-align: center;
-              border-bottom: 2px solid #000;
-              padding-bottom: 4mm;
-              margin-bottom: 5mm;
+            /* Reset all nested elements */
+            .receipt-print-container * {
+              font-family: 'Courier New', 'Lucida Console', monospace !important;
+              color: #000 !important;
+              background: transparent !important;
+              box-shadow: none !important;
+              text-shadow: none !important;
+              border-radius: 0 !important;
             }
             
+            /* Preserve flex layouts */
+            .receipt-print-container .flex {
+              display: flex !important;
+            }
+            
+            .receipt-print-container .justify-between {
+              justify-content: space-between !important;
+            }
+            
+            .receipt-print-container .text-center {
+              text-align: center !important;
+            }
+            
+            .receipt-print-container .font-bold {
+              font-weight: bold !important;
+            }
+            
+            .receipt-print-container .capitalize {
+              text-transform: capitalize !important;
+            }
+            
+            /* Ensure borders show up */
+            .receipt-print-container .border-t {
+              border-top: 1px solid #000 !important;
+            }
+            
+            .receipt-print-container .border-b {
+              border-bottom: 1px solid #000 !important;
+            }
+            
+            .receipt-print-container .border-dashed {
+              border-style: dashed !important;
+            }
+            
+            /* Specific receipt section styling with proper spacing */
             .receipt-print-container .business-name {
-              font-size: 16px;
-              font-weight: bold;
-              margin-bottom: 2mm;
-              text-transform: uppercase;
+              font-size: 16px !important;
+              font-weight: bold !important;
+              text-transform: uppercase !important;
+              margin-bottom: 3mm !important;
             }
             
             .receipt-print-container .business-info {
-              font-size: 10px;
-              line-height: 1.2;
+              font-size: 10px !important;
+              line-height: 1.2 !important;
             }
             
+            /* Header section spacing */
+            .receipt-print-container .header {
+              padding-bottom: 6mm !important;
+              margin-bottom: 8mm !important;
+            }
+            
+            /* Receipt info section spacing */
             .receipt-print-container .receipt-info {
-              margin-bottom: 5mm;
-              font-size: 10px;
-              border-bottom: 1px dashed #ccc;
-              padding-bottom: 3mm;
+              margin-bottom: 8mm !important;
             }
             
+            /* Items section spacing */
             .receipt-print-container .items {
-              margin-bottom: 5mm;
+              margin-bottom: 8mm !important;
             }
             
             .receipt-print-container .item {
-              margin-bottom: 3mm;
-              font-size: 10px;
-              border-bottom: 1px dotted #eee;
-              padding-bottom: 2mm;
+              margin-bottom: 3mm !important;
             }
             
-            .receipt-print-container .item-line {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 1mm;
-              font-weight: bold;
+            /* Totals section spacing */
+            .receipt-print-container .totals {
+              margin-top: 8mm !important;
+              padding-top: 5mm !important;
             }
             
-            .receipt-print-container .item-details {
-              font-size: 9px;
-              color: #666;
-              margin-left: 2mm;
-              font-style: italic;
+            /* Payment info section spacing */
+            .receipt-print-container .payment-info {
+              margin-top: 8mm !important;
+              padding-top: 5mm !important;
+            }
+            
+            /* Footer section spacing */
+            .receipt-print-container .footer {
+              margin-top: 9mm !important;
+              padding-top: 5mm !important;
+            }
+            
+            /* Override specific inline styles with attribute selectors */
+            .receipt-print-container [style*="paddingBottom: 6mm"] {
+              padding-bottom: 6mm !important;
+              margin-bottom: 8mm !important;
+            }
+            
+            .receipt-print-container [style*="marginBottom: 8mm"] {
+              margin-bottom: 8mm !important;
+            }
+            
+            .receipt-print-container [style*="paddingTop: 5mm"] {
+              padding-top: 5mm !important;
+            }
+            
+            .receipt-print-container [style*="marginTop: 8mm"] {
+              margin-top: 8mm !important;
+            }
+            
+            .receipt-print-container [style*="marginTop: 9mm"] {
+              margin-top: 9mm !important;
+            }
+            
+            /* Target sections by their content/structure */
+            .receipt-print-container .header {
+              padding-bottom: 6mm !important;
+              margin-bottom: 8mm !important;
+            }
+            
+            .receipt-print-container .receipt-info {
+              margin-bottom: 8mm !important;
+            }
+            
+            .receipt-print-container .items {
+              margin-bottom: 8mm !important;
             }
             
             .receipt-print-container .totals {
-              border-top: 2px solid #000;
-              padding-top: 4mm;
-              margin-top: 5mm;
-            }
-            
-            .receipt-print-container .total-line {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 2mm;
-              font-size: 10px;
-            }
-            
-            .receipt-print-container .final-total {
-              font-weight: bold;
-              font-size: 14px;
-              border-top: 2px solid #000;
-              border-bottom: 2px solid #000;
-              padding: 3mm 0;
-              margin: 3mm 0;
+              margin-top: 8mm !important;
+              padding-top: 5mm !important;
             }
             
             .receipt-print-container .payment-info {
-              margin-top: 5mm;
-              padding-top: 4mm;
-              border-top: 1px dashed #666;
-              font-size: 10px;
+              margin-top: 8mm !important;
+              padding-top: 5mm !important;
             }
             
             .receipt-print-container .footer {
-              text-align: center;
-              margin-top: 8mm;
-              padding-top: 4mm;
-              border-top: 1px dashed #666;
-              font-size: 9px;
-              font-style: italic;
+              margin-top: 9mm !important;
+              padding-top: 5mm !important;
             }
             
             @page {
@@ -238,22 +299,51 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       `;
 
       // Remove existing print styles if any
-      const existingStyles = document.getElementById('receipt-print-styles');
+      const existingStyles = document.getElementById("receipt-print-styles");
       if (existingStyles) {
         existingStyles.remove();
       }
 
       // Add print styles to document head
-      document.head.insertAdjacentHTML('beforeend', printStyles);
+      document.head.insertAdjacentHTML("beforeend", printStyles);
 
       // Create a temporary print container
-      const printContainer = document.createElement('div');
-      printContainer.className = 'receipt-print-container';
-      printContainer.style.position = 'fixed';
-      printContainer.style.top = '-9999px';
-      printContainer.style.left = '-9999px';
+      const printContainer = document.createElement("div");
+      printContainer.className = "receipt-print-container";
+      printContainer.style.position = "fixed";
+      printContainer.style.top = "-9999px";
+      printContainer.style.left = "-9999px";
       printContainer.innerHTML = receiptRef.current.innerHTML;
       
+      // Remove conflicting inline styles from sections to allow CSS to take over
+      const sectionsToUpdate = [
+        { selector: '.header', marginBottom: '8mm', paddingBottom: '6mm' },
+        { selector: '.receipt-info', marginBottom: '8mm' },
+        { selector: '.items', marginBottom: '8mm' },
+        { selector: '.totals', marginTop: '8mm', paddingTop: '5mm' },
+        { selector: '.payment-info', marginTop: '8mm', paddingTop: '5mm' },
+        { selector: '.footer', marginTop: '9mm', paddingTop: '5mm' }
+      ];
+      
+      sectionsToUpdate.forEach(({ selector, marginBottom, marginTop, paddingBottom, paddingTop }) => {
+        const element = printContainer.querySelector(selector);
+        if (element) {
+          // Remove existing margin/padding from inline styles
+          const style = element.getAttribute('style') || '';
+          let newStyle = style
+            .replace(/margin[^;]*;?/g, '')
+            .replace(/padding[^;]*;?/g, '');
+          
+          // Add our spacing
+          if (marginBottom) newStyle += `margin-bottom: ${marginBottom} !important;`;
+          if (marginTop) newStyle += `margin-top: ${marginTop} !important;`;
+          if (paddingBottom) newStyle += `padding-bottom: ${paddingBottom} !important;`;
+          if (paddingTop) newStyle += `padding-top: ${paddingTop} !important;`;
+          
+          element.setAttribute('style', newStyle);
+        }
+      });
+
       // Add print container to body
       document.body.appendChild(printContainer);
 
@@ -266,7 +356,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       // Clean up
       setTimeout(() => {
         // Remove print styles and container
-        const stylesToRemove = document.getElementById('receipt-print-styles');
+        const stylesToRemove = document.getElementById("receipt-print-styles");
         if (stylesToRemove) {
           stylesToRemove.remove();
         }
@@ -280,10 +370,9 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
 
       // Call success callback to clear cart/items
       if (onPrintSuccess) {
-        console.log('🧹 Calling onPrintSuccess to clear cart after successful print');
+        console.log("🧹 Calling onPrintSuccess to clear cart after successful print");
         onPrintSuccess();
       }
-
     } catch (error) {
       console.error("Print operation failed:", error);
       setPrintError(error instanceof Error ? error.message : "Print operation failed");
@@ -371,8 +460,8 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
         <div className="flex-1 overflow-y-auto p-0">
           <div ref={receiptRef} className="receipt bg-white text-black" style={{ width: "100%", maxWidth: "120mm", padding: "4mm", margin: "0 auto", fontFamily: "Courier New, monospace", fontSize: "16px", lineHeight: "1.2", transform: "scale(1)", transformOrigin: "top center" }}>
             {/* Header */}
-            <div className="header text-center border-b-2 border-black/25" style={{ paddingBottom: "4.5mm", marginBottom: "6mm" }}>
-              <div className="business-name font-bold" style={{ fontSize: "21px", marginBottom: "1.5mm" }}>
+            <div className="header text-center border-b-2 border-black/25" style={{ paddingBottom: "6mm", marginBottom: "8mm" }}>
+              <div className="business-name font-bold" style={{ fontSize: "21px", marginBottom: "2mm" }}>
                 {businessInfo.name}
               </div>
               <div className="business-info" style={{ fontSize: "13.5px", lineHeight: "1.1" }}>
@@ -383,7 +472,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
             </div>
 
             {/* Receipt Info */}
-            <div className="receipt-info" style={{ fontSize: "13.5px", marginBottom: "6mm" }}>
+            <div className="receipt-info" style={{ fontSize: "13.5px", marginBottom: "8mm" }}>
               <div className="flex justify-between">
                 <span>Receipt #:</span>
                 <span>{receiptData.id}</span>
@@ -403,7 +492,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
             </div>
 
             {/* Items */}
-            <div className="items" style={{ marginBottom: "6mm" }}>
+            <div className="items" style={{ marginBottom: "8mm" }}>
               {receiptData.items.map((item, index) => (
                 <div key={index} className="item" style={{ marginBottom: "3mm", fontSize: "13.5px" }}>
                   <div className="item-line flex justify-between" style={{ marginBottom: "1.5mm" }}>
@@ -418,7 +507,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
             </div>
 
             {/* Totals */}
-            <div className="totals border-t border-black/25" style={{ paddingTop: "4.5mm", marginTop: "6mm" }}>
+            <div className="totals border-t border-black/25" style={{ paddingTop: "5mm", marginTop: "8mm" }}>
               {/* Subtotal */}
               <div className="total-line flex justify-between" style={{ fontSize: "13.5px", marginBottom: "1.5mm" }}>
                 <span>Subtotal:</span>
@@ -448,7 +537,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
             </div>
 
             {/* Payment Info */}
-            <div className="payment-info border-t border-dashed border-black/30" style={{ marginTop: "6mm", paddingTop: "4.5mm", fontSize: "13.5px" }}>
+            <div className="payment-info border-t border-dashed border-black/30" style={{ marginTop: "8mm", paddingTop: "5mm", fontSize: "13.5px" }}>
               <div className="flex justify-between">
                 <span>Payment Method:</span>
                 <span className="capitalize">{receiptData.paymentMethod}</span>
@@ -466,7 +555,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="footer text-center border-t border-dashed border-black/30" style={{ marginTop: "7.5mm", paddingTop: "4.5mm", fontSize: "12px" }}>
+            <div className="footer text-center border-t border-dashed border-black/30" style={{ marginTop: "9mm", paddingTop: "5mm", fontSize: "12px" }}>
               <div>oOps! dont forget to visit us again soon!</div>
             </div>
           </div>
