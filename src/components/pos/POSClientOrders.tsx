@@ -127,11 +127,11 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   // Handle order updates from OrderDetailsDialog
   const handleOrderUpdate = useCallback((updatedOrder: Order) => {
     console.log("📝 POSClientOrders: Order updated:", updatedOrder);
-    
+
     // Check if the updated order is still incomplete
     const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
     const isStillIncomplete = incompleteStatuses.includes(updatedOrder.status);
-    
+
     if (isStillIncomplete) {
       // Update the orders list with the new order data
       setOrders(prevOrders => {
@@ -294,6 +294,11 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     return ordersCopy;
   }, [orders, sortBy, sortOrder]);
 
+  // Calculate total amount of all incomplete orders
+  const totalIncompleteAmount = useMemo(() => {
+    return orders.reduce((sum, order) => sum + order.total, 0);
+  }, [orders]);
+
   // Handle filter changes
   const handleFilterChange = useCallback((key: keyof OrderFilters, value: string | undefined) => {
     const newValue = value === "all" ? undefined : value;
@@ -421,21 +426,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       <div className="flex-shrink-0 p-4 border-b bg-primary">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div>
-              {isDialog ? <DialogTitle className="text-3xl font-bold text-gray-900">Orders</DialogTitle> : <h1 className="text-3xl font-bold text-gray-900">Orders</h1>}
-              <p className="text-sm text-gray-600 mt-1">
-                {orders.length > 0 ? (
-                  <span className="flex items-center space-x-2">
-                    <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-500">
-                      {orders.length}
-                    </Badge>
-                    <span>incomplete order{orders.length !== 1 ? "s" : ""} found</span>
-                  </span>
-                ) : (
-                  "No incomplete orders at the moment"
-                )}
-              </p>
-            </div>
+            <div>{isDialog ? <DialogTitle className="text-3xl font-bold text-gray-900">Orders</DialogTitle> : <h1 className="text-3xl font-bold text-gray-900">Orders</h1>}</div>
           </div>
         </div>
       </div>
@@ -761,6 +752,28 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
           </div>
         </div>
       </div>
+
+      {/* Fixed Footer - Only show when used as dialog */}
+      {isDialog && orders.length > 0 && (
+        <div className="flex-shrink-0 bg-white border-t border-gray-200 shadow-lg">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-center">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-500 font-semibold">
+                    {orders.length}
+                  </Badge>
+                  <span className="text-gray-700 font-medium">incomplete order{orders.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div className="h-4 w-px bg-gray-300" />
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg font-bold text-green-600">Total: {formatCurrency(totalIncompleteAmount)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
