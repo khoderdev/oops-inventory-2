@@ -26,6 +26,7 @@ import PrinterService from "./services/PrinterService.js";
 import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
 import { seedMaterials } from "./utils/seedMaterials.js";
+import { seedStockEntries } from "./utils/seedStockEntries.js";
 import { seedTables } from "./utils/seedTables.js";
 
 // Enhanced error handling and process management
@@ -269,6 +270,11 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
           const materialResult = await seedMaterials();
           console.log(`✅ Materials seeded successfully: ${materialResult.created} created, ${materialResult.existing} existing`);
 
+          // Then seed stock entries
+          console.log("📦 Seeding stock entries...");
+          const stockResult = await seedStockEntries();
+          console.log(`✅ Stock entries seeded successfully: ${stockResult.created} created, ${stockResult.existing} existing`);
+
           // Finally initialize admin user
           console.log("👤 Initializing admin user...");
           const adminResult = await initializeAdminUser();
@@ -299,6 +305,14 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
               console.log(`✅ Materials seeded: ${materialResult.created} created, ${materialResult.existing} existing`);
             } catch (materialError) {
               console.warn("⚠️ Warning: Failed to seed materials:", materialError.message);
+            }
+
+            // Seed stock entries
+            try {
+              const stockResult = await seedStockEntries();
+              console.log(`✅ Stock entries seeded: ${stockResult.created} created, ${stockResult.existing} existing`);
+            } catch (stockError) {
+              console.warn("⚠️ Warning: Failed to seed stock entries:", stockError.message);
             }
 
             // Initialize admin user
