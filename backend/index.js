@@ -26,6 +26,7 @@ import PrinterService from "./services/PrinterService.js";
 import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
 import { seedMaterials } from "./utils/seedMaterials.js";
+import { seedMenuItems } from "./utils/seedMenuItems.js";
 import { seedStockEntries } from "./utils/seedStockEntries.js";
 import { seedTables } from "./utils/seedTables.js";
 
@@ -275,6 +276,11 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
           const stockResult = await seedStockEntries();
           console.log(`✅ Stock entries seeded successfully: ${stockResult.created} created, ${stockResult.existing} existing`);
 
+          // Then seed menu items
+          console.log("🍔 Seeding menu items...");
+          const menuResult = await seedMenuItems();
+          console.log(`✅ Menu items seeded successfully: ${menuResult.created} items, ${menuResult.ingredients} ingredients`);
+
           // Finally initialize admin user
           console.log("👤 Initializing admin user...");
           const adminResult = await initializeAdminUser();
@@ -313,6 +319,14 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
               console.log(`✅ Stock entries seeded: ${stockResult.created} created, ${stockResult.existing} existing`);
             } catch (stockError) {
               console.warn("⚠️ Warning: Failed to seed stock entries:", stockError.message);
+            }
+
+            // Seed menu items
+            try {
+              const menuResult = await seedMenuItems();
+              console.log(`✅ Menu items seeded: ${menuResult.created} items, ${menuResult.ingredients} ingredients`);
+            } catch (menuError) {
+              console.warn("⚠️ Warning: Failed to seed menu items:", menuError.message);
             }
 
             // Initialize admin user
