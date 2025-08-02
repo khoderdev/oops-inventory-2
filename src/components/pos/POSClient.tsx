@@ -257,12 +257,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     showSuccess("Discount removed");
   }, [showSuccess]);
 
-  // Payment with selected printer
+  // Payment with selected printer (deprecated - now handled in ReceiptPrinter component)
   const handlePaymentWithPrinter = useCallback(async (printer: any) => {
-    console.log("💰 Processing payment with selected printer:", printer);
-    // TODO: Integrate printer with payment process
-    // For now, proceed with normal payment flow
-    await handlePayment();
+    console.log("💰 Payment completed, printer selected:", printer);
+    // This function is now deprecated as printer selection is handled in ReceiptPrinter component
+    // The payment flow now directly shows the ReceiptPrinter dialog
   }, []);
 
   // Print receipt with selected printer
@@ -348,13 +347,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setShowPrinterSelector(true);
   }, []);
 
-  // Clear cart after successful print
+  // Handle successful print - don't auto-close dialog, let user close manually
   const handlePrintSuccess = useCallback(() => {
-    console.log("🧹 Clearing cart after successful print");
-    setCart([]);
-    setAppliedDiscount(null);
-    setLastSaleData(null);
-    showSuccess("Receipt printed successfully! Cart cleared.");
+    console.log("✅ Receipt printed successfully");
+    showSuccess("Receipt printed successfully!");
+    // Don't automatically clear states or close dialog - let user close manually
   }, [showSuccess]);
 
   // Fetch incomplete orders count and table orders for notifications
@@ -1152,12 +1149,38 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         } catch (error) {
           showError("Failed to load existing table order");
         }
+      } else {
+        // Table is empty (available, reserved, or cleaning) - clear cart for fresh start
+        console.log(`🧹 Clearing cart for empty table ${table.number} (status: ${table.status})`);
+        
+        // Clear cart and reset state for fresh order
+        setCart([]);
+        
+        // Clear any applied discounts
+        setAppliedDiscount(null);
+        setDiscountAmount(0);
+        
+        // Clear current order
+        if (clearOrder) {
+          clearOrder();
+        }
+        
+        // Clear local storage
+        OrderPersistence.clearCurrentOrder();
+        
+        // Reset unsaved changes flag
+        setHasUnsavedChanges(false);
+        
+        // Clear selected employee (table orders don't use employee discounts)
+        setSelectedEmployee(undefined);
+        
+        showSuccess(`Table ${table.number} selected - Ready for new order`);
       }
       
       // Refresh table notifications immediately after table selection
       await refreshAllCounts();
     },
-    [loadOrder, menuItems, stockEntries, showSuccess, showError, refreshAllCounts]
+    [loadOrder, menuItems, stockEntries, showSuccess, showError, refreshAllCounts, clearOrder]
   );
 
   const handleCloseTablesLayout = useCallback(() => {
@@ -1671,23 +1694,19 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Set receipt data for printing
       setLastSaleData(receiptData);
 
-      clearCartWithAnimation();
-      setPaymentAmount("");
+      // Show receipt printer dialog FIRST before clearing anything
+      console.log("💰 Payment completed successfully, showing receipt printer");
+      setShowReceiptDialog(true);
+      setShouldAutoPrint(hasSavedPrinter()); // Auto-print if we have a saved printer
+      
+      // Clear payment dialog immediately
       setShowPaymentDialog(false);
-      setShouldAutoPrint(false);
-
-      // Check if we have a saved printer for payment receipt
-      if (hasSavedPrinter()) {
-        const savedPrinter = getSavedPrinter();
-        console.log("💰 Using saved printer for payment receipt:", savedPrinter?.name);
-        // Directly print with saved printer
-        handlePaymentWithPrinter(savedPrinter);
-      } else {
-        // Show printer selector for first-time selection
-        console.log("💰 No saved printer, showing selector for payment");
-        setPrinterSelectionContext("payment");
-        setShowPrinterSelector(true);
-      }
+      setPaymentAmount("");
+      
+      // Delay cart clearing to prevent dialog from closing immediately
+      setTimeout(() => {
+        clearCartWithAnimation();
+      }, 100);
 
       // Clear discount state
       setAppliedDiscount(null);
@@ -1720,7 +1739,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, getSavedPrinter, handlePaymentWithPrinter]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter]);
 
   return (
     <>
