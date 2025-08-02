@@ -3,6 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import sequelize from "./config/database.js";
 import "./models/index.js";
+import User from "./models/User.js";
 import assignmentsRoutes from "./routes/assignments.js";
 import authRoutes from "./routes/auth.js";
 import backupSchedulerRoutes from "./routes/backup-scheduler.js";
@@ -24,6 +25,7 @@ import userRoutes from "./routes/users.js";
 import PrinterService from "./services/PrinterService.js";
 import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
+import { seedMaterials } from "./utils/seedMaterials.js";
 import { seedTables } from "./utils/seedTables.js";
 
 // Enhanced error handling and process management
@@ -193,6 +195,39 @@ const gracefulShutdown = async () => {
   }
 };
 
+// Admin user initialization function
+async function initializeAdminUser() {
+  try {
+    console.log("👤 Checking admin user...");
+    // Check if an admin user exists
+    const adminUser = await User.findOne({ where: { role: "admin" } });
+    if (!adminUser) {
+      console.log("👤 No admin user found. Creating default admin user...");
+
+      // Create admin user (password will be automatically hashed by the model)
+      await User.create({
+        username: "admin",
+        firstName: "Admin",
+        lastName: "User",
+        password: "Admin@123", // Plain password - model will hash it automatically
+        role: "admin",
+        isActive: true,
+        createdBy: null, // No creator for initial admin
+        updatedBy: null
+      });
+
+      console.log("✅ Admin user created successfully.");
+      return { created: 1, existing: 0 };
+    } else {
+      console.log("✅ Admin user already exists.");
+      return { created: 0, existing: 1 };
+    }
+  } catch (error) {
+    console.error("❌ Error initializing admin user:", error.message);
+    throw error;
+  }
+}
+
 // Enhanced database connection with retry mechanism
 const connectToDatabase = async (retries = 5, delay = 5000) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -224,8 +259,22 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
         // Seed initial data with error handling
         try {
           console.log("🌱 Seeding initial data...");
+
+          // Seed tables first
           await seedTables();
-          console.log("✅ Initial data seeded successfully");
+          console.log("✅ Tables seeded successfully");
+
+          // Then seed materials
+          console.log("🌱 Seeding materials...");
+          const materialResult = await seedMaterials();
+          console.log(`✅ Materials seeded successfully: ${materialResult.created} created, ${materialResult.existing} existing`);
+
+          // Finally initialize admin user
+          console.log("👤 Initializing admin user...");
+          const adminResult = await initializeAdminUser();
+          console.log(`✅ Admin user initialized: ${adminResult.created} created, ${adminResult.existing} existing`);
+
+          console.log("✅ All initial data seeded successfully");
         } catch (seedError) {
           console.warn("⚠️ Warning: Failed to seed initial data:", seedError.message);
           console.log("🔄 Server will continue without seeding...");
@@ -242,6 +291,24 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
           try {
             // Just seed data without sync
             await seedTables();
+            console.log("✅ Tables seeded with existing schema");
+
+            // Seed materials too
+            try {
+              const materialResult = await seedMaterials();
+              console.log(`✅ Materials seeded: ${materialResult.created} created, ${materialResult.existing} existing`);
+            } catch (materialError) {
+              console.warn("⚠️ Warning: Failed to seed materials:", materialError.message);
+            }
+
+            // Initialize admin user
+            try {
+              const adminResult = await initializeAdminUser();
+              console.log(`✅ Admin user initialized: ${adminResult.created} created, ${adminResult.existing} existing`);
+            } catch (adminError) {
+              console.warn("⚠️ Warning: Failed to initialize admin user:", adminError.message);
+            }
+
             console.log("✅ Continuing with existing schema");
             return true;
           } catch (seedError) {
@@ -348,39 +415,6 @@ const startServer = async () => {
     console.log("🔄 Server will attempt to continue...");
   }
 };
-
-async function initializeAdminUser() {
-  try {
-    // Check if an admin user exists
-    const adminUser = await User.findOne({ where: { role: "admin" } });
-    if (!adminUser) {
-      console.log("No admin user found. Creating default admin user...");
-
-      // Hash the default password
-      const hashedPassword = await bcrypt.hash("admin123", 10); // Replace with a secure password
-
-      // Create admin user
-      await User.create({
-        username: "admin",
-        firstName: "Admin",
-        lastName: "User",
-        password: hashedPassword,
-        role: "admin",
-        isActive: true,
-        createdBy: null, // No creator for initial admin
-        updatedBy: null
-      });
-
-      console.log("Admin user created successfully.");
-    } else {
-      console.log("Admin user already exists.");
-    }
-  } catch (error) {
-    console.error("Error creating admin user:", error);
-  }
-}
-
-initializeAdminUser();
 
 // Start the server
 startServer().catch(error => {
