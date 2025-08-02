@@ -907,6 +907,37 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     fetchMenuItems();
   }, [showError]);
 
+  // Fetch tables data with order information
+  const fetchTablesData = useCallback(async () => {
+    try {
+      console.log("🏢 Fetching tables data with orders...");
+      const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
+      const responseData = tablesResponse.data as Table[] | { data: Table[] };
+      const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
+      setTables(tablesData);
+      console.log("✅ Tables data refreshed:", tablesData.length, "tables");
+    } catch (error) {
+      console.error("❌ Failed to refresh tables data:", error);
+    }
+  }, []);
+
+  // Comprehensive refresh function that updates both POSLayout and POSClient counts
+  const refreshAllCounts = useCallback(async () => {
+    console.log("🔄 Refreshing all counts and tables (POSLayout + POSClient + Tables Layout)");
+    
+    // Run all refreshes in parallel for better performance
+    await Promise.all([
+      // Refresh POSClient table notification counts
+      fetchIncompleteOrders(),
+      // Refresh tables data for Tables Layout screen
+      fetchTablesData(),
+      // Refresh POSLayout counts (orders and sales)
+      refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()
+    ]);
+    
+    console.log("✅ All counts and tables refreshed successfully");
+  }, [fetchIncompleteOrders, fetchTablesData, refreshCountsRef]);
+
   // Fetch incomplete orders for notifications
   useEffect(() => {
     // Initial fetch
@@ -1062,9 +1093,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, []);
 
-  const handleTableSelect = useCallback(() => {
+  const handleTableSelect = useCallback(async () => {
+    // Refresh tables data before showing the layout to ensure current status
+    await fetchTablesData();
     setShowTablesLayout(true);
-  }, []);
+  }, [fetchTablesData]);
 
   const handleTableSelection = useCallback(
     async (table: Table) => {
@@ -1120,8 +1153,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           showError("Failed to load existing table order");
         }
       }
+      
+      // Refresh table notifications immediately after table selection
+      await refreshAllCounts();
     },
-    [loadOrder, menuItems, stockEntries, showSuccess, showError]
+    [loadOrder, menuItems, stockEntries, showSuccess, showError, refreshAllCounts]
   );
 
   const handleCloseTablesLayout = useCallback(() => {
@@ -1352,10 +1388,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Show success message
       showSuccess(`Order ${savedOrder.orderNumber || savedOrder.id} saved successfully!`);
 
-      // Refresh counts immediately after saving
-      if (refreshCountsRef?.current) {
-        await refreshCountsRef.current();
-      }
+      // Refresh all counts immediately after saving (POSLayout + table notifications)
+      await refreshAllCounts();
 
       // Clear all state after successful save (same as cancel)
       // Clear cart
@@ -1396,7 +1430,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, createOrder, clearOrder, showSuccess, showError, refreshCountsRef]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, createOrder, clearOrder, showSuccess, showError, refreshAllCounts]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
@@ -1667,10 +1701,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setHasUnsavedChanges(false);
       resetToTakeaway();
 
-      // Refresh counts immediately after payment completion
-      if (refreshCountsRef?.current) {
-        await refreshCountsRef.current();
-      }
+      // Refresh all counts immediately after payment completion (POSLayout + table notifications)
+      await refreshAllCounts();
 
       // Callback for parent component
       if (onSaleComplete) {
@@ -1688,7 +1720,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshCountsRef, hasSavedPrinter, getSavedPrinter, handlePaymentWithPrinter]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, getSavedPrinter, handlePaymentWithPrinter]);
 
   return (
     <>
