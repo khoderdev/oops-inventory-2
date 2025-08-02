@@ -1,7 +1,7 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
+import { auditSalesOperation } from "../middleware/auditMiddleware.js";
 import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, StockEntry, User } from "../models/index.js";
-import { auditSalesOperation, auditSecurityEvent } from "../middleware/auditMiddleware.js";
 
 const salesController = {
   getNegativeStockReport: async (req, res, next) => {
@@ -196,7 +196,7 @@ const salesController = {
       let finalSectionId;
       if (hasMenuItems && !hasIndividualItems && (!sectionId || sectionId === "" || sectionId === undefined)) {
         // Find a suitable section for menu items (prefer Kitchen, or any available section)
-        const defaultSection =
+        let defaultSection =
           (await Section.findOne({
             where: {
               name: ["Kitchen", "kitchen", "KITCHEN"]
@@ -204,12 +204,18 @@ const salesController = {
             transaction
           })) || (await Section.findOne({ transaction }));
 
-        if (defaultSection) {
-          finalSectionId = defaultSection.id;
-        } else {
-          await transaction.rollback();
-          return res.status(400).json({ error: "No sections available for menu item sales" });
+        if (!defaultSection) {
+          // Create a default section if none exists
+          console.log("🏗️ No sections found, creating default section for menu item sales");
+          defaultSection = await Section.create(
+            {
+              name: "Kitchen"
+            },
+            { transaction }
+          );
+          console.log("✅ Created default Kitchen section with ID:", defaultSection.id);
         }
+        finalSectionId = defaultSection.id;
       } else if (sectionId && sectionId !== "" && sectionId !== undefined) {
         finalSectionId = parseInt(sectionId);
       } else {
@@ -217,12 +223,14 @@ const salesController = {
         let fallbackSection = await Section.findOne({ transaction });
         if (!fallbackSection) {
           // Create a default section if none exists
+          console.log("🏗️ No sections found, creating default fallback section");
           fallbackSection = await Section.create(
             {
               name: "Default Section"
             },
             { transaction }
           );
+          console.log("✅ Created default section with ID:", fallbackSection.id);
         }
         finalSectionId = fallbackSection.id;
       }
@@ -581,7 +589,7 @@ const salesController = {
       // Log successful sale creation
       const userId = req.user?.id;
       if (userId) {
-        await auditSalesOperation(userId, 'CREATE', sale.toJSON(), null, req);
+        await auditSalesOperation(userId, "CREATE", sale.toJSON(), null, req);
       }
 
       // Fetch updated stock entries AFTER transaction commit to ensure fresh data
@@ -700,7 +708,7 @@ const salesController = {
       // Log successful sale update
       const userId = req.user?.id;
       if (userId) {
-        await auditSalesOperation(userId, 'UPDATE', formattedSale, originalSale, req);
+        await auditSalesOperation(userId, "UPDATE", formattedSale, originalSale, req);
       }
 
       res.status(200).json(formattedSale);
@@ -731,7 +739,7 @@ const salesController = {
       // Log successful sale deletion
       const userId = req.user?.id;
       if (userId) {
-        await auditSalesOperation(userId, 'DELETE', deletedSale, null, req);
+        await auditSalesOperation(userId, "DELETE", deletedSale, null, req);
       }
 
       res.status(204).send();
@@ -924,7 +932,7 @@ const salesController = {
       // Log successful sale revert
       const userId = req.user?.id;
       if (userId) {
-        await auditSalesOperation(userId, 'REVERT', revertedSale, null, req);
+        await auditSalesOperation(userId, "REVERT", revertedSale, null, req);
       }
 
       res.status(200).json({
@@ -966,7 +974,7 @@ const salesController = {
       // Log successful soft delete
       const userId = req.user?.id;
       if (userId) {
-        await auditSalesOperation(userId, 'SOFT_DELETE', { ...originalSale, isActive: false }, originalSale, req);
+        await auditSalesOperation(userId, "SOFT_DELETE", { ...originalSale, isActive: false }, originalSale, req);
       }
 
       res.status(200).json({

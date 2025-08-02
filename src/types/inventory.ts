@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Employee } from "./employee";
 import { Order, OrderStatus, OrderType } from "./orders";
 
-export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco";
+export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco" | "hotDrinks" | "coldDrinks";
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
 
@@ -682,6 +682,8 @@ export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label
   { value: "spices", label: "Spices & Seasonings" },
   { value: "beverages", label: "Beverages" },
   { value: "alcohol", label: "Alcohol" },
+  { value: "hotDrinks", label: "Hot Drinks" },
+  { value: "coldDrinks", label: "Cold Drinks" },
   { value: "tobacco", label: "Tobacco" },
   { value: "packaging", label: "Packaging Materials" },
   { value: "other", label: "Other" }

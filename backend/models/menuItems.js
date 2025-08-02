@@ -22,7 +22,7 @@ const MenuItem = sequelize.define(
       allowNull: true
     },
     category: {
-      type: DataTypes.ENUM("appetizers", "burgers", "sandwiches", "plates", "salads", "desserts", "beverages", "shisha"),
+      type: DataTypes.ENUM("appetizers", "burgers", "sandwiches", "plates", "salads", "desserts", "beverages", "shisha", "hotDrinks", "coldDrinks"),
       allowNull: false
     },
     price: {

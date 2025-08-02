@@ -219,7 +219,7 @@ const menuItemsController = {
       }
 
       // Validate category if provided
-      const validCategories = ["appetizers", "burgers", "sandwiches", "plates", "salads", "desserts", "beverages", "shisha"];
+      const validCategories = ["appetizers", "burgers", "sandwiches", "plates", "salads", "desserts", "beverages", "shisha", "hotDrinks", "coldDrinks"];
       if (category !== undefined && !validCategories.includes(category)) {
         await transaction.rollback();
         return res.status(400).json({ error: "Invalid category" });
