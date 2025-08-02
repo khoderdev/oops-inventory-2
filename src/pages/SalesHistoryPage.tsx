@@ -410,48 +410,14 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
 
       const filterText = [selectedItem !== "all" ? `Item: ${selectedItem}` : null, selectedSection !== "all" ? `Section: ${selectedSection}` : null].filter(Boolean).join(", ");
 
-      // Create receipt items for the sales report
+      // Create receipt items for the sales report - only actual sales as line items
       const reportItems: ReceiptData["items"] = [];
 
-      // Add summary items
-      reportItems.push({
-        name: "SALES SUMMARY",
-        quantity: 1,
-        unitPrice: 0,
-        totalPrice: 0,
-        type: "menu"
-      });
-
-      reportItems.push({
-        name: `Period: ${dateRangeText}`,
-        quantity: 1,
-        unitPrice: 0,
-        totalPrice: 0,
-        type: "menu"
-      });
-
-      if (filterText) {
+      // Add each sale as a proper line item with meaningful data
+      groupedSales.forEach((sale) => {
+        const saleDate = format(sale.saleDate, 'HH:mm');
         reportItems.push({
-          name: `Filters: ${filterText}`,
-          quantity: 1,
-          unitPrice: 0,
-          totalPrice: 0,
-          type: "menu"
-        });
-      }
-
-      reportItems.push({
-        name: "─────────────────────────",
-        quantity: 1,
-        unitPrice: 0,
-        totalPrice: 0,
-        type: "menu"
-      });
-
-      // Add each sale as a line item
-      groupedSales.forEach((sale, index) => {
-        reportItems.push({
-          name: `Sale #${sale.saleId}`,
+          name: `Sale #${sale.saleId} (${saleDate})`,
           quantity: sale.items.length,
           unitPrice: sale.total / sale.items.length,
           totalPrice: sale.total,
@@ -459,50 +425,18 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
         });
       });
 
-      reportItems.push({
-        name: "─────────────────────────",
-        quantity: 1,
-        unitPrice: 0,
-        totalPrice: 0,
-        type: "menu"
-      });
-
-      reportItems.push({
-        name: `Total Sales: ${groupedSales.length}`,
-        quantity: 1,
-        unitPrice: 0,
-        totalPrice: 0,
-        type: "menu"
-      });
-
-      reportItems.push({
-        name: `Total Items: ${localFilteredSales.length}`,
-        quantity: 1,
-        unitPrice: 0,
-        totalPrice: 0,
-        type: "menu"
-      });
-
-      reportItems.push({
-        name: `Average Sale: ${formatCurrency(groupedSales.length > 0 ? filteredTotal / groupedSales.length : 0)}`,
-        quantity: 1,
-        unitPrice: 0,
-        totalPrice: 0,
-        type: "menu"
-      });
-
       const salesReport: ReceiptData = {
         id: `SALES-REPORT-${Date.now()}`,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
-        cashier: "Sales Report",
+        cashier: `Sales Report - ${dateRangeText}${filterText ? ` | ${filterText}` : ''}`,
         items: reportItems,
         subtotal: filteredTotal,
         tax: 0,
         total: filteredTotal,
         paymentAmount: filteredTotal,
         change: 0,
-        paymentMethod: "report"
+        paymentMethod: `${groupedSales.length} sales | ${localFilteredSales.length} items | Avg: ${formatCurrency(groupedSales.length > 0 ? filteredTotal / groupedSales.length : 0)}`
       };
 
       setSalesReportData(salesReport);
