@@ -26,6 +26,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   const [printError, setPrintError] = useState<string | null>(null);
   const [dataValidated, setDataValidated] = useState(false);
   const [lastPrintTime, setLastPrintTime] = useState<number | null>(null);
+  const [autoPrintAttempted, setAutoPrintAttempted] = useState(false);
 
   // Printer selector hook
   const { getSavedPrinter, hasSavedPrinter } = usePrinterSelector();
@@ -582,25 +583,30 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
 
   // Enhanced auto-print with validation and error handling
   useEffect(() => {
-    if (isOpen && autoPrint && receiptData && receiptRef.current && dataValidated && !isPrinting) {
+    if (isOpen && autoPrint && receiptData && receiptRef.current && dataValidated && !isPrinting && !autoPrintAttempted) {
+      console.log("🔄 Auto-print conditions met, attempting auto-print...");
+      setAutoPrintAttempted(true); // Mark that we've attempted auto-print
+      
       // Ensure dialog is fully rendered and data is validated
       const timer = setTimeout(() => {
         if (receiptRef.current && validationResult.isValid) {
+          console.log("✅ Auto-print validation passed, calling handlePrint");
           handlePrint();
         } else {
-          console.warn("Auto-print skipped due to validation errors:", validationResult.errors);
+          console.warn("❌ Auto-print skipped due to validation errors:", validationResult.errors);
         }
       }, 800); // Increased delay for better reliability
 
       return () => clearTimeout(timer);
     }
-  }, [isOpen, autoPrint, receiptData, dataValidated, validationResult.isValid, validationResult.errors, handlePrint, isPrinting]);
+  }, [isOpen, autoPrint, receiptData, dataValidated, validationResult.isValid, validationResult.errors, handlePrint, isPrinting, autoPrintAttempted]);
 
   // Clear errors when dialog closes
   useEffect(() => {
     if (!isOpen) {
       setPrintError(null);
       setIsPrinting(false);
+      setAutoPrintAttempted(false); // Reset auto-print flag for next time
     }
   }, [isOpen]);
 
