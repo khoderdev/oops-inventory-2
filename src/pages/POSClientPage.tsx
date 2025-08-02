@@ -1,3 +1,4 @@
+import { ordersAPI } from "@/api/orders.api.ts";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
 import POSLayout from "@/components/layout/POSLayout";
 import { POSClient } from "@/components/pos/POSClient";
@@ -5,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { PERMISSIONS } from "@/types/auth";
 import { SaleResponse } from "@/types/inventory";
-import { Order } from "@/types/orders";
+import { Order, OrderSummary } from "@/types/orders";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -15,7 +16,8 @@ const POSClientPage: React.FC = () => {
   const { sectionAssignments, fetchTabData } = useInventoryStore();
   const [sessionStats, setSessionStats] = useState({
     totalSales: 0,
-    transactionCount: 0
+    transactionCount: 0,
+    incompleteOrdersCount: 0
   });
 
   // State to hold selected order that will be passed to POSClient
@@ -41,6 +43,7 @@ const POSClientPage: React.FC = () => {
   useEffect(() => {
     fetchTabData("materials");
     fetchTodaysSales();
+    fetchIncompleteOrders();
   }, [fetchTabData]);
 
   // Fetch today's sales total
@@ -73,6 +76,39 @@ const POSClientPage: React.FC = () => {
     }
   };
 
+  // Fetch incomplete orders count
+  const fetchIncompleteOrders = async () => {
+    try {
+      const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
+      const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
+      const allOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
+      
+      // Filter for incomplete orders from today
+      const today = new Date().toISOString().split("T")[0];
+      const incompleteStatuses = ['draft', 'confirmed', 'preparing', 'ready'];
+      
+      const incompleteOrdersToday = allOrders.filter((order: OrderSummary) => {
+        // Check if order is from today
+        const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : null;
+        const isToday = orderDate === today;
+        
+        // Check if order is incomplete and not a table order
+        const isIncomplete = incompleteStatuses.includes(order.status);
+        const isNotTableOrder = order.orderType !== 'table';
+        
+        return isToday && isIncomplete && isNotTableOrder;
+      });
+      
+      setSessionStats(prev => ({
+        ...prev,
+        incompleteOrdersCount: incompleteOrdersToday.length
+      }));
+    } catch (error) {
+      console.error("Failed to fetch incomplete orders:", error);
+      // Keep default value if fetch fails
+    }
+  };
+
   // Handle sale completion
   const handleSaleComplete = (saleData: SaleResponse) => {
     const saleAmount = Number(saleData.totalAmount) || 0;
@@ -80,7 +116,8 @@ const POSClientPage: React.FC = () => {
 
     setSessionStats(prev => ({
       totalSales: prev.totalSales + validSaleAmount,
-      transactionCount: prev.transactionCount + 1
+      transactionCount: prev.transactionCount + 1,
+      incompleteOrdersCount: prev.incompleteOrdersCount // Keep existing count
     }));
 
     // Refresh data after sale
@@ -96,7 +133,10 @@ const POSClientPage: React.FC = () => {
 
   // Handle refresh counts callback from POSLayout
   const handleRefreshCounts = useCallback((refreshFn: () => Promise<void>) => {
-    refreshCountsRef.current = refreshFn;
+    refreshCountsRef.current = async () => {
+      await refreshFn(); // Call the original refresh function
+      await fetchIncompleteOrders(); // Also refresh incomplete orders count
+    };
   }, []);
 
   // Handle logout
@@ -131,7 +171,8 @@ const POSClientPage: React.FC = () => {
   return (
     <POSLayout 
       currentTotal={sessionStats.totalSales} 
-      transactionCount={sessionStats.transactionCount} 
+      transactionCount={sessionStats.transactionCount}
+      incompleteOrdersCount={sessionStats.incompleteOrdersCount}
       onLogout={handleLogout}
       onOrderSelect={handleOrderSelect}
       onRefreshCounts={handleRefreshCounts}

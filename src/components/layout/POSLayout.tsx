@@ -10,14 +10,14 @@ import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { AlertCircle, Calendar, Clock, GripVertical, List, LogOut, Maximize2, Minimize2, Power, ShoppingCart } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
-const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
+const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
   const { user, logout } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showSalesHistoryDialog, setShowSalesHistoryDialog] = useState(false);
-  const [ordersCount, setOrdersCount] = useState(0);
+  // Use transactionCount prop instead of local state
 
   // Resizable panel state
   const [leftPanelWidth, setLeftPanelWidth] = useState(280); // Default 280px - smaller
@@ -119,10 +119,10 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
         return isToday && isIncomplete;
       });
 
-      setOrdersCount(incompleteOrdersToday.length);
+      // Orders count now comes from transactionCount prop
     } catch (error) {
       console.error("Failed to fetch orders count:", error);
-      setOrdersCount(0);
+      // Orders count now comes from transactionCount prop
     }
   }, []);
 
@@ -297,7 +297,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
                   <ShoppingCart className="w-4 h-4 text-blue-300 group-hover:text-blue-200 transition-colors" />
                   <div className="flex items-center space-x-1">
                     <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Orders:</span>
-                    <span className="text-sm font-bold text-blue-300 group-hover:text-blue-200 transition-colors tabular-nums">{ordersCount}</span>
+                    <span className="text-sm font-bold text-blue-300 group-hover:text-blue-200 transition-colors tabular-nums">{incompleteOrdersCount}</span>
                   </div>
                 </div>
               </button>

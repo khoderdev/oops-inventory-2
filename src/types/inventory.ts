@@ -559,6 +559,7 @@ export interface POSLayoutProps {
   children: React.ReactNode;
   currentTotal?: number;
   transactionCount?: number;
+  incompleteOrdersCount?: number;
   onOrderSelect?: (order: Order) => void;
   onLogout?: () => void;
   onRefreshCounts?: (refreshFn: () => Promise<void>) => void;
