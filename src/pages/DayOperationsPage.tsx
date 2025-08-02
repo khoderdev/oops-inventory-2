@@ -19,6 +19,7 @@ const DayOperationsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showTotalSales, setShowTotalSales] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Form states - automatically populate user information
   const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({
@@ -38,6 +39,15 @@ const DayOperationsPage: React.FC = () => {
 
   // Daily reports hook
   const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
+
+  // Real-time clock update
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000); // Update every second
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -159,7 +169,56 @@ const DayOperationsPage: React.FC = () => {
     const numAmount = Number(amount) || 0;
     return `$${numAmount.toFixed(2)}`;
   };
-  const formatDateTime = (date: Date | string) => new Date(date).toLocaleString();
+
+  // Enhanced date/time formatting functions for consistent display
+  const formatDateTime = (date: Date | string | null | undefined) => {
+    if (!date) return "N/A";
+    try {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return "Invalid Date";
+      return dateObj.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid Date";
+    }
+  };
+
+  const formatDate = (date: Date | string | null | undefined) => {
+    if (!date) return "N/A";
+    try {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return "Invalid Date";
+      return dateObj.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid Date";
+    }
+  };
+
+  const formatWeekday = (date: Date | string | null | undefined) => {
+    if (!date) return "N/A";
+    try {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return "Invalid Date";
+      return dateObj.toLocaleDateString("en-US", {
+        weekday: "long"
+      });
+    } catch (error) {
+      console.error("Error formatting weekday:", error);
+      return "Invalid Date";
+    }
+  };
 
   if (loading) {
     return (
@@ -216,12 +275,15 @@ const DayOperationsPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-3xl font-bold text-gray-900">Current Day Status</h2>
-                  <p className="text-lg text-gray-600 mt-1">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+                  <p className="text-lg text-gray-600 mt-1">
+                    {formatWeekday(currentTime)}, {formatDate(currentTime)}
+                  </p>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-gray-500">Today</div>
-                <div className="text-2xl font-bold text-gray-900">{new Date().toLocaleDateString()}</div>
+                <div className="text-sm text-gray-500">Current Time</div>
+                <div className="text-lg font-bold text-gray-900">{currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}</div>
+                <div className="text-sm text-gray-500 mt-1">{formatDate(currentTime)}</div>
               </div>
             </div>
 
@@ -386,8 +448,19 @@ const DayOperationsPage: React.FC = () => {
                 <tr key={day.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>
-                      <div className="font-bold">{new Date(day.date).toLocaleDateString("en-US", { weekday: "long" })}</div>
-                      <div className="text-xs text-gray-500">{new Date(day.date).toLocaleDateString()}</div>
+                      <div className="font-bold">{formatWeekday(day.date)}</div>
+                      <div className="text-xs text-gray-500">{formatDate(day.date)}</div>
+                      {/* Show opened/closed times if available */}
+                      {day.openedAt && (
+                        <div className="text-xs text-blue-600 mt-1">
+                          Opened: {formatDateTime(day.openedAt).split(", ")[1]} {/* Show only time */}
+                        </div>
+                      )}
+                      {day.closedAt && (
+                        <div className="text-xs text-red-600">
+                          Closed: {formatDateTime(day.closedAt).split(", ")[1]} {/* Show only time */}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
