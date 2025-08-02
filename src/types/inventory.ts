@@ -551,6 +551,7 @@ export interface OrderItemsListProps {
   orderStatus?: OrderStatus;
   isOrderCompleted?: boolean;
   discountReason?: string;
+  leftPanelPixelWidth?: number;
 }
 
 export interface POSLayoutProps {

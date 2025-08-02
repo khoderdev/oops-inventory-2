@@ -120,37 +120,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
   }, []);
 
-  // Resizable panel handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-
-      // Set min and max width constraints (20% to 60%)
-      const minWidth = 20;
-      const maxWidth = 60;
-
-      if (newWidth >= minWidth && newWidth <= maxWidth) {
-        setLeftPanelWidth(newWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  }, []);
-
-  // Responsive behavior for resizable panels
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
@@ -921,7 +890,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Comprehensive refresh function that updates both POSLayout and POSClient counts
   const refreshAllCounts = useCallback(async () => {
     console.log("🔄 Refreshing all counts and tables (POSLayout + POSClient + Tables Layout)");
-    
+
     // Run all refreshes in parallel for better performance
     await Promise.all([
       // Refresh POSClient table notification counts
@@ -931,7 +900,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Refresh POSLayout counts (orders and sales)
       refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()
     ]);
-    
+
     console.log("✅ All counts and tables refreshed successfully");
   }, [fetchIncompleteOrders, fetchTablesData, refreshCountsRef]);
 
@@ -1152,31 +1121,31 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       } else {
         // Table is empty (available, reserved, or cleaning) - clear cart for fresh start
         console.log(`🧹 Clearing cart for empty table ${table.number} (status: ${table.status})`);
-        
+
         // Clear cart and reset state for fresh order
         setCart([]);
-        
+
         // Clear any applied discounts
         setAppliedDiscount(null);
         setDiscountAmount(0);
-        
+
         // Clear current order
         if (clearOrder) {
           clearOrder();
         }
-        
+
         // Clear local storage
         OrderPersistence.clearCurrentOrder();
-        
+
         // Reset unsaved changes flag
         setHasUnsavedChanges(false);
-        
+
         // Clear selected employee (table orders don't use employee discounts)
         setSelectedEmployee(undefined);
-        
+
         showSuccess(`Table ${table.number} selected - Ready for new order`);
       }
-      
+
       // Refresh table notifications immediately after table selection
       await refreshAllCounts();
     },
@@ -1689,11 +1658,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.log("💰 Payment completed successfully, showing receipt printer");
       setShowReceiptDialog(true);
       setShouldAutoPrint(hasSavedPrinter()); // Auto-print if we have a saved printer
-      
+
       // Clear payment dialog immediately
       setShowPaymentDialog(false);
       setPaymentAmount("");
-      
+
       // Delay cart clearing to prevent dialog from closing immediately
       setTimeout(() => {
         clearCartWithAnimation();
@@ -1731,6 +1700,34 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setIsLoading(false);
     }
   }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter]);
+
+  // Resize handle mouse events
+  const handleMouseDown = () => {
+    setIsResizing(true);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!containerRef.current) return;
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+    // Set min and max width constraints (20% to 60%)
+    const minWidth = 20;
+    const maxWidth = 60;
+
+    if (newWidth >= minWidth && newWidth <= maxWidth) {
+      setLeftPanelWidth(newWidth);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsResizing(false);
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+  };
 
   return (
     <>
