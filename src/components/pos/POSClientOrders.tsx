@@ -30,7 +30,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Initialize filters to show only today's orders by default
+  // Initialize filters to show only incomplete orders
   const [filters, setFilters] = useState<OrderFilters>(() => {
     const today = new Date().toISOString().split("T")[0];
     return {
@@ -38,6 +38,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
         startDate: today,
         endDate: today
       }
+      // No status filter - we'll filter client-side for incomplete orders
     };
   });
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
@@ -74,16 +75,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       if (filters.orderType) {
         params.orderType = filters.orderType;
       }
-      if (filters.status) {
-        params.status = filters.status;
-      }
-      if (filters.dateRange?.startDate) {
-        params.startDate = filters.dateRange.startDate;
-      }
-      if (filters.dateRange?.endDate) {
-        params.endDate = filters.dateRange.endDate;
-      }
-
       const response = await ordersAPI.getOrders(params);
 
       if (!componentMountedRef.current) {
@@ -93,11 +84,16 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
       let fetchedOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
 
-      // Filter out table orders and apply search
-      const beforeFilter = fetchedOrders.length;
+      // Filter out table orders and only show incomplete orders
+      const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
       fetchedOrders = fetchedOrders.filter(order => {
+        // Exclude table orders
         if (order.orderType === "table") return false;
 
+        // Only show incomplete orders
+        if (!incompleteStatuses.includes(order.status)) return false;
+
+        // Apply search filter
         if (filters.searchTerm) {
           const searchLower = filters.searchTerm.toLowerCase();
           return order.orderNumber.toLowerCase().includes(searchLower) || order.customerName?.toLowerCase().includes(searchLower) || order.id.toLowerCase().includes(searchLower);
@@ -283,11 +279,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     });
   }, []);
 
-  // Clear filters
-  const clearFilters = useCallback(() => {
-    setFilters({});
-  }, []);
-
   // Manual refresh
   const handleRefresh = useCallback(async () => {
     if (refreshing || isLoading) {
@@ -382,28 +373,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     };
   }, []);
 
-  // Auto-refresh setup
-  // useEffect(() => {
-  //   if (refreshIntervalRef.current) {
-  //     clearInterval(refreshIntervalRef.current);
-  //   }
-  //   if ((!isOpen && isOpen !== undefined) || showOrderDetails || showReceiptDialog) {
-  //     return;
-  //   }
-
-  //   refreshIntervalRef.current = setInterval(() => {
-  //     if (!isLoading && !refreshing && componentMountedRef.current) {
-  //       fetchOrders();
-  //     }
-  //   }, 30000);
-
-  //   return () => {
-  //     if (refreshIntervalRef.current) {
-  //       clearInterval(refreshIntervalRef.current);
-  //     }
-  //   };
-  // }, [isOpen, showOrderDetails, showReceiptDialog, isLoading, refreshing, fetchOrders]);
-
   // If not used as dialog, return early if isOpen is false
   if (isDialog && !isOpen) return null;
 
@@ -419,13 +388,13 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
               <p className="text-sm text-gray-600 mt-1">
                 {orders.length > 0 ? (
                   <span className="flex items-center space-x-2">
-                    <Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-500">
+                    <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-500">
                       {orders.length}
                     </Badge>
-                    <span>order{orders.length !== 1 ? "s" : ""} found</span>
+                    <span>incomplete order{orders.length !== 1 ? "s" : ""} found</span>
                   </span>
                 ) : (
-                  "Manage delivery and takeaway orders"
+                  "No incomplete orders at the moment"
                 )}
               </p>
             </div>
@@ -448,7 +417,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 
             {/* Filter Controls */}
             <div className="flex flex-wrap gap-3 items-center">
-              {/* Status Filter - Using stable native select */}
+              {/* Status Filter - Limited to incomplete statuses only */}
               <div className="relative">
                 <select
                   value={filters.status || "all"}
@@ -468,14 +437,11 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                   }}
                   className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none appearance-none cursor-pointer"
                 >
-                  <option value="all">All Statuses</option>
+                  <option value="all">All Incomplete</option>
                   <option value="draft">Draft</option>
                   <option value="confirmed">Confirmed</option>
                   <option value="preparing">Preparing</option>
                   <option value="ready">Ready</option>
-                  <option value="served">Served</option>
-                  <option value="paid">Paid</option>
-                  <option value="cancelled">Cancelled</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -498,6 +464,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                   <option value="all">All Types</option>
                   <option value="delivery">Delivery</option>
                   <option value="takeaway">Takeaway</option>
+                  <option value="bar">Bar</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -505,10 +472,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                   </svg>
                 </div>
               </div>
-
-              <Button variant="outline" onClick={clearFilters} className="h-11 px-4 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300">
-                Clear Filters
-              </Button>
 
               <Button variant="outline" onClick={handleRefresh} disabled={refreshing || isLoading} className="h-11 px-4 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300">
                 <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
@@ -567,8 +530,8 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                 <div className="p-4 bg-gray-100 rounded-full mb-4">
                   <ShoppingBag className="w-12 h-12 opacity-50" />
                 </div>
-                <h3 className="text-lg font-medium mb-2">No orders found</h3>
-                <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No delivery or takeaway orders available at the moment"}</p>
+                <h3 className="text-lg font-medium mb-2">No incomplete orders found</h3>
+                <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No incomplete delivery or takeaway orders at the moment"}</p>
               </div>
             ) : viewMode === "list" ? (
               /* List View */
