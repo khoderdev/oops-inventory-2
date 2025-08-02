@@ -1,6 +1,7 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 import Material from "./materials.js";
+import Printer from "./Printer.js";
 
 const StockEntry = sequelize.define(
   "StockEntry",
@@ -57,6 +58,15 @@ const StockEntry = sequelize.define(
     totalCost: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true
+    },
+    printerId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: Printer,
+        key: "id"
+      },
+      comment: "Assigned printer for this stock entry item when used in POS orders"
     },
     purchaseDate: {
       type: DataTypes.DATE,

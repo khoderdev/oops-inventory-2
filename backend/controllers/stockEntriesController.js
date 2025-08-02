@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
-import { Material, StockEntry, Wasting } from "../models/index.js";
+import { Material, StockEntry, Wasting, Printer } from "../models/index.js";
 import { StockEntryAuditHelperSimple } from "../decorators/stockEntryAuditDecoratorSimple.js";
 
 const stockEntriesController = {
@@ -1001,7 +1001,121 @@ const stockEntriesController = {
       console.error("Error updating stock entry POS visibility:", error);
       next(error);
     }
-  }
+  },
+
+  // Assign printer to stock entry
+  assignPrinter: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { printerId } = req.body;
+
+      if (!/^\d+$/.test(id)) {
+        return res.status(400).json({ error: "Invalid stock entry ID" });
+      }
+
+      // Validate printer exists if printerId is provided
+      if (printerId) {
+        const printer = await Printer.findByPk(printerId);
+        if (!printer) {
+          return res.status(404).json({ error: "Printer not found" });
+        }
+      }
+
+      // Update stock entry with printer assignment
+      const [updatedRowsCount] = await StockEntry.update(
+        { printerId: printerId || null },
+        { where: { id } }
+      );
+
+      if (updatedRowsCount === 0) {
+        return res.status(404).json({ error: "Stock entry not found" });
+      }
+
+      // Fetch updated stock entry with printer info
+      const updatedStockEntry = await StockEntry.findByPk(id, {
+        include: [
+          {
+            model: Material,
+            as: "material",
+            attributes: ["id", "name", "baseUnit", "unitType", "category"]
+          },
+          {
+            model: Printer,
+            as: "assignedPrinter",
+            attributes: ["id", "name", "type", "status"]
+          }
+        ]
+      });
+
+      res.status(200).json({
+        message: printerId ? "Printer assigned successfully" : "Printer assignment removed",
+        stockEntry: updatedStockEntry
+      });
+    } catch (error) {
+      console.error("Error assigning printer to stock entry:", error);
+      next(error);
+    }
+  },
+
+  // Get stock entries with their assigned printers
+  getStockEntriesWithPrinters: async (req, res, next) => {
+    try {
+      const stockEntries = await StockEntry.findAll({
+        include: [
+          {
+            model: Material,
+            as: "material",
+            attributes: ["id", "name", "baseUnit", "unitType", "category"]
+          },
+          {
+            model: Printer,
+            as: "assignedPrinter",
+            attributes: ["id", "name", "type", "status", "location"],
+            required: false // LEFT JOIN to include entries without printers
+          }
+        ],
+        order: [["id", "ASC"]]
+      });
+
+      res.status(200).json(stockEntries);
+    } catch (error) {
+      console.error("Error fetching stock entries with printers:", error);
+      next(error);
+    }
+  },
+
+  // Bulk assign printer to multiple stock entries
+  bulkAssignPrinter: async (req, res, next) => {
+    try {
+      const { stockEntryIds, printerId } = req.body;
+
+      if (!Array.isArray(stockEntryIds) || stockEntryIds.length === 0) {
+        return res.status(400).json({ error: "Stock entry IDs array is required" });
+      }
+
+      // Validate printer exists if printerId is provided
+      if (printerId) {
+        const printer = await Printer.findByPk(printerId);
+        if (!printer) {
+          return res.status(404).json({ error: "Printer not found" });
+        }
+      }
+
+      // Update multiple stock entries
+      const [updatedRowsCount] = await StockEntry.update(
+        { printerId: printerId || null },
+        { where: { id: { [Op.in]: stockEntryIds } } }
+      );
+
+      res.status(200).json({
+        message: `${updatedRowsCount} stock entries updated`,
+        updatedCount: updatedRowsCount
+      });
+    } catch (error) {
+      console.error("Error bulk assigning printer:", error);
+      next(error);
+    }
+  },
 };
 
 export default stockEntriesController;

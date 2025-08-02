@@ -4,7 +4,7 @@ import { stockSchema } from "@/components/stock/stockSchema";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { Employee } from "./employee";
-import { Order, OrderSummary, OrderStatus, OrderType } from "./orders";
+import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
 
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco" | "hotDrinks" | "coldDrinks";
 
@@ -151,6 +151,13 @@ export interface StockEntry {
   batchNumber?: string;
   notes?: string;
   isPOSItem: boolean;
+  printerId?: number | null;
+  assignedPrinter?: {
+    id: number;
+    name: string;
+    type: string;
+    status: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -446,6 +453,13 @@ export interface POSCartItem {
   posItem?: POSItem;
   stockEntryId?: number;
   menuItemId?: number;
+  printerId?: number | null;
+  assignedPrinter?: {
+    id: number;
+    name: string;
+    type: string;
+    status: string;
+  };
 }
 
 export interface POSClientProps {
@@ -497,7 +511,21 @@ export interface POSItem {
     totalCost: number;
     purchaseDate: string;
     expiryDate?: string;
+    printerId?: number | null;
+    assignedPrinter?: {
+      id: number;
+      name: string;
+      type: string;
+      status: string;
+    };
   }>;
+  printerId?: number | null;
+  assignedPrinter?: {
+    id: number;
+    name: string;
+    type: string;
+    status: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -641,6 +669,13 @@ export interface MenuItem {
   ingredients: MenuItemIngredient[];
   menuItemIngredients: boolean;
   isPOSItem?: boolean;
+  printerId?: number | null;
+  assignedPrinter?: {
+    id: number;
+    name: string;
+    type: string;
+    status: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -681,6 +716,19 @@ export interface MenuItemBuilderProps {
 }
 
 //-----------------------------------------------------------------------------
+
+export interface Printer {
+  id: number;
+  name: string;
+  type: string;
+  ipAddress?: string;
+  port?: number;
+  status: "online" | "offline" | "error";
+  location?: string;
+  isDefault?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label: string }> = [
   { value: "meat", label: "Meat & Poultry" },

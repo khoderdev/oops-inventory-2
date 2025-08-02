@@ -1,6 +1,7 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 import Material from "./materials.js";
+import Printer from "./Printer.js";
 
 const MenuItem = sequelize.define(
   "MenuItem",
@@ -36,6 +37,15 @@ const MenuItem = sequelize.define(
       type: DataTypes.BOOLEAN,
       allowNull: true,
       defaultValue: false
+    },
+    printerId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: Printer,
+        key: "id"
+      },
+      comment: "Assigned printer for this menu item when ordered in POS"
     },
     createdAt: {
       type: DataTypes.DATE,

@@ -146,43 +146,45 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   useEffect(() => {
     if (selectedOrderForPOS && selectedOrderForPOS.items) {
       const orderId = selectedOrderForPOS.id.toString();
-      
+
       // Prevent duplicate processing of the same order
       if (processedOrderRef.current === orderId) {
         return;
       }
-      
+
       // Mark this order as being processed
       processedOrderRef.current = orderId;
-      
+
       // Convert order items to cart items
-      const cartItems: POSCartItem[] = selectedOrderForPOS.items.map((item: any) => {
-        if (item.menuItem) {
-          return {
-            id: item.menuItem.id.toString(),
-            name: item.menuItem.name,
-            price: item.menuItem.price,
-            quantity: item.quantity,
-            type: "menu" as const,
-            menuItemId: item.menuItem.id,
-            originalItem: item.menuItem,
-            stockEntryId: undefined
-          };
-        } else if (item.material) {
-          return {
-            id: item.material.id.toString(),
-            name: item.material.name,
-            price: parseFloat(item.unitPrice),
-            quantity: item.quantity,
-            type: "material" as const,
-            materialId: item.material.id,
-            originalItem: item.material,
-            stockEntryId: undefined
-          };
-        }
-        
-        return null;
-      }).filter(Boolean) as POSCartItem[];
+      const cartItems: POSCartItem[] = selectedOrderForPOS.items
+        .map((item: any) => {
+          if (item.menuItem) {
+            return {
+              id: item.menuItem.id.toString(),
+              name: item.menuItem.name,
+              price: item.menuItem.price,
+              quantity: item.quantity,
+              type: "menu" as const,
+              menuItemId: item.menuItem.id,
+              originalItem: item.menuItem,
+              stockEntryId: undefined
+            };
+          } else if (item.material) {
+            return {
+              id: item.material.id.toString(),
+              name: item.material.name,
+              price: parseFloat(item.unitPrice),
+              quantity: item.quantity,
+              type: "material" as const,
+              materialId: item.material.id,
+              originalItem: item.material,
+              stockEntryId: undefined
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean) as POSCartItem[];
 
       // Set order type first
       setOrderType(selectedOrderForPOS.orderType);
@@ -211,7 +213,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // This prevents race conditions where other state updates might clear the cart
       setTimeout(() => {
         setCart(cartItems);
-        
+
         // Clear the processed order ref after cart is set to allow future cart clearing
         // But keep it for a bit longer to prevent immediate clearing
         setTimeout(() => {
@@ -220,7 +222,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }
         }, 5000); // Clear after 5 seconds
       }, 10);
-      
+
       // Mark as having unsaved changes since we're editing an existing order
       setHasUnsavedChanges(true);
     } else if (!selectedOrderForPOS) {
@@ -776,10 +778,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               const miId = typeof mi.id === "string" ? parseInt(mi.id) || 0 : mi.id;
               return miId === menuItemId;
             });
-            if (!menuItem) {
-              console.warn("❌ Menu item not found:", posItem, "Available menu items:", menuItems);
-              return currentCart; // Return current cart if menu item not found
-            }
 
             const newItem: POSCartItem = {
               id: cartId,
@@ -790,7 +788,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               originalItem: menuItem,
               posItem,
               stockEntryId: undefined,
-              menuItemId: menuItemId
+              menuItemId: menuItemId,
+              printerId: menuItem.printerId || posItem.printerId,
+              assignedPrinter: menuItem.assignedPrinter || posItem.assignedPrinter
             };
             const newCart = [...currentCart, newItem];
             return newCart;
@@ -816,7 +816,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               originalItem: stockEntry,
               posItem,
               stockEntryId: posItem.materialId,
-              menuItemId: undefined
+              menuItemId: undefined,
+              printerId: stockEntry.printerId || posItem.printerId,
+              assignedPrinter: stockEntry.assignedPrinter || posItem.assignedPrinter
             };
             newCart = [...currentCart, newItem];
           }
@@ -1131,16 +1133,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       let savedOrder;
       if (currentOrder) {
         console.log("📝 Updating existing order:", currentOrder.id);
-        
+
         // For updates, use the existing order items structure but update quantities/prices
         const updateData = {
           items: cart.map(cartItem => {
             // Find matching existing order item or create new structure
-            const existingItem = currentOrder.items?.find(orderItem => 
-              (cartItem.type === "menu" && String(orderItem.menuItemId) === String(cartItem.menuItemId)) ||
-              (cartItem.type === "material" && String(orderItem.materialId) === String((cartItem.originalItem as StockEntryWithMaterial).materialId))
-            );
-            
+            const existingItem = currentOrder.items?.find(orderItem => (cartItem.type === "menu" && String(orderItem.menuItemId) === String(cartItem.menuItemId)) || (cartItem.type === "material" && String(orderItem.materialId) === String((cartItem.originalItem as StockEntryWithMaterial).materialId)));
+
             return {
               id: existingItem?.id || `temp-${Date.now()}-${Math.random()}`,
               materialId: cartItem.type === "material" ? String((cartItem.originalItem as StockEntryWithMaterial).materialId) : undefined,
@@ -1160,11 +1159,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           discountAmount: appliedDiscount?.amount || 0,
           discountReason: appliedDiscount?.reason
         };
-        
+
         savedOrder = await updateOrder(updateData);
       } else {
         console.log("🆕 Creating new order");
-        
+
         // For creation, use the simpler structure without IDs
         const createData = {
           orderType,
@@ -1187,7 +1186,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           discountAmount: appliedDiscount?.amount || 0,
           discountReason: appliedDiscount?.reason
         };
-        
+
         savedOrder = await createOrder(createData);
       }
 

@@ -574,10 +574,33 @@ PrintJob.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-// Note: Order ↔ PrintJob relationship is handled through metadata.orderId (JSONB field)
-// No direct foreign key association needed since it's stored in metadata JSONB
+// Printer relationships
+// StockEntry ↔ Printer (for individual item printer assignment)
+StockEntry.belongsTo(Printer, {
+  foreignKey: "printerId",
+  as: "assignedPrinter",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Printer.hasMany(StockEntry, {
+  foreignKey: "printerId",
+  as: "assignedStockEntries",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
 
-// Printer relationships (simplified for now)
-// Note: Complex associations temporarily removed to resolve startup issues
+// MenuItem ↔ Printer (for individual menu item printer assignment)
+MenuItem.belongsTo(Printer, {
+  foreignKey: "printerId",
+  as: "assignedPrinter",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Printer.hasMany(MenuItem, {
+  foreignKey: "printerId",
+  as: "assignedMenuItems",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
 
 export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };

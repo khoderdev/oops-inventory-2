@@ -35,6 +35,11 @@ export const stockAPI = {
   updateStockEntry: (id: string, stockEntryData: UpdateStockEntryData) => api.put<StockEntry, UpdateStockEntryData>(`/stock-entries/${id}`, stockEntryData),
   updateStockEntryPOS: (id: string, posData: { isPOSItem: boolean }) => api.patch<StockEntry, { isPOSItem: boolean }>(`/stock-entries/${id}/pos`, posData),
   deleteStockEntry: (id: string) => api.delete<null>(`/stock-entries/${id}`),
+
+  // Printer assignment methods
+  getStockEntriesWithPrinters: () => api.get<StockEntry[]>("/stock-entries/with-printers"),
+  assignPrinter: (id: string | number, printerId: number | null) => api.patch<{ stockEntry: StockEntry }, { printerId: number | null }>(`/stock-entries/${id}/assign-printer`, { printerId }),
+  bulkAssignPrinter: (stockEntryIds: (string | number)[], printerId: number | null) => api.patch<{ updatedCount: number; stockEntries: StockEntry[] }, { stockEntryIds: (string | number)[]; printerId: number | null }>("/stock-entries/bulk-assign-printer", { stockEntryIds, printerId }),
   async getWastageReport({ startDate, endDate }: { startDate?: string; endDate?: string }) {
     // Parse and validate dates
     const parseDate = (dateStr?: string): string | null => {

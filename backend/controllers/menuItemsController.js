@@ -1,5 +1,5 @@
 import sequelize from "../config/database.js";
-import { Material, MenuItem, MenuItemIngredient } from "../models/index.js";
+import { Material, MenuItem, MenuItemIngredient, Printer } from "../models/index.js";
 
 const menuItemsController = {
   // Get all menu items with ingredients
@@ -11,6 +11,11 @@ const menuItemsController = {
             model: MenuItemIngredient,
             as: "menuItemIngredients",
             include: [{ model: Material, as: "material" }]
+          },
+          {
+            model: Printer,
+            as: "assignedPrinter",
+            required: false
           }
         ]
       });
@@ -41,6 +46,11 @@ const menuItemsController = {
             model: MenuItemIngredient,
             as: "menuItemIngredients",
             include: [{ model: Material, as: "material" }]
+          },
+          {
+            model: Printer,
+            as: "assignedPrinter",
+            required: false
           }
         ]
       });
@@ -343,7 +353,127 @@ const menuItemsController = {
       await transaction.rollback();
       next(error);
     }
-  }
+  },
+
+  // Assign printer to menu item
+  assignPrinter: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { printerId } = req.body;
+
+      // Validate printer exists if printerId is provided
+      if (printerId) {
+        const printer = await Printer.findByPk(printerId);
+        if (!printer) {
+          return res.status(404).json({ error: "Printer not found" });
+        }
+      }
+
+      // Update menu item with printer assignment
+      const [updatedRowsCount] = await MenuItem.update(
+        { printerId: printerId || null },
+        { where: { id } }
+      );
+
+      if (updatedRowsCount === 0) {
+        return res.status(404).json({ error: "Menu item not found" });
+      }
+
+      // Fetch updated menu item with printer info
+      const updatedMenuItem = await MenuItem.findByPk(id, {
+        include: [
+          {
+            model: MenuItemIngredient,
+            as: "menuItemIngredients",
+            include: [{ model: Material, as: "material" }]
+          },
+          {
+            model: Printer,
+            as: "assignedPrinter",
+            attributes: ["id", "name", "type", "status"]
+          }
+        ]
+      });
+
+      res.status(200).json({
+        message: printerId ? "Printer assigned successfully" : "Printer assignment removed",
+        menuItem: updatedMenuItem
+      });
+    } catch (error) {
+      console.error("Error assigning printer to menu item:", error);
+      next(error);
+    }
+  },
+
+  // Get menu items with their assigned printers
+  getMenuItemsWithPrinters: async (req, res, next) => {
+    try {
+      const menuItems = await MenuItem.findAll({
+        include: [
+          {
+            model: MenuItemIngredient,
+            as: "menuItemIngredients",
+            include: [{ model: Material, as: "material" }]
+          },
+          {
+            model: Printer,
+            as: "assignedPrinter",
+            attributes: ["id", "name", "type", "status", "location"],
+            required: false // LEFT JOIN to include items without printers
+          }
+        ],
+        order: [["id", "ASC"]]
+      });
+
+      const formattedMenuItems = menuItems.map(item => ({
+        ...item.get(),
+        ingredients: item.menuItemIngredients.map(ingredient => ({
+          materialId: ingredient.materialId,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          cost: ingredient.cost
+        }))
+      }));
+
+      res.status(200).json(formattedMenuItems);
+    } catch (error) {
+      console.error("Error fetching menu items with printers:", error);
+      next(error);
+    }
+  },
+
+  // Bulk assign printer to multiple menu items
+  bulkAssignPrinter: async (req, res, next) => {
+    try {
+      const { menuItemIds, printerId } = req.body;
+
+      if (!Array.isArray(menuItemIds) || menuItemIds.length === 0) {
+        return res.status(400).json({ error: "Menu item IDs array is required" });
+      }
+
+      // Validate printer exists if printerId is provided
+      if (printerId) {
+        const printer = await Printer.findByPk(printerId);
+        if (!printer) {
+          return res.status(404).json({ error: "Printer not found" });
+        }
+      }
+
+      // Update multiple menu items
+      const [updatedRowsCount] = await MenuItem.update(
+        { printerId: printerId || null },
+        { where: { id: menuItemIds } }
+      );
+
+      res.status(200).json({
+        message: `${updatedRowsCount} menu items updated`,
+        updatedCount: updatedRowsCount
+      });
+    } catch (error) {
+      console.error("Error bulk assigning printer:", error);
+      next(error);
+    }
+  },
 };
 
 export default menuItemsController;

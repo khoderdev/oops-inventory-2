@@ -1,5 +1,6 @@
 import { salesAPI } from "@/api/sales.api.ts.tsx";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
+import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,10 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { Material, NegativeStockReport, StockEntry } from "@/types/inventory";
+import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
-import { AlertTriangle, Edit, Eye, FileText, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Edit, Eye, FileText, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export function StockEntriesTable() {
@@ -23,6 +24,8 @@ export function StockEntriesTable() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [showPrinterDialog, setShowPrinterDialog] = useState(false);
+  const [selectedStockEntry, setSelectedStockEntry] = useState<StockEntryWithMaterial | null>(null);
   const materialsMap = new Map(materials.map(m => [m.id, m]));
 
   const stockEntriesWithMaterial = stockEntries
@@ -184,6 +187,16 @@ export function StockEntriesTable() {
         variant: "destructive"
       });
     }
+  };
+
+  const handleOpenPrinterDialog = (entry: StockEntryWithMaterial) => {
+    setSelectedStockEntry(entry);
+    setShowPrinterDialog(true);
+  };
+
+  const handlePrinterAssignmentChange = async () => {
+    // Refresh the data to show updated printer assignments
+    await fetchTabData("stock");
   };
 
   return (
@@ -388,6 +401,18 @@ export function StockEntriesTable() {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleOpenPrinterDialog(entry);
+                                }}
+                                title={entry.assignedPrinter ? `Assigned to: ${entry.assignedPrinter.name}` : "Assign printer"}
+                                className={entry.assignedPrinter ? "border-blue-500 text-blue-600" : ""}
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
                               <Button variant="outline" size="sm" onClick={() => handleEditStockEntry(entry as StockEntry)}>
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -426,6 +451,9 @@ export function StockEntriesTable() {
           </div>
         </div>
       </CardContent>
+
+      {/* Printer Assignment Dialog */}
+      <PrinterAssignmentDialog open={showPrinterDialog} onOpenChange={setShowPrinterDialog} item={selectedStockEntry} itemType="stock" onAssignmentChange={handlePrinterAssignmentChange} />
     </Card>
   );
 }

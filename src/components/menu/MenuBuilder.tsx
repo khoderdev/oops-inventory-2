@@ -12,9 +12,10 @@ import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIng
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
-import { Edit, Eye, Package, Plus, Search, Trash2 } from "lucide-react";
+import { Edit, Eye, Package, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { MenuItemForm } from "./MenuItemForm";
+import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, sections }) => {
   const { fetchTabData } = useInventoryStore();
@@ -62,6 +63,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [showPrinterDialog, setShowPrinterDialog] = useState(false);
+  const [selectedMenuItemForPrinter, setSelectedMenuItemForPrinter] = useState<MenuItem | null>(null);
 
   const MENU_CATEGORIES = useMemo<{ value: MenuItemCategory; label: string }[]>(
     () => [
@@ -276,6 +279,22 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     [onUpdateMenuItem, fetchTabData]
   );
 
+  const handleOpenPrinterDialog = useCallback((menuItem: MenuItem) => {
+    setSelectedMenuItemForPrinter(menuItem);
+    setShowPrinterDialog(true);
+  }, []);
+
+  const handleClosePrinterDialog = useCallback(() => {
+    setShowPrinterDialog(false);
+    setSelectedMenuItemForPrinter(null);
+  }, []);
+
+  const handlePrinterAssignmentComplete = useCallback(async () => {
+    // Refresh the menu items data to show updated printer assignments
+    await fetchTabData("menu");
+    handleClosePrinterDialog();
+  }, [fetchTabData, handleClosePrinterDialog]);
+
   return (
     <>
       <Card className="!border-0 !shadow-none !bg-background">
@@ -399,6 +418,18 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                             <Button
                               size="sm"
                               variant="outline"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleOpenPrinterDialog(item);
+                              }}
+                              title={`Assign printer to ${item.name}`}
+                              aria-label={`Assign printer to ${item.name}`}
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
                               onClick={() => {
                                 setEditingMenuItem(item);
                                 setShowMenuItemForm(true);
@@ -449,6 +480,15 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </div>
         </CardContent>
       </Card>
+      
+      {/* Printer Assignment Dialog */}
+      <PrinterAssignmentDialog
+        open={showPrinterDialog}
+        onOpenChange={setShowPrinterDialog}
+        item={selectedMenuItemForPrinter}
+        itemType="menu"
+        onAssignmentChange={handlePrinterAssignmentComplete}
+      />
     </>
   );
 };
