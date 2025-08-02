@@ -84,13 +84,10 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
       let fetchedOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
 
-      // Filter out table orders and only show incomplete orders
+      // Show all incomplete orders (including table orders)
       const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
       fetchedOrders = fetchedOrders.filter(order => {
-        // Exclude table orders
-        if (order.orderType === "table") return false;
-
-        // Only show incomplete orders
+        // Only show incomplete orders (include all order types: table, delivery, takeaway, bar)
         if (!incompleteStatuses.includes(order.status)) return false;
 
         // Apply search filter
@@ -464,6 +461,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                   <option value="all">All Types</option>
                   <option value="delivery">Delivery</option>
                   <option value="takeaway">Takeaway</option>
+                  <option value="table">Table</option>
                   <option value="bar">Bar</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
@@ -531,7 +529,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                   <ShoppingBag className="w-12 h-12 opacity-50" />
                 </div>
                 <h3 className="text-lg font-medium mb-2">No incomplete orders found</h3>
-                <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No incomplete delivery or takeaway orders at the moment"}</p>
+                <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No incomplete orders at the moment"}</p>
               </div>
             ) : viewMode === "list" ? (
               /* List View */
