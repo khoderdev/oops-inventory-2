@@ -1,3 +1,16 @@
+/**
+ * Authentication Middleware with Sliding Session Management
+ *
+ * This middleware implements a sliding session expiration system where:
+ * - Sessions are automatically extended on each request (sliding window)
+ * - Sessions only expire when:
+ *   1. User explicitly logs out
+ *   2. Session exceeds maximum duration (30 days)
+ *   3. Browser is closed (client-side token removal)
+ * - Session extensions are throttled to prevent excessive database updates
+ * - Sessions maintain activity tracking for security auditing
+ */
+
 import { AuditLog, Session, User } from "../models/index.js";
 
 // Extract token from request headers
@@ -11,6 +24,16 @@ const extractToken = req => {
 
 // Static testing token for development (remove in production)
 const STATIC_TEST_TOKEN = "test-admin-token-123";
+
+// Session configuration
+const SESSION_CONFIG = {
+  // Extend session by this amount on each request (24 hours)
+  EXTENSION_DURATION: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+  // Maximum session duration (30 days)
+  MAX_DURATION: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+  // Minimum time before extending session again (5 minutes)
+  MIN_EXTENSION_INTERVAL: 5 * 60 * 1000 // 5 minutes in milliseconds
+};
 
 // Middleware to authenticate user and attach to request
 export const authenticate = async (req, res, next) => {
@@ -28,90 +51,12 @@ export const authenticate = async (req, res, next) => {
     // Check for static test token (DEVELOPMENT ONLY)
     if (token === STATIC_TEST_TOKEN) {
       console.log("🔧 Using static test token for development");
-
-      // Create a mock admin user for testing
-      const mockAdminUser = {
-        id: 1,
-        username: "admin",
-        firstName: "Test",
-        lastName: "Admin",
-        role: "admin",
-        isActive: true,
-        permissions: {},
-        getFullName: () => "Test Admin",
-        hasPermission: () => true, // Admin has all permissions
-        getRolePermissions: () => ({
-          "users.create": true,
-          "users.read": true,
-          "users.update": true,
-          "users.delete": true,
-          "materials.create": true,
-          "materials.read": true,
-          "materials.update": true,
-          "materials.delete": true,
-          "stock.create": true,
-          "stock.read": true,
-          "stock.update": true,
-          "stock.delete": true,
-          "sales.create": true,
-          "sales.read": true,
-          "sales.update": true,
-          "sales.delete": true,
-          "sales.revert": true,
-          "sections.create": true,
-          "sections.read": true,
-          "sections.update": true,
-          "sections.delete": true,
-          "assignments.create": true,
-          "assignments.read": true,
-          "assignments.update": true,
-          "assignments.delete": true,
-          "menuItems.create": true,
-          "menuItems.read": true,
-          "menuItems.update": true,
-          "menuItems.delete": true,
-          "dayOperations.create": true,
-          "dayOperations.read": true,
-          "dayOperations.update": true,
-          "dayOperations.delete": true,
-          "reports.read": true,
-          "reports.export": true,
-          "analytics.read": true,
-          "system.settings": true,
-          // Employee Management Permissions
-          "employee.create": true,
-          "employee.read": true,
-          "employee.update": true,
-          "employee.delete": true,
-          "employee.view_salary": true,
-          "employee.manage_salary": true,
-          "employee.usage.record": true,
-          "employee.usage.view": true,
-          "employee.settlement.create": true,
-          "employee.settlement.approve": true,
-          "employee.settlement.process": true,
-          "employee.settlement.view": true
-        }),
-        isLocked: () => false
-      };
-
-      // Mock session
-      const mockSession = {
-        id: "test-session-1",
-        token: STATIC_TEST_TOKEN,
-        userId: 1,
-        isActive: true,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        update: async () => {}, // Mock update function
-        isExpired: () => false
-      };
-
-      // Attach mock user and session to request
-      req.user = mockAdminUser;
-      req.session = mockSession;
-      req.isAuthenticated = true;
-
-      return next();
+      // Note: Static test token should be handled by your application logic
+      // This is just a placeholder for development purposes
+      return res.status(501).json({
+        error: "Development token",
+        message: "Static test token detected but no mock user implementation"
+      });
     }
 
     // Find active session with token
@@ -129,12 +74,31 @@ export const authenticate = async (req, res, next) => {
       ]
     });
 
-    if (!session || session.isExpired()) {
-      await AuditLog.logFailedAction(null, "access_denied", "authentication", "Invalid or expired token", req);
+    if (!session) {
+      await AuditLog.logFailedAction(null, "access_denied", "authentication", "Invalid token", req);
       return res.status(401).json({
         error: "Access denied",
-        message: "Invalid or expired authentication token"
+        message: "Invalid authentication token"
       });
+    }
+
+    // Check if session is expired (only if it's truly expired, not just needs extension)
+    if (session.isExpired()) {
+      // Check if session can be extended (within maximum duration)
+      const sessionAge = Date.now() - new Date(session.createdAt).getTime();
+
+      if (sessionAge > SESSION_CONFIG.MAX_DURATION) {
+        // Session has exceeded maximum duration, force logout
+        await session.update({ isActive: false });
+        await AuditLog.logFailedAction(session.userId, "session_expired", "authentication", "Session exceeded maximum duration", req);
+        return res.status(401).json({
+          error: "Access denied",
+          message: "Session has expired due to maximum duration limit"
+        });
+      }
+
+      // Session is expired but within max duration, extend it
+      console.log(`🔄 Extending expired session for user ${session.userId}`);
     }
 
     const user = session.user;
@@ -148,12 +112,30 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    // Update session activity
-    await session.update({
-      lastActivity: new Date(),
+    // Update session activity and extend expiration (sliding session)
+    const now = new Date();
+    const lastActivity = session.lastActivity ? new Date(session.lastActivity) : new Date(session.createdAt);
+    const timeSinceLastExtension = now.getTime() - lastActivity.getTime();
+
+    // Only extend session if enough time has passed since last extension
+    // This prevents unnecessary database updates on rapid requests
+    const shouldExtendSession = timeSinceLastExtension >= SESSION_CONFIG.MIN_EXTENSION_INTERVAL;
+
+    const updateData = {
+      lastActivity: now,
       ipAddress: req.ip || req.connection.remoteAddress,
       userAgent: req.get("User-Agent")
-    });
+    };
+
+    // Extend session expiration time (sliding window)
+    if (shouldExtendSession) {
+      const newExpirationTime = new Date(now.getTime() + SESSION_CONFIG.EXTENSION_DURATION);
+      updateData.expiresAt = newExpirationTime;
+
+      console.log(`🔄 Extended session for user ${user.id} until ${newExpirationTime.toISOString()}`);
+    }
+
+    await session.update(updateData);
 
     // Attach user and session to request
     req.user = user;
@@ -334,17 +316,48 @@ export const optionalAuth = async (req, res, next) => {
       ]
     });
 
-    if (session && !session.isExpired() && !session.user.isLocked()) {
-      req.user = session.user;
-      req.session = session;
-      req.isAuthenticated = true;
+    if (session && !session.user.isLocked()) {
+      // Check session expiration with extension logic
+      let sessionValid = true;
 
-      // Update session activity
-      await session.update({
-        lastActivity: new Date(),
-        ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.get("User-Agent")
-      });
+      if (session.isExpired()) {
+        const sessionAge = Date.now() - new Date(session.createdAt).getTime();
+
+        if (sessionAge > SESSION_CONFIG.MAX_DURATION) {
+          // Session exceeded maximum duration
+          await session.update({ isActive: false });
+          sessionValid = false;
+        }
+        // If within max duration, session will be extended below
+      }
+
+      if (sessionValid) {
+        req.user = session.user;
+        req.session = session;
+        req.isAuthenticated = true;
+
+        // Update session activity and extend expiration (sliding session)
+        const now = new Date();
+        const lastActivity = session.lastActivity ? new Date(session.lastActivity) : new Date(session.createdAt);
+        const timeSinceLastExtension = now.getTime() - lastActivity.getTime();
+
+        const shouldExtendSession = timeSinceLastExtension >= SESSION_CONFIG.MIN_EXTENSION_INTERVAL;
+
+        const updateData = {
+          lastActivity: now,
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get("User-Agent")
+        };
+
+        if (shouldExtendSession) {
+          const newExpirationTime = new Date(now.getTime() + SESSION_CONFIG.EXTENSION_DURATION);
+          updateData.expiresAt = newExpirationTime;
+        }
+
+        await session.update(updateData);
+      } else {
+        req.isAuthenticated = false;
+      }
     } else {
       req.isAuthenticated = false;
     }
