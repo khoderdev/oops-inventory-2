@@ -40,13 +40,15 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
 
   // Function to handle Arabic text encoding for thermal printers
   const handleArabicText = (text: string): string => {
-    // Remove any Chinese/Unicode characters that might interfere
-    // and ensure proper Arabic text display
+    // Only remove specific problematic Chinese/Unicode characters
+    // Keep normal ASCII and Arabic characters intact
+    if (!text) return text;
+    
+    // Only remove if the text contains actual Chinese characters mixed with other text
+    // This is more conservative to avoid corrupting normal English text
     return text
-      .replace(/[\u4e00-\u9fff]/g, '') // Remove Chinese characters
-      .replace(/[\u3400-\u4dbf]/g, '') // Remove CJK Extension A
-      .replace(/[\u20000-\u2a6df]/g, '') // Remove CJK Extension B
-      .replace(/[\uf900-\ufaff]/g, '') // Remove CJK Compatibility
+      .replace(/[\u4e00-\u9fff]+/g, '') // Remove Chinese character sequences only
+      .replace(/[\u3400-\u4dbf]+/g, '') // Remove CJK Extension A sequences only
       .trim();
   };
 
