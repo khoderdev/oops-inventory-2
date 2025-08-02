@@ -96,7 +96,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const fetchOrdersCount = useCallback(async () => {
     try {
       const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
-      console.log("Orders API response for count:", response);
 
       // Handle nested response structure
       interface OrderData {
@@ -120,19 +119,9 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
         // Check if order is incomplete (not paid, served, or completed)
         const isIncomplete = order.status && !["paid", "served", "completed"].includes(order.status);
 
-        console.log("Order filter check:", {
-          orderId: order.id,
-          orderDate,
-          isToday,
-          status: order.status,
-          isIncomplete,
-          included: isToday && isIncomplete
-        });
-
         return isToday && isIncomplete;
       });
 
-      console.log(`Found ${incompleteOrdersToday.length} incomplete orders for today`);
       setOrdersCount(incompleteOrdersToday.length);
     } catch (error) {
       console.error("Failed to fetch orders count:", error);
@@ -144,7 +133,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const fetchSalesCount = useCallback(async () => {
     try {
       const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
-      console.log("Sales API response for count:", response);
 
       // Handle nested response structure
       const responseData = response.data as { data?: { orderType: string }[] } | { orderType: string }[];
@@ -165,8 +153,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleOrderSelect = useCallback((order: any) => {
-    console.log("Selected order:", order);
-    // Call the parent's onOrderSelect if provided
     if (onOrderSelect) {
       onOrderSelect(order);
     }
@@ -184,8 +170,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSaleSelect = useCallback((order: any) => {
-    console.log("Selected sale:", order);
-    // Handle sale selection if needed
     setShowSalesDialog(false);
   }, []);
 

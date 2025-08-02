@@ -5,9 +5,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSalesOperations } from "@/hooks/useSalesOperations";
 import { dateFilterAtom, itemSalesAtom, selectedItemFilterAtom, selectedSectionFilterAtom, totalQuantityAtom, totalSalesAtom, uniqueItemNamesAtom, uniqueSectionNamesAtom } from "@/store/salesAtoms";
@@ -15,15 +18,33 @@ import { ItemSale, ReceiptData } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
 import { useAtom, useAtomValue } from "jotai";
-import { AlertCircle, CheckCircle, CheckSquare, DollarSign, Loader2, Package, Printer, Search, ShoppingBag, ShoppingCart, Square, Trash2, Undo2 } from "lucide-react";
+import { AlertCircle, CalendarIcon, CheckCircle, CheckSquare, DollarSign, Loader2, Package, Printer, Search, ShoppingBag, ShoppingCart, Square, Trash2, Undo2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { format, isValid } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const [selectedItem, setSelectedItem] = useAtom(selectedItemFilterAtom);
   const [selectedSection, setSelectedSection] = useAtom(selectedSectionFilterAtom);
   const [dateFilter, setDateFilter] = useAtom(dateFilterAtom);
+  
+  // Date range picker state
+  const [dateFrom, setDateFrom] = React.useState<Date | undefined>(() => {
+    // Default to today's date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  });
+  const [dateTo, setDateTo] = React.useState<Date | undefined>(() => {
+    // Default to today's date
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return today;
+  });
+  const [dateFromOpen, setDateFromOpen] = React.useState(false);
+  const [dateToOpen, setDateToOpen] = React.useState(false);
   const {
     sales,
     isLoading,
@@ -164,14 +185,41 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
         return itemSectionName === selectedSection;
       });
     }
-    if (dateFilter) {
+    
+    // Use date range filter instead of single date filter
+    if (dateFrom || dateTo) {
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.saleDate);
+        itemDate.setHours(0, 0, 0, 0); // Reset time for comparison
+        
+        let withinRange = true;
+        
+        if (dateFrom) {
+          const fromDate = new Date(dateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          withinRange = withinRange && itemDate >= fromDate;
+        }
+        
+        if (dateTo) {
+          const toDate = new Date(dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          withinRange = withinRange && itemDate <= toDate;
+        }
+        
+        return withinRange;
+      });
+    }
+    
+    // Legacy date filter support (fallback)
+    if (dateFilter && !dateFrom && !dateTo) {
       filtered = filtered.filter(item => {
         const itemDate = item.saleDate.toISOString().split("T")[0];
         return itemDate === dateFilter;
       });
     }
+    
     return filtered.sort((a, b) => b.saleDate.getTime() - a.saleDate.getTime());
-  }, [sales, selectedItem, selectedSection, dateFilter]);
+  }, [sales, selectedItem, selectedSection, dateFilter, dateFrom, dateTo]);
 
   // Group sales by Sale ID for accordion
   const groupedSales = useMemo(() => {
@@ -463,7 +511,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="text-2xl font-bold">{totalQuantity}</div>
-              <p className="text-xs text-muted-foreground">{selectedItem !== "all" || selectedSection !== "all" || dateFilter ? `Filtered from ${itemSales.length} total` : "Total quantity sold"}</p>
+              <p className="text-xs text-muted-foreground">{selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo ? `Filtered from ${itemSales.length} total` : "Total quantity sold"}</p>
             </Card>
             <Card className="p-4">
               <div className="flex items-center justify-between">
@@ -475,8 +523,8 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
             </Card>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="flex flex-col sm:flex-row gap-4 w-full">
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium">Select Item</label>
                 <Select value={selectedItem} onValueChange={setSelectedItem}>
@@ -510,22 +558,114 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                 </Select>
               </div>
               <div className="flex-1">
-                <label className="text-sm font-medium">Date</label>
-                <Input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">From Date</Label>
+                  <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dateFrom && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={date => {
+                          if (isValid(date)) {
+                            setDateFrom(date);
+                          }
+                          setDateFromOpen(false);
+                        }}
+                        initialFocus
+                        disabled={date => date > new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">To Date</Label>
+                  <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dateTo && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateTo ? format(dateTo, "MMM d, yyyy") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={date => {
+                          if (isValid(date)) {
+                            setDateTo(date);
+                          }
+                          setDateToOpen(false);
+                        }}
+                        initialFocus
+                        disabled={date => date > new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </div>
-            {(selectedItem !== "all" || selectedSection !== "all" || dateFilter) && (
+            
+            {/* Legacy single date filter - kept for backward compatibility */}
+            {!dateFrom && !dateTo && (
+              <div className="flex-1">
+                <label className="text-sm font-medium">Date (Legacy)</label>
+                <Input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+              </div>
+            )}
+            
+            <div className="flex flex-wrap gap-2">
+              {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedItem("all");
+                    setSelectedSection("all");
+                    setDateFilter("");
+                    // Reset to today's date range
+                    const today = new Date();
+                    const todayStart = new Date(today);
+                    todayStart.setHours(0, 0, 0, 0);
+                    const todayEnd = new Date(today);
+                    todayEnd.setHours(23, 59, 59, 999);
+                    setDateFrom(todayStart);
+                    setDateTo(todayEnd);
+                  }}
+                >
+                  Reset to Today
+                </Button>
+              )}
+              
               <Button
                 variant="outline"
                 onClick={() => {
-                  setSelectedItem("all");
-                  setSelectedSection("all");
+                  setDateFrom(undefined);
+                  setDateTo(undefined);
                   setDateFilter("");
                 }}
               >
-                Clear Filters
+                Clear Date Filters
               </Button>
-            )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -538,7 +678,13 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
               <p className="text-sm text-muted-foreground">
                 Showing {localFilteredSales.length} of {itemSales.length} item sales
                 {selectedItem !== "all" && ` for "${selectedItem}"`}
-                {dateFilter && ` on ${formatDate(new Date(dateFilter))}`}
+                {selectedSection !== "all" && ` in "${selectedSection}"`}
+                {dateFrom && dateTo && (() => {
+                  const fromDateStr = format(dateFrom, "yyyy-MM-dd");
+                  const toDateStr = format(dateTo, "yyyy-MM-dd");
+                  return fromDateStr === toDateStr ? ` on ${format(dateFrom, "MMM d, yyyy")}` : ` from ${format(dateFrom, "MMM d, yyyy")} to ${format(dateTo, "MMM d, yyyy")}`;
+                })()}
+                {dateFilter && !dateFrom && !dateTo && ` on ${formatDate(new Date(dateFilter))}`}
               </p>
             </div>
             {selectedItemIds.size > 0 && (
@@ -795,13 +941,18 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
               </ul>
               <br />
               <span className="text-blue-600 font-medium">This is a "soft delete" operation - the sale data is preserved but hidden from view.</span>
-              {(selectedItem !== "all" || selectedSection !== "all" || dateFilter) && (
+              {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
                 <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
                   <p className="text-sm text-yellow-800">
                     <strong>Note:</strong> You are deleting sales based on current filters:
                     {selectedItem !== "all" && <span className="block">• Item: {selectedItem}</span>}
                     {selectedSection !== "all" && <span className="block">• Section: {selectedSection}</span>}
-                    {dateFilter && <span className="block">• Date: {formatDate(new Date(dateFilter))}</span>}
+                    {dateFrom && dateTo && (() => {
+                      const fromDateStr = format(dateFrom, "yyyy-MM-dd");
+                      const toDateStr = format(dateTo, "yyyy-MM-dd");
+                      return <span className="block">• {fromDateStr === toDateStr ? `Date: ${format(dateFrom, "MMM d, yyyy")}` : `Date Range: ${format(dateFrom, "MMM d, yyyy")} to ${format(dateTo, "MMM d, yyyy")}`}</span>;
+                    })()}
+                    {dateFilter && !dateFrom && !dateTo && <span className="block">• Date: {formatDate(new Date(dateFilter))}</span>}
                   </p>
                 </div>
               )}
@@ -870,13 +1021,18 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
               </ul>
               <br />
               <span className="text-destructive font-medium">This action cannot be undone.</span>
-              {(selectedItem !== "all" || selectedSection !== "all" || dateFilter) && (
+              {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
                 <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
                   <p className="text-sm text-yellow-800">
                     <strong>Note:</strong> You are reverting sales based on current filters:
                     {selectedItem !== "all" && <span className="block">• Item: {selectedItem}</span>}
                     {selectedSection !== "all" && <span className="block">• Section: {selectedSection}</span>}
-                    {dateFilter && <span className="block">• Date: {formatDate(new Date(dateFilter))}</span>}
+                    {dateFrom && dateTo && (() => {
+                      const fromDateStr = format(dateFrom, "yyyy-MM-dd");
+                      const toDateStr = format(dateTo, "yyyy-MM-dd");
+                      return <span className="block">• {fromDateStr === toDateStr ? `Date: ${format(dateFrom, "MMM d, yyyy")}` : `Date Range: ${format(dateFrom, "MMM d, yyyy")} to ${format(dateTo, "MMM d, yyyy")}`}</span>;
+                    })()}
+                    {dateFilter && !dateFrom && !dateTo && <span className="block">• Date: {formatDate(new Date(dateFilter))}</span>}
                   </p>
                 </div>
               )}

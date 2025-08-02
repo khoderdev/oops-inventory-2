@@ -21,14 +21,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   const renderCount = useRef(0);
   renderCount.current += 1;
 
-  console.log("🔄 POSClientOrders: Component rendering #", renderCount.current, "with props:", {
-    isOpen,
-    hasOnClose: !!onClose,
-    hasOnOrderSelect: !!onOrderSelect,
-    onCloseChanged: onClose !== useRef(onClose).current,
-    onOrderSelectChanged: onOrderSelect !== useRef(onOrderSelect).current
-  });
-
   const { user } = useAuth();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -63,22 +55,13 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 
   // Fetch orders with stable implementation
   const fetchOrders = useCallback(async () => {
-    console.log("📡 fetchOrders: Starting fetch with conditions:", {
-      isOpen,
-      componentMounted: componentMountedRef.current,
-      filters
-    });
-
     if (isOpen !== undefined && !isOpen) {
-      console.log("❌ fetchOrders: Skipping - dialog is closed");
       return;
     }
     if (!componentMountedRef.current) {
-      console.log("❌ fetchOrders: Skipping - component unmounted");
       return;
     }
 
-    console.log("⏳ fetchOrders: Setting loading state");
     setIsLoading(true);
     setError(null);
 
@@ -101,25 +84,14 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
         params.endDate = filters.dateRange.endDate;
       }
 
-      console.log("📡 fetchOrders: Making API call with params:", params);
       const response = await ordersAPI.getOrders(params);
-      console.log("✅ fetchOrders: API response received:", {
-        hasData: !!response.data,
-        responseType: typeof response.data,
-        isArray: Array.isArray(response.data)
-      });
 
       if (!componentMountedRef.current) {
-        console.log("❌ fetchOrders: Component unmounted during API call");
         return;
       }
 
       const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
       let fetchedOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
-      console.log("📊 fetchOrders: Extracted orders:", {
-        totalOrders: fetchedOrders.length,
-        firstOrder: fetchedOrders[0]?.orderNumber || "none"
-      });
 
       // Filter out table orders and apply search
       const beforeFilter = fetchedOrders.length;
@@ -133,31 +105,16 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
         return true;
       });
 
-      console.log("🔍 fetchOrders: Filtering complete:", {
-        beforeFilter,
-        afterFilter: fetchedOrders.length,
-        searchTerm: filters.searchTerm,
-        statusFilter: filters.status,
-        typeFilter: filters.orderType
-      });
-
-      console.log("✅ fetchOrders: Setting orders state with", fetchedOrders.length, "orders");
       setOrders(fetchedOrders);
     } catch (error) {
       if (!componentMountedRef.current) {
-        console.log("❌ fetchOrders: Component unmounted during error handling");
         return;
       }
-      console.error("❌ fetchOrders: API call failed:", error);
       const errorMessage = `Failed to load orders: ${error instanceof Error ? error.message : "Unknown error"}`;
-      console.log("❌ fetchOrders: Setting error state:", errorMessage);
       setError(errorMessage);
     } finally {
       if (componentMountedRef.current) {
-        console.log("✅ fetchOrders: Setting loading to false");
         setIsLoading(false);
-      } else {
-        console.log("❌ fetchOrders: Component unmounted, skipping loading state update");
       }
     }
   }, [isOpen, filters]);
@@ -175,21 +132,17 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 
   // Fetch orders when component opens or filters change
   useEffect(() => {
-    console.log("🔄 useEffect[fetchOrders]: Triggering fetch due to dependency change");
     fetchOrders();
   }, [fetchOrders]);
 
   // Clear error after 10 seconds
   useEffect(() => {
     if (error) {
-      console.log("⏰ useEffect[error]: Setting 10s timeout to clear error:", error);
       const timeout = setTimeout(() => {
-        console.log("⏰ Error timeout: Clearing error after 10 seconds");
         setError(null);
-      }, 10000);
+      }, 3000);
 
       return () => {
-        console.log("⏰ Error timeout: Cleanup - clearing timeout");
         clearTimeout(timeout);
       };
     }
@@ -282,12 +235,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 
   // Memoized sorted orders to prevent unnecessary re-renders
   const sortedOrders = useMemo(() => {
-    console.log("📊 useMemo[sortedOrders]: Recalculating sorted orders:", {
-      ordersCount: orders.length,
-      sortBy,
-      sortOrder
-    });
-
     const ordersCopy = [...orders];
 
     ordersCopy.sort((a, b) => {
@@ -310,75 +257,49 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       return sortOrder === "desc" ? -comparison : comparison;
     });
 
-    console.log("📊 useMemo[sortedOrders]: Sorting complete, returning", ordersCopy.length, "orders");
     return ordersCopy;
   }, [orders, sortBy, sortOrder]);
 
   // Handle filter changes
   const handleFilterChange = useCallback((key: keyof OrderFilters, value: string | undefined) => {
-    console.log("🔧 handleFilterChange: Changing filter:", {
-      key,
-      value
-    });
-
     const newValue = value === "all" ? undefined : value;
-    console.log("🔧 handleFilterChange: Processed value:", newValue);
-
     setFilters(prev => {
-      console.log("🔧 handleFilterChange: Previous filters:", prev);
       const newFilters = {
         ...prev,
         [key]: newValue
       };
-      console.log("🔧 handleFilterChange: New filters state:", newFilters);
       return newFilters;
     });
-  }, []); // Remove filters dependency to prevent excessive re-renders
+  }, []);
 
   // Handle search term change
   const handleSearchChange = useCallback((value: string) => {
-    console.log("🔍 handleSearchChange: Search term changed to:", value);
-
     setFilters(prev => {
-      console.log("🔍 handleSearchChange: Previous filters:", prev);
       const newFilters = {
         ...prev,
         searchTerm: value
       };
-      console.log("🔍 handleSearchChange: Updated filters:", newFilters);
       return newFilters;
     });
-  }, []); // Remove dependency to prevent excessive re-renders
+  }, []);
 
   // Clear filters
   const clearFilters = useCallback(() => {
-    console.log("🧽 clearFilters: Clearing all filters");
     setFilters({});
   }, []);
 
   // Manual refresh
   const handleRefresh = useCallback(async () => {
-    console.log("🔄 handleRefresh: Manual refresh triggered:", {
-      currentlyRefreshing: refreshing,
-      currentlyLoading: isLoading
-    });
-
     if (refreshing || isLoading) {
-      console.log("❌ handleRefresh: Skipping - already refreshing or loading");
       return;
     }
-
-    console.log("⏳ handleRefresh: Starting manual refresh");
     setRefreshing(true);
     await fetchOrders();
-    console.log("✅ handleRefresh: Manual refresh complete");
     setRefreshing(false);
   }, [fetchOrders, refreshing, isLoading]);
 
   // Handle sorting
   const handleSort = useCallback((field: "date" | "total" | "status") => {
-    console.log("📊 handleSort: Sort requested for field:", field);
-
     setSortBy(prevSortBy => {
       setSortOrder(prevSortOrder => {
         if (prevSortBy === field) {
@@ -397,10 +318,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   // Handle order selection for editing
   const handleOrderSelect = useCallback(
     async (orderSummary: OrderSummary) => {
-      console.log("🎯 handleOrderSelect: Order selected:", orderSummary.orderNumber);
-
       if (!stableOnOrderSelect.current) {
-        console.log("❌ handleOrderSelect: No onOrderSelect callback provided");
         return;
       }
 
@@ -417,13 +335,9 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
           throw new Error("Order data not found");
         }
 
-        console.log("✅ handleOrderSelect: Calling parent onOrderSelect");
-        // Call the parent callback to load order into POS cart
         stableOnOrderSelect.current(orderData as Order);
 
-        // Close the orders dialog if onClose is provided
         if (stableOnClose.current) {
-          console.log("✅ handleOrderSelect: Closing dialog");
           stableOnClose.current();
         }
       } catch (error) {
@@ -459,61 +373,36 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 
   // Component lifecycle management
   useEffect(() => {
-    console.log("🔄 useEffect[lifecycle]: Component mounted");
     componentMountedRef.current = true;
     return () => {
-      console.log("🔄 useEffect[lifecycle]: Component unmounting");
       componentMountedRef.current = false;
       if (refreshIntervalRef.current) {
-        console.log("⏰ useEffect[lifecycle]: Clearing refresh interval");
         clearInterval(refreshIntervalRef.current);
       }
     };
   }, []);
 
   // Auto-refresh setup
-  useEffect(() => {
-    console.log("⏰ useEffect[auto-refresh]: Setting up auto-refresh:", {
-      isOpen,
-      showOrderDetails,
-      showReceiptDialog,
-      isLoading,
-      refreshing
-    });
+  // useEffect(() => {
+  //   if (refreshIntervalRef.current) {
+  //     clearInterval(refreshIntervalRef.current);
+  //   }
+  //   if ((!isOpen && isOpen !== undefined) || showOrderDetails || showReceiptDialog) {
+  //     return;
+  //   }
 
-    if (refreshIntervalRef.current) {
-      console.log("⏰ useEffect[auto-refresh]: Clearing existing interval");
-      clearInterval(refreshIntervalRef.current);
-    }
+  //   refreshIntervalRef.current = setInterval(() => {
+  //     if (!isLoading && !refreshing && componentMountedRef.current) {
+  //       fetchOrders();
+  //     }
+  //   }, 30000);
 
-    if ((!isOpen && isOpen !== undefined) || showOrderDetails || showReceiptDialog) {
-      console.log("❌ useEffect[auto-refresh]: Skipping auto-refresh setup - dialog closed or other dialogs open");
-      return;
-    }
-
-    console.log("✅ useEffect[auto-refresh]: Starting 30s auto-refresh interval");
-    refreshIntervalRef.current = setInterval(() => {
-      console.log("⏰ Auto-refresh interval: Checking conditions:", {
-        isLoading,
-        refreshing,
-        componentMounted: componentMountedRef.current
-      });
-
-      if (!isLoading && !refreshing && componentMountedRef.current) {
-        console.log("🔄 Auto-refresh interval: Triggering fetchOrders");
-        fetchOrders();
-      } else {
-        console.log("❌ Auto-refresh interval: Skipping - conditions not met");
-      }
-    }, 30000);
-
-    return () => {
-      console.log("⏰ useEffect[auto-refresh]: Cleanup - clearing interval");
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
-  }, [isOpen, showOrderDetails, showReceiptDialog, isLoading, refreshing, fetchOrders]);
+  //   return () => {
+  //     if (refreshIntervalRef.current) {
+  //       clearInterval(refreshIntervalRef.current);
+  //     }
+  //   };
+  // }, [isOpen, showOrderDetails, showReceiptDialog, isLoading, refreshing, fetchOrders]);
 
   // If not used as dialog, return early if isOpen is false
   if (isDialog && !isOpen) return null;
@@ -566,23 +455,16 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                   onChange={e => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log("🔧 Status select onChange:", {
-                      selectedValue: e.target.value,
-                      willSetTo: e.target.value === "all" ? undefined : e.target.value
-                    });
                     handleFilterChange("status", e.target.value === "all" ? undefined : (e.target.value as OrderStatus));
                   }}
                   onFocus={e => {
                     e.stopPropagation();
-                    console.log("🎯 Status select: Focused");
                   }}
                   onBlur={e => {
                     e.stopPropagation();
-                    console.log("🎯 Status select: Blurred");
                   }}
                   onClick={e => {
                     e.stopPropagation();
-                    console.log("🖱️ Status select: Clicked");
                   }}
                   className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none appearance-none cursor-pointer"
                 >
@@ -609,23 +491,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                   onChange={e => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log("🔧 Order Type select onChange:", {
-                      selectedValue: e.target.value,
-                      willSetTo: e.target.value === "all" ? undefined : e.target.value
-                    });
                     handleFilterChange("orderType", e.target.value === "all" ? undefined : (e.target.value as OrderType));
-                  }}
-                  onFocus={e => {
-                    e.stopPropagation();
-                    console.log("🎯 Order Type select: Focused");
-                  }}
-                  onBlur={e => {
-                    e.stopPropagation();
-                    console.log("🎯 Order Type select: Blurred");
-                  }}
-                  onClick={e => {
-                    e.stopPropagation();
-                    console.log("🖱️ Order Type select: Clicked");
                   }}
                   className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none appearance-none cursor-pointer"
                 >
@@ -669,11 +535,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
           className="flex-1 min-h-0 overflow-auto"
           onScroll={e => {
             const target = e.target as HTMLElement;
-            console.log("📜 Scroll event:", {
-              scrollTop: target.scrollTop,
-              scrollHeight: target.scrollHeight,
-              clientHeight: target.clientHeight
-            });
           }}
         >
           <div className="p-4">
@@ -747,22 +608,11 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                         className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
                         onClick={e => {
                           const target = e.target as HTMLElement;
-                          console.log("🖱️ Table row clicked:", {
-                            orderNumber: order.orderNumber,
-                            targetTag: target.tagName,
-                            targetClass: target.className,
-                            hasButton: !!target.closest("button"),
-                            hasActionButton: !!target.closest(".action-button")
-                          });
-
                           if (target.closest("button") || target.closest(".action-button")) {
-                            console.log("❌ Table row click: Prevented - clicked on action button");
                             e.preventDefault();
                             e.stopPropagation();
                             return;
                           }
-
-                          console.log("✅ Table row click: Calling handleOrderSelect");
                           handleOrderSelect(order);
                         }}
                       >
@@ -858,22 +708,11 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                     className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]"
                     onClick={e => {
                       const target = e.target as HTMLElement;
-                      console.log("🖱️ Card clicked:", {
-                        orderNumber: order.orderNumber,
-                        targetTag: target.tagName,
-                        targetClass: target.className,
-                        hasActionButton: !!target.closest(".action-button"),
-                        hasSvg: !!target.closest("svg")
-                      });
-
                       if (target.closest(".action-button") || target.closest("svg")) {
-                        console.log("❌ Card click: Prevented - clicked on action button or SVG");
                         e.preventDefault();
                         e.stopPropagation();
                         return;
                       }
-
-                      console.log("✅ Card click: Calling handleOrderSelect");
                       handleOrderSelect(order);
                     }}
                   >
