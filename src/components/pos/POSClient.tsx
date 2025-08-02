@@ -1171,27 +1171,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     
     content += "\n";
     content += "------------------------------------------------\n";
-    content += "                  ORDER ITEMS\n";
+    content += centerText("ORDER ITEMS") + "\n";
     content += "------------------------------------------------\n";
     content += "\n";
     
-    // Items with proper alignment
+    // Items - simplified for kitchen/station (only name and quantity)
     items.forEach((item, index) => {
-      const itemName = item.name.length > 30 ? item.name.substring(0, 27) + "..." : item.name;
-      const itemType = item.type === "menu" ? "MENU" : "MATERIAL";
-      const price = `$${item.price.toFixed(2)}`;
-      const total = `$${(item.price * item.quantity).toFixed(2)}`;
+      const itemName = item.name.length > 40 ? item.name.substring(0, 37) + "..." : item.name;
       
-      // Item line with quantity and name
-      content += `${item.quantity}x ${itemName}\n`;
+      // Only show quantity and item name - no prices or types
+      content += centerText(`${item.quantity}x ${itemName}`) + "\n";
       
-      // Price line with right alignment
-      const priceLine = `   ${itemType} - ${price} each`;
-      const totalLine = `Total: ${total}`;
-      const spacesNeeded = 48 - priceLine.length - totalLine.length;
-      content += priceLine + " ".repeat(Math.max(1, spacesNeeded)) + totalLine + "\n";
-      
-      // Add separator between items (except last item)
+      // Add spacing between items (except last item)
       if (index < items.length - 1) {
         content += "\n";
       }
@@ -1200,20 +1191,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     content += "\n";
     content += "------------------------------------------------\n";
     
-    // Calculate totals
+    // Only show item count - no monetary totals for kitchen
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-    const orderTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
-    content += `Items: ${itemCount}\n`;
-    content += `Station Total: $${orderTotal.toFixed(2)}\n`;
-    content += "\n";
-    
-    // Footer
-    content += "================================================\n";
-    content += `            END ${stationName} ORDER\n`;
-    content += "================================================\n";
-    content += "\n";
-    content += "   Please prepare items for this station\n";
+    content += centerText(`Total Items: ${itemCount}`) + "\n";
     content += "\n";
     
     // Add thermal printer paper cut command (ESC/POS)
