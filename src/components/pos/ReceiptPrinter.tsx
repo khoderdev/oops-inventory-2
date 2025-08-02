@@ -31,68 +31,104 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   // Printer selector hook
   const { getSavedPrinter, hasSavedPrinter } = usePrinterSelector();
 
-  // Generate receipt content for thermal printer
+  // Generate receipt content for thermal printer - optimized for 80mm thermal paper
   const generateReceiptContent = useCallback((receiptData: ReceiptPrinterProps["receiptData"], businessInfo: ReceiptPrinterProps["businessInfo"], currentUser?: { username?: string }) => {
     if (!receiptData) return "";
 
-    const lines: string[] = [];
+    // 80mm thermal receipt formatting (48 characters wide)
+    let content = "";
 
-    // Header
-    lines.push(businessInfo.name.toUpperCase());
-    lines.push(businessInfo.address);
-    lines.push(businessInfo.phone);
-    lines.push("".padEnd(32, "="));
-    lines.push("");
+    // Header with centered alignment
+    content += businessInfo.name.toUpperCase() + "\n";
+    content += businessInfo.address + "\n";
+    content += businessInfo.phone + "\n";
+    content += "================================================\n";
+    content += "\n";
 
     // Receipt info
-    lines.push(`Receipt #: ${receiptData.id}`);
-    lines.push(`Date: ${receiptData.date}`);
-    lines.push(`Time: ${receiptData.time}`);
-    lines.push(`Cashier: ${receiptData.cashier || currentUser?.username || "Unknown User"}`);
-    lines.push("".padEnd(32, "-"));
-    lines.push("");
+    content += `Receipt #: ${receiptData.id}\n`;
+    content += `Date: ${receiptData.date}\n`;
+    content += `Time: ${receiptData.time}\n`;
+    content += `Cashier: ${receiptData.cashier || currentUser?.username || "Unknown User"}\n`;
+    content += "------------------------------------------------\n";
+    content += "\n";
 
-    // Items
-    receiptData.items.forEach(item => {
-      lines.push(`${item.name}`);
+    // Items with proper alignment
+    receiptData.items.forEach((item, index) => {
+      // Item name (truncate if too long)
+      const itemName = item.name.length > 40 ? item.name.substring(0, 37) + "..." : item.name;
+      content += `${itemName}\n`;
+      
+      // Quantity, unit price, and total with right alignment
       const qtyPrice = `${item.quantity}x ${formatCurrency(item.unitPrice)}`;
       const total = formatCurrency(item.totalPrice);
-      const spacesNeeded = 32 - qtyPrice.length - total.length;
-      lines.push(`${qtyPrice}${" ".repeat(Math.max(1, spacesNeeded))}${total}`);
+      const spacesNeeded = 48 - qtyPrice.length - total.length;
+      content += qtyPrice + " ".repeat(Math.max(1, spacesNeeded)) + total + "\n";
+      
+      // Add spacing between items (except last item)
+      if (index < receiptData.items.length - 1) {
+        content += "\n";
+      }
     });
 
-    lines.push("".padEnd(32, "-"));
+    content += "\n";
+    content += "------------------------------------------------\n";
 
-    // Totals
-    const subtotalLine = `Subtotal: ${formatCurrency(receiptData.subtotal)}`;
-    lines.push(subtotalLine.padStart(32));
+    // Totals with right alignment
+    const subtotalText = "Subtotal:";
+    const subtotalValue = formatCurrency(receiptData.subtotal);
+    const subtotalSpaces = 48 - subtotalText.length - subtotalValue.length;
+    content += subtotalText + " ".repeat(Math.max(1, subtotalSpaces)) + subtotalValue + "\n";
 
+    // Discount (if applicable)
     if (receiptData.discountAmount && receiptData.discountAmount > 0) {
-      const discountLine = `Discount: -${formatCurrency(receiptData.discountAmount)}`;
-      lines.push(discountLine.padStart(32));
+      const discountText = "Discount:";
+      const discountValue = "-" + formatCurrency(receiptData.discountAmount);
+      const discountSpaces = 48 - discountText.length - discountValue.length;
+      content += discountText + " ".repeat(Math.max(1, discountSpaces)) + discountValue + "\n";
     }
 
-    const taxLine = `Tax: ${formatCurrency(receiptData.tax)}`;
-    lines.push(taxLine.padStart(32));
+    // Tax
+    const taxText = "Tax:";
+    const taxValue = formatCurrency(receiptData.tax);
+    const taxSpaces = 48 - taxText.length - taxValue.length;
+    content += taxText + " ".repeat(Math.max(1, taxSpaces)) + taxValue + "\n";
 
-    lines.push("".padEnd(32, "="));
+    content += "================================================\n";
 
-    const totalLine = `TOTAL: ${formatCurrency(receiptData.total)}`;
-    lines.push(totalLine.padStart(32));
+    // Total with emphasis
+    const totalText = "TOTAL:";
+    const totalValue = formatCurrency(receiptData.total);
+    const totalSpaces = 48 - totalText.length - totalValue.length;
+    content += totalText + " ".repeat(Math.max(1, totalSpaces)) + totalValue + "\n";
 
-    lines.push("");
+    content += "\n";
 
     // Payment info
-    lines.push(`Payment: ${formatCurrency(receiptData.paymentAmount)}`);
-    lines.push(`Change: ${formatCurrency(receiptData.change)}`);
+    if (receiptData.paymentMethod && receiptData.paymentMethod !== "report") {
+      content += "Payment Method:\n";
+      content += receiptData.paymentMethod.toUpperCase() + "\n";
+      content += "\n";
+    }
 
-    lines.push("");
-    lines.push("Thank you for your visit!");
-    lines.push("");
+    const paidText = "Amount Paid:";
+    const paidValue = formatCurrency(receiptData.paymentAmount);
+    const paidSpaces = 48 - paidText.length - paidValue.length;
+    content += paidText + " ".repeat(Math.max(1, paidSpaces)) + paidValue + "\n";
+
+    const changeText = "Change:";
+    const changeValue = formatCurrency(receiptData.change);
+    const changeSpaces = 48 - changeText.length - changeValue.length;
+    content += changeText + " ".repeat(Math.max(1, changeSpaces)) + changeValue + "\n";
+
+    content += "\n";
+    content += "================================================\n";
+    content += "\n";
+    content += "         Thank you for your visit!\n";
+    content += "\n";
 
     // Add thermal printer paper cut command (ESC/POS)
-    const receiptContent = lines.join("\n");
-    return receiptContent + "\x1B\x69"; // ESC i - Full cut command
+    return content + "\x1B\x69"; // ESC i - Full cut command
   }, []);
 
   // Validate receipt data integrity
