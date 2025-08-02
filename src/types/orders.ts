@@ -30,6 +30,7 @@ export interface ReserveTableData {
 }
 
 export interface OrderItem {
+  menuItem: boolean;
   id: string;
   materialId?: string;
   menuItemId?: string;

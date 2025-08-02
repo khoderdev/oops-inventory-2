@@ -11,7 +11,7 @@ import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { Employee } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
+import { Order, OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
@@ -68,6 +68,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const processedOrderRef = useRef<string | null>(null);
 
   // Resizable panel state
   const [leftPanelWidth, setLeftPanelWidth] = useState(33.33); // Default 33.33% (1/3)
@@ -98,11 +99,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setShowOrdersDialog(false);
   }, []);
 
-  const handleOrderSelectCallback = useCallback((order: any) => {
-    if (onOrderSelect) {
-      onOrderSelect(order);
-    }
-  }, []);
+  const handleOrderSelectCallback = useCallback(
+    (order: Order) => {
+      if (onOrderSelect) {
+        onOrderSelect(order);
+      }
+    },
+    [onOrderSelect]
+  );
 
   // Order management hook
   const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
@@ -137,6 +141,114 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Load selected order into cart when selectedOrderForPOS changes
+  useEffect(() => {
+    if (selectedOrderForPOS && selectedOrderForPOS.items) {
+      const orderId = selectedOrderForPOS.id.toString();
+      
+      // Prevent duplicate processing of the same order
+      if (processedOrderRef.current === orderId) {
+        console.log("⚠️ POSClient: Order", orderId, "already processed, skipping...");
+        return;
+      }
+      
+      console.log("🔄 POSClient: Loading selected order into cart:", selectedOrderForPOS);
+      console.log("🔄 POSClient: Starting cart conversion for items:", selectedOrderForPOS.items);
+      
+      // Mark this order as being processed
+      processedOrderRef.current = orderId;
+      
+      // Convert order items to cart items
+      const cartItems: POSCartItem[] = selectedOrderForPOS.items.map((item: any, index) => {
+        console.log(`🔄 POSClient: Converting item ${index + 1}:`, item);
+        
+        if (item.menuItem) {
+          console.log(`🔄 POSClient: Item ${index + 1} menuItem:`, item.menuItem);
+          return {
+            id: item.menuItem.id.toString(),
+            name: item.menuItem.name,
+            price: item.menuItem.price,
+            quantity: item.quantity,
+            type: "menu" as const,
+            menuItemId: item.menuItem.id,
+            originalItem: item.menuItem,
+            stockEntryId: undefined
+          };
+        } else if (item.material) {
+          return {
+            id: item.material.id.toString(),
+            name: item.material.name,
+            price: parseFloat(item.unitPrice),
+            quantity: item.quantity,
+            type: "material" as const,
+            materialId: item.material.id,
+            originalItem: item.material,
+            stockEntryId: undefined
+          };
+        }
+        
+        return null;
+      }).filter(Boolean) as POSCartItem[];
+      
+      console.log("🔄 POSClient: Converted items:", cartItems.map((item, index) => {
+        console.log(`🔄 POSClient: Converted item ${index + 1}:`, item);
+        return item;
+      }));
+
+      // Set order type first
+      setOrderType(selectedOrderForPOS.orderType);
+
+      // Set table if it's a table order (but don't trigger handleTableSelection)
+      if (selectedOrderForPOS.orderType === "table" && selectedOrderForPOS.table) {
+        setSelectedTable(selectedOrderForPOS.table);
+      }
+
+      // Apply any existing discount
+      if (selectedOrderForPOS.discountAmount && parseFloat(selectedOrderForPOS.discountAmount) > 0) {
+        setAppliedDiscount({
+          type: (selectedOrderForPOS.discountType as "percentage" | "fixed") || "fixed",
+          value: parseFloat(selectedOrderForPOS.discountValue?.toString() || "0"),
+          amount: parseFloat(selectedOrderForPOS.discountAmount),
+          reason: selectedOrderForPOS.discountReason || undefined
+        });
+      }
+
+      // Use setTimeout to ensure cart is set AFTER all other state updates complete
+      // This prevents race conditions where other state updates might clear the cart
+      console.log("🛒 POSClient: Scheduling cart items to be set:", cartItems);
+      setTimeout(() => {
+        console.log("🛒 POSClient: Now setting cart items in setTimeout:", cartItems);
+        setCart(cartItems);
+        
+        // Verify cart was set correctly
+        setTimeout(() => {
+          console.log("🔍 POSClient: Verifying cart was set correctly");
+        }, 10);
+      }, 10);
+      
+      // Mark as having unsaved changes since we're editing an existing order
+      setHasUnsavedChanges(true);
+
+      // TEMPORARILY DISABLE AGAIN - Load the order into order management
+      // if (loadOrder) {
+      //   console.log("🔄 POSClient: Calling loadOrder - this might clear the cart");
+      //   loadOrder(selectedOrderForPOS.id.toString());
+      // }
+
+      console.log("✅ POSClient: Order loaded into cart successfully");
+
+      // TEMPORARILY DISABLE AGAIN - Call onOrderProcessed to clear the selectedOrderForPOS in parent
+      // if (onOrderProcessed) {
+      //   console.log("🔄 POSClient: Calling onOrderProcessed - this might clear the cart");
+      //   onOrderProcessed();
+      // }
+    } else if (!selectedOrderForPOS) {
+      // Reset processed order tracking when no order is selected
+      processedOrderRef.current = null;
+      console.log("🔄 POSClient: No order selected, reset processed order tracking");
+    }
+  }, [selectedOrderForPOS]);
 
   // Clear cart with animation
   const clearCartWithAnimation = useCallback(() => {

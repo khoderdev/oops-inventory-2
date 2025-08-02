@@ -181,7 +181,10 @@ const POSClientPage: React.FC = () => {
         sectionAssignments={sectionAssignments} 
         onSaleComplete={handleSaleComplete}
         selectedOrderForPOS={selectedOrderForPOS}
-        onOrderProcessed={() => setSelectedOrderForPOS(null)}
+        onOrderProcessed={() => {
+          console.log("🔄 POSClientPage: onOrderProcessed called - NOT clearing selectedOrderForPOS for debugging");
+          // Temporarily disabled: setSelectedOrderForPOS(null);
+        }}
         refreshCountsRef={refreshCountsRef}
       />
     </POSLayout>

@@ -4,7 +4,7 @@ import { stockSchema } from "@/components/stock/stockSchema";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { Employee } from "./employee";
-import { Order, OrderStatus, OrderType } from "./orders";
+import { Order, OrderSummary, OrderStatus, OrderType } from "./orders";
 
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco" | "hotDrinks" | "coldDrinks";
 
@@ -451,7 +451,7 @@ export interface POSCartItem {
 export interface POSClientProps {
   sectionAssignments: SectionAssignment[];
   onSaleComplete?: (saleData: SaleResponse) => void;
-  onOrderSelect?: (order: Order) => void;
+  onOrderSelect?: (order: OrderSummary) => void;
   selectedOrderForPOS?: Order | null;
   onOrderProcessed?: () => void;
   refreshCountsRef?: React.MutableRefObject<(() => Promise<void>) | null>;
