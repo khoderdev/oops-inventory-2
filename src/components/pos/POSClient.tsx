@@ -1303,17 +1303,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Automatically select TAKE AWAY after voiding
         resetToTakeaway();
 
-        // Refresh tables if this was a table order
-        if (orderType === "table" && selectedTable) {
-          try {
-            const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
-            const responseData = tablesResponse.data as Table[] | { data: Table[] };
-            const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
-            setTables(refreshedTables);
-          } catch (error) {
-            console.error("Failed to refresh tables:", error);
-          }
-        }
+        // Refresh all counts and tables immediately after voiding (POSLayout + table notifications + Tables Layout)
+        await refreshAllCounts();
 
         // Show success message with stock restoration info
         let successMessage = "Order voided successfully";
@@ -1325,7 +1316,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Error is already handled by the voidOrder function
       }
     },
-    [voidOrder, clearCartWithAnimation, orderType, selectedTable, showSuccess, resetToTakeaway, clearOrder]
+    [voidOrder, clearCartWithAnimation, showSuccess, resetToTakeaway, clearOrder, refreshAllCounts]
   );
 
   // Handle orders dialog
