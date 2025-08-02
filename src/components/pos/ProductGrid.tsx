@@ -4,10 +4,43 @@ import { formatCurrency } from "@/utils/conversionLogic";
 import { Package, ShoppingCart } from "lucide-react";
 import React from "react";
 
-export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart }) => {
+export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0 }) => {
+  // Determine grid columns based on right panel width
+  // Responsive breakpoints for right panel:
+  // ≤ 400px: 2 columns (very narrow)
+  // 401-600px: 3 columns (narrow)
+  // 601-800px: 4 columns (medium)
+  // 801-1000px: 5 columns (wide)
+  // > 1000px: 6 columns (very wide)
+  const getGridColumns = (width: number) => {
+    if (width <= 400) return "grid-cols-2";
+    if (width <= 600) return "grid-cols-3";
+    if (width <= 800) return "grid-cols-4";
+    if (width <= 1000) return "grid-cols-5";
+    return "grid-cols-6";
+  };
+
+  const gridColumns = getGridColumns(rightPanelPixelWidth);
+
+  // Debug: Log the panel width and grid decision
+  React.useEffect(() => {
+    console.log("🎯 ProductGrid RESPONSIVE DEBUG:", {
+      rightPanelWidth: rightPanelPixelWidth,
+      gridColumns: gridColumns,
+      breakpoints: {
+        "≤400px": "2 cols",
+        "401-600px": "3 cols",
+        "601-800px": "4 cols",
+        "801-1000px": "5 cols",
+        ">1000px": "6 cols"
+      },
+      currentLayout: rightPanelPixelWidth <= 400 ? "2 cols" : rightPanelPixelWidth <= 600 ? "3 cols" : rightPanelPixelWidth <= 800 ? "4 cols" : rightPanelPixelWidth <= 1000 ? "5 cols" : "6 cols"
+    });
+  }, [rightPanelPixelWidth, gridColumns]);
+
   return (
     <div className="flex-1 p-2 sm:p-4 overflow-y-auto safe-area-padding">
-      <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+      <div className={`grid gap-3 sm:gap-4 lg:gap-5 ${gridColumns}`}>
         {/* Unified POS Items */}
         {posItems.map(item => (
           <Card key={item.id} className="items-card cursor-pointer select-none transition-all duration-300 hover:shadow-lg hover:scale-105 border-2 border-gray-200 hover:border-primary rounded-lg bg-white/80 backdrop-blur-sm btn-touch" onClick={() => onAddToCart(item)}>

@@ -519,6 +519,7 @@ export interface POSItemsResponse {
 export interface ProductGridProps {
   posItems: POSItem[];
   onAddToCart: (item: POSItem) => void;
+  rightPanelPixelWidth?: number;
 }
 
 export interface OrderSummaryProps {

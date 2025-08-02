@@ -1723,15 +1723,29 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     if (newWidth >= minWidth && newWidth <= maxWidth) {
       setLeftPanelWidth(newWidth);
 
+      // Calculate right panel width for ProductGrid
+      const rightPanelWidth = 100 - newWidth;
+      const rightPanelPixelWidth = (rightPanelWidth / 100) * containerRect.width;
+      
       // Live resize logging
       console.log("🔄 LIVE RESIZE:", {
-        percentage: `${newWidth.toFixed(1)}%`,
-        pixelWidth: `${pixelWidth.toFixed(0)}px`,
-        breakpoint: `${breakpoint}px`,
-        difference: `${(pixelWidth - breakpoint).toFixed(0)}px`,
-        containerWidth: `${containerRect.width.toFixed(0)}px`,
-        shouldShowLabels: pixelWidth > breakpoint,
-        status: pixelWidth > breakpoint ? "📱 WIDE (Icons + Labels)" : "📱 NARROW (Icons Only)"
+        leftPanel: {
+          percentage: `${newWidth.toFixed(1)}%`,
+          pixelWidth: `${pixelWidth.toFixed(0)}px`,
+          breakpoint: `${breakpoint}px`,
+          difference: `${(pixelWidth - breakpoint).toFixed(0)}px`,
+          shouldShowLabels: pixelWidth > breakpoint,
+          status: pixelWidth > breakpoint ? "📱 WIDE (Icons + Labels)" : "📱 NARROW (Icons Only)"
+        },
+        rightPanel: {
+          percentage: `${rightPanelWidth.toFixed(1)}%`,
+          pixelWidth: `${rightPanelPixelWidth.toFixed(0)}px`,
+          gridColumns: rightPanelPixelWidth <= 400 ? '2 cols' : 
+                      rightPanelPixelWidth <= 600 ? '3 cols' :
+                      rightPanelPixelWidth <= 800 ? '4 cols' :
+                      rightPanelPixelWidth <= 1000 ? '5 cols' : '6 cols'
+        },
+        containerWidth: `${containerRect.width.toFixed(0)}px`
       });
     }
   };
@@ -1963,7 +1977,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 overflow-y-auto !bg-gray-50">
-              <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} />
+              <ProductGrid 
+                posItems={filteredPosItems} 
+                onAddToCart={addToCart}
+                rightPanelPixelWidth={containerRef.current ? ((100 - leftPanelWidth) / 100) * containerRef.current.offsetWidth : 0}
+              />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}
