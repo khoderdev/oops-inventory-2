@@ -149,22 +149,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       
       // Prevent duplicate processing of the same order
       if (processedOrderRef.current === orderId) {
-        console.log("⚠️ POSClient: Order", orderId, "already processed, skipping...");
         return;
       }
-      
-      console.log("🔄 POSClient: Loading selected order into cart:", selectedOrderForPOS);
-      console.log("🔄 POSClient: Starting cart conversion for items:", selectedOrderForPOS.items);
       
       // Mark this order as being processed
       processedOrderRef.current = orderId;
       
       // Convert order items to cart items
-      const cartItems: POSCartItem[] = selectedOrderForPOS.items.map((item: any, index) => {
-        console.log(`🔄 POSClient: Converting item ${index + 1}:`, item);
-        
+      const cartItems: POSCartItem[] = selectedOrderForPOS.items.map((item: any) => {
         if (item.menuItem) {
-          console.log(`🔄 POSClient: Item ${index + 1} menuItem:`, item.menuItem);
           return {
             id: item.menuItem.id.toString(),
             name: item.menuItem.name,
@@ -190,11 +183,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         
         return null;
       }).filter(Boolean) as POSCartItem[];
-      
-      console.log("🔄 POSClient: Converted items:", cartItems.map((item, index) => {
-        console.log(`🔄 POSClient: Converted item ${index + 1}:`, item);
-        return item;
-      }));
 
       // Set order type first
       setOrderType(selectedOrderForPOS.orderType);
@@ -214,44 +202,41 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         });
       }
 
+      // Load the order into order management system FIRST to set currentOrder
+      if (loadOrder) {
+        loadOrder(selectedOrderForPOS.id.toString());
+      }
+
       // Use setTimeout to ensure cart is set AFTER all other state updates complete
       // This prevents race conditions where other state updates might clear the cart
-      console.log("🛒 POSClient: Scheduling cart items to be set:", cartItems);
       setTimeout(() => {
-        console.log("🛒 POSClient: Now setting cart items in setTimeout:", cartItems);
         setCart(cartItems);
         
-        // Verify cart was set correctly
+        // Clear the processed order ref after cart is set to allow future cart clearing
+        // But keep it for a bit longer to prevent immediate clearing
         setTimeout(() => {
-          console.log("🔍 POSClient: Verifying cart was set correctly");
-        }, 10);
+          if (processedOrderRef.current === orderId) {
+            processedOrderRef.current = null;
+          }
+        }, 5000); // Clear after 5 seconds
       }, 10);
       
       // Mark as having unsaved changes since we're editing an existing order
       setHasUnsavedChanges(true);
-
-      // TEMPORARILY DISABLE AGAIN - Load the order into order management
-      // if (loadOrder) {
-      //   console.log("🔄 POSClient: Calling loadOrder - this might clear the cart");
-      //   loadOrder(selectedOrderForPOS.id.toString());
-      // }
-
-      console.log("✅ POSClient: Order loaded into cart successfully");
-
-      // TEMPORARILY DISABLE AGAIN - Call onOrderProcessed to clear the selectedOrderForPOS in parent
-      // if (onOrderProcessed) {
-      //   console.log("🔄 POSClient: Calling onOrderProcessed - this might clear the cart");
-      //   onOrderProcessed();
-      // }
     } else if (!selectedOrderForPOS) {
       // Reset processed order tracking when no order is selected
       processedOrderRef.current = null;
-      console.log("🔄 POSClient: No order selected, reset processed order tracking");
     }
-  }, [selectedOrderForPOS]);
+  }, [selectedOrderForPOS, loadOrder]);
 
   // Clear cart with animation
   const clearCartWithAnimation = useCallback(() => {
+    // Don't clear cart if we're currently processing a selected order
+    if (processedOrderRef.current) {
+      console.log("🚫 Preventing cart clear - order is being processed:", processedOrderRef.current);
+      return;
+    }
+
     // Show success checkmark animation
     setShowSuccessCheckmark(true);
 
@@ -1142,30 +1127,69 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     try {
       setIsLoading(true);
 
-      // Create order data
-      const orderData = {
-        orderType,
-        tableId: selectedTable?.id,
-        employeeId: selectedEmployee?.id,
-        items: cart.map(item => ({
-          materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
-          menuItemId: item.type === "menu" ? String((item.originalItem as MenuItem).id) : undefined,
-          assignmentId: undefined,
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.price,
-          totalPrice: item.price * item.quantity,
-          type: item.type,
-          notes: undefined
-        })),
-        discountType: appliedDiscount?.type,
-        discountValue: appliedDiscount?.value,
-        discountAmount: appliedDiscount?.amount || 0,
-        discountReason: appliedDiscount?.reason
-      };
-
-      // Save the order
-      const savedOrder = await createOrder(orderData);
+      // Save the order - update if currentOrder exists, create if new
+      let savedOrder;
+      if (currentOrder) {
+        console.log("📝 Updating existing order:", currentOrder.id);
+        
+        // For updates, use the existing order items structure but update quantities/prices
+        const updateData = {
+          items: cart.map(cartItem => {
+            // Find matching existing order item or create new structure
+            const existingItem = currentOrder.items?.find(orderItem => 
+              (cartItem.type === "menu" && String(orderItem.menuItemId) === String(cartItem.menuItemId)) ||
+              (cartItem.type === "material" && String(orderItem.materialId) === String((cartItem.originalItem as StockEntryWithMaterial).materialId))
+            );
+            
+            return {
+              id: existingItem?.id || `temp-${Date.now()}-${Math.random()}`,
+              materialId: cartItem.type === "material" ? String((cartItem.originalItem as StockEntryWithMaterial).materialId) : undefined,
+              menuItemId: cartItem.type === "menu" ? String((cartItem.originalItem as MenuItem).id) : undefined,
+              assignmentId: undefined,
+              name: cartItem.name,
+              quantity: cartItem.quantity,
+              unitPrice: cartItem.price,
+              totalPrice: cartItem.price * cartItem.quantity,
+              type: cartItem.type,
+              notes: undefined,
+              menuItem: cartItem.type === "menu"
+            };
+          }),
+          discountType: appliedDiscount?.type,
+          discountValue: appliedDiscount?.value,
+          discountAmount: appliedDiscount?.amount || 0,
+          discountReason: appliedDiscount?.reason
+        };
+        
+        savedOrder = await updateOrder(updateData);
+      } else {
+        console.log("🆕 Creating new order");
+        
+        // For creation, use the simpler structure without IDs
+        const createData = {
+          orderType,
+          tableId: selectedTable?.id,
+          employeeId: selectedEmployee?.id,
+          items: cart.map(item => ({
+            materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+            menuItemId: item.type === "menu" ? String((item.originalItem as MenuItem).id) : undefined,
+            assignmentId: undefined,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.price * item.quantity,
+            type: item.type,
+            notes: undefined,
+            menuItem: item.type === "menu"
+          })),
+          discountType: appliedDiscount?.type,
+          discountValue: appliedDiscount?.value,
+          discountAmount: appliedDiscount?.amount || 0,
+          discountReason: appliedDiscount?.reason
+        };
+        
+        savedOrder = await createOrder(createData);
+      }
 
       // Show success message
       showSuccess(`Order ${savedOrder.orderNumber || savedOrder.id} saved successfully!`);
@@ -1212,7 +1236,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, createOrder, clearOrder, showSuccess, showError, refreshAllCounts]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, currentOrder, createOrder, updateOrder, clearOrder, showSuccess, showError, refreshAllCounts]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {

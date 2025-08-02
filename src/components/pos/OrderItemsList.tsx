@@ -12,14 +12,6 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
   const isCompleted = isOrderCompleted || orderStatus === "paid" || orderStatus === "served";
   const [showEmployeeSelector, setShowEmployeeSelector] = React.useState(false);
 
-  // Debug logging to track cart state
-  React.useEffect(() => {
-    console.log("📋 OrderItemsList: Cart received:", cart, "Length:", cart?.length || 0);
-    console.log("📋 OrderItemsList: Cart items:", cart?.map(item => ({ id: item.id, name: item.name, quantity: item.quantity })));
-  }, [cart]);
-
-
-
   // Determine if we should show labels based on left panel width
   // Show labels when panel is wider than 370px (≈28%), otherwise show icons only
   const shouldShowLabels = leftPanelPixelWidth > 430;
