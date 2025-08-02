@@ -249,10 +249,33 @@ class PrinterService extends EventEmitter {
     });
   }
 
-  async addPrintJob(jobData) {
+  async addPrintJob(printJob) {
     try {
+      // Handle both job data and created job objects
+      let job;
+      if (printJob.id) {
+        // Already a created job object
+        job = printJob;
+      } else {
+        // Job data - need to create the job
+        const printer = await Printer.findByPk(printJob.printerId, {
+          include: [{ model: PrinterChannel, as: "channel" }]
+        });
+
+        if (!printer || !printer.isActive) {
+          throw new Error("Printer not found or inactive");
+        }
+
+        job = await PrintJob.create({
+          ...printJob,
+          channelId: printer.channelId,
+          status: "pending",
+          timestamps: { created: new Date() }
+        });
+      }
+
       // Validate printer exists and is active
-      const printer = await Printer.findByPk(jobData.printerId, {
+      const printer = await Printer.findByPk(job.printerId, {
         include: [{ model: PrinterChannel, as: "channel" }]
       });
 
@@ -260,29 +283,21 @@ class PrinterService extends EventEmitter {
         throw new Error("Printer not found or inactive");
       }
 
-      // Create print job
-      const printJob = await PrintJob.create({
-        ...jobData,
-        channelId: printer.channelId,
-        status: "pending",
-        timestamps: { created: new Date() }
-      });
-
       // Add to queue
       const channelId = printer.channelId.toString();
       if (!this.printQueue.has(channelId)) {
         this.printQueue.set(channelId, []);
       }
 
-      this.printQueue.get(channelId).push(printJob);
+      this.printQueue.get(channelId).push(job);
 
       // Sort queue by priority
       this.sortQueueByPriority(channelId);
 
-      this.emit("jobQueued", printJob);
-      console.log(`📄 Print job ${printJob.id} queued for printer ${printer.name}`);
+      this.emit("jobQueued", job);
+      console.log(`📄 Print job ${job.id} queued for printer ${printer.name}`);
 
-      return printJob;
+      return job;
     } catch (error) {
       console.error("Failed to add print job:", error);
       throw error;
