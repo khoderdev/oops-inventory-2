@@ -1,5 +1,7 @@
+import { printerAPI } from "@/api/printer.api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { ReceiptPrinterProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertCircle, CheckCircle, Loader2, Printer } from "lucide-react";
@@ -22,6 +24,71 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   const [printError, setPrintError] = useState<string | null>(null);
   const [dataValidated, setDataValidated] = useState(false);
   const [lastPrintTime, setLastPrintTime] = useState<number | null>(null);
+
+  // Printer selector hook
+  const { getSavedPrinter, hasSavedPrinter } = usePrinterSelector();
+
+  // Generate receipt content for thermal printer
+  const generateReceiptContent = useCallback((receiptData: ReceiptPrinterProps["receiptData"], businessInfo: ReceiptPrinterProps["businessInfo"]) => {
+    if (!receiptData) return "";
+
+    const lines: string[] = [];
+
+    // Header
+    lines.push(businessInfo.name.toUpperCase());
+    lines.push(businessInfo.address);
+    lines.push(businessInfo.phone);
+    lines.push("".padEnd(32, "="));
+    lines.push("");
+
+    // Receipt info
+    lines.push(`Receipt #: ${receiptData.id}`);
+    lines.push(`Date: ${receiptData.date}`);
+    lines.push(`Time: ${receiptData.time}`);
+    lines.push(`Cashier: ${receiptData.cashier}`);
+    lines.push("".padEnd(32, "-"));
+    lines.push("");
+
+    // Items
+    receiptData.items.forEach(item => {
+      lines.push(`${item.name}`);
+      const qtyPrice = `${item.quantity}x ${formatCurrency(item.unitPrice)}`;
+      const total = formatCurrency(item.totalPrice);
+      const spacesNeeded = 32 - qtyPrice.length - total.length;
+      lines.push(`${qtyPrice}${" ".repeat(Math.max(1, spacesNeeded))}${total}`);
+    });
+
+    lines.push("".padEnd(32, "-"));
+
+    // Totals
+    const subtotalLine = `Subtotal: ${formatCurrency(receiptData.subtotal)}`;
+    lines.push(subtotalLine.padStart(32));
+
+    if (receiptData.discountAmount && receiptData.discountAmount > 0) {
+      const discountLine = `Discount: -${formatCurrency(receiptData.discountAmount)}`;
+      lines.push(discountLine.padStart(32));
+    }
+
+    const taxLine = `Tax: ${formatCurrency(receiptData.tax)}`;
+    lines.push(taxLine.padStart(32));
+
+    lines.push("".padEnd(32, "="));
+
+    const totalLine = `TOTAL: ${formatCurrency(receiptData.total)}`;
+    lines.push(totalLine.padStart(32));
+
+    lines.push("");
+
+    // Payment info
+    lines.push(`Payment: ${formatCurrency(receiptData.paymentAmount)}`);
+    lines.push(`Change: ${formatCurrency(receiptData.change)}`);
+
+    lines.push("");
+    lines.push("Thank you for your visit!");
+    lines.push("");
+
+    return lines.join("\n");
+  }, []);
 
   // Validate receipt data integrity
   const validationResult = useMemo(() => {
@@ -92,7 +159,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     }
   }, [validationResult]);
 
-  // Enhanced print function using native browser print dialog
+  // Enhanced print function with automatic printer communication
   const handlePrint = useCallback(async () => {
     // Prevent multiple simultaneous print operations
     if (isPrinting) {
@@ -115,6 +182,79 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     setPrintError(null);
 
     try {
+      // First, try to send to the selected printer automatically
+      if (hasSavedPrinter()) {
+        const savedPrinter = getSavedPrinter();
+        if (savedPrinter) {
+          console.log(`🖨️ Sending receipt to printer: ${savedPrinter.name}`);
+          console.log(`📋 Printer Details:`, {
+            id: savedPrinter.id,
+            name: savedPrinter.name,
+            type: savedPrinter.type,
+            connectionType: savedPrinter.connectionType,
+            status: savedPrinter.status
+          });
+
+          // Create receipt content for the printer
+          const receiptContent = generateReceiptContent(receiptData, businessInfo);
+          console.log(`📄 Generated receipt content for thermal printer:`);
+          console.log(`--- RECEIPT CONTENT START ---`);
+          console.log(receiptContent);
+          console.log(`--- RECEIPT CONTENT END ---`);
+
+          const printJobData = {
+            printerId: savedPrinter.id,
+            jobType: "receipt" as const,
+            content: receiptContent,
+            priority: 1,
+            metadata: {
+              receiptId: receiptData.id,
+              date: receiptData.date,
+              time: receiptData.time,
+              cashier: receiptData.cashier,
+              total: receiptData.total
+            }
+          };
+          
+          console.log(`📤 Sending print job with data:`, printJobData);
+
+          try {
+            const printJobResponse = await printerAPI.createPrintJob(printJobData);
+            
+            console.log(`📨 Print job API response:`, printJobResponse);
+
+            if (printJobResponse.success) {
+              console.log(`✅ Print job created successfully!`);
+              console.log(`🆔 Job ID: ${printJobResponse.job.id}`);
+              console.log(`📊 Job Status: ${printJobResponse.job.status}`);
+              console.log(`⏰ Created At: ${printJobResponse.job.createdAt}`);
+
+              // Track successful print
+              setLastPrintTime(Date.now());
+
+              // Call success callback to clear cart/items
+              if (onPrintSuccess) {
+                console.log("🧹 Calling onPrintSuccess to clear cart after successful automatic print");
+                onPrintSuccess();
+              }
+
+              return; // Exit early on successful automatic printing
+            } else {
+              console.warn("❌ Print job creation failed, falling back to browser print");
+              console.warn("Response:", printJobResponse);
+            }
+          } catch (printerError) {
+            console.error("🚨 Automatic printing failed, falling back to browser print:");
+            console.error("Error details:", printerError);
+          }
+        } else {
+          console.log("⚠️ No saved printer found in localStorage");
+        }
+      } else {
+        console.log("ℹ️ No printer selected - will use browser print dialog");
+      }
+
+      // Fallback to native browser print dialog
       // Create print styles for the current document
       const printStyles = `
         <style id="receipt-print-styles">
@@ -314,7 +454,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
 
       // Set document title for PDF filename
       const originalTitle = document.title;
-      document.title = `Receipt-${receiptData.id}-${receiptData.date.replace(/\//g, '-')}`;
+      document.title = `Receipt-${receiptData.id}-${receiptData.date.replace(/\//g, "-")}`;
 
       // Add print styles to document head
       document.head.insertAdjacentHTML("beforeend", printStyles);
@@ -326,33 +466,31 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       printContainer.style.top = "-9999px";
       printContainer.style.left = "-9999px";
       printContainer.innerHTML = receiptRef.current.innerHTML;
-      
+
       // Remove conflicting inline styles from sections to allow CSS to take over
       const sectionsToUpdate = [
-        { selector: '.header', marginBottom: '8mm', paddingBottom: '6mm' },
-        { selector: '.receipt-info', marginBottom: '8mm' },
-        { selector: '.items', marginBottom: '8mm' },
-        { selector: '.totals', marginTop: '8mm', paddingTop: '5mm' },
-        { selector: '.payment-info', marginTop: '8mm', paddingTop: '5mm' },
-        { selector: '.footer', marginTop: '9mm', paddingTop: '5mm' }
+        { selector: ".header", marginBottom: "8mm", paddingBottom: "6mm" },
+        { selector: ".receipt-info", marginBottom: "8mm" },
+        { selector: ".items", marginBottom: "8mm" },
+        { selector: ".totals", marginTop: "8mm", paddingTop: "5mm" },
+        { selector: ".payment-info", marginTop: "8mm", paddingTop: "5mm" },
+        { selector: ".footer", marginTop: "9mm", paddingTop: "5mm" }
       ];
-      
+
       sectionsToUpdate.forEach(({ selector, marginBottom, marginTop, paddingBottom, paddingTop }) => {
         const element = printContainer.querySelector(selector);
         if (element) {
           // Remove existing margin/padding from inline styles
-          const style = element.getAttribute('style') || '';
-          let newStyle = style
-            .replace(/margin[^;]*;?/g, '')
-            .replace(/padding[^;]*;?/g, '');
-          
+          const style = element.getAttribute("style") || "";
+          let newStyle = style.replace(/margin[^;]*;?/g, "").replace(/padding[^;]*;?/g, "");
+
           // Add our spacing
           if (marginBottom) newStyle += `margin-bottom: ${marginBottom} !important;`;
           if (marginTop) newStyle += `margin-top: ${marginTop} !important;`;
           if (paddingBottom) newStyle += `padding-bottom: ${paddingBottom} !important;`;
           if (paddingTop) newStyle += `padding-top: ${paddingTop} !important;`;
-          
-          element.setAttribute('style', newStyle);
+
+          element.setAttribute("style", newStyle);
         }
       });
 
@@ -393,7 +531,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     } finally {
       setIsPrinting(false);
     }
-  }, [receiptData, businessInfo, validationResult, isPrinting, dataValidated, onPrintSuccess]);
+  }, [receiptData, businessInfo, validationResult, isPrinting, onPrintSuccess, hasSavedPrinter, getSavedPrinter, generateReceiptContent]);
 
   // Handle keyboard events
   useEffect(() => {
