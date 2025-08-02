@@ -415,7 +415,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
 
       // Add each sale as a proper line item with meaningful data
       groupedSales.forEach((sale) => {
-        const saleDate = format(sale.saleDate, 'HH:mm');
+        const saleDate = format(sale.saleDate, 'hh:mm a');
         reportItems.push({
           name: `Sale #${sale.saleId} (${saleDate})`,
           quantity: sale.items.length,
@@ -429,14 +429,14 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
         id: `SALES-REPORT-${Date.now()}`,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
-        cashier: `Sales Report - ${dateRangeText}${filterText ? ` | ${filterText}` : ''}`,
+        cashier: `SALES REPORT | Period: ${dateRangeText}${filterText ? ` | Filters: ${filterText}` : ''}`,
         items: reportItems,
         subtotal: filteredTotal,
         tax: 0,
         total: filteredTotal,
         paymentAmount: filteredTotal,
         change: 0,
-        paymentMethod: `${groupedSales.length} sales | ${localFilteredSales.length} items | Avg: ${formatCurrency(groupedSales.length > 0 ? filteredTotal / groupedSales.length : 0)}`
+        paymentMethod: `SALES SUMMARY: ${groupedSales.length} transactions, ${localFilteredSales.length} items sold`
       };
 
       setSalesReportData(salesReport);
