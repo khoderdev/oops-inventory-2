@@ -203,7 +203,7 @@ class ApiClient {
 
 // Create API instance
 const api = new ApiClient({
-  baseURL: "http://192.168.88.89:3000/api",
+  baseURL: "http://localhost:3000/api",
   timeout: 15000
 });
 
