@@ -1120,47 +1120,95 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     console.log("🧹 Order cancelled - all state cleared");
   }, [clearOrder]);
 
-  // Format items for printer output
+  // Format items for printer output - optimized for 80mm thermal receipt
   const formatItemsForPrinter = useCallback((items: POSCartItem[]): string => {
-    const timestamp = new Date().toLocaleString();
+    const now = new Date();
+    const date = now.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+    const time = now.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: true 
+    });
     const orderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
     
     // Get printer name from the first item (all items in this group go to same printer)
     const printerName = items[0]?.assignedPrinter?.name || `Printer ${items[0]?.printerId || 'Unknown'}`;
+    const stationName = printerName.toUpperCase();
     
-    let content = `\n=== ${printerName.toUpperCase()} ORDER ===\n`;
-    content += `Order: ${orderNumber}\n`;
-    content += `Time: ${timestamp}\n`;
+    // 80mm thermal receipt formatting (48 characters wide)
+    let content = "";
+    
+    // Header with centered alignment
+    content += "================================================\n";
+    content += `           ${stationName} STATION\n`;
+    content += "================================================\n";
+    content += "\n";
+    
+    // Order information
+    content += `Order #: ${orderNumber}\n`;
+    content += `Date: ${date}\n`;
+    content += `Time: ${time}\n`;
     content += `Type: ${orderType.toUpperCase()}\n`;
-    content += `Station: ${printerName}\n`;
     
     if (selectedTable) {
       content += `Table: ${selectedTable.number}\n`;
     }
     
     if (selectedEmployee) {
-      content += `Employee: ${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName}\n`;
+      const employeeName = `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim();
+      content += `Staff: ${employeeName}\n`;
     }
     
-    content += `\n--- ITEMS FOR ${printerName.toUpperCase()} ---\n`;
+    content += "\n";
+    content += "------------------------------------------------\n";
+    content += "                  ORDER ITEMS\n";
+    content += "------------------------------------------------\n";
+    content += "\n";
     
-    items.forEach(item => {
-      content += `${item.quantity}x ${item.name}\n`;
-      if (item.type === "menu") {
-        content += `  [MENU ITEM]\n`;
-      } else {
-        content += `  [MATERIAL]\n`;
-      }
-      content += `  Price: $${item.price.toFixed(2)} each\n`;
+    // Items with proper alignment
+    items.forEach((item, index) => {
+      const itemName = item.name.length > 30 ? item.name.substring(0, 27) + "..." : item.name;
+      const itemType = item.type === "menu" ? "MENU" : "MATERIAL";
+      const price = `$${item.price.toFixed(2)}`;
+      const total = `$${(item.price * item.quantity).toFixed(2)}`;
       
-      // Add printer assignment info for clarity
-      if (item.assignedPrinter) {
-        content += `  Assigned to: ${item.assignedPrinter.name}\n`;
+      // Item line with quantity and name
+      content += `${item.quantity}x ${itemName}\n`;
+      
+      // Price line with right alignment
+      const priceLine = `   ${itemType} - ${price} each`;
+      const totalLine = `Total: ${total}`;
+      const spacesNeeded = 48 - priceLine.length - totalLine.length;
+      content += priceLine + " ".repeat(Math.max(1, spacesNeeded)) + totalLine + "\n";
+      
+      // Add separator between items (except last item)
+      if (index < items.length - 1) {
+        content += "\n";
       }
-      content += `\n`;
     });
     
-    content += `\n=== END ${printerName.toUpperCase()} ORDER ===\n\n`;
+    content += "\n";
+    content += "------------------------------------------------\n";
+    
+    // Calculate totals
+    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+    const orderTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    content += `Items: ${itemCount}\n`;
+    content += `Station Total: $${orderTotal.toFixed(2)}\n`;
+    content += "\n";
+    
+    // Footer
+    content += "================================================\n";
+    content += `            END ${stationName} ORDER\n`;
+    content += "================================================\n";
+    content += "\n";
+    content += "   Please prepare items for this station\n";
+    content += "\n";
     
     // Add thermal printer paper cut command (ESC/POS)
     content += "\x1B\x69"; // ESC i - Full cut command
