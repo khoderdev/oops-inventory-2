@@ -5,6 +5,7 @@ import net from "net";
 import os from "os";
 import path from "path";
 import { promisify } from "util";
+import sequelize from "../config/database.js";
 import { Printer, PrinterChannel, PrintJob } from "../models/index.js";
 
 const execAsync = promisify(exec);
@@ -202,11 +203,11 @@ class PrinterService extends EventEmitter {
   async testNetworkConnection(host, port, timeout = 5000) {
     return new Promise((resolve, reject) => {
       if (!host) {
-        return reject(new Error('Host address is required'));
+        return reject(new Error("Host address is required"));
       }
-      
+
       if (!port || isNaN(port) || port < 1 || port > 65535) {
-        return reject(new Error('Invalid port number'));
+        return reject(new Error("Invalid port number"));
       }
 
       const socket = new net.Socket();
@@ -226,7 +227,7 @@ class PrinterService extends EventEmitter {
         }
       };
 
-      const onError = (error) => {
+      const onError = error => {
         if (!isResolved) {
           cleanup();
           resolve(false);
@@ -234,10 +235,10 @@ class PrinterService extends EventEmitter {
       };
 
       socket.setTimeout(timeout);
-      
-      socket.once('connect', onSuccess);
-      socket.once('timeout', () => onError(new Error('Connection timeout')));
-      socket.once('error', onError);
+
+      socket.once("connect", onSuccess);
+      socket.once("timeout", () => onError(new Error("Connection timeout")));
+      socket.once("error", onError);
 
       try {
         socket.connect(port, host);
@@ -480,7 +481,7 @@ class PrinterService extends EventEmitter {
       };
 
       if (status === "error") {
-        updateData.errorCount = Printer.literal("error_count + 1");
+        updateData.errorCount = sequelize.literal("error_count + 1");
       }
 
       await Printer.update(updateData, { where: { id: printerId } });
