@@ -1714,7 +1714,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const containerRect = containerRef.current.getBoundingClientRect();
     const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
     const pixelWidth = (newWidth / 100) * containerRect.width;
-    const breakpoint = 370;
+    const breakpoint = 430;
 
     // Set min and max width constraints (20% to 60%)
     const minWidth = 20;
@@ -1726,7 +1726,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Calculate right panel width for ProductGrid
       const rightPanelWidth = 100 - newWidth;
       const rightPanelPixelWidth = (rightPanelWidth / 100) * containerRect.width;
-      
+
       // Live resize logging
       console.log("🔄 LIVE RESIZE:", {
         leftPanel: {
@@ -1740,10 +1740,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         rightPanel: {
           percentage: `${rightPanelWidth.toFixed(1)}%`,
           pixelWidth: `${rightPanelPixelWidth.toFixed(0)}px`,
-          gridColumns: rightPanelPixelWidth <= 400 ? '2 cols' : 
-                      rightPanelPixelWidth <= 600 ? '3 cols' :
-                      rightPanelPixelWidth <= 800 ? '4 cols' :
-                      rightPanelPixelWidth <= 1000 ? '5 cols' : '6 cols'
+          gridColumns: rightPanelPixelWidth <= 400 ? "2 cols" : rightPanelPixelWidth <= 600 ? "3 cols" : rightPanelPixelWidth <= 800 ? "4 cols" : rightPanelPixelWidth <= 1000 ? "5 cols" : "6 cols"
         },
         containerWidth: `${containerRect.width.toFixed(0)}px`
       });
@@ -1760,38 +1757,41 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     <>
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
         {/* Mobile Header - Order Summary (visible on mobile only) */}
-        <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar"))) && !showSuccessCheckmark && (
-                <span className="text-sm text-blue-600 font-bold">
-                  {currentOrder ? (
-                    <div className="flex items-center space-x-1">
-                      <span>{currentOrder.orderNumber}</span>
-                      <span className={`text-xs font-medium ${currentOrder.status === "draft" ? "text-orange-600" : currentOrder.status === "paid" ? "text-green-600" : currentOrder.status === "cancelled" ? "text-red-600" : "text-gray-600"}`}>({currentOrder.status})</span>
-                    </div>
-                  ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar") ? (
-                    <span>{generatePreviewOrderNumber()}</span>
-                  ) : hasUnsavedChanges ? (
-                    "Unsaved"
-                  ) : null}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">{cart && cart.length > 0 ? `${cart.length} items` : "Empty"}</span>
-              {cart && cart.length > 0 && (
-                <>
-                  <Button variant="outline" size="sm" onClick={() => setShowDiscountDialog(true)} className="text-xs px-2 py-1 h-6" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
-                    <DollarSign className="w-3 h-3 mr-1" />
-                    Discount
-                  </Button>
-                  <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" onClick={clearCart} />
-                </>
-              )}
+        {/* Mobile Header - Only show when there's content to display */}
+        {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0)) && !showSuccessCheckmark && (
+          <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar"))) && (
+                  <span className="text-sm text-blue-600 font-bold">
+                    {currentOrder ? (
+                      <div className="flex items-center space-x-1">
+                        <span>{currentOrder.orderNumber}</span>
+                        <span className={`text-xs font-medium ${currentOrder.status === "draft" ? "text-orange-600" : currentOrder.status === "paid" ? "text-green-600" : currentOrder.status === "cancelled" ? "text-red-600" : "text-gray-600"}`}>({currentOrder.status})</span>
+                      </div>
+                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar") ? (
+                      <span>{generatePreviewOrderNumber()}</span>
+                    ) : hasUnsavedChanges ? (
+                      "Unsaved"
+                    ) : null}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">{cart && cart.length > 0 ? `${cart.length} items` : "Empty"}</span>
+                {cart && cart.length > 0 && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setShowDiscountDialog(true)} className="text-xs px-2 py-1 h-6" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
+                      <DollarSign className="w-3 h-3 mr-1" />
+                      Discount
+                    </Button>
+                    <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" onClick={clearCart} />
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Left Panel - Cart/Order Details (Desktop) / Full Width (Mobile) */}
         <div
@@ -1802,7 +1802,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         >
           {/* Cart Header - Fixed (Desktop Only) */}
           <div className="hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
-            <div className="flex items-center justify-between py-2">
+            <div className={`flex items-center justify-between ${(hasUnsavedChanges || currentOrder || (cart && cart.length > 0)) && !showSuccessCheckmark ? 'py-2' : ''}`}>
               <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
                 {/* Order Status Indicator */}
                 {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar"))) && !showSuccessCheckmark && (
@@ -1943,6 +1943,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 orderStatus={currentOrder?.status}
                 isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
                 discountReason={appliedDiscount?.reason || currentOrder?.discountReason}
+                leftPanelPixelWidth={containerRef.current ? (leftPanelWidth / 100) * containerRef.current.offsetWidth : 0}
               />
             </div>
 
@@ -1977,11 +1978,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 overflow-y-auto !bg-gray-50">
-              <ProductGrid 
-                posItems={filteredPosItems} 
-                onAddToCart={addToCart}
-                rightPanelPixelWidth={containerRef.current ? ((100 - leftPanelWidth) / 100) * containerRef.current.offsetWidth : 0}
-              />
+              <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={containerRef.current ? ((100 - leftPanelWidth) / 100) * containerRef.current.offsetWidth : 0} />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}

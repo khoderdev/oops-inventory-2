@@ -5,13 +5,6 @@ import { Package, ShoppingCart } from "lucide-react";
 import React from "react";
 
 export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0 }) => {
-  // Determine grid columns based on right panel width
-  // Responsive breakpoints for right panel:
-  // ≤ 400px: 2 columns (very narrow)
-  // 401-600px: 3 columns (narrow)
-  // 601-800px: 4 columns (medium)
-  // 801-1000px: 5 columns (wide)
-  // > 1000px: 6 columns (very wide)
   const getGridColumns = (width: number) => {
     if (width <= 400) return "grid-cols-2";
     if (width <= 600) return "grid-cols-3";
@@ -21,22 +14,6 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
   };
 
   const gridColumns = getGridColumns(rightPanelPixelWidth);
-
-  // Debug: Log the panel width and grid decision
-  React.useEffect(() => {
-    console.log("🎯 ProductGrid RESPONSIVE DEBUG:", {
-      rightPanelWidth: rightPanelPixelWidth,
-      gridColumns: gridColumns,
-      breakpoints: {
-        "≤400px": "2 cols",
-        "401-600px": "3 cols",
-        "601-800px": "4 cols",
-        "801-1000px": "5 cols",
-        ">1000px": "6 cols"
-      },
-      currentLayout: rightPanelPixelWidth <= 400 ? "2 cols" : rightPanelPixelWidth <= 600 ? "3 cols" : rightPanelPixelWidth <= 800 ? "4 cols" : rightPanelPixelWidth <= 1000 ? "5 cols" : "6 cols"
-    });
-  }, [rightPanelPixelWidth, gridColumns]);
 
   return (
     <div className="flex-1 p-2 sm:p-4 overflow-y-auto safe-area-padding">
