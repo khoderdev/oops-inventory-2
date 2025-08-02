@@ -1,6 +1,7 @@
 import { menuAPI } from "@/api/menu.api.ts.tsx";
 import { ordersAPI } from "@/api/orders.api";
 import { posAPI } from "@/api/pos.api.ts";
+import { printerAPI } from "@/api/printer.api";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { tablesAPI } from "@/api/tables.api";
 import PrinterSelector from "@/components/common/PrinterSelector";
@@ -1119,6 +1120,136 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     console.log("🧹 Order cancelled - all state cleared");
   }, [clearOrder]);
 
+  // Format items for printer output
+  const formatItemsForPrinter = useCallback((items: POSCartItem[]): string => {
+    const timestamp = new Date().toLocaleString();
+    const orderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
+    
+    // Get printer name from the first item (all items in this group go to same printer)
+    const printerName = items[0]?.assignedPrinter?.name || `Printer ${items[0]?.printerId || 'Unknown'}`;
+    
+    let content = `\n=== ${printerName.toUpperCase()} ORDER ===\n`;
+    content += `Order: ${orderNumber}\n`;
+    content += `Time: ${timestamp}\n`;
+    content += `Type: ${orderType.toUpperCase()}\n`;
+    content += `Station: ${printerName}\n`;
+    
+    if (selectedTable) {
+      content += `Table: ${selectedTable.number}\n`;
+    }
+    
+    if (selectedEmployee) {
+      content += `Employee: ${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName}\n`;
+    }
+    
+    content += `\n--- ITEMS FOR ${printerName.toUpperCase()} ---\n`;
+    
+    items.forEach(item => {
+      content += `${item.quantity}x ${item.name}\n`;
+      if (item.type === "menu") {
+        content += `  [MENU ITEM]\n`;
+      } else {
+        content += `  [MATERIAL]\n`;
+      }
+      content += `  Price: $${item.price.toFixed(2)} each\n`;
+      
+      // Add printer assignment info for clarity
+      if (item.assignedPrinter) {
+        content += `  Assigned to: ${item.assignedPrinter.name}\n`;
+      }
+      content += `\n`;
+    });
+    
+    content += `\n=== END ${printerName.toUpperCase()} ORDER ===\n\n`;
+    
+    return content;
+  }, [currentOrder, orderType, selectedTable, selectedEmployee]);
+
+  // Print items to their assigned printers
+  const printItemsToAssignedPrinters = useCallback(async (cartItems: POSCartItem[]) => {
+    try {
+      console.log('🖨️ Starting automatic printing for order items:', cartItems.map(item => ({
+        name: item.name,
+        printerId: item.printerId,
+        assignedPrinter: item.assignedPrinter?.name
+      })));
+      
+      // Group items by printer
+      const itemsByPrinter = new Map<number, POSCartItem[]>();
+      
+      cartItems.forEach(item => {
+        const printerId = item.printerId || item.assignedPrinter?.id;
+        if (printerId) {
+          if (!itemsByPrinter.has(printerId)) {
+            itemsByPrinter.set(printerId, []);
+          }
+          itemsByPrinter.get(printerId)!.push(item);
+          console.log(`📋 Item "${item.name}" assigned to printer ${printerId} (${item.assignedPrinter?.name || 'Unknown'})`);
+        } else {
+          console.log(`⚠️ Item "${item.name}" has no printer assignment - will not be printed`);
+        }
+      });
+      
+      console.log(`🎯 Items grouped into ${itemsByPrinter.size} printer(s):`);
+      itemsByPrinter.forEach((items, printerId) => {
+        const printerName = items[0]?.assignedPrinter?.name || `Printer ${printerId}`;
+        console.log(`  - ${printerName}: ${items.map(i => i.name).join(', ')}`);
+      });
+
+      // Print to each printer
+      const printPromises = Array.from(itemsByPrinter.entries()).map(async ([printerId, items]) => {
+        try {
+          // Create print content for the items
+          const printContent = formatItemsForPrinter(items);
+          
+          // Create print job
+          const printJobData = {
+            printerId: printerId,
+            jobType: "receipt" as const,
+            content: printContent,
+            priority: 1,
+            metadata: {
+              orderType: "pos_order",
+              itemCount: items.length,
+              timestamp: new Date().toISOString()
+            }
+          };
+
+          const result = await printerAPI.createPrintJob(printJobData);
+          console.log(`✅ Print job created for printer ${printerId}:`, result);
+          
+          return { printerId, success: true, jobId: result.job?.id };
+        } catch (error) {
+          console.error(`❌ Failed to print to printer ${printerId}:`, error);
+          return { printerId, success: false, error };
+        }
+      });
+
+      const results = await Promise.allSettled(printPromises);
+      
+      // Count successful prints
+      const successfulPrints = results.filter(result => 
+        result.status === 'fulfilled' && result.value.success
+      ).length;
+      
+      const totalPrinters = itemsByPrinter.size;
+      
+      if (successfulPrints > 0) {
+        if (successfulPrints === totalPrinters) {
+          showSuccess(`✅ Items printed to ${successfulPrints} printer(s) successfully!`);
+        } else {
+          showSuccess(`⚠️ Items printed to ${successfulPrints}/${totalPrinters} printers. Check printer status for failed prints.`);
+        }
+      } else if (totalPrinters > 0) {
+        showError(`❌ Failed to print items to assigned printers. Please check printer connectivity.`);
+      }
+      
+    } catch (error) {
+      console.error("❌ Error in printItemsToAssignedPrinters:", error);
+      showError("Failed to print items to printers. Please try manual printing.");
+    }
+  }, [showSuccess, showError, formatItemsForPrinter]);
+
   // Handle manual save order - save and then clear state
   const handleManualSave = useCallback(async () => {
     if (cart.length === 0) {
@@ -1193,6 +1324,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Show success message
       showSuccess(`Order ${savedOrder.orderNumber || savedOrder.id} saved successfully!`);
 
+      // Print items to their assigned printers
+      await printItemsToAssignedPrinters(cart);
+
       // Refresh all counts immediately after saving (POSLayout + table notifications)
       await refreshAllCounts();
 
@@ -1235,7 +1369,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshAllCounts]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshAllCounts, printItemsToAssignedPrinters]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {

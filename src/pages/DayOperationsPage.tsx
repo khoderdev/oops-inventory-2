@@ -93,32 +93,35 @@ const DayOperationsPage: React.FC = () => {
 
       // Load recent days
       const recentResponse = await getDayOperations(1, 10);
-      
+
       // Debug: Log the date values to understand the format
-      console.log('🔍 Debug - Recent days data:', recentResponse.dayOperations.map(day => {
-        const dateStr = day.date;
-        let localDate: Date;
-        
-        if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, dayNum] = dateStr.split('-').map(Number);
-          localDate = new Date(year, month - 1, dayNum);
-        } else {
-          localDate = new Date(dateStr);
-        }
-        
-        return {
-          id: day.id,
-          date: dateStr,
-          dateType: typeof dateStr,
-          openedAt: day.openedAt,
-          closedAt: day.closedAt,
-          parsedDate: new Date(dateStr),
-          localDate: localDate,
-          currentTime: new Date().toISOString(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        };
-      }));
-      
+      console.log(
+        "🔍 Debug - Recent days data:",
+        recentResponse.dayOperations.map(day => {
+          const dateStr = day.date;
+          let localDate: Date;
+
+          if (typeof dateStr === "string" && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, dayNum] = dateStr.split("-").map(Number);
+            localDate = new Date(year, month - 1, dayNum);
+          } else {
+            localDate = new Date(dateStr);
+          }
+
+          return {
+            id: day.id,
+            date: dateStr,
+            dateType: typeof dateStr,
+            openedAt: day.openedAt,
+            closedAt: day.closedAt,
+            parsedDate: new Date(dateStr),
+            localDate: localDate,
+            currentTime: new Date().toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          };
+        })
+      );
+
       setRecentDays(recentResponse.dayOperations);
 
       // Load current day activities if day is open
@@ -217,15 +220,15 @@ const DayOperationsPage: React.FC = () => {
   };
 
   const formatDate = (date: Date | string | null | undefined) => {
-    if (!date) return 'N/A';
+    if (!date) return "N/A";
     try {
       let dateObj: Date;
-      
+
       // Handle date string parsing to avoid timezone issues
-      if (typeof date === 'string') {
+      if (typeof date === "string") {
         // If it's a date-only string like "2025-08-01", parse it as local date
         if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = date.split('-').map(Number);
+          const [year, month, day] = date.split("-").map(Number);
           dateObj = new Date(year, month - 1, day); // month is 0-indexed
         } else {
           dateObj = new Date(date);
@@ -233,29 +236,29 @@ const DayOperationsPage: React.FC = () => {
       } else {
         dateObj = new Date(date);
       }
-      
-      if (isNaN(dateObj.getTime())) return 'Invalid Date';
-      return dateObj.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+
+      if (isNaN(dateObj.getTime())) return "Invalid Date";
+      return dateObj.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
       });
     } catch (error) {
-      console.error('Error formatting date:', error, 'Input:', date);
-      return 'Invalid Date';
+      console.error("Error formatting date:", error, "Input:", date);
+      return "Invalid Date";
     }
   };
-  
+
   const formatWeekday = (date: Date | string | null | undefined) => {
-    if (!date) return 'N/A';
+    if (!date) return "N/A";
     try {
       let dateObj: Date;
-      
+
       // Handle date string parsing to avoid timezone issues
-      if (typeof date === 'string') {
+      if (typeof date === "string") {
         // If it's a date-only string like "2025-08-01", parse it as local date
         if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = date.split('-').map(Number);
+          const [year, month, day] = date.split("-").map(Number);
           dateObj = new Date(year, month - 1, day); // month is 0-indexed
         } else {
           dateObj = new Date(date);
@@ -263,14 +266,14 @@ const DayOperationsPage: React.FC = () => {
       } else {
         dateObj = new Date(date);
       }
-      
-      if (isNaN(dateObj.getTime())) return 'Invalid Date';
-      return dateObj.toLocaleDateString('en-US', {
-        weekday: 'long'
+
+      if (isNaN(dateObj.getTime())) return "Invalid Date";
+      return dateObj.toLocaleDateString("en-US", {
+        weekday: "long"
       });
     } catch (error) {
-      console.error('Error formatting weekday:', error, 'Input:', date);
-      return 'Invalid Date';
+      console.error("Error formatting weekday:", error, "Input:", date);
+      return "Invalid Date";
     }
   };
 
@@ -504,17 +507,6 @@ const DayOperationsPage: React.FC = () => {
                     <div>
                       <div className="font-bold">{formatWeekday(day.date)}</div>
                       <div className="text-xs text-gray-500">{formatDate(day.date)}</div>
-                      {/* Show opened/closed times if available */}
-                      {day.openedAt && (
-                        <div className="text-xs text-blue-600 mt-1">
-                          Opened: {formatDateTime(day.openedAt).split(", ")[1]} {/* Show only time */}
-                        </div>
-                      )}
-                      {day.closedAt && (
-                        <div className="text-xs text-red-600">
-                          Closed: {formatDateTime(day.closedAt).split(", ")[1]} {/* Show only time */}
-                        </div>
-                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
