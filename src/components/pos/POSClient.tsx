@@ -447,8 +447,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           return;
         }
 
-        // Filter for incomplete orders (not paid or cancelled)
-        const incompleteOrders = ordersArray.filter(order => order.status !== "paid" && order.status !== "cancelled");
+        // Filter for incomplete orders (using same criteria as POSClientOrders)
+        // Incomplete = orders that are still in progress, not yet completed
+        const incompleteStatuses = ["draft", "confirmed", "preparing", "ready"];
+        const incompleteOrders = ordersArray.filter(order => incompleteStatuses.includes(order.status));
 
         // Count total incomplete orders
         setIncompleteOrdersCount(incompleteOrders.length);

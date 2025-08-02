@@ -85,6 +85,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       let fetchedOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
 
       // Show all incomplete orders (including table orders)
+      // Incomplete = orders that are still in progress, not yet completed
       const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
       fetchedOrders = fetchedOrders.filter(order => {
         // Only show incomplete orders (include all order types: table, delivery, takeaway, bar)

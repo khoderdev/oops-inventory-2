@@ -1,4 +1,4 @@
-export type OrderStatus = "draft" | "confirmed" | "preparing" | "ready" | "served" | "paid" | "cancelled";
+export type OrderStatus = "draft" | "confirmed" | "preparing" | "ready" | "served" | "paid" | "cancelled" | "complete";
 export type OrderType = "delivery" | "takeaway" | "table" | "employees" | "bar";
 export type TableStatus = "available" | "opened" | "reserved" | "cleaning";
 
