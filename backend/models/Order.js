@@ -15,7 +15,7 @@ const Order = sequelize.define(
       allowNull: false
     },
     orderType: {
-      type: DataTypes.ENUM("delivery", "takeaway", "table", "employees"),
+      type: DataTypes.ENUM("delivery", "takeaway", "table", "employees", "bar"),
       allowNull: false,
       defaultValue: "takeaway"
     },

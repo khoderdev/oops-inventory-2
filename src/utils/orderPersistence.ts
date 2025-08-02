@@ -6,7 +6,7 @@ const ORDER_BACKUP_KEY = "pos_order_backup";
 
 export interface LocalOrderData {
   orderId?: string;
-  orderType: "delivery" | "takeaway" | "table";
+  orderType: "delivery" | "takeaway" | "table" | "employees" | "bar";
   tableId?: string;
   tableNumber?: number;
   customerName?: string;

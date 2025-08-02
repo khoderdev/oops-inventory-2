@@ -38,8 +38,8 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="flex-shrink-0 border-b border-gray-100 bg-teal-500/25">
-        <div className="grid grid-cols-4">
-          {(["delivery", "takeaway", "table", "employees"] as OrderType[]).map(type => {
+        <div className="grid grid-cols-5">
+          {(["delivery", "takeaway", "bar", "table", "employees"] as OrderType[]).map(type => {
             // Only show badge for table orders
             let badgeCount = 0;
             if (type === "table" && incompleteTableOrdersCount) badgeCount = incompleteTableOrdersCount;

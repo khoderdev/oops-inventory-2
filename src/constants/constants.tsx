@@ -1,7 +1,7 @@
 import { Employee } from "@/types/employee";
 import { Table } from "@/types/inventory";
 import { OrderStatus, OrderType } from "@/types/orders";
-import { Car, Package, ShoppingBag, Truck, UserCheck, Utensils } from "lucide-react";
+import { Car, Package, ShoppingBag, Truck, UserCheck, Utensils, Wine } from "lucide-react";
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -17,7 +17,8 @@ export const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
   delivery: <Truck className="w-4 h-4" />,
   takeaway: <Package className="w-4 h-4" />,
   table: <ShoppingBag className="w-4 h-4" />,
-  employees: <UserCheck className="w-4 h-4" />
+  employees: <UserCheck className="w-4 h-4" />,
+  bar: <Wine className="w-4 h-4" />
 };
 
 export const getOrderTypeIcon = (type: OrderType) => {
@@ -30,6 +31,8 @@ export const getOrderTypeIcon = (type: OrderType) => {
       return <Utensils className="w-4 h-4" />;
     case "employees":
       return <UserCheck className="w-4 h-4" />;
+    case "bar":
+      return <Wine className="w-4 h-4" />;
     default:
       return <ShoppingBag className="w-4 h-4" />;
   }
@@ -59,7 +62,7 @@ export const getOrderTypeLabel = (type: OrderType, selectedTable: Table | null |
         const fullName = `${selectedEmployee.user?.firstName || ""} ${selectedEmployee.user?.lastName || ""}`.trim();
         return fullName || selectedEmployee.employeeNumber;
       }
-      
+
       // For existing orders without employeeId, try to extract employee name from discount reason
       if (discountReason && discountReason.includes("Employee discount -")) {
         // Extract employee name from "Employee discount - Mia Malkova (service)"
@@ -68,8 +71,10 @@ export const getOrderTypeLabel = (type: OrderType, selectedTable: Table | null |
           return `STAFF ${match[1].trim()}`;
         }
       }
-      
+
       return "STAFF";
+    case "bar":
+      return "BAR";
     default:
       return "TAKE AWAY";
   }
