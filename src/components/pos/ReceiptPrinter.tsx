@@ -39,17 +39,22 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     let content = "";
 
     // Header with centered alignment
-    content += businessInfo.name.toUpperCase() + "\n";
-    content += businessInfo.address + "\n";
-    content += businessInfo.phone + "\n";
+    const centerText = (text: string, width: number = 48) => {
+      const padding = Math.max(0, Math.floor((width - text.length) / 2));
+      return " ".repeat(padding) + text;
+    };
+
+    content += centerText(businessInfo.name.toUpperCase()) + "\n";
+    content += centerText(businessInfo.address) + "\n";
+    content += centerText(businessInfo.phone) + "\n";
     content += "================================================\n";
     content += "\n";
 
-    // Receipt info
-    content += `Receipt #: ${receiptData.id}\n`;
-    content += `Date: ${receiptData.date}\n`;
-    content += `Time: ${receiptData.time}\n`;
-    content += `Cashier: ${receiptData.cashier || currentUser?.username || "Unknown User"}\n`;
+    // Receipt info - centered
+    content += centerText(`Receipt #: ${receiptData.id}`) + "\n";
+    content += centerText(`Date: ${receiptData.date}`) + "\n";
+    content += centerText(`Time: ${receiptData.time}`) + "\n";
+    content += centerText(`Cashier: ${receiptData.cashier || currentUser?.username || "Unknown User"}`) + "\n";
     content += "------------------------------------------------\n";
     content += "\n";
 

@@ -1142,25 +1142,31 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     // 80mm thermal receipt formatting (48 characters wide)
     let content = "";
     
+    // Center text helper function
+    const centerText = (text: string, width: number = 48) => {
+      const padding = Math.max(0, Math.floor((width - text.length) / 2));
+      return " ".repeat(padding) + text;
+    };
+    
     // Header with centered alignment
     content += "================================================\n";
-    content += `           ${stationName} STATION\n`;
+    content += centerText(`${stationName} STATION`) + "\n";
     content += "================================================\n";
     content += "\n";
     
-    // Order information
-    content += `Order #: ${orderNumber}\n`;
-    content += `Date: ${date}\n`;
-    content += `Time: ${time}\n`;
-    content += `Type: ${orderType.toUpperCase()}\n`;
+    // Order information - centered
+    content += centerText(`Order #: ${orderNumber}`) + "\n";
+    content += centerText(`Date: ${date}`) + "\n";
+    content += centerText(`Time: ${time}`) + "\n";
+    content += centerText(`Type: ${orderType.toUpperCase()}`) + "\n";
     
     if (selectedTable) {
-      content += `Table: ${selectedTable.number}\n`;
+      content += centerText(`Table: ${selectedTable.number}`) + "\n";
     }
     
     if (selectedEmployee) {
       const employeeName = `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim();
-      content += `Staff: ${employeeName}\n`;
+      content += centerText(`Staff: ${employeeName}`) + "\n";
     }
     
     content += "\n";
