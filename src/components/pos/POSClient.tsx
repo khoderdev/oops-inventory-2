@@ -1079,8 +1079,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Handle cancel order - clear all state and reset to default
   const handleCancelOrder = useCallback(() => {
-    // Clear cart
-    setCart([]);
+    // Clear cart with animation
+    clearCartWithAnimation();
 
     // Reset order type to takeaway
     setOrderType("takeaway");
@@ -1115,7 +1115,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setSuccessMessage(null);
 
     console.log("🧹 Order cancelled - all state cleared");
-  }, [clearOrder]);
+  }, [clearOrder, clearCartWithAnimation]);
 
   // Handle manual save order - save and then clear state
   const handleManualSave = useCallback(async () => {
@@ -1198,8 +1198,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       await refreshAllCounts();
 
       // Clear all state after successful save (same as cancel)
-      // Clear cart
-      setCart([]);
+      // Clear cart with animation
+      clearCartWithAnimation();
 
       // Reset order type to takeaway
       setOrderType("takeaway");
@@ -1236,7 +1236,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, currentOrder, createOrder, updateOrder, clearOrder, showSuccess, showError, refreshAllCounts]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshAllCounts]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
