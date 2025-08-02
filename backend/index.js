@@ -297,54 +297,54 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
         console.error("🚨 Database sync error:", syncError.message);
 
         // If it's a USING syntax error, try without sync
-        if (syncError.message.includes("USING") || syncError.message.includes("syntax error")) {
-          console.log("🔄 Attempting to continue without schema sync...");
+        // if (syncError.message.includes("USING") || syncError.message.includes("syntax error")) {
+        //   console.log("🔄 Attempting to continue without schema sync...");
 
-          try {
-            // Just seed data without sync
-            await seedTables();
-            console.log("✅ Tables seeded with existing schema");
+        //   try {
+        //     // Just seed data without sync
+        //     await seedTables();
+        //     console.log("✅ Tables seeded with existing schema");
 
-            // Seed materials too
-            try {
-              const materialResult = await seedMaterials();
-              console.log(`✅ Materials seeded: ${materialResult.created} created, ${materialResult.existing} existing`);
-            } catch (materialError) {
-              console.warn("⚠️ Warning: Failed to seed materials:", materialError.message);
-            }
+        //     // Seed materials too
+        //     try {
+        //       const materialResult = await seedMaterials();
+        //       console.log(`✅ Materials seeded: ${materialResult.created} created, ${materialResult.existing} existing`);
+        //     } catch (materialError) {
+        //       console.warn("⚠️ Warning: Failed to seed materials:", materialError.message);
+        //     }
 
-            // Seed stock entries
-            try {
-              const stockResult = await seedStockEntries();
-              console.log(`✅ Stock entries seeded: ${stockResult.created} created, ${stockResult.existing} existing`);
-            } catch (stockError) {
-              console.warn("⚠️ Warning: Failed to seed stock entries:", stockError.message);
-            }
+        //     // Seed stock entries
+        //     try {
+        //       const stockResult = await seedStockEntries();
+        //       console.log(`✅ Stock entries seeded: ${stockResult.created} created, ${stockResult.existing} existing`);
+        //     } catch (stockError) {
+        //       console.warn("⚠️ Warning: Failed to seed stock entries:", stockError.message);
+        //     }
 
-            // Seed menu items
-            try {
-              const menuResult = await seedMenuItems();
-              console.log(`✅ Menu items seeded: ${menuResult.created} items, ${menuResult.ingredients} ingredients`);
-            } catch (menuError) {
-              console.warn("⚠️ Warning: Failed to seed menu items:", menuError.message);
-            }
+        //     // Seed menu items
+        //     try {
+        //       const menuResult = await seedMenuItems();
+        //       console.log(`✅ Menu items seeded: ${menuResult.created} items, ${menuResult.ingredients} ingredients`);
+        //     } catch (menuError) {
+        //       console.warn("⚠️ Warning: Failed to seed menu items:", menuError.message);
+        //     }
 
-            // Initialize admin user
-            try {
-              const adminResult = await initializeAdminUser();
-              console.log(`✅ Admin user initialized: ${adminResult.created} created, ${adminResult.existing} existing`);
-            } catch (adminError) {
-              console.warn("⚠️ Warning: Failed to initialize admin user:", adminError.message);
-            }
+        //     // Initialize admin user
+        //     try {
+        //       const adminResult = await initializeAdminUser();
+        //       console.log(`✅ Admin user initialized: ${adminResult.created} created, ${adminResult.existing} existing`);
+        //     } catch (adminError) {
+        //       console.warn("⚠️ Warning: Failed to initialize admin user:", adminError.message);
+        //     }
 
-            console.log("✅ Continuing with existing schema");
-            return true;
-          } catch (seedError) {
-            console.warn("⚠️ Warning: Failed to seed data:", seedError.message);
-            console.log("🔄 Server will continue without seeding...");
-            return true; // Continue anyway
-          }
-        }
+        //     console.log("✅ Continuing with existing schema");
+        //     return true;
+        //   } catch (seedError) {
+        //     console.warn("⚠️ Warning: Failed to seed data:", seedError.message);
+        //     console.log("🔄 Server will continue without seeding...");
+        //     return true; // Continue anyway
+        //   }
+        // }
 
         throw syncError; // Re-throw if not a USING error
       }
