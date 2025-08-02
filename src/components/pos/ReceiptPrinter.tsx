@@ -239,6 +239,14 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
               padding-top: 5mm !important;
             }
             
+            /* Separator styling */
+            .receipt-print-container .separator {
+              border-top: 1px solid #ccc !important;
+              margin: 4mm 0 !important;
+              width: 100% !important;
+              height: 0 !important;
+            }
+            
             /* Override specific inline styles with attribute selectors */
             .receipt-print-container [style*="paddingBottom: 6mm"] {
               padding-bottom: 6mm !important;
@@ -490,6 +498,9 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
                 <span>{receiptData.cashier}</span>
               </div>
             </div>
+
+            {/* Separator between receipt info and items */}
+            <div className="separator" style={{ borderTop: "1px solid #ccc", margin: "4mm 0", width: "100%" }}></div>
 
             {/* Items */}
             <div className="items" style={{ marginBottom: "8mm" }}>
