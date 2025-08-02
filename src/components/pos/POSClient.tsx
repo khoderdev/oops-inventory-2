@@ -1079,8 +1079,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Handle cancel order - clear all state and reset to default
   const handleCancelOrder = useCallback(() => {
-    // Clear cart with animation
-    clearCartWithAnimation();
+    // Clear cart instantly (no animation for cancel)
+    setCart([]);
 
     // Reset order type to takeaway
     setOrderType("takeaway");
@@ -1115,7 +1115,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setSuccessMessage(null);
 
     console.log("🧹 Order cancelled - all state cleared");
-  }, [clearOrder, clearCartWithAnimation]);
+  }, [clearOrder]);
 
   // Handle manual save order - save and then clear state
   const handleManualSave = useCallback(async () => {
