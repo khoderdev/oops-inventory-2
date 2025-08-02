@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/components/ui/use-toast";
 import { ORDER_STATUS_COLORS } from "@/constants/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptData } from "@/types/inventory";
@@ -23,6 +24,7 @@ interface OrderDetailsDialogProps {
 
 export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, onClose, order, isLoading = false, onOrderUpdate }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
@@ -30,6 +32,21 @@ export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, 
 
   // Check if user has admin or manager permissions
   const canModifyOrders = user?.role === "admin" || user?.role === "manager";
+
+  // Get success message for status updates
+  const getStatusSuccessMessage = (status: OrderStatus): string => {
+    const messages: Record<OrderStatus, string> = {
+      draft: "Order restored to draft!",
+      confirmed: "Order confirmed successfully!",
+      preparing: "Order marked as preparing!",
+      ready: "Order marked as ready!",
+      served: "Order marked as served!",
+      paid: "Order marked as paid!",
+      cancelled: "Order cancelled successfully!",
+      complete: "Order completed successfully!"
+    };
+    return messages[status];
+  };
 
   // Define available status transitions based on current status
   const getAvailableStatusTransitions = (currentStatus: OrderStatus): { status: OrderStatus; label: string; icon: React.ReactNode; color: string }[] => {
@@ -103,13 +120,28 @@ export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, 
         onOrderUpdate(updatedOrder);
       }
 
-      // Force a small delay to ensure UI updates
+      // Show success message
+      toast({
+        title: "Success!",
+        description: getStatusSuccessMessage(newStatus),
+        variant: "default"
+      });
+
+      // Auto-close dialog after successful update
       setTimeout(() => {
-        console.log("Status update completed, new status:", newStatus);
-      }, 100);
+        console.log("Status update completed, closing dialog. New status:", newStatus);
+        onClose();
+      }, 1500); // Wait 1.5 seconds to let user see the success message
+
     } catch (error) {
       console.error("Failed to update order status:", error);
-      // You might want to show an error toast here
+      
+      // Show error message
+      toast({
+        title: "Error!",
+        description: `Failed to update order status: ${error instanceof Error ? error.message : "Unknown error"}`,
+        variant: "destructive"
+      });
     } finally {
       setIsUpdatingStatus(false);
     }

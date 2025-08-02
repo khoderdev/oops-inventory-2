@@ -92,11 +92,10 @@ const POSClientPage: React.FC = () => {
         const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : null;
         const isToday = orderDate === today;
         
-        // Check if order is incomplete and not a table order
+        // Check if order is incomplete (include all order types: table, delivery, takeaway, bar)
         const isIncomplete = incompleteStatuses.includes(order.status);
-        const isNotTableOrder = order.orderType !== 'table';
         
-        return isToday && isIncomplete && isNotTableOrder;
+        return isToday && isIncomplete;
       });
       
       setSessionStats(prev => ({

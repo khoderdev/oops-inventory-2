@@ -124,6 +124,46 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     setShowReceiptDialog(false);
   }, []);
 
+  // Handle order updates from OrderDetailsDialog
+  const handleOrderUpdate = useCallback((updatedOrder: Order) => {
+    console.log("📝 POSClientOrders: Order updated:", updatedOrder);
+    
+    // Check if the updated order is still incomplete
+    const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
+    const isStillIncomplete = incompleteStatuses.includes(updatedOrder.status);
+    
+    if (isStillIncomplete) {
+      // Update the orders list with the new order data
+      setOrders(prevOrders => {
+        return prevOrders.map(order => {
+          if (order.id === updatedOrder.id) {
+            // Update only the properties that exist in OrderSummary
+            const updatedOrderSummary: OrderSummary = {
+              ...order,
+              status: updatedOrder.status,
+              total: updatedOrder.total,
+              itemCount: updatedOrder.items?.length || order.itemCount || 0,
+              customerName: updatedOrder.customerName || order.customerName,
+              discountAmount: updatedOrder.discountAmount || 0
+            };
+            console.log("✅ POSClientOrders: Updated order in list:", updatedOrderSummary);
+            return updatedOrderSummary;
+          }
+          return order;
+        });
+      });
+    } else {
+      // Order is now completed, remove it from the incomplete orders list
+      console.log("🎉 POSClientOrders: Order completed, removing from list:", updatedOrder.status);
+      setOrders(prevOrders => {
+        return prevOrders.filter(order => order.id !== updatedOrder.id);
+      });
+    }
+
+    // Update the selected order if it's the same one
+    setSelectedOrder(updatedOrder);
+  }, []);
+
   // Fetch orders when component opens or filters change
   useEffect(() => {
     fetchOrders();
@@ -134,7 +174,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     if (error) {
       const timeout = setTimeout(() => {
         setError(null);
-      }, 3000);
+      }, 1500);
 
       return () => {
         clearTimeout(timeout);
@@ -415,39 +455,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 
             {/* Filter Controls */}
             <div className="flex flex-wrap gap-3 items-center">
-              {/* Status Filter - Limited to incomplete statuses only */}
-              <div className="relative">
-                <select
-                  value={filters.status || "all"}
-                  onChange={e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleFilterChange("status", e.target.value === "all" ? undefined : (e.target.value as OrderStatus));
-                  }}
-                  onFocus={e => {
-                    e.stopPropagation();
-                  }}
-                  onBlur={e => {
-                    e.stopPropagation();
-                  }}
-                  onClick={e => {
-                    e.stopPropagation();
-                  }}
-                  className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none appearance-none cursor-pointer"
-                >
-                  <option value="all">All Incomplete</option>
-                  <option value="draft">Draft</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="preparing">Preparing</option>
-                  <option value="ready">Ready</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-
               {/* Order Type Filter - Using stable native select */}
               <div className="relative">
                 <select
@@ -462,7 +469,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                   <option value="all">All Types</option>
                   <option value="delivery">Delivery</option>
                   <option value="takeaway">Takeaway</option>
-                  <option value="table">Table</option>
+                  <option value="table">Tables</option>
                   <option value="bar">Bar</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
@@ -770,7 +777,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       )}
 
       {/* Order Details Dialog */}
-      <OrderDetailsDialog isOpen={showOrderDetails} onClose={handleCloseOrderDetails} order={selectedOrder} isLoading={isLoadingOrderDetails} />
+      <OrderDetailsDialog isOpen={showOrderDetails} onClose={handleCloseOrderDetails} order={selectedOrder} isLoading={isLoadingOrderDetails} onOrderUpdate={handleOrderUpdate} />
 
       {/* Receipt Printer Dialog */}
       <ReceiptPrinter isOpen={showReceiptDialog} onClose={handleCloseReceiptDialog} receiptData={receiptData} autoPrint={false} />
