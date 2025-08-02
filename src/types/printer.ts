@@ -129,8 +129,23 @@ export interface UpdatePrinterRequest {
 export interface CreatePrintJobRequest {
   printerId: number;
   jobType: "receipt" | "label" | "report" | "document";
-  content: string;
+  content: {
+    template?: string | null;
+    data?: Record<string, any>;
+    rawContent?: string;
+    format?: string;
+    encoding?: string;
+  };
   priority?: number;
+  settings?: {
+    copies?: number;
+    priority?: string;
+    paperSize?: string;
+    margins?: any;
+    orientation?: string;
+    duplex?: boolean;
+    colorMode?: string;
+  };
   metadata?: Record<string, any>;
 }
 

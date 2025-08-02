@@ -215,7 +215,11 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           const printJobData = {
             printerId: savedPrinter.id,
             jobType: "receipt" as const,
-            content: receiptContent,
+            content: {
+              rawContent: receiptContent,
+              format: "text",
+              encoding: "utf8"
+            },
             priority: 1,
             metadata: {
               receiptId: receiptData.id,

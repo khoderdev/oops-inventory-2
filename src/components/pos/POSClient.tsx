@@ -1206,7 +1206,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const printJobData = {
             printerId: printerId,
             jobType: "receipt" as const,
-            content: printContent,
+            content: {
+              rawContent: printContent,
+              format: "text",
+              encoding: "utf8"
+            },
             priority: 1,
             metadata: {
               orderType: "pos_order",
