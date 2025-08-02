@@ -235,13 +235,18 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
       }
       grouped.get(item.saleId)!.push(item);
     });
-    return Array.from(grouped.entries()).map(([saleId, items]) => ({
-      saleId,
-      items,
-      saleDate: items[0].saleDate,
-      total: items.reduce((sum, item) => sum + item.totalPrice, 0)
-    }));
-  }, [localFilteredSales]);
+    return Array.from(grouped.entries()).map(([saleId, items]) => {
+      // Find the original sale record to get order information
+      const originalSale = sales.find(sale => sale.id === saleId);
+      return {
+        saleId,
+        items,
+        saleDate: items[0].saleDate,
+        total: items.reduce((sum, item) => sum + item.totalPrice, 0),
+        order: originalSale?.order // Include order information
+      };
+    });
+  }, [localFilteredSales, sales]);
 
   const uniqueItemNames = useAtomValue(uniqueItemNamesAtom);
   const uniqueSectionNames = useAtomValue(uniqueSectionNamesAtom);
@@ -265,129 +270,6 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
   const filteredTotal = useMemo(() => {
     return groupedSales.reduce((sum, sale) => sum + sale.total, 0);
   }, [groupedSales]);
-
-  // Generate sales report HTML content
-  const generateSalesReportContent = useCallback(() => {
-    const dateRangeText =
-      dateFrom && dateTo
-        ? (() => {
-            const fromDateStr = format(dateFrom, "yyyy-MM-dd");
-            const toDateStr = format(dateTo, "yyyy-MM-dd");
-            return fromDateStr === toDateStr ? format(dateFrom, "MMMM d, yyyy") : `${format(dateFrom, "MMMM d, yyyy")} - ${format(dateTo, "MMMM d, yyyy")}`;
-          })()
-        : "All Time";
-
-    const filterText = [selectedItem !== "all" ? `Item: ${selectedItem}` : null, selectedSection !== "all" ? `Section: ${selectedSection}` : null].filter(Boolean).join(", ");
-
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Sales Report - ${dateRangeText}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-            .summary { background: #f5f5f5; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-            .filters { background: #e3f2fd; padding: 10px; margin-bottom: 20px; border-radius: 5px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; font-weight: bold; }
-            .total-row { background-color: #e8f5e8; font-weight: bold; }
-            .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
-            @media print { body { margin: 0; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Sales Report</h1>
-            <h3>${dateRangeText}</h3>
-            <p>Generated on ${new Date().toLocaleString()}</p>
-          </div>
-          
-          <div class="summary">
-            <h3>Summary</h3>
-            <p><strong>Total Sales:</strong> ${groupedSales.length}</p>
-            <p><strong>Total Items Sold:</strong> ${localFilteredSales.length}</p>
-            <p><strong>Total Amount:</strong> ${formatCurrency(filteredTotal)}</p>
-            <p><strong>Average Sale Value:</strong> ${formatCurrency(groupedSales.length > 0 ? filteredTotal / groupedSales.length : 0)}</p>
-          </div>
-          
-          ${
-            filterText
-              ? `
-            <div class="filters">
-              <h4>Applied Filters:</h4>
-              <p>${filterText}</p>
-            </div>
-          `
-              : ""
-          }
-          
-          <h3>Sales Details</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Sale ID</th>
-                <th>Date</th>
-                <th>Items</th>
-                <th>Total Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${groupedSales
-                .map(
-                  sale => `
-                <tr>
-                  <td>#${sale.saleId}</td>
-                  <td>${format(sale.saleDate, "MMM d, yyyy HH:mm")}</td>
-                  <td>${sale.items.length}</td>
-                  <td>${formatCurrency(sale.total)}</td>
-                </tr>
-              `
-                )
-                .join("")}
-              <tr class="total-row">
-                <td colspan="3"><strong>TOTAL</strong></td>
-                <td><strong>${formatCurrency(filteredTotal)}</strong></td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <h3>Items Breakdown</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Item Name</th>
-                <th>Type</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${localFilteredSales
-                .map(
-                  item => `
-                <tr>
-                  <td>${item.itemName}</td>
-                  <td>${item.itemType === "individual" ? "Individual" : "Menu Item"}</td>
-                  <td>${item.quantity}</td>
-                  <td>${formatCurrency(item.unitPrice)}</td>
-                  <td>${formatCurrency(item.totalPrice)}</td>
-                </tr>
-              `
-                )
-                .join("")}
-            </tbody>
-          </table>
-          
-          <div class="footer">
-            <p>This report was generated from the Sales History system.</p>
-          </div>
-        </body>
-      </html>
-    `;
-  }, [groupedSales, localFilteredSales, filteredTotal, dateFrom, dateTo, selectedItem, selectedSection]);
 
   // Generate and print sales report using ReceiptPrinter
   const handlePrintSalesReport = useCallback(async () => {
@@ -414,10 +296,12 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
       const reportItems: ReceiptData["items"] = [];
 
       // Add each sale as a proper line item with meaningful data
-      groupedSales.forEach((sale) => {
-        const saleDate = format(sale.saleDate, 'hh:mm a');
+      groupedSales.forEach(sale => {
+        const saleDate = format(sale.saleDate, "hh:mm a");
+        // Use order number from the sale's order relationship, fallback to sale ID
+        const orderNumber = sale.order?.orderNumber || `ORD-${sale.saleId.toString().padStart(4, "0")}`;
         reportItems.push({
-          name: `Sale #${sale.saleId} (${saleDate})`,
+          name: `${orderNumber} (${saleDate})`,
           quantity: sale.items.length,
           unitPrice: sale.total / sale.items.length,
           totalPrice: sale.total,
@@ -429,14 +313,14 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
         id: `SALES-REPORT-${Date.now()}`,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
-        cashier: `SALES REPORT | Period: ${dateRangeText}${filterText ? ` | Filters: ${filterText}` : ''}`,
+        cashier: "", // Let ReceiptPrinter handle the fallback to logged-in user
         items: reportItems,
         subtotal: filteredTotal,
         tax: 0,
         total: filteredTotal,
         paymentAmount: filteredTotal,
         change: 0,
-        paymentMethod: `SALES SUMMARY: ${groupedSales.length} transactions, ${localFilteredSales.length} items sold`
+        paymentMethod: `SALES SUMMARY: ${groupedSales.length} transactions, ${localFilteredSales.length} items sold | Period: ${dateRangeText}${filterText ? ` | Filters: ${filterText}` : ""}`
       };
 
       setSalesReportData(salesReport);
@@ -446,7 +330,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
     } finally {
       setIsPrintingReport(false);
     }
-  }, [groupedSales, localFilteredSales, filteredTotal, dateFrom, dateTo, selectedItem, selectedSection]);
+  }, [groupedSales, localFilteredSales, filteredTotal, dateFrom, dateTo, selectedItem, selectedSection, dateFilter]);
 
   const toggleItemSelection = useCallback(
     (itemId: string) => {

@@ -334,6 +334,12 @@ export interface SaleRecord {
   creator?: {
     username: string;
   };
+  order?: {
+    id: string;
+    orderNumber: string;
+    orderType: string;
+    customerName?: string;
+  };
   isActive?: boolean;
   createdAt: Date;
   updatedAt: Date;

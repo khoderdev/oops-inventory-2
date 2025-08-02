@@ -1,6 +1,7 @@
 import { printerAPI } from "@/api/printer.api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { ReceiptPrinterProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
@@ -19,6 +20,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     phone: "+961 81 510 059"
   }
 }) => {
+  const { user } = useAuth();
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printError, setPrintError] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   const { getSavedPrinter, hasSavedPrinter } = usePrinterSelector();
 
   // Generate receipt content for thermal printer
-  const generateReceiptContent = useCallback((receiptData: ReceiptPrinterProps["receiptData"], businessInfo: ReceiptPrinterProps["businessInfo"]) => {
+  const generateReceiptContent = useCallback((receiptData: ReceiptPrinterProps["receiptData"], businessInfo: ReceiptPrinterProps["businessInfo"], currentUser?: { username?: string }) => {
     if (!receiptData) return "";
 
     const lines: string[] = [];
@@ -45,7 +47,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     lines.push(`Receipt #: ${receiptData.id}`);
     lines.push(`Date: ${receiptData.date}`);
     lines.push(`Time: ${receiptData.time}`);
-    lines.push(`Cashier: ${receiptData.cashier}`);
+    lines.push(`Cashier: ${receiptData.cashier || currentUser?.username || "Unknown User"}`);
     lines.push("".padEnd(32, "-"));
     lines.push("");
 
@@ -102,7 +104,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     if (!receiptData.id) errors.push("Missing receipt ID");
     if (!receiptData.date) errors.push("Missing receipt date");
     if (!receiptData.time) errors.push("Missing receipt time");
-    if (!receiptData.cashier) errors.push("Missing cashier information");
+    // Cashier validation removed since we now have fallback to logged-in user
     if (!receiptData.items || receiptData.items.length === 0) {
       errors.push("No items in receipt");
     }
@@ -196,7 +198,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           });
 
           // Create receipt content for the printer
-          const receiptContent = generateReceiptContent(receiptData, businessInfo);
+          const receiptContent = generateReceiptContent(receiptData, businessInfo, user);
           console.log(`📄 Generated receipt content for thermal printer:`);
           console.log(`--- RECEIPT CONTENT START ---`);
           console.log(receiptContent);
@@ -531,7 +533,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     } finally {
       setIsPrinting(false);
     }
-  }, [receiptData, businessInfo, validationResult, isPrinting, onPrintSuccess, hasSavedPrinter, getSavedPrinter, generateReceiptContent]);
+  }, [receiptData, businessInfo, validationResult, isPrinting, onPrintSuccess, hasSavedPrinter, getSavedPrinter, generateReceiptContent, user]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -639,7 +641,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
               </div>
               <div className="flex justify-between">
                 <span>Cashier:</span>
-                <span>{receiptData.cashier}</span>
+                <span>{receiptData.cashier || user?.username || "Unknown User"}</span>
               </div>
             </div>
 

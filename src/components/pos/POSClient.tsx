@@ -286,7 +286,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           id: currentOrder?.orderNumber || `DRAFT-${Date.now()}`,
           date: new Date().toLocaleDateString(),
           time: new Date().toLocaleTimeString(),
-          cashier: "Current User",
+          cashier: "", // Let ReceiptPrinter handle the fallback to logged-in user
           items: itemsToUse.map(item => ({
             name: item.name,
             quantity: item.quantity,
@@ -1229,7 +1229,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       id: currentOrder?.orderNumber || `DRAFT-${Date.now()}`,
       date: new Date().toLocaleDateString(),
       time: new Date().toLocaleTimeString(),
-      cashier: "Current User",
+      cashier: "", // Let ReceiptPrinter handle the fallback to logged-in user
       items: itemsToUse.map(item => ({
         name: item.name,
         quantity: item.quantity,
@@ -1638,7 +1638,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         id: saleId || `receipt-${Date.now()}`,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
-        cashier: "Current User",
+        cashier: "", // Let ReceiptPrinter handle the fallback to logged-in user
         items: (order.items || cart).map(item => ({
           name: item.name,
           quantity: item.quantity,
