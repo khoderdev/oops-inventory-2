@@ -92,7 +92,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     }
   }, [validationResult]);
 
-  // Enhanced print function with error handling and validation
+  // Enhanced print function using native browser print dialog
   const handlePrint = useCallback(async () => {
     // Prevent multiple simultaneous print operations
     if (isPrinting) {
@@ -115,241 +115,165 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     setPrintError(null);
 
     try {
-      // Create enhanced print window with better error handling
-      const printWindow = window.open("", "_blank", "width=800,height=600,scrollbars=yes,resizable=yes");
-
-      if (!printWindow) {
-        throw new Error("Failed to open print window. Please check popup blocker settings.");
-      }
-
-      // Enhanced print styles with better cross-browser compatibility
-      const printHTML = `
-        <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Receipt #${receiptData.id} - ${businessInfo.name}</title>
-            <style>
-              * {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-              }
-              
-              body {
-                font-family: 'Courier New', 'Lucida Console', monospace;
-                font-size: 12px;
-                line-height: 1.3;
-                margin: 0;
-                padding: 8px;
-                background: white;
-                color: #000;
-                -webkit-print-color-adjust: exact;
-                color-adjust: exact;
-              }
-              
-              .receipt {
-                width: 80mm;
-                max-width: 80mm;
-                margin: 0 auto;
-                background: white;
-                padding: 3mm;
-                border: 1px solid #ddd;
-                box-shadow: 0 0 10px rgba(0,0,0,0.1);
-              }
-              
-              .header {
-                text-align: center;
-                border-bottom: 2px solid #000;
-                padding-bottom: 4mm;
-                margin-bottom: 5mm;
-              }
-              
-              .business-name {
-                font-size: 16px;
-                font-weight: bold;
-                margin-bottom: 2mm;
-                text-transform: uppercase;
-              }
-              
-              .business-info {
-                font-size: 10px;
-                line-height: 1.2;
-                color: #333;
-              }
-              
-              .receipt-info {
-                margin-bottom: 5mm;
-                font-size: 10px;
-                border-bottom: 1px dashed #ccc;
-                padding-bottom: 3mm;
-              }
-              
-              .info-line {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 1mm;
-              }
-              
-              .items {
-                margin-bottom: 5mm;
-              }
-              
-              .item {
-                margin-bottom: 3mm;
-                font-size: 10px;
-                border-bottom: 1px dotted #eee;
-                padding-bottom: 2mm;
-              }
-              
-              .item-line {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 1mm;
-                font-weight: bold;
-              }
-              
-              .item-name {
-                flex: 1;
-                margin-right: 5mm;
-              }
-              
-              .item-price {
-                font-weight: bold;
-                min-width: 15mm;
-                text-align: right;
-              }
-              
-              .item-details {
-                font-size: 9px;
-                color: #666;
-                margin-left: 2mm;
-                font-style: italic;
-              }
-              
-              .totals {
-                border-top: 2px solid #000;
-                padding-top: 4mm;
-                margin-top: 5mm;
-              }
-              
-              .total-line {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 2mm;
-                font-size: 10px;
-              }
-              
-              .discount-line {
-                color: #d97706;
-                font-weight: bold;
-              }
-              
-              .final-total {
-                font-weight: bold;
-                font-size: 14px;
-                border-top: 2px solid #000;
-                border-bottom: 2px solid #000;
-                padding: 3mm 0;
-                margin: 3mm 0;
-                background: #f9f9f9;
-              }
-              
-              .payment-info {
-                margin-top: 5mm;
-                padding-top: 4mm;
-                border-top: 1px dashed #666;
-                font-size: 10px;
-              }
-              
-              .footer {
-                text-align: center;
-                margin-top: 8mm;
-                padding-top: 4mm;
-                border-top: 1px dashed #666;
-                font-size: 9px;
-                color: #666;
-                font-style: italic;
-              }
-              
-              .validation-info {
-                font-size: 8px;
-                color: #999;
-                text-align: center;
-                margin-top: 5mm;
-                padding-top: 3mm;
-                border-top: 1px dotted #ccc;
-              }
-              
-              @media print {
-                @page {
-                  size: 80mm auto;
-                  margin: 0;
-                }
-                
-                body {
-                  margin: 0;
-                  padding: 0;
-                  -webkit-print-color-adjust: exact;
-                  color-adjust: exact;
-                }
-                
-                .receipt {
-                  border: none;
-                  box-shadow: none;
-                  width: 80mm;
-                  padding: 2mm;
-                  margin: 0;
-                }
-                
-                .validation-info {
-                  display: none;
-                }
-              }
-              
-              @media screen {
-                body {
-                  background: #f5f5f5;
-                  padding: 20px;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            ${receiptRef.current.innerHTML}
-            <div class="validation-info">
-              Printed: ${new Date().toLocaleString()}<br>
-              Data validated: ${dataValidated ? "Yes" : "No"}
-            </div>
-          </body>
-        </html>
+      // Create print styles for the current document
+      const printStyles = `
+        <style id="receipt-print-styles">
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            
+            .receipt-print-container,
+            .receipt-print-container * {
+              visibility: visible;
+            }
+            
+            .receipt-print-container {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 80mm;
+              font-family: 'Courier New', 'Lucida Console', monospace;
+              font-size: 12px;
+              line-height: 1.3;
+              color: #000;
+              background: white;
+            }
+            
+            .receipt-print-container .header {
+              text-align: center;
+              border-bottom: 2px solid #000;
+              padding-bottom: 4mm;
+              margin-bottom: 5mm;
+            }
+            
+            .receipt-print-container .business-name {
+              font-size: 16px;
+              font-weight: bold;
+              margin-bottom: 2mm;
+              text-transform: uppercase;
+            }
+            
+            .receipt-print-container .business-info {
+              font-size: 10px;
+              line-height: 1.2;
+            }
+            
+            .receipt-print-container .receipt-info {
+              margin-bottom: 5mm;
+              font-size: 10px;
+              border-bottom: 1px dashed #ccc;
+              padding-bottom: 3mm;
+            }
+            
+            .receipt-print-container .items {
+              margin-bottom: 5mm;
+            }
+            
+            .receipt-print-container .item {
+              margin-bottom: 3mm;
+              font-size: 10px;
+              border-bottom: 1px dotted #eee;
+              padding-bottom: 2mm;
+            }
+            
+            .receipt-print-container .item-line {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 1mm;
+              font-weight: bold;
+            }
+            
+            .receipt-print-container .item-details {
+              font-size: 9px;
+              color: #666;
+              margin-left: 2mm;
+              font-style: italic;
+            }
+            
+            .receipt-print-container .totals {
+              border-top: 2px solid #000;
+              padding-top: 4mm;
+              margin-top: 5mm;
+            }
+            
+            .receipt-print-container .total-line {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 2mm;
+              font-size: 10px;
+            }
+            
+            .receipt-print-container .final-total {
+              font-weight: bold;
+              font-size: 14px;
+              border-top: 2px solid #000;
+              border-bottom: 2px solid #000;
+              padding: 3mm 0;
+              margin: 3mm 0;
+            }
+            
+            .receipt-print-container .payment-info {
+              margin-top: 5mm;
+              padding-top: 4mm;
+              border-top: 1px dashed #666;
+              font-size: 10px;
+            }
+            
+            .receipt-print-container .footer {
+              text-align: center;
+              margin-top: 8mm;
+              padding-top: 4mm;
+              border-top: 1px dashed #666;
+              font-size: 9px;
+              font-style: italic;
+            }
+            
+            @page {
+              size: 80mm auto;
+              margin: 5mm;
+            }
+          }
+        </style>
       `;
 
-      printWindow.document.write(printHTML);
-      printWindow.document.close();
+      // Remove existing print styles if any
+      const existingStyles = document.getElementById('receipt-print-styles');
+      if (existingStyles) {
+        existingStyles.remove();
+      }
 
-      // Wait for content to load before printing
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Print window load timeout"));
-        }, 10000);
+      // Add print styles to document head
+      document.head.insertAdjacentHTML('beforeend', printStyles);
 
-        printWindow.onload = () => {
-          clearTimeout(timeout);
-          resolve();
-        };
+      // Create a temporary print container
+      const printContainer = document.createElement('div');
+      printContainer.className = 'receipt-print-container';
+      printContainer.style.position = 'fixed';
+      printContainer.style.top = '-9999px';
+      printContainer.style.left = '-9999px';
+      printContainer.innerHTML = receiptRef.current.innerHTML;
+      
+      // Add print container to body
+      document.body.appendChild(printContainer);
 
-        // Fallback for browsers that don't fire onload
-        setTimeout(() => {
-          clearTimeout(timeout);
-          resolve();
-        }, 1000);
-      });
+      // Small delay to ensure styles are applied
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Trigger print dialog
-      printWindow.focus();
-      printWindow.print();
+      // Trigger native print dialog
+      window.print();
+
+      // Clean up
+      setTimeout(() => {
+        // Remove print styles and container
+        const stylesToRemove = document.getElementById('receipt-print-styles');
+        if (stylesToRemove) {
+          stylesToRemove.remove();
+        }
+        if (printContainer && printContainer.parentNode) {
+          printContainer.parentNode.removeChild(printContainer);
+        }
+      }, 1000);
 
       // Track successful print
       setLastPrintTime(Date.now());
@@ -360,16 +284,6 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
         onPrintSuccess();
       }
 
-      // Close print window after a delay
-      setTimeout(() => {
-        try {
-          if (!printWindow.closed) {
-            printWindow.close();
-          }
-        } catch (e) {
-          console.warn("Could not close print window:", e);
-        }
-      }, 2000);
     } catch (error) {
       console.error("Print operation failed:", error);
       setPrintError(error instanceof Error ? error.message : "Print operation failed");
