@@ -1,6 +1,5 @@
 import { ordersAPI } from "@/api/orders.api";
 import { POSClientOrders } from "@/components/pos/POSClientOrders";
-import { POSClientSales } from "@/components/pos/POSClientSales";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,7 +7,7 @@ import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
 import { POSLayoutProps } from "@/types/inventory";
 // Order types have complex inheritance, using any for callback parameter
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
-import { AlertCircle, Calendar, Clock, GripVertical, List, LogOut, Maximize2, Minimize2, Power, ShoppingCart, TrendingUp } from "lucide-react";
+import { AlertCircle, Calendar, Clock, GripVertical, List, LogOut, Maximize2, Minimize2, Power, ShoppingCart } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
@@ -17,10 +16,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
-  const [showSalesDialog, setShowSalesDialog] = useState(false);
   const [showSalesHistoryDialog, setShowSalesHistoryDialog] = useState(false);
   const [ordersCount, setOrdersCount] = useState(0);
-  const [salesCount, setSalesCount] = useState(0);
 
   // Resizable panel state
   const [leftPanelWidth, setLeftPanelWidth] = useState(280); // Default 280px - smaller
@@ -136,13 +133,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
 
       // Handle nested response structure
       const responseData = response.data as { data?: { orderType: string }[] } | { orderType: string }[];
-      const sales = Array.isArray(responseData) ? responseData : responseData?.data || [];
-
-      // Include all order types for sales count
-      setSalesCount(sales.length);
     } catch (error) {
       console.error("Failed to fetch sales count:", error);
-      setSalesCount(0);
     }
   }, []);
 
@@ -160,23 +152,14 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // onOrderSelect is a stable prop, no need to include in deps
 
-  const handleCloseSalesDialog = useCallback(() => {
-    setShowSalesDialog(false);
-  }, []);
-
   const handleCloseSalesHistoryDialog = useCallback(() => {
     setShowSalesHistoryDialog(false);
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleSaleSelect = useCallback((order: any) => {
-    setShowSalesDialog(false);
-  }, []);
-
   // Combined refresh function for both counts
   const refreshCounts = useCallback(async () => {
-    await Promise.all([fetchOrdersCount(), fetchSalesCount()]);
-  }, [fetchOrdersCount, fetchSalesCount]);
+    await Promise.all([fetchOrdersCount()]);
+  }, [fetchOrdersCount]);
 
   // Expose refresh function to parent component
   useEffect(() => {
@@ -297,18 +280,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
           <div className="relative flex items-center space-x-3 z-10 select-none">
             {/* Session Stats */}
             <div className="flex items-center space-x-2 select-none">
-              {/* Total Sales Card - Clickable */}
-              <button onClick={() => setShowSalesDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
-                <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
-                  <TrendingUp className="w-4 h-4 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
-                  <div className="flex items-center space-x-1">
-                    <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Today's Sales:</span>
-                    <span className="text-sm font-bold text-emerald-300 group-hover:text-emerald-200 transition-colors tabular-nums">{salesCount}</span>
-                  </div>
-                </div>
-              </button>
-              {/* //////// */}
               <button onClick={() => setShowSalesHistoryDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
                 <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
@@ -380,9 +351,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
 
       {/* Orders Dialog */}
       <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelect} />
-
-      {/* Sales Dialog */}
-      <POSClientSales isOpen={showSalesDialog} onClose={handleCloseSalesDialog} onOrderSelect={handleSaleSelect} />
 
       {/* Sales History Dialog */}
       <Dialog open={showSalesHistoryDialog} onOpenChange={setShowSalesHistoryDialog}>

@@ -87,6 +87,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
   // Receipt printer state
   const [showReceiptDialog, setShowReceiptDialog] = React.useState(false);
   const [receiptData, setReceiptData] = React.useState<ReceiptData | null>(null);
+  const [isPrintingReport, setIsPrintingReport] = React.useState(false);
 
   // Convert sale data to receipt format
   const convertSaleToReceipt = useCallback(
@@ -255,6 +256,153 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
   const totalSales = useAtomValue(totalSalesAtom);
   const totalQuantity = useAtomValue(totalQuantityAtom);
   const itemSales = useAtomValue(itemSalesAtom);
+
+  // Calculate filtered total based on current date range and filters
+  const filteredTotal = useMemo(() => {
+    return groupedSales.reduce((sum, sale) => sum + sale.total, 0);
+  }, [groupedSales]);
+
+  // Generate sales report HTML content
+  const generateSalesReportContent = useCallback(() => {
+    const dateRangeText = dateFrom && dateTo ? (() => {
+      const fromDateStr = format(dateFrom, "yyyy-MM-dd");
+      const toDateStr = format(dateTo, "yyyy-MM-dd");
+      return fromDateStr === toDateStr 
+        ? format(dateFrom, "MMMM d, yyyy")
+        : `${format(dateFrom, "MMMM d, yyyy")} - ${format(dateTo, "MMMM d, yyyy")}`;
+    })() : 'All Time';
+
+    const filterText = [
+      selectedItem !== 'all' ? `Item: ${selectedItem}` : null,
+      selectedSection !== 'all' ? `Section: ${selectedSection}` : null
+    ].filter(Boolean).join(', ');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Sales Report - ${dateRangeText}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .summary { background: #f5f5f5; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+            .filters { background: #e3f2fd; padding: 10px; margin-bottom: 20px; border-radius: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .total-row { background-color: #e8f5e8; font-weight: bold; }
+            .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+            @media print { body { margin: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Sales Report</h1>
+            <h3>${dateRangeText}</h3>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+          </div>
+          
+          <div class="summary">
+            <h3>Summary</h3>
+            <p><strong>Total Sales:</strong> ${groupedSales.length}</p>
+            <p><strong>Total Items Sold:</strong> ${localFilteredSales.length}</p>
+            <p><strong>Total Amount:</strong> ${formatCurrency(filteredTotal)}</p>
+            <p><strong>Average Sale Value:</strong> ${formatCurrency(groupedSales.length > 0 ? filteredTotal / groupedSales.length : 0)}</p>
+          </div>
+          
+          ${filterText ? `
+            <div class="filters">
+              <h4>Applied Filters:</h4>
+              <p>${filterText}</p>
+            </div>
+          ` : ''}
+          
+          <h3>Sales Details</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Sale ID</th>
+                <th>Date</th>
+                <th>Items</th>
+                <th>Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${groupedSales.map(sale => `
+                <tr>
+                  <td>#${sale.saleId}</td>
+                  <td>${format(sale.saleDate, 'MMM d, yyyy HH:mm')}</td>
+                  <td>${sale.items.length}</td>
+                  <td>${formatCurrency(sale.total)}</td>
+                </tr>
+              `).join('')}
+              <tr class="total-row">
+                <td colspan="3"><strong>TOTAL</strong></td>
+                <td><strong>${formatCurrency(filteredTotal)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <h3>Items Breakdown</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Item Name</th>
+                <th>Type</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${localFilteredSales.map(item => `
+                <tr>
+                  <td>${item.itemName}</td>
+                  <td>${item.itemType === 'individual' ? 'Individual' : 'Menu Item'}</td>
+                  <td>${item.quantity}</td>
+                  <td>${formatCurrency(item.unitPrice)}</td>
+                  <td>${formatCurrency(item.totalPrice)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            <p>This report was generated from the Sales History system.</p>
+          </div>
+        </body>
+      </html>
+    `;
+  }, [groupedSales, localFilteredSales, filteredTotal, dateFrom, dateTo, selectedItem, selectedSection]);
+
+  // Generate and print sales report
+  const handlePrintSalesReport = useCallback(async () => {
+    if (groupedSales.length === 0) return;
+    
+    setIsPrintingReport(true);
+    
+    try {
+      // Generate report content
+      const reportContent = generateSalesReportContent();
+      
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(reportContent);
+        printWindow.document.close();
+        
+        // Wait for content to load then print
+        printWindow.onload = () => {
+          printWindow.print();
+          printWindow.close();
+        };
+      }
+    } catch (error) {
+      console.error('Error printing sales report:', error);
+    } finally {
+      setIsPrintingReport(false);
+    }
+  }, [groupedSales, generateSalesReportContent]);
 
   const toggleItemSelection = useCallback(
     (itemId: string) => {
@@ -1076,21 +1224,35 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                 </div>
                 <div className="h-4 w-px bg-gray-300" />
                 <div className="flex items-center space-x-2">
-                  <span className="text-lg font-bold text-green-600">Total: {formatCurrency(totalSales)}</span>
+                  <span className="text-lg font-bold text-green-600">Total: {formatCurrency(filteredTotal)}</span>
                 </div>
+                {/* Date range indicator */}
+                {dateFrom && dateTo && (
+                  <>
+                    <div className="h-4 w-px bg-gray-300" />
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-600">
+                        {(() => {
+                          const fromDateStr = format(dateFrom, "yyyy-MM-dd");
+                          const toDateStr = format(dateTo, "yyyy-MM-dd");
+                          return fromDateStr === toDateStr 
+                            ? `${format(dateFrom, "MMM d, yyyy")}` 
+                            : `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d, yyyy")}`;
+                        })()} 
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center space-x-3">
                 <Button
-                  onClick={() => {
-                    // Print sales report functionality - can be implemented later
-                    console.log("Print sales report clicked");
-                  }}
-                  disabled={groupedSales.length === 0}
+                  onClick={handlePrintSalesReport}
+                  disabled={groupedSales.length === 0 || isPrintingReport}
                   className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
                 >
-                  <Printer className="w-4 h-4" />
-                  <span>Print Sales Report</span>
+                  {isPrintingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  <span>{isPrintingReport ? 'Generating...' : 'Print Sales Report'}</span>
                 </Button>
 
                 {onClose && (
