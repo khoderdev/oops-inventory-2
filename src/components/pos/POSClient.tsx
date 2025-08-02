@@ -15,6 +15,7 @@ import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, R
 import { Order, OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
+import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
@@ -1120,177 +1121,112 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     console.log("🧹 Order cancelled - all state cleared");
   }, [clearOrder]);
 
-  // Format items for printer output - optimized for 80mm thermal receipt
-  const formatItemsForPrinter = useCallback((items: POSCartItem[]): string => {
-    const now = new Date();
-    const date = now.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-    const time = now.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      hour12: true 
-    });
-    const orderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
-    
-    // Get printer name from the first item (all items in this group go to same printer)
-    const printerName = items[0]?.assignedPrinter?.name || `Printer ${items[0]?.printerId || 'Unknown'}`;
-    const stationName = printerName.toUpperCase();
-    
-    // 80mm thermal receipt formatting (48 characters wide)
-    let content = "";
-    
-    // Center text helper function
-    const centerText = (text: string, width: number = 48) => {
-      const padding = Math.max(0, Math.floor((width - text.length) / 2));
-      return " ".repeat(padding) + text;
-    };
-    
-    // Header with centered alignment
-    content += "================================================\n";
-    content += centerText(`${stationName} STATION`) + "\n";
-    content += "================================================\n";
-    content += "\n";
-    
-    // Order information - centered
-    content += centerText(`Order #: ${orderNumber}`) + "\n";
-    content += centerText(`Date: ${date}`) + "\n";
-    content += centerText(`Time: ${time}`) + "\n";
-    content += centerText(`Type: ${orderType.toUpperCase()}`) + "\n";
-    
-    if (selectedTable) {
-      content += centerText(`Table: ${selectedTable.number}`) + "\n";
-    }
-    
-    if (selectedEmployee) {
-      const employeeName = `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim();
-      content += centerText(`Staff: ${employeeName}`) + "\n";
-    }
-    
-    content += "\n";
-    content += "------------------------------------------------\n";
-    content += centerText("ORDER ITEMS") + "\n";
-    content += "------------------------------------------------\n";
-    content += "\n";
-    
-    // Items - simplified for kitchen/station (only name and quantity)
-    items.forEach((item, index) => {
-      const itemName = item.name.length > 40 ? item.name.substring(0, 37) + "..." : item.name;
-      
-      // Only show quantity and item name - no prices or types
-      content += centerText(`${item.quantity}x ${itemName}`) + "\n";
-      
-      // Add spacing between items (except last item)
-      if (index < items.length - 1) {
-        content += "\n";
-      }
-    });
-    
-    content += "\n";
-    content += "------------------------------------------------\n";
-    
-    // Only show item count - no monetary totals for kitchen
-    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-    
-    content += centerText(`Total Items: ${itemCount}`) + "\n";
-    content += "\n";
-    
-    // Add thermal printer paper cut command (ESC/POS)
-    content += "\x1B\x69"; // ESC i - Full cut command
-    
-    return content;
-  }, [currentOrder, orderType, selectedTable, selectedEmployee]);
+  // Format items for printer output using utility function
+  const formatItemsForPrinterCallback = useCallback(
+    (items: POSCartItem[]): string => {
+      return formatItemsForPrinter({
+        items,
+        currentOrder,
+        orderType,
+        selectedTable,
+        selectedEmployee,
+        generatePreviewOrderNumber
+      });
+    },
+    [currentOrder, orderType, selectedTable, selectedEmployee]
+  );
 
   // Print items to their assigned printers
-  const printItemsToAssignedPrinters = useCallback(async (cartItems: POSCartItem[]) => {
-    try {
-      console.log('🖨️ Starting automatic printing for order items:', cartItems.map(item => ({
-        name: item.name,
-        printerId: item.printerId,
-        assignedPrinter: item.assignedPrinter?.name
-      })));
-      
-      // Group items by printer
-      const itemsByPrinter = new Map<number, POSCartItem[]>();
-      
-      cartItems.forEach(item => {
-        const printerId = item.printerId || item.assignedPrinter?.id;
-        if (printerId) {
-          if (!itemsByPrinter.has(printerId)) {
-            itemsByPrinter.set(printerId, []);
-          }
-          itemsByPrinter.get(printerId)!.push(item);
-          console.log(`📋 Item "${item.name}" assigned to printer ${printerId} (${item.assignedPrinter?.name || 'Unknown'})`);
-        } else {
-          console.log(`⚠️ Item "${item.name}" has no printer assignment - will not be printed`);
-        }
-      });
-      
-      console.log(`🎯 Items grouped into ${itemsByPrinter.size} printer(s):`);
-      itemsByPrinter.forEach((items, printerId) => {
-        const printerName = items[0]?.assignedPrinter?.name || `Printer ${printerId}`;
-        console.log(`  - ${printerName}: ${items.map(i => i.name).join(', ')}`);
-      });
+  const printItemsToAssignedPrinters = useCallback(
+    async (cartItems: POSCartItem[]) => {
+      try {
+        console.log(
+          "🖨️ Starting automatic printing for order items:",
+          cartItems.map(item => ({
+            name: item.name,
+            printerId: item.printerId,
+            assignedPrinter: item.assignedPrinter?.name
+          }))
+        );
 
-      // Print to each printer
-      const printPromises = Array.from(itemsByPrinter.entries()).map(async ([printerId, items]) => {
-        try {
-          // Create print content for the items
-          const printContent = formatItemsForPrinter(items);
-          
-          // Create print job
-          const printJobData = {
-            printerId: printerId,
-            jobType: "receipt" as const,
-            content: {
-              rawContent: printContent,
-              format: "text",
-              encoding: "utf8"
-            },
-            priority: 1,
-            metadata: {
-              orderType: "pos_order",
-              itemCount: items.length,
-              timestamp: new Date().toISOString()
+        // Group items by printer
+        const itemsByPrinter = new Map<number, POSCartItem[]>();
+
+        cartItems.forEach(item => {
+          const printerId = item.printerId || item.assignedPrinter?.id;
+          if (printerId) {
+            if (!itemsByPrinter.has(printerId)) {
+              itemsByPrinter.set(printerId, []);
             }
-          };
+            itemsByPrinter.get(printerId)!.push(item);
+            console.log(`📋 Item "${item.name}" assigned to printer ${printerId} (${item.assignedPrinter?.name || "Unknown"})`);
+          } else {
+            console.log(`⚠️ Item "${item.name}" has no printer assignment - will not be printed`);
+          }
+        });
 
-          const result = await printerAPI.createPrintJob(printJobData);
-          console.log(`✅ Print job created for printer ${printerId}:`, result);
-          
-          return { printerId, success: true, jobId: result.job?.id };
-        } catch (error) {
-          console.error(`❌ Failed to print to printer ${printerId}:`, error);
-          return { printerId, success: false, error };
-        }
-      });
+        console.log(`🎯 Items grouped into ${itemsByPrinter.size} printer(s):`);
+        itemsByPrinter.forEach((items, printerId) => {
+          const printerName = items[0]?.assignedPrinter?.name || `Printer ${printerId}`;
+          console.log(`  - ${printerName}: ${items.map(i => i.name).join(", ")}`);
+        });
 
-      const results = await Promise.allSettled(printPromises);
-      
-      // Count successful prints
-      const successfulPrints = results.filter(result => 
-        result.status === 'fulfilled' && result.value.success
-      ).length;
-      
-      const totalPrinters = itemsByPrinter.size;
-      
-      if (successfulPrints > 0) {
-        if (successfulPrints === totalPrinters) {
-          showSuccess(`✅ Items printed to ${successfulPrints} printer(s) successfully!`);
-        } else {
-          showSuccess(`⚠️ Items printed to ${successfulPrints}/${totalPrinters} printers. Check printer status for failed prints.`);
+        // Print to each printer
+        const printPromises = Array.from(itemsByPrinter.entries()).map(async ([printerId, items]) => {
+          try {
+            // Create print content for the items
+            const printContent = formatItemsForPrinterCallback(items);
+
+            // Create print job
+            const printJobData = {
+              printerId: printerId,
+              jobType: "receipt" as const,
+              content: {
+                rawContent: printContent,
+                format: "text",
+                encoding: "utf8"
+              },
+              priority: 1,
+              metadata: {
+                orderType: "pos_order",
+                itemCount: items.length,
+                timestamp: new Date().toISOString()
+              }
+            };
+
+            const result = await printerAPI.createPrintJob(printJobData);
+            console.log(`✅ Print job created for printer ${printerId}:`, result);
+
+            return { printerId, success: true, jobId: result.job?.id };
+          } catch (error) {
+            console.error(`❌ Failed to print to printer ${printerId}:`, error);
+            return { printerId, success: false, error };
+          }
+        });
+
+        const results = await Promise.allSettled(printPromises);
+
+        // Count successful prints
+        const successfulPrints = results.filter(result => result.status === "fulfilled" && result.value.success).length;
+
+        const totalPrinters = itemsByPrinter.size;
+
+        if (successfulPrints > 0) {
+          if (successfulPrints === totalPrinters) {
+            showSuccess(`✅ Items printed to ${successfulPrints} printer(s) successfully!`);
+          } else {
+            showSuccess(`⚠️ Items printed to ${successfulPrints}/${totalPrinters} printers. Check printer status for failed prints.`);
+          }
+        } else if (totalPrinters > 0) {
+          showError(`❌ Failed to print items to assigned printers. Please check printer connectivity.`);
         }
-      } else if (totalPrinters > 0) {
-        showError(`❌ Failed to print items to assigned printers. Please check printer connectivity.`);
+      } catch (error) {
+        console.error("❌ Error in printItemsToAssignedPrinters:", error);
+        showError("Failed to print items to printers. Please try manual printing.");
       }
-      
-    } catch (error) {
-      console.error("❌ Error in printItemsToAssignedPrinters:", error);
-      showError("Failed to print items to printers. Please try manual printing.");
-    }
-  }, [showSuccess, showError, formatItemsForPrinter]);
+    },
+    [showSuccess, showError, formatItemsForPrinterCallback]
+  );
 
   // Handle manual save order - save and then clear state
   const handleManualSave = useCallback(async () => {

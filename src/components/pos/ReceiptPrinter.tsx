@@ -44,32 +44,45 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       return " ".repeat(padding) + text;
     };
 
-    content += centerText(businessInfo.name.toUpperCase()) + "\n";
-    content += centerText(businessInfo.address) + "\n";
-    content += centerText(businessInfo.phone) + "\n";
+    // Function to handle Arabic text encoding for thermal printers
+    const handleArabicText = (text: string): string => {
+      // Remove any Chinese/Unicode characters that might interfere
+      // and ensure proper Arabic text display
+      return text
+        .replace(/[\u4e00-\u9fff]/g, "") // Remove Chinese characters
+        .replace(/[\u3400-\u4dbf]/g, "") // Remove CJK Extension A
+        .replace(/[\u20000-\u2a6df]/g, "") // Remove CJK Extension B
+        .replace(/[\uf900-\ufaff]/g, "") // Remove CJK Compatibility
+        .trim();
+    };
+
+    content += centerText(handleArabicText(businessInfo.name.toUpperCase())) + "\n";
+    content += centerText(handleArabicText(businessInfo.address)) + "\n";
+    content += centerText(handleArabicText(businessInfo.phone)) + "\n";
     content += "================================================\n";
     content += "\n";
 
-    // Receipt info - centered
-    content += centerText(`Receipt #: ${receiptData.id}`) + "\n";
-    content += centerText(`Date: ${receiptData.date}`) + "\n";
-    content += centerText(`Time: ${receiptData.time}`) + "\n";
-    content += centerText(`Cashier: ${receiptData.cashier || currentUser?.username || "Unknown User"}`) + "\n";
+    // Receipt info - left aligned
+    content += `Receipt #: ${receiptData.id}\n`;
+    content += `Date: ${receiptData.date}\n`;
+    content += `Time: ${receiptData.time}\n`;
+    content += `Cashier: ${receiptData.cashier || currentUser?.username || "Unknown User"}\n`;
     content += "------------------------------------------------\n";
     content += "\n";
 
     // Items with proper alignment
     receiptData.items.forEach((item, index) => {
-      // Item name (truncate if too long)
-      const itemName = item.name.length > 40 ? item.name.substring(0, 37) + "..." : item.name;
+      // Item name (handle Arabic text and truncate if too long)
+      const cleanItemName = handleArabicText(item.name);
+      const itemName = cleanItemName.length > 40 ? cleanItemName.substring(0, 37) + "..." : cleanItemName;
       content += `${itemName}\n`;
-      
+
       // Quantity, unit price, and total with right alignment
       const qtyPrice = `${item.quantity}x ${formatCurrency(item.unitPrice)}`;
       const total = formatCurrency(item.totalPrice);
       const spacesNeeded = 48 - qtyPrice.length - total.length;
       content += qtyPrice + " ".repeat(Math.max(1, spacesNeeded)) + total + "\n";
-      
+
       // Add spacing between items (except last item)
       if (index < receiptData.items.length - 1) {
         content += "\n";
@@ -215,7 +228,8 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
 
     // Prevent rapid successive print attempts (cooldown period)
     const now = Date.now();
-    if (lastPrintTime && (now - lastPrintTime) < 2000) { // 2 second cooldown
+    if (lastPrintTime && now - lastPrintTime < 2000) {
+      // 2 second cooldown
       console.warn("Print cooldown active, please wait before printing again");
       return;
     }
@@ -272,12 +286,12 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
               total: receiptData.total
             }
           };
-          
+
           console.log(`📤 Sending print job with data:`, printJobData);
 
           try {
             const printJobResponse = await printerAPI.createPrintJob(printJobData);
-            
+
             console.log(`📨 Print job sent to network printer:`, {
               printerId: savedPrinter.id,
               printerName: savedPrinter.name,
@@ -290,12 +304,9 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
 
               // For network printers, we consider the job successful if it's created and accepted
               // The actual printing happens asynchronously on the network printer
-              if (printJobResponse.job.status === 'completed' || 
-                  printJobResponse.job.status === 'pending' || 
-                  printJobResponse.job.status === 'printing') {
-                
+              if (printJobResponse.job.status === "completed" || printJobResponse.job.status === "pending" || printJobResponse.job.status === "printing") {
                 console.log(`🖨️ Print job successfully queued for network printer: ${savedPrinter.name}`);
-                
+
                 // Track successful print
                 setLastPrintTime(Date.now());
 
@@ -306,7 +317,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
                 }
 
                 return; // Exit early on successful network printing
-              } else if (printJobResponse.job.status === 'failed') {
+              } else if (printJobResponse.job.status === "failed") {
                 console.warn(`❌ Network printer rejected the job. Status: ${printJobResponse.job.status}`);
                 setPrintError(`Network printer "${savedPrinter.name}" is not responding or offline. Please check printer connection.`);
                 return;
@@ -317,12 +328,12 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
               }
             } else {
               console.error("❌ Print job creation failed:", printJobResponse);
-              setPrintError(`Failed to send print job to "${savedPrinter.name}": ${printJobResponse.message || 'Network printer communication error'}`);
+              setPrintError(`Failed to send print job to "${savedPrinter.name}": ${printJobResponse.message || "Network printer communication error"}`);
               return;
             }
           } catch (printerError) {
             console.error("🚨 Network printer communication error:", printerError);
-            const errorMessage = printerError instanceof Error ? printerError.message : 'Unknown network error';
+            const errorMessage = printerError instanceof Error ? printerError.message : "Unknown network error";
             setPrintError(`Cannot reach network printer "${savedPrinter.name}": ${errorMessage}`);
             return;
           }
@@ -335,281 +346,6 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
         console.log("ℹ️ No printer selected - prompting user to configure printer");
         setPrintError("No network printer selected. Please configure a printer in settings to enable automatic printing.");
         return;
-      }
-
-      // This code should not be reached since we return early above
-      // Keeping browser print as emergency fallback only
-      console.log("⚠️ Falling back to browser print - this should not happen with network printers");
-      
-      // Create print styles for the current document
-      const printStyles = `
-        <style id="receipt-print-styles">
-          @media print {
-            /* Hide everything except our receipt */
-            body > *:not(.receipt-print-container) {
-              display: none !important;
-            }
-            
-            body {
-              margin: 0 !important;
-              padding: 0 !important;
-              background: white !important;
-            }
-            
-            .receipt-print-container {
-              display: block !important;
-              position: static !important;
-              width: 100mm !important;
-              max-width: 100mm !important;
-              margin: 0 auto !important;
-              padding: 2mm !important;
-              font-family: 'Courier New', 'Lucida Console', monospace !important;
-              font-size: 12px !important;
-              line-height: 1.3 !important;
-              color: #000 !important;
-              background: white !important;
-            }
-            
-            /* Reset all nested elements */
-            .receipt-print-container * {
-              font-family: 'Courier New', 'Lucida Console', monospace !important;
-              color: #000 !important;
-              background: transparent !important;
-              box-shadow: none !important;
-              text-shadow: none !important;
-              border-radius: 0 !important;
-            }
-            
-            /* Preserve flex layouts */
-            .receipt-print-container .flex {
-              display: flex !important;
-            }
-            
-            .receipt-print-container .justify-between {
-              justify-content: space-between !important;
-            }
-            
-            .receipt-print-container .text-center {
-              text-align: center !important;
-            }
-            
-            .receipt-print-container .font-bold {
-              font-weight: bold !important;
-            }
-            
-            .receipt-print-container .capitalize {
-              text-transform: capitalize !important;
-            }
-            
-            /* Ensure borders show up */
-            .receipt-print-container .border-t {
-              border-top: 1px solid #000 !important;
-            }
-            
-            .receipt-print-container .border-b {
-              border-bottom: 1px solid #000 !important;
-            }
-            
-            .receipt-print-container .border-dashed {
-              border-style: dashed !important;
-            }
-            
-            /* Specific receipt section styling with proper spacing */
-            .receipt-print-container .business-name {
-              font-size: 16px !important;
-              font-weight: bold !important;
-              text-transform: uppercase !important;
-              margin-bottom: 3mm !important;
-            }
-            
-            .receipt-print-container .business-info {
-              font-size: 10px !important;
-              line-height: 1.2 !important;
-            }
-            
-            /* Header section spacing */
-            .receipt-print-container .header {
-              padding-bottom: 6mm !important;
-              margin-bottom: 8mm !important;
-            }
-            
-            /* Receipt info section spacing */
-            .receipt-print-container .receipt-info {
-              margin-bottom: 8mm !important;
-            }
-            
-            /* Items section spacing */
-            .receipt-print-container .items {
-              margin-bottom: 8mm !important;
-            }
-            
-            .receipt-print-container .item {
-              margin-bottom: 3mm !important;
-            }
-            
-            /* Totals section spacing */
-            .receipt-print-container .totals {
-              margin-top: 8mm !important;
-              padding-top: 5mm !important;
-            }
-            
-            /* Payment info section spacing */
-            .receipt-print-container .payment-info {
-              margin-top: 8mm !important;
-              padding-top: 5mm !important;
-            }
-            
-            /* Footer section spacing */
-            .receipt-print-container .footer {
-              margin-top: 9mm !important;
-              padding-top: 5mm !important;
-            }
-            
-            /* Separator styling */
-            .receipt-print-container .separator {
-              border-top: 1px solid #ccc !important;
-              margin: 4mm 0 !important;
-              width: 100% !important;
-              height: 0 !important;
-            }
-            
-            /* Override specific inline styles with attribute selectors */
-            .receipt-print-container [style*="paddingBottom: 6mm"] {
-              padding-bottom: 6mm !important;
-              margin-bottom: 8mm !important;
-            }
-            
-            .receipt-print-container [style*="marginBottom: 8mm"] {
-              margin-bottom: 8mm !important;
-            }
-            
-            .receipt-print-container [style*="paddingTop: 5mm"] {
-              padding-top: 5mm !important;
-            }
-            
-            .receipt-print-container [style*="marginTop: 8mm"] {
-              margin-top: 8mm !important;
-            }
-            
-            .receipt-print-container [style*="marginTop: 9mm"] {
-              margin-top: 9mm !important;
-            }
-            
-            /* Target sections by their content/structure */
-            .receipt-print-container .header {
-              padding-bottom: 6mm !important;
-              margin-bottom: 8mm !important;
-            }
-            
-            .receipt-print-container .receipt-info {
-              margin-bottom: 8mm !important;
-            }
-            
-            .receipt-print-container .items {
-              margin-bottom: 8mm !important;
-            }
-            
-            .receipt-print-container .totals {
-              margin-top: 8mm !important;
-              padding-top: 5mm !important;
-            }
-            
-            .receipt-print-container .payment-info {
-              margin-top: 8mm !important;
-              padding-top: 5mm !important;
-            }
-            
-            .receipt-print-container .footer {
-              margin-top: 9mm !important;
-              padding-top: 5mm !important;
-            }
-            
-            @page {
-              size: 80mm auto;
-              margin: 5mm;
-            }
-          }
-        </style>
-      `;
-
-      // Remove existing print styles if any
-      const existingStyles = document.getElementById("receipt-print-styles");
-      if (existingStyles) {
-        existingStyles.remove();
-      }
-
-      // Set document title for PDF filename
-      const originalTitle = document.title;
-      document.title = `Receipt-${receiptData.id}-${receiptData.date.replace(/\//g, "-")}`;
-
-      // Add print styles to document head
-      document.head.insertAdjacentHTML("beforeend", printStyles);
-
-      // Create a temporary print container
-      const printContainer = document.createElement("div");
-      printContainer.className = "receipt-print-container";
-      printContainer.style.position = "fixed";
-      printContainer.style.top = "-9999px";
-      printContainer.style.left = "-9999px";
-      printContainer.innerHTML = receiptRef.current.innerHTML;
-
-      // Remove conflicting inline styles from sections to allow CSS to take over
-      const sectionsToUpdate = [
-        { selector: ".header", marginBottom: "8mm", paddingBottom: "6mm" },
-        { selector: ".receipt-info", marginBottom: "8mm" },
-        { selector: ".items", marginBottom: "8mm" },
-        { selector: ".totals", marginTop: "8mm", paddingTop: "5mm" },
-        { selector: ".payment-info", marginTop: "8mm", paddingTop: "5mm" },
-        { selector: ".footer", marginTop: "9mm", paddingTop: "5mm" }
-      ];
-
-      sectionsToUpdate.forEach(({ selector, marginBottom, marginTop, paddingBottom, paddingTop }) => {
-        const element = printContainer.querySelector(selector);
-        if (element) {
-          // Remove existing margin/padding from inline styles
-          const style = element.getAttribute("style") || "";
-          let newStyle = style.replace(/margin[^;]*;?/g, "").replace(/padding[^;]*;?/g, "");
-
-          // Add our spacing
-          if (marginBottom) newStyle += `margin-bottom: ${marginBottom} !important;`;
-          if (marginTop) newStyle += `margin-top: ${marginTop} !important;`;
-          if (paddingBottom) newStyle += `padding-bottom: ${paddingBottom} !important;`;
-          if (paddingTop) newStyle += `padding-top: ${paddingTop} !important;`;
-
-          element.setAttribute("style", newStyle);
-        }
-      });
-
-      // Add print container to body
-      document.body.appendChild(printContainer);
-
-      // Small delay to ensure styles are applied
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Trigger native print dialog
-      window.print();
-
-      // Clean up
-      setTimeout(() => {
-        // Remove print styles and container
-        const stylesToRemove = document.getElementById("receipt-print-styles");
-        if (stylesToRemove) {
-          stylesToRemove.remove();
-        }
-        if (printContainer && printContainer.parentNode) {
-          printContainer.parentNode.removeChild(printContainer);
-        }
-        // Restore original document title
-        document.title = originalTitle;
-      }, 1000);
-
-      // Track successful print
-      setLastPrintTime(Date.now());
-
-      // Call success callback to clear cart/items (browser print fallback)
-      if (onPrintSuccess) {
-        console.log("🧹 Calling onPrintSuccess to clear cart after browser print fallback");
-        onPrintSuccess();
       }
     } catch (error) {
       console.error("Print operation failed:", error);
@@ -642,7 +378,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     if (isOpen && autoPrint && receiptData && receiptRef.current && dataValidated && !isPrinting && !autoPrintAttempted) {
       console.log("🔄 Auto-print conditions met, attempting auto-print...");
       setAutoPrintAttempted(true); // Mark that we've attempted auto-print
-      
+
       // Ensure dialog is fully rendered and data is validated
       const timer = setTimeout(() => {
         if (receiptRef.current && validationResult.isValid) {
