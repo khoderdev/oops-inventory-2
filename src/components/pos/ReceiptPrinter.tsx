@@ -252,23 +252,35 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
                 return; // Exit early on successful automatic printing
               } else {
                 console.warn(`❌ Print job created but failed with status: ${printJobResponse.job.status}`);
-                console.warn("Falling back to browser print");
+                console.warn("Print job failed - NOT falling back to browser print to prevent modal reopening");
                 // Track failed print attempt to prevent rapid retries
                 setLastPrintTime(Date.now());
+                
+                // Set error message and exit without calling onPrintSuccess
+                setPrintError(`Printer is offline or unavailable. Print job failed with status: ${printJobResponse.job.status}`);
+                return; // Exit early to prevent fallback to browser print
               }
             } else {
-              console.warn("❌ Print job creation failed, falling back to browser print");
+              console.warn("❌ Print job creation failed - NOT falling back to browser print to prevent modal reopening");
               console.warn("Response:", printJobResponse);
+              setPrintError(`Print job creation failed: ${printJobResponse.message || 'Unknown error'}`);
+              return; // Exit early to prevent fallback to browser print
             }
           } catch (printerError) {
-            console.error("🚨 Automatic printing failed, falling back to browser print:");
+            console.error("🚨 Automatic printing failed - NOT falling back to browser print to prevent modal reopening:");
             console.error("Error details:", printerError);
+            setPrintError(`Automatic printing failed: ${printerError instanceof Error ? printerError.message : 'Unknown error'}`);
+            return; // Exit early to prevent fallback to browser print
           }
         } else {
           console.log("⚠️ No saved printer found in localStorage");
+          setPrintError("No saved printer found. Please select a printer in settings.");
+          return; // Exit early to prevent fallback to browser print
         }
       } else {
-        console.log("ℹ️ No printer selected - will use browser print dialog");
+        console.log("ℹ️ No printer selected - will show error instead of browser print");
+        setPrintError("No printer selected. Please select a printer in settings.");
+        return; // Exit early to prevent fallback to browser print
       }
 
       // Fallback to native browser print dialog

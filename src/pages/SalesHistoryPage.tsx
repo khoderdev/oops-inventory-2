@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -689,23 +688,81 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
               </div>
             </div>
 
-            {/* Legacy single date filter - kept for backward compatibility */}
-            {!dateFrom && !dateTo && (
-              <div className="flex-1">
-                <label className="text-sm font-medium">Date (Legacy)</label>
-                <Input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
-              </div>
-            )}
+            {/* Filter Actions */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Active Filters Display */}
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedItem !== "all" && (
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                    Item: {selectedItem}
+                    <button onClick={() => setSelectedItem("all")} className="ml-2 text-blue-600 hover:text-blue-800">
+                      ×
+                    </button>
+                  </Badge>
+                )}
+                {selectedSection !== "all" && (
+                  <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                    Section: {selectedSection}
+                    <button onClick={() => setSelectedSection("all")} className="ml-2 text-green-600 hover:text-green-800">
+                      ×
+                    </button>
+                  </Badge>
+                )}
+                {(dateFrom || dateTo) && (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
+                    {dateFrom && dateTo
+                      ? (() => {
+                          const fromDateStr = format(dateFrom, "yyyy-MM-dd");
+                          const toDateStr = format(dateTo, "yyyy-MM-dd");
+                          const today = format(new Date(), "yyyy-MM-dd");
 
-            <div className="flex flex-wrap gap-2">
-              {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
+                          if (fromDateStr === toDateStr) {
+                            return fromDateStr === today ? "Today" : format(dateFrom, "MMM d, yyyy");
+                          }
+                          return `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d, yyyy")}`;
+                        })()
+                      : dateFrom
+                        ? `From: ${format(dateFrom, "MMM d, yyyy")}`
+                        : `To: ${format(dateTo!, "MMM d, yyyy")}`}
+                    <button
+                      onClick={() => {
+                        setDateFrom(undefined);
+                        setDateTo(undefined);
+                        setDateFilter("");
+                      }}
+                      className="ml-2 text-purple-600 hover:text-purple-800"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                )}
+                {dateFilter && !dateFrom && !dateTo && (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
+                    Date: {formatDate(new Date(dateFilter))}
+                    <button onClick={() => setDateFilter("")} className="ml-2 text-purple-600 hover:text-purple-800">
+                      ×
+                    </button>
+                  </Badge>
+                )}
+              </div>
+
+              {/* Quick Action Buttons */}
+              <div className="flex flex-wrap gap-2 ml-auto">
+                {/* Today Button */}
                 <Button
-                  variant="outline"
+                  variant={(() => {
+                    if (!dateFrom || !dateTo) return "outline";
+                    const today = new Date();
+                    const todayStart = new Date(today);
+                    todayStart.setHours(0, 0, 0, 0);
+                    const todayEnd = new Date(today);
+                    todayEnd.setHours(23, 59, 59, 999);
+
+                    const isToday = dateFrom.getTime() === todayStart.getTime() && dateTo.getTime() === todayEnd.getTime();
+                    return isToday ? "default" : "outline";
+                  })()}
+                  size="sm"
                   onClick={() => {
-                    setSelectedItem("all");
-                    setSelectedSection("all");
-                    setDateFilter("");
-                    // Reset to today's date range
                     const today = new Date();
                     const todayStart = new Date(today);
                     todayStart.setHours(0, 0, 0, 0);
@@ -713,22 +770,95 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                     todayEnd.setHours(23, 59, 59, 999);
                     setDateFrom(todayStart);
                     setDateTo(todayEnd);
+                    setDateFilter("");
                   }}
+                  className="transition-all duration-200"
                 >
-                  Reset to Today
+                  📅 Today
                 </Button>
-              )}
 
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDateFrom(undefined);
-                  setDateTo(undefined);
-                  setDateFilter("");
-                }}
-              >
-                Clear Date Filters
-              </Button>
+                {/* Yesterday Button */}
+                <Button
+                  variant={(() => {
+                    if (!dateFrom || !dateTo) return "outline";
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStart = new Date(yesterday);
+                    yesterdayStart.setHours(0, 0, 0, 0);
+                    const yesterdayEnd = new Date(yesterday);
+                    yesterdayEnd.setHours(23, 59, 59, 999);
+
+                    const isYesterday = dateFrom.getTime() === yesterdayStart.getTime() && dateTo.getTime() === yesterdayEnd.getTime();
+                    return isYesterday ? "default" : "outline";
+                  })()}
+                  size="sm"
+                  onClick={() => {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStart = new Date(yesterday);
+                    yesterdayStart.setHours(0, 0, 0, 0);
+                    const yesterdayEnd = new Date(yesterday);
+                    yesterdayEnd.setHours(23, 59, 59, 999);
+                    setDateFrom(yesterdayStart);
+                    setDateTo(yesterdayEnd);
+                    setDateFilter("");
+                  }}
+                  className="transition-all duration-200"
+                >
+                  📅 Yesterday
+                </Button>
+
+                {/* This Week Button */}
+                <Button
+                  variant={(() => {
+                    if (!dateFrom || !dateTo) return "outline";
+                    const today = new Date();
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - today.getDay());
+                    startOfWeek.setHours(0, 0, 0, 0);
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 6);
+                    endOfWeek.setHours(23, 59, 59, 999);
+
+                    const isThisWeek = dateFrom.getTime() === startOfWeek.getTime() && dateTo.getTime() === endOfWeek.getTime();
+                    return isThisWeek ? "default" : "outline";
+                  })()}
+                  size="sm"
+                  onClick={() => {
+                    const today = new Date();
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - today.getDay());
+                    startOfWeek.setHours(0, 0, 0, 0);
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 6);
+                    endOfWeek.setHours(23, 59, 59, 999);
+                    setDateFrom(startOfWeek);
+                    setDateTo(endOfWeek);
+                    setDateFilter("");
+                  }}
+                  className="transition-all duration-200"
+                >
+                  📅 This Week
+                </Button>
+
+                {/* Clear All Filters Button */}
+                {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedItem("all");
+                      setSelectedSection("all");
+                      setDateFilter("");
+                      setDateFrom(undefined);
+                      setDateTo(undefined);
+                    }}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 transition-all duration-200"
+                  >
+                    🗑️ Clear All
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -1145,7 +1275,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
       {isOpen && onClose && (
         <div className="fixed bottom-0 left-0 right-0 bg-gray-100 border-t border-gray-200 shadow-lg z-30">
           <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                   <Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-500 font-semibold">
@@ -1177,14 +1307,8 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
               <div className="flex items-center space-x-3">
                 <Button onClick={handlePrintSalesReport} disabled={groupedSales.length === 0 || isPrintingReport} className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105">
                   {isPrintingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                  <span>{isPrintingReport ? "Generating..." : "Print Sales Report"}</span>
+                  <span>{isPrintingReport ? "Generating..." : "Print Report"}</span>
                 </Button>
-
-                {onClose && (
-                  <Button onClick={onClose} variant="outline" className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200">
-                    <span>Close</span>
-                  </Button>
-                )}
               </div>
             </div>
           </div>

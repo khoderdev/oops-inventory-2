@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
-import { Employee, EmployeeDepartment } from "@/types/employee";
+import { Employee } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
@@ -329,8 +329,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Fetch all orders (we'll filter on frontend since backend doesn't support multiple status filtering)
       const response = await ordersAPI.getOrders();
 
-      console.log("Orders API response:", response);
-
       if (response?.data) {
         // Handle the nested response structure: {data: {data: Array}}
         let ordersArray: OrderSummaryType[];
@@ -353,12 +351,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Filter for incomplete orders (not paid or cancelled)
         const incompleteOrders = ordersArray.filter(order => order.status !== "paid" && order.status !== "cancelled");
 
-        console.log("Incomplete orders found:", incompleteOrders.length);
-        console.log(
-          "Orders by type:",
-          incompleteOrders.map(o => ({ id: o.id, type: o.orderType, status: o.status }))
-        );
-
         // Count total incomplete orders
         setIncompleteOrdersCount(incompleteOrders.length);
 
@@ -375,11 +367,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setIncompleteDeliveryTakeawayCount(deliveryTakeawayCount);
         setIncompleteDeliveryCount(deliveryCount);
         setIncompleteTakeawayCount(takeawayCount);
-
-        console.log("Tables with incomplete orders count:", tableOrdersCount);
-        console.log("Delivery orders count:", deliveryCount);
-        console.log("Takeaway orders count:", takeawayCount);
-        console.log("Delivery/Takeaway orders count:", deliveryTakeawayCount);
 
         // Group orders by table for table notifications
         const tableOrdersMap: { [tableId: string]: number } = {};
@@ -419,18 +406,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setIsLoading(true);
         setError(null);
 
-        console.log("📋 Loading order for editing:", order);
-        console.log("🔍 Order details:", {
-          id: order.id,
-          orderNumber: order.orderNumber,
-          orderType: order.orderType,
-          status: order.status,
-          hasItems: !!order.items,
-          itemsLength: order.items?.length || 0
-        });
-
         // Clear current cart and state first
-        console.log("🧹 Clearing current state before loading order");
         setCart([]);
         setHasUnsavedChanges(false);
         setAppliedDiscount(null);
@@ -439,9 +415,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Load the order using the order management hook
         // This will set currentOrder, which will trigger the useEffect to transform items to cart
         if (loadOrder) {
-          console.log("🔄 Calling loadOrder with ID:", order.id);
           await loadOrder(order.id);
-          console.log("✅ Order loaded successfully via loadOrder hook");
         } else {
           console.error("❌ loadOrder function is not available!");
         }
@@ -450,10 +424,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // No need to manually transform items here anymore
 
         setHasUnsavedChanges(false); // This is an existing order, not unsaved
-
-        console.log("🎯 Order selection completed");
       } catch (error) {
-        console.error("❌ Failed to load order:", error);
         showError("Failed to load order for editing. Please try again.");
       } finally {
         setIsLoading(false);
@@ -465,13 +436,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Handle selectedOrderForPOS prop changes
   useEffect(() => {
     if (selectedOrderForPOS) {
-      console.log("📎 POSClient: Processing selectedOrderForPOS:", selectedOrderForPOS);
-
-      // Call the internal handleOrderSelect to load the order
       handleOrderSelect(selectedOrderForPOS)
         .then(() => {
-          console.log("✅ Order processed successfully");
-          // Notify parent that order has been processed
           if (onOrderProcessed) {
             onOrderProcessed();
           }
@@ -592,266 +558,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Transform currentOrder items to cart when order is loaded
   useEffect(() => {
-    console.log("🔄 useEffect triggered - currentOrder changed:", {
-      hasCurrentOrder: !!currentOrder,
-      currentOrderId: currentOrder?.id,
-      currentOrderNumber: currentOrder?.orderNumber,
-      hasItems: !!currentOrder?.items,
-      itemsLength: currentOrder?.items?.length || 0,
-      stockEntriesLength: stockEntries.length,
-      menuItemsLength: menuItems.length
-    });
-
     // Only proceed if we have the required data loaded
     if (!stockEntries.length && !menuItems.length) {
-      console.log("⏳ Waiting for stock entries and menu items to load...");
-      console.log("📊 Current state:", {
-        stockEntriesLength: stockEntries.length,
-        menuItemsLength: menuItems.length,
-        hasCurrentOrder: !!currentOrder,
-        hasOrderItems: !!currentOrder?.items?.length
-      });
       return;
     }
-
-    if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
-      console.log("🔄 Transforming currentOrder items to cart:", currentOrder.items);
-      console.log("📊 Current order structure:", {
-        id: currentOrder.id,
-        orderNumber: currentOrder.orderNumber,
-        orderType: currentOrder.orderType,
-        itemsCount: currentOrder.items.length,
-        firstItem: currentOrder.items[0]
-      });
-      console.log("📦 Available data:", {
-        stockEntriesCount: stockEntries.length,
-        menuItemsCount: menuItems.length
-      });
-
-      // Transform order items to POSCartItem format
-      const cartItems: POSCartItem[] = currentOrder.items
-        .map((item: any) => {
-          console.log("🔍 Processing item:", item);
-
-          let originalItem: StockEntryWithMaterial | MenuItem;
-
-          // Handle materialId as number (from your data)
-          const materialId = typeof item.materialId === "number" ? item.materialId : parseInt(item.materialId || "0");
-          const menuItemId = typeof item.menuItemId === "number" ? item.menuItemId : parseInt(item.menuItemId || "0");
-
-          if (item.type === "material" && materialId) {
-            // Find the stock entry by materialId (handle number type)
-            const foundStockEntry = stockEntries.find(se => {
-              const stockMaterialId = typeof se.materialId === "string" ? parseInt(se.materialId) : se.materialId;
-              return stockMaterialId === materialId;
-            });
-
-            if (foundStockEntry) {
-              console.log("✅ Found stock entry for materialId:", materialId, foundStockEntry);
-              originalItem = foundStockEntry;
-            } else {
-              console.log(
-                "⚠️ Stock entry not found for materialId:",
-                materialId,
-                "Available stock entries:",
-                stockEntries.map(se => ({ id: se.materialId, name: se.material?.name }))
-              );
-              // Create a minimal fallback object with required properties
-              originalItem = {
-                id: materialId.toString(),
-                materialId: materialId.toString(),
-                material: item.material || { id: materialId, name: item.name },
-                quantity: item.quantity,
-                unitPrice: parseFloat(item.unitPrice?.toString() || "0"),
-                // Required StockEntry properties with sensible defaults
-                wasteReason: "",
-                supplier: "Unknown",
-                purchasedQuantity: item.quantity || 0,
-                purchasedUnit: "unit",
-                costPerPurchasedUnit: parseFloat(item.unitPrice?.toString() || "0"),
-                totalCost: (item.quantity || 0) * parseFloat(item.unitPrice?.toString() || "0"),
-                purchaseDate: new Date(),
-                isPOSItem: true,
-                createdAt: new Date(),
-                updatedAt: new Date()
-              } as StockEntryWithMaterial;
-            }
-          } else if (item.type === "menu" && menuItemId) {
-            // Find the menu item by menuItemId (handle number type)
-            const foundMenuItem = menuItems.find(m => {
-              const menuId = typeof m.id === "string" ? parseInt(m.id) : m.id;
-              return menuId === menuItemId;
-            });
-
-            if (foundMenuItem) {
-              console.log("✅ Found menu item for menuItemId:", menuItemId, foundMenuItem);
-              originalItem = foundMenuItem;
-            } else {
-              console.log(
-                "⚠️ Menu item not found for menuItemId:",
-                menuItemId,
-                "Available menu items:",
-                menuItems.map(m => ({ id: m.id, name: m.name }))
-              );
-              originalItem = {
-                id: menuItemId,
-                name: item.name,
-                price: parseFloat(item.unitPrice?.toString() || "0")
-              } as MenuItem;
-            }
-          } else {
-            console.log("⚠️ Creating fallback original item for:", item);
-            // Fallback: create a minimal original item
-            originalItem = {
-              id: item.id || item.materialId || item.menuItemId,
-              name: item.name,
-              price: parseFloat(item.unitPrice?.toString() || "0")
-            } as any;
-          }
-
-          const cartItem = {
-            id: item.id.toString(),
-            name: item.name,
-            price: parseFloat(item.unitPrice?.toString() || "0"),
-            quantity: item.quantity,
-            type: item.type as "material" | "menu",
-            originalItem
-          };
-
-          console.log("✨ Created cart item:", cartItem);
-          return cartItem;
-        })
-        .filter(Boolean); // Remove any null items
-
-      console.log("✅ Final transformed cart items:", cartItems);
-      console.log("📦 Setting cart with", cartItems.length, "items");
-      console.log(
-        "🔍 Cart items details:",
-        cartItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          quantity: item.quantity,
-          price: item.price
-        }))
-      );
-      setCart(cartItems);
-
-      // Set order type and related data
-      if (currentOrder.orderType) {
-        console.log("🏷️ Setting order type:", currentOrder.orderType);
-        setOrderType(currentOrder.orderType);
-      }
-
-      // Set table if it's a table order
-      if (currentOrder.tableId && currentOrder.orderType === "table") {
-        console.log("🪑 Loading table for order:", currentOrder.tableId);
-        // Create async function to fetch table data
-        const loadTableData = async () => {
-          try {
-            const tableResponse = await tablesAPI.getTable(currentOrder.tableId);
-            if (tableResponse.data) {
-              console.log("🪑 API response structure:", tableResponse);
-              console.log("🪑 Table data to set:", tableResponse.data);
-
-              // Handle nested API response structure
-              // Check if the response has nested data (backend returns {data: {data: tableObject}})
-              const nestedResponse = tableResponse.data as Table | { data: Table };
-              const tableData = "data" in nestedResponse ? nestedResponse.data : nestedResponse;
-              console.log("🪑 Final table data:", tableData);
-              setSelectedTable(tableData);
-            }
-          } catch (error) {
-            console.error("Failed to fetch table:", error);
-            // Fallback: create a minimal table object from available data
-            if (currentOrder.tableNumber) {
-              const fallbackTable: Table = {
-                id: currentOrder.tableId,
-                number: currentOrder.tableNumber,
-                seats: 4, // Default value
-                status: "opened",
-                position: { x: 0, y: 0 }, // Default position
-                shape: "round" // Default shape
-              };
-              setSelectedTable(fallbackTable);
-            }
-          }
-        };
-
-        loadTableData();
-      }
-
-      // Set employee if it's an employee order
-      if (currentOrder.orderType === "employees" && currentOrder.employeeId) {
-        console.log("👤 Loading selected employee:", currentOrder.employeeId);
-        const loadEmployeeData = async () => {
-          try {
-            // Import employeeAPI if not already imported
-            const { employeeAPI } = await import("@/api/employee.api");
-            const employeeResponse = await employeeAPI.getEmployee(parseInt(currentOrder.employeeId.toString()));
-            if (employeeResponse.data) {
-              setSelectedEmployee(employeeResponse.data);
-              console.log("👤 Employee loaded:", employeeResponse.data);
-            }
-          } catch (error) {
-            console.error("Failed to load employee data:", error);
-            // Fallback: create a minimal employee object if API fails
-            const fallbackEmployee: Employee = {
-              id: parseInt(currentOrder.employeeId.toString()),
-              userId: 0,
-              employeeNumber: currentOrder.employeeId.toString(),
-              department: "other" as EmployeeDepartment,
-              position: "Unknown",
-              baseSalary: 0,
-              discountPercentage: 0,
-              hireDate: new Date().toISOString(),
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            };
-            setSelectedEmployee(fallbackEmployee);
-          }
-        };
-        loadEmployeeData();
-      }
-
-      // Apply discount if present
-      if (currentOrder.discountAmount && parseFloat(currentOrder.discountAmount.toString()) > 0) {
-        console.log("💰 Applying discount:", currentOrder.discountAmount);
-        setAppliedDiscount({
-          type: (currentOrder.discountType as "percentage" | "fixed") || "fixed",
-          value: parseFloat(currentOrder.discountValue?.toString() || "0"),
-          amount: parseFloat(currentOrder.discountAmount.toString()),
-          reason: currentOrder.discountReason || undefined
-        });
-        setDiscountAmount(parseFloat(currentOrder.discountAmount.toString()));
-      }
-    } else if (currentOrder && (!currentOrder.items || currentOrder.items.length === 0)) {
-      // If currentOrder exists but has no items, clear the cart
-      console.log("🔄 Current order has no items, clearing cart");
-      setCart([]);
-    } else if (!currentOrder) {
-      console.log("❌ No currentOrder available");
-    } else {
-      console.log("⚠️ CurrentOrder exists but no items:", currentOrder);
-    }
-
-    console.log("🏁 useEffect completed. Final state:", {
-      hasCurrentOrder: !!currentOrder,
-      orderItemsLength: currentOrder?.items?.length || 0,
-      stockEntriesLength: stockEntries.length,
-      menuItemsLength: menuItems.length,
-      cartWillBeSet: !!currentOrder?.items?.length
-    });
   }, [currentOrder, stockEntries, menuItems]);
 
   // Track unsaved changes when cart changes
   useEffect(() => {
-    console.log("🛍️ Cart state changed:", {
-      cartLength: cart?.length || 0,
-      cartItems: cart?.map(item => ({ id: item.id, name: item.name, quantity: item.quantity })) || []
-    });
-
     if (cart && cart.length > 0) {
       setHasUnsavedChanges(true);
     } else {
@@ -876,12 +590,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Fetch tables data with order information
   const fetchTablesData = useCallback(async () => {
     try {
-      console.log("🏢 Fetching tables data with orders...");
       const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
       const responseData = tablesResponse.data as Table[] | { data: Table[] };
       const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
       setTables(tablesData);
-      console.log("✅ Tables data refreshed:", tablesData.length, "tables");
     } catch (error) {
       console.error("❌ Failed to refresh tables data:", error);
     }
@@ -889,8 +601,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Comprehensive refresh function that updates both POSLayout and POSClient counts
   const refreshAllCounts = useCallback(async () => {
-    console.log("🔄 Refreshing all counts and tables (POSLayout + POSClient + Tables Layout)");
-
     // Run all refreshes in parallel for better performance
     await Promise.all([
       // Refresh POSClient table notification counts
@@ -900,8 +610,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Refresh POSLayout counts (orders and sales)
       refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()
     ]);
-
-    console.log("✅ All counts and tables refreshed successfully");
   }, [fetchIncompleteOrders, fetchTablesData, refreshCountsRef]);
 
   // Fetch incomplete orders for notifications
@@ -954,7 +662,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Cart operations - Updated for unified POS items
   const addToCart = useCallback(
     (posItem: POSItem) => {
-      console.log("🛒 Adding to cart:", posItem);
       const cartId = `pos-${posItem.id}`;
 
       setCart(prevCart => {
@@ -976,8 +683,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               console.warn("❌ Menu item not found:", posItem, "Available menu items:", menuItems);
               return currentCart; // Return current cart if menu item not found
             }
-            console.log("✅ Menu item found:", menuItem);
-            console.log("📝 Creating menu item for cart with ID:", menuItemId);
 
             const newItem: POSCartItem = {
               id: cartId,
@@ -990,10 +695,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               stockEntryId: undefined,
               menuItemId: menuItemId
             };
-            console.log("🎉 Adding menu item to cart:", newItem);
-            console.log("📊 Cart before adding:", currentCart);
             const newCart = [...currentCart, newItem];
-            console.log("📊 Cart after adding:", newCart);
             return newCart;
           } else {
             // Handle stock entry items
@@ -1119,34 +821,19 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           showError("Failed to load existing table order");
         }
       } else {
-        // Table is empty (available, reserved, or cleaning) - clear cart for fresh start
-        console.log(`🧹 Clearing cart for empty table ${table.number} (status: ${table.status})`);
-
-        // Clear cart and reset state for fresh order
         setCart([]);
-
-        // Clear any applied discounts
         setAppliedDiscount(null);
         setDiscountAmount(0);
 
-        // Clear current order
         if (clearOrder) {
           clearOrder();
         }
-
-        // Clear local storage
         OrderPersistence.clearCurrentOrder();
-
-        // Reset unsaved changes flag
         setHasUnsavedChanges(false);
-
-        // Clear selected employee (table orders don't use employee discounts)
         setSelectedEmployee(undefined);
-
         showSuccess(`Table ${table.number} selected - Ready for new order`);
       }
 
-      // Refresh table notifications immediately after table selection
       await refreshAllCounts();
     },
     [loadOrder, menuItems, stockEntries, showSuccess, showError, refreshAllCounts, clearOrder]
@@ -1436,32 +1123,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       clearOrder();
       return;
     }
-
-    console.log("💰 Starting payment process...");
-    console.log("🛒 Current cart:", cart);
-    if (currentOrder) {
-      console.log("📋 Current order status:", {
-        id: currentOrder.id,
-        orderNumber: currentOrder.orderNumber,
-        status: currentOrder.status,
-        total: currentOrder.total
-      });
-    }
-
-    // Check each cart item in detail
-    cart.forEach((item, index) => {
-      console.log(`🔍 Cart item ${index}:`, {
-        id: item.id,
-        name: item.name,
-        type: item.type,
-        originalItem: item.originalItem,
-        hasOriginalItem: !!item.originalItem,
-        originalItemType: typeof item.originalItem,
-        menuItemId: item.menuItemId,
-        stockEntryId: item.stockEntryId
-      });
-    });
-
     setIsLoading(true);
     try {
       let orderToComplete = currentOrder;
@@ -1474,10 +1135,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           tableId: selectedTable?.id,
           employeeId: selectedEmployee?.id,
           items: cart.map(item => {
-            console.log("📝 Processing cart item:", item);
-            console.log("🔍 Item type:", item.type);
-            console.log("🔍 Original item:", item.originalItem);
-
             const orderItem = {
               materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
               menuItemId: item.type === "menu" ? String((item.originalItem as MenuItem).id) : undefined,
@@ -1490,7 +1147,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               notes: undefined
             };
 
-            console.log("📋 Created order item:", orderItem);
             return orderItem;
           }),
           discountType: appliedDiscount?.type,
@@ -1499,38 +1155,20 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           discountReason: appliedDiscount?.reason
         };
 
-        console.log("📦 Final order data:", orderData);
-
-        console.log("🚀 Calling createOrder function...");
         const createOrderResponse = await createOrder(orderData);
-        console.log("📝 createOrder returned:", createOrderResponse);
 
         // Extract the actual order from the response
         if (createOrderResponse && typeof createOrderResponse === "object" && "order" in createOrderResponse) {
           orderToComplete = (createOrderResponse as any).order;
-          console.log("✅ Extracted order from response.order:", orderToComplete);
         } else {
           orderToComplete = createOrderResponse;
-          console.log("⚠️ Using response directly as order:", orderToComplete);
         }
-
-        console.log("🔍 Order structure analysis:", {
-          hasOrder: !!orderToComplete,
-          orderType: typeof orderToComplete,
-          hasId: orderToComplete ? "id" in orderToComplete : false,
-          idValue: orderToComplete?.id,
-          orderKeys: orderToComplete ? Object.keys(orderToComplete) : "no order",
-          fullOrder: orderToComplete
-        });
       }
 
-      // Use currentOrder if orderToComplete is not available
       if (!orderToComplete && currentOrder) {
-        console.log("⚠️ Using currentOrder as fallback:", currentOrder);
         orderToComplete = currentOrder;
       }
 
-      // Ensure we have a valid order with ID
       if (!orderToComplete) {
         throw new Error("No order available - both orderToComplete and currentOrder are null");
       }
@@ -1555,9 +1193,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Order completion timeout - API call took too long")), 15000));
 
       const response = (await Promise.race([ordersAPI.completeOrder(orderToComplete.id, paymentData), timeoutPromise])) as any;
-
-      console.log("📨 API Response received:", response);
-      console.log("📨 Response data:", response?.data);
 
       let order: any, saleId: string;
 
@@ -1619,33 +1254,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         discountReason: order.discountReason || appliedDiscount?.reason || null
       };
 
-      // Update table status if this was a table order
       if (selectedTable && orderType === "table") {
-        console.log("🏢 Updating table status...");
         try {
-          // Clear table reservation/status
           await tablesAPI.clearReservation(selectedTable.id);
-          // Refresh tables to update UI
           const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
           const responseData = tablesResponse.data as Table[] | { data: Table[] };
           const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
           setTables(refreshedTables);
-          console.log("✅ Table status updated successfully");
         } catch (error) {
           console.log("⚠️ Table update error (non-critical):", error);
         }
       }
 
-      // Record employee usage if this was an employee order
       if (selectedEmployee && orderType === "employees") {
-        console.log("👤 Recording employee usage...");
         try {
           const { recordEmployeeUsage } = await import("@/utils/employeeUsageUtils");
-          // Use orderNumber as posTransactionId instead of saleId (order ID)
           const posTransactionId = order.orderNumber || saleId;
-          console.log("📝 Using posTransactionId:", posTransactionId, "(orderNumber:", order.orderNumber, ", saleId:", saleId, ")");
           await recordEmployeeUsage(selectedEmployee, cart, posTransactionId);
-          console.log("✅ Employee usage recorded successfully");
         } catch (error) {
           console.log("⚠️ Employee usage recording error (non-critical):", error);
         }
@@ -1655,7 +1280,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setLastSaleData(receiptData);
 
       // Show receipt printer dialog FIRST before clearing anything
-      console.log("💰 Payment completed successfully, showing receipt printer");
       setShowReceiptDialog(true);
       setShouldAutoPrint(hasSavedPrinter()); // Auto-print if we have a saved printer
 
@@ -1802,7 +1426,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         >
           {/* Cart Header - Fixed (Desktop Only) */}
           <div className="hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
-            <div className={`flex items-center justify-between ${(hasUnsavedChanges || currentOrder || (cart && cart.length > 0)) && !showSuccessCheckmark ? 'py-2' : ''}`}>
+            <div className={`flex items-center justify-between ${(hasUnsavedChanges || currentOrder || (cart && cart.length > 0)) && !showSuccessCheckmark ? "py-2" : ""}`}>
               <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
                 {/* Order Status Indicator */}
                 {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar"))) && !showSuccessCheckmark && (
@@ -1880,15 +1504,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 onPaymentClick={() => {
                   // Check if current order is already completed
                   if (currentOrder && currentOrder.status === "paid") {
-                    console.log("⚠️ Cannot open payment dialog - order is already completed:", {
-                      id: currentOrder.id,
-                      orderNumber: currentOrder.orderNumber,
-                      status: currentOrder.status
-                    });
                     showError(`Order ${currentOrder.orderNumber || currentOrder.id} is already completed`);
                     return;
                   }
-                  console.log("💰 Opening payment dialog, auto-filling amount:", total);
                   setPaymentAmount(total.toString());
                   setShowPaymentDialog(true);
                 }}
@@ -1959,7 +1577,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   appliedDiscount={appliedDiscount}
                   onRemoveDiscount={handleRemoveDiscount}
                   onPaymentClick={() => {
-                    console.log("💰 Opening payment dialog, auto-filling amount:", total);
                     setPaymentAmount(total.toString());
                     setShowPaymentDialog(true);
                   }}
