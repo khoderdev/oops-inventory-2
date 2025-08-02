@@ -415,6 +415,7 @@ export interface ReceiptPrinterProps {
   onClose: () => void;
   receiptData: ReceiptData | null;
   autoPrint?: boolean;
+  onPrintSuccess?: () => void;
   businessInfo?: {
     name: string;
     address: string;

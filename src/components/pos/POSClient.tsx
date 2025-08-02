@@ -14,7 +14,7 @@ import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, R
 import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Settings, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
@@ -347,6 +347,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setPrinterSelectionContext("manual_print");
     setShowPrinterSelector(true);
   }, []);
+
+  // Clear cart after successful print
+  const handlePrintSuccess = useCallback(() => {
+    console.log("🧹 Clearing cart after successful print");
+    setCart([]);
+    setAppliedDiscount(null);
+    setLastSaleData(null);
+    showSuccess("Receipt printed successfully! Cart cleared.");
+  }, [showSuccess]);
 
   // Fetch incomplete orders count and table orders for notifications
   const fetchIncompleteOrders = useCallback(async () => {
@@ -1117,11 +1126,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleCloseTablesLayout = useCallback(() => {
     setShowTablesLayout(false);
-  }, []);
-
-  // Employee selection handlers
-  const handleEmployeeSelect = useCallback(() => {
-    // This will be handled by the EmployeeSelector component in OrderItemsList
   }, []);
 
   const handleEmployeeSelection = useCallback(
@@ -1911,33 +1915,24 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Bottom Action Bar - Fixed Footer */}
             <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
-              <div className="flex">
-                <div className="flex-1">
-                  <ActionBar
-                    onSaveOrder={handleManualSave}
-                    onPrintReceipt={handlePrintReceipt}
-                    onVoidOrder={handleVoidOrder}
-                    onShowOrders={handleShowOrders}
-                    onShowReports={handleShowReports}
-                    onCancelOrder={handleCancelOrder}
-                    onDiscount={handleShowDiscount}
-                    hasUnsavedChanges={hasUnsavedChanges}
-                    isOrderLoading={orderLoading}
-                    canPrintReceipt={cart && cart.length > 0}
-                    canVoidOrder={!!currentOrder}
-                    incompleteOrdersCount={incompleteOrdersCount}
-                    incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount}
-                  />
-                </div>
-                {/* Printer Settings Button */}
-                {/* <div className="flex items-center"> */}
-                <Button variant="outline" size="sm" onClick={handleShowPrinterSettings} className="flex flex-col items-center justify-center h-16 w-44 p-2 rounded-none" title={hasSavedPrinter() ? `Current: ${getSavedPrinter()?.name}` : "Set default printer"}>
-                  <Settings className="!w-6 !h-6" />
-                  <span>Printer</span>
-                  {hasSavedPrinter() && <div className="w-2 h-2 bg-green-500 rounded-full absolute top-1 right-1"></div>}
-                </Button>
-                {/* </div> */}
-              </div>
+              <ActionBar
+                onSaveOrder={handleManualSave}
+                onPrintReceipt={handlePrintReceipt}
+                onVoidOrder={handleVoidOrder}
+                onShowOrders={handleShowOrders}
+                onShowReports={handleShowReports}
+                onCancelOrder={handleCancelOrder}
+                onDiscount={handleShowDiscount}
+                hasUnsavedChanges={hasUnsavedChanges}
+                isOrderLoading={orderLoading}
+                canPrintReceipt={cart && cart.length > 0}
+                canVoidOrder={!!currentOrder}
+                incompleteOrdersCount={incompleteOrdersCount}
+                incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount}
+                onShowPrinterSettings={handleShowPrinterSettings}
+                hasSavedPrinter={hasSavedPrinter()}
+                savedPrinterName={getSavedPrinter()?.name}
+              />
             </div>
           </div>
         </div>
@@ -2131,7 +2126,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       </Dialog>
 
       {/* Receipt Printer Dialog */}
-      <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} autoPrint={shouldAutoPrint} />
+      <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} autoPrint={shouldAutoPrint} onPrintSuccess={handlePrintSuccess} />
     </>
   );
 };

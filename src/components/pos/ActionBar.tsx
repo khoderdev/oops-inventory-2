@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
+import { Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, WifiCog, X } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -17,6 +17,9 @@ export interface ActionButtonConfig {
   requiredPermission?: string;
   requiredRole?: string | string[];
   badgeCount?: number;
+  showIndicator?: boolean;
+  indicatorColor?: string;
+  title?: string;
 }
 
 // Default button configurations
@@ -46,6 +49,10 @@ interface LegacyActionBarProps {
   incompleteOrdersCount?: number;
   incompleteDeliveryTakeawayCount?: number;
   onDiscount?: () => void;
+  // Printer settings
+  onShowPrinterSettings?: () => void;
+  hasSavedPrinter?: boolean;
+  savedPrinterName?: string;
 }
 
 // New flexible props interface
@@ -64,7 +71,7 @@ function isLegacyProps(props: ActionBarProps): props is LegacyActionBarProps {
 }
 
 // Individual Action Button Component
-export const ActionButton: React.FC<ActionButtonConfig & { className?: string; compact?: boolean }> = ({ icon: IconComponent, label, active = false, disabled = false, onClick, className = "", compact = false, badgeCount }) => {
+export const ActionButton: React.FC<ActionButtonConfig & { className?: string; compact?: boolean }> = ({ icon: IconComponent, label, active = false, disabled = false, onClick, className = "", compact = false, badgeCount, showIndicator = false, indicatorColor = "bg-green-500", title }) => {
   const baseClasses = "flex flex-col items-center justify-center rounded-none select-none";
   const heightClass = compact ? "h-12 p-2" : "h-16 p-3";
   const activeClasses = active ? "bg-teal-500 text-white hover:text-white hover:bg-teal-600" : "";
@@ -73,10 +80,11 @@ export const ActionButton: React.FC<ActionButtonConfig & { className?: string; c
   const iconMargin = compact ? "" : "";
 
   return (
-    <Button variant="outline" className={`${baseClasses} ${heightClass} ${activeClasses} ${className} relative`} onClick={onClick} disabled={disabled}>
+    <Button variant="outline" className={`${baseClasses} ${heightClass} ${activeClasses} ${className} relative`} onClick={onClick} disabled={disabled} title={title}>
       <IconComponent className={`${iconSize} ${iconMargin}`} />
       <span className={textSize}>{label}</span>
       {badgeCount && badgeCount > 0 && <span className="absolute top-1.5 right-3 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{badgeCount > 99 ? "99+" : badgeCount}</span>}
+      {showIndicator && <div className={`w-2 h-2 ${indicatorColor} rounded-full absolute top-1 right-1`}></div>}
     </Button>
   );
 };
@@ -94,7 +102,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
-    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, onShowReports, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, incompleteOrdersCount = 0, incompleteDeliveryTakeawayCount = 0, onDiscount = () => {} } = props;
+    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, onShowReports, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, incompleteOrdersCount = 0, incompleteDeliveryTakeawayCount = 0, onDiscount = () => {}, onShowPrinterSettings, hasSavedPrinter = false, savedPrinterName } = props;
 
     buttons = [
       {
@@ -117,6 +125,17 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
       { id: "refund", icon: DollarSign, label: "Refund", active: false },
       // { id: "discount", icon: Banknote, label: "Discount", active: false, onClick: onDiscount },
       { id: "reports", icon: FileText, label: "Reports", active: false, onClick: onShowReports },
+
+      {
+        id: "printer",
+        icon: WifiCog,
+        label: "Printer",
+        active: false,
+        onClick: onShowPrinterSettings,
+        showIndicator: hasSavedPrinter,
+        indicatorColor: "bg-green-500",
+        title: hasSavedPrinter ? `Current: ${savedPrinterName}` : "Set default printer"
+      },
       {
         id: "back-office",
         icon: Settings,

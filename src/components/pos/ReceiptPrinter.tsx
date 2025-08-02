@@ -10,6 +10,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   onClose,
   receiptData,
   autoPrint = false,
+  onPrintSuccess,
   businessInfo = {
     name: "oOps Resto-Café",
     address: "Batroun, seaside",
@@ -353,6 +354,12 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       // Track successful print
       setLastPrintTime(Date.now());
 
+      // Call success callback to clear cart/items
+      if (onPrintSuccess) {
+        console.log('🧹 Calling onPrintSuccess to clear cart after successful print');
+        onPrintSuccess();
+      }
+
       // Close print window after a delay
       setTimeout(() => {
         try {
@@ -369,7 +376,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     } finally {
       setIsPrinting(false);
     }
-  }, [receiptData, businessInfo, validationResult, isPrinting, dataValidated]);
+  }, [receiptData, businessInfo, validationResult, isPrinting, dataValidated, onPrintSuccess]);
 
   // Handle keyboard events
   useEffect(() => {
