@@ -1552,6 +1552,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
       }
 
+      // Print items to their assigned printers (kitchen, bar, etc.) FIRST
+      await printItemsToAssignedPrinters(cart);
+
       // Set receipt data for printing
       setLastSaleData(receiptData);
 
@@ -1599,7 +1602,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, printItemsToAssignedPrinters]);
 
   // Resize handle mouse events
   const handleMouseDown = () => {
