@@ -231,60 +231,69 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           try {
             const printJobResponse = await printerAPI.createPrintJob(printJobData);
             
-            console.log(`📨 Print job API response:`, printJobResponse);
+            console.log(`📨 Print job sent to network printer:`, {
+              printerId: savedPrinter.id,
+              printerName: savedPrinter.name,
+              jobId: printJobResponse.job?.id,
+              status: printJobResponse.job?.status
+            });
 
-            if (printJobResponse.success) {
-              console.log(`✅ Print job created successfully!`);
-              console.log(`🆔 Job ID: ${printJobResponse.job.id}`);
-              console.log(`📊 Job Status: ${printJobResponse.job.status}`);
-              console.log(`⏰ Created At: ${printJobResponse.job.createdAt}`);
+            if (printJobResponse.success && printJobResponse.job) {
+              console.log(`✅ Print job created successfully! Job ID: ${printJobResponse.job.id}, Status: ${printJobResponse.job.status}`);
 
-              // Only call onPrintSuccess if the job status indicates actual success
-              if (printJobResponse.job.status === 'completed' || printJobResponse.job.status === 'pending') {
+              // For network printers, we consider the job successful if it's created and accepted
+              // The actual printing happens asynchronously on the network printer
+              if (printJobResponse.job.status === 'completed' || 
+                  printJobResponse.job.status === 'pending' || 
+                  printJobResponse.job.status === 'printing') {
+                
+                console.log(`🖨️ Print job successfully queued for network printer: ${savedPrinter.name}`);
+                
                 // Track successful print
                 setLastPrintTime(Date.now());
 
                 // Call success callback to clear cart/items
                 if (onPrintSuccess) {
-                  console.log("🧹 Calling onPrintSuccess to clear cart after successful automatic print");
+                  console.log("🧹 Calling onPrintSuccess to clear cart after successful network print job");
                   onPrintSuccess();
                 }
 
-                return; // Exit early on successful automatic printing
+                return; // Exit early on successful network printing
+              } else if (printJobResponse.job.status === 'failed') {
+                console.warn(`❌ Network printer rejected the job. Status: ${printJobResponse.job.status}`);
+                setPrintError(`Network printer "${savedPrinter.name}" is not responding or offline. Please check printer connection.`);
+                return;
               } else {
-                console.warn(`❌ Print job created but failed with status: ${printJobResponse.job.status}`);
-                console.warn("Print job failed - NOT falling back to browser print to prevent modal reopening");
-                // Track failed print attempt to prevent rapid retries
-                setLastPrintTime(Date.now());
-                
-                // Set error message and exit without calling onPrintSuccess
-                setPrintError(`Printer is offline or unavailable. Print job failed with status: ${printJobResponse.job.status}`);
-                return; // Exit early to prevent fallback to browser print
+                console.warn(`⚠️ Unexpected print job status: ${printJobResponse.job.status}`);
+                setPrintError(`Print job has unexpected status: ${printJobResponse.job.status}`);
+                return;
               }
             } else {
-              console.warn("❌ Print job creation failed - NOT falling back to browser print to prevent modal reopening");
-              console.warn("Response:", printJobResponse);
-              setPrintError(`Print job creation failed: ${printJobResponse.message || 'Unknown error'}`);
-              return; // Exit early to prevent fallback to browser print
+              console.error("❌ Print job creation failed:", printJobResponse);
+              setPrintError(`Failed to send print job to "${savedPrinter.name}": ${printJobResponse.message || 'Network printer communication error'}`);
+              return;
             }
           } catch (printerError) {
-            console.error("🚨 Automatic printing failed - NOT falling back to browser print to prevent modal reopening:");
-            console.error("Error details:", printerError);
-            setPrintError(`Automatic printing failed: ${printerError instanceof Error ? printerError.message : 'Unknown error'}`);
-            return; // Exit early to prevent fallback to browser print
+            console.error("🚨 Network printer communication error:", printerError);
+            const errorMessage = printerError instanceof Error ? printerError.message : 'Unknown network error';
+            setPrintError(`Cannot reach network printer "${savedPrinter.name}": ${errorMessage}`);
+            return;
           }
         } else {
           console.log("⚠️ No saved printer found in localStorage");
-          setPrintError("No saved printer found. Please select a printer in settings.");
-          return; // Exit early to prevent fallback to browser print
+          setPrintError("No saved printer found. Please configure a network printer in settings.");
+          return;
         }
       } else {
-        console.log("ℹ️ No printer selected - will show error instead of browser print");
-        setPrintError("No printer selected. Please select a printer in settings.");
-        return; // Exit early to prevent fallback to browser print
+        console.log("ℹ️ No printer selected - prompting user to configure printer");
+        setPrintError("No network printer selected. Please configure a printer in settings to enable automatic printing.");
+        return;
       }
 
-      // Fallback to native browser print dialog
+      // This code should not be reached since we return early above
+      // Keeping browser print as emergency fallback only
+      console.log("⚠️ Falling back to browser print - this should not happen with network printers");
+      
       // Create print styles for the current document
       const printStyles = `
         <style id="receipt-print-styles">
@@ -550,9 +559,9 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       // Track successful print
       setLastPrintTime(Date.now());
 
-      // Call success callback to clear cart/items
+      // Call success callback to clear cart/items (browser print fallback)
       if (onPrintSuccess) {
-        console.log("🧹 Calling onPrintSuccess to clear cart after successful print");
+        console.log("🧹 Calling onPrintSuccess to clear cart after browser print fallback");
         onPrintSuccess();
       }
     } catch (error) {
