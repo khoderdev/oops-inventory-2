@@ -312,6 +312,10 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
         existingStyles.remove();
       }
 
+      // Set document title for PDF filename
+      const originalTitle = document.title;
+      document.title = `Receipt-${receiptData.id}-${receiptData.date.replace(/\//g, '-')}`;
+
       // Add print styles to document head
       document.head.insertAdjacentHTML("beforeend", printStyles);
 
@@ -371,6 +375,8 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
         if (printContainer && printContainer.parentNode) {
           printContainer.parentNode.removeChild(printContainer);
         }
+        // Restore original document title
+        document.title = originalTitle;
       }, 1000);
 
       // Track successful print
