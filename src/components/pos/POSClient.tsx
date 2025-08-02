@@ -87,6 +87,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
 
+  // Calculate totals - with safety check for undefined cart
+  const subtotal = (cart || []).reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const tax = 0; // No tax applied
+  const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
+  const total = Math.max(0, subtotal - discountAmountCalculated);
+
   // Stable callbacks to prevent POSClientOrders re-renders
   const handleCloseOrdersDialog = useCallback(() => {
     setShowOrdersDialog(false);
@@ -264,59 +270,54 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     async (printer: any) => {
       console.log("🖨️ Printing receipt with selected printer:", printer);
       // TODO: Send receipt data to selected printer
-      // For now, show the receipt dialog
-      if (!lastSaleData) {
-        showError("No receipt data available");
-        return;
+
+      // If no lastSaleData, create it from current order/cart
+      let receiptData = lastSaleData;
+      if (!receiptData) {
+        console.log("📝 Creating receipt data for printer");
+        // Use current order data if available, otherwise use cart
+        const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
+
+        if (!itemsToUse || itemsToUse.length === 0) {
+          showError("No items to print");
+          return;
+        }
+
+        receiptData = {
+          id: currentOrder?.orderNumber || `DRAFT-${Date.now()}`,
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString(),
+          cashier: "Current User",
+          items: itemsToUse.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice || item.price,
+            totalPrice: item.totalPrice || item.price * item.quantity,
+            type: item.type
+          })),
+          subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === "string" ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
+          tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : 0,
+          total: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
+          paymentAmount: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
+          change: 0,
+          paymentMethod: "cash",
+          // Include discount information if available
+          discountType: currentOrder?.discountType || appliedDiscount?.type || null,
+          discountValue: currentOrder?.discountValue ? (typeof currentOrder.discountValue === "string" ? parseFloat(currentOrder.discountValue) : currentOrder.discountValue) : appliedDiscount?.value || null,
+          discountAmount: currentOrder?.discountAmount ? (typeof currentOrder.discountAmount === "string" ? parseFloat(currentOrder.discountAmount) : currentOrder.discountAmount) : appliedDiscount?.amount || null,
+          discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
+        };
+
+        // Set the receipt data for future use
+        setLastSaleData(receiptData);
       }
+
+      // Show the receipt dialog
       setShowReceiptDialog(true);
     },
-    [lastSaleData, showError]
+    [lastSaleData, showError, currentOrder, cart, subtotal, total, appliedDiscount]
   );
 
-  // Print receipt function - shows printer selector first
-  // const handlePrintReceipt = useCallback(() => {
-  //   // Use current order data if available, otherwise use cart
-  //   const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
-
-  //   if (!itemsToUse || itemsToUse.length === 0) {
-  //     showError("No items to print");
-  //     return;
-  //   }
-
-  //   // Create receipt data from current order or cart
-  //   const receiptData = {
-  //     id: currentOrder?.orderNumber || `DRAFT-${Date.now()}`,
-  //     date: new Date().toLocaleDateString(),
-  //     time: new Date().toLocaleTimeString(),
-  //     cashier: "Current User",
-  //     items: itemsToUse.map(item => ({
-  //       name: item.name,
-  //       quantity: item.quantity,
-  //       unitPrice: item.unitPrice || item.price,
-  //       totalPrice: item.totalPrice || item.price * item.quantity,
-  //       type: item.type
-  //     })),
-  //     subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === "string" ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
-  //     tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : 0,
-  //     total: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
-  //     paymentAmount: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
-  //     change: 0,
-  //     paymentMethod: "cash",
-  //     // Include discount information if available
-  //     discountType: currentOrder?.discountType || appliedDiscount?.type || null,
-  //     discountValue: currentOrder?.discountValue ? (typeof currentOrder.discountValue === "string" ? parseFloat(currentOrder.discountValue) : currentOrder.discountValue) : appliedDiscount?.value || null,
-  //     discountAmount: currentOrder?.discountAmount ? (typeof currentOrder.discountAmount === "string" ? parseFloat(currentOrder.discountAmount) : currentOrder.discountAmount) : appliedDiscount?.amount || null,
-  //     discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
-  //   };
-
-  //   // Set receipt data and show printer selector
-  //   setLastSaleData(receiptData);
-  //   setPrinterSelectionContext("manual_print");
-  //   setShowPrinterSelector(true);
-  // }, [cart, currentOrder, subtotal, total, appliedDiscount, showError]);
-
-  // Printer selection handlers
   const handlePrinterSelect = useCallback(
     (printer: any) => {
       selectPrinter(printer);
@@ -1149,12 +1150,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     },
     [cart, showSuccess]
   );
-
-  // Calculate totals - with safety check for undefined cart
-  const subtotal = (cart || []).reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = 0; // No tax applied
-  const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
-  const total = Math.max(0, subtotal - discountAmountCalculated); // Total equals subtotal minus discount
 
   // Print current order receipt - uses saved printer or shows selector
   const handlePrintReceipt = useCallback(() => {
