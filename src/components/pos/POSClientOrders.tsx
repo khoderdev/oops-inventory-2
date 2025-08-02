@@ -94,7 +94,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
         // Apply search filter
         if (filters.searchTerm) {
           const searchLower = filters.searchTerm.toLowerCase();
-          return order.orderNumber.toLowerCase().includes(searchLower) || order.customerName?.toLowerCase().includes(searchLower) || order.id.toLowerCase().includes(searchLower);
+          return order.orderNumber.toLowerCase().includes(searchLower) || order.customerName?.toLowerCase().includes(searchLower) || String(order.id).toLowerCase().includes(searchLower);
         }
         return true;
       });
@@ -322,6 +322,20 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     });
   }, []);
 
+  // Handle dialog close with search clearing
+  const handleDialogClose = useCallback(() => {
+    // Clear search term when dialog closes
+    setFilters(prev => ({
+      ...prev,
+      searchTerm: undefined
+    }));
+    
+    // Call the original onClose if it exists
+    if (stableOnClose.current) {
+      stableOnClose.current();
+    }
+  }, []);
+
   // Manual refresh
   const handleRefresh = useCallback(async () => {
     if (refreshing || isLoading) {
@@ -385,22 +399,22 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   );
 
   // Format date for display
-  const formatDate = (date: Date | string) => {
+  const formatDate = useCallback((date: Date | string) => {
     return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric"
     });
-  };
+  }, []);
 
   // Format time for display
-  const formatTime = (date: Date | string) => {
+  const formatTime = useCallback((date: Date | string) => {
     return new Date(date).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true
     });
-  };
+  }, []);
 
   // Determine if this is being used as a dialog
   const isDialog = isOpen !== undefined;
@@ -410,23 +424,21 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     componentMountedRef.current = true;
     return () => {
       componentMountedRef.current = false;
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
+      const intervalRef = refreshIntervalRef.current;
+      if (intervalRef) {
+        clearInterval(intervalRef);
       }
     };
   }, []);
 
-  // If not used as dialog, return early if isOpen is false
-  if (isDialog && !isOpen) return null;
-
-  // Main content component
-  const MainContent = () => (
+  // Main content component - memoized to prevent re-creation and input focus loss
+  const MainContent = useMemo(() => (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50">
       {/* Fixed Header */}
-      <div className="flex-shrink-0 p-4 border-b bg-primary">
+      <div className="flex-shrink-0 p-3 border-b bg-primary">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div>{isDialog ? <DialogTitle className="text-3xl font-bold text-gray-900">Orders</DialogTitle> : <h1 className="text-3xl font-bold text-gray-900">Orders</h1>}</div>
+            <div>{isDialog ? <DialogTitle className="text-3xl font-bold text-white">Orders</DialogTitle> : <h1 className="text-3xl font-bold text-white">Orders</h1>}</div>
           </div>
         </div>
       </div>
@@ -434,7 +446,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Enhanced Filters Section */}
-        <div className="flex-shrink-0 p-4 bg-white border-b">
+        <div className="flex-shrink-0 p-3 bg-white border-b">
           <div className="flex flex-col xl:flex-row gap-4">
             {/* Search Bar */}
             <div className="flex-1 min-w-0">
@@ -775,18 +787,21 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
         </div>
       )}
     </div>
-  );
+  ), [isDialog, orders, totalIncompleteAmount, isLoading, refreshing, error, filters, viewMode, sortedOrders, handleRefresh, handleSearchChange, handleFilterChange, handleSort, handleOrderSelect, handleViewOrderDetails, handlePrintOrderReceipt, formatDate, formatTime]);
+
+  // If not used as dialog, return early if isOpen is false
+  if (isDialog && !isOpen) return null;
 
   return (
     <>
       {isDialog ? (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog open={isOpen} onOpenChange={handleDialogClose}>
           <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden z-50">
-            <MainContent />
+            {MainContent}
           </DialogContent>
         </Dialog>
       ) : (
-        <MainContent />
+        MainContent
       )}
 
       {/* Order Details Dialog */}
