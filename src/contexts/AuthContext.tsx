@@ -22,7 +22,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initializeAuth = async () => {
       try {
         const storedToken = tokenManager.getToken();
-        if (storedToken && !tokenManager.isTokenExpired(storedToken)) {
+        if (storedToken) {
           setToken(storedToken);
           setSessionInfo(tokenManager.getSessionInfo());
           
@@ -30,24 +30,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const profileResponse = await authAPI.getProfile();
           setUser(profileResponse.user);
           
-          // Setup automatic token refresh if needed
-          if (tokenManager.shouldRefreshToken()) {
-            try {
-              const response = await authAPI.refreshToken();
-              setToken(response.token);
-              tokenManager.setToken(response.token, undefined, response.expiresAt);
-              setSessionInfo(tokenManager.getSessionInfo());
-            } catch (error) {
-              console.error("Initial token refresh failed:", error);
-              setUser(null);
-              setToken(null);
-              setSessionInfo(null);
-              tokenManager.clearSession();
-            }
-          }
+          console.log('✅ Session restored successfully - no expiration checks');
         } else {
-          // Token expired or doesn't exist
-          tokenManager.clearSession();
+          // No token found
+          console.log('ℹ️ No stored token found');
         }
       } catch (error) {
         console.error("Failed to initialize auth:", error);
@@ -60,24 +46,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
   }, []);
 
-  // Setup event listeners for session management
+  // Setup event listeners for session management (no automatic refresh)
   useEffect(() => {
-    const handleTokenRefreshNeeded = async () => {
-      if (isAuthenticated) {
-        try {
-          const response = await authAPI.refreshToken();
-          setToken(response.token);
-          tokenManager.setToken(response.token, undefined, response.expiresAt);
-          setSessionInfo(tokenManager.getSessionInfo());
-        } catch (error) {
-          console.error("Automatic token refresh failed:", error);
-          setUser(null);
-          setToken(null);
-          setSessionInfo(null);
-          tokenManager.clearSession();
-        }
-      }
-    };
 
     const handleAuthError = async (event: CustomEvent) => {
       console.error("Auth error received:", event.detail);
@@ -93,14 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         tokenManager.updateLastActivity();
         setSessionInfo(tokenManager.getSessionInfo());
         
-        // Check if session is still valid
-        const currentToken = tokenManager.getToken();
-        if (!currentToken) {
-          setUser(null);
-          setToken(null);
-          setSessionInfo(null);
-          tokenManager.clearSession();
-        }
+        console.log('👀 Tab became visible - activity updated (no session validation)');
       }
     };
 
@@ -112,7 +75,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     // Add event listeners
-    window.addEventListener('tokenRefreshNeeded', handleTokenRefreshNeeded);
     window.addEventListener('authError', handleAuthError as EventListener);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
@@ -124,7 +86,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     return () => {
-      window.removeEventListener('tokenRefreshNeeded', handleTokenRefreshNeeded);
       window.removeEventListener('authError', handleAuthError as EventListener);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       
@@ -134,7 +95,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, [isAuthenticated]);
 
-  // Session monitoring interval
+  // Session monitoring disabled - sessions only expire on manual logout or browser close
+  // Update session info periodically for UI display purposes only
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -142,28 +104,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const currentSessionInfo = tokenManager.getSessionInfo();
       setSessionInfo(currentSessionInfo);
       
-      if (!currentSessionInfo || currentSessionInfo.isExpired || currentSessionInfo.isInactive) {
-        console.log('Session expired or inactive, logging out');
-        setUser(null);
-        setToken(null);
-        setSessionInfo(null);
-        tokenManager.clearSession();
-      } else if (currentSessionInfo.shouldRefresh) {
-        console.log('Token needs refresh');
-        authAPI.refreshToken()
-          .then(response => {
-            setToken(response.token);
-            tokenManager.setToken(response.token, undefined, response.expiresAt);
-            setSessionInfo(tokenManager.getSessionInfo());
-          })
-          .catch(() => {
-            setUser(null);
-            setToken(null);
-            setSessionInfo(null);
-            tokenManager.clearSession();
-          });
-      }
-    }, 60000); // Check every minute
+      console.log('🔍 Session Info Update (no auto-logout):', {
+        hasSessionInfo: !!currentSessionInfo,
+        lastActivity: currentSessionInfo?.lastActivity,
+        sessionId: currentSessionInfo?.sessionId
+      });
+    }, 300000); // Update session info every 5 minutes for UI display only
 
     return () => clearInterval(interval);
   }, [isAuthenticated]);

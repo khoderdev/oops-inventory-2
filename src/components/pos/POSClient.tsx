@@ -1350,24 +1350,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Calculate right panel width for ProductGrid
       const rightPanelWidth = 100 - newWidth;
       const rightPanelPixelWidth = (rightPanelWidth / 100) * containerRect.width;
-
-      // Live resize logging
-      console.log("🔄 LIVE RESIZE:", {
-        leftPanel: {
-          percentage: `${newWidth.toFixed(1)}%`,
-          pixelWidth: `${pixelWidth.toFixed(0)}px`,
-          breakpoint: `${breakpoint}px`,
-          difference: `${(pixelWidth - breakpoint).toFixed(0)}px`,
-          shouldShowLabels: pixelWidth > breakpoint,
-          status: pixelWidth > breakpoint ? "📱 WIDE (Icons + Labels)" : "📱 NARROW (Icons Only)"
-        },
-        rightPanel: {
-          percentage: `${rightPanelWidth.toFixed(1)}%`,
-          pixelWidth: `${rightPanelPixelWidth.toFixed(0)}px`,
-          gridColumns: rightPanelPixelWidth <= 400 ? "2 cols" : rightPanelPixelWidth <= 600 ? "3 cols" : rightPanelPixelWidth <= 800 ? "4 cols" : rightPanelPixelWidth <= 1000 ? "5 cols" : "6 cols"
-        },
-        containerWidth: `${containerRect.width.toFixed(0)}px`
-      });
     }
   };
 

@@ -118,33 +118,21 @@ export const tokenManager = {
 
   // Session configuration
   REFRESH_THRESHOLD: 5 * 60 * 1000, // Refresh token 5 minutes before expiry
-  ACTIVITY_TIMEOUT: 30 * 60 * 1000, // 30 minutes of inactivity
-  MAX_SESSION_DURATION: 8 * 60 * 60 * 1000, // 8 hours maximum session
+  ACTIVITY_TIMEOUT: 2 * 60 * 60 * 1000, // 2 hours of inactivity (increased from 30 minutes)
+  MAX_SESSION_DURATION: 24 * 60 * 60 * 1000, // 24 hours maximum session (increased from 8 hours)
 
   getToken: (): string | null => {
     try {
       const token = localStorage.getItem(tokenManager.TOKEN_KEY);
       if (!token) return null;
 
-      // Check if token is expired
-      if (tokenManager.isTokenExpired()) {
-        tokenManager.clearSession();
-        return null;
-      }
-
-      // Check for inactivity timeout
-      if (tokenManager.isSessionInactive()) {
-        tokenManager.clearSession();
-        return null;
-      }
-
-      // Update last activity
+      // No automatic expiration checks - tokens only expire on manual logout or browser close
+      // Update last activity for tracking purposes only
       tokenManager.updateLastActivity();
       return token;
     } catch (error) {
       console.error("Error getting token:", error);
-      tokenManager.clearSession();
-      return null;
+      return null; // Don't clear session on error, just return null
     }
   },
 
@@ -250,7 +238,7 @@ export const tokenManager = {
     localStorage.setItem(tokenManager.LAST_ACTIVITY_KEY, Date.now().toString());
   },
 
-  decodeToken: (token: string): { exp: number; sessionId?: string; [key: string]: any } | null => {
+  decodeToken: (token: string): { exp: number; sessionId?: string; [key: string]: unknown } | null => {
     // For hex tokens, we don't decode them - we rely on stored expiry
     // This method is kept for compatibility but returns null for hex tokens
     try {
@@ -290,17 +278,17 @@ export const tokenManager = {
     const sessionId = localStorage.getItem(tokenManager.SESSION_ID_KEY);
     const expiryStr = localStorage.getItem(tokenManager.TOKEN_EXPIRY_KEY);
     
-    if (!token || !lastActivity || !expiryStr) return null;
+    if (!token || !lastActivity) return null;
     
-    const expiry = parseInt(expiryStr, 10) * 1000;
+    const expiry = expiryStr ? parseInt(expiryStr, 10) * 1000 : Date.now() + 24 * 60 * 60 * 1000;
     
     return {
       sessionId,
       expiresAt: new Date(expiry),
       lastActivity: new Date(parseInt(lastActivity, 10)),
-      isExpired: tokenManager.isTokenExpired(),
-      shouldRefresh: tokenManager.shouldRefreshToken(),
-      isInactive: tokenManager.isSessionInactive()
+      isExpired: false, // Never expired - only manual logout or browser close
+      shouldRefresh: false, // No automatic refresh needed
+      isInactive: false // Never inactive - only manual logout or browser close
     };
   },
 
