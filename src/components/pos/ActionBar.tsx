@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Banknote, Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
+import { Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, X } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -115,7 +115,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         disabled: !canVoidOrder || !onVoidOrder
       },
       { id: "refund", icon: DollarSign, label: "Refund", active: false },
-      { id: "discount", icon: Banknote, label: "Discount", active: false, onClick: onDiscount },
+      // { id: "discount", icon: Banknote, label: "Discount", active: false, onClick: onDiscount },
       { id: "reports", icon: FileText, label: "Reports", active: false, onClick: onShowReports },
       {
         id: "back-office",

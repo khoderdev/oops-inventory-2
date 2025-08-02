@@ -14,7 +14,7 @@ import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, R
 import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Settings, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
@@ -85,7 +85,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Printer selection state
   const [showPrinterSelector, setShowPrinterSelector] = useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
-  const { selectedPrinter, selectPrinter, clearSelection } = usePrinterSelector();
+  const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
 
   // Stable callbacks to prevent POSClientOrders re-renders
   const handleCloseOrdersDialog = useCallback(() => {
@@ -338,6 +338,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handleClosePrinterSelector = useCallback(() => {
     setShowPrinterSelector(false);
     setPrinterSelectionContext(null);
+  }, []);
+
+  // Show printer selector for settings/changing printer
+  const handleShowPrinterSettings = useCallback(() => {
+    console.log("⚙️ Opening printer settings");
+    setPrinterSelectionContext("manual_print");
+    setShowPrinterSelector(true);
   }, []);
 
   // Fetch incomplete orders count and table orders for notifications
@@ -1149,7 +1156,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
   const total = Math.max(0, subtotal - discountAmountCalculated); // Total equals subtotal minus discount
 
-  // Print current order receipt - now shows printer selector first
+  // Print current order receipt - uses saved printer or shows selector
   const handlePrintReceipt = useCallback(() => {
     // Use current order data if available, otherwise use cart
     const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
@@ -1185,11 +1192,22 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
     };
 
-    // Set receipt data and show printer selector
+    // Set receipt data
     setLastSaleData(receiptData);
-    setPrinterSelectionContext("manual_print");
-    setShowPrinterSelector(true);
-  }, [cart, currentOrder, subtotal, total, appliedDiscount, showError]);
+
+    // Check if we have a saved printer
+    if (hasSavedPrinter()) {
+      const savedPrinter = getSavedPrinter();
+      console.log("🖨️ Using saved printer for receipt:", savedPrinter?.name);
+      // Directly print with saved printer
+      handlePrintReceiptWithPrinter(savedPrinter);
+    } else {
+      // Show printer selector for first-time selection
+      console.log("🖨️ No saved printer, showing selector");
+      setPrinterSelectionContext("manual_print");
+      setShowPrinterSelector(true);
+    }
+  }, [cart, currentOrder, subtotal, total, appliedDiscount, showError, hasSavedPrinter, getSavedPrinter, handlePrintReceiptWithPrinter]);
 
   // Handle void order
   const handleVoidOrder = useCallback(() => {
@@ -1625,9 +1643,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setShowPaymentDialog(false);
       setShouldAutoPrint(false);
 
-      // Show printer selector for payment receipt
-      setPrinterSelectionContext("payment");
-      setShowPrinterSelector(true);
+      // Check if we have a saved printer for payment receipt
+      if (hasSavedPrinter()) {
+        const savedPrinter = getSavedPrinter();
+        console.log("💰 Using saved printer for payment receipt:", savedPrinter?.name);
+        // Directly print with saved printer
+        handlePaymentWithPrinter(savedPrinter);
+      } else {
+        // Show printer selector for first-time selection
+        console.log("💰 No saved printer, showing selector for payment");
+        setPrinterSelectionContext("payment");
+        setShowPrinterSelector(true);
+      }
 
       // Clear discount state
       setAppliedDiscount(null);
@@ -1662,7 +1689,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshCountsRef]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshCountsRef, hasSavedPrinter, getSavedPrinter, handlePaymentWithPrinter]);
 
   return (
     <>
@@ -1889,21 +1916,33 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Bottom Action Bar - Fixed Footer */}
             <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
-              <ActionBar
-                onSaveOrder={handleManualSave}
-                onPrintReceipt={handlePrintReceipt}
-                onVoidOrder={handleVoidOrder}
-                onShowOrders={handleShowOrders}
-                onShowReports={handleShowReports}
-                onCancelOrder={handleCancelOrder}
-                onDiscount={handleShowDiscount}
-                hasUnsavedChanges={hasUnsavedChanges}
-                isOrderLoading={orderLoading}
-                canPrintReceipt={cart && cart.length > 0}
-                canVoidOrder={!!currentOrder}
-                incompleteOrdersCount={incompleteOrdersCount}
-                incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount}
-              />
+              <div className="flex">
+                <div className="flex-1">
+                  <ActionBar
+                    onSaveOrder={handleManualSave}
+                    onPrintReceipt={handlePrintReceipt}
+                    onVoidOrder={handleVoidOrder}
+                    onShowOrders={handleShowOrders}
+                    onShowReports={handleShowReports}
+                    onCancelOrder={handleCancelOrder}
+                    onDiscount={handleShowDiscount}
+                    hasUnsavedChanges={hasUnsavedChanges}
+                    isOrderLoading={orderLoading}
+                    canPrintReceipt={cart && cart.length > 0}
+                    canVoidOrder={!!currentOrder}
+                    incompleteOrdersCount={incompleteOrdersCount}
+                    incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount}
+                  />
+                </div>
+                {/* Printer Settings Button */}
+                {/* <div className="flex items-center"> */}
+                <Button variant="outline" size="sm" onClick={handleShowPrinterSettings} className="flex flex-col items-center justify-center h-16 w-44 p-2 rounded-none" title={hasSavedPrinter() ? `Current: ${getSavedPrinter()?.name}` : "Set default printer"}>
+                  <Settings className="!w-6 !h-6" />
+                  <span>Printer</span>
+                  {hasSavedPrinter() && <div className="w-2 h-2 bg-green-500 rounded-full absolute top-1 right-1"></div>}
+                </Button>
+                {/* </div> */}
+              </div>
             </div>
           </div>
         </div>
@@ -1973,25 +2012,36 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <DialogHeader>
             <DialogTitle>Select Printer</DialogTitle>
             <DialogDescription>
-              {printerSelectionContext === 'payment' 
-                ? 'Choose a printer for the payment receipt' 
-                : 'Choose a printer to print the receipt'}
+              {printerSelectionContext === "payment" ? "Choose a printer for the payment receipt" : "Choose a printer to print the receipt"}
+              {hasSavedPrinter() && (
+                <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+                  <p className="text-sm text-blue-800">
+                    <strong>Current saved printer:</strong> {getSavedPrinter()?.name}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">Selecting a new printer will save it for future use.</p>
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <PrinterSelector
-              onPrinterSelect={handlePrinterSelect}
-              selectedPrinterId={selectedPrinter?.id || null}
-              label="Available Printers"
-              showStatus={true}
-              showTestButton={true}
-              size="md"
-            />
+            <PrinterSelector onPrinterSelect={handlePrinterSelect} selectedPrinterId={selectedPrinter?.id || null} label="Available Printers" showStatus={true} showTestButton={true} size="md" />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleClosePrinterSelector}>
               Cancel
             </Button>
+            {hasSavedPrinter() && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  clearSelection();
+                  handleClosePrinterSelector();
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                Clear Saved Printer
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
