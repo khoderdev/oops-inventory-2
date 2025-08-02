@@ -13,12 +13,20 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
   const [showEmployeeSelector, setShowEmployeeSelector] = React.useState(false);
 
   // Determine if we should show labels based on left panel width
-  // Show labels when panel is wider than 400px, otherwise show icons only
-  const shouldShowLabels = leftPanelPixelWidth > 400;
+  // Show labels when panel is wider than 370px (≈28%), otherwise show icons only
+  const shouldShowLabels = leftPanelPixelWidth > 370;
   
-  // Debug: Log the panel width and decision
+  // Debug: Log the panel width and decision with breakpoint info
   React.useEffect(() => {
-    console.log('🔧 OrderItemsList - Panel width:', leftPanelPixelWidth, 'Show labels:', shouldShowLabels);
+    const breakpoint = 370;
+    console.log('🔧 OrderItemsList RECEIVED PROPS:', {
+      receivedPanelWidth: leftPanelPixelWidth,
+      breakpoint: breakpoint,
+      difference: leftPanelPixelWidth - breakpoint,
+      shouldShowLabels: shouldShowLabels,
+      calculation: `${leftPanelPixelWidth} > ${breakpoint} = ${leftPanelPixelWidth > breakpoint}`,
+      status: shouldShowLabels ? '📱 WIDE (Icons + Labels)' : '📱 NARROW (Icons Only)'
+    });
   }, [leftPanelPixelWidth, shouldShowLabels]);
 
   const handleQuantityUpdate = (cartId: string, newQuantity: number) => {

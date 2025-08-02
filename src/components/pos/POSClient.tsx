@@ -1713,6 +1713,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     const containerRect = containerRef.current.getBoundingClientRect();
     const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    const pixelWidth = (newWidth / 100) * containerRect.width;
+    const breakpoint = 370;
 
     // Set min and max width constraints (20% to 60%)
     const minWidth = 20;
@@ -1720,6 +1722,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     if (newWidth >= minWidth && newWidth <= maxWidth) {
       setLeftPanelWidth(newWidth);
+
+      // Live resize logging
+      console.log("🔄 LIVE RESIZE:", {
+        percentage: `${newWidth.toFixed(1)}%`,
+        pixelWidth: `${pixelWidth.toFixed(0)}px`,
+        breakpoint: `${breakpoint}px`,
+        difference: `${(pixelWidth - breakpoint).toFixed(0)}px`,
+        containerWidth: `${containerRect.width.toFixed(0)}px`,
+        shouldShowLabels: pixelWidth > breakpoint,
+        status: pixelWidth > breakpoint ? "📱 WIDE (Icons + Labels)" : "📱 NARROW (Icons Only)"
+      });
     }
   };
 
@@ -1823,6 +1836,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 orderStatus={currentOrder?.status}
                 isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
                 discountReason={appliedDiscount?.reason || currentOrder?.discountReason}
+                leftPanelPixelWidth={containerRef.current ? (leftPanelWidth / 100) * containerRef.current.offsetWidth : 0}
               />
             </div>
 
