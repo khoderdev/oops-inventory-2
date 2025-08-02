@@ -169,6 +169,13 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       return;
     }
 
+    // Prevent rapid successive print attempts (cooldown period)
+    const now = Date.now();
+    if (lastPrintTime && (now - lastPrintTime) < 2000) { // 2 second cooldown
+      console.warn("Print cooldown active, please wait before printing again");
+      return;
+    }
+
     // Validate data before printing
     if (!validationResult.isValid) {
       setPrintError(`Cannot print: ${validationResult.errors.join(", ")}`);
@@ -231,16 +238,24 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
               console.log(`📊 Job Status: ${printJobResponse.job.status}`);
               console.log(`⏰ Created At: ${printJobResponse.job.createdAt}`);
 
-              // Track successful print
-              setLastPrintTime(Date.now());
+              // Only call onPrintSuccess if the job status indicates actual success
+              if (printJobResponse.job.status === 'completed' || printJobResponse.job.status === 'pending') {
+                // Track successful print
+                setLastPrintTime(Date.now());
 
-              // Call success callback to clear cart/items
-              if (onPrintSuccess) {
-                console.log("🧹 Calling onPrintSuccess to clear cart after successful automatic print");
-                onPrintSuccess();
+                // Call success callback to clear cart/items
+                if (onPrintSuccess) {
+                  console.log("🧹 Calling onPrintSuccess to clear cart after successful automatic print");
+                  onPrintSuccess();
+                }
+
+                return; // Exit early on successful automatic printing
+              } else {
+                console.warn(`❌ Print job created but failed with status: ${printJobResponse.job.status}`);
+                console.warn("Falling back to browser print");
+                // Track failed print attempt to prevent rapid retries
+                setLastPrintTime(Date.now());
               }
-
-              return; // Exit early on successful automatic printing
             } else {
               console.warn("❌ Print job creation failed, falling back to browser print");
               console.warn("Response:", printJobResponse);
@@ -533,7 +548,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     } finally {
       setIsPrinting(false);
     }
-  }, [receiptData, businessInfo, validationResult, isPrinting, onPrintSuccess, hasSavedPrinter, getSavedPrinter, generateReceiptContent, user]);
+  }, [receiptData, businessInfo, validationResult, isPrinting, onPrintSuccess, hasSavedPrinter, getSavedPrinter, generateReceiptContent, user, lastPrintTime]);
 
   // Handle keyboard events
   useEffect(() => {
