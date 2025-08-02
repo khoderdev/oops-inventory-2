@@ -1,6 +1,7 @@
 import { salesAPI } from "@/api/sales.api.ts.tsx";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
+import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
-import { AlertTriangle, Edit, Eye, FileText, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Edit, Eye, FileText, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export function StockEntriesTable() {
@@ -26,6 +27,9 @@ export function StockEntriesTable() {
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [showPrinterDialog, setShowPrinterDialog] = useState(false);
   const [selectedStockEntry, setSelectedStockEntry] = useState<StockEntryWithMaterial | null>(null);
+  const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
+  const [selectedStockEntries, setSelectedStockEntries] = useState<Set<string>>(new Set());
+  const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
   const materialsMap = new Map(materials.map(m => [m.id, m]));
 
   const stockEntriesWithMaterial = stockEntries
@@ -199,6 +203,49 @@ export function StockEntriesTable() {
     await fetchTabData("stock");
   };
 
+  const handleToggleBulkSelection = () => {
+    setBulkSelectionMode(prev => !prev);
+    setSelectedStockEntries(new Set());
+  };
+
+  const handleSelectStockEntry = (entryId: string) => {
+    setSelectedStockEntries(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(entryId)) {
+        newSet.delete(entryId);
+      } else {
+        newSet.add(entryId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllStockEntries = () => {
+    if (selectedStockEntries.size === stockEntriesWithMaterial.length) {
+      setSelectedStockEntries(new Set());
+    } else {
+      setSelectedStockEntries(new Set(stockEntriesWithMaterial.map(entry => entry.id.toString())));
+    }
+  };
+
+  const handleOpenBulkPrinterDialog = () => {
+    if (selectedStockEntries.size > 0) {
+      setShowBulkPrinterDialog(true);
+    }
+  };
+
+  const handleCloseBulkPrinterDialog = () => {
+    setShowBulkPrinterDialog(false);
+  };
+
+  const handleBulkPrinterAssignmentComplete = async () => {
+    // Refresh the stock entries data to show updated printer assignments
+    await fetchTabData("stock");
+    setSelectedStockEntries(new Set());
+    setBulkSelectionMode(false);
+    setShowBulkPrinterDialog(false);
+  };
+
   return (
     <Card className="w-full !border-none">
       <CardHeader>
@@ -216,6 +263,36 @@ export function StockEntriesTable() {
             )}
           </div>
           <div className="flex gap-2">
+            {bulkSelectionMode && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSelectAllStockEntries}
+                  disabled={stockEntriesWithMaterial.length === 0}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  {selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect All" : "Select All"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOpenBulkPrinterDialog}
+                  disabled={selectedStockEntries.size === 0}
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Assign Printer ({selectedStockEntries.size})
+                </Button>
+              </>
+            )}
+            <Button
+              size="sm"
+              variant={bulkSelectionMode ? "default" : "outline"}
+              onClick={handleToggleBulkSelection}
+            >
+              <Check className="h-4 w-4 mr-2" />
+              {bulkSelectionMode ? "Exit Selection" : "Bulk Select"}
+            </Button>
             {negativeStockCount > 0 && (
               <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
                 <DialogTrigger asChild>
@@ -335,6 +412,17 @@ export function StockEntriesTable() {
               <Table className="min-w-full">
                 <TableHeader>
                   <TableRow>
+                    {bulkSelectionMode && (
+                      <TableHead className="w-12 bg-background">
+                        <input
+                          type="checkbox"
+                          checked={selectedStockEntries.size === stockEntriesWithMaterial.length && stockEntriesWithMaterial.length > 0}
+                          onChange={handleSelectAllStockEntries}
+                          className="h-4 w-4"
+                          aria-label="Select all stock entries"
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="min-w-[200px] bg-background">Material</TableHead>
                     <TableHead className="min-w-[150px] bg-background">Supplier</TableHead>
                     <TableHead className="min-w-[150px] bg-background">Remaining Qty</TableHead>
@@ -367,7 +455,19 @@ export function StockEntriesTable() {
                       const isSelected = selectedRowId === entry.id;
 
                       return (
-                        <TableRow key={entry.id} onClick={() => handleRowClick(entry.id)} className={`transition-colors ${isSelected ? "bg-blue-100 border-l-4 border-l-blue-500 hover:bg-blue-150" : isNegative ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" : "hover:bg-gray-50"} ${isVirtual && !isSelected ? "border-l-red-600" : ""}`}>
+                        <TableRow key={entry.id} onClick={bulkSelectionMode ? () => handleSelectStockEntry(entry.id.toString()) : () => handleRowClick(entry.id)} className={`transition-colors ${isSelected ? "bg-blue-100 border-l-4 border-l-blue-500 hover:bg-blue-150" : selectedStockEntries.has(entry.id.toString()) ? "bg-green-50 border-l-4 border-l-green-500 hover:bg-green-100" : isNegative ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" : "hover:bg-gray-50"} ${isVirtual && !isSelected ? "border-l-red-600" : ""}`}>
+                          {bulkSelectionMode && (
+                            <TableCell className="w-12">
+                              <input
+                                type="checkbox"
+                                checked={selectedStockEntries.has(entry.id.toString())}
+                                onChange={() => handleSelectStockEntry(entry.id.toString())}
+                                className="h-4 w-4"
+                                aria-label={`Select ${entry.material?.name || 'stock entry'}`}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell className="font-medium min-w-[200px]">
                             <div className="flex items-center gap-2">
                               {isNegative && <AlertTriangle className="h-4 w-4 text-red-600" />}
@@ -454,6 +554,15 @@ export function StockEntriesTable() {
 
       {/* Printer Assignment Dialog */}
       <PrinterAssignmentDialog open={showPrinterDialog} onOpenChange={setShowPrinterDialog} item={selectedStockEntry} itemType="stock" onAssignmentChange={handlePrinterAssignmentChange} />
+      
+      {/* Bulk Printer Assignment Dialog */}
+      <BulkPrinterAssignmentDialog
+        open={showBulkPrinterDialog}
+        onOpenChange={setShowBulkPrinterDialog}
+        selectedItems={selectedStockEntries}
+        itemType="stock"
+        onAssignmentChange={handleBulkPrinterAssignmentComplete}
+      />
     </Card>
   );
 }

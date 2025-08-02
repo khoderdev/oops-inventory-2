@@ -12,10 +12,11 @@ import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIng
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
-import { Edit, Eye, Package, Plus, Printer, Search, Trash2 } from "lucide-react";
+import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { MenuItemForm } from "./MenuItemForm";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
+import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, sections }) => {
   const { fetchTabData } = useInventoryStore();
@@ -65,6 +66,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [showPrinterDialog, setShowPrinterDialog] = useState(false);
   const [selectedMenuItemForPrinter, setSelectedMenuItemForPrinter] = useState<MenuItem | null>(null);
+  const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
+  const [selectedMenuItems, setSelectedMenuItems] = useState<Set<string>>(new Set());
+  const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
 
   const MENU_CATEGORIES = useMemo<{ value: MenuItemCategory; label: string }[]>(
     () => [
@@ -295,23 +299,98 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     handleClosePrinterDialog();
   }, [fetchTabData, handleClosePrinterDialog]);
 
+  const handleToggleBulkSelection = useCallback(() => {
+    setBulkSelectionMode(prev => !prev);
+    setSelectedMenuItems(new Set());
+  }, []);
+
+  const handleSelectMenuItem = useCallback((menuItemId: string) => {
+    setSelectedMenuItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(menuItemId)) {
+        newSet.delete(menuItemId);
+      } else {
+        newSet.add(menuItemId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleSelectAllMenuItems = useCallback(() => {
+    if (selectedMenuItems.size === filteredMenuItems.length) {
+      setSelectedMenuItems(new Set());
+    } else {
+      setSelectedMenuItems(new Set(filteredMenuItems.map(item => item.id)));
+    }
+  }, [selectedMenuItems.size, filteredMenuItems]);
+
+  const handleOpenBulkPrinterDialog = useCallback(() => {
+    if (selectedMenuItems.size > 0) {
+      setShowBulkPrinterDialog(true);
+    }
+  }, [selectedMenuItems.size]);
+
+  const handleCloseBulkPrinterDialog = useCallback(() => {
+    setShowBulkPrinterDialog(false);
+  }, []);
+
+  const handleBulkPrinterAssignmentComplete = useCallback(async () => {
+    // Refresh the menu items data to show updated printer assignments
+    await fetchTabData("menu");
+    setSelectedMenuItems(new Set());
+    setBulkSelectionMode(false);
+    handleCloseBulkPrinterDialog();
+  }, [fetchTabData, handleCloseBulkPrinterDialog]);
+
   return (
     <>
       <Card className="!border-0 !shadow-none !bg-background">
         <CardHeader>
           <div className="flex justify-between items-center mb-2">
             <CardTitle className="text-3xl font-bold">Menu Items</CardTitle>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingMenuItem(null);
-                setShowMenuItemForm(true);
-              }}
-              aria-label="Add new menu item"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Menu Item
-            </Button>
+            <div className="flex gap-2">
+              {bulkSelectionMode && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSelectAllMenuItems}
+                    disabled={filteredMenuItems.length === 0}
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleOpenBulkPrinterDialog}
+                    disabled={selectedMenuItems.size === 0}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Assign Printer ({selectedMenuItems.size})
+                  </Button>
+                </>
+              )}
+              <Button
+                size="sm"
+                variant={bulkSelectionMode ? "default" : "outline"}
+                onClick={handleToggleBulkSelection}
+              >
+                <Check className="h-4 w-4 mr-2" />
+                {bulkSelectionMode ? "Exit Selection" : "Bulk Select"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingMenuItem(null);
+                  setShowMenuItemForm(true);
+                }}
+                aria-label="Add new menu item"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Menu Item
+              </Button>
+            </div>
           </div>
 
           {/* Search and Filter Controls */}
@@ -358,6 +437,17 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             <Table className="min-w-full">
               <TableHeader className="sticky top-0 bg-background z-10 border-b">
                 <TableRow>
+                  {bulkSelectionMode && (
+                    <TableHead className="w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedMenuItems.size === filteredMenuItems.length && filteredMenuItems.length > 0}
+                        onChange={handleSelectAllMenuItems}
+                        className="h-4 w-4"
+                        aria-label="Select all menu items"
+                      />
+                    </TableHead>
+                  )}
                   <TableHead className="min-w-[200px]">Name</TableHead>
                   <TableHead className="min-w-[150px]">Category</TableHead>
                   <TableHead className="min-w-[200px]">Ingredients</TableHead>
@@ -377,7 +467,19 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                     const isSelected = selectedRowId === item.id;
 
                     return (
-                      <TableRow key={item.id} onClick={() => handleRowClick(item.id)} className={`cursor-pointer transition-colors ${isSelected ? "bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100" : "hover:bg-muted/50"}`}>
+                      <TableRow key={item.id} onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : () => handleRowClick(item.id)} className={`cursor-pointer transition-colors ${isSelected ? "bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100" : selectedMenuItems.has(item.id) ? "bg-green-50 border-l-4 border-l-green-500 hover:bg-green-100" : "hover:bg-muted/50"}`}>
+                        {bulkSelectionMode && (
+                          <TableCell className="w-12">
+                            <input
+                              type="checkbox"
+                              checked={selectedMenuItems.has(item.id)}
+                              onChange={() => handleSelectMenuItem(item.id)}
+                              className="h-4 w-4"
+                              aria-label={`Select ${item.name}`}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell className="font-medium min-w-[200px]">
                           <div>{highlightText(item.name, searchTerm)}</div>
                           {item.description && <div className="text-sm text-muted-foreground">{highlightText(item.description, searchTerm)}</div>}
@@ -462,7 +564,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={bulkSelectionMode ? 8 : 7} className="text-center py-8">
                       <div className="flex flex-col items-center justify-center space-y-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-lg font-medium">No menu items found</p>
@@ -488,6 +590,15 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         item={selectedMenuItemForPrinter}
         itemType="menu"
         onAssignmentChange={handlePrinterAssignmentComplete}
+      />
+      
+      {/* Bulk Printer Assignment Dialog */}
+      <BulkPrinterAssignmentDialog
+        open={showBulkPrinterDialog}
+        onOpenChange={setShowBulkPrinterDialog}
+        selectedItems={selectedMenuItems}
+        itemType="menu"
+        onAssignmentChange={handleBulkPrinterAssignmentComplete}
       />
     </>
   );
