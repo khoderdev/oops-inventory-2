@@ -3,16 +3,18 @@ import { ordersAPI } from "@/api/orders.api";
 import { posAPI } from "@/api/pos.api.ts";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { tablesAPI } from "@/api/tables.api";
+import PrinterSelector from "@/components/common/PrinterSelector";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
+import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { Employee, EmployeeDepartment } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, Trash2, GripVertical } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
@@ -66,7 +68,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Resizable panel state
   const [leftPanelWidth, setLeftPanelWidth] = useState(33.33); // Default 33.33% (1/3)
   const [isResizing, setIsResizing] = useState(false);
@@ -79,6 +81,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     amount: number;
     reason?: string;
   } | null>(null);
+
+  // Printer selection state
+  const [showPrinterSelector, setShowPrinterSelector] = useState(false);
+  const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
+  const { selectedPrinter, selectPrinter, clearSelection } = usePrinterSelector();
 
   // Stable callbacks to prevent POSClientOrders re-renders
   const handleCloseOrdersDialog = useCallback(() => {
@@ -141,9 +148,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
-      
+
       const containerWidth = containerRef.current.offsetWidth;
-      
+
       // Reset to default on mobile
       if (containerWidth < 1024) {
         setLeftPanelWidth(33.33);
@@ -243,6 +250,95 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setDiscountAmount(0);
     showSuccess("Discount removed");
   }, [showSuccess]);
+
+  // Payment with selected printer
+  const handlePaymentWithPrinter = useCallback(async (printer: any) => {
+    console.log("💰 Processing payment with selected printer:", printer);
+    // TODO: Integrate printer with payment process
+    // For now, proceed with normal payment flow
+    await handlePayment();
+  }, []);
+
+  // Print receipt with selected printer
+  const handlePrintReceiptWithPrinter = useCallback(
+    async (printer: any) => {
+      console.log("🖨️ Printing receipt with selected printer:", printer);
+      // TODO: Send receipt data to selected printer
+      // For now, show the receipt dialog
+      if (!lastSaleData) {
+        showError("No receipt data available");
+        return;
+      }
+      setShowReceiptDialog(true);
+    },
+    [lastSaleData, showError]
+  );
+
+  // Print receipt function - shows printer selector first
+  // const handlePrintReceipt = useCallback(() => {
+  //   // Use current order data if available, otherwise use cart
+  //   const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
+
+  //   if (!itemsToUse || itemsToUse.length === 0) {
+  //     showError("No items to print");
+  //     return;
+  //   }
+
+  //   // Create receipt data from current order or cart
+  //   const receiptData = {
+  //     id: currentOrder?.orderNumber || `DRAFT-${Date.now()}`,
+  //     date: new Date().toLocaleDateString(),
+  //     time: new Date().toLocaleTimeString(),
+  //     cashier: "Current User",
+  //     items: itemsToUse.map(item => ({
+  //       name: item.name,
+  //       quantity: item.quantity,
+  //       unitPrice: item.unitPrice || item.price,
+  //       totalPrice: item.totalPrice || item.price * item.quantity,
+  //       type: item.type
+  //     })),
+  //     subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === "string" ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
+  //     tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : 0,
+  //     total: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
+  //     paymentAmount: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
+  //     change: 0,
+  //     paymentMethod: "cash",
+  //     // Include discount information if available
+  //     discountType: currentOrder?.discountType || appliedDiscount?.type || null,
+  //     discountValue: currentOrder?.discountValue ? (typeof currentOrder.discountValue === "string" ? parseFloat(currentOrder.discountValue) : currentOrder.discountValue) : appliedDiscount?.value || null,
+  //     discountAmount: currentOrder?.discountAmount ? (typeof currentOrder.discountAmount === "string" ? parseFloat(currentOrder.discountAmount) : currentOrder.discountAmount) : appliedDiscount?.amount || null,
+  //     discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
+  //   };
+
+  //   // Set receipt data and show printer selector
+  //   setLastSaleData(receiptData);
+  //   setPrinterSelectionContext("manual_print");
+  //   setShowPrinterSelector(true);
+  // }, [cart, currentOrder, subtotal, total, appliedDiscount, showError]);
+
+  // Printer selection handlers
+  const handlePrinterSelect = useCallback(
+    (printer: any) => {
+      selectPrinter(printer);
+      setShowPrinterSelector(false);
+
+      if (printerSelectionContext === "payment") {
+        // Continue with payment process using selected printer
+        handlePaymentWithPrinter(printer);
+      } else if (printerSelectionContext === "manual_print") {
+        // Print receipt using selected printer
+        handlePrintReceiptWithPrinter(printer);
+      }
+
+      setPrinterSelectionContext(null);
+    },
+    [selectPrinter, printerSelectionContext, handlePaymentWithPrinter, handlePrintReceiptWithPrinter]
+  );
+
+  const handleClosePrinterSelector = useCallback(() => {
+    setShowPrinterSelector(false);
+    setPrinterSelectionContext(null);
+  }, []);
 
   // Fetch incomplete orders count and table orders for notifications
   const fetchIncompleteOrders = useCallback(async () => {
@@ -1053,7 +1149,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
   const total = Math.max(0, subtotal - discountAmountCalculated); // Total equals subtotal minus discount
 
-  // Print current order receipt
+  // Print current order receipt - now shows printer selector first
   const handlePrintReceipt = useCallback(() => {
     // Use current order data if available, otherwise use cart
     const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
@@ -1077,7 +1173,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         type: item.type
       })),
       subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === "string" ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
-      tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : tax,
+      tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : 0,
       total: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
       paymentAmount: currentOrder?.total ? (typeof currentOrder.total === "string" ? parseFloat(currentOrder.total) : currentOrder.total) : total,
       change: 0,
@@ -1089,11 +1185,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
     };
 
-    // Set receipt data and show receipt dialog
+    // Set receipt data and show printer selector
     setLastSaleData(receiptData);
-    setShouldAutoPrint(false); // Manual print - don't auto-print
-    setShowReceiptDialog(true);
-  }, [cart, currentOrder, subtotal, tax, total, appliedDiscount, showError]);
+    setPrinterSelectionContext("manual_print");
+    setShowPrinterSelector(true);
+  }, [cart, currentOrder, subtotal, total, appliedDiscount, showError]);
 
   // Handle void order
   const handleVoidOrder = useCallback(() => {
@@ -1528,7 +1624,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setPaymentAmount("");
       setShowPaymentDialog(false);
       setShouldAutoPrint(false);
-      setShowReceiptDialog(true);
+
+      // Show printer selector for payment receipt
+      setPrinterSelectionContext("payment");
+      setShowPrinterSelector(true);
 
       // Clear discount state
       setAppliedDiscount(null);
@@ -1603,10 +1702,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </div>
 
         {/* Left Panel - Cart/Order Details (Desktop) / Full Width (Mobile) */}
-        <div 
+        <div
           className="cart flex flex-col h-full bg-white lg:border-r lg:border-gray-200"
-          style={{ 
-            width: typeof window !== 'undefined' && window.innerWidth >= 1024 ? `${leftPanelWidth}%` : '100%'
+          style={{
+            width: typeof window !== "undefined" && window.innerWidth >= 1024 ? `${leftPanelWidth}%` : "100%"
           }}
         >
           {/* Cart Header - Fixed (Desktop Only) */}
@@ -1707,13 +1806,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </div>
 
         {/* Resize Handle (Desktop Only) */}
-        {typeof window !== 'undefined' && window.innerWidth >= 1024 && (
-          <div
-            onMouseDown={handleMouseDown}
-            className={`hidden lg:block w-1 bg-gray-300/50 hover:bg-blue-400 cursor-col-resize transition-colors duration-200 relative group ${
-              isResizing ? 'bg-blue-500' : ''
-            }`}
-          >
+        {typeof window !== "undefined" && window.innerWidth >= 1024 && (
+          <div onMouseDown={handleMouseDown} className={`hidden lg:block w-1 bg-gray-300/50 hover:bg-blue-400 cursor-col-resize transition-colors duration-200 relative group ${isResizing ? "bg-blue-500" : ""}`}>
             <div className="absolute inset-y-0 -left-1 -right-1 flex items-center justify-center">
               <GripVertical className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors" />
             </div>
@@ -1721,10 +1815,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         )}
 
         {/* Right Panel - Product Grid (Desktop) / Mobile Product Section */}
-        <div 
+        <div
           className="products flex flex-col h-full bg-white"
-          style={{ 
-            width: typeof window !== 'undefined' && window.innerWidth >= 1024 ? `${100 - leftPanelWidth}%` : '100%'
+          style={{
+            width: typeof window !== "undefined" && window.innerWidth >= 1024 ? `${100 - leftPanelWidth}%` : "100%"
           }}
         >
           {/* Mobile Toggle Buttons (visible on mobile only) */}
@@ -1782,7 +1876,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           </div>
 
           {/* Desktop/Mobile Product View */}
-          <div className={`${activeView === "products" || (typeof window !== 'undefined' && window.innerWidth >= 1024) ? "flex" : "hidden"} lg:flex flex-col h-full`}>
+          <div className={`${activeView === "products" || (typeof window !== "undefined" && window.innerWidth >= 1024) ? "flex" : "hidden"} lg:flex flex-col h-full`}>
             {/* Top Controls - Fixed Header */}
             <div className="flex-shrink-0 border-b border-gray-200 bg-white">
               <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
@@ -1818,152 +1912,181 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {/* Payment Dialog */}
       <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
 
-        {/* Negative Stock Warning Dialog */}
-        <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
-          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
-            <div className="w-full h-full flex flex-col overflow-hidden">
-              <DialogHeader className="flex-shrink-0 p-6 border-b">
-                <DialogTitle className="flex items-center space-x-2">
-                  <AlertTriangle className="w-5 h-5 text-amber-500" />
-                  <span>Stock Warning</span>
-                </DialogTitle>
-                <DialogDescription>Some items have low or negative stock levels</DialogDescription>
-              </DialogHeader>
+      {/* Negative Stock Warning Dialog */}
+      <Dialog open={showNegativeStockDialog} onOpenChange={setShowNegativeStockDialog}>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+          <div className="w-full h-full flex flex-col overflow-hidden">
+            <DialogHeader className="flex-shrink-0 p-6 border-b">
+              <DialogTitle className="flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                <span>Stock Warning</span>
+              </DialogTitle>
+              <DialogDescription>Some items have low or negative stock levels</DialogDescription>
+            </DialogHeader>
 
-              <div className="flex-1 p-6 overflow-y-auto">
-                <div className="space-y-2">
-                  {negativeStockWarnings.map((warning, index) => (
-                    <Alert key={index}>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        <strong>{warning.materialName}</strong>: Low stock - Available: {warning.availableQuantity}, Required: {warning.requiredQuantity}
-                      </AlertDescription>
-                    </Alert>
-                  ))}
-                </div>
+            <div className="flex-1 p-6 overflow-y-auto">
+              <div className="space-y-2">
+                {negativeStockWarnings.map((warning, index) => (
+                  <Alert key={index}>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>{warning.materialName}</strong>: Low stock - Available: {warning.availableQuantity}, Required: {warning.requiredQuantity}
+                    </AlertDescription>
+                  </Alert>
+                ))}
               </div>
-
-              <DialogFooter className="flex-shrink-0 p-6 border-t">
-                <Button onClick={() => setShowNegativeStockDialog(false)}>Acknowledge</Button>
-              </DialogFooter>
             </div>
-          </DialogContent>
-        </Dialog>
 
-        {/* Tables Layout Dialog */}
-        {showTablesLayout && <TablesLayout tables={Array.isArray(tables) ? tables : []} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} />}
-
-        {/* Receipt Printer Dialog */}
-        <ReceiptPrinter
-          isOpen={showReceiptDialog}
-          onClose={() => {
-            setShowReceiptDialog(false);
-            setShouldAutoPrint(false); // Reset auto-print flag
-          }}
-          receiptData={lastSaleData}
-          autoPrint={shouldAutoPrint}
-        />
-
-        {/* Discount Dialog */}
-        <DiscountDialog isOpen={showDiscountDialog} onClose={() => setShowDiscountDialog(false)} discountAmount={discountAmount} onDiscountAmountChange={handleDiscountAmountChange} onDiscount={() => {}} orderSubtotal={subtotal} onApplyDiscount={handleApplyDiscount} />
-
-        {/* Payment Dialog */}
-        <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
-
-        {/* Void Order Dialog */}
-        <VoidOrderDialog isOpen={showVoidDialog} onClose={() => setShowVoidDialog(false)} onConfirm={handleConfirmVoid} order={currentOrder} isLoading={orderLoading} />
-
-        {/* Unsaved Changes Dialog */}
-        <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
-          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
-            <div className="w-full h-full flex flex-col overflow-hidden">
-              <DialogHeader className="flex-shrink-0 p-6 border-b">
-                <DialogTitle className="flex items-center space-x-2">
-                  <AlertTriangle className="w-5 h-5 text-amber-500" />
-                  <span>Unsaved Changes</span>
-                </DialogTitle>
-                <DialogDescription>You have unsaved changes in your current order. Would you like to save them?</DialogDescription>
-              </DialogHeader>
-
-              <div className="flex-1 flex items-center justify-center p-6">
-                <div className="text-center space-y-4">
-                  <div className="text-lg text-gray-600">Your current order has unsaved changes that will be lost if you continue.</div>
-                  <div className="text-sm text-gray-500">Choose whether to save your progress or discard the changes.</div>
-                </div>
-              </div>
-
-              <DialogFooter className="flex-shrink-0 p-6 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowUnsavedDialog(false);
-                    // Continue with the action that triggered this dialog
-                  }}
-                >
-                  Discard Changes
-                </Button>
-                <Button
-                  onClick={() => {
-                    handleManualSave();
-                    setShowUnsavedDialog(false);
-                  }}
-                >
-                  Save Order
-                </Button>
-              </DialogFooter>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Success/Error Messages */}
-        {successMessage && (
-          <div className="fixed top-4 right-4 z-50">
-            <Alert className="bg-green-50 border-green-200">
-              <Check className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
-            </Alert>
+            <DialogFooter className="flex-shrink-0 p-6 border-t">
+              <Button onClick={() => setShowNegativeStockDialog(false)}>Acknowledge</Button>
+            </DialogFooter>
           </div>
-        )}
+        </DialogContent>
+      </Dialog>
 
-        {error && (
-          <div className="fixed top-4 right-4 z-50">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+      {/* Tables Layout Dialog */}
+      {showTablesLayout && <TablesLayout tables={Array.isArray(tables) ? tables : []} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} />}
+
+      {/* Receipt Printer Dialog */}
+      <ReceiptPrinter
+        isOpen={showReceiptDialog}
+        onClose={() => {
+          setShowReceiptDialog(false);
+          setShouldAutoPrint(false); // Reset auto-print flag
+        }}
+        receiptData={lastSaleData}
+        autoPrint={shouldAutoPrint}
+      />
+
+      {/* Discount Dialog */}
+      <DiscountDialog isOpen={showDiscountDialog} onClose={() => setShowDiscountDialog(false)} discountAmount={discountAmount} onDiscountAmountChange={handleDiscountAmountChange} onDiscount={() => {}} orderSubtotal={subtotal} onApplyDiscount={handleApplyDiscount} />
+
+      {/* Payment Dialog */}
+      <PaymentDialog isOpen={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />
+
+      {/* Void Order Dialog */}
+      <VoidOrderDialog isOpen={showVoidDialog} onClose={() => setShowVoidDialog(false)} onConfirm={handleConfirmVoid} order={currentOrder} isLoading={orderLoading} />
+
+      {/* Printer Selector Modal */}
+      <Dialog open={showPrinterSelector} onOpenChange={setShowPrinterSelector}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Printer</DialogTitle>
+            <DialogDescription>
+              {printerSelectionContext === 'payment' 
+                ? 'Choose a printer for the payment receipt' 
+                : 'Choose a printer to print the receipt'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <PrinterSelector
+              onPrinterSelect={handlePrinterSelect}
+              selectedPrinterId={selectedPrinter?.id || null}
+              label="Available Printers"
+              showStatus={true}
+              showTestButton={true}
+              size="md"
+            />
           </div>
-        )}
+          <DialogFooter>
+            <Button variant="outline" onClick={handleClosePrinterSelector}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Orders Management Dialog */}
-        <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelectCallback} />
+      {/* Unsaved Changes Dialog */}
+      <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-white overflow-hidden">
+          <div className="w-full h-full flex flex-col overflow-hidden">
+            <DialogHeader className="flex-shrink-0 p-6 border-b">
+              <DialogTitle className="flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                <span>Unsaved Changes</span>
+              </DialogTitle>
+              <DialogDescription>You have unsaved changes in your current order. Would you like to save them?</DialogDescription>
+            </DialogHeader>
 
-        {/* Tables Layout Dialog */}
-        {showTablesLayout && (
-          <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
-            <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 !z-50 bg-white overflow-hidden">
-              <div className="w-full h-full flex flex-col overflow-hidden">
-                <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} />
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="text-center space-y-4">
+                <div className="text-lg text-gray-600">Your current order has unsaved changes that will be lost if you continue.</div>
+                <div className="text-sm text-gray-500">Choose whether to save your progress or discard the changes.</div>
               </div>
-            </DialogContent>
-          </Dialog>
-        )}
+            </div>
 
-        <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
-          <DialogContent className="w-screen h-screen max-w-none !z-50 max-h-none m-0 p-0 bg-white overflow-hidden">
+            <DialogFooter className="flex-shrink-0 p-6 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowUnsavedDialog(false);
+                  // Continue with the action that triggered this dialog
+                }}
+              >
+                Discard Changes
+              </Button>
+              <Button
+                onClick={() => {
+                  handleManualSave();
+                  setShowUnsavedDialog(false);
+                }}
+              >
+                Save Order
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50">
+          <Alert className="bg-green-50 border-green-200">
+            <Check className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {error && (
+        <div className="fixed top-4 right-4 z-50">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {/* Orders Management Dialog */}
+      <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelectCallback} />
+
+      {/* Tables Layout Dialog */}
+      {showTablesLayout && (
+        <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
+          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 !z-50 bg-white overflow-hidden">
             <div className="w-full h-full flex flex-col overflow-hidden">
-              <div className="flex-shrink-0 flex items-center justify-between p-4 bg-primary">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-white" />
-                  <h2 className="text-2xl font-bold text-white">Reports & Analytics</h2>
-                </div>
-              </div>
-              <ReportGenerator className="flex-1 overflow-hidden" />
+              <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} />
             </div>
           </DialogContent>
         </Dialog>
+      )}
 
-        {/* Receipt Printer Dialog */}
-        <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} autoPrint={shouldAutoPrint} />
+      <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
+        <DialogContent className="w-screen h-screen max-w-none !z-50 max-h-none m-0 p-0 bg-white overflow-hidden">
+          <div className="w-full h-full flex flex-col overflow-hidden">
+            <div className="flex-shrink-0 flex items-center justify-between p-4 bg-primary">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-white" />
+                <h2 className="text-2xl font-bold text-white">Reports & Analytics</h2>
+              </div>
+            </div>
+            <ReportGenerator className="flex-1 overflow-hidden" />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Printer Dialog */}
+      <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} autoPrint={shouldAutoPrint} />
     </>
   );
 };
