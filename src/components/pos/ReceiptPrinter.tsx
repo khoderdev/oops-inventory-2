@@ -76,14 +76,19 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     receiptData.items.forEach((item, index) => {
       // Item name (handle Arabic text and truncate if too long)
       const cleanItemName = handleArabicText(item.name);
-      const itemName = cleanItemName.length > 40 ? cleanItemName.substring(0, 37) + "..." : cleanItemName;
-      content += `${itemName}\n`;
-
-      // Quantity, unit price, and total with right alignment
-      const qtyPrice = `${item.quantity}x ${formatCurrency(item.unitPrice)}`;
+      
+      // Create the item line: "3x Hamburger                   $12.00"
+      const qtyAndName = `${item.quantity}x ${cleanItemName}`;
       const total = formatCurrency(item.totalPrice);
-      const spacesNeeded = 48 - qtyPrice.length - total.length;
-      content += qtyPrice + " ".repeat(Math.max(1, spacesNeeded)) + total + "\n";
+      
+      // Calculate available space for item name (accounting for quantity prefix and total price)
+      const maxItemLineLength = 48 - total.length - 1; // -1 for at least one space
+      const truncatedQtyAndName = qtyAndName.length > maxItemLineLength ? 
+        qtyAndName.substring(0, maxItemLineLength - 3) + "..." : qtyAndName;
+      
+      // Calculate spaces needed for right alignment
+      const spacesNeeded = 48 - truncatedQtyAndName.length - total.length;
+      content += truncatedQtyAndName + " ".repeat(Math.max(1, spacesNeeded)) + total + "\n";
 
       // Reduced spacing between items (except last item)
       if (index < receiptData.items.length - 1) {
