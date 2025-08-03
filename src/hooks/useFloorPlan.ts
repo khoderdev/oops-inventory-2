@@ -46,6 +46,51 @@ export const useFloorPlan = () => {
     }
   }, []);
 
+  // Find a good position for new furniture to avoid overlapping
+  const findGoodPosition = useCallback((existingFurniture: FurnitureItem[], newDimensions: { width: number; height: number }, areaBounds: { x: number; y: number; width: number; height: number }) => {
+    const margin = 20; // Space between furniture items
+    const startX = 50;
+    const startY = 50;
+    
+    // If no existing furniture, place at start position
+    if (existingFurniture.length === 0) {
+      return { x: startX, y: startY };
+    }
+    
+    // Try to place furniture in a grid pattern
+    const gridSpacing = 120; // Space between grid positions
+    const maxCols = Math.floor((areaBounds.width - 100) / gridSpacing);
+    
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < maxCols; col++) {
+        const x = startX + (col * gridSpacing);
+        const y = startY + (row * gridSpacing);
+        
+        // Check if this position overlaps with existing furniture
+        const overlaps = existingFurniture.some(furniture => {
+          const furnitureRight = furniture.position.x + furniture.dimensions.width;
+          const furnitureBottom = furniture.position.y + furniture.dimensions.height;
+          const newRight = x + newDimensions.width;
+          const newBottom = y + newDimensions.height;
+          
+          return !(
+            x >= furnitureRight + margin ||
+            newRight <= furniture.position.x - margin ||
+            y >= furnitureBottom + margin ||
+            newBottom <= furniture.position.y - margin
+          );
+        });
+        
+        if (!overlaps && x + newDimensions.width < areaBounds.width - 50 && y + newDimensions.height < areaBounds.height - 50) {
+          return { x, y };
+        }
+      }
+    }
+    
+    // Fallback: place at start position with slight offset
+    return { x: startX + (existingFurniture.length * 30), y: startY + (existingFurniture.length * 30) };
+  }, []);
+
   const addFurniture = useCallback(
     (template: FurnitureTemplate, areaId: string) => {
       let newFurnitureId = "";
@@ -55,11 +100,12 @@ export const useFloorPlan = () => {
         if (!targetArea) return prev;
 
         const furnitureName = generateFurnitureName(template.type, targetArea.furniture);
+        const goodPosition = findGoodPosition(targetArea.furniture, template.defaultDimensions, targetArea.bounds);
 
         const newFurniture: FurnitureItem = {
           id: generateId(),
           type: template.type,
-          position: { x: 50, y: 50 },
+          position: goodPosition,
           dimensions: { ...template.defaultDimensions },
           rotation: 0,
           color: template.defaultColor,
@@ -86,7 +132,7 @@ export const useFloorPlan = () => {
 
       setSelectedFurnitureId(newFurnitureId);
     },
-    [generateFurnitureName]
+    [generateFurnitureName, findGoodPosition]
   );
 
   const updateFurniture = useCallback((furnitureId: string, updates: Partial<FurnitureItem>) => {
