@@ -13,32 +13,33 @@ interface FormatItemsForPrinterParams {
 }
 
 /**
- * ESC/POS Commands for thermal printers - Compatible version
+ * ESC/POS Commands for thermal printers - Database-safe version
+ * Avoiding null bytes and problematic Unicode sequences
  */
 const ESC_POS = {
-  // Basic commands that work on most thermal printers
+  // Basic commands that work on most thermal printers (avoiding null bytes)
   INIT: '\x1B\x40',           // Initialize printer
   BOLD_ON: '\x1B\x45\x01',    // Bold text on
-  BOLD_OFF: '\x1B\x45\x00',   // Bold text off
+  BOLD_OFF: '\x1B\x45',       // Bold text off (avoiding \x00)
   UNDERLINE_ON: '\x1B\x2D\x01',      // Underline on
-  UNDERLINE_OFF: '\x1B\x2D\x00',     // Underline off
+  UNDERLINE_OFF: '\x1B\x2D',         // Underline off (avoiding \x00)
   ALIGN_CENTER: '\x1B\x61\x01',      // Center alignment
-  ALIGN_LEFT: '\x1B\x61\x00',        // Left alignment
+  ALIGN_LEFT: '\x1B\x61',            // Left alignment (avoiding \x00)
   ALIGN_RIGHT: '\x1B\x61\x02',       // Right alignment
   
-  // More compatible text sizing
+  // More compatible text sizing (avoiding null bytes)
   DOUBLE_HEIGHT_ON: '\x1B\x21\x10',  // Double height on
-  DOUBLE_HEIGHT_OFF: '\x1B\x21\x00', // Double height off
-  LARGE_TEXT: '\x1B\x21\x30',        // Double width and height (more compatible)
-  NORMAL_TEXT: '\x1B\x21\x00',       // Normal text size
+  DOUBLE_HEIGHT_OFF: '\x1B\x21',     // Double height off (avoiding \x00)
+  LARGE_TEXT: '\x1B\x21\x30',        // Double width and height
+  NORMAL_TEXT: '\x1B\x21',           // Normal text size (avoiding \x00)
   
-  // Paper handling
-  FEED_LINES: (lines: number) => '\x0A'.repeat(lines), // Use line feeds instead of ESC d
-  CUT_PAPER: '\x1D\x56\x42\x00',     // Partial cut (more compatible)
+  // Paper handling (database-safe)
+  FEED_LINES: (lines: number) => '\n'.repeat(lines), // Use simple line feeds
+  CUT_PAPER: '\x1D\x56\x42',         // Partial cut (removing null byte)
   
   // Fallback commands for compatibility
   EMPHASIS_ON: '\x1B\x45\x01',       // Same as BOLD_ON
-  EMPHASIS_OFF: '\x1B\x45\x00'       // Same as BOLD_OFF
+  EMPHASIS_OFF: '\x1B\x45'           // Same as BOLD_OFF (avoiding \x00)
 } as const;
 
 export const formatItemsForPrinter = ({ items, currentOrder, orderType, selectedTable, selectedEmployee, generatePreviewOrderNumber }: FormatItemsForPrinterParams): string => {
@@ -79,6 +80,14 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
       .replace(/[\u4e00-\u9fff]+/g, '') // Remove Chinese character sequences
       .replace(/[\u3400-\u4dbf]+/g, '') // Remove CJK Extension A sequences
       .trim();
+  };
+
+  // Function to sanitize content for database storage (remove null bytes and problematic chars)
+  const sanitizeForDatabase = (content: string): string => {
+    return content
+      .replace(/\u0000/g, '') // Remove null bytes
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control chars except \n, \r, \t
+      .replace(/\\u0000/g, ''); // Remove escaped null bytes
   };
 
   // Function to pad text for left-right alignment
@@ -193,7 +202,8 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
     // Cut paper
     content += ESC_POS.CUT_PAPER;
 
-    return content;
+    // Sanitize content for database storage
+    return sanitizeForDatabase(content);
   } catch (error) {
     console.error('Error formatting items for printer with ESC/POS commands:', error);
     console.log('Falling back to simple text formatting...');
@@ -225,7 +235,8 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
       basicContent += `\nTotal: ${items.reduce((sum, item) => sum + item.quantity, 0)} items\n`;
       basicContent += "\n\n\n"; // Extra line feeds
       
-      return basicContent;
+      // Ensure fallback content is also database-safe
+      return basicContent.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
     }
   }
 };
@@ -275,3 +286,20 @@ export const centerText = thermalPrinterUtils.centerText;
 
 // Export simple formatter for direct use when ESC/POS commands cause issues
 export { formatItemsForPrinterSimple } from "./thermalPrinterFormatterSimple";
+
+/**
+ * Sanitize content for database storage by removing problematic characters
+ * This prevents PostgreSQL errors when storing ESC/POS commands in JSON fields
+ */
+export const sanitizeContentForDatabase = (content: string): string => {
+  if (!content) return content;
+  
+  return content
+    // Remove null bytes and other problematic control characters
+    // Keep only \n (0x0A), \r (0x0D), and \t (0x09)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // Remove escaped null bytes that might appear in strings
+    .replace(/\\u0000/g, '')
+    // Remove any remaining problematic sequences
+    .replace(/\x00/g, '');
+};

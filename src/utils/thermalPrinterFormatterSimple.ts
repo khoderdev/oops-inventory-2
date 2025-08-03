@@ -140,7 +140,8 @@ export const formatItemsForPrinterSimple = ({ items, currentOrder, orderType, se
     // Feed extra lines for easy tearing
     content += "\n\n\n";
 
-    return content;
+    // Ensure content is database-safe (remove any problematic characters)
+    return content.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
   } catch (error) {
     console.error('Error formatting items for printer (simple):', error);
     
