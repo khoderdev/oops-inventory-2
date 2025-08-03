@@ -60,17 +60,13 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
   content += `Date: ${date}\n`;
   content += `Time: ${time}\n`;
   content += `Type: ${orderType.toUpperCase()}\n`;
-
   if (selectedTable) {
     content += `Table: ${selectedTable.number}\n`;
   }
-
   if (selectedEmployee) {
     const employeeName = `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim();
     content += `Staff: ${employeeName}\n`;
   }
-
-  // Reduced spacing before items
   content += centerText("ORDER ITEMS") + "\n";
 
   // Items - simplified for kitchen/station (only name and quantity)
@@ -103,8 +99,8 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
   content += "\n";
   content += "\n";
   content += "\n";
-  content += "\n";
-  content += "\n";
+  // content += "\n";
+  // content += "\n";
 
   // Add thermal printer paper cut command (ESC/POS)
   content += "\x1B\x69"; // ESC i - Full cut command
