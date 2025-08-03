@@ -382,7 +382,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
       <div ref={canvasRef} className="w-full h-full relative overflow-hidden" onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove} onMouseUp={handleCanvasMouseUp} onMouseLeave={handleCanvasMouseUp} onClick={handleCanvasClick}>
         {/* Grid Background */}
         <div
-          className="absolute inset-0 border-2 border-green-500"
+          className="absolute inset-0"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
             transformOrigin: "0 0",
@@ -390,19 +390,17 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
           }}
         >
           <svg
-            width={canvasDimensions.width}
-            height={canvasDimensions.height}
+            width="800"
+            height="600"
             className="absolute"
             style={{
-              left: -canvasDimensions.width * 0.25,
-              top: -canvasDimensions.height * 0.25,
-              minWidth: "100%",
-              minHeight: "100%"
+              left: 0,
+              top: 0
             }}
             preserveAspectRatio="none"
           >
             {gridPattern}
-            <rect x="0" y="0" width={canvasDimensions.width} height={canvasDimensions.height} fill={showGrid ? "url(#grid)" : "#f9fafb"} />
+            <rect x="0" y="0" width="800" height="600" fill={showGrid ? "url(#grid)" : "#f9fafb"} />
           </svg>
         </div>
 
