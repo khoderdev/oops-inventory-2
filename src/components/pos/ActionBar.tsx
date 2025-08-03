@@ -120,7 +120,8 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         label: "Void",
         active: canVoidOrder,
         onClick: onVoidOrder,
-        disabled: !canVoidOrder || !onVoidOrder
+        disabled: !canVoidOrder || !onVoidOrder,
+        className: canVoidOrder ? "!bg-transparent border border-red-500 text-red-600 hover:!bg-red-50 hover:text-red-700" : ""
       },
       { id: "refund", icon: DollarSign, label: "Refund", active: false },
       // { id: "discount", icon: Banknote, label: "Discount", active: false, onClick: onDiscount },
