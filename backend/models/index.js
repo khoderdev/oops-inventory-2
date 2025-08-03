@@ -6,6 +6,9 @@ import DayOperation from "./dayOperation.js";
 import Employee from "./Employee.js";
 import EmployeeSettlement from "./EmployeeSettlement.js";
 import EmployeeUsage from "./EmployeeUsage.js";
+import FloorArea from "./FloorArea.js";
+import FloorPlan from "./FloorPlan.js";
+import FurnitureItem from "./FurnitureItem.js";
 import Material from "./materials.js";
 import { MenuItem, MenuItemIngredient } from "./menuItems.js";
 import Order from "./Order.js";
@@ -488,6 +491,64 @@ EmployeeSettlement.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
+// Floor Plan System Relationships
+
+// FloorPlan ↔ User (createdBy/updatedBy)
+FloorPlan.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "creator",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+FloorPlan.belongsTo(User, {
+  foreignKey: "updatedBy",
+  as: "updater",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// FloorPlan ↔ FloorArea
+FloorPlan.hasMany(FloorArea, {
+  foreignKey: "floorPlanId",
+  as: "areas",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+FloorArea.belongsTo(FloorPlan, {
+  foreignKey: "floorPlanId",
+  as: "floorPlan",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// FloorArea ↔ FurnitureItem
+FloorArea.hasMany(FurnitureItem, {
+  foreignKey: "floorAreaId",
+  as: "furniture",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+FurnitureItem.belongsTo(FloorArea, {
+  foreignKey: "floorAreaId",
+  as: "floorArea",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// FurnitureItem ↔ Order (for table orders)
+FurnitureItem.hasMany(Order, {
+  foreignKey: "furnitureItemId",
+  as: "orders",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Order.belongsTo(FurnitureItem, {
+  foreignKey: "furnitureItemId",
+  as: "furnitureItem",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
 // Printer System Relationships
 
 // User ↔ PrinterChannel (createdBy)
@@ -603,4 +664,4 @@ Printer.hasMany(MenuItem, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };
+export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, FloorArea, FloorPlan, FurnitureItem, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };

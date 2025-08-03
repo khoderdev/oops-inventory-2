@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { floorPlanAPI } from "../api/floorPlan";
 import { FloorPlan, FurnitureItem, FurnitureTemplate, Position } from "../types/floor-plan";
 
 export const useFloorPlan = () => {
@@ -51,44 +52,39 @@ export const useFloorPlan = () => {
     const margin = 20; // Space between furniture items
     const startX = 50;
     const startY = 50;
-    
+
     // If no existing furniture, place at start position
     if (existingFurniture.length === 0) {
       return { x: startX, y: startY };
     }
-    
+
     // Try to place furniture in a grid pattern
     const gridSpacing = 120; // Space between grid positions
     const maxCols = Math.floor((areaBounds.width - 100) / gridSpacing);
-    
+
     for (let row = 0; row < 10; row++) {
       for (let col = 0; col < maxCols; col++) {
-        const x = startX + (col * gridSpacing);
-        const y = startY + (row * gridSpacing);
-        
+        const x = startX + col * gridSpacing;
+        const y = startY + row * gridSpacing;
+
         // Check if this position overlaps with existing furniture
         const overlaps = existingFurniture.some(furniture => {
           const furnitureRight = furniture.position.x + furniture.dimensions.width;
           const furnitureBottom = furniture.position.y + furniture.dimensions.height;
           const newRight = x + newDimensions.width;
           const newBottom = y + newDimensions.height;
-          
-          return !(
-            x >= furnitureRight + margin ||
-            newRight <= furniture.position.x - margin ||
-            y >= furnitureBottom + margin ||
-            newBottom <= furniture.position.y - margin
-          );
+
+          return !(x >= furnitureRight + margin || newRight <= furniture.position.x - margin || y >= furnitureBottom + margin || newBottom <= furniture.position.y - margin);
         });
-        
+
         if (!overlaps && x + newDimensions.width < areaBounds.width - 50 && y + newDimensions.height < areaBounds.height - 50) {
           return { x, y };
         }
       }
     }
-    
+
     // Fallback: place at start position with slight offset
-    return { x: startX + (existingFurniture.length * 30), y: startY + (existingFurniture.length * 30) };
+    return { x: startX + existingFurniture.length * 30, y: startY + existingFurniture.length * 30 };
   }, []);
 
   const addFurniture = useCallback(
@@ -232,6 +228,57 @@ export const useFloorPlan = () => {
     }
     return [];
   }, []);
+
+  // Save to backend
+  const saveToBackend = useCallback(
+    async (name: string): Promise<FloorPlan> => {
+      const updatedPlan = {
+        ...currentPlan,
+        name,
+        updatedAt: new Date()
+      };
+
+      try {
+        const response = await floorPlanAPI.saveFloorPlanFromDesigner(updatedPlan);
+        const backendPlan = response.data;
+
+        const convertedPlan: FloorPlan = {
+          id: String(backendPlan.id),
+          name: backendPlan.name,
+          areas:
+            backendPlan.areas?.map(area => ({
+              id: String(area.id),
+              name: area.name,
+              bounds: area.bounds,
+              color: area.color,
+              furniture:
+                area.furniture?.map(furniture => ({
+                  id: furniture.designerItemId,
+                  type: furniture.type,
+                  name: furniture.name,
+                  position: furniture.position,
+                  dimensions: furniture.dimensions,
+                  rotation: furniture.rotation,
+                  color: furniture.color,
+                  seatingCapacity: furniture.seatingCapacity,
+                  zIndex: furniture.zIndex,
+                  parentId: furniture.parentId
+                })) || []
+            })) || [],
+          createdAt: new Date(backendPlan.createdAt),
+          updatedAt: new Date(backendPlan.updatedAt)
+        };
+
+        setCurrentPlan(convertedPlan);
+
+        return convertedPlan;
+      } catch (error) {
+        console.error("Failed to save floor plan to backend:", error);
+        throw error;
+      }
+    },
+    [currentPlan]
+  );
 
   const savePlan = useCallback(
     (name: string) => {
@@ -416,6 +463,100 @@ export const useFloorPlan = () => {
 
   const selectedFurniture = currentPlan.areas.flatMap(area => area.furniture).find(f => f.id === selectedFurnitureId) || null;
 
+  // Load from backend
+  const loadFromBackend = useCallback(async (floorPlanId: string): Promise<FloorPlan> => {
+    try {
+      const response = await floorPlanAPI.getFloorPlan(floorPlanId);
+      const loadedPlan = response.data;
+
+      // Convert backend format to frontend format
+      const frontendPlan: FloorPlan = {
+        id: loadedPlan.id.toString(),
+        name: loadedPlan.name,
+        areas:
+          loadedPlan.areas?.map(area => ({
+            id: area.id.toString(),
+            name: area.name,
+            bounds: area.bounds,
+            color: area.color,
+            furniture:
+              area.furniture?.map(furniture => ({
+                id: furniture.designerItemId,
+                type: furniture.type as any,
+                name: furniture.name,
+                position: furniture.position,
+                dimensions: furniture.dimensions,
+                rotation: furniture.rotation,
+                color: furniture.color,
+                seatingCapacity: furniture.seatingCapacity,
+                zIndex: furniture.zIndex,
+                parentId: furniture.parentId
+              })) || []
+          })) || [],
+        createdAt: new Date(loadedPlan.createdAt),
+        updatedAt: new Date(loadedPlan.updatedAt)
+      };
+
+      setCurrentPlan(frontendPlan);
+      setSelectedFurnitureId(null);
+
+      // Update the ID counter to avoid conflicts
+      const maxId = Math.max(parseInt(frontendPlan.id) || 0, ...frontendPlan.areas.map(area => parseInt(area.id) || 0), ...frontendPlan.areas.flatMap(area => area.furniture.map(f => parseInt(f.id) || 0)));
+      nextIdRef.current = maxId + 1;
+
+      return frontendPlan;
+    } catch (error) {
+      console.error("Failed to load floor plan from backend:", error);
+      throw error;
+    }
+  }, []);
+
+  // Get all saved plans from backend
+  const getSavedPlansFromBackend = useCallback(async (): Promise<FloorPlan[]> => {
+    try {
+      const response = await floorPlanAPI.getFloorPlans({ includeAreas: true });
+      return response.data.map(plan => ({
+        id: plan.id.toString(),
+        name: plan.name,
+        areas:
+          plan.areas?.map(area => ({
+            id: area.id.toString(),
+            name: area.name,
+            bounds: area.bounds,
+            color: area.color,
+            furniture:
+              area.furniture?.map(furniture => ({
+                id: furniture.designerItemId,
+                type: furniture.type as any,
+                name: furniture.name,
+                position: furniture.position,
+                dimensions: furniture.dimensions,
+                rotation: furniture.rotation,
+                color: furniture.color,
+                seatingCapacity: furniture.seatingCapacity,
+                zIndex: furniture.zIndex,
+                parentId: furniture.parentId
+              })) || []
+          })) || [],
+        createdAt: new Date(plan.createdAt),
+        updatedAt: new Date(plan.updatedAt)
+      }));
+    } catch (error) {
+      console.error("Failed to load saved plans from backend:", error);
+      return [];
+    }
+  }, []);
+
+  // Delete plan from backend
+  const deleteFromBackend = useCallback(async (planId: string): Promise<void> => {
+    try {
+      await floorPlanAPI.deleteFloorPlan(planId);
+    } catch (error) {
+      console.error("Failed to delete floor plan from backend:", error);
+      throw error;
+    }
+  }, []);
+
   return {
     currentPlan,
     selectedFurniture,
@@ -434,6 +575,11 @@ export const useFloorPlan = () => {
     unlinkChairFromTable,
     getChildFurniture,
     getParentFurniture,
-    moveTableWithChairs
+    moveTableWithChairs,
+    // Backend integration functions
+    saveToBackend,
+    loadFromBackend,
+    getSavedPlansFromBackend,
+    deleteFromBackend
   };
 };

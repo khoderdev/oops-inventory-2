@@ -1,64 +1,147 @@
 import { Op } from "sequelize";
-import { Order, OrderItem, Table } from "../models/index.js";
+import { FloorArea, FloorPlan, FurnitureItem, Order, OrderItem, Table } from "../models/index.js";
 
 export const tablesController = {
-  // Get all tables
+  // Get all tables (supports both legacy tables and floor plan tables)
   getTables: async (req, res) => {
     try {
-      const { section, status, includeOrders } = req.query;
+      const { section, status, includeOrders, useFloorPlan } = req.query;
 
-      const whereClause = { isActive: true };
+      let tablesWithOrderInfo = [];
 
-      if (section) whereClause.section = section;
-      if (status) whereClause.status = status;
+      if (useFloorPlan === "true") {
+        // Get tables from floor plan system
+        const defaultFloorPlan = await FloorPlan.findOne({ where: { isDefault: true } });
+        
+        if (defaultFloorPlan) {
+          const whereClause = { isActive: true, isTable: true };
+          if (status) whereClause.status = status;
 
-      const includeOptions = [];
-
-      if (includeOrders === "true") {
-        includeOptions.push({
-          model: Order,
-          as: "orders",
-          where: {
-            status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
-          },
-          required: false,
-          include: [
+          const includeOptions = [
             {
-              model: OrderItem,
-              as: "items"
+              model: FloorArea,
+              as: "floorArea",
+              where: { floorPlanId: defaultFloorPlan.id },
+              attributes: ["name", "section"]
             }
-          ]
-        });
-      }
+          ];
 
-      const tables = await Table.findAll({
-        where: whereClause,
-        include: includeOptions,
-        order: [["number", "ASC"]]
-      });
+          if (includeOrders === "true") {
+            includeOptions.push({
+              model: Order,
+              as: "orders",
+              where: {
+                status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
+              },
+              required: false,
+              include: [
+                {
+                  model: OrderItem,
+                  as: "items"
+                }
+              ]
+            });
+          }
 
-      // Transform tables to include current order info
-      const tablesWithOrderInfo = tables.map(table => {
-        const tableData = table.toJSON();
+          const furnitureItems = await FurnitureItem.findAll({
+            where: whereClause,
+            include: includeOptions,
+            order: [["tableNumber", "ASC"]]
+          });
 
-        if (table.orders && table.orders.length > 0) {
-          const currentOrder = table.orders[0];
-          tableData.currentOrder = {
-            orderId: currentOrder.id.toString(),
-            orderNumber: currentOrder.orderNumber,
-            customerName: currentOrder.customerName,
-            startTime: currentOrder.createdAt,
-            totalAmount: parseFloat(currentOrder.total),
-            itemCount: currentOrder.items?.length || 0
-          };
-          tableData.status = "opened";
+          // Filter by section if specified
+          const filteredItems = section 
+            ? furnitureItems.filter(item => item.floorArea?.section === section)
+            : furnitureItems;
+
+          // Transform furniture items to table format
+          tablesWithOrderInfo = filteredItems.map(item => {
+            const tableData = {
+              id: item.id,
+              number: item.tableNumber || item.id,
+              name: item.name,
+              seats: item.seatingCapacity || 4,
+              status: item.status,
+              shape: item.type.replace("-table", ""),
+              position: item.position,
+              section: item.floorArea?.section || "main",
+              isActive: item.isActive,
+              furnitureItemId: item.id,
+              designerItemId: item.designerItemId,
+              isFloorPlanTable: true
+            };
+
+            if (item.orders && item.orders.length > 0) {
+              const currentOrder = item.orders[0];
+              tableData.currentOrder = {
+                orderId: currentOrder.id.toString(),
+                orderNumber: currentOrder.orderNumber,
+                customerName: currentOrder.customerName,
+                startTime: currentOrder.createdAt,
+                totalAmount: parseFloat(currentOrder.total),
+                itemCount: currentOrder.items?.length || 0
+              };
+              tableData.status = "occupied";
+            }
+
+            return tableData;
+          });
+        }
+      } else {
+        // Get legacy tables
+        const whereClause = { isActive: true };
+        if (section) whereClause.section = section;
+        if (status) whereClause.status = status;
+
+        const includeOptions = [];
+
+        if (includeOrders === "true") {
+          includeOptions.push({
+            model: Order,
+            as: "orders",
+            where: {
+              status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
+            },
+            required: false,
+            include: [
+              {
+                model: OrderItem,
+                as: "items"
+              }
+            ]
+          });
         }
 
-        // Remove the full orders array to keep response clean
-        delete tableData.orders;
+        const tables = await Table.findAll({
+          where: whereClause,
+          include: includeOptions,
+          order: [["number", "ASC"]]
+        });
 
-        return tableData;
-      });
+        // Transform tables to include current order info
+        tablesWithOrderInfo = tables.map(table => {
+          const tableData = table.toJSON();
+          tableData.isFloorPlanTable = false;
+
+          if (table.orders && table.orders.length > 0) {
+            const currentOrder = table.orders[0];
+            tableData.currentOrder = {
+              orderId: currentOrder.id.toString(),
+              orderNumber: currentOrder.orderNumber,
+              customerName: currentOrder.customerName,
+              startTime: currentOrder.createdAt,
+              totalAmount: parseFloat(currentOrder.total),
+              itemCount: currentOrder.items?.length || 0
+            };
+            tableData.status = "opened";
+          }
+
+          // Remove the full orders array to keep response clean
+          delete tableData.orders;
+
+          return tableData;
+        });
+      }
 
       res.json({ data: tablesWithOrderInfo });
     } catch (error) {

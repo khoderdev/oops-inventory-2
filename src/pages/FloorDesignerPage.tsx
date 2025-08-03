@@ -5,11 +5,11 @@ import { PropertiesPanel } from "@/components/floor-designer/PropertiesPanel";
 import { useHeaderActions } from "@/contexts/HeaderActionsContext";
 import { useFloorDesignerHeader } from "@/hooks/useFloorDesignerHeader";
 import { useFloorPlan } from "@/hooks/useFloorPlan";
-import { FurnitureTemplate } from "@/types/floor-plan";
-import { useEffect } from "react";
+import { FurnitureTemplate, FloorPlan } from "@/types/floor-plan";
+import { useCallback, useEffect } from "react";
 
 function FloorDesignerPage() {
-  const { currentPlan, selectedFurniture, selectedFurnitureId, setSelectedFurnitureId, addFurniture, updateFurniture, deleteFurniture, duplicateFurniture, savePlan, loadPlan, newPlan, getSavedPlans, deleteSavedPlan, linkChairToTable, unlinkChairFromTable, getChildFurniture, getParentFurniture, moveTableWithChairs } = useFloorPlan();
+  const { currentPlan, selectedFurniture, selectedFurnitureId, setSelectedFurnitureId, addFurniture, updateFurniture, deleteFurniture, duplicateFurniture, savePlan, loadPlan, newPlan, getSavedPlans, deleteSavedPlan, linkChairToTable, unlinkChairFromTable, getChildFurniture, getParentFurniture, moveTableWithChairs, saveToBackend, loadFromBackend, getSavedPlansFromBackend, deleteFromBackend } = useFloorPlan();
 
   const { title, subtitle } = useFloorDesignerHeader({ currentPlan });
   const { setHeaderActions, setPageTitle } = useHeaderActions();
@@ -19,9 +19,40 @@ function FloorDesignerPage() {
     addFurniture(template, currentArea.id);
   };
 
+  // Wrapper functions to bridge backend async functions with UI sync interface
+  const handleSavePlan = useCallback(async (name: string) => {
+    try {
+      await saveToBackend(name);
+    } catch (error) {
+      console.error('Failed to save floor plan:', error);
+    }
+  }, [saveToBackend]);
+
+  const handleLoadPlan = useCallback(async (plan: FloorPlan) => {
+    try {
+      await loadFromBackend(plan.id);
+    } catch (error) {
+      console.error('Failed to load floor plan:', error);
+    }
+  }, [loadFromBackend]);
+
+  const handleGetSavedPlans = useCallback(() => {
+    // For now, return empty array since this is sync but backend is async
+    // TODO: Consider making this async or using state management
+    return [];
+  }, []);
+
+  const handleDeletePlan = useCallback(async (planId: string) => {
+    try {
+      await deleteFromBackend(planId);
+    } catch (error) {
+      console.error('Failed to delete floor plan:', error);
+    }
+  }, [deleteFromBackend]);
+
   // Set header actions and title when component mounts or plan changes
   useEffect(() => {
-    const headerActions = <FloorDesignerHeader currentPlan={currentPlan} onSavePlan={savePlan} onLoadPlan={loadPlan} onNewPlan={newPlan} getSavedPlans={getSavedPlans} onDeletePlan={deleteSavedPlan} />;
+    const headerActions = <FloorDesignerHeader currentPlan={currentPlan} onSavePlan={handleSavePlan} onLoadPlan={handleLoadPlan} onNewPlan={newPlan} getSavedPlans={handleGetSavedPlans} onDeletePlan={handleDeletePlan} />;
     setHeaderActions(headerActions);
     setPageTitle(title);
 
@@ -30,7 +61,7 @@ function FloorDesignerPage() {
       setHeaderActions(null);
       setPageTitle(null);
     };
-  }, [currentPlan, title, savePlan, loadPlan, newPlan, getSavedPlans, deleteSavedPlan, setHeaderActions, setPageTitle]);
+  }, [currentPlan, title, handleSavePlan, handleLoadPlan, newPlan, handleGetSavedPlans, handleDeletePlan, setHeaderActions, setPageTitle]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 overflow-hidden">
@@ -38,10 +69,10 @@ function FloorDesignerPage() {
         <FurniturePalette 
           onAddFurniture={handleAddFurniture}
           currentPlan={currentPlan}
-          onSavePlan={savePlan}
-          onLoadPlan={loadPlan}
-          getSavedPlans={getSavedPlans}
-          onDeletePlan={deleteSavedPlan}
+          onSavePlan={handleSavePlan}
+          onLoadPlan={handleLoadPlan}
+          getSavedPlans={handleGetSavedPlans}
+          onDeletePlan={handleDeletePlan}
           onNewPlan={newPlan}
         />
 

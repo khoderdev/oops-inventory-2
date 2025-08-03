@@ -32,6 +32,15 @@ const Order = sequelize.define(
         key: "id"
       }
     },
+    furnitureItemId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: "FurnitureItems",
+        key: "id"
+      },
+      comment: "Reference to furniture item (table) from floor plan"
+    },
     notes: {
       type: DataTypes.TEXT,
       allowNull: true
