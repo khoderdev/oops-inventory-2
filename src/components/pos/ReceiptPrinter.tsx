@@ -150,6 +150,8 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     content += "\n";
     content += "\n";
     content += "\n";
+    content += "\n";
+    content += "\n";
 
     // Add thermal printer paper cut command (ESC/POS)
     return content + "\x1B\x69"; // ESC i - Full cut command
