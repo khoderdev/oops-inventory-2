@@ -54,7 +54,6 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
 
   // Header with centered alignment - no top padding
   content += centerText(`${stationName} STATION`) + "\n";
-  content += "\n";
 
   // Order information - left aligned
   content += `Order #: ${orderNumber}\n`;
@@ -72,9 +71,7 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
   }
 
   // Reduced spacing before items
-  content += "\n";
   content += centerText("ORDER ITEMS") + "\n";
-  content += "\n";
 
   // Items - simplified for kitchen/station (only name and quantity)
   // Using ESC/POS bold commands for thermal printers
