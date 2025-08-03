@@ -194,6 +194,7 @@ export const ordersController = {
         discountValue: order.discountValue,
         discountAmount: order.discountAmount,
         discountReason: order.discountReason,
+        notes: order.notes,
         total: parseFloat(order.total),
         createdAt: order.createdAt,
         updatedAt: order.updatedAt

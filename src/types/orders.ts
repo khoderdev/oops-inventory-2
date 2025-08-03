@@ -114,6 +114,7 @@ export interface OrderSummary {
   createdAt: Date;
   estimatedReadyTime?: Date;
   discountAmount: number;
+  notes?: string;
 }
 
 export interface DiscountDialogProps {

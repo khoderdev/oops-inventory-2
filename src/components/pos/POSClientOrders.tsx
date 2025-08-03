@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OrderFilters, POSClientOrdersProps, ReceiptData } from "@/types/inventory";
 import { Order, OrderStatus, OrderSummary, OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { AlertCircle, ArrowUpDown, Calendar, Clock, Edit, Eye, Grid3X3, List, Printer, RefreshCw, Search, ShoppingBag, User } from "lucide-react";
+import { AlertCircle, ArrowUpDown, Calendar, Clock, Edit, Eye, Grid3X3, List, Printer, RefreshCw, Search, ShoppingBag } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OrderDetailsDialog } from "./OrderDetailsDialog";
 import { ReceiptPrinter } from "./ReceiptPrinter";
@@ -329,7 +329,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       ...prev,
       searchTerm: undefined
     }));
-    
+
     // Call the original onClose if it exists
     if (stableOnClose.current) {
       stableOnClose.current();
@@ -432,362 +432,366 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   }, []);
 
   // Main content component - memoized to prevent re-creation and input focus loss
-  const MainContent = useMemo(() => (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50">
-      {/* Fixed Header */}
-      <div className="flex-shrink-0 p-3 border-b bg-primary">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div>{isDialog ? <DialogTitle className="text-3xl font-bold text-white">Orders</DialogTitle> : <h1 className="text-3xl font-bold text-white">Orders</h1>}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Enhanced Filters Section */}
-        <div className="flex-shrink-0 p-3 bg-white border-b">
-          <div className="flex flex-col xl:flex-row gap-4">
-            {/* Search Bar */}
-            <div className="flex-1 min-w-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <Input placeholder="Search by order number, customer name, or ID..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-11 h-11 bg-white border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 text-base" />
-              </div>
-            </div>
-
-            {/* Filter Controls */}
-            <div className="flex flex-wrap gap-3 items-center">
-              {/* Order Type Filter - Using stable native select */}
-              <div className="relative">
-                <select
-                  value={filters.orderType || "all"}
-                  onChange={e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleFilterChange("orderType", e.target.value === "all" ? undefined : (e.target.value as OrderType));
-                  }}
-                  className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none appearance-none cursor-pointer"
-                >
-                  <option value="all">All Types</option>
-                  <option value="delivery">Delivery</option>
-                  <option value="takeaway">Takeaway</option>
-                  <option value="table">Tables</option>
-                  <option value="bar">Bar</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-
-              <Button variant="outline" onClick={handleRefresh} disabled={refreshing || isLoading} className="h-11 px-4 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300">
-                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
-
-              {/* View Mode Toggle */}
-              <div className="border-l border-gray-200 pl-3 ml-3">
-                <ToggleGroup type="single" value={viewMode} onValueChange={value => value && setViewMode(value as "list" | "grid")} className="bg-gray-100 rounded-lg p-1">
-                  <ToggleGroupItem value="list" aria-label="List view" className="data-[state=on]:bg-white data-[state=on]:shadow-sm">
-                    <List className="h-4 w-4" />
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="grid" aria-label="Grid view" className="data-[state=on]:bg-white data-[state=on]:shadow-sm">
-                    <Grid3X3 className="h-4 w-4" />
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
+  const MainContent = useMemo(
+    () => (
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50">
+        {/* Fixed Header */}
+        <div className="flex-shrink-0 p-3 border-b bg-primary">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div>{isDialog ? <DialogTitle className="text-3xl font-bold text-white">Orders</DialogTitle> : <h1 className="text-3xl font-bold text-white">Orders</h1>}</div>
             </div>
           </div>
         </div>
 
-        {/* Orders Content - Scrollable */}
-        <div
-          className="flex-1 min-h-0 overflow-auto"
-          onScroll={e => {
-            const target = e.target as HTMLElement;
-          }}
-        >
-          <div className="p-4">
-            {isLoading && !refreshing ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <div className="text-gray-500 font-medium">Loading orders...</div>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Enhanced Filters Section */}
+          <div className="flex-shrink-0 p-3 bg-white border-b">
+            <div className="flex flex-col xl:flex-row gap-4">
+              {/* Search Bar */}
+              <div className="flex-1 min-w-0">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input placeholder="Search by order number, customer name, or ID..." value={filters.searchTerm || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-11 h-11 bg-white border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 text-base" />
                 </div>
               </div>
-            ) : refreshing ? (
-              <div className="flex items-center justify-center h-16 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-                <div className="flex items-center space-x-2 text-blue-600">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span className="font-medium">Refreshing orders...</span>
+
+              {/* Filter Controls */}
+              <div className="flex flex-wrap gap-3 items-center">
+                {/* Order Type Filter - Using stable native select */}
+                <div className="relative">
+                  <select
+                    value={filters.orderType || "all"}
+                    onChange={e => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleFilterChange("orderType", e.target.value === "all" ? undefined : (e.target.value as OrderType));
+                    }}
+                    className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="delivery">Delivery</option>
+                    <option value="takeaway">Takeaway</option>
+                    <option value="table">Tables</option>
+                    <option value="bar">Bar</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+
+                <Button variant="outline" onClick={handleRefresh} disabled={refreshing || isLoading} className="h-11 px-4 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+
+                {/* View Mode Toggle */}
+                <div className="border-l border-gray-200 pl-3 ml-3">
+                  <ToggleGroup type="single" value={viewMode} onValueChange={value => value && setViewMode(value as "list" | "grid")} className="bg-gray-100 rounded-lg p-1">
+                    <ToggleGroupItem value="list" aria-label="List view" className="data-[state=on]:bg-white data-[state=on]:shadow-sm">
+                      <List className="h-4 w-4" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="grid" aria-label="Grid view" className="data-[state=on]:bg-white data-[state=on]:shadow-sm">
+                      <Grid3X3 className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
               </div>
-            ) : error ? (
-              <Alert variant="destructive" className="max-w-2xl mx-auto">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="flex items-center justify-between">
-                  <span>{error}</span>
-                  <Button variant="ghost" size="sm" onClick={() => setError(null)} className="h-6 w-6 p-0 hover:bg-red-100">
-                    ×
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            ) : orders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                <div className="p-4 bg-gray-100 rounded-full mb-4">
-                  <ShoppingBag className="w-12 h-12 opacity-50" />
+            </div>
+          </div>
+
+          {/* Orders Content - Scrollable */}
+          <div
+            className="flex-1 min-h-0 overflow-auto"
+            onScroll={e => {
+              const target = e.target as HTMLElement;
+            }}
+          >
+            <div className="p-4">
+              {isLoading && !refreshing ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <div className="text-gray-500 font-medium">Loading orders...</div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-medium mb-2">No incomplete orders found</h3>
-                <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No incomplete orders at the moment"}</p>
-              </div>
-            ) : viewMode === "list" ? (
-              /* List View */
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="font-semibold text-gray-900">Order</TableHead>
-                      <TableHead className="font-semibold text-gray-900">Customer</TableHead>
-                      <TableHead className="font-semibold text-gray-900">Type</TableHead>
-                      <TableHead className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort("status")}>
-                        <div className="flex items-center space-x-1">
-                          <span>Status</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort("date")}>
-                        <div className="flex items-center space-x-1">
-                          <span>Date & Time</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-right cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort("total")}>
-                        <div className="flex items-center justify-end space-x-1">
-                          <span>Total</span>
-                          <ArrowUpDown className="h-3 w-3" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">Items</TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedOrders.map(order => (
-                      <TableRow
-                        key={order.id}
-                        className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
-                        onClick={e => {
-                          const target = e.target as HTMLElement;
-                          if (target.closest("button") || target.closest(".action-button")) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            return;
-                          }
-                          handleOrderSelect(order);
-                        }}
-                      >
-                        <TableCell className="font-medium">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-gray-900">{order.orderNumber}</span>
-                            <span className="text-sm text-gray-500">#{String(order.id).slice(-8)}</span>
+              ) : refreshing ? (
+                <div className="flex items-center justify-center h-16 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                  <div className="flex items-center space-x-2 text-blue-600">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span className="font-medium">Refreshing orders...</span>
+                  </div>
+                </div>
+              ) : error ? (
+                <Alert variant="destructive" className="max-w-2xl mx-auto">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{error}</span>
+                    <Button variant="ghost" size="sm" onClick={() => setError(null)} className="h-6 w-6 p-0 hover:bg-red-100">
+                      ×
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : orders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                  <div className="p-4 bg-gray-100 rounded-full mb-4">
+                    <ShoppingBag className="w-12 h-12 opacity-50" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">No incomplete orders found</h3>
+                  <p className="text-sm text-center max-w-md">{filters.searchTerm || filters.status || filters.orderType ? "Try adjusting your filters to see more results" : "No incomplete orders at the moment"}</p>
+                </div>
+              ) : viewMode === "list" ? (
+                /* List View */
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-semibold text-gray-900">Order</TableHead>
+                        <TableHead className="font-semibold text-gray-900">Notes</TableHead>
+                        <TableHead className="font-semibold text-gray-900">Type</TableHead>
+                        <TableHead className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort("status")}>
+                          <div className="flex items-center space-x-1">
+                            <span>Status</span>
+                            <ArrowUpDown className="h-3 w-3" />
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <User className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium text-gray-900">{order.customerName || "N/A"}</span>
+                        </TableHead>
+                        <TableHead className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort("date")}>
+                          <div className="flex items-center space-x-1">
+                            <span>Date & Time</span>
+                            <ArrowUpDown className="h-3 w-3" />
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            {ORDER_TYPE_ICONS[order.orderType]}
-                            <span className="capitalize font-medium text-gray-700">{order.orderType}</span>
+                        </TableHead>
+                        <TableHead className="font-semibold text-gray-900 text-right cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort("total")}>
+                          <div className="flex items-center justify-end space-x-1">
+                            <span>Total</span>
+                            <ArrowUpDown className="h-3 w-3" />
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`${ORDER_STATUS_COLORS[order.status]} font-semibold`}>{order.status}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col text-sm">
-                            <div className="flex items-center space-x-1 text-gray-900">
-                              <Calendar className="w-3 h-3" />
+                        </TableHead>
+                        <TableHead className="font-semibold text-gray-900 text-center">Items</TableHead>
+                        <TableHead className="font-semibold text-gray-900 text-center">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedOrders.map(order => (
+                        <TableRow
+                          key={order.id}
+                          className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
+                          onClick={e => {
+                            const target = e.target as HTMLElement;
+                            if (target.closest("button") || target.closest(".action-button")) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              return;
+                            }
+                            handleOrderSelect(order);
+                          }}
+                        >
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-900">{order.orderNumber}</span>
+                              <span className="text-sm text-gray-500">#{String(order.id).slice(-8)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600 max-w-32 truncate">
+                                {/* {(order as OrderSummary & { notes?: string }).notes || "No notes"} */}
+                                {order.notes || "No notes"}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              {ORDER_TYPE_ICONS[order.orderType]}
+                              <span className="capitalize font-medium text-gray-700">{order.orderType}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${ORDER_STATUS_COLORS[order.status]} font-semibold`}>{order.status}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col text-sm">
+                              <div className="flex items-center space-x-1 text-gray-900">
+                                <Calendar className="w-3 h-3" />
+                                <span>{formatDate(order.createdAt)}</span>
+                              </div>
+                              <div className="flex items-center space-x-1 text-gray-600">
+                                <Clock className="w-3 h-3" />
+                                <span>{formatTime(order.createdAt)}</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-lg font-bold text-green-600">{formatCurrency(order.total)}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="font-medium">
+                              {order.itemCount || 0}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 hover:bg-blue-100"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleOrderSelect(order);
+                                }}
+                              >
+                                <Edit className="w-4 h-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 hover:bg-blue-100"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleViewOrderDetails(order);
+                                }}
+                              >
+                                <Eye className="w-4 h-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 hover:bg-blue-100"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handlePrintOrderReceipt(order);
+                                }}
+                              >
+                                <Printer className="w-4 h-4 text-blue-600" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                /* Grid View */
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                  {sortedOrders.map(order => (
+                    <Card
+                      key={order.id}
+                      className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]"
+                      onClick={e => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest(".action-button") || target.closest("svg")) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return;
+                        }
+                        handleOrderSelect(order);
+                      }}
+                    >
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{order.orderNumber}</CardTitle>
+                            <div className="flex items-center space-x-3 mt-2">
+                              <div className="flex items-center space-x-1.5">
+                                {ORDER_TYPE_ICONS[order.orderType]}
+                                <span className="text-sm text-gray-600 capitalize font-medium">{order.orderType}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-sm font-semibold px-3 py-1`}>{order.status}</Badge>
+                        </div>
+
+                        <CardDescription className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="flex items-center space-x-1.5 text-gray-600">
+                              <Calendar className="w-4 h-4" />
                               <span>{formatDate(order.createdAt)}</span>
-                            </div>
-                            <div className="flex items-center space-x-1 text-gray-600">
-                              <Clock className="w-3 h-3" />
+                            </span>
+                            <span className="flex items-center space-x-1.5 text-gray-600">
+                              <Clock className="w-4 h-4" />
                               <span>{formatTime(order.createdAt)}</span>
-                            </div>
+                            </span>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className="text-lg font-bold text-green-600">{formatCurrency(order.total)}</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="font-medium">
-                            {order.itemCount || 0}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 hover:bg-blue-100"
+                          {order.notes && (
+                            <div className="flex items-center space-x-1.5 text-gray-700">
+                              <span className="truncate text-sm text-gray-600">{order.notes}</span>
+                            </div>
+                          )}
+                        </CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="pt-0">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
+                            <span className="text-2xl font-bold text-green-600">{formatCurrency(order.total)}</span>
+                            <Badge variant="outline" className="text-sm font-medium border-green-200 text-green-700">
+                              {order.itemCount || 0} items
+                            </Badge>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex w-full items-center justify-around action-button">
+                            <Edit
+                              className="w-6 h-6 hover:text-blue-600 cursor-pointer transition-colors"
                               onClick={e => {
                                 e.stopPropagation();
                                 handleOrderSelect(order);
                               }}
-                            >
-                              <Edit className="w-4 h-4 text-blue-600" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 hover:bg-blue-100"
+                            />
+                            <Eye
+                              className="w-6 h-6 hover:text-blue-600 cursor-pointer transition-colors"
                               onClick={e => {
                                 e.stopPropagation();
                                 handleViewOrderDetails(order);
                               }}
-                            >
-                              <Eye className="w-4 h-4 text-blue-600" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 hover:bg-blue-100"
+                            />
+                            <Printer
+                              className="w-6 h-6 hover:text-blue-600 cursor-pointer transition-colors"
                               onClick={e => {
                                 e.stopPropagation();
                                 handlePrintOrderReceipt(order);
                               }}
-                            >
-                              <Printer className="w-4 h-4 text-blue-600" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              /* Grid View */
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                {sortedOrders.map(order => (
-                  <Card
-                    key={order.id}
-                    className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]"
-                    onClick={e => {
-                      const target = e.target as HTMLElement;
-                      if (target.closest(".action-button") || target.closest("svg")) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        return;
-                      }
-                      handleOrderSelect(order);
-                    }}
-                  >
-                    <CardHeader className="pb-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{order.orderNumber}</CardTitle>
-                          <div className="flex items-center space-x-3 mt-2">
-                            <div className="flex items-center space-x-1.5">
-                              {ORDER_TYPE_ICONS[order.orderType]}
-                              <span className="text-sm text-gray-600 capitalize font-medium">{order.orderType}</span>
-                            </div>
+                            />
                           </div>
                         </div>
-                        <Badge className={`${ORDER_STATUS_COLORS[order.status]} text-sm font-semibold px-3 py-1`}>{order.status}</Badge>
-                      </div>
-
-                      <CardDescription className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="flex items-center space-x-1.5 text-gray-600">
-                            <Calendar className="w-4 h-4" />
-                            <span>{formatDate(order.createdAt)}</span>
-                          </span>
-                          <span className="flex items-center space-x-1.5 text-gray-600">
-                            <Clock className="w-4 h-4" />
-                            <span>{formatTime(order.createdAt)}</span>
-                          </span>
-                        </div>
-                        {order.customerName && (
-                          <div className="flex items-center space-x-1.5 text-gray-700">
-                            <User className="w-4 h-4" />
-                            <span className="truncate font-medium">{order.customerName}</span>
-                          </div>
-                        )}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="pt-0">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
-                          <span className="text-2xl font-bold text-green-600">{formatCurrency(order.total)}</span>
-                          <Badge variant="outline" className="text-sm font-medium border-green-200 text-green-700">
-                            {order.itemCount || 0} items
-                          </Badge>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex w-full items-center justify-around action-button">
-                          <Edit
-                            className="w-6 h-6 hover:text-blue-600 cursor-pointer transition-colors"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleOrderSelect(order);
-                            }}
-                          />
-                          <Eye
-                            className="w-6 h-6 hover:text-blue-600 cursor-pointer transition-colors"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleViewOrderDetails(order);
-                            }}
-                          />
-                          <Printer
-                            className="w-6 h-6 hover:text-blue-600 cursor-pointer transition-colors"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handlePrintOrderReceipt(order);
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Fixed Footer - Only show when used as dialog */}
-      {isDialog && orders.length > 0 && (
-        <div className="flex-shrink-0 bg-white border-t border-gray-200 shadow-lg">
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-center">
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-500 font-semibold">
-                    {orders.length}
-                  </Badge>
-                  <span className="text-gray-700 font-medium">incomplete order{orders.length !== 1 ? "s" : ""}</span>
-                </div>
-                <div className="h-4 w-px bg-gray-300" />
-                <div className="flex items-center space-x-2">
-                  <span className="text-lg font-bold text-green-600">Total: {formatCurrency(totalIncompleteAmount)}</span>
+        {/* Fixed Footer - Only show when used as dialog */}
+        {isDialog && orders.length > 0 && (
+          <div className="flex-shrink-0 bg-white border-t border-gray-200 shadow-lg">
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-center">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-500 font-semibold">
+                      {orders.length}
+                    </Badge>
+                    <span className="text-gray-700 font-medium">incomplete order{orders.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="h-4 w-px bg-gray-300" />
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg font-bold text-green-600">Total: {formatCurrency(totalIncompleteAmount)}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  ), [isDialog, orders, totalIncompleteAmount, isLoading, refreshing, error, filters, viewMode, sortedOrders, handleRefresh, handleSearchChange, handleFilterChange, handleSort, handleOrderSelect, handleViewOrderDetails, handlePrintOrderReceipt, formatDate, formatTime]);
+        )}
+      </div>
+    ),
+    [isDialog, orders, totalIncompleteAmount, isLoading, refreshing, error, filters, viewMode, sortedOrders, handleRefresh, handleSearchChange, handleFilterChange, handleSort, handleOrderSelect, handleViewOrderDetails, handlePrintOrderReceipt, formatDate, formatTime]
+  );
 
   // If not used as dialog, return early if isOpen is false
   if (isDialog && !isOpen) return null;
@@ -796,9 +800,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     <>
       {isDialog ? (
         <Dialog open={isOpen} onOpenChange={handleDialogClose}>
-          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden z-50">
-            {MainContent}
-          </DialogContent>
+          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden z-50">{MainContent}</DialogContent>
         </Dialog>
       ) : (
         MainContent
