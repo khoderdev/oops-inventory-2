@@ -1,6 +1,7 @@
 import { Employee } from "@/types/employee";
 import { POSCartItem, Table } from "@/types/inventory";
 import { Order, OrderType } from "@/types/orders";
+import { formatItemsForPrinterSimple } from "./thermalPrinterFormatterSimple";
 
 interface FormatItemsForPrinterParams {
   items: POSCartItem[];
@@ -12,49 +13,59 @@ interface FormatItemsForPrinterParams {
 }
 
 /**
- * ESC/POS Commands for thermal printers
+ * ESC/POS Commands for thermal printers - Compatible version
  */
 const ESC_POS = {
+  // Basic commands that work on most thermal printers
   INIT: '\x1B\x40',           // Initialize printer
   BOLD_ON: '\x1B\x45\x01',    // Bold text on
   BOLD_OFF: '\x1B\x45\x00',   // Bold text off
-  DOUBLE_HEIGHT_ON: '\x1B\x21\x10',  // Double height on
-  DOUBLE_HEIGHT_OFF: '\x1B\x21\x00', // Double height off
   UNDERLINE_ON: '\x1B\x2D\x01',      // Underline on
   UNDERLINE_OFF: '\x1B\x2D\x00',     // Underline off
   ALIGN_CENTER: '\x1B\x61\x01',      // Center alignment
   ALIGN_LEFT: '\x1B\x61\x00',        // Left alignment
   ALIGN_RIGHT: '\x1B\x61\x02',       // Right alignment
-  CUT_PAPER: '\x1D\x56\x00',         // Full cut
-  FEED_LINES: (lines: number) => '\x1B\x64' + String.fromCharCode(lines), // Feed n lines
-  LARGE_TEXT: '\x1D\x21\x11',        // Double width and height
-  NORMAL_TEXT: '\x1D\x21\x00'        // Normal text size
+  
+  // More compatible text sizing
+  DOUBLE_HEIGHT_ON: '\x1B\x21\x10',  // Double height on
+  DOUBLE_HEIGHT_OFF: '\x1B\x21\x00', // Double height off
+  LARGE_TEXT: '\x1B\x21\x30',        // Double width and height (more compatible)
+  NORMAL_TEXT: '\x1B\x21\x00',       // Normal text size
+  
+  // Paper handling
+  FEED_LINES: (lines: number) => '\x0A'.repeat(lines), // Use line feeds instead of ESC d
+  CUT_PAPER: '\x1D\x56\x42\x00',     // Partial cut (more compatible)
+  
+  // Fallback commands for compatibility
+  EMPHASIS_ON: '\x1B\x45\x01',       // Same as BOLD_ON
+  EMPHASIS_OFF: '\x1B\x45\x00'       // Same as BOLD_OFF
 } as const;
 
 export const formatItemsForPrinter = ({ items, currentOrder, orderType, selectedTable, selectedEmployee, generatePreviewOrderNumber }: FormatItemsForPrinterParams): string => {
-  const now = new Date();
-  const date = now.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
-  const time = now.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true
-  });
-  const orderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
+  try {
+    const now = new Date();
+    const date = now.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+    const time = now.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
+    });
+    const orderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
 
-  // Get printer name from the first item (all items in this group go to same printer)
-  const printerName = items[0]?.assignedPrinter?.name || `Printer ${items[0]?.printerId || "Unknown"}`;
-  const stationName = printerName.toUpperCase();
+    // Get printer name from the first item (all items in this group go to same printer)
+    const printerName = items[0]?.assignedPrinter?.name || `Printer ${items[0]?.printerId || "Unknown"}`;
+    const stationName = printerName.toUpperCase();
 
-  // 80mm thermal receipt formatting (48 characters wide)
-  let content = "";
+    // 80mm thermal receipt formatting (48 characters wide)
+    let content = "";
 
-  // Initialize printer
-  content += ESC_POS.INIT;
+    // Initialize printer with basic reset
+    content += ESC_POS.INIT;
 
   // Function to create separator lines
   const createSeparator = (char: string = "=", width: number = 48): string => {
@@ -176,13 +187,47 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
   
   content += createSeparator("=") + "\n";
   
-  // Feed extra lines for easy tearing
-  content += ESC_POS.FEED_LINES(3);
-  
-  // Cut paper
-  content += ESC_POS.CUT_PAPER;
+    // Feed extra lines for easy tearing
+    content += ESC_POS.FEED_LINES(3);
+    
+    // Cut paper
+    content += ESC_POS.CUT_PAPER;
 
-  return content;
+    return content;
+  } catch (error) {
+    console.error('Error formatting items for printer with ESC/POS commands:', error);
+    console.log('Falling back to simple text formatting...');
+    
+    // Fallback to simple formatter without ESC/POS commands
+    try {
+      return formatItemsForPrinterSimple({ items, currentOrder, orderType, selectedTable, selectedEmployee, generatePreviewOrderNumber });
+    } catch (fallbackError) {
+      console.error('Error with fallback formatter:', fallbackError);
+      
+      // Last resort: very basic format
+      const orderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
+      const now = new Date();
+      const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+      
+      let basicContent = "";
+      basicContent += "KITCHEN ORDER\n";
+      basicContent += "================\n";
+      basicContent += `Order: ${orderNumber}\n`;
+      basicContent += `Time: ${time}\n`;
+      basicContent += "\nITEMS:\n";
+      basicContent += "--------\n";
+      
+      items.forEach(item => {
+        const cleanName = item.name.replace(/[^\x20-\x7E]/g, ''); // Remove non-ASCII chars
+        basicContent += `${item.quantity}x ${cleanName}\n`;
+      });
+      
+      basicContent += `\nTotal: ${items.reduce((sum, item) => sum + item.quantity, 0)} items\n`;
+      basicContent += "\n\n\n"; // Extra line feeds
+      
+      return basicContent;
+    }
+  }
 };
 
 /**
@@ -227,3 +272,6 @@ export const thermalPrinterUtils = {
 
 // Backward compatibility
 export const centerText = thermalPrinterUtils.centerText;
+
+// Export simple formatter for direct use when ESC/POS commands cause issues
+export { formatItemsForPrinterSimple } from "./thermalPrinterFormatterSimple";
