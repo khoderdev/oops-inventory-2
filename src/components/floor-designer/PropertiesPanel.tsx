@@ -1,5 +1,5 @@
-import { Copy, Link, RotateCw, Trash2, Users } from "lucide-react";
-import React from "react";
+import { ChevronRight, Copy, Link, RotateCw, Trash2, Users } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { FurnitureItem } from "../../types/floor-plan";
 
 interface PropertiesPanelProps {
@@ -7,19 +7,24 @@ interface PropertiesPanelProps {
   onUpdateFurniture: (id: string, updates: Partial<FurnitureItem>) => void;
   onDeleteFurniture: (id: string) => void;
   onDuplicateFurniture: (id: string) => void;
+  onUnselectFurniture: () => void;
   parentTable?: FurnitureItem | null;
   childChairs?: FurnitureItem[];
 }
 
-export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedFurniture, onUpdateFurniture, onDeleteFurniture, onDuplicateFurniture, parentTable, childChairs = [] }) => {
-  if (!selectedFurniture) {
+export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedFurniture, onUpdateFurniture, onDeleteFurniture, onDuplicateFurniture, onUnselectFurniture, parentTable, childChairs = [] }) => {
+  const [isHidden, setIsHidden] = useState(false);
+
+  // Reset hidden state when a new furniture item is selected
+  useEffect(() => {
+    if (selectedFurniture) {
+      setIsHidden(false);
+    }
+  }, [selectedFurniture]);
+
+  if (!selectedFurniture || isHidden) {
     return null;
   }
-
-  const handleRotate = () => {
-    const newRotation = (selectedFurniture.rotation + 90) % 360;
-    onUpdateFurniture(selectedFurniture.id, { rotation: newRotation });
-  };
 
   const handleDimensionChange = (dimension: "width" | "height", value: number) => {
     onUpdateFurniture(selectedFurniture.id, {
@@ -43,8 +48,22 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedFurnit
   return (
     <div className="w-60 h-full bg-white border-l border-gray-200 flex flex-col">
       <div className="p-2 border-b border-gray-200 shrink-0">
-        <h2 className="text-xl font-semibold text-slate-800">Properties</h2>
-        <p className="text-sm text-gray-600 mt-1">Customize selected item</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-800">Properties</h2>
+            <p className="text-sm text-gray-600 mt-1">Customize selected item</p>
+          </div>
+          <button
+            onClick={() => {
+              setIsHidden(true);
+              onUnselectFurniture();
+            }}
+            className="p-1 hover:bg-gray-100 rounded transition-colors duration-200"
+            title="Hide Properties Panel"
+          >
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 space-y-6 min-h-0">
@@ -161,37 +180,23 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedFurnit
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">Rotation</label>
           <div className="grid grid-cols-2 gap-2 mb-3">
-            <button 
-              onClick={() => onUpdateFurniture(selectedFurniture.id, { rotation: (selectedFurniture.rotation + 15) % 360 })}
-              className="flex items-center justify-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors duration-200 text-sm"
-            >
+            <button onClick={() => onUpdateFurniture(selectedFurniture.id, { rotation: (selectedFurniture.rotation + 15) % 360 })} className="flex items-center justify-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors duration-200 text-sm">
               <RotateCw className="w-3 h-3" />
               +15°
             </button>
-            <button 
-              onClick={() => onUpdateFurniture(selectedFurniture.id, { rotation: (selectedFurniture.rotation + 45) % 360 })}
-              className="flex items-center justify-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors duration-200 text-sm"
-            >
+            <button onClick={() => onUpdateFurniture(selectedFurniture.id, { rotation: (selectedFurniture.rotation + 45) % 360 })} className="flex items-center justify-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors duration-200 text-sm">
               <RotateCw className="w-3 h-3" />
               +45°
             </button>
-            <button 
-              onClick={() => onUpdateFurniture(selectedFurniture.id, { rotation: (selectedFurniture.rotation + 90) % 360 })}
-              className="flex items-center justify-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors duration-200 text-sm"
-            >
+            <button onClick={() => onUpdateFurniture(selectedFurniture.id, { rotation: (selectedFurniture.rotation + 90) % 360 })} className="flex items-center justify-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors duration-200 text-sm">
               <RotateCw className="w-3 h-3" />
               +90°
             </button>
-            <button 
-              onClick={() => onUpdateFurniture(selectedFurniture.id, { rotation: 0 })}
-              className="flex items-center justify-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors duration-200 text-sm"
-            >
+            <button onClick={() => onUpdateFurniture(selectedFurniture.id, { rotation: 0 })} className="flex items-center justify-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors duration-200 text-sm">
               Reset
             </button>
           </div>
-          <div className="text-center text-xs text-gray-500 mb-3">
-            Current: {selectedFurniture.rotation}°
-          </div>
+          <div className="text-center text-xs text-gray-500 mb-3">Current: {selectedFurniture.rotation}°</div>
         </div>
 
         {/* Actions */}

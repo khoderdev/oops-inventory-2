@@ -46,7 +46,15 @@ function FloorDesignerPage() {
 
         <FloorPlanCanvas area={currentArea} onUpdateFurniture={updateFurniture} selectedFurnitureId={selectedFurnitureId} onSelectFurniture={setSelectedFurnitureId} onLinkChairToTable={linkChairToTable} onUnlinkChairFromTable={unlinkChairFromTable} onMoveTableWithChairs={moveTableWithChairs} onDuplicateFurniture={duplicateFurniture} onDeleteFurniture={deleteFurniture} getChildFurniture={getChildFurniture} getParentFurniture={getParentFurniture} />
 
-        <PropertiesPanel selectedFurniture={selectedFurniture} onUpdateFurniture={updateFurniture} onDeleteFurniture={deleteFurniture} onDuplicateFurniture={duplicateFurniture} parentTable={selectedFurniture ? getParentFurniture(selectedFurniture.id) : null} childChairs={selectedFurniture ? getChildFurniture(selectedFurniture.id) : []} />
+        <PropertiesPanel 
+          selectedFurniture={selectedFurniture} 
+          onUpdateFurniture={updateFurniture} 
+          onDeleteFurniture={deleteFurniture} 
+          onDuplicateFurniture={duplicateFurniture} 
+          onUnselectFurniture={() => setSelectedFurnitureId(null)}
+          parentTable={selectedFurniture ? getParentFurniture(selectedFurniture.id) : null} 
+          childChairs={selectedFurniture ? getChildFurniture(selectedFurniture.id) : []} 
+        />
       </div>
 
       {/* Status Bar */}
