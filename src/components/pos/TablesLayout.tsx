@@ -35,7 +35,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           // Convert furniture items to Table objects for POS system
           const tables: Table[] = [];
 
-          floorPlan.areas.forEach((area: { id: number; furniture?: Array<{ id: number; name: string; isTable: boolean; tableNumber?: number; seatingCapacity?: number; status?: string; type: string; position: { x: number; y: number } }> }) => {
+          floorPlan.areas.forEach((area: { id: number; furniture?: Array<{ id: number; name: string; isTable: boolean; tableNumber?: number; seatingCapacity?: number; status?: string; type: string; position: { x: number; y: number }; dimensions?: { width: number; height: number } }> }) => {
             if (area.furniture) {
               area.furniture.forEach(furniture => {
                 // Convert tables and bars (not chairs) - bars are seating areas in restaurants
@@ -54,8 +54,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                     status: (furniture.status as Table["status"]) || "available",
                     shape: getTableShapeFromType(furniture.type),
                     position: {
-                      x: furniture.position.x / 8, // Convert from pixel to percentage
-                      y: furniture.position.y / 6 // Convert from pixel to percentage
+                      // Convert from pixel to percentage and adjust for centering
+                      // FloorPlanCanvas uses top-left positioning, TablesLayout uses center positioning
+                      // Add half the furniture dimensions to center the table properly
+                      x: (furniture.position.x + (furniture.dimensions?.width || 80) / 2) / 8,
+                      y: (furniture.position.y + (furniture.dimensions?.height || 80) / 2) / 6
                     }
                   };
                   tables.push(table);

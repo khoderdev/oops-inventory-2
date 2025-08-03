@@ -1,6 +1,6 @@
 import { DndContext, DragEndEvent, MouseSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { Grid, Link, Move, ZoomIn, ZoomOut } from "lucide-react";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { FloorArea, FurnitureItem as FurnitureItemType } from "../../types/floor-plan";
 import { autoLinkChairsToTables } from "../../utils/furniture-relationships";
 import { FurnitureContextMenu } from "./FurnitureContextMenu";
@@ -22,8 +22,9 @@ interface FloorPlanCanvasProps {
 
 export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdateFurniture, selectedFurnitureId, onSelectFurniture, onLinkChairToTable, onUnlinkChairFromTable, onMoveTableWithChairs, onDuplicateFurniture, onDeleteFurniture, getChildFurniture, getParentFurniture }) => {
   const [scale, setScale] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
+  // Fixed canvas position - no panning allowed
+  const pan = useMemo(() => ({ x: 0, y: 0 }), []); // Always centered
+  const isPanning = false; // Panning disabled
   const [showGrid, setShowGrid] = useState(true);
   const [contextMenu, setContextMenu] = useState<{
     furniture: FurnitureItemType;
@@ -31,7 +32,6 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
   } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const lastPanPoint = useRef({ x: 0, y: 0 });
   const isDraggingCanvas = useRef(false);
 
   const sensors = useSensors(
@@ -45,16 +45,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
   const handleZoomIn = () => {
     setScale(prev => {
       const newScale = Math.min(prev * 1.2, 3);
-      // Adjust pan if needed after zoom
-      setTimeout(() => {
-        const constraints = getPanConstraints();
-        if (constraints) {
-          setPan(currentPan => ({
-            x: Math.max(constraints.minX, Math.min(constraints.maxX, currentPan.x)),
-            y: Math.max(constraints.minY, Math.min(constraints.maxY, currentPan.y))
-          }));
-        }
-      }, 0);
+      // Canvas position is fixed - no pan adjustment needed
       return newScale;
     });
   };
@@ -62,35 +53,21 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
   const handleZoomOut = () => {
     setScale(prev => {
       const newScale = Math.max(prev / 1.2, 0.3);
-      // Adjust pan if needed after zoom
-      setTimeout(() => {
-        const constraints = getPanConstraints();
-        if (constraints) {
-          setPan(currentPan => ({
-            x: Math.max(constraints.minX, Math.min(constraints.maxX, currentPan.x)),
-            y: Math.max(constraints.minY, Math.min(constraints.maxY, currentPan.y))
-          }));
-        }
-      }, 0);
+      // Canvas position is fixed - no pan adjustment needed
       return newScale;
     });
   };
 
   // Canvas panning handlers (Figma-style)
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
-    // Start panning if clicking on canvas background (not on furniture items)
-    if (e.button === 0 && !e.defaultPrevented) {
-      const target = e.target as HTMLElement;
+    // Disable panning - canvas position is now fixed
+    // Only allow furniture item interactions
+    const target = e.target as HTMLElement;
+    const isFurnitureItem = target.closest("[data-furniture-item]") !== null;
 
-      // Check if we're NOT clicking on a furniture item
-      const isFurnitureItem = target.closest("[data-furniture-item]") !== null;
-
-      if (!isFurnitureItem) {
-        isDraggingCanvas.current = true;
-        setIsPanning(true);
-        lastPanPoint.current = { x: e.clientX, y: e.clientY };
-        e.preventDefault();
-      }
+    if (!isFurnitureItem) {
+      // Prevent any canvas dragging
+      e.preventDefault();
     }
   }, []);
 
@@ -140,37 +117,13 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
     return { minX, maxX, minY, maxY };
   }, [scale]);
 
-  const handleCanvasMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (isPanning && isDraggingCanvas.current) {
-        const deltaX = e.clientX - lastPanPoint.current.x;
-        const deltaY = e.clientY - lastPanPoint.current.y;
-
-        setPan(prev => {
-          const newPan = {
-            x: prev.x + deltaX,
-            y: prev.y + deltaY
-          };
-
-          // Apply constraints
-          const constraints = getPanConstraints();
-          if (constraints) {
-            newPan.x = Math.max(constraints.minX, Math.min(constraints.maxX, newPan.x));
-            newPan.y = Math.max(constraints.minY, Math.min(constraints.maxY, newPan.y));
-          }
-
-          return newPan;
-        });
-
-        lastPanPoint.current = { x: e.clientX, y: e.clientY };
-      }
-    },
-    [isPanning, getPanConstraints]
-  );
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+    // Panning disabled - canvas position is fixed
+    // No mouse move handling needed for canvas movement
+  }, []);
 
   const handleCanvasMouseUp = useCallback(() => {
-    isDraggingCanvas.current = false;
-    setIsPanning(false);
+    // Panning disabled - no need to handle mouse up for canvas movement
   }, []);
 
   // Global mouse up to handle mouse leaving canvas
@@ -424,7 +377,13 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
           }}
         >
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div className="relative w-full h-full bg-red-400">
+            <div 
+              className="relative bg-red-400"
+              style={{
+                width: '800px',
+                height: '600px'
+              }}
+            >
               {area.furniture.map(furniture => (
                 <div key={furniture.id} onContextMenu={e => handleFurnitureRightClick(furniture, e)}>
                   <FurnitureItem furniture={furniture} isSelected={selectedFurnitureId === furniture.id} onSelect={onSelectFurniture} />
