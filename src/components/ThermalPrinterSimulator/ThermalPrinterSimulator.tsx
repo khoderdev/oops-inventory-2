@@ -40,7 +40,7 @@ const ThermalPrinterSimulator: React.FC<ThermalPrinterSimulatorProps> = ({
     
     lines.forEach((line, lineIndex) => {
       // First, let's clean the line by removing non-printable commands except bold
-      let processedLine = line
+      const processedLine = line
         .split(ESC_CUT).join('') // Remove paper cut command
         .split(OTHER_CUT).join('') // Remove other cut commands
         .split(ESC_RESET).join(''); // Remove printer reset commands

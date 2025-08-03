@@ -85,9 +85,9 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       const spacesNeeded = 48 - qtyPrice.length - total.length;
       content += qtyPrice + " ".repeat(Math.max(1, spacesNeeded)) + total + "\n";
 
-      // Add spacing between items (except last item)
+      // Reduced spacing between items (except last item)
       if (index < receiptData.items.length - 1) {
-        content += "\n";
+        // No extra newline - items will be closer together
       }
     });
 
@@ -144,7 +144,8 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     content += "\n";
     content += "================================================\n";
     content += "\n";
-    content += "         Thank you for your visit!\n";
+    content += centerText("Thank you for your visit!") + "\n";
+    content += centerText("oOps! dont forget to visit us again soon!") + "\n";
     content += "\n";
 
     // Add thermal printer paper cut command (ESC/POS)
@@ -478,7 +479,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
             {/* Items */}
             <div className="items" style={{ marginBottom: "8mm" }}>
               {receiptData.items.map((item, index) => (
-                <div key={index} className="item" style={{ marginBottom: "3mm", fontSize: "13.5px" }}>
+                <div key={index} className="item" style={{ marginBottom: "1.5mm", fontSize: "13.5px" }}>
                   <div className="item-line flex justify-between" style={{ marginBottom: "1.5mm" }}>
                     <span className="flex-1">{item.name}</span>
                     <span>{formatCurrency(item.totalPrice)}</span>
