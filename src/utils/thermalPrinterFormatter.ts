@@ -103,6 +103,13 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
   content += "\n";
   content += "\n";
   content += "\n";
+  content += "\n";
+  content += "\n";
+  content += "\n";
+  content += "\n";
+  content += "\n";
+  content += "\n";
+  content += "\n";
 
   // Add thermal printer paper cut command (ESC/POS)
   content += "\x1B\x69"; // ESC i - Full cut command
