@@ -6,7 +6,8 @@
   "scripts": {
     "start": "nodemon index.js",
     "sync": "node ./config/sync.js",
-    "backup": "node scripts/pgDumpFixed.js"
+    "backup": "node scripts/pgDumpFixed.js",
+    "seed": "node scripts/runSeed.js"
   },
   "author": "",
   "license": "ISC",

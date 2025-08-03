@@ -25,9 +25,10 @@ import userRoutes from "./routes/users.js";
 import PrinterService from "./services/PrinterService.js";
 import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
-import { seedMaterials } from "./utils/seedMaterials.js";
-import { seedMenuItems } from "./utils/seedMenuItems.js";
-import { seedStockEntries } from "./utils/seedStockEntries.js";
+// Old seed imports commented out to prevent conflicts with new comprehensive seeding system
+// import { seedMaterials } from "./utils/seedMaterials.js";
+// import { seedMenuItems } from "./utils/seedMenuItems.js";
+// import { seedStockEntries } from "./utils/seedStockEntries.js";
 import { seedTables } from "./utils/seedTables.js";
 
 // Enhanced error handling and process management
@@ -261,38 +262,24 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
 
         console.log("✅ Database schema synchronized successfully");
 
-        // Seed initial data with error handling
+        // Essential initialization only - comprehensive seeding moved to separate npm script
         try {
-          console.log("🌱 Seeding initial data...");
+          console.log("🔧 Initializing essential data...");
 
-          // Seed tables first
+          // Seed tables first (essential for app structure)
           await seedTables();
           console.log("✅ Tables seeded successfully");
 
-          // Then seed materials
-          console.log("🌱 Seeding materials...");
-          const materialResult = await seedMaterials();
-          console.log(`✅ Materials seeded successfully: ${materialResult.created} created, ${materialResult.existing} existing`);
-
-          // Then seed stock entries
-          console.log("📦 Seeding stock entries...");
-          const stockResult = await seedStockEntries();
-          console.log(`✅ Stock entries seeded successfully: ${stockResult.created} created, ${stockResult.existing} existing`);
-
-          // Then seed menu items
-          console.log("🍔 Seeding menu items...");
-          const menuResult = await seedMenuItems();
-          console.log(`✅ Menu items seeded successfully: ${menuResult.created} items, ${menuResult.ingredients} ingredients`);
-
-          // Finally initialize admin user
+          // Initialize admin user (essential for access)
           console.log("👤 Initializing admin user...");
           const adminResult = await initializeAdminUser();
           console.log(`✅ Admin user initialized: ${adminResult.created} created, ${adminResult.existing} existing`);
 
-          console.log("✅ All initial data seeded successfully");
+          console.log("✅ Essential initialization completed");
+          console.log("ℹ️  For comprehensive data seeding, run: npm run seed");
         } catch (seedError) {
-          console.warn("⚠️ Warning: Failed to seed initial data:", seedError.message);
-          console.log("🔄 Server will continue without seeding...");
+          console.warn("⚠️ Warning: Failed to initialize essential data:", seedError.message);
+          console.log("🔄 Server will continue without initialization...");
         }
 
         return true; // Success
