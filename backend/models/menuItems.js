@@ -38,6 +38,11 @@ const MenuItem = sequelize.define(
       allowNull: true,
       defaultValue: false
     },
+    image: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Base64 encoded image or image URL for the menu item"
+    },
     printerId: {
       type: DataTypes.INTEGER,
       allowNull: true,

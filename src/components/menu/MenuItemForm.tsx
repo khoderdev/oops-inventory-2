@@ -8,6 +8,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { ImageUpload } from "../ui/image-upload";
 
 interface MenuItemFormProps {
   menuItem?: MenuItem;
@@ -23,6 +24,8 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [category, setCategory] = useState<MenuItemCategory | "">(menuItem?.category || "");
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
+  const [image, setImage] = useState<string | undefined>(menuItem?.image);
+  const [imageFile, setImageFile] = useState<File | undefined>(undefined);
   const [ingredients, setIngredients] = useState<Omit<MenuItemIngredient, "cost">[]>(menuItem?.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit })) || []);
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [ingredientQuantity, setIngredientQuantity] = useState("");
@@ -206,6 +209,11 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     setIngredients(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleImageChange = useCallback((imageValue: string | undefined, file?: File) => {
+    setImage(imageValue);
+    setImageFile(file);
+  }, []);
+
   const handleSubmit = useCallback(() => {
     if (!validateForm()) {
       return;
@@ -218,12 +226,15 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         price: parseFloat(price),
         ingredients,
         isPOSItem,
+        image,
         menuItemIngredients: false
       });
       setName("");
       setCategory("");
       setPrice("");
       setIsPOSItem(true);
+      setImage(undefined);
+      setImageFile(undefined);
       setIngredients([]);
       setErrors({});
       onCancel();
@@ -231,7 +242,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       console.error("Error submitting form:", error);
       onCancel();
     }
-  }, [name, category, price, isPOSItem, ingredients, onSubmit, onCancel, validateForm]);
+  }, [name, category, price, isPOSItem, image, ingredients, onSubmit, onCancel, validateForm]);
 
   const handleMaterialSelect = useCallback(
     (materialId: string) => {
@@ -332,6 +343,16 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
             <p className="text-sm text-gray-500 mt-1">(Make this item available for sale in the POS system)</p>
           </div>
         </div>
+      </div>
+
+      {/* Image Upload Section */}
+      <div className="border-t pt-4">
+        <ImageUpload
+          value={image}
+          onChange={handleImageChange}
+          maxSizeInMB={5}
+          acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]}
+        />
       </div>
 
       <div className="border-t pt-4">

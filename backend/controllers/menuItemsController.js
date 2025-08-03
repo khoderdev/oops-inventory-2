@@ -79,7 +79,7 @@ const menuItemsController = {
   createMenuItem: async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
-      const { name, price, category, description, ingredients, isPOSItem } = req.body;
+      const { name, price, category, description, ingredients, isPOSItem, image } = req.body;
 
       // Validate and convert price
       const priceValue = typeof price === "string" ? parseFloat(price) : price;
@@ -139,6 +139,16 @@ const menuItemsController = {
         }
       }
 
+      // Handle image (either from file upload or base64)
+      let imageUrl = null;
+      if (req.file) {
+        // File upload via multer
+        imageUrl = `/uploads/menu/${req.file.filename}`;
+      } else if (image) {
+        // Base64 image data
+        imageUrl = image;
+      }
+
       // Create menu item with properly converted price
       const menuItem = await MenuItem.create(
         {
@@ -146,7 +156,8 @@ const menuItemsController = {
           price: priceValue,
           category,
           description,
-          isPOSItem: isPOSItem !== undefined ? isPOSItem : false
+          isPOSItem: isPOSItem !== undefined ? isPOSItem : false,
+          image: imageUrl
         },
         { transaction }
       );
@@ -198,7 +209,7 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
-      const { name, price, category, description, ingredients, isPOSItem } = req.body;
+      const { name, price, category, description, ingredients, isPOSItem, image } = req.body;
 
       const menuItem = await MenuItem.findByPk(id, { transaction });
       if (!menuItem) {
@@ -263,6 +274,16 @@ const menuItemsController = {
         }
       }
 
+      // Handle image update (either from file upload or base64)
+      let imageUrl = menuItem.image; // Keep existing image by default
+      if (req.file) {
+        // File upload via multer
+        imageUrl = `/uploads/menu/${req.file.filename}`;
+      } else if (image !== undefined) {
+        // Base64 image data or null to remove image
+        imageUrl = image;
+      }
+
       // Update menu item with proper price handling
       await menuItem.update(
         {
@@ -270,7 +291,8 @@ const menuItemsController = {
           price: price !== undefined ? priceValue : menuItem.price,
           category: category !== undefined ? category : menuItem.category,
           description: description !== undefined ? description : menuItem.description,
-          isPOSItem: isPOSItem !== undefined ? isPOSItem : menuItem.isPOSItem
+          isPOSItem: isPOSItem !== undefined ? isPOSItem : menuItem.isPOSItem,
+          image: imageUrl
         },
         { transaction }
       );

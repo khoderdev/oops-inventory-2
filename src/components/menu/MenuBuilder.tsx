@@ -448,6 +448,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                       />
                     </TableHead>
                   )}
+                  <TableHead className="min-w-[80px]">Image</TableHead>
                   <TableHead className="min-w-[200px]">Name</TableHead>
                   <TableHead className="min-w-[150px]">Category</TableHead>
                   <TableHead className="min-w-[200px]">Ingredients</TableHead>
@@ -480,6 +481,19 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                             />
                           </TableCell>
                         )}
+                        <TableCell className="min-w-[80px]">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-12 h-12 object-cover rounded-md border"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-100 rounded-md border flex items-center justify-center">
+                              <Package className="h-6 w-6 text-gray-400" />
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium min-w-[200px]">
                           <div>{highlightText(item.name, searchTerm)}</div>
                           {item.description && <div className="text-sm text-muted-foreground">{highlightText(item.description, searchTerm)}</div>}
@@ -564,7 +578,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={bulkSelectionMode ? 8 : 7} className="text-center py-8">
+                    <TableCell colSpan={bulkSelectionMode ? 9 : 8} className="text-center py-8">
                       <div className="flex flex-col items-center justify-center space-y-2">
                         <Package className="h-12 w-12 text-muted-foreground" />
                         <p className="text-lg font-medium">No menu items found</p>

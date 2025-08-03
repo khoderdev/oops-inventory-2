@@ -85,6 +85,9 @@ app.use(
 
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
+// Serve static files for uploaded images
+app.use('/uploads', express.static('uploads'));
+
 // Trust proxy to get real IP addresses
 app.set("trust proxy", true);
 

@@ -669,6 +669,7 @@ export interface MenuItem {
   ingredients: MenuItemIngredient[];
   menuItemIngredients: boolean;
   isPOSItem?: boolean;
+  image?: string;
   printerId?: number | null;
   assignedPrinter?: {
     id: number;
