@@ -24,7 +24,7 @@ export const furnitureTemplates: FurnitureTemplate[] = [
     type: "rectangular-table",
     name: "Rectangular Table",
     icon: "▭",
-    defaultDimensions: { width: 150, height: 80 },
+    defaultDimensions: { width: 170, height: 100 },
     defaultColor: "#8B4513",
     seatingCapacity: 6,
     category: "tables"
@@ -35,7 +35,7 @@ export const furnitureTemplates: FurnitureTemplate[] = [
     type: "chair",
     name: "Chair",
     icon: "🪑",
-    defaultDimensions: { width: 20, height: 20 },
+    defaultDimensions: { width: 40, height: 40 },
     defaultColor: "#654321",
     seatingCapacity: 1,
     category: "seating"
@@ -46,7 +46,7 @@ export const furnitureTemplates: FurnitureTemplate[] = [
     type: "bar",
     name: "Bar Counter",
     icon: "🍺",
-    defaultDimensions: { width: 340, height: 60 },
+    defaultDimensions: { width: 460, height: 60 },
     defaultColor: "#2F4F4F",
     seatingCapacity: 8,
     category: "service"

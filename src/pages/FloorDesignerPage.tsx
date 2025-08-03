@@ -33,7 +33,7 @@ function FloorDesignerPage() {
   }, [currentPlan, title, savePlan, loadPlan, newPlan, getSavedPlans, deleteSavedPlan, setHeaderActions, setPageTitle]);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 overflow-hidden">
       <div className="flex-1 flex min-h-0 overflow-hidden">
         <FurniturePalette onAddFurniture={handleAddFurniture} />
 
