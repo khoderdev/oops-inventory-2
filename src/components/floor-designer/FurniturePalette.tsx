@@ -14,7 +14,7 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
   };
 
   return (
-    <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+    <div className="w-52 bg-white border-r border-gray-200 flex flex-col">
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-xl font-semibold text-slate-800">Furniture Library</h2>
         <p className="text-sm text-gray-600 mt-1">Drag items onto the floor plan</p>

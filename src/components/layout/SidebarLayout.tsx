@@ -5,7 +5,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { usePermissions } from "@/hooks/usePermissions";
 import { Search, Settings, User } from "lucide-react";
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 
 interface SidebarLayoutProps {
@@ -19,7 +19,11 @@ interface SidebarLayoutProps {
 export function SidebarLayout({ children, showSearch = true, showNotifications = true, pageTitle, headerActions }: SidebarLayoutProps) {
   const { user } = usePermissions();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
+  
+  // Check if current page is Floor Designer
+  const isFloorDesigner = location.pathname === '/pos/floor-designer';
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,8 +97,8 @@ export function SidebarLayout({ children, showSearch = true, showNotifications =
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 flex flex-col min-h-0 safe-area-padding safe-area-bottom">
-          <div className="spacing-responsive flex-1 flex flex-col gap-4 animate-fade-in">{children}</div>
+        <main className={`flex-1 flex flex-col min-h-0 ${isFloorDesigner ? '' : 'safe-area-padding safe-area-bottom'}`}>
+          <div className={`${isFloorDesigner ? '' : 'spacing-responsive gap-4'} flex-1 flex flex-col animate-fade-in`}>{children}</div>
         </main>
       </SidebarInset>
     </SidebarProvider>

@@ -1,6 +1,9 @@
 import { Download, FolderOpen, Plus, Save, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { FloorPlan } from "../../types/floor-plan";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface FloorDesignerHeaderProps {
   currentPlan: FloorPlan;
@@ -43,31 +46,33 @@ export const FloorDesignerHeader: React.FC<FloorDesignerHeaderProps> = ({ curren
 
   const headerActions = (
     <>
-      <button onClick={onNewPlan} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+      <Button onClick={onNewPlan} variant="ghost" size="sm" className="gap-2">
         <Plus className="w-4 h-4" />
         New Plan
-      </button>
+      </Button>
 
-      <button
+      <Button
         onClick={() => {
           refreshSavedPlans();
           setShowLoadDialog(true);
         }}
-        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        variant="ghost"
+        size="sm"
+        className="gap-2"
       >
         <FolderOpen className="w-4 h-4" />
         Open
-      </button>
+      </Button>
 
-      <button onClick={() => setShowSaveDialog(true)} className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors">
+      <Button onClick={() => setShowSaveDialog(true)} variant="default" size="sm" className="gap-2 bg-amber-600 hover:bg-amber-700">
         <Save className="w-4 h-4" />
         Save
-      </button>
+      </Button>
 
-      <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+      <Button onClick={handleExport} variant="ghost" size="sm" className="gap-2">
         <Download className="w-4 h-4" />
         Export
-      </button>
+      </Button>
     </>
   );
 
@@ -77,33 +82,56 @@ export const FloorDesignerHeader: React.FC<FloorDesignerHeaderProps> = ({ curren
       {headerActions}
 
       {/* Save Dialog */}
-      {showSaveDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold mb-4">Save Floor Plan</h3>
-            <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="Enter plan name..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent mb-4" autoFocus />
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowSaveDialog(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                Cancel
-              </button>
-              <button onClick={handleSave} disabled={!saveName.trim()} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                Save
-              </button>
-            </div>
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Save Floor Plan</DialogTitle>
+            <DialogDescription>
+              Enter a name for your floor plan to save it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Input
+              value={saveName}
+              onChange={e => setSaveName(e.target.value)}
+              placeholder="Enter plan name..."
+              autoFocus
+            />
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSave} 
+              disabled={!saveName.trim()}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Load Dialog */}
-      {showLoadDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">Open Floor Plan</h3>
-            <div className="space-y-2">
-              {savedPlans.map(plan => (
+      <Dialog open={showLoadDialog} onOpenChange={setShowLoadDialog}>
+        <DialogContent className="sm:max-w-[500px] max-h-[600px]">
+          <DialogHeader>
+            <DialogTitle>Open Floor Plan</DialogTitle>
+            <DialogDescription>
+              Select a floor plan to open from your saved plans.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-4 max-h-[400px] overflow-y-auto">
+            {savedPlans.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No saved floor plans found.
+              </div>
+            ) : (
+              savedPlans.map(plan => (
                 <div
                   key={plan.id}
-                  className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                  className="p-3 border border-border rounded-lg hover:bg-accent cursor-pointer flex justify-between items-center transition-colors"
                   onClick={() => {
                     onLoadPlan(plan);
                     setShowLoadDialog(false);
@@ -111,29 +139,31 @@ export const FloorDesignerHeader: React.FC<FloorDesignerHeaderProps> = ({ curren
                 >
                   <div>
                     <div className="font-medium">{plan.name}</div>
-                    <div className="text-sm text-gray-500">{plan.updatedAt.toLocaleDateString()}</div>
+                    <div className="text-sm text-muted-foreground">{plan.updatedAt.toLocaleDateString()}</div>
                   </div>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     onClick={e => {
                       e.stopPropagation();
                       onDeletePlan(plan.id);
                       refreshSavedPlans();
                     }}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
-                  </button>
+                  </Button>
                 </div>
-              ))}
-            </div>
-            <div className="flex justify-end mt-4">
-              <button onClick={() => setShowLoadDialog(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                Cancel
-              </button>
-            </div>
+              ))
+            )}
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLoadDialog(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
