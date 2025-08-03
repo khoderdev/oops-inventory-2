@@ -35,7 +35,14 @@ function FloorDesignerPage() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 overflow-hidden">
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        <FurniturePalette onAddFurniture={handleAddFurniture} />
+        <FurniturePalette 
+          onAddFurniture={handleAddFurniture}
+          currentPlan={currentPlan}
+          onSavePlan={savePlan}
+          onLoadPlan={loadPlan}
+          getSavedPlans={getSavedPlans}
+          onDeletePlan={deleteSavedPlan}
+        />
 
         <FloorPlanCanvas area={currentArea} onUpdateFurniture={updateFurniture} selectedFurnitureId={selectedFurnitureId} onSelectFurniture={setSelectedFurnitureId} onLinkChairToTable={linkChairToTable} onUnlinkChairFromTable={unlinkChairFromTable} onMoveTableWithChairs={moveTableWithChairs} onDuplicateFurniture={duplicateFurniture} onDeleteFurniture={deleteFurniture} getChildFurniture={getChildFurniture} getParentFurniture={getParentFurniture} />
 

@@ -58,16 +58,35 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedFurnit
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 space-y-6 min-h-0">
-        {/* Item Info */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
-          <input type="text" value={selectedFurniture.name} onChange={e => handleNameChange(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
-        </div>
+        <div className="w-full flex items-center justify-between gap-2">
+          {/* Item Info */}
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
+            <input type="text" value={selectedFurniture.name} onChange={e => handleNameChange(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
+          </div>
 
+          {/* Seating Capacity */}
+          {selectedFurniture.seatingCapacity && (
+            <div className="w-12">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Seats</label>
+              <input
+                type="number"
+                value={selectedFurniture.seatingCapacity}
+                onChange={e =>
+                  onUpdateFurniture(selectedFurniture.id, {
+                    seatingCapacity: Math.max(1, parseInt(e.target.value) || 1)
+                  })
+                }
+                min="1"
+                className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              />
+            </div>
+          )}
+        </div>
         {/* Dimensions */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">Dimensions (inches)</label>
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Width</label>
               <input type="number" value={selectedFurniture.dimensions.width} onChange={e => handleDimensionChange("width", parseInt(e.target.value) || 0)} min="10" className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
@@ -93,7 +112,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedFurnit
                     position: { ...selectedFurniture.position, x: parseInt(e.target.value) || 0 }
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               />
             </div>
             <div>
@@ -123,24 +142,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedFurnit
           <input type="color" value={selectedFurniture.color} onChange={e => handleColorChange(e.target.value)} className="w-full h-10 rounded-lg border border-gray-300 cursor-pointer" />
         </div>
 
-        {/* Seating Capacity */}
-        {selectedFurniture.seatingCapacity && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Seating Capacity</label>
-            <input
-              type="number"
-              value={selectedFurniture.seatingCapacity}
-              onChange={e =>
-                onUpdateFurniture(selectedFurniture.id, {
-                  seatingCapacity: Math.max(1, parseInt(e.target.value) || 1)
-                })
-              }
-              min="1"
-              className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-            />
-          </div>
-        )}
-
         {/* Relationships */}
         {(parentTable || childChairs.length > 0) && (
           <div className="pt-6 border-t border-gray-200">
@@ -167,7 +168,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedFurnit
         )}
 
         {/* Actions */}
-        <div className="space-y-3 pt-6 border-t border-gray-200">
+        <div className="space-y-3">
           <button onClick={handleRotate} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors duration-200">
             <RotateCw className="w-4 h-4" />
             Rotate 90°
