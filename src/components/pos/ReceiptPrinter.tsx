@@ -145,7 +145,10 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     content += "================================================\n";
     content += "\n";
     content += centerText("Thank you for your visit!") + "\n";
-    content += centerText("oOps! dont forget to visit us again soon!") + "\n";
+    content += "\n";
+    content += centerText("*** oOps! dont forget to visit us again soon! ***") + "\n";
+    content += "\n";
+    content += "\n";
     content += "\n";
 
     // Add thermal printer paper cut command (ESC/POS)
@@ -271,6 +274,17 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           console.log(`--- RECEIPT CONTENT START ---`);
           console.log(receiptContent);
           console.log(`--- RECEIPT CONTENT END ---`);
+          
+          // Check if footer message is included
+          if (receiptContent.includes("oOps! dont forget to visit us again soon!")) {
+            console.log(`✅ Footer message IS included in receipt content`);
+          } else {
+            console.log(`❌ Footer message NOT found in receipt content`);
+          }
+          
+          // Also log the last 200 characters to see what's at the end
+          console.log(`🔍 Last 200 characters of receipt:`);
+          console.log(receiptContent.slice(-200));
 
           const printJobData = {
             printerId: savedPrinter.id,
