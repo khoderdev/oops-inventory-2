@@ -229,7 +229,7 @@ export const useFloorPlan = () => {
     return [];
   }, []);
 
-  // Save to backend
+  // // Save to backend
   const saveToBackend = useCallback(
     async (name: string): Promise<FloorPlan> => {
       const updatedPlan = {
@@ -556,6 +556,92 @@ export const useFloorPlan = () => {
       throw error;
     }
   }, []);
+
+  // Save to backend - update existing plan or create new one
+  // const saveToBackend = useCallback(
+  //   async (name?: string): Promise<FloorPlan> => {
+  //     try {
+  //       const planName = name || currentPlan.name;
+
+  //       // Check if this is an existing plan (numeric ID from backend) or a new plan
+  //       const isExistingPlan = /^\d+$/.test(currentPlan.id);
+
+  //       // Prepare the data for backend
+  //       const planData = {
+  //         name: planName,
+  //         description: `Floor plan for ${planName}`,
+  //         areas: currentPlan.areas.map(area => ({
+  //           name: area.name,
+  //           bounds: area.bounds,
+  //           color: area.color,
+  //           furniture: area.furniture.map(furniture => ({
+  //             designerItemId: furniture.id,
+  //             type: furniture.type,
+  //             name: furniture.name,
+  //             position: furniture.position,
+  //             dimensions: furniture.dimensions,
+  //             rotation: furniture.rotation || 0,
+  //             color: furniture.color,
+  //             seatingCapacity: furniture.seatingCapacity,
+  //             zIndex: furniture.zIndex || 0,
+  //             parentId: furniture.parentId
+  //           }))
+  //         }))
+  //       };
+
+  //       let response;
+  //       if (isExistingPlan) {
+  //         // Update existing plan
+  //         console.log(`📝 Updating existing floor plan ID: ${currentPlan.id}`);
+  //         response = await floorPlanAPI.updateFloorPlan(currentPlan.id, planData);
+  //       } else {
+  //         // Create new plan
+  //         console.log(`🆕 Creating new floor plan: ${planName}`);
+  //         response = await floorPlanAPI.createFloorPlan(planData);
+  //       }
+
+  //       const savedPlan = response.data;
+
+  //       // Convert backend response to frontend format
+  //       const frontendPlan: FloorPlan = {
+  //         id: savedPlan.id.toString(),
+  //         name: savedPlan.name,
+  //         areas:
+  //           savedPlan.areas?.map(area => ({
+  //             id: area.id.toString(),
+  //             name: area.name,
+  //             bounds: area.bounds,
+  //             color: area.color,
+  //             furniture:
+  //               area.furniture?.map(furniture => ({
+  //                 id: furniture.designerItemId,
+  //                 type: furniture.type,
+  //                 name: furniture.name,
+  //                 position: furniture.position,
+  //                 dimensions: furniture.dimensions,
+  //                 rotation: furniture.rotation,
+  //                 color: furniture.color,
+  //                 seatingCapacity: furniture.seatingCapacity,
+  //                 zIndex: furniture.zIndex,
+  //                 parentId: furniture.parentId
+  //               })) || []
+  //           })) || [],
+  //         createdAt: new Date(savedPlan.createdAt),
+  //         updatedAt: new Date(savedPlan.updatedAt)
+  //       };
+
+  //       // Update current plan with the saved version (including backend ID)
+  //       setCurrentPlan(frontendPlan);
+
+  //       console.log(`✅ Successfully ${isExistingPlan ? "updated" : "created"} floor plan: ${frontendPlan.name} (ID: ${frontendPlan.id})`);
+  //       return frontendPlan;
+  //     } catch (error) {
+  //       console.error("Failed to save floor plan to backend:", error);
+  //       throw error;
+  //     }
+  //   },
+  //   [currentPlan]
+  // );
 
   return {
     currentPlan,

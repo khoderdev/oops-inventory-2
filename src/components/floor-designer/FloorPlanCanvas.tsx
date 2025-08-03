@@ -1,6 +1,6 @@
 import { DndContext, DragEndEvent, MouseSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { Grid, Link, Move, ZoomIn, ZoomOut } from "lucide-react";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { FloorArea, FurnitureItem as FurnitureItemType } from "../../types/floor-plan";
 import { autoLinkChairsToTables } from "../../utils/furniture-relationships";
 import { FurnitureContextMenu } from "./FurnitureContextMenu";
@@ -22,9 +22,8 @@ interface FloorPlanCanvasProps {
 
 export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdateFurniture, selectedFurnitureId, onSelectFurniture, onLinkChairToTable, onUnlinkChairFromTable, onMoveTableWithChairs, onDuplicateFurniture, onDeleteFurniture, getChildFurniture, getParentFurniture }) => {
   const [scale, setScale] = useState(1);
-  // Fixed canvas position - no panning allowed
-  const pan = useMemo(() => ({ x: 0, y: 0 }), []); // Always centered
-  const isPanning = false; // Panning disabled
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [contextMenu, setContextMenu] = useState<{
     furniture: FurnitureItemType;
@@ -45,7 +44,16 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
   const handleZoomIn = () => {
     setScale(prev => {
       const newScale = Math.min(prev * 1.2, 3);
-      // Canvas position is fixed - no pan adjustment needed
+      // Apply pan constraints after zoom
+      setTimeout(() => {
+        const constraints = getPanConstraints();
+        if (constraints) {
+          setPan(currentPan => ({
+            x: Math.max(constraints.minX, Math.min(constraints.maxX, currentPan.x)),
+            y: Math.max(constraints.minY, Math.min(constraints.maxY, currentPan.y))
+          }));
+        }
+      }, 0);
       return newScale;
     });
   };
@@ -53,7 +61,16 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
   const handleZoomOut = () => {
     setScale(prev => {
       const newScale = Math.max(prev / 1.2, 0.3);
-      // Canvas position is fixed - no pan adjustment needed
+      // Apply pan constraints after zoom
+      setTimeout(() => {
+        const constraints = getPanConstraints();
+        if (constraints) {
+          setPan(currentPan => ({
+            x: Math.max(constraints.minX, Math.min(constraints.maxX, currentPan.x)),
+            y: Math.max(constraints.minY, Math.min(constraints.maxY, currentPan.y))
+          }));
+        }
+      }, 0);
       return newScale;
     });
   };
@@ -130,7 +147,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
   React.useEffect(() => {
     const handleGlobalMouseUp = () => {
       isDraggingCanvas.current = false;
-      setIsPanning(false);
+      // No need to set isPanning since panning is disabled
     };
 
     document.addEventListener("mouseup", handleGlobalMouseUp);
@@ -240,9 +257,25 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
     const furniture = area.furniture.find(f => f.id === active.id);
 
     if (furniture && delta) {
+      // Convert drag delta from viewport pixels to 800x600 coordinate system
+      // The furniture container is scaled to fit the viewport, so we need to account for that scaling
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      // Calculate the scale factor between viewport and 800x600 coordinate system
+      const baseWidth = 800;
+      const baseHeight = 600;
+      const scaleX = rect.width / baseWidth;
+      const scaleY = rect.height / baseHeight;
+      const uniformScale = Math.min(scaleX, scaleY);
+
+      // Convert delta from viewport pixels to coordinate system pixels
+      const deltaX = delta.x / (uniformScale * scale);
+      const deltaY = delta.y / (uniformScale * scale);
+
       const newPosition = {
-        x: furniture.position.x + delta.x / scale,
-        y: furniture.position.y + delta.y / scale
+        x: furniture.position.x + deltaX,
+        y: furniture.position.y + deltaY
       };
 
       // Snap to grid (10px grid)
@@ -250,9 +283,15 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
       newPosition.x = Math.round(newPosition.x / gridSize) * gridSize;
       newPosition.y = Math.round(newPosition.y / gridSize) * gridSize;
 
-      // Keep within bounds
-      newPosition.x = Math.max(0, Math.min(newPosition.x, area.bounds.width - furniture.dimensions.width));
-      newPosition.y = Math.max(0, Math.min(newPosition.y, area.bounds.height - furniture.dimensions.height));
+      // Allow positioning anywhere within reasonable bounds (including negative values)
+      // Set generous bounds to allow furniture to extend beyond the visible area if needed
+      const minX = -furniture.dimensions.width; // Allow furniture to be positioned off-screen to the left
+      const maxX = 800; // Allow positioning up to the right edge
+      const minY = -furniture.dimensions.height; // Allow furniture to be positioned off-screen above
+      const maxY = 600; // Allow positioning up to the bottom edge
+
+      newPosition.x = Math.max(minX, Math.min(newPosition.x, maxX));
+      newPosition.y = Math.max(minY, Math.min(newPosition.y, maxY));
 
       onUpdateFurniture(furniture.id, { position: newPosition });
     }
@@ -343,7 +382,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
       <div ref={canvasRef} className="w-full h-full relative overflow-hidden" onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove} onMouseUp={handleCanvasMouseUp} onMouseLeave={handleCanvasMouseUp} onClick={handleCanvasClick}>
         {/* Grid Background */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 border-2 border-green-500"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
             transformOrigin: "0 0",
@@ -377,11 +416,11 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
           }}
         >
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div 
-              className="relative bg-red-400"
+            <div
+              className="relative border-2 border-red-400"
               style={{
-                width: '800px',
-                height: '600px'
+                width: "800px",
+                height: "600px"
               }}
             >
               {area.furniture.map(furniture => (
