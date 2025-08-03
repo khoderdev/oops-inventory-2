@@ -35,7 +35,7 @@ export const FurnitureItem: React.FC<FurnitureItemProps> = ({ furniture, isSelec
         return (
           <div className={`${baseClasses} rounded-full`} style={shapeStyle}>
             <div className="absolute inset-2 rounded-full bg-black bg-opacity-10 flex items-center justify-center">
-              <span className="text-xs font-medium text-white">{furniture.seatingCapacity}</span>
+              <span className="text-xs font-medium text-white">{furniture.name}</span>
             </div>
           </div>
         );
@@ -45,7 +45,7 @@ export const FurnitureItem: React.FC<FurnitureItemProps> = ({ furniture, isSelec
         return (
           <div className={`${baseClasses} rounded-lg`} style={shapeStyle}>
             <div className="absolute inset-2 rounded bg-black bg-opacity-10 flex items-center justify-center">
-              <span className="text-xs font-medium text-white">{furniture.seatingCapacity}</span>
+              <span className="text-xs font-medium text-white">{furniture.name}</span>
             </div>
           </div>
         );
