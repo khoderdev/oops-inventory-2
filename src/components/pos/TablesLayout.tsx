@@ -152,15 +152,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                   );
                 })
               )}
-
-              {/* Restaurant Features */}
-              <div className="absolute top-0 left-4 bg-blue-100 border-2 border-blue-300 rounded-lg p-4 w-32 h-16 flex items-center justify-center">
-                <span className="text-sm font-medium text-blue-800">Kitchen</span>
-              </div>
-
-              <div className="absolute top-6 right-4 bg-purple-100 border-2 border-purple-300 rounded-lg p-4 w-28 h-[90%] flex items-center justify-center">
-                <span className="text-sm font-medium text-purple-800">Bar</span>
-              </div>
             </div>
           </div>
         </div>
