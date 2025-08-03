@@ -2,7 +2,7 @@ import { Download, FolderOpen, Plus, Save, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { FloorPlan } from "../../types/floor-plan";
 
-interface LayoutManagerProps {
+interface FloorDesignerHeaderProps {
   currentPlan: FloorPlan;
   onSavePlan: (name: string) => void;
   onLoadPlan: (plan: FloorPlan) => void;
@@ -11,7 +11,7 @@ interface LayoutManagerProps {
   onDeletePlan: (planId: string) => void;
 }
 
-export const LayoutManager: React.FC<LayoutManagerProps> = ({ currentPlan, onSavePlan, onLoadPlan, onNewPlan, getSavedPlans, onDeletePlan }) => {
+export const FloorDesignerHeader: React.FC<FloorDesignerHeaderProps> = ({ currentPlan, onSavePlan, onLoadPlan, onNewPlan, getSavedPlans, onDeletePlan }) => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [saveName, setSaveName] = useState(currentPlan.name);
@@ -41,45 +41,40 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({ currentPlan, onSav
     linkElement.click();
   };
 
+  const headerActions = (
+    <>
+      <button onClick={onNewPlan} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+        <Plus className="w-4 h-4" />
+        New Plan
+      </button>
+
+      <button
+        onClick={() => {
+          refreshSavedPlans();
+          setShowLoadDialog(true);
+        }}
+        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+      >
+        <FolderOpen className="w-4 h-4" />
+        Open
+      </button>
+
+      <button onClick={() => setShowSaveDialog(true)} className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors">
+        <Save className="w-4 h-4" />
+        Save
+      </button>
+
+      <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+        <Download className="w-4 h-4" />
+        Export
+      </button>
+    </>
+  );
+
   return (
     <>
-      {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">{currentPlan.name}</h1>
-            <p className="text-sm text-gray-600">Last updated: {currentPlan.updatedAt.toLocaleDateString()}</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button onClick={onNewPlan} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-              <Plus className="w-4 h-4" />
-              New Plan
-            </button>
-
-            <button
-              onClick={() => {
-                refreshSavedPlans();
-                setShowLoadDialog(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <FolderOpen className="w-4 h-4" />
-              Open
-            </button>
-
-            <button onClick={() => setShowSaveDialog(true)} className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors">
-              <Save className="w-4 h-4" />
-              Save
-            </button>
-
-            <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Return the header actions to be used in PageLayout */}
+      {headerActions}
 
       {/* Save Dialog */}
       {showSaveDialog && (

@@ -13,9 +13,10 @@ interface SidebarLayoutProps {
   showSearch?: boolean;
   showNotifications?: boolean;
   pageTitle?: string;
+  headerActions?: React.ReactNode;
 }
 
-export function SidebarLayout({ children, showSearch = true, showNotifications = true, pageTitle }: SidebarLayoutProps) {
+export function SidebarLayout({ children, showSearch = true, showNotifications = true, pageTitle, headerActions }: SidebarLayoutProps) {
   const { user } = usePermissions();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -57,6 +58,7 @@ export function SidebarLayout({ children, showSearch = true, showNotifications =
                 <span className="sr-only">Search</span>
               </Button>
             )}
+            {headerActions && <div className="flex items-center gap-2">{headerActions}</div>}
             {showNotifications && (
               <Button variant="ghost" size="icon" className="relative btn-touch" onClick={() => navigate("/pos")}>
                 <img src="/pos.png" alt="POS" className="h-7 w-7 object-contain" />

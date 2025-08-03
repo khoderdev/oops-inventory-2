@@ -17,6 +17,7 @@ import { POSClientOrders } from "./components/pos/POSClientOrders";
 import System from "./components/system";
 import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
+import { HeaderActionsProvider, useHeaderActions } from "./contexts/HeaderActionsContext";
 import FloorDesignerPage from "./pages/FloorDesignerPage";
 
 // Lazy load components for better performance
@@ -71,9 +72,23 @@ const PageLoadingFallback = ({ pageName }: { pageName?: string }) => (
 // Enhanced layout component for authenticated pages
 const AuthenticatedLayout = ({ children, pageTitle, showSearch = true, showNotifications = true }: { children: React.ReactNode; pageTitle?: string; showSearch?: boolean; showNotifications?: boolean }) => {
   return (
+    <HeaderActionsProvider>
+      <AuthenticatedLayoutInner pageTitle={pageTitle} showSearch={showSearch} showNotifications={showNotifications}>
+        {children}
+      </AuthenticatedLayoutInner>
+    </HeaderActionsProvider>
+  );
+};
+
+// Inner layout component that can use the header actions context
+const AuthenticatedLayoutInner = ({ children, pageTitle, showSearch = true, showNotifications = true }: { children: React.ReactNode; pageTitle?: string; showSearch?: boolean; showNotifications?: boolean }) => {
+  const { headerActions, pageTitle: dynamicPageTitle } = useHeaderActions();
+  const displayTitle = dynamicPageTitle || pageTitle;
+  
+  return (
     <div className="min-h-screen bg-background">
       <Suspense fallback={<LoadingFallback message="Loading application..." />}>
-        <SidebarLayout pageTitle={pageTitle} showSearch={showSearch} showNotifications={showNotifications}>
+        <SidebarLayout pageTitle={displayTitle} showSearch={showSearch} showNotifications={showNotifications} headerActions={headerActions}>
           <Suspense fallback={<PageLoadingFallback pageName={pageTitle} />}>
             <div className="animate-fade-in">{children}</div>
           </Suspense>
