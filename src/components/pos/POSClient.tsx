@@ -22,6 +22,7 @@ import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
 import { CategoryTabs } from "./CategoryTabs";
 import { DiscountDialog } from "./DiscountDialog";
+import { NotesDialog } from "./NotesDialog";
 import { OrderItemsList } from "./OrderItemsList";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentDialog } from "./PaymentDialog";
@@ -77,6 +78,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showDiscountDialog, setShowDiscountDialog] = useState(false);
+  const [showNotesDialog, setShowNotesDialog] = useState(false);
+  const [orderNotes, setOrderNotes] = useState<string>("");
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [appliedDiscount, setAppliedDiscount] = useState<{
     type: "percentage" | "fixed";
@@ -1290,6 +1293,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             notes: undefined,
             menuItem: item.type === "menu"
           })),
+          notes: orderNotes || undefined,
           discountType: appliedDiscount?.type,
           discountValue: appliedDiscount?.value,
           discountAmount: appliedDiscount?.amount || 0,
@@ -1340,6 +1344,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Reset payment amount
       setPaymentAmount("");
 
+      // Clear order notes
+      setOrderNotes("");
+
       console.log("💾 Order saved and state cleared");
     } catch (error) {
       console.error("Failed to save order:", error);
@@ -1347,7 +1354,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshAllCounts, printItemsToAssignedPrinters]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshAllCounts, printItemsToAssignedPrinters]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
@@ -1396,6 +1403,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             return orderItem;
           }),
+          notes: orderNotes || undefined,
           discountType: appliedDiscount?.type,
           discountValue: appliedDiscount?.value,
           discountAmount: appliedDiscount?.amount || 0,
@@ -1546,6 +1554,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setAppliedDiscount(null);
       setDiscountAmount(0);
 
+      // Clear order notes
+      setOrderNotes("");
+
       // Clear employee selection
       setSelectedEmployee(null);
 
@@ -1573,7 +1584,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, printItemsToAssignedPrinters]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, orderNotes, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, printItemsToAssignedPrinters]);
 
   // Resize handle mouse events
   const handleMouseDown = () => {
@@ -1657,7 +1668,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }}
         >
           {/* Cart Header - Fixed (Desktop Only) */}
-          <div className="hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
+          <div className="card-header hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
             <div className={`flex items-center justify-between ${(hasUnsavedChanges || currentOrder || (cart && cart.length > 0)) && !showSuccessCheckmark ? "py-2" : ""}`}>
               <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
                 {/* Order Status Indicator */}
@@ -1682,6 +1693,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                     <Button variant="outline" size="sm" onClick={() => setShowDiscountDialog(true)} className="text-xs px-2 py-1 h-7" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
                       <DollarSign className="w-3 h-3 mr-1" />
                       Discount
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowNotesDialog(true)} className="text-xs px-2 py-1 h-7" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
+                      <FileText className="w-3 h-3 mr-1" />
+                      Notes
                     </Button>
                     <Trash2 className="w-5 h-5 text-red-600 cursor-pointer" onClick={clearCart} />
                   </>
@@ -2044,6 +2059,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       {/* Receipt Printer Dialog */}
       <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} autoPrint={shouldAutoPrint} onPrintSuccess={handlePrintSuccess} />
+
+      {/* Notes Dialog */}
+      <NotesDialog isOpen={showNotesDialog} onClose={() => setShowNotesDialog(false)} notes={orderNotes} onNotesChange={setOrderNotes} />
     </>
   );
 };

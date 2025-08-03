@@ -36,6 +36,12 @@ export const navigationItems: NavigationItem[] = [
         href: "/pos/customer-display",
         icon: Users,
         permission: PERMISSIONS.POS_CUSTOMER_DISPLAY
+      },
+      {
+        label: "Floor Designer",
+        href: "/pos/floor-designer",
+        icon: Users,
+        permission: PERMISSIONS.POS_CUSTOMER_DISPLAY
       }
     ]
   },

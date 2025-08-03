@@ -17,6 +17,7 @@ import { POSClientOrders } from "./components/pos/POSClientOrders";
 import System from "./components/system";
 import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
+import FloorDesignerPage from "./pages/FloorDesignerPage";
 
 // Lazy load components for better performance
 const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
@@ -240,6 +241,16 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     <ProtectedRoute requiredPermission={PERMISSIONS.POS_CUSTOMER_DISPLAY}>
                       <AuthenticatedLayout>
                         <PlaceholderPage title="Customer Display" description="Customer-facing display system" />
+                      </AuthenticatedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/pos/floor-designer"
+                  element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_CUSTOMER_DISPLAY}>
+                      <AuthenticatedLayout>
+                        <FloorDesignerPage />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }

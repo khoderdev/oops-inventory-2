@@ -1,6 +1,6 @@
-import React from 'react';
-import { Link, Unlink, Move, Copy, Trash2 } from 'lucide-react';
-import { FurnitureItem } from '../types/floor-plan';
+import { Copy, Link, Move, Trash2, Unlink } from "lucide-react";
+import React from "react";
+import { FurnitureItem } from "../../types/floor-plan";
 
 interface FurnitureContextMenuProps {
   furniture: FurnitureItem;
@@ -16,41 +16,24 @@ interface FurnitureContextMenuProps {
   parentTable: FurnitureItem | null;
 }
 
-export const FurnitureContextMenu: React.FC<FurnitureContextMenuProps> = ({
-  furniture,
-  position,
-  onClose,
-  onLinkToTable,
-  onUnlinkFromTable,
-  onMoveWithChairs,
-  onDuplicate,
-  onDelete,
-  availableTables,
-  childChairs,
-  parentTable,
-}) => {
-  const isTable = ['round-table', 'square-table', 'rectangular-table', 'booth'].includes(furniture.type);
-  const isChair = furniture.type === 'chair';
+export const FurnitureContextMenu: React.FC<FurnitureContextMenuProps> = ({ furniture, position, onClose, onLinkToTable, onUnlinkFromTable, onMoveWithChairs, onDuplicate, onDelete, availableTables, childChairs, parentTable }) => {
+  const isTable = ["round-table", "square-table", "rectangular-table", "booth"].includes(furniture.type);
+  const isChair = furniture.type === "chair";
 
   return (
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 z-40" 
-        onClick={onClose}
-      />
-      
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+
       {/* Context Menu */}
       <div
         className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-48"
         style={{
           left: position.x,
-          top: position.y,
+          top: position.y
         }}
       >
-        <div className="px-3 py-2 text-sm font-medium text-gray-700 border-b border-gray-100">
-          {furniture.name}
-        </div>
+        <div className="px-3 py-2 text-sm font-medium text-gray-700 border-b border-gray-100">{furniture.name}</div>
 
         {/* Chair-specific options */}
         {isChair && (
@@ -73,7 +56,7 @@ export const FurnitureContextMenu: React.FC<FurnitureContextMenuProps> = ({
                 ))}
               </div>
             )}
-            
+
             {parentTable && (
               <button
                 onClick={() => {
@@ -99,7 +82,7 @@ export const FurnitureContextMenu: React.FC<FurnitureContextMenuProps> = ({
             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
           >
             <Move className="w-4 h-4" />
-            Move with {childChairs.length} chair{childChairs.length !== 1 ? 's' : ''}
+            Move with {childChairs.length} chair{childChairs.length !== 1 ? "s" : ""}
           </button>
         )}
 
@@ -115,7 +98,7 @@ export const FurnitureContextMenu: React.FC<FurnitureContextMenuProps> = ({
             <Copy className="w-4 h-4" />
             Duplicate
           </button>
-          
+
           <button
             onClick={() => {
               onDelete(furniture.id);
@@ -124,7 +107,7 @@ export const FurnitureContextMenu: React.FC<FurnitureContextMenuProps> = ({
             className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"
           >
             <Trash2 className="w-4 h-4" />
-            Delete{isTable && childChairs.length > 0 ? ` (+ ${childChairs.length} chairs)` : ''}
+            Delete{isTable && childChairs.length > 0 ? ` (+ ${childChairs.length} chairs)` : ""}
           </button>
         </div>
       </div>
