@@ -13,17 +13,7 @@ interface PropertiesPanelProps {
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedFurniture, onUpdateFurniture, onDeleteFurniture, onDuplicateFurniture, parentTable, childChairs = [] }) => {
   if (!selectedFurniture) {
-    return (
-      <div className="w-60 h-full bg-white border-l border-gray-200 flex flex-col">
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="text-center text-gray-500">
-            <div className="text-4xl mb-4">🎯</div>
-            <h3 className="font-medium mb-2">No Item Selected</h3>
-            <p className="text-sm">Select a furniture item to view and edit its properties</p>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const handleRotate = () => {
