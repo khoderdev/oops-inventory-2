@@ -42,6 +42,7 @@ function FloorDesignerPage() {
           onLoadPlan={loadPlan}
           getSavedPlans={getSavedPlans}
           onDeletePlan={deleteSavedPlan}
+          onNewPlan={newPlan}
         />
 
         <FloorPlanCanvas area={currentArea} onUpdateFurniture={updateFurniture} selectedFurnitureId={selectedFurnitureId} onSelectFurniture={setSelectedFurnitureId} onLinkChairToTable={linkChairToTable} onUnlinkChairFromTable={unlinkChairFromTable} onMoveTableWithChairs={moveTableWithChairs} onDuplicateFurniture={duplicateFurniture} onDeleteFurniture={deleteFurniture} getChildFurniture={getChildFurniture} getParentFurniture={getParentFurniture} />

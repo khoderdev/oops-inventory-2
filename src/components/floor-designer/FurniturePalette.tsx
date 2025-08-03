@@ -1,10 +1,10 @@
-import React, { useState } from "react";
-import { FurnitureTemplate, FloorPlan } from "../../types/floor-plan";
-import { furnitureTemplates } from "./furniture-templates";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { FolderOpen, Save, Download, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Download, FolderOpen, Plus, Save, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { FloorPlan, FurnitureTemplate } from "../../types/floor-plan";
+import { furnitureTemplates } from "./furniture-templates";
 
 interface FurniturePaletteProps {
   onAddFurniture: (template: FurnitureTemplate) => void;
@@ -13,9 +13,10 @@ interface FurniturePaletteProps {
   onLoadPlan: (plan: FloorPlan) => void;
   getSavedPlans: () => FloorPlan[];
   onDeletePlan: (planId: string) => void;
+  onNewPlan: () => void;
 }
 
-export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurniture, currentPlan, onSavePlan, onLoadPlan, getSavedPlans, onDeletePlan }) => {
+export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurniture, currentPlan, onSavePlan, onLoadPlan, getSavedPlans, onDeletePlan, onNewPlan }) => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [saveName, setSaveName] = useState(currentPlan.name);
@@ -48,11 +49,18 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
   return (
     <div className="w-52 h-full bg-white border-r border-gray-200 flex flex-col">
       <div className="p-2 border-b border-gray-200 shrink-0">
-        <h2 className="text-xl font-semibold text-slate-800">Furniture Library</h2>
-        <p className="text-sm text-gray-600 mt-1">Drag items onto the floor plan</p>
-        
         {/* Action Buttons */}
         <div className="flex flex-col gap-2 mt-3">
+          <Button
+            onClick={onNewPlan}
+            variant="outline"
+            size="sm"
+            className="gap-2 w-full"
+          >
+            <Plus className="w-4 h-4" />
+            New Plan
+          </Button>
+
           <Button
             onClick={() => {
               refreshSavedPlans();
@@ -65,23 +73,13 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
             <FolderOpen className="w-4 h-4" />
             Open
           </Button>
-          
-          <Button 
-            onClick={() => setShowSaveDialog(true)} 
-            variant="default" 
-            size="sm" 
-            className="gap-2 w-full bg-amber-600 hover:bg-amber-700"
-          >
+
+          <Button onClick={() => setShowSaveDialog(true)} variant="default" size="sm" className="gap-2 w-full bg-amber-600 hover:bg-amber-700">
             <Save className="w-4 h-4" />
             Save
           </Button>
-          
-          <Button 
-            onClick={handleExport} 
-            variant="outline" 
-            size="sm" 
-            className="gap-2 w-full"
-          >
+
+          <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 w-full">
             <Download className="w-4 h-4" />
             Export
           </Button>
@@ -102,22 +100,15 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
           </div>
         </div>
       </div>
-      
+
       {/* Save Dialog */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Save Floor Plan</DialogTitle>
-            <DialogDescription>
-              Enter a name for your floor plan to save it.
-            </DialogDescription>
+            <DialogDescription>Enter a name for your floor plan to save it.</DialogDescription>
           </DialogHeader>
-          <Input
-            value={saveName}
-            onChange={(e) => setSaveName(e.target.value)}
-            placeholder="Floor plan name"
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          />
+          <Input value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="Floor plan name" onKeyDown={e => e.key === "Enter" && handleSave()} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
               Cancel
@@ -134,15 +125,13 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Load Floor Plan</DialogTitle>
-            <DialogDescription>
-              Select a saved floor plan to load.
-            </DialogDescription>
+            <DialogDescription>Select a saved floor plan to load.</DialogDescription>
           </DialogHeader>
           <div className="max-h-60 overflow-y-auto space-y-2">
             {savedPlans.length === 0 ? (
               <p className="text-gray-500 text-center py-4">No saved plans found</p>
             ) : (
-              savedPlans.map((plan) => (
+              savedPlans.map(plan => (
                 <div key={plan.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                   <div className="flex-1">
                     <h4 className="font-medium">{plan.name}</h4>
