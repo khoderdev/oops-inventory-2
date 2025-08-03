@@ -2,10 +2,10 @@ import Material from "../models/materials.js";
 import { MenuItem, MenuItemIngredient } from "../models/menuItems.js";
 
 /**
- * Seed menu items with ingredients based on the comprehensive menu
+ * Seed comprehensive menu items with all 176 items from the menu
  */
 export async function seedMenuItems() {
-  console.log("🍽️ Seeding menu items...");
+  console.log("🍽️ Seeding comprehensive menu items (176 items)...");
 
   // Get all materials for ingredient mapping
   const materials = await Material.findAll();
@@ -15,6 +15,215 @@ export async function seedMenuItems() {
   });
 
   const menuItems = [
+    // =============================================================================
+    // APPETIZERS - 17 ITEMS
+    // =============================================================================
+    {
+      name: "Grilled Halloumi",
+      description: "Grilled Halloumi, Iceberg, cherry tomatoes, pesto sauce",
+      category: "appetizers",
+      price: 7.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Halloumi", quantity: 150, unit: "g", cost: 1.80 },
+        { materialName: "Iceberg Lettuce", quantity: 50, unit: "g", cost: 0.13 },
+        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
+        { materialName: "Pesto Sauce", quantity: 30, unit: "ml", cost: 0.36 }
+      ]
+    },
+    {
+      name: "Juicy Balls",
+      description: "Cheese balls, special sauce",
+      category: "appetizers",
+      price: 8.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
+        { materialName: "Special Sauce", quantity: 40, unit: "ml", cost: 0.40 }
+      ]
+    },
+    {
+      name: "Mozzarella Sticks",
+      description: "6 Mozzarella sticks",
+      category: "appetizers",
+      price: 6.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Mozzarella Cheese", quantity: 180, unit: "g", cost: 1.44 }
+      ]
+    },
+    {
+      name: "Chicken Tenders",
+      description: "5 Crispy chicken, Cocktail Sauce",
+      category: "appetizers",
+      price: 8.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Crispy Chicken", quantity: 200, unit: "g", cost: 3.00 },
+        { materialName: "Special Sauce", quantity: 30, unit: "ml", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Chicken Wings",
+      description: "BBQ, Buffalo, Honey mustard",
+      category: "appetizers",
+      price: 10.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Chicken Wings", quantity: 300, unit: "g", cost: 5.40 },
+        { materialName: "BBQ Sauce", quantity: 40, unit: "ml", cost: 0.24 },
+        { materialName: "Buffalo Sauce", quantity: 40, unit: "ml", cost: 0.34 },
+        { materialName: "Honey Mustard Sauce", quantity: 40, unit: "ml", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Nachos",
+      description: "Nachos",
+      category: "appetizers",
+      price: 8.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Nachos", quantity: 200, unit: "g", cost: 0.90 }
+      ]
+    },
+    {
+      name: "Cheese Garlic Bread",
+      description: "Ciabatta bread, bell pepper, mozzarella, mayo garlic sauce",
+      category: "appetizers",
+      price: 7.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Ciabatta Bread", quantity: 150, unit: "g", cost: 0.90 },
+        { materialName: "Bell Pepper", quantity: 50, unit: "g", cost: 0.15 },
+        { materialName: "Mozzarella Cheese", quantity: 80, unit: "g", cost: 0.64 },
+        { materialName: "Mayo Garlic Sauce", quantity: 30, unit: "ml", cost: 0.24 }
+      ]
+    },
+    {
+      name: "Shrimp Tempura",
+      description: "Served with spicy mayo sauce",
+      category: "appetizers",
+      price: 12.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Shrimp", quantity: 150, unit: "g", cost: 4.20 },
+        { materialName: "Special Sauce", quantity: 30, unit: "ml", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Salmon Bruschetta",
+      description: "French toast, cream cheese, smoked salmon",
+      category: "appetizers",
+      price: 10.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Ciabatta Bread", quantity: 100, unit: "g", cost: 0.60 },
+        { materialName: "Cream Cheese", quantity: 50, unit: "g", cost: 0.35 },
+        { materialName: "Salmon", quantity: 80, unit: "g", cost: 1.76 }
+      ]
+    },
+    {
+      name: "Dynamite Shrimps",
+      description: "Dynamite shrimps, special sauce",
+      category: "appetizers",
+      price: 9.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Shrimp", quantity: 120, unit: "g", cost: 3.36 },
+        { materialName: "Special Sauce", quantity: 40, unit: "ml", cost: 0.40 }
+      ]
+    },
+    {
+      name: "Chicken Quesadillas",
+      description: "Grilled Chicken, onion, bell pepper, mozzarella, Nachos, Iceberg, tortilla bread",
+      category: "appetizers",
+      price: 11.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Chicken Breast", quantity: 120, unit: "g", cost: 1.02 },
+        { materialName: "Onion", quantity: 50, unit: "g", cost: 0.08 },
+        { materialName: "Bell Pepper", quantity: 50, unit: "g", cost: 0.15 },
+        { materialName: "Mozzarella Cheese", quantity: 80, unit: "g", cost: 0.64 },
+        { materialName: "Nachos", quantity: 50, unit: "g", cost: 0.23 },
+        { materialName: "Iceberg Lettuce", quantity: 30, unit: "g", cost: 0.08 },
+        { materialName: "Tortilla Bread", quantity: 100, unit: "g", cost: 0.35 }
+      ]
+    },
+    {
+      name: "French Fries",
+      description: "French Fries, Ketchup",
+      category: "appetizers",
+      price: 3.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "French Fries", quantity: 200, unit: "g", cost: 0.40 },
+        { materialName: "Ketchup", quantity: 30, unit: "ml", cost: 0.12 }
+      ]
+    },
+    {
+      name: "Wedges",
+      description: "Wedges, BBQ, Ketchup",
+      category: "appetizers",
+      price: 5.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Wedges", quantity: 250, unit: "g", cost: 0.63 },
+        { materialName: "BBQ Sauce", quantity: 30, unit: "ml", cost: 0.18 },
+        { materialName: "Ketchup", quantity: 30, unit: "ml", cost: 0.12 }
+      ]
+    },
+    {
+      name: "Curly Fries",
+      description: "Curly Fries, BBQ, Ketchup",
+      category: "appetizers",
+      price: 8.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Curly Fries", quantity: 200, unit: "g", cost: 0.60 },
+        { materialName: "BBQ Sauce", quantity: 30, unit: "ml", cost: 0.18 },
+        { materialName: "Ketchup", quantity: 30, unit: "ml", cost: 0.12 }
+      ]
+    },
+    {
+      name: "Oops Fries",
+      description: "Wedges, crispy chicken, jalapeno, cheddar, cocktail sauce, buffalo, BBQ",
+      category: "appetizers",
+      price: 13.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Wedges", quantity: 200, unit: "g", cost: 0.50 },
+        { materialName: "Crispy Chicken", quantity: 100, unit: "g", cost: 1.50 },
+        { materialName: "Jalapeno", quantity: 30, unit: "g", cost: 0.18 },
+        { materialName: "Cheddar Cheese", quantity: 80, unit: "g", cost: 0.72 },
+        { materialName: "Special Sauce", quantity: 30, unit: "ml", cost: 0.30 },
+        { materialName: "Buffalo Sauce", quantity: 20, unit: "ml", cost: 0.17 },
+        { materialName: "BBQ Sauce", quantity: 20, unit: "ml", cost: 0.12 }
+      ]
+    },
+    {
+      name: "Combo Platter",
+      description: "3 crispy chicken, 4 wings, 4 mozzarella sticks, wedges",
+      category: "appetizers",
+      price: 15.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Crispy Chicken", quantity: 150, unit: "g", cost: 2.25 },
+        { materialName: "Chicken Wings", quantity: 200, unit: "g", cost: 3.60 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
+        { materialName: "Wedges", quantity: 150, unit: "g", cost: 0.38 }
+      ]
+    },
+    {
+      name: "Mix Seafood",
+      description: "4 shrimps, 4 calamari rings, 4 fish fingers, wedges",
+      category: "appetizers",
+      price: 18.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Shrimp", quantity: 120, unit: "g", cost: 3.36 },
+        { materialName: "Wedges", quantity: 150, unit: "g", cost: 0.38 }
+      ]
+    },
     // Appetizers
     {
       name: "Grilled Halloumi",

@@ -1,5 +1,6 @@
 import Material from "../models/materials.js";
 import StockEntry from "../models/StockEntry.js";
+import { sushiEntries } from "./sushiEntries.js";
 
 /**
  * Seed stock entries based on materials
@@ -15,39 +16,343 @@ export async function seedStockEntries() {
   });
 
   const stockEntries = [
-    // Proteins - POS Items
-    { materialName: "Beef Patty", quantity: 50, unit: "kg", costPerUnit: 12.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Chicken Breast", quantity: 30, unit: "kg", costPerUnit: 8.50, supplier: "Charles", isPOSItem: true },
-    { materialName: "Crispy Chicken", quantity: 10, unit: "pack", costPerUnit: 15.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Chicken Wings", quantity: 8, unit: "pack", costPerUnit: 18.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Taouk", quantity: 20, unit: "kg", costPerUnit: 9.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Beef Filet", quantity: 15, unit: "kg", costPerUnit: 25.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Salmon", quantity: 10, unit: "kg", costPerUnit: 22.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Shrimp", quantity: 8, unit: "kg", costPerUnit: 28.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Tuna", quantity: 5, unit: "kg", costPerUnit: 35.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Crab Sticks", quantity: 12, unit: "kg", costPerUnit: 15.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Halloumi", quantity: 10, unit: "kg", costPerUnit: 12.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "French Fries", quantity: 50, unit: "kg", costPerUnit: 2.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Wedges", quantity: 30, unit: "kg", costPerUnit: 2.50, supplier: "Charles", isPOSItem: true },
-    { materialName: "Labneh", quantity: 10, unit: "kg", costPerUnit: 6.00, supplier: "Charles", isPOSItem: true },
-    { materialName: "Eggs", quantity: 10, unit: "pack", costPerUnit: 3.50, supplier: "Charles", isPOSItem: true },
+    // =============================================================================
+    // APPETIZERS - POS ITEMS WITH REAL MENU PRICES
+    // =============================================================================
+    
+    // Grilled Halloumi - $7
+    { materialName: "Grilled Halloumi", quantity: 20, unit: "portions", costPerUnit: 3.50, supplier: "Charles", isPOSItem: true, menuPrice: 7.00 },
+    
+    // Juicy Balls (Cheese Balls) - $8
+    { materialName: "Cheese Balls", quantity: 50, unit: "pieces", costPerUnit: 0.80, supplier: "Charles", isPOSItem: true, menuPrice: 8.00 },
+    
+    // Mozzarella Sticks - $6
+    { materialName: "Mozzarella Sticks", quantity: 100, unit: "pieces", costPerUnit: 0.60, supplier: "Charles", isPOSItem: true, menuPrice: 6.00 },
+    
+    // Chicken Tenders - $8
+    { materialName: "Chicken Tenders", quantity: 80, unit: "pieces", costPerUnit: 1.00, supplier: "Charles", isPOSItem: true, menuPrice: 8.00 },
+    
+    // Chicken Wings - $10
+    { materialName: "Chicken Wings", quantity: 100, unit: "pieces", costPerUnit: 1.50, supplier: "Charles", isPOSItem: true, menuPrice: 10.00 },
+    
+    // Nachos - $8
+    { materialName: "Nachos", quantity: 30, unit: "portions", costPerUnit: 2.00, supplier: "Charles", isPOSItem: true, menuPrice: 8.00 },
+    
+    // Cheese Garlic Bread - $7
+    { materialName: "Cheese Garlic Bread", quantity: 40, unit: "portions", costPerUnit: 2.50, supplier: "Charles", isPOSItem: true, menuPrice: 7.00 },
+    
+    // Shrimp Tempura - $12
+    { materialName: "Shrimp Tempura", quantity: 60, unit: "portions", costPerUnit: 6.00, supplier: "Charles", isPOSItem: true, menuPrice: 12.00 },
+    
+    // Salmon Bruschetta - $10
+    { materialName: "Salmon Bruschetta", quantity: 30, unit: "portions", costPerUnit: 5.00, supplier: "Charles", isPOSItem: true, menuPrice: 10.00 },
+    
+    // Dynamite Shrimps - $9
+    { materialName: "Dynamite Shrimps", quantity: 50, unit: "portions", costPerUnit: 4.50, supplier: "Charles", isPOSItem: true, menuPrice: 9.00 },
+    
+    // Chicken Quesadillas - $11
+    { materialName: "Chicken Quesadillas", quantity: 40, unit: "portions", costPerUnit: 5.50, supplier: "Charles", isPOSItem: true, menuPrice: 11.00 },
+    
+    // French Fries - $3
+    { materialName: "French Fries", quantity: 100, unit: "portions", costPerUnit: 1.00, supplier: "Charles", isPOSItem: true, menuPrice: 3.00 },
+    
+    // Wedges - $5
+    { materialName: "Wedges", quantity: 80, unit: "portions", costPerUnit: 1.50, supplier: "Charles", isPOSItem: true, menuPrice: 5.00 },
+    
+    // Curly Fries - $8
+    { materialName: "Curly Fries", quantity: 60, unit: "portions", costPerUnit: 2.50, supplier: "Charles", isPOSItem: true, menuPrice: 8.00 },
+    
+    // Oops Fries - $13
+    { materialName: "Oops Fries", quantity: 40, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Combo Platter - $15
+    { materialName: "Combo Platter", quantity: 25, unit: "portions", costPerUnit: 7.50, supplier: "Charles", isPOSItem: true, menuPrice: 15.00 },
+    
+    // Mix Seafood - $18
+    { materialName: "Mix Seafood", quantity: 20, unit: "portions", costPerUnit: 9.00, supplier: "Charles", isPOSItem: true, menuPrice: 18.00 },
 
-    // Non-POS Ingredients
-    { materialName: "Chicken Thigh", quantity: 25, unit: "kg", costPerUnit: 7.00, supplier: "Charles", isPOSItem: false },
-    { materialName: "Ham", quantity: 8, unit: "kg", costPerUnit: 12.00, supplier: "Charles", isPOSItem: false },
-    { materialName: "Bacon", quantity: 6, unit: "kg", costPerUnit: 14.00, supplier: "Charles", isPOSItem: false },
-    { materialName: "Pepperoni", quantity: 4, unit: "kg", costPerUnit: 16.00, supplier: "Charles", isPOSItem: false },
-    { materialName: "Salami", quantity: 3, unit: "kg", costPerUnit: 18.00, supplier: "Charles", isPOSItem: false },
+    // =============================================================================
+    // SALADS - POS ITEMS WITH REAL MENU PRICES
+    // =============================================================================
+    
+    // Rocca Salad - $11
+    { materialName: "Rocca Salad", quantity: 40, unit: "portions", costPerUnit: 4.50, supplier: "Charles", isPOSItem: true, menuPrice: 11.00 },
+    
+    // Halloumi Salad - $11
+    { materialName: "Halloumi Salad", quantity: 35, unit: "portions", costPerUnit: 4.50, supplier: "Charles", isPOSItem: true, menuPrice: 11.00 },
+    
+    // Crab Salad - $14
+    { materialName: "Crab Salad", quantity: 30, unit: "portions", costPerUnit: 7.00, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // Chicken Caesar Salad - $14
+    { materialName: "Chicken Caesar Salad", quantity: 35, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // Kale Feta Salad - $12
+    { materialName: "Kale Feta Salad", quantity: 30, unit: "portions", costPerUnit: 5.50, supplier: "Charles", isPOSItem: true, menuPrice: 12.00 },
+    
+    // Kale Chicken Mango Salad - $15
+    { materialName: "Kale Chicken Mango Salad", quantity: 25, unit: "portions", costPerUnit: 7.50, supplier: "Charles", isPOSItem: true, menuPrice: 15.00 },
+    
+    // Quinoa Shrimp - $15
+    { materialName: "Quinoa Shrimp Salad", quantity: 25, unit: "portions", costPerUnit: 7.50, supplier: "Charles", isPOSItem: true, menuPrice: 15.00 },
+    
+    // Tuna Pasta Salad - $14
+    { materialName: "Tuna Pasta Salad", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // Oops Salad - $17
+    { materialName: "Oops Salad", quantity: 20, unit: "portions", costPerUnit: 8.50, supplier: "Charles", isPOSItem: true, menuPrice: 17.00 },
 
-    // Dairy & Cheese
-    { materialName: "Mozzarella Cheese", quantity: 20, unit: "kg", costPerUnit: 8.00, supplier: "Charles", isPOSItem: false },
-    { materialName: "Cheddar Cheese", quantity: 15, unit: "kg", costPerUnit: 9.00, supplier: "Charles", isPOSItem: false },
-    { materialName: "Parmesan", quantity: 5, unit: "kg", costPerUnit: 18.00, supplier: "Charles", isPOSItem: false },
-    { materialName: "Feta Cheese", quantity: 8, unit: "kg", costPerUnit: 10.00, supplier: "Charles", isPOSItem: false },
-    { materialName: "Cream Cheese", quantity: 6, unit: "kg", costPerUnit: 7.00, supplier: "Charles", isPOSItem: false },
-    { materialName: "Emental Cheese", quantity: 4, unit: "kg", costPerUnit: 15.00, supplier: "Charles", isPOSItem: false },
+    // =============================================================================
+    // SANDWICHES - POS ITEMS WITH REAL MENU PRICES
+    // =============================================================================
+    
+    // Taouk Sandwich - $7
+    { materialName: "Taouk Sandwich", quantity: 50, unit: "portions", costPerUnit: 3.50, supplier: "Charles", isPOSItem: true, menuPrice: 7.00 },
+    
+    // Fajita Sandwich - $13
+    { materialName: "Fajita Sandwich", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // BBQ Chicken Sandwich - $13
+    { materialName: "BBQ Chicken Sandwich", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Francisco Sandwich - $13
+    { materialName: "Francisco Sandwich", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Crispy Sandwich - $13
+    { materialName: "Crispy Sandwich", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Submarine Sandwich - $13
+    { materialName: "Submarine Sandwich", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Steak Sandwich - $15
+    { materialName: "Steak Sandwich", quantity: 25, unit: "portions", costPerUnit: 7.50, supplier: "Charles", isPOSItem: true, menuPrice: 15.00 },
+    
+    // Chicken Delight Sandwich - $13
+    { materialName: "Chicken Delight Sandwich", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Halloumi Sandwich - $10
+    { materialName: "Halloumi Sandwich", quantity: 35, unit: "portions", costPerUnit: 5.00, supplier: "Charles", isPOSItem: true, menuPrice: 10.00 },
+    
+    // Crab Sandwich - $10
+    { materialName: "Crab Sandwich", quantity: 30, unit: "portions", costPerUnit: 5.00, supplier: "Charles", isPOSItem: true, menuPrice: 10.00 },
+    
+    // Salmon Sandwich - $16
+    { materialName: "Salmon Sandwich", quantity: 20, unit: "portions", costPerUnit: 8.00, supplier: "Charles", isPOSItem: true, menuPrice: 16.00 },
 
-    // Vegetables
+    // =============================================================================
+    // BURGERS - POS ITEMS WITH REAL MENU PRICES
+    // =============================================================================
+    
+    // Classic Hamburger - $9
+    { materialName: "Classic Hamburger", quantity: 40, unit: "portions", costPerUnit: 4.50, supplier: "Charles", isPOSItem: true, menuPrice: 9.00 },
+    
+    // Chicken Burger - $7.5
+    { materialName: "Chicken Burger", quantity: 45, unit: "portions", costPerUnit: 3.75, supplier: "Charles", isPOSItem: true, menuPrice: 7.50 },
+    
+    // Mozzarella Burger - $7
+    { materialName: "Mozzarella Burger", quantity: 40, unit: "portions", costPerUnit: 3.50, supplier: "Charles", isPOSItem: true, menuPrice: 7.00 },
+    
+    // Healthy Burger - $10
+    { materialName: "Healthy Burger", quantity: 35, unit: "portions", costPerUnit: 5.00, supplier: "Charles", isPOSItem: true, menuPrice: 10.00 },
+    
+    // Oops Beef Burger - $13
+    { materialName: "Oops Beef Burger", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Oops Chicken Burger - $13
+    { materialName: "Oops Chicken Burger", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Bomba Beef Burger - $15
+    { materialName: "Bomba Beef Burger", quantity: 25, unit: "portions", costPerUnit: 7.50, supplier: "Charles", isPOSItem: true, menuPrice: 15.00 },
+    
+    // Bomba Chicken Burger - $16
+    { materialName: "Bomba Chicken Burger", quantity: 25, unit: "portions", costPerUnit: 8.00, supplier: "Charles", isPOSItem: true, menuPrice: 16.00 },
+    
+    // Pepperoni Burger - $16
+    { materialName: "Pepperoni Burger", quantity: 25, unit: "portions", costPerUnit: 8.00, supplier: "Charles", isPOSItem: true, menuPrice: 16.00 },
+    
+    // The Ghost Burger - $17
+    { materialName: "The Ghost Burger", quantity: 20, unit: "portions", costPerUnit: 8.50, supplier: "Charles", isPOSItem: true, menuPrice: 17.00 },
+    
+    // Royal Beef Burger - $20
+    { materialName: "Royal Beef Burger", quantity: 15, unit: "portions", costPerUnit: 10.00, supplier: "Charles", isPOSItem: true, menuPrice: 20.00 },
+    
+    // Royal Chicken Burger - $20
+    { materialName: "Royal Chicken Burger", quantity: 15, unit: "portions", costPerUnit: 10.00, supplier: "Charles", isPOSItem: true, menuPrice: 20.00 },
+    
+    // Chicken Mac n Cheese Burger - $17
+    { materialName: "Chicken Mac n Cheese Burger", quantity: 20, unit: "portions", costPerUnit: 8.50, supplier: "Charles", isPOSItem: true, menuPrice: 17.00 },
+    
+    // Mushroom Swiss Burger - $15
+    { materialName: "Mushroom Swiss Burger", quantity: 25, unit: "portions", costPerUnit: 7.50, supplier: "Charles", isPOSItem: true, menuPrice: 15.00 },
+
+    // =============================================================================
+    // PASTA - POS ITEMS WITH REAL MENU PRICES
+    // =============================================================================
+    
+    // Penne Arrabiata - $10
+    { materialName: "Penne Arrabiata", quantity: 40, unit: "portions", costPerUnit: 4.00, supplier: "Charles", isPOSItem: true, menuPrice: 10.00 },
+    
+    // Penne Rose - $11
+    { materialName: "Penne Rose", quantity: 35, unit: "portions", costPerUnit: 4.50, supplier: "Charles", isPOSItem: true, menuPrice: 11.00 },
+    
+    // Pesto Pasta - $11
+    { materialName: "Pesto Pasta", quantity: 35, unit: "portions", costPerUnit: 4.50, supplier: "Charles", isPOSItem: true, menuPrice: 11.00 },
+    
+    // Fettuccine Alfredo - $14
+    { materialName: "Fettuccine Alfredo", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // Shrimp Alfredo - $15
+    { materialName: "Shrimp Alfredo", quantity: 25, unit: "portions", costPerUnit: 7.50, supplier: "Charles", isPOSItem: true, menuPrice: 15.00 },
+    
+    // Spaghetti Shrimp - $15
+    { materialName: "Spaghetti Shrimp", quantity: 25, unit: "portions", costPerUnit: 7.50, supplier: "Charles", isPOSItem: true, menuPrice: 15.00 },
+    
+    // Vegetable Noodles - $10
+    { materialName: "Vegetable Noodles", quantity: 35, unit: "portions", costPerUnit: 4.00, supplier: "Charles", isPOSItem: true, menuPrice: 10.00 },
+    
+    // Chicken Noodles - $12
+    { materialName: "Chicken Noodles", quantity: 30, unit: "portions", costPerUnit: 5.50, supplier: "Charles", isPOSItem: true, menuPrice: 12.00 },
+    
+    // Shrimp Noodles - $14
+    { materialName: "Shrimp Noodles", quantity: 25, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+
+    // =============================================================================
+    // MAIN COURSE - POS ITEMS WITH REAL MENU PRICES
+    // =============================================================================
+    
+    // Taouk Platter - $12
+    { materialName: "Taouk Platter", quantity: 35, unit: "portions", costPerUnit: 6.00, supplier: "Charles", isPOSItem: true, menuPrice: 12.00 },
+    
+    // Crispy Platter - $14
+    { materialName: "Crispy Platter", quantity: 30, unit: "portions", costPerUnit: 7.00, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // Bajaxy - $19
+    { materialName: "Bajaxy", quantity: 20, unit: "portions", costPerUnit: 9.50, supplier: "Charles", isPOSItem: true, menuPrice: 19.00 },
+    
+    // Chicken Mushroom - $18
+    { materialName: "Chicken Mushroom", quantity: 25, unit: "portions", costPerUnit: 9.00, supplier: "Charles", isPOSItem: true, menuPrice: 18.00 },
+    
+    // Chicken Pesto - $18
+    { materialName: "Chicken Pesto", quantity: 25, unit: "portions", costPerUnit: 9.00, supplier: "Charles", isPOSItem: true, menuPrice: 18.00 },
+    
+    // Chicken Parmigiana - $19
+    { materialName: "Chicken Parmigiana", quantity: 20, unit: "portions", costPerUnit: 9.50, supplier: "Charles", isPOSItem: true, menuPrice: 19.00 },
+    
+    // Chicken Halloumi - $20
+    { materialName: "Chicken Halloumi", quantity: 20, unit: "portions", costPerUnit: 10.00, supplier: "Charles", isPOSItem: true, menuPrice: 20.00 },
+    
+    // Chicken Strogonoff - $18
+    { materialName: "Chicken Strogonoff", quantity: 25, unit: "portions", costPerUnit: 9.00, supplier: "Charles", isPOSItem: true, menuPrice: 18.00 },
+    
+    // Beef Strogonoff - $18
+    { materialName: "Beef Strogonoff", quantity: 20, unit: "portions", costPerUnit: 9.00, supplier: "Charles", isPOSItem: true, menuPrice: 18.00 },
+    
+    // Butter Shrimp - $18
+    { materialName: "Butter Shrimp", quantity: 20, unit: "portions", costPerUnit: 9.00, supplier: "Charles", isPOSItem: true, menuPrice: 18.00 },
+    
+    // Butter Chicken - $17
+    { materialName: "Butter Chicken", quantity: 25, unit: "portions", costPerUnit: 8.50, supplier: "Charles", isPOSItem: true, menuPrice: 17.00 },
+    
+    // Steak Mushroom - $23
+    { materialName: "Steak Mushroom", quantity: 15, unit: "portions", costPerUnit: 11.50, supplier: "Charles", isPOSItem: true, menuPrice: 23.00 },
+    
+    // Cashew Chicken - $21
+    { materialName: "Cashew Chicken", quantity: 20, unit: "portions", costPerUnit: 10.50, supplier: "Charles", isPOSItem: true, menuPrice: 21.00 },
+    
+    // Oops Platter - $21
+    { materialName: "Oops Platter", quantity: 20, unit: "portions", costPerUnit: 10.50, supplier: "Charles", isPOSItem: true, menuPrice: 21.00 },
+    
+    // Grilled Salmon - $24
+    { materialName: "Grilled Salmon", quantity: 15, unit: "portions", costPerUnit: 12.00, supplier: "Charles", isPOSItem: true, menuPrice: 24.00 },
+
+    // =============================================================================
+    // PIZZA - POS ITEMS WITH REAL MENU PRICES
+    // =============================================================================
+    
+    // Pizza Margherita - $10
+    { materialName: "Pizza Margherita", quantity: 40, unit: "portions", costPerUnit: 4.00, supplier: "Charles", isPOSItem: true, menuPrice: 10.00 },
+    
+    // Pizza Pepperoni - $13
+    { materialName: "Pizza Pepperoni", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Pizza Lebanese - $13
+    { materialName: "Pizza Lebanese", quantity: 30, unit: "portions", costPerUnit: 6.50, supplier: "Charles", isPOSItem: true, menuPrice: 13.00 },
+    
+    // Pizza Alla Vodka - $12
+    { materialName: "Pizza Alla Vodka", quantity: 35, unit: "portions", costPerUnit: 5.50, supplier: "Charles", isPOSItem: true, menuPrice: 12.00 },
+    
+    // Pizza Chicken Alfredo - $14
+    { materialName: "Pizza Chicken Alfredo", quantity: 30, unit: "portions", costPerUnit: 7.00, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // Pizza Buffalo Chicken - $14
+    { materialName: "Pizza Buffalo Chicken", quantity: 30, unit: "portions", costPerUnit: 7.00, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // Pizza TRIO - $12
+    { materialName: "Pizza TRIO", quantity: 35, unit: "portions", costPerUnit: 5.50, supplier: "Charles", isPOSItem: true, menuPrice: 12.00 },
+    
+    // Pizza Mexican - $14
+    { materialName: "Pizza Mexican", quantity: 30, unit: "portions", costPerUnit: 7.00, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // BBQ Chicken Pizza - $14
+    { materialName: "BBQ Chicken Pizza", quantity: 30, unit: "portions", costPerUnit: 7.00, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // Spicy Chicken Pizza - $14
+    { materialName: "Spicy Chicken Pizza", quantity: 30, unit: "portions", costPerUnit: 7.00, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+    
+    // Vegetarian Pizza - $12
+    { materialName: "Vegetarian Pizza", quantity: 35, unit: "portions", costPerUnit: 5.50, supplier: "Charles", isPOSItem: true, menuPrice: 12.00 },
+    
+    // PestoRoni Pizza - $14
+    { materialName: "PestoRoni Pizza", quantity: 30, unit: "portions", costPerUnit: 7.00, supplier: "Charles", isPOSItem: true, menuPrice: 14.00 },
+
+    // =============================================================================
+    // BREAKFAST - POS ITEMS WITH REAL MENU PRICES
+    // =============================================================================
+    
+    // Labneh - $3.5
+    { materialName: "Labneh", quantity: 50, unit: "portions", costPerUnit: 1.75, supplier: "Charles", isPOSItem: true, menuPrice: 3.50 },
+    
+    // Eggs - $3.5
+    { materialName: "Eggs", quantity: 50, unit: "portions", costPerUnit: 1.75, supplier: "Charles", isPOSItem: true, menuPrice: 3.50 },
+    
+    // Grilled Halloumi Breakfast - $4
+    { materialName: "Grilled Halloumi Breakfast", quantity: 40, unit: "portions", costPerUnit: 2.00, supplier: "Charles", isPOSItem: true, menuPrice: 4.00 },
+    
+    // Sahen Khodra - $1.5
+    { materialName: "Sahen Khodra", quantity: 60, unit: "portions", costPerUnit: 0.75, supplier: "Charles", isPOSItem: true, menuPrice: 1.50 },
+    
+    // Sajj Zaatar - $2
+    { materialName: "Sajj Zaatar", quantity: 50, unit: "portions", costPerUnit: 1.00, supplier: "Charles", isPOSItem: true, menuPrice: 2.00 },
+    
+    // Sajj Zaatar + Khodra - $2.5
+    { materialName: "Sajj Zaatar Khodra", quantity: 45, unit: "portions", costPerUnit: 1.25, supplier: "Charles", isPOSItem: true, menuPrice: 2.50 },
+    
+    // Sajj Labneh - $2.5
+    { materialName: "Sajj Labneh", quantity: 45, unit: "portions", costPerUnit: 1.25, supplier: "Charles", isPOSItem: true, menuPrice: 2.50 },
+    
+    // Sajj Labneh + Khodra - $3
+    { materialName: "Sajj Labneh Khodra", quantity: 40, unit: "portions", costPerUnit: 1.50, supplier: "Charles", isPOSItem: true, menuPrice: 3.00 },
+    
+    // Sajj Cheese - $3
+    { materialName: "Sajj Cheese", quantity: 40, unit: "portions", costPerUnit: 1.50, supplier: "Charles", isPOSItem: true, menuPrice: 3.00 },
+    
+    // Sajj Cheese & Ham - $3.5
+    { materialName: "Sajj Cheese Ham", quantity: 35, unit: "portions", costPerUnit: 1.75, supplier: "Charles", isPOSItem: true, menuPrice: 3.50 },
+    
+    // Sajj Lahmeh b3ajin - $4.5
+    { materialName: "Sajj Lahmeh b3ajin", quantity: 30, unit: "portions", costPerUnit: 2.25, supplier: "Charles", isPOSItem: true, menuPrice: 4.50 },
+    
+    // Sajj Lahmeh & Cheese - $5
+    { materialName: "Sajj Lahmeh Cheese", quantity: 25, unit: "portions", costPerUnit: 2.50, supplier: "Charles", isPOSItem: true, menuPrice: 5.00 },
+
+    // =============================================================================
+    // SUSHI MENU - POS ITEMS WITH REAL MENU PRICES
+    // =============================================================================
+    ...sushiEntries,
+
+    // =============================================================================
+    // INGREDIENT MATERIALS - NON-POS ITEMS
+    // =============================================================================
     { materialName: "Iceberg Lettuce", quantity: 25, unit: "kg", costPerUnit: 2.50, supplier: "Charles", isPOSItem: false },
     { materialName: "Rocca", quantity: 8, unit: "kg", costPerUnit: 4.00, supplier: "Charles", isPOSItem: false },
     { materialName: "Kale", quantity: 6, unit: "kg", costPerUnit: 5.00, supplier: "Charles", isPOSItem: false },
