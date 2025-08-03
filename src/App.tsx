@@ -35,6 +35,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const POSClientPage = lazy(() => import("./pages/POSClientPage"));
 const SalesHistoryPage = lazy(() => import("./pages/SalesHistoryPage").then(m => ({ default: m.SalesHistoryPage })));
 const SystemLogs = lazy(() => import("./pages/SystemLogs"));
+const ThermalPrinterTestPage = lazy(() => import("./pages/ThermalPrinterTestPage"));
 const PlaceholderPage = lazy(() => import("./components/common/PlaceholderPage"));
 
 const queryClient = new QueryClient();
@@ -251,6 +252,16 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     <ProtectedRoute requiredPermission={PERMISSIONS.POS_CUSTOMER_DISPLAY}>
                       <AuthenticatedLayout>
                         <FloorDesignerPage />
+                      </AuthenticatedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/pos/thermal-printer-test"
+                  element={
+                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
+                      <AuthenticatedLayout>
+                        <ThermalPrinterTestPage />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }
