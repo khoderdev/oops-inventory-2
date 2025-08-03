@@ -1695,7 +1695,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                       Discount
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setShowNotesDialog(true)} className="text-xs px-2 py-1 h-7 relative" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
-                      <FileText className={`w-3 h-3 ${currentOrder?.notes || orderNotes ? "text-blue-500" : ""}`} />
+                      <FileText className={`w-3 h-3 ${currentOrder?.notes || orderNotes ? "text-blue-500 drop-shadow-sm shadow-blue-500" : ""}`} />
                       Notes
                     </Button>
                     <Trash2 className="w-5 h-5 text-red-600 cursor-pointer" onClick={clearCart} />

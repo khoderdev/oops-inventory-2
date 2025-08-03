@@ -30,11 +30,11 @@ export const NotesDialog: React.FC<NotesDialogProps> = ({ isOpen, onClose, notes
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       // Enter to save (Shift+Enter for new line)
       e.preventDefault();
       handleSave();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       // Escape to cancel
       e.preventDefault();
       handleCancel();
@@ -54,17 +54,9 @@ export const NotesDialog: React.FC<NotesDialogProps> = ({ isOpen, onClose, notes
         <div className="space-y-4">
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-              Add notes for this order:
+              Add notes (remarks) for this order:
             </label>
-            <Textarea
-              id="notes"
-              placeholder="Enter any special instructions or notes for this order... (Enter to save, Shift+Enter for new line, Esc to cancel)"
-              value={localNotes}
-              onChange={(e) => setLocalNotes(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="min-h-[120px] resize-none"
-              autoFocus
-            />
+            <Textarea id="notes" placeholder="Enter any special instructions or notes for this order... (Enter to save, Shift+Enter for new line, Esc to cancel)" value={localNotes} onChange={e => setLocalNotes(e.target.value)} onKeyDown={handleKeyDown} className="min-h-[120px] resize-none" autoFocus />
           </div>
 
           <div className="flex justify-end space-x-2">
