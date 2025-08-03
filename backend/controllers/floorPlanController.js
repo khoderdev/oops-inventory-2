@@ -71,23 +71,8 @@ export const floorPlanController = {
                 model: FurnitureItem,
                 as: "furniture",
                 where: { isActive: true },
-                required: false,
-                include: [
-                  {
-                    model: Order,
-                    as: "orders",
-                    where: {
-                      status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
-                    },
-                    required: false,
-                    include: [
-                      {
-                        model: OrderItem,
-                        as: "items"
-                      }
-                    ]
-                  }
-                ]
+                required: false
+                // Removed orders include to avoid furnitureItemId column issue
               }
             ]
           }

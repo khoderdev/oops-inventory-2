@@ -1,17 +1,141 @@
+import { floorPlanAPI } from "@/api/floorPlan";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { Clock, Users } from "lucide-react";
-import React, { useState } from "react";
+import { Clock, Map, Users } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
-export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
+export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {}, onTablesUpdate }) => {
   // Ensure tables is always an array
   const safeTablesList = Array.isArray(tables) ? tables : [];
 
   // State for hover popup
   const [hoveredTable, setHoveredTable] = useState<Table | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
+
+  // State for floor plans
+  const [floorPlans, setFloorPlans] = useState<Array<{ id: number; name: string; description?: string }>>([]);
+  const [selectedFloorPlan, setSelectedFloorPlan] = useState<string>("");
+  const [loadingFloorPlans, setLoadingFloorPlans] = useState(false);
+
+  // Load tables from a specific floor plan
+  const loadFloorPlanTables = useCallback(
+    async (floorPlanId: string) => {
+      try {
+        console.log("Loading floor plan:", floorPlanId);
+        // Load the specific floor plan with areas and furniture
+        const response = await floorPlanAPI.getFloorPlan(floorPlanId);
+        const floorPlan = response.data;
+
+        console.log("Floor plan response:", floorPlan);
+
+        if (floorPlan && floorPlan.areas) {
+          // Convert furniture items to Table objects for POS system
+          const tables: Table[] = [];
+
+          floorPlan.areas.forEach((area: { id: number; furniture?: Array<{ id: number; name: string; isTable: boolean; tableNumber?: number; seatingCapacity?: number; status?: string; type: string; position: { x: number; y: number } }> }) => {
+            if (area.furniture) {
+              area.furniture.forEach(furniture => {
+                // Convert tables and bars (not chairs) - bars are seating areas in restaurants
+                const isSeatingFurniture = furniture.isTable || furniture.type === "bar";
+                const hasSeatingCapacity = furniture.seatingCapacity && furniture.seatingCapacity > 0;
+                
+                if (isSeatingFurniture && hasSeatingCapacity) {
+                  // For bars without table numbers, generate one based on name or ID
+                  const tableNumber = furniture.tableNumber || 
+                    (furniture.type === "bar" ? (parseInt(furniture.name.replace(/\D/g, '')) || furniture.id) : furniture.id);
+                  
+                  const table: Table = {
+                    id: furniture.id.toString(),
+                    number: tableNumber,
+                    seats: furniture.seatingCapacity || 4,
+                    status: (furniture.status as Table["status"]) || "available",
+                    shape: getTableShapeFromType(furniture.type),
+                    position: {
+                      x: furniture.position.x / 8, // Convert from pixel to percentage
+                      y: furniture.position.y / 6 // Convert from pixel to percentage
+                    }
+                  };
+                  tables.push(table);
+                }
+              });
+            }
+          });
+
+          // Update the tables in parent component
+          console.log("Converted tables:", tables);
+          if (onTablesUpdate) {
+            onTablesUpdate(tables);
+          }
+        } else {
+          console.log("No areas found in floor plan");
+          // If no areas/furniture, clear tables
+          if (onTablesUpdate) {
+            onTablesUpdate([]);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load floor plan:", error);
+        // Clear tables on error
+        if (onTablesUpdate) {
+          onTablesUpdate([]);
+        }
+      }
+    },
+    [onTablesUpdate]
+  );
+
+  // Load floor plans on component mount
+  useEffect(() => {
+    const loadFloorPlans = async () => {
+      setLoadingFloorPlans(true);
+      try {
+        const response = await floorPlanAPI.getFloorPlans();
+        const plans = response.data || [];
+        setFloorPlans(plans);
+
+        // Set default floor plan if available and load its tables
+        if (plans.length > 0) {
+          const defaultPlan = plans.find(plan => plan.isDefault) || plans[0];
+          const planId = defaultPlan.id.toString();
+          setSelectedFloorPlan(planId);
+
+          // Automatically load tables for the default floor plan
+          await loadFloorPlanTables(planId);
+        }
+      } catch (error) {
+        console.error("Failed to load floor plans:", error);
+      } finally {
+        setLoadingFloorPlans(false);
+      }
+    };
+
+    loadFloorPlans();
+  }, [loadFloorPlanTables]);
+
+  // Handle floor plan change
+  const handleFloorPlanChange = async (floorPlanId: string) => {
+    setSelectedFloorPlan(floorPlanId);
+    await loadFloorPlanTables(floorPlanId);
+  };
+
+  // Helper function to convert furniture type to table shape
+  const getTableShapeFromType = (type: string): Table["shape"] => {
+    switch (type) {
+      case "round-table":
+        return "round";
+      case "square-table":
+        return "square";
+      case "rectangular-table":
+        return "rectangle";
+      case "bar":
+        return "rectangle"; // Bars are typically rectangular
+      default:
+        return "square";
+    }
+  };
 
   const getTableStatusColor = (status: Table["status"]) => {
     switch (status) {
@@ -152,15 +276,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                   );
                 })
               )}
-
-              {/* Restaurant Features */}
-              <div className="absolute top-0 left-4 bg-blue-100 border-2 border-blue-300 rounded-lg p-4 w-32 h-16 flex items-center justify-center">
-                <span className="text-sm font-medium text-blue-800">Kitchen</span>
-              </div>
-
-              <div className="absolute top-6 right-4 bg-purple-100 border-2 border-purple-300 rounded-lg p-4 w-28 h-[90%] flex items-center justify-center">
-                <span className="text-sm font-medium text-purple-800">Bar</span>
-              </div>
             </div>
           </div>
         </div>
@@ -199,13 +314,36 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
               </div>
             </div>
 
-            <div className="flex space-x-3">
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button onClick={() => selectedTable && onTableSelect(selectedTable)} disabled={!selectedTable || selectedTable.status === "cleaning"} className="bg-blue-600 hover:bg-blue-700">
-                {selectedTable?.status === "opened" ? "Continue Order" : "Start Order"}
-              </Button>
+            <div className="flex items-center space-x-4">
+              {/* Floor Plan Selector */}
+              <div className="flex items-center space-x-2">
+                <Map className="w-4 h-4 text-gray-600" />
+                <Select value={selectedFloorPlan} onValueChange={handleFloorPlanChange} disabled={loadingFloorPlans}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder={loadingFloorPlans ? "Loading plans..." : "Select floor plan"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {floorPlans.map(plan => (
+                      <SelectItem key={plan.id} value={plan.id.toString()}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{plan.name}</span>
+                          {plan.description && <span className="text-xs text-gray-500">{plan.description}</span>}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3">
+                <Button variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button onClick={() => selectedTable && onTableSelect(selectedTable)} disabled={!selectedTable || selectedTable.status === "cleaning"} className="bg-blue-600 hover:bg-blue-700">
+                  {selectedTable?.status === "opened" ? "Continue Order" : "Start Order"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { floorPlanAPI } from "@/api/floorPlan";
 import { menuAPI } from "@/api/menu.api.ts.tsx";
 import { ordersAPI } from "@/api/orders.api";
 import { posAPI } from "@/api/pos.api.ts";
@@ -127,6 +128,24 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setSuccessMessage(message);
     if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
     successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
+  // Update table status in floor plan when order is placed
+  const updateTableStatus = useCallback(async (table: Table, status: 'available' | 'occupied' | 'reserved' | 'cleaning' | 'out_of_order') => {
+    try {
+      // Only update if the table has a numeric ID (from floor plan furniture)
+      const furnitureItemId = parseInt(table.id);
+      if (!isNaN(furnitureItemId)) {
+        console.log(`🪑 Updating table ${table.number} (furniture ID: ${furnitureItemId}) status to: ${status}`);
+        await floorPlanAPI.updateFurnitureStatus(furnitureItemId, status);
+        console.log(`✅ Table ${table.number} status updated successfully`);
+      } else {
+        console.log(`ℹ️ Table ${table.number} is not from floor plan (ID: ${table.id}), skipping status update`);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to update table ${table.number} status:`, error);
+      // Don't throw error - table status update shouldn't block order creation
+    }
   }, []);
 
   useEffect(() => {
@@ -1050,6 +1069,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         const result = await voidOrder(reason, restoreStock);
 
+        // Update table status to 'available' if this was a table order
+        if (orderType === "table" && selectedTable) {
+          await updateTableStatus(selectedTable, "available");
+        }
+
         // Clear cart and local storage after successful void
         clearCartWithAnimation();
         setHasUnsavedChanges(false);
@@ -1076,7 +1100,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Error is already handled by the voidOrder function
       }
     },
-    [voidOrder, clearCartWithAnimation, showSuccess, resetToTakeaway, clearOrder, refreshAllCounts]
+    [voidOrder, clearCartWithAnimation, showSuccess, resetToTakeaway, clearOrder, refreshAllCounts, orderType, selectedTable, updateTableStatus]
   );
 
   // Handle orders dialog
@@ -1085,7 +1109,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, []);
 
   // Handle cancel order - clear all state and reset to default
-  const handleCancelOrder = useCallback(() => {
+  const handleCancelOrder = useCallback(async () => {
+    // Update table status to 'available' if this was a table order
+    if (orderType === "table" && selectedTable) {
+      await updateTableStatus(selectedTable, "available");
+    }
+
     // Clear cart instantly (no animation for cancel)
     setCart([]);
 
@@ -1122,7 +1151,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setSuccessMessage(null);
 
     console.log("🧹 Order cancelled - all state cleared");
-  }, [clearOrder]);
+  }, [clearOrder, orderType, selectedTable, updateTableStatus]);
 
   // Format items for printer output using utility function
   const formatItemsForPrinterCallback = useCallback(
@@ -1306,6 +1335,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Show success message
       showSuccess(`Order ${savedOrder.orderNumber || savedOrder.id} saved successfully!`);
 
+      // Update table status to 'occupied' if this is a table order
+      if (orderType === "table" && selectedTable) {
+        await updateTableStatus(selectedTable, "occupied");
+      }
+
       // Print items to their assigned printers
       await printItemsToAssignedPrinters(cart);
 
@@ -1354,7 +1388,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshAllCounts, printItemsToAssignedPrinters]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshAllCounts, printItemsToAssignedPrinters, updateTableStatus]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
@@ -1511,6 +1545,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       if (selectedTable && orderType === "table") {
         try {
+          // Update floor plan table status to 'available' when order is completed
+          await updateTableStatus(selectedTable, "available");
+          
+          // Also clear legacy table reservation if applicable
           await tablesAPI.clearReservation(selectedTable.id);
           const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
           const responseData = tablesResponse.data as Table[] | { data: Table[] };
@@ -1584,7 +1622,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, orderNotes, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, printItemsToAssignedPrinters]);
+  }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, orderNotes, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, printItemsToAssignedPrinters, updateTableStatus]);
 
   // Resize handle mouse events
   const handleMouseDown = () => {
@@ -2037,7 +2075,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
           <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 !z-50 bg-white overflow-hidden">
             <div className="w-full h-full flex flex-col overflow-hidden">
-              <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} />
+              <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} onTablesUpdate={setTables} />
             </div>
           </DialogContent>
         </Dialog>

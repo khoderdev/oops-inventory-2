@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Download, FolderOpen, Plus, Save, Trash2 } from "lucide-react";
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FloorPlan, FurnitureTemplate } from "../../types/floor-plan";
 import { furnitureTemplates } from "./furniture-templates";
 
@@ -21,6 +22,7 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [saveName, setSaveName] = useState(currentPlan.name);
   const [savedPlans, setSavedPlans] = useState<FloorPlan[]>([]);
+  const navigate = useNavigate();
 
   // Load saved plans when dialog opens
   const refreshSavedPlans = async () => {
@@ -28,7 +30,7 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
       const plans = await getSavedPlans();
       setSavedPlans(plans);
     } catch (error) {
-      console.error('Failed to load saved plans:', error);
+      console.error("Failed to load saved plans:", error);
       setSavedPlans([]);
     }
   };
@@ -57,12 +59,7 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
       <div className="p-2 border-b border-gray-200 shrink-0">
         {/* Action Buttons */}
         <div className="flex flex-col gap-2 mt-3">
-          <Button
-            onClick={onNewPlan}
-            variant="outline"
-            size="sm"
-            className="gap-2 w-full"
-          >
+          <Button onClick={onNewPlan} variant="outline" size="sm" className="gap-2 w-full">
             <Plus className="w-4 h-4" />
             New Plan
           </Button>
@@ -92,7 +89,7 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 min-h-0">
+      <div className="flex h-full flex-col justify-between overflow-y-auto p-2 min-h-0">
         <div>
           <h3 className="text-sm font-medium text-gray-700 uppercase tracking-wide mb-3">Furnitures</h3>
           <div className="grid grid-cols-2 gap-3">
@@ -105,6 +102,9 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
             ))}
           </div>
         </div>
+        <Button onClick={() => navigate(-1)} variant="destructive" size="sm" className="gap-2 w-full">
+          Exit
+        </Button>
       </div>
 
       {/* Save Dialog */}

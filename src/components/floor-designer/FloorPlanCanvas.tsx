@@ -94,7 +94,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
     }
   }, []);
 
-  // Calculate pan constraints based on zoom level and canvas bounds
+  // Calculate pan constraints to match TablesLayout coordinate system
   const getPanConstraints = useCallback(() => {
     if (!canvasRef.current) return null;
 
@@ -102,10 +102,20 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
     const viewportWidth = rect.width;
     const viewportHeight = rect.height;
 
-    // When zoomed in (scale > 1), allow more freedom to explore
+    // Use the same base coordinate system as TablesLayout (800x600)
+    const baseWidth = 800;
+    const baseHeight = 600;
+    const scaleX = rect.width / baseWidth;
+    const scaleY = rect.height / baseHeight;
+    const uniformScale = Math.min(scaleX, scaleY);
+
+    const canvasWidth = baseWidth * uniformScale;
+    const canvasHeight = baseHeight * uniformScale;
+
+    // When zoomed in (scale > 1), allow reasonable panning within the coordinate system
     if (scale > 1) {
-      const maxPanX = area.bounds.width * scale * 0.5;
-      const maxPanY = area.bounds.height * scale * 0.5;
+      const maxPanX = canvasWidth * scale * 0.3; // Conservative panning
+      const maxPanY = canvasHeight * scale * 0.3; // Conservative panning
       return {
         minX: -maxPanX,
         maxX: maxPanX,
@@ -114,18 +124,21 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
       };
     }
 
-    // When zoomed out, constrain to keep content visible
-    const scaledAreaWidth = area.bounds.width * scale;
-    const scaledAreaHeight = area.bounds.height * scale;
+    // When zoomed out, keep the canvas centered like TablesLayout
+    const scaledCanvasWidth = canvasWidth * scale;
+    const scaledCanvasHeight = canvasHeight * scale;
 
-    // Calculate constraints to keep the floor plan area within viewport
-    const minX = Math.min(0, viewportWidth - scaledAreaWidth - 50); // 50px margin
-    const maxX = Math.max(0, 50); // 50px margin
-    const minY = Math.min(0, viewportHeight - scaledAreaHeight - 50);
-    const maxY = Math.max(0, 50);
+    // Center the canvas in the viewport
+    const centerX = (viewportWidth - scaledCanvasWidth) / 2;
+    const centerY = (viewportHeight - scaledCanvasHeight) / 2;
+
+    const minX = Math.min(centerX, viewportWidth - scaledCanvasWidth - 20);
+    const maxX = Math.max(centerX, 20);
+    const minY = Math.min(centerY, viewportHeight - scaledCanvasHeight - 20);
+    const maxY = Math.max(centerY, 20);
 
     return { minX, maxX, minY, maxY };
-  }, [scale, area.bounds.width, area.bounds.height]);
+  }, [scale]);
 
   const handleCanvasMouseMove = useCallback(
     (e: React.MouseEvent) => {
@@ -304,25 +317,32 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
 
   const gridSize = getGridSize();
 
-  // Calculate canvas dimensions to ensure grid covers entire viewport
+  // Calculate canvas dimensions to match TablesLayout coordinate system exactly
   const getCanvasDimensions = () => {
-    if (!canvasRef.current) return { width: area.bounds.width * 2, height: area.bounds.height * 2 };
+    // TablesLayout uses a coordinate system where:
+    // - Width: 800px = 100% (furniture.position.x / 8 = percentage)
+    // - Height: 600px = 100% (furniture.position.y / 6 = percentage)
+    // We need to match this exact coordinate system for perfect alignment
+
+    const baseWidth = 800; // Base coordinate system width
+    const baseHeight = 600; // Base coordinate system height
+
+    if (!canvasRef.current) {
+      return { width: baseWidth, height: baseHeight };
+    }
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const viewportWidth = rect.width;
-    const viewportHeight = rect.height;
 
-    // Calculate the dimensions needed to cover the entire viewport at current scale and pan
-    const scaledViewportWidth = viewportWidth / scale;
-    const scaledViewportHeight = viewportHeight / scale;
+    // Scale the base coordinate system to fit the viewport while maintaining aspect ratio
+    const scaleX = rect.width / baseWidth;
+    const scaleY = rect.height / baseHeight;
+    const uniformScale = Math.min(scaleX, scaleY);
 
-    // Add significant padding to ensure grid extends well beyond visible area
-    const padding = Math.max(scaledViewportWidth, scaledViewportHeight) * 2;
+    // Use the base coordinate system scaled to fit viewport
+    const canvasWidth = baseWidth * uniformScale;
+    const canvasHeight = baseHeight * uniformScale;
 
-    const totalWidth = Math.max(area.bounds.width * 3, scaledViewportWidth + Math.abs(pan.x / scale) + padding);
-    const totalHeight = Math.max(area.bounds.height * 3, scaledViewportHeight + Math.abs(pan.y / scale) + padding);
-
-    return { width: totalWidth, height: totalHeight };
+    return { width: canvasWidth, height: canvasHeight };
   };
 
   const canvasDimensions = getCanvasDimensions();
@@ -404,7 +424,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
           }}
         >
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div className="relative w-full h-full">
+            <div className="relative w-full h-full bg-red-400">
               {area.furniture.map(furniture => (
                 <div key={furniture.id} onContextMenu={e => handleFurnitureRightClick(furniture, e)}>
                   <FurnitureItem furniture={furniture} isSelected={selectedFurnitureId === furniture.id} onSelect={onSelectFurniture} />

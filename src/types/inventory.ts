@@ -648,6 +648,7 @@ export interface TablesLayoutProps {
   onTableSelect: (table: Table) => void;
   onClose: () => void;
   tableOrders?: { [tableId: string]: number }; // For notification badges
+  onTablesUpdate?: (tables: Table[]) => void; // Callback to update tables from floor plan
 }
 
 export interface CategoryTabsProps {
