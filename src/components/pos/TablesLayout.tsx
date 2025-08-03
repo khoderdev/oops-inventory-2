@@ -20,6 +20,19 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const [selectedFloorPlan, setSelectedFloorPlan] = useState<string>("");
   const [loadingFloorPlans, setLoadingFloorPlans] = useState(false);
 
+  // State for all furniture (for visual rendering)
+  const [allFurniture, setAllFurniture] = useState<Array<{
+    id: number;
+    type: string;
+    position: { x: number; y: number };
+    dimensions?: { width: number; height: number };
+    rotation?: number;
+    color?: string;
+    name: string;
+    isClickable: boolean;
+    parentId?: string;
+  }>>([]);
+
   // Load tables from a specific floor plan
   const loadFloorPlanTables = useCallback(
     async (floorPlanId: string) => {
@@ -34,11 +47,36 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         if (floorPlan && floorPlan.areas) {
           // Convert furniture items to Table objects for POS system
           const tables: Table[] = [];
+          // Store all furniture for visual rendering (including chairs)
+          const allFurniture: Array<{
+            id: number;
+            type: string;
+            position: { x: number; y: number };
+            dimensions?: { width: number; height: number };
+            rotation?: number;
+            color?: string;
+            name: string;
+            isClickable: boolean;
+            parentId?: string;
+          }> = [];
 
-          floorPlan.areas.forEach((area: { id: number; furniture?: Array<{ id: number; name: string; isTable: boolean; tableNumber?: number; seatingCapacity?: number; status?: string; type: string; position: { x: number; y: number }; dimensions?: { width: number; height: number }; rotation?: number; color?: string }> }) => {
+          floorPlan.areas.forEach((area: { id: number; furniture?: Array<{ id: number; name: string; isTable: boolean; tableNumber?: number; seatingCapacity?: number; status?: string; type: string; position: { x: number; y: number }; dimensions?: { width: number; height: number }; rotation?: number; color?: string; parentId?: string }> }) => {
             if (area.furniture) {
               area.furniture.forEach(furniture => {
-                // Convert tables and bars (not chairs) - bars are seating areas in restaurants
+                // Add ALL furniture to visual rendering array with parent relationship info
+                allFurniture.push({
+                  id: furniture.id,
+                  type: furniture.type,
+                  position: furniture.position,
+                  dimensions: furniture.dimensions,
+                  rotation: furniture.rotation,
+                  color: furniture.color,
+                  name: furniture.name,
+                  isClickable: furniture.isTable || furniture.type === "bar",
+                  parentId: furniture.parentId
+                });
+                
+                // Only create clickable "tables" for seating furniture
                 const isSeatingFurniture = furniture.isTable || furniture.type === "bar";
                 const hasSeatingCapacity = furniture.seatingCapacity && furniture.seatingCapacity > 0;
                 
@@ -100,8 +138,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
             }
           });
 
-          // Update the tables in parent component
+          // Update the tables in parent component and store all furniture
           console.log("Converted tables:", tables);
+          console.log("All furniture for rendering:", allFurniture);
+          setAllFurniture(allFurniture);
           if (onTablesUpdate) {
             onTablesUpdate(tables);
           }
@@ -276,6 +316,157 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     return style;
   };
 
+  // Type for furniture items
+  type FurnitureItem = {
+    id: number;
+    type: string;
+    position: { x: number; y: number };
+    dimensions?: { width: number; height: number };
+    rotation?: number;
+    color?: string;
+    name: string;
+    isClickable: boolean;
+    parentId?: string;
+  };
+
+  // Function to render any furniture piece
+  const getFurnitureStyle = (furniture: FurnitureItem) => {
+    const width = furniture.dimensions?.width || 40;
+    const height = furniture.dimensions?.height || 40;
+    const rotation = furniture.rotation || 0;
+    const backgroundColor = furniture.color || getFurnitureDefaultColor(furniture.type);
+    
+    // Use appropriate scaling based on furniture type
+    let scaledWidth, scaledHeight;
+    
+    if (furniture.type === "bar") {
+      scaledWidth = Math.max(width / 3, 40);
+      scaledHeight = Math.max(height / 3, 15);
+    } else if (furniture.type === "chair") {
+      scaledWidth = Math.max(width / 4, 15);
+      scaledHeight = Math.max(height / 4, 15);
+    } else {
+      scaledWidth = Math.max(width / 4, 30);
+      scaledHeight = Math.max(height / 4, 30);
+    }
+    
+    return {
+      width: `${scaledWidth}px`,
+      height: `${scaledHeight}px`,
+      backgroundColor,
+      position: 'absolute' as const,
+      left: `${((furniture.position.x + (furniture.dimensions?.width || 40) / 2) / 800) * 100}%`,
+      top: `${((furniture.position.y + (furniture.dimensions?.height || 40) / 2) / 600) * 100}%`,
+      transform: `translate(-50%, -50%) rotate(${rotation}deg)`
+    };
+  };
+  
+  const getFurnitureDefaultColor = (type: string) => {
+    switch (type) {
+      case "bar": return "#fef3c7";
+      case "chair": return "#8B4513";
+      case "round-table": return "#D2B48C";
+      case "square-table": return "#D2B48C";
+      case "rectangular-table": return "#D2B48C";
+      default: return "#D3D3D3";
+    }
+  };
+  
+  const getFurnitureClasses = (furniture: FurnitureItem) => {
+    const baseClasses = "border border-gray-300 flex items-center justify-center text-xs font-medium";
+    
+    switch (furniture.type) {
+      case "bar":
+        return `${baseClasses} bg-gradient-to-r from-amber-100 to-amber-200 border-amber-400 shadow-md`;
+      case "chair":
+        return `${baseClasses} bg-amber-800 text-white rounded-sm`;
+      case "round-table":
+        return `${baseClasses} bg-amber-100 rounded-full border-amber-300`;
+      case "square-table":
+      case "rectangular-table":
+        return `${baseClasses} bg-amber-100 rounded-lg border-amber-300`;
+      default:
+        return `${baseClasses} bg-gray-200 rounded`;
+    }
+  };
+  
+  // Group furniture by parent-child relationships
+  const groupFurniture = (furnitureList: FurnitureItem[]) => {
+    const groups: { [key: string]: FurnitureItem[] } = {};
+    const standalone: FurnitureItem[] = [];
+    
+    // First, identify all parent furniture (tables, bars)
+    const parents = furnitureList.filter(f => !f.parentId && (f.isClickable || f.type === "bar"));
+    
+    // Create groups for each parent
+    parents.forEach(parent => {
+      groups[parent.id] = [parent];
+    });
+    
+    // Add children to their parent groups
+    furnitureList.forEach(furniture => {
+      if (furniture.parentId && groups[furniture.parentId]) {
+        groups[furniture.parentId].push(furniture);
+      } else if (!furniture.parentId && !furniture.isClickable && furniture.type !== "bar") {
+        standalone.push(furniture);
+      }
+    });
+    
+    return { groups, standalone };
+  };
+  
+  const renderFurnitureGroup = (groupFurniture: FurnitureItem[], groupId: string) => {
+    const parentFurniture = groupFurniture.find(f => !f.parentId);
+    if (!parentFurniture) return null;
+    
+    const correspondingTable = safeTablesList.find(t => t.id === parentFurniture.id.toString());
+    
+    return (
+      <div key={`group-${groupId}`} className="relative">
+        {/* Render all furniture in the group */}
+        {groupFurniture.map(furniture => {
+          const isParent = !furniture.parentId;
+          const isClickable = furniture.isClickable;
+          
+          return (
+            <div
+              key={`furniture-${furniture.id}`}
+              className={`${getFurnitureClasses(furniture)} ${isClickable ? 'cursor-pointer hover:shadow-lg transition-all duration-200' : ''} ${correspondingTable && selectedTable?.id === correspondingTable.id ? 'ring-4 ring-blue-500' : ''}`}
+              style={getFurnitureStyle(furniture)}
+              onClick={() => {
+                if (isClickable && correspondingTable) {
+                  onTableSelect(correspondingTable);
+                }
+              }}
+              onMouseEnter={(e) => {
+                if (isClickable && correspondingTable) {
+                  handleTableHover(correspondingTable, e);
+                }
+              }}
+              onMouseLeave={handleTableLeave}
+            >
+              {isClickable && correspondingTable ? getTableContent(correspondingTable) : (
+                furniture.type === "chair" ? "" : furniture.name || furniture.type
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+  
+  const renderStandaloneFurniture = (furniture: FurnitureItem) => {
+    return (
+      <div
+        key={`standalone-${furniture.id}`}
+        className={getFurnitureClasses(furniture)}
+        style={getFurnitureStyle(furniture)}
+      >
+        {furniture.name || furniture.type}
+      </div>
+    );
+  };
+
   const getTableContent = (table: Table) => {
     // Special content for bars
     if (table.furnitureType === "bar") {
@@ -353,49 +544,52 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           <div className="relative bg-gray-50 rounded-lg min-h-full p-4">
             {/* Restaurant Floor Plan */}
             <div className="relative w-full h-full min-h-[600px]">
-              {safeTablesList.length === 0 ? (
+              {allFurniture.length === 0 && safeTablesList.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-gray-500">
-                    <div className="text-lg font-medium mb-2">No tables available</div>
-                    <div className="text-sm">Tables are being loaded or none are configured.</div>
+                    <div className="text-lg font-medium mb-2">No floor plan loaded</div>
+                    <div className="text-sm">Please select a floor plan to view the restaurant layout.</div>
                   </div>
                 </div>
               ) : (
-                safeTablesList.map((table, index) => {
-                  // Ensure table has valid position, fallback to grid layout if missing
-                  const position = table.position || {
-                    x: 20 + (index % 4) * 20, // Grid layout: 20%, 40%, 60%, 80%
-                    y: 20 + Math.floor(index / 4) * 25 // Rows: 20%, 45%, 70%
-                  };
-
-                  return (
-                    <div
-                      key={table.id}
-                      className="absolute"
-                      style={{
-                        left: `${position.x}%`,
-                        top: `${position.y}%`,
-                        transform: "translate(-50%, -50%)"
-                      }}
-                    >
-                      {/* Table */}
-                      <div className="relative">
-                        <div 
-                          className={`${getTableShape(table)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} 
-                          style={getTableStyle(table)}
-                          onClick={() => onTableSelect(table)} 
-                          onMouseEnter={e => handleTableHover(table, e)} 
-                          onMouseLeave={handleTableLeave}
-                        >
-                          {getTableContent(table)}
+                <>
+                  {(() => {
+                    const { groups, standalone } = groupFurniture(allFurniture);
+                    return (
+                      <>
+                        {/* Render furniture groups (tables with their chairs) */}
+                        {Object.entries(groups).map(([groupId, groupFurniture]) => 
+                          renderFurnitureGroup(groupFurniture, groupId)
+                        )}
+                        
+                        {/* Render standalone furniture */}
+                        {standalone.map(furniture => renderStandaloneFurniture(furniture))}
+                      </>
+                    );
+                  })()}
+                  
+                  {/* Render notification badges for tables with orders */}
+                  {safeTablesList.map(table => {
+                    const orderCount = tableOrders[table.number?.toString()];
+                    if (!orderCount || orderCount <= 0) return null;
+                    
+                    return (
+                      <div
+                        key={`badge-${table.id}`}
+                        className="absolute z-20"
+                        style={{
+                          left: `${table.position?.x || 50}%`,
+                          top: `${table.position?.y || 50}%`,
+                          transform: "translate(-50%, -50%) translate(20px, -20px)"
+                        }}
+                      >
+                        <div className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white">
+                          {orderCount}
                         </div>
-
-                        {/* Red notification badge for tables with saved orders */}
-                        {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </>
               )}
             </div>
           </div>
