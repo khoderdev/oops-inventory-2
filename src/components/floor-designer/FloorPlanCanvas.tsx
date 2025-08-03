@@ -338,7 +338,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
   return (
     <div className="flex-1 h-full bg-gray-50 relative overflow-hidden select-none">
       {/* Toolbar */}
-      <div className="absolute top-2 right-4 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-2 flex items-center gap-2">
+      <div className="absolute bottom-2 right-4 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-2 flex items-center gap-2">
         <button onClick={handleZoomOut} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Zoom Out">
           <ZoomOut className="w-4 h-4" />
         </button>
@@ -364,15 +364,6 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
         <button onClick={handleAutoLinkChairs} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Auto-link chairs to nearby tables">
           <Link className="w-4 h-4" />
         </button>
-      </div>
-
-      {/* Scale indicator */}
-      <div className="absolute bottom-4 left-4 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-        <div className="text-xs text-gray-600 mb-1">Scale: 1 inch = 2px</div>
-        <div className="flex items-center gap-2">
-          <div className="w-20 h-px bg-gray-400"></div>
-          <span className="text-xs text-gray-600">10 inches</span>
-        </div>
       </div>
 
       {/* Canvas Container */}
