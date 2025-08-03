@@ -632,6 +632,10 @@ export interface Table {
   status: "available" | "opened" | "reserved" | "cleaning";
   position: { x: number; y: number };
   shape: "round" | "square" | "rectangle";
+  furnitureType?: string; // Original furniture type from floor designer (bar, round-table, etc.)
+  dimensions?: { width: number; height: number }; // Original furniture dimensions from floor designer
+  rotation?: number; // Original furniture rotation from floor designer
+  color?: string; // Original furniture color from floor designer
   currentOrder?: {
     orderId: string;
     orderNumber?: string;

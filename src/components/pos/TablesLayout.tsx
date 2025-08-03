@@ -35,7 +35,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           // Convert furniture items to Table objects for POS system
           const tables: Table[] = [];
 
-          floorPlan.areas.forEach((area: { id: number; furniture?: Array<{ id: number; name: string; isTable: boolean; tableNumber?: number; seatingCapacity?: number; status?: string; type: string; position: { x: number; y: number }; dimensions?: { width: number; height: number } }> }) => {
+          floorPlan.areas.forEach((area: { id: number; furniture?: Array<{ id: number; name: string; isTable: boolean; tableNumber?: number; seatingCapacity?: number; status?: string; type: string; position: { x: number; y: number }; dimensions?: { width: number; height: number }; rotation?: number; color?: string }> }) => {
             if (area.furniture) {
               area.furniture.forEach(furniture => {
                 // Convert tables and bars (not chairs) - bars are seating areas in restaurants
@@ -43,6 +43,18 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 const hasSeatingCapacity = furniture.seatingCapacity && furniture.seatingCapacity > 0;
                 
                 if (isSeatingFurniture && hasSeatingCapacity) {
+                  // Debug logging for furniture data
+                  console.log("🪑 Processing furniture:", {
+                    id: furniture.id,
+                    name: furniture.name,
+                    type: furniture.type,
+                    position: furniture.position,
+                    dimensions: furniture.dimensions,
+                    rotation: furniture.rotation,
+                    color: furniture.color,
+                    seatingCapacity: furniture.seatingCapacity
+                  });
+
                   // For bars without table numbers, generate one based on name or ID
                   const tableNumber = furniture.tableNumber || 
                     (furniture.type === "bar" ? (parseInt(furniture.name.replace(/\D/g, '')) || furniture.id) : furniture.id);
@@ -53,14 +65,35 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                     seats: furniture.seatingCapacity || 4,
                     status: (furniture.status as Table["status"]) || "available",
                     shape: getTableShapeFromType(furniture.type),
+                    furnitureType: furniture.type, // Store original furniture type for proper rendering
+                    dimensions: furniture.dimensions, // Preserve original dimensions
+                    rotation: furniture.rotation, // Preserve original rotation
+                    color: furniture.color, // Preserve original color
                     position: {
-                      // Convert from pixel to percentage and adjust for centering
-                      // FloorPlanCanvas uses top-left positioning, TablesLayout uses center positioning
-                      // Add half the furniture dimensions to center the table properly
-                      x: (furniture.position.x + (furniture.dimensions?.width || 80) / 2) / 8,
-                      y: (furniture.position.y + (furniture.dimensions?.height || 80) / 2) / 6
+                      // Convert from pixel to percentage coordinates
+                      // FloorPlanCanvas typically uses an 800x600 canvas, so convert to percentage
+                      // Add half the furniture dimensions to get center position
+                      x: ((furniture.position.x + (furniture.dimensions?.width || 80) / 2) / 800) * 100,
+                      y: ((furniture.position.y + (furniture.dimensions?.height || 80) / 2) / 600) * 100
                     }
                   };
+                  
+                  // Debug position conversion for bars
+                  if (furniture.type === "bar") {
+                    const centerX = furniture.position.x + (furniture.dimensions?.width || 80) / 2;
+                    const centerY = furniture.position.y + (furniture.dimensions?.height || 80) / 2;
+                    const percentX = (centerX / 800) * 100;
+                    const percentY = (centerY / 600) * 100;
+                    
+                    console.log(`📍 Bar position conversion:`, {
+                      originalPixelPos: furniture.position,
+                      dimensions: furniture.dimensions,
+                      centerPixelPos: { x: centerX, y: centerY },
+                      finalPercentPos: { x: percentX, y: percentY }
+                    });
+                  }
+                  
+                  console.log("📋 Converted to table:", table);
                   tables.push(table);
                 }
               });
@@ -170,19 +203,104 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     }
   };
 
-  const getTableShape = (shape: Table["shape"], seats: number) => {
+  const getTableShape = (table: Table) => {
     const baseClasses = "flex items-center justify-center cursor-pointer transition-all duration-200 border-2";
 
-    switch (shape) {
-      case "round":
-        return `${baseClasses} rounded-full w-20 h-20`;
-      case "square":
-        return `${baseClasses} rounded-lg w-20 h-20`;
-      case "rectangle":
-        return `${baseClasses} rounded-lg w-24 h-16`;
-      default:
-        return `${baseClasses} rounded-lg w-20 h-20`;
+    // Use actual dimensions from floor designer if available
+    const width = table.dimensions?.width || 80;
+    const height = table.dimensions?.height || 80;
+    
+    // Convert pixels to a reasonable scale for the TablesLayout (scale down by factor of 4)
+    const scaledWidth = Math.max(width / 4, 20); // Minimum 20px width
+    const scaledHeight = Math.max(height / 4, 20); // Minimum 20px height
+
+    // Special styling for bars - make them more distinctive
+    if (table.furnitureType === "bar") {
+      return `${baseClasses} bg-gradient-to-r from-amber-100 to-amber-200 border-amber-400 border-2 shadow-md`;
     }
+
+    // Regular table styling based on shape
+    switch (table.shape) {
+      case "round":
+        return `${baseClasses} rounded-full bg-white`;
+      case "square":
+        return `${baseClasses} rounded-lg bg-white`;
+      case "rectangle":
+        return `${baseClasses} rounded-lg bg-white`;
+      default:
+        return `${baseClasses} rounded-lg bg-white`;
+    }
+  };
+
+  const getTableStyle = (table: Table) => {
+    const width = table.dimensions?.width || 80;
+    const height = table.dimensions?.height || 80;
+    const rotation = table.rotation || 0;
+    const backgroundColor = table.color || (table.furnitureType === "bar" ? "#fef3c7" : "#ffffff");
+    
+    // Use different scaling for bars vs tables to maintain visual fidelity
+    let scaledWidth, scaledHeight;
+    
+    if (table.furnitureType === "bar") {
+      // For bars, use a smaller scale factor to maintain their distinctive shape
+      // Also ensure minimum dimensions that preserve the bar's aspect ratio
+      scaledWidth = Math.max(width / 3, 40); // Less aggressive scaling, min 40px
+      scaledHeight = Math.max(height / 3, 15); // Less aggressive scaling, min 15px
+    } else {
+      // For regular tables, use the original scaling
+      scaledWidth = Math.max(width / 4, 30); // Standard scaling
+      scaledHeight = Math.max(height / 4, 30); // Standard scaling
+    }
+    
+    const style = {
+      width: `${scaledWidth}px`,
+      height: `${scaledHeight}px`,
+      transform: `rotate(${rotation}deg)`,
+      backgroundColor,
+      // Remove generic min constraints to allow bars to be thin
+      ...(table.furnitureType !== "bar" && { minWidth: '30px', minHeight: '30px' })
+    };
+    
+    // Debug logging for bar rendering
+    if (table.furnitureType === "bar") {
+      console.log(`🍺 Rendering bar ${table.number}:`, {
+        originalDimensions: table.dimensions,
+        scaledDimensions: { width: scaledWidth, height: scaledHeight },
+        rotation: rotation,
+        color: table.color,
+        backgroundColor: backgroundColor,
+        finalStyle: style
+      });
+    }
+    
+    return style;
+  };
+
+  const getTableContent = (table: Table) => {
+    // Special content for bars
+    if (table.furnitureType === "bar") {
+      return (
+        <div className="text-center">
+          <div className="font-bold text-sm text-amber-800">{table.number}</div>
+          <div className="text-xs text-amber-600 flex items-center justify-center">
+            <Users className="w-3 h-3 mr-1" />
+            {table.seats}
+          </div>
+          <div className="text-xs text-amber-500 font-medium">BAR</div>
+        </div>
+      );
+    }
+
+    // Regular table content
+    return (
+      <div className="text-center">
+        <div className="font-bold text-lg text-gray-800">{table.number}</div>
+        <div className="text-xs text-gray-600 flex items-center justify-center">
+          <Users className="w-3 h-3 mr-1" />
+          {table.seats}
+        </div>
+      </div>
+    );
   };
 
   const formatTime = (date: Date | string) => {
@@ -262,14 +380,14 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                     >
                       {/* Table */}
                       <div className="relative">
-                        <div className={`${getTableShape(table.shape, table.seats)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} onClick={() => onTableSelect(table)} onMouseEnter={e => handleTableHover(table, e)} onMouseLeave={handleTableLeave}>
-                          <div className="text-center">
-                            <div className="font-bold text-lg text-gray-800">{table.number}</div>
-                            <div className="text-xs text-gray-600 flex items-center justify-center">
-                              <Users className="w-3 h-3 mr-1" />
-                              {table.seats}
-                            </div>
-                          </div>
+                        <div 
+                          className={`${getTableShape(table)} ${getTableStatusColor(table.status)} ${selectedTable?.id === table.id ? "ring-4 ring-blue-500" : ""}`} 
+                          style={getTableStyle(table)}
+                          onClick={() => onTableSelect(table)} 
+                          onMouseEnter={e => handleTableHover(table, e)} 
+                          onMouseLeave={handleTableLeave}
+                        >
+                          {getTableContent(table)}
                         </div>
 
                         {/* Red notification badge for tables with saved orders */}
@@ -372,7 +490,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 <div className="space-y-3">
                   {/* Order Number */}
                   <div className="text-center">
-                    <div className="font-bold text-lg text-gray-800 m">{hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}</div>
+                    <div className="font-bold text-lg text-gray-800">{hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}</div>
                   </div>
 
                   {/* Time */}

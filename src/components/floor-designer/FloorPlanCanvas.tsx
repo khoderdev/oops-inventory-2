@@ -257,38 +257,36 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
     const furniture = area.furniture.find(f => f.id === active.id);
 
     if (furniture && delta) {
-      // Convert drag delta from viewport pixels to 800x600 coordinate system
+      // Convert drag delta from viewport pixels to canvas coordinate system
       // The furniture container is scaled to fit the viewport, so we need to account for that scaling
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
 
-      // Calculate the scale factor between viewport and 800x600 coordinate system
-      const baseWidth = 800;
-      const baseHeight = 600;
-      const scaleX = rect.width / baseWidth;
-      const scaleY = rect.height / baseHeight;
-      const uniformScale = Math.min(scaleX, scaleY);
+      // Get actual canvas dimensions (now responsive)
+      const canvasWidth = rect.width;
+      const canvasHeight = rect.height;
 
       // Convert delta from viewport pixels to coordinate system pixels
-      const deltaX = delta.x / (uniformScale * scale);
-      const deltaY = delta.y / (uniformScale * scale);
+      // Since we're now using responsive dimensions, delta is already in the right scale
+      const deltaX = delta.x / scale;
+      const deltaY = delta.y / scale;
 
       const newPosition = {
         x: furniture.position.x + deltaX,
         y: furniture.position.y + deltaY
       };
 
-      // Snap to grid (10px grid)
-      const gridSize = 10;
+      // Snap to grid (responsive grid size based on canvas)
+      const gridSize = Math.max(10, Math.min(canvasWidth, canvasHeight) / 50); // Dynamic grid size
       newPosition.x = Math.round(newPosition.x / gridSize) * gridSize;
       newPosition.y = Math.round(newPosition.y / gridSize) * gridSize;
 
-      // Allow positioning anywhere within reasonable bounds (including negative values)
-      // Set generous bounds to allow furniture to extend beyond the visible area if needed
-      const minX = -furniture.dimensions.width; // Allow furniture to be positioned off-screen to the left
-      const maxX = 800; // Allow positioning up to the right edge
-      const minY = -furniture.dimensions.height; // Allow furniture to be positioned off-screen above
-      const maxY = 600; // Allow positioning up to the bottom edge
+      // Keep furniture within the red bordered area
+      // Furniture should not cross the red borders
+      const minX = 0; // Left edge of red border
+      const maxX = canvasWidth - furniture.dimensions.width; // Right edge minus furniture width
+      const minY = 0; // Top edge of red border
+      const maxY = canvasHeight - furniture.dimensions.height; // Bottom edge minus furniture height
 
       newPosition.x = Math.max(minX, Math.min(newPosition.x, maxX));
       newPosition.y = Math.max(minY, Math.min(newPosition.y, maxY));
@@ -380,7 +378,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
 
       {/* Canvas Container */}
       <div ref={canvasRef} className="w-full h-full relative overflow-hidden" onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove} onMouseUp={handleCanvasMouseUp} onMouseLeave={handleCanvasMouseUp} onClick={handleCanvasClick}>
-        {/* Grid Background */}
+        {/* Grid Background - Full Screen */}
         <div
           className="absolute inset-0"
           style={{
@@ -390,17 +388,13 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
           }}
         >
           <svg
-            width="800"
-            height="600"
-            className="absolute"
-            style={{
-              left: 0,
-              top: 0
-            }}
+            width="100%"
+            height="100%"
+            className="absolute inset-0"
             preserveAspectRatio="none"
           >
             {gridPattern}
-            <rect x="0" y="0" width="800" height="600" fill={showGrid ? "url(#grid)" : "#f9fafb"} />
+            <rect x="0" y="0" width="100%" height="100%" fill={showGrid ? "url(#grid)" : "#f9fafb"} />
           </svg>
         </div>
 
@@ -415,11 +409,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
         >
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <div
-              className="relative border-2 border-red-400"
-              style={{
-                width: "800px",
-                height: "600px"
-              }}
+              className="relative border-2 border-red-400 w-full h-full"
             >
               {area.furniture.map(furniture => (
                 <div key={furniture.id} onContextMenu={e => handleFurnitureRightClick(furniture, e)}>
