@@ -11,7 +11,7 @@ interface FurniturePaletteProps {
   currentPlan: FloorPlan;
   onSavePlan: (name: string) => void;
   onLoadPlan: (plan: FloorPlan) => void;
-  getSavedPlans: () => FloorPlan[];
+  getSavedPlans: () => Promise<FloorPlan[]>;
   onDeletePlan: (planId: string) => void;
   onNewPlan: () => void;
 }
@@ -23,8 +23,14 @@ export const FurniturePalette: React.FC<FurniturePaletteProps> = ({ onAddFurnitu
   const [savedPlans, setSavedPlans] = useState<FloorPlan[]>([]);
 
   // Load saved plans when dialog opens
-  const refreshSavedPlans = () => {
-    setSavedPlans(getSavedPlans());
+  const refreshSavedPlans = async () => {
+    try {
+      const plans = await getSavedPlans();
+      setSavedPlans(plans);
+    } catch (error) {
+      console.error('Failed to load saved plans:', error);
+      setSavedPlans([]);
+    }
   };
 
   const handleSave = () => {

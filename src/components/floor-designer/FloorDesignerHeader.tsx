@@ -10,7 +10,7 @@ interface FloorDesignerHeaderProps {
   onSavePlan: (name: string) => void;
   onLoadPlan: (plan: FloorPlan) => void;
   onNewPlan: () => void;
-  getSavedPlans: () => FloorPlan[];
+  getSavedPlans: () => Promise<FloorPlan[]>;
   onDeletePlan: (planId: string) => void;
 }
 
@@ -21,8 +21,14 @@ export const FloorDesignerHeader: React.FC<FloorDesignerHeaderProps> = ({ curren
   const [savedPlans, setSavedPlans] = useState<FloorPlan[]>([]);
 
   // Load saved plans when dialog opens
-  const refreshSavedPlans = () => {
-    setSavedPlans(getSavedPlans());
+  const refreshSavedPlans = async () => {
+    try {
+      const plans = await getSavedPlans();
+      setSavedPlans(plans);
+    } catch (error) {
+      console.error('Failed to load saved plans:', error);
+      setSavedPlans([]);
+    }
   };
 
   const handleSave = () => {
