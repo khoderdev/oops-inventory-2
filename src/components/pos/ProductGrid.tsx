@@ -22,11 +22,31 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
         {posItems.map(item => (
           <Card key={item.id} className="items-card cursor-pointer select-none transition-all duration-300 hover:shadow-lg hover:scale-105 border-2 border-gray-200 hover:border-primary rounded-lg bg-white/80 backdrop-blur-sm btn-touch" onClick={() => onAddToCart(item)}>
             <CardContent className="p-3 sm:p-4 text-center">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2 sm:mb-3 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center shadow-sm">{item.type === "menu_item" ? <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> : <Package className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />}</div>
+              {/* Image or Icon Display */}
+              <div className="w-16 h-16 sm:w-full sm:h-full mx-auto mb-2 sm:mb-3 rounded-lg overflow-hidden flex items-center justify-center">
+                {item.type === "menu_item" && item.image ? (
+                  <img
+                    src={item.image.startsWith("data:") ? item.image : `http://localhost:5000${item.image}`}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                    onError={e => {
+                      // Fallback to icon if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      const parent = target.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `<div class="w-full h-full flex items-center justify-center">${
+                          item.type === "menu_item"
+                            ? '<svg class="w-6 h-6 sm:w-8 sm:h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path></svg>'
+                            : '<svg class="w-6 h-6 sm:w-8 sm:h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>'
+                        }</div>`;
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">{item.type === "menu_item" ? <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-primary" /> : <Package className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />}</div>
+                )}
+              </div>
               <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-1 line-clamp-2 leading-tight">{item.name}</h4>
-              <p className="text-xs text-gray-500 mb-2 truncate">
-                {item.availableQuantity} {item.unit} available
-              </p>
               <p className="text-sm sm:text-base font-bold text-primary">{formatCurrency(item.price)}</p>
             </CardContent>
           </Card>

@@ -60,6 +60,7 @@ const posController = {
         unit: "item",
         availableQuantity: 999, // Menu items are typically unlimited
         costPerUnit: parseFloat(item.price || 0),
+        image: item.image, // Include the image field
         ingredients:
           item.menuItemIngredients?.map(ingredient => ({
             materialId: ingredient.materialId,
@@ -225,6 +226,7 @@ const posController = {
         unit: "item",
         availableQuantity: 999,
         costPerUnit: parseFloat(item.price || 0),
+        image: item.image, // Include the image field
         ingredients: item.menuItemIngredients?.map(ingredient => ({
           materialId: ingredient.materialId,
           materialName: ingredient.material?.name || "Unknown",

@@ -526,6 +526,7 @@ export interface POSItem {
     type: string;
     status: string;
   };
+  image?: string;
   createdAt: string;
   updatedAt: string;
 }
