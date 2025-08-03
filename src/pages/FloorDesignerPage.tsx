@@ -1,10 +1,10 @@
+import { FloorDesignerHeader } from "@/components/floor-designer/FloorDesignerHeader";
 import { FloorPlanCanvas } from "@/components/floor-designer/FloorPlanCanvas";
 import { FurniturePalette } from "@/components/floor-designer/FurniturePalette";
-import { FloorDesignerHeader } from "@/components/floor-designer/FloorDesignerHeader";
 import { PropertiesPanel } from "@/components/floor-designer/PropertiesPanel";
 import { useHeaderActions } from "@/contexts/HeaderActionsContext";
-import { useFloorPlan } from "@/hooks/useFloorPlan";
 import { useFloorDesignerHeader } from "@/hooks/useFloorDesignerHeader";
+import { useFloorPlan } from "@/hooks/useFloorPlan";
 import { FurnitureTemplate } from "@/types/floor-plan";
 import { useEffect } from "react";
 
@@ -13,7 +13,7 @@ function FloorDesignerPage() {
 
   const { title, subtitle } = useFloorDesignerHeader({ currentPlan });
   const { setHeaderActions, setPageTitle } = useHeaderActions();
-  
+
   const currentArea = currentPlan.areas[0];
   const handleAddFurniture = (template: FurnitureTemplate) => {
     addFurniture(template, currentArea.id);
@@ -21,16 +21,7 @@ function FloorDesignerPage() {
 
   // Set header actions and title when component mounts or plan changes
   useEffect(() => {
-    const headerActions = (
-      <FloorDesignerHeader
-        currentPlan={currentPlan}
-        onSavePlan={savePlan}
-        onLoadPlan={loadPlan}
-        onNewPlan={newPlan}
-        getSavedPlans={getSavedPlans}
-        onDeletePlan={deleteSavedPlan}
-      />
-    );
+    const headerActions = <FloorDesignerHeader currentPlan={currentPlan} onSavePlan={savePlan} onLoadPlan={loadPlan} onNewPlan={newPlan} getSavedPlans={getSavedPlans} onDeletePlan={deleteSavedPlan} />;
     setHeaderActions(headerActions);
     setPageTitle(title);
 
@@ -42,32 +33,13 @@ function FloorDesignerPage() {
   }, [currentPlan, title, savePlan, loadPlan, newPlan, getSavedPlans, deleteSavedPlan, setHeaderActions, setPageTitle]);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
       <div className="flex-1 flex min-h-0 overflow-hidden">
         <FurniturePalette onAddFurniture={handleAddFurniture} />
 
-        <FloorPlanCanvas 
-          area={currentArea} 
-          onUpdateFurniture={updateFurniture} 
-          selectedFurnitureId={selectedFurnitureId} 
-          onSelectFurniture={setSelectedFurnitureId} 
-          onLinkChairToTable={linkChairToTable} 
-          onUnlinkChairFromTable={unlinkChairFromTable} 
-          onMoveTableWithChairs={moveTableWithChairs} 
-          onDuplicateFurniture={duplicateFurniture} 
-          onDeleteFurniture={deleteFurniture} 
-          getChildFurniture={getChildFurniture} 
-          getParentFurniture={getParentFurniture} 
-        />
+        <FloorPlanCanvas area={currentArea} onUpdateFurniture={updateFurniture} selectedFurnitureId={selectedFurnitureId} onSelectFurniture={setSelectedFurnitureId} onLinkChairToTable={linkChairToTable} onUnlinkChairFromTable={unlinkChairFromTable} onMoveTableWithChairs={moveTableWithChairs} onDuplicateFurniture={duplicateFurniture} onDeleteFurniture={deleteFurniture} getChildFurniture={getChildFurniture} getParentFurniture={getParentFurniture} />
 
-        <PropertiesPanel 
-          selectedFurniture={selectedFurniture} 
-          onUpdateFurniture={updateFurniture} 
-          onDeleteFurniture={deleteFurniture} 
-          onDuplicateFurniture={duplicateFurniture} 
-          parentTable={selectedFurniture ? getParentFurniture(selectedFurniture.id) : null} 
-          childChairs={selectedFurniture ? getChildFurniture(selectedFurniture.id) : []} 
-        />
+        <PropertiesPanel selectedFurniture={selectedFurniture} onUpdateFurniture={updateFurniture} onDeleteFurniture={deleteFurniture} onDuplicateFurniture={duplicateFurniture} parentTable={selectedFurniture ? getParentFurniture(selectedFurniture.id) : null} childChairs={selectedFurniture ? getChildFurniture(selectedFurniture.id) : []} />
       </div>
 
       {/* Status Bar */}

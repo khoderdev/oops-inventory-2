@@ -262,7 +262,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
   );
 
   const getAvailableTables = useCallback((): FurnitureItemType[] => {
-    return area.furniture.filter(f => ["round-table", "square-table", "rectangular-table", "booth"].includes(f.type));
+    return area.furniture.filter(f => ["round-table", "square-table", "rectangular-table"].includes(f.type));
   }, [area.furniture]);
 
   const handleAutoLinkChairs = useCallback(() => {
@@ -336,7 +336,7 @@ export const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({ area, onUpdate
   ) : null;
 
   return (
-    <div className="flex-1 bg-gray-50 relative overflow-hidden select-none">
+    <div className="flex-1 h-full bg-gray-50 relative overflow-hidden select-none">
       {/* Toolbar */}
       <div className="absolute top-2 right-4 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-2 flex items-center gap-2">
         <button onClick={handleZoomOut} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Zoom Out">

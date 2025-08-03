@@ -40,15 +40,6 @@ export const furnitureTemplates: FurnitureTemplate[] = [
     seatingCapacity: 1,
     category: "seating"
   },
-  {
-    type: "booth",
-    name: "Booth",
-    icon: "🛋️",
-    defaultDimensions: { width: 100, height: 60 },
-    defaultColor: "#800000",
-    seatingCapacity: 6,
-    category: "seating"
-  },
 
   // Service
   {
@@ -58,22 +49,6 @@ export const furnitureTemplates: FurnitureTemplate[] = [
     defaultDimensions: { width: 340, height: 60 },
     defaultColor: "#2F4F4F",
     seatingCapacity: 8,
-    category: "service"
-  },
-  {
-    type: "host-station",
-    name: "Host Station",
-    icon: "🏢",
-    defaultDimensions: { width: 60, height: 40 },
-    defaultColor: "#4A4A4A",
-    category: "service"
-  },
-  {
-    type: "service-station",
-    name: "Service Station",
-    icon: "🍽️",
-    defaultDimensions: { width: 50, height: 30 },
-    defaultColor: "#708090",
     category: "service"
   }
 ];

@@ -57,16 +57,6 @@ export const FurnitureItem: React.FC<FurnitureItemProps> = ({ furniture, isSelec
           </div>
         );
 
-      case "booth":
-        return (
-          <div className={`${baseClasses} rounded-lg`} style={shapeStyle}>
-            <div className="absolute inset-2 rounded bg-black bg-opacity-10 flex items-center justify-center">
-              <span className="text-xs font-medium text-white">{furniture.seatingCapacity}</span>
-            </div>
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-3/4 h-2 bg-black bg-opacity-20 rounded-b"></div>
-          </div>
-        );
-
       case "bar":
         return (
           <div className={`${baseClasses} rounded-lg`} style={shapeStyle}>
@@ -75,17 +65,6 @@ export const FurnitureItem: React.FC<FurnitureItemProps> = ({ furniture, isSelec
             </div>
           </div>
         );
-
-      case "host-station":
-      case "service-station":
-        return (
-          <div className={`${baseClasses} rounded-lg`} style={shapeStyle}>
-            <div className="absolute inset-2 rounded bg-black bg-opacity-10 flex items-center justify-center">
-              <span className="text-xs font-medium text-white truncate px-1">{furniture.type === "host-station" ? "HOST" : "SERVICE"}</span>
-            </div>
-          </div>
-        );
-
       default:
         return <div className={`${baseClasses} rounded-lg`} style={shapeStyle}></div>;
     }

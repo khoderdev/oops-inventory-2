@@ -18,18 +18,10 @@ export interface FurnitureItem {
   seatingCapacity?: number;
   name: string;
   zIndex: number;
-  parentId?: string; 
+  parentId?: string;
 }
 
-export type FurnitureType = 
-  | 'round-table'
-  | 'square-table' 
-  | 'rectangular-table'
-  | 'chair'
-  | 'booth'
-  | 'bar'
-  | 'host-station'
-  | 'service-station';
+export type FurnitureType = "round-table" | "square-table" | "rectangular-table" | "chair" | "bar";
 
 export interface FloorArea {
   id: string;
@@ -59,5 +51,5 @@ export interface FurnitureTemplate {
   defaultDimensions: Dimensions;
   defaultColor: string;
   seatingCapacity?: number;
-  category: 'seating' | 'tables' | 'service';
+  category: "seating" | "tables" | "service";
 }

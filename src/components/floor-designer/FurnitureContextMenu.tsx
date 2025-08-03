@@ -17,7 +17,7 @@ interface FurnitureContextMenuProps {
 }
 
 export const FurnitureContextMenu: React.FC<FurnitureContextMenuProps> = ({ furniture, position, onClose, onLinkToTable, onUnlinkFromTable, onMoveWithChairs, onDuplicate, onDelete, availableTables, childChairs, parentTable }) => {
-  const isTable = ["round-table", "square-table", "rectangular-table", "booth"].includes(furniture.type);
+  const isTable = ["round-table", "square-table", "rectangular-table"].includes(furniture.type);
   const isChair = furniture.type === "chair";
 
   return (
