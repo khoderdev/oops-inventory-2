@@ -26,20 +26,49 @@ export const useFloorPlan = () => {
 
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
 
-  const addFurniture = useCallback((template: FurnitureTemplate, areaId: string) => {
-    const newFurniture: FurnitureItem = {
-      id: generateId(),
-      type: template.type,
-      position: { x: 50, y: 50 },
-      dimensions: { ...template.defaultDimensions },
-      rotation: 0,
-      color: template.defaultColor,
-      seatingCapacity: template.seatingCapacity,
-      name: `${template.name} ${Date.now()}`,
-      zIndex: Date.now(),
-    };
+  // Generate furniture name based on type and existing count
+  const generateFurnitureName = useCallback((type: string, existingFurniture: FurnitureItem[]) => {
+    const typeCount = existingFurniture.filter(f => f.type === type).length + 1;
+    
+    switch (type) {
+      case 'round-table':
+        return `RT${typeCount}`;
+      case 'square-table':
+        return `ST${typeCount}`;
+      case 'rectangular-table':
+        return `T${typeCount}`;
+      case 'chair':
+        return `C${typeCount}`;
+      case 'bar':
+        return `B${typeCount}`;
+      default:
+        return `${type}${typeCount}`;
+    }
+  }, []);
 
+  const addFurniture = useCallback((template: FurnitureTemplate, areaId: string) => {
+    let newFurnitureId = '';
+    
     setCurrentPlan(prev => {
+      const targetArea = prev.areas.find(area => area.id === areaId);
+      if (!targetArea) return prev;
+      
+      const furnitureName = generateFurnitureName(template.type, targetArea.furniture);
+      
+      const newFurniture: FurnitureItem = {
+        id: generateId(),
+        type: template.type,
+        position: { x: 50, y: 50 },
+        dimensions: { ...template.defaultDimensions },
+        rotation: 0,
+        color: template.defaultColor,
+        seatingCapacity: template.seatingCapacity,
+        name: furnitureName,
+        zIndex: Date.now(),
+      };
+      
+      newFurnitureId = newFurniture.id;
+
       const updatedPlan = {
         ...prev,
         areas: prev.areas.map(area => 
@@ -58,8 +87,8 @@ export const useFloorPlan = () => {
       return updatedPlan;
     });
 
-    setSelectedFurnitureId(newFurniture.id);
-  }, []);
+    setSelectedFurnitureId(newFurnitureId);
+  }, [generateFurnitureName]);
 
   const updateFurniture = useCallback((furnitureId: string, updates: Partial<FurnitureItem>) => {
     setCurrentPlan(prev => {
