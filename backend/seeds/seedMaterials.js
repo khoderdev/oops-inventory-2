@@ -133,7 +133,7 @@ export async function seedMaterials() {
     { name: "Mayo Mustard Sauce", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
     { name: "Blue Cheese Sauce", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
     { name: "Mexican Salsa", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
-    { name: "Guacamole", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
+    { name: "Guacamole", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "spices" },
     { name: "Hot Honey", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
     { name: "Zaatar", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "spices" },
     { name: "Wasabi", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "spices" },

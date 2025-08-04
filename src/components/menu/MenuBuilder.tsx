@@ -24,24 +24,88 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   // Helper function to calculate cost per unit for a material
   const calculateMaterialCostPerUnit = useCallback(
     (material: Material, materialStockEntries: StockEntry[] = []) => {
-      // Filter valid stock entries with non-null, non-undefined, and non-zero costPerBaseUnit
-      const validStockEntries = materialStockEntries.filter(entry => entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit));
+      if (!materialStockEntries.length) return 0;
 
-      if (validStockEntries.length > 0) {
-        // Calculate weighted average cost from stock entries
-        const totalCost = validStockEntries.reduce((sum, entry) => {
-          const quantity = entry.purchasedIndividualQuantity || 0;
-          return sum + (entry.costPerBaseUnit || 0) * quantity;
-        }, 0);
+      let totalWeightedCost = 0;
+      let totalQuantity = 0;
 
-        const totalQuantity = validStockEntries.reduce((sum, entry) => sum + (entry.purchasedIndividualQuantity || 0), 0);
+      materialStockEntries.forEach(entry => {
+        let costPerBaseUnit = 0;
+        let quantityInBaseUnits = 0;
 
-        if (totalQuantity > 0) {
-          const weightedAverage = totalCost / totalQuantity;
-          return parseFloat(weightedAverage.toFixed(8)); // Ensure precision for small values
+        // Try to get cost per base unit from multiple sources
+        if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
+          // Use direct costPerBaseUnit if available
+          costPerBaseUnit = entry.costPerBaseUnit;
+        } else if (entry.totalCost && entry.totalCost > 0) {
+          // Calculate from totalCost and quantity
+          if (entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
+            // Use individual quantity if available (already in base units)
+            costPerBaseUnit = entry.totalCost / entry.purchasedIndividualQuantity;
+          } else if (entry.purchasedQuantity && entry.purchasedQuantity > 0) {
+            // Convert purchased quantity to base units
+            try {
+              const conversionFactor = getConversionFactor(
+                entry.purchasedUnit, 
+                material.baseUnit, 
+                material.unitType || "piece", 
+                material
+              );
+              const quantityInBase = entry.purchasedQuantity * conversionFactor;
+              if (quantityInBase > 0) {
+                costPerBaseUnit = entry.totalCost / quantityInBase;
+              }
+            } catch (error) {
+              console.warn(`Unit conversion error for material "${material.name}": ${entry.purchasedUnit} to ${material.baseUnit}`, error);
+            }
+          }
+        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+          // Convert costPerPurchasedUnit to costPerBaseUnit
+          try {
+            const conversionFactor = getConversionFactor(
+              entry.purchasedUnit, 
+              material.baseUnit, 
+              material.unitType || "piece", 
+              material
+            );
+            costPerBaseUnit = entry.costPerPurchasedUnit / conversionFactor;
+          } catch (error) {
+            console.warn(`Unit conversion error for material "${material.name}": ${entry.purchasedUnit} to ${material.baseUnit}`, error);
+          }
         }
+
+        // Get quantity in base units
+        if (entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
+          quantityInBaseUnits = entry.purchasedIndividualQuantity;
+        } else if (entry.purchasedQuantity && entry.purchasedQuantity > 0) {
+          try {
+            const conversionFactor = getConversionFactor(
+              entry.purchasedUnit, 
+              material.baseUnit, 
+              material.unitType || "piece", 
+              material
+            );
+            quantityInBaseUnits = entry.purchasedQuantity * conversionFactor;
+          } catch (error) {
+            console.warn(`Unit conversion error for material "${material.name}": ${entry.purchasedUnit} to ${material.baseUnit}`, error);
+            // Use purchased quantity as fallback
+            quantityInBaseUnits = entry.purchasedQuantity;
+          }
+        }
+
+        // Add to weighted average calculation
+        if (costPerBaseUnit > 0 && quantityInBaseUnits > 0) {
+          totalWeightedCost += costPerBaseUnit * quantityInBaseUnits;
+          totalQuantity += quantityInBaseUnits;
+        }
+      });
+
+      // Return weighted average cost per base unit
+      if (totalQuantity > 0) {
+        return parseFloat((totalWeightedCost / totalQuantity).toFixed(8));
       }
-      return 0; // Fallback to 0 if no valid stock entries
+
+      return 0; // Fallback to 0 if no valid cost data found
     },
     [] // No dependencies needed since function receives materialStockEntries as parameter
   );
@@ -136,7 +200,37 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         }
         const materialStockEntries = stockEntries.filter(entry => entry.materialId === String(ingredient.materialId));
         const costPerUnit = calculateMaterialCostPerUnit(material, materialStockEntries);
-        const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
+        
+        // Debug unit conversion issues
+        if (ingredient.unit && material.baseUnit && ingredient.unit !== material.baseUnit) {
+          const fromUnit = ingredient.unit.toLowerCase();
+          const toUnit = material.baseUnit.toLowerCase();
+          const massUnits = ['kg', 'kgs', 'g', 'gram', 'grams', 'lb', 'lbs', 'pound', 'pounds', 'oz', 'ounce', 'ounces'];
+          const volumeUnits = ['l', 'liter', 'liters', 'ml', 'milliliter', 'milliliters', 'gal', 'gallon', 'gallons', 'fl oz', 'fluid ounce', 'fluid ounces'];
+          
+          const fromIsMass = massUnits.includes(fromUnit);
+          const toIsMass = massUnits.includes(toUnit);
+          const fromIsVolume = volumeUnits.includes(fromUnit);
+          const toIsVolume = volumeUnits.includes(toUnit);
+          
+          if ((fromIsMass && toIsVolume) || (fromIsVolume && toIsMass)) {
+            console.warn(`⚠️ Material "${material.name}" (ID: ${material.id}) has unit type mismatch:`);
+            console.warn(`  - Ingredient unit: ${ingredient.unit} (${fromIsMass ? 'mass' : fromIsVolume ? 'volume' : 'unknown'})`);
+            console.warn(`  - Material baseUnit: ${material.baseUnit} (${toIsMass ? 'mass' : toIsVolume ? 'volume' : 'unknown'})`);
+            console.warn(`  - Material unitType: ${material.unitType}`);
+            console.warn(`  - This may indicate incorrect material configuration`);
+          }
+        }
+        
+        let conversionFactor = 1;
+        try {
+          conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
+        } catch (error) {
+          console.warn(`Unit conversion error for ingredient in material "${material.name}": ${ingredient.unit} to ${material.baseUnit}`, error);
+          // Use 1:1 conversion as fallback
+          conversionFactor = 1;
+        }
+        
         const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
         console.log(`Ingredient cost: ${ingredient.quantity} * ${conversionFactor} * ${costPerUnit} = ${ingredientCost}`);
         return sum + ingredientCost;
