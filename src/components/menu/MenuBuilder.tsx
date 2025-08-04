@@ -597,12 +597,12 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, MENU_CATEGORIES, fetchTabData, handleCloseBulkCategoryDialog]);
 
   return (
-    <>
-      <Card className="!border-0 !shadow-none !bg-background">
-        <CardHeader>
+    <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden -m-2 sm:-m-4 lg:-m-6">
+      <Card className="!border-0 !shadow-none !bg-background flex flex-col h-full">
+        <CardHeader className="flex-shrink-0">
           <div className="flex justify-between items-center mb-2">
             <CardTitle className="text-3xl font-bold">Menu Items</CardTitle>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
             {dataValidationEnabled && (
               <Button 
                 size="sm" 
@@ -753,7 +753,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             </div>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 flex flex-col overflow-hidden p-6">
           <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
             <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
               <DialogHeader>
@@ -763,10 +763,11 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             </DialogContent>
           </Dialog>
 
-          <div className="w-full h-[calc(100vh-175px)] overflow-auto border rounded-md">
-            <Table className="min-w-full">
-              <TableHeader className="sticky top-0 bg-background z-10 border-b">
-                <TableRow>
+          <div className="flex-1 flex flex-col min-h-0 border rounded-md">
+            <div className="flex-1 overflow-auto">
+              <Table className="min-w-full">
+                <TableHeader className="sticky top-0 bg-background z-10 border-b">
+                  <TableRow>
                   {bulkSelectionMode && (
                     <TableHead className="w-12">
                       <input type="checkbox" checked={selectedMenuItems.size === filteredMenuItems.length && filteredMenuItems.length > 0} onChange={handleSelectAllMenuItems} className="h-4 w-4" aria-label="Select all menu items" />
@@ -906,6 +907,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                 )}
               </TableBody>
             </Table>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -951,6 +953,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </div>
         </DialogContent>
       </Dialog>
-    </>
-  );
+    </div>
+  );  
 };
