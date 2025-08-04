@@ -257,7 +257,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
 
           {/* Desktop Table View */}
           <div className="hidden lg:block px-4">
-            <div className="w-full h-[calc(100vh-210px)] rounded-lg border overflow-hidden bg-white shadow-sm">
+            <div className="w-full h-[calc(100vh-210px)] rounded-lg border overflow-hidden bg-white mt-4">
               <Table className="w-full">
                 <TableHeader className="bg-gray-100 sticky top-0 z-10">
                   <TableRow className="border-b border-gray-200">

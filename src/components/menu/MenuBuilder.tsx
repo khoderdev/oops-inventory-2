@@ -13,7 +13,7 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
 import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataValidation";
-import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag, AlertTriangle, CheckCircle } from "lucide-react";
+import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag, AlertTriangle, CheckCircle, X } from "lucide-react";
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { useAtom } from "jotai";
 import { dataValidationEnabledAtom } from "@/store/settingsStore";
@@ -264,6 +264,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
   const [showBulkCategoryDialog, setShowBulkCategoryDialog] = useState(false);
   const [bulkCategoryValue, setBulkCategoryValue] = useState<MenuItemCategory | "">("");
+  const [fabExpanded, setFabExpanded] = useState(false);
 
   const MENU_CATEGORIES = useMemo<{ value: MenuItemCategory; label: string }[]>(
     () => [
@@ -603,46 +604,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           <CardHeader className="flex-shrink-0 px-8">
             <div className="flex justify-between items-center mb-2">
               <CardTitle className="text-3xl font-bold">Menu Items</CardTitle>
-              {/* Desktop action buttons - hidden on mobile/tablet */}
-              <div className="hidden xl:flex gap-2 flex-wrap">
-                {dataValidationEnabled && (
-                  <Button size="sm" onClick={runValidation} variant="outline" className={`${validationResults && !validationResults.isValid ? "border-red-500 text-red-600" : validationResults && validationResults.summary.warnings > 0 ? "border-yellow-500 text-yellow-600" : "border-green-500 text-green-600"}`} aria-label="Validate inventory data" title="Run manual data validation">
-                    {validationResults && !validationResults.isValid ? <AlertTriangle className="h-4 w-4 mr-2" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-4 w-4 mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                    Validate Data
-                  </Button>
-                )}
-                {bulkSelectionMode && (
-                  <>
-                    <Button size="sm" variant="outline" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0}>
-                      <Check className="h-4 w-4 mr-2" />
-                      {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleOpenBulkPrinterDialog} disabled={selectedMenuItems.size === 0}>
-                      <Printer className="h-4 w-4 mr-2" />
-                      Assign Printer ({selectedMenuItems.size})
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleOpenBulkCategoryDialog} disabled={selectedMenuItems.size === 0}>
-                      <Tag className="h-4 w-4 mr-2" />
-                      Update Category ({selectedMenuItems.size})
-                    </Button>
-                  </>
-                )}
-                <Button size="sm" variant={bulkSelectionMode ? "destructive" : "outline"} onClick={handleToggleBulkSelection}>
-                  <Check className="h-4 w-4 mr-2" />
-                  {bulkSelectionMode ? "Exit Selection" : "Bulk Select"}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setEditingMenuItem(null);
-                    setShowMenuItemForm(true);
-                  }}
-                  aria-label="Add new menu item"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Menu Item
-                </Button>
-              </div>
             </div>
 
             {/* Search and Filter Controls */}
@@ -878,62 +839,101 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         </Card>
       </div>
 
-      {/* Floating Action Buttons - Mobile and Tablet */}
-      <div className="xl:hidden">
-        {/* Primary FAB - Add Menu Item */}
-        <Button
-          size="lg"
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-          onClick={() => {
-            setEditingMenuItem(null);
-            setShowMenuItemForm(true);
-          }}
-          aria-label="Add new menu item"
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
+      {/* Floating Action Buttons - All Screen Sizes */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {/* FAB Stack Container */}
+        <div className="flex flex-col items-end gap-3">
+          {/* Bulk Actions - Show at top when in bulk mode */}
+          {bulkSelectionMode && (
+            <div className="flex flex-col items-end gap-2 mb-2">
+              {/* Bulk Action Pills */}
+              <div className="flex flex-col gap-2">
+                <Button 
+                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-gray-200/50"
+                  onClick={handleSelectAllMenuItems} 
+                  disabled={filteredMenuItems.length === 0}
+                >
+                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                  {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
+                </Button>
+                
+                <Button 
+                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-gray-200/50"
+                  onClick={handleOpenBulkPrinterDialog} 
+                  disabled={selectedMenuItems.size === 0}
+                >
+                  <Printer className="h-3.5 w-3.5 mr-1.5" />
+                  Printer ({selectedMenuItems.size})
+                </Button>
+                
+                <Button 
+                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-gray-200/50"
+                  onClick={handleOpenBulkCategoryDialog} 
+                  disabled={selectedMenuItems.size === 0}
+                >
+                  <Tag className="h-3.5 w-3.5 mr-1.5" />
+                  Category ({selectedMenuItems.size})
+                </Button>
+              </div>
+            </div>
+          )}
 
-        {/* Secondary FAB - Bulk Selection Toggle */}
-        <Button size="lg" variant={bulkSelectionMode ? "destructive" : "secondary"} className="fixed bottom-6 right-24 z-50 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" onClick={handleToggleBulkSelection} aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}>
-          <Check className="h-5 w-5" />
-        </Button>
+          {/* Secondary Actions Row */}
+          <div className="flex items-center gap-3">
+            {/* Validation FAB - Only show when enabled */}
+            {dataValidationEnabled && (
+              <Button
+                className={`h-11 w-11 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${
+                  validationResults && !validationResults.isValid 
+                    ? "bg-red-500 hover:bg-red-600 text-white" 
+                    : validationResults && validationResults.summary.warnings > 0 
+                    ? "bg-amber-500 hover:bg-amber-600 text-white" 
+                    : "bg-emerald-500 hover:bg-emerald-600 text-white"
+                }`}
+                onClick={runValidation}
+                aria-label="Validate inventory data"
+                title="Run data validation"
+              >
+                {validationResults && !validationResults.isValid ? (
+                  <AlertTriangle className="h-5 w-5" />
+                ) : validationResults && validationResults.summary.warnings > 0 ? (
+                  <AlertTriangle className="h-5 w-5" />
+                ) : (
+                  <CheckCircle className="h-5 w-5" />
+                )}
+              </Button>
+            )}
 
-        {/* Validation FAB - Only show when validation is enabled */}
-        {dataValidationEnabled && (
+            {/* Bulk Selection Toggle FAB */}
+            <Button 
+              className={`h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${
+                bulkSelectionMode 
+                  ? "bg-red-500 hover:bg-red-600 text-white" 
+                  : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"
+              }`}
+              onClick={handleToggleBulkSelection} 
+              aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}
+            >
+              {bulkSelectionMode ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Check className="h-5 w-5" />
+              )}
+            </Button>
+          </div>
+
+          {/* Primary FAB - Add Menu Item */}
           <Button
-            size="lg"
-            variant="outline"
-            className={`fixed bottom-6 right-36 z-50 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 ${validationResults && !validationResults.isValid ? "border-red-500 text-red-600 bg-red-50 hover:bg-red-100" : validationResults && validationResults.summary.warnings > 0 ? "border-yellow-500 text-yellow-600 bg-yellow-50 hover:bg-yellow-100" : "border-green-500 text-green-600 bg-green-50 hover:bg-green-100"}`}
-            onClick={runValidation}
-            aria-label="Validate inventory data"
-            title="Run manual data validation"
+            className="h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 relative"
+            onClick={() => {
+              setEditingMenuItem(null);
+              setShowMenuItemForm(true);
+            }}
+            aria-label="Add new menu item"
           >
-            {validationResults && !validationResults.isValid ? <AlertTriangle className="h-5 w-5" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
+            <Plus className="h-6 w-6" />
           </Button>
-        )}
-
-        {/* Bulk Selection Actions - Show when in bulk mode */}
-        {bulkSelectionMode && (
-          <>
-            {/* Select All FAB */}
-            <Button size="sm" variant="outline" className="fixed bottom-24 right-6 z-50 h-10 px-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 bg-background" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0} aria-label={selectedMenuItems.size === filteredMenuItems.length ? "Deselect all items" : "Select all items"}>
-              <Check className="h-4 w-4 mr-2" />
-              <span className="text-xs">{selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}</span>
-            </Button>
-
-            {/* Assign Printer FAB */}
-            <Button size="sm" variant="outline" className="fixed bottom-36 right-6 z-50 h-10 px-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 bg-background" onClick={handleOpenBulkPrinterDialog} disabled={selectedMenuItems.size === 0} aria-label={`Assign printer to ${selectedMenuItems.size} selected items`}>
-              <Printer className="h-4 w-4 mr-2" />
-              <span className="text-xs">Printer ({selectedMenuItems.size})</span>
-            </Button>
-
-            {/* Update Category FAB */}
-            <Button size="sm" variant="outline" className="fixed bottom-48 right-6 z-50 h-10 px-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 bg-background" onClick={handleOpenBulkCategoryDialog} disabled={selectedMenuItems.size === 0} aria-label={`Update category for ${selectedMenuItems.size} selected items`}>
-              <Tag className="h-4 w-4 mr-2" />
-              <span className="text-xs">Category ({selectedMenuItems.size})</span>
-            </Button>
-          </>
-        )}
+        </div>
       </div>
 
       {/* Printer Assignment Dialog */}
