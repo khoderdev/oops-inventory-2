@@ -529,27 +529,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         </div>
       )}
 
-      {showStockForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-xs sm:max-w-lg md:max-w-2xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl">
-            <StockForm
-              materials={materialsWithStock}
-              stockEntry={selectedStockEntry || undefined}
-              selectedMaterialId={selectedMaterial?.id}
-              onSubmit={handleStockSubmit}
-              onAddStock={handleAddStockOperation}
-              onRecordWaste={handleRecordWasteOperation}
-              onAddToSpecificEntry={handleAddToSpecificEntryOperation}
-              onWasteFromSpecificEntry={handleWasteFromSpecificEntryOperation}
-              onCancel={() => {
-                setShowStockForm(false);
-                setSelectedMaterial(null);
-                setSelectedStockEntry(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+
 
       {/* Section Form Dialog */}
       <Dialog open={showSectionForm} onOpenChange={setShowSectionForm}>
