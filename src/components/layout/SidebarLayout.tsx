@@ -92,7 +92,7 @@ export function SidebarLayout({ children, showSearch = true, showNotifications =
           </div>
         </header>
         <main className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 flex flex-col gap-4 animate-fade-in">{children}</div>
+          <div className="px-2 flex-1 flex flex-col gap-4 animate-fade-in">{children}</div>
         </main>
       </SidebarInset>
     </SidebarProvider>
