@@ -8,7 +8,7 @@ import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { MATERIAL_CATEGORIES, MaterialTableProps } from "@/types/inventory";
 import { highlightText } from "@/utils/highlightText";
 import { Edit, Plus, Search, Trash2, ChevronUp, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
   const { setShowMaterialForm } = useInventoryStore();
@@ -16,6 +16,9 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<"name" | "baseUnit" | "createdAt">("createdAt");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [showFloatingButton, setShowFloatingButton] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle sorting
   const handleSort = (field: "name" | "baseUnit" | "createdAt") => {
@@ -26,6 +29,31 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
       setSortDirection("asc");
     }
   };
+
+  // Handle scroll for floating button
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollContainer = scrollContainerRef.current;
+      if (!scrollContainer) return;
+
+      const currentScrollY = scrollContainer.scrollTop;
+      
+      // Show button when scrolling up or at top, hide when scrolling down
+      if (currentScrollY < lastScrollY || currentScrollY < 50) {
+        setShowFloatingButton(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setShowFloatingButton(false);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+      return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, [lastScrollY]);
 
   // Filter and sort materials
   const searchFilteredMaterials = filteredMaterials
@@ -98,15 +126,6 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                 )}
               </div>
             </div>
-
-            {/* Primary Action */}
-            <Button 
-              onClick={() => setShowMaterialForm(true)} 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm w-full sm:w-auto shrink-0"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Material
-            </Button>
           </div>
 
           {/* Action Bar */}
@@ -142,7 +161,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
         </div>
 
         {/* Content Section */}
-        <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex-1 overflow-hidden">
+        <div ref={scrollContainerRef} className="px-4 sm:px-6 pb-4 sm:pb-6 flex-1 overflow-hidden overflow-y-auto relative">
           {/* Mobile Card View */}
           <div className="lg:hidden space-y-4">
             {searchFilteredMaterials.map(material => {
@@ -350,6 +369,23 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
               </div>
             </div>
           </div>
+        </div>
+        
+        {/* Floating Add Button */}
+        <div 
+          className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-in-out transform ${
+            showFloatingButton 
+              ? 'translate-y-0 opacity-100 scale-100' 
+              : 'translate-y-16 opacity-0 scale-95 pointer-events-none'
+          }`}
+        >
+          <Button 
+            onClick={() => setShowMaterialForm(true)} 
+            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group"
+            size="lg"
+          >
+            <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+          </Button>
         </div>
       </div>
     </>
