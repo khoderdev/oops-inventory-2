@@ -679,7 +679,7 @@ router.post("/restore/:backupId", async (req, res) => {
             // The backup already contains DROP DATABASE and CREATE DATABASE commands
             // No additional conflict handling needed
           } else {
-            console.log(`🔧 Preserving existing database, handling schema conflicts`);
+            console.log(`🔧 Preserving existing database, allowing conflicts to be ignored`);
             
             // Remove DROP DATABASE and CREATE DATABASE commands to preserve existing database
             modifiedContent = modifiedContent.replace(
@@ -695,44 +695,14 @@ router.post("/restore/:backupId", async (req, res) => {
               '-- Database preservation mode: connect command removed'
             );
             
-            // Add conflict resolution for schema objects WITHOUT dropping existing data
-            // Handle TYPE conflicts by adding IF NOT EXISTS equivalent
-            modifiedContent = modifiedContent.replace(
-              /CREATE TYPE ([^\s]+) AS ENUM/g,
-              (match, typeName) => {
-                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '${typeName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
-              }
-            );
-            
-            // Handle TABLE conflicts by skipping existing tables instead of dropping them
-            modifiedContent = modifiedContent.replace(
-              /CREATE TABLE ([^\s]+)/g,
-              (match, tableName) => {
-                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '${tableName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
-              }
-            );
-            
-            // Add IF NOT EXISTS to CREATE EXTENSION statements
+            // Add IF NOT EXISTS to CREATE EXTENSION statements to avoid conflicts
             modifiedContent = modifiedContent.replace(
               /CREATE EXTENSION ([^\s;]+)/g,
               'CREATE EXTENSION IF NOT EXISTS $1'
             );
             
-            // Handle SEQUENCE conflicts by adding IF NOT EXISTS equivalent
-            modifiedContent = modifiedContent.replace(
-              /CREATE SEQUENCE ([^\s]+)/g,
-              (match, sequenceName) => {
-                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM information_schema.sequences WHERE sequence_name = '${sequenceName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
-              }
-            );
-            
-            // Handle INDEX conflicts by adding IF NOT EXISTS equivalent
-            modifiedContent = modifiedContent.replace(
-              /CREATE (UNIQUE )?INDEX ([^\s]+)/g,
-              (match, unique, indexName) => {
-                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = '${indexName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
-              }
-            );
+            // Note: We'll allow other conflicts (types, tables, sequences, indexes) to be handled
+            // by removing the ON_ERROR_STOP flag so PostgreSQL continues despite conflicts
           }
           
           // Write modified content to temp file
@@ -744,55 +714,22 @@ router.post("/restore/:backupId", async (req, res) => {
             // When dropping existing, connect to postgres database for database-level operations
             restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=postgres --set ON_ERROR_STOP=on --file="${filePath}"`;
           } else {
-            // When preserving existing, connect directly to target database
-            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --set ON_ERROR_STOP=on --file="${filePath}"`;
+            // When preserving existing, connect directly to target database and continue on errors
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --file="${filePath}"`;
           }
         } else {
           // No database-level commands, restore directly to target database
           // Handle schema conflicts when not dropping existing
           if (!dropExisting) {
-            console.log(`🔧 Handling schema conflicts for schema-only restore`);
+            console.log(`🔧 Allowing conflicts for schema-only restore`);
             tempFilePath = path.join(backupDir, `temp_${sqlFile}`);
             
             let modifiedContent = sqlContent;
             
-            // Handle schema conflicts WITHOUT dropping existing objects
-            // Handle TYPE conflicts by adding IF NOT EXISTS equivalent
-            modifiedContent = modifiedContent.replace(
-              /CREATE TYPE ([^\s]+) AS ENUM/g,
-              (match, typeName) => {
-                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '${typeName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
-              }
-            );
-            
-            // Handle TABLE conflicts by skipping existing tables instead of dropping them
-            modifiedContent = modifiedContent.replace(
-              /CREATE TABLE ([^\s]+)/g,
-              (match, tableName) => {
-                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '${tableName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
-              }
-            );
-            
-            // Add IF NOT EXISTS to CREATE EXTENSION statements
+            // Only handle extensions to avoid conflicts
             modifiedContent = modifiedContent.replace(
               /CREATE EXTENSION ([^\s;]+)/g,
               'CREATE EXTENSION IF NOT EXISTS $1'
-            );
-            
-            // Handle SEQUENCE conflicts by adding IF NOT EXISTS equivalent
-            modifiedContent = modifiedContent.replace(
-              /CREATE SEQUENCE ([^\s]+)/g,
-              (match, sequenceName) => {
-                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM information_schema.sequences WHERE sequence_name = '${sequenceName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
-              }
-            );
-            
-            // Handle INDEX conflicts by adding IF NOT EXISTS equivalent
-            modifiedContent = modifiedContent.replace(
-              /CREATE (UNIQUE )?INDEX ([^\s]+)/g,
-              (match, unique, indexName) => {
-                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = '${indexName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
-              }
             );
             
             // Write modified content to temp file
@@ -800,7 +737,11 @@ router.post("/restore/:backupId", async (req, res) => {
             filePath = tempFilePath;
           }
           
-          restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --set ON_ERROR_STOP=on --file="${filePath}"`;
+          if (dropExisting) {
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --set ON_ERROR_STOP=on --file="${filePath}"`;
+          } else {
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --file="${filePath}"`;
+          }
         }
         break;
 

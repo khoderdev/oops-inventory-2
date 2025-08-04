@@ -2,7 +2,6 @@ import sequelize from "./database.js";
 // Import all models to ensure they are registered with Sequelize
 import "../models/index.js";
 // import StockEntryLog from "../models/StockEntryLog.js"; // Temporarily disabled
-import StockEntryLogSimple from "../models/StockEntryLogSimple.js";
 
 async function syncDatabase() {
   try {
