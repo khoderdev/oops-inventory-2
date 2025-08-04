@@ -8,6 +8,7 @@ import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { MATERIAL_CATEGORIES, MaterialTableProps } from "@/types/inventory";
 import { highlightText } from "@/utils/highlightText";
 import { Edit, Plus, Search, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef } from "react";
 
 export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
@@ -108,7 +109,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
   };
 
   return (
-    <>
+    <TooltipProvider delayDuration={100} skipDelayDuration={10}>
       <div className="h-full flex flex-col p-2">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-4 px-5">
@@ -203,34 +204,55 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                   </div>
 
                   <div className="flex gap-2 pt-2 border-t border-gray-100">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => onEditMaterial(material)} 
-                      className="flex-1 h-8 text-xs hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => onAddStock(material.id)} 
-                      className="flex-1 h-8 text-xs hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Stock
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-8 px-3 text-xs hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                          onClick={() => onEditMaterial(material)} 
+                          className="flex-1 h-8 text-xs hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
                         </Button>
-                      </AlertDialogTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Edit {material.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => onAddStock(material.id)} 
+                          className="flex-1 h-8 text-xs hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Stock
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Add stock for {material.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <AlertDialog>
+                      <Tooltip>
+                        <AlertDialogTrigger asChild>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 px-3 text-xs hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </TooltipTrigger>
+                        </AlertDialogTrigger>
+                        <TooltipContent>
+                          <p>Delete {material.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete Material</AlertDialogTitle>
@@ -334,18 +356,39 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                           <TableCell className="w-[12%] px-4 py-4 text-gray-700 font-mono text-sm">{material.inputUnit && material.inputUnit !== material.baseUnit ? material.inputUnit : "-"}</TableCell>
                           <TableCell className="w-[24%] px-6 py-4">
                             <div className="flex items-center justify-center gap-2">
-                              <Button variant="outline" size="sm" onClick={() => onEditMaterial(material)} className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)} className="h-8 w-8 p-0 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700">
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700">
-                                    <Trash2 className="h-4 w-4" />
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="outline" size="sm" onClick={() => onEditMaterial(material)} className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700">
+                                    <Edit className="h-4 w-4" />
                                   </Button>
-                                </AlertDialogTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Edit {material.name}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)} className="h-8 w-8 p-0 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700">
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Add stock for {material.name}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              <AlertDialog>
+                                <Tooltip>
+                                  <AlertDialogTrigger asChild>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="outline" size="sm" className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                  </AlertDialogTrigger>
+                                  <TooltipContent>
+                                    <p>Delete {material.name}</p>
+                                  </TooltipContent>
+                                </Tooltip>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Delete Material</AlertDialogTitle>
@@ -379,15 +422,22 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
               : 'translate-y-16 opacity-0 scale-95 pointer-events-none'
           }`}
         >
-          <Button 
-            onClick={() => setShowMaterialForm(true)} 
-            className="bg-primary hover:bg-primary/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group"
-            size="lg"
-          >
-            <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                onClick={() => setShowMaterialForm(true)} 
+                className="bg-primary hover:bg-primary/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group"
+                size="lg"
+              >
+                <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Add new material</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
-    </>
+    </TooltipProvider>
   );
 }

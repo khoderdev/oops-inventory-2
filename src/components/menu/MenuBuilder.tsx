@@ -14,6 +14,7 @@ import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
 import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataValidation";
 import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag, AlertTriangle, CheckCircle, X, CheckSquare, Square } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { useAtom } from "jotai";
 import { dataValidationEnabledAtom } from "@/store/settingsStore";
@@ -598,28 +599,20 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, MENU_CATEGORIES, fetchTabData, handleCloseBulkCategoryDialog]);
 
   return (
-    <>
+    <TooltipProvider delayDuration={100} skipDelayDuration={10}>
       <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
         <Card className="!border-0 !shadow-none !bg-background flex flex-col h-full">
           <CardHeader className="flex-shrink-0 px-4 sm:px-6 lg:px-8">
             {/* Desktop: Title and Controls Inline, Mobile: Stacked */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               {/* Page Title */}
-              <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex-shrink-0">
-                Menu Items
-              </CardTitle>
-              
+              <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex-shrink-0">Menu Items</CardTitle>
+
               {/* Search and Filter Controls */}
               <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 flex-1 lg:max-w-2xl">
                 <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    type="search" 
-                    placeholder="Search menu items..." 
-                    value={searchTerm} 
-                    onChange={e => setSearchTerm(e.target.value)} 
-                    className="pl-10 h-10" 
-                  />
+                  <Input type="search" placeholder="Search menu items..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 h-10" />
                 </div>
                 <Select value={selectedCategory} onValueChange={value => setSelectedCategory(value as MenuItemCategory | "all")}>
                   <SelectTrigger className="w-full sm:w-[180px] lg:w-[200px] h-10">
@@ -684,8 +677,18 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             {(searchTerm || selectedCategory !== "all") && (
               <div className="mt-3 text-xs sm:text-sm text-muted-foreground px-1">
                 Showing <span className="font-medium">{filteredMenuItems.length}</span> of <span className="font-medium">{menuItems.length}</span> menu items
-                {searchTerm && <span className="block sm:inline"> matching <span className="font-medium">"${searchTerm}"</span></span>}
-                {selectedCategory !== "all" && <span className="block sm:inline"> in <span className="font-medium">{MENU_CATEGORIES.find(c => c.value === selectedCategory)?.label}</span></span>}
+                {searchTerm && (
+                  <span className="block sm:inline">
+                    {" "}
+                    matching <span className="font-medium">"${searchTerm}"</span>
+                  </span>
+                )}
+                {selectedCategory !== "all" && (
+                  <span className="block sm:inline">
+                    {" "}
+                    in <span className="font-medium">{MENU_CATEGORIES.find(c => c.value === selectedCategory)?.label}</span>
+                  </span>
+                )}
               </div>
             )}
           </CardHeader>
@@ -700,7 +703,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             </Dialog>
 
             {/* Mobile Card View - Show on small screens */}
-            <div className="lg:hidden flex-1 overflow-auto">
+            <div className="lg:hidden flex-1 overflow-auto pb-16">
               <div className="space-y-3">
                 {filteredMenuItems.length > 0 ? (
                   filteredMenuItems.map(item => {
@@ -710,24 +713,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                     const isSelected = selectedMenuItems.has(item.id);
 
                     return (
-                      <div 
-                        key={item.id} 
-                        className={`p-4 rounded-lg border bg-white shadow-sm transition-all duration-200 ${
-                          isSelected ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
-                        }`}
-                        onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : undefined}
-                      >
+                      <div key={item.id} className={`p-4 rounded-lg border bg-white shadow-sm transition-all duration-200 ${isSelected ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"}`} onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : undefined}>
                         {/* Mobile Card Header */}
                         <div className="flex items-start gap-3 mb-3">
-                          {bulkSelectionMode && (
-                            <input 
-                              type="checkbox" 
-                              checked={isSelected} 
-                              onChange={() => handleSelectMenuItem(item.id)} 
-                              className="h-4 w-4 mt-1" 
-                              onClick={e => e.stopPropagation()}
-                            />
-                          )}
+                          {bulkSelectionMode && <input type="checkbox" checked={isSelected} onChange={() => handleSelectMenuItem(item.id)} className="h-4 w-4 mt-1" onClick={e => e.stopPropagation()} />}
                           {item.image ? (
                             <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-md border flex-shrink-0" />
                           ) : (
@@ -737,18 +726,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                           )}
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-900 truncate">{item.name}</h3>
-                            {item.description && (
-                              <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
-                            )}
+                            {item.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>}
                             <div className="flex items-center gap-2 mt-2">
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}
-                              </span>
-                              {item.isPOSItem && (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  POS
-                                </span>
-                              )}
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}</span>
+                              {item.isPOSItem && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">POS</span>}
                             </div>
                           </div>
                         </div>
@@ -764,7 +745,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                                 return (
                                   <div key={idx} className="flex justify-between">
                                     <span>{materialName}</span>
-                                    <span>{formatNumber(ingredient.quantity)} {ingredient.unit}</span>
+                                    <span>
+                                      {formatNumber(ingredient.quantity)} {ingredient.unit}
+                                    </span>
                                   </div>
                                 );
                               })}
@@ -783,9 +766,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                             </div>
                             <div className="text-center">
                               <div className="text-xs text-gray-500">Profit</div>
-                              <div className={`font-semibold ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
-                                {formatCurrency(profit)}
-                              </div>
+                              <div className={`font-semibold ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>{formatCurrency(profit)}</div>
                             </div>
                           </div>
 
@@ -803,31 +784,52 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                               <Eye className="h-4 w-4 mr-1" />
                               {item.isPOSItem ? "Hide from POS" : "Show in POS"}
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleOpenPrinterDialog(item);
-                              }}
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setEditingMenuItem(item);
-                                setShowMenuItemForm(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleOpenPrinterDialog(item);
+                                  }}
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Assign printer to {item.name}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingMenuItem(item);
+                                    setShowMenuItemForm(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Edit {item.name}</p>
+                              </TooltipContent>
+                            </Tooltip>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="outline">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="outline">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Delete {item.name}</p>
+                                  </TooltipContent>
+                                </Tooltip>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -929,47 +931,73 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                             </TableCell>
                             <TableCell className="text-right min-w-[200px]">
                               <div className="flex gap-2 justify-end">
-                                <Button
-                                  size="sm"
-                                  variant={item.isPOSItem ? "default" : "outline"}
-                                  className={item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    handleTogglePOSVisibility(item);
-                                  }}
-                                  title={item.isPOSItem ? "Hide from POS" : "Show in POS"}
-                                  aria-label={`${item.isPOSItem ? "Hide from" : "Show in"} POS`}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    handleOpenPrinterDialog(item);
-                                  }}
-                                  title={`Assign printer to ${item.name}`}
-                                  aria-label={`Assign printer to ${item.name}`}
-                                >
-                                  <Printer className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setEditingMenuItem(item);
-                                    setShowMenuItemForm(true);
-                                  }}
-                                  aria-label={`Edit ${item.name}`}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant={item.isPOSItem ? "default" : "outline"}
+                                      className={item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        handleTogglePOSVisibility(item);
+                                      }}
+                                      aria-label={`${item.isPOSItem ? "Hide from" : "Show in"} POS`}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{item.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        handleOpenPrinterDialog(item);
+                                      }}
+                                      aria-label={`Assign printer to ${item.name}`}
+                                    >
+                                      <Printer className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Assign printer to {item.name}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setEditingMenuItem(item);
+                                        setShowMenuItemForm(true);
+                                      }}
+                                      aria-label={`Edit ${item.name}`}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Edit {item.name}</p>
+                                  </TooltipContent>
+                                </Tooltip>
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
-                                    <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Delete {item.name}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
                                   </AlertDialogTrigger>
                                   <AlertDialogContent>
                                     <AlertDialogHeader>
@@ -1019,20 +1047,41 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             <div className="flex flex-col items-end gap-2 mb-2">
               {/* Bulk Action Pills */}
               <div className="flex flex-col gap-2">
-                <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-blue-500" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0}>
-                  {selectedMenuItems.size === filteredMenuItems.length ? <CheckSquare className="h-3.5 w-3.5 mr-1.5" /> : <Square className="h-3.5 w-3.5 mr-1.5" />}
-                  {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-blue-500" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0}>
+                      {selectedMenuItems.size === filteredMenuItems.length ? <CheckSquare className="h-3.5 w-3.5 mr-1.5" /> : <Square className="h-3.5 w-3.5 mr-1.5" />}
+                      {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{selectedMenuItems.size === filteredMenuItems.length ? "Deselect all menu items" : "Select all visible menu items"}</p>
+                  </TooltipContent>
+                </Tooltip>
 
-                <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-yellow-500" onClick={handleOpenBulkPrinterDialog} disabled={selectedMenuItems.size === 0}>
-                  <Printer className="h-3.5 w-3.5 mr-1.5" />
-                  Printer ({selectedMenuItems.size})
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-yellow-500" onClick={handleOpenBulkPrinterDialog} disabled={selectedMenuItems.size === 0}>
+                      <Printer className="h-3.5 w-3.5 mr-1.5" />
+                      Printer ({selectedMenuItems.size})
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Assign printers to {selectedMenuItems.size} selected menu items</p>
+                  </TooltipContent>
+                </Tooltip>
 
-                <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-green-500" onClick={handleOpenBulkCategoryDialog} disabled={selectedMenuItems.size === 0}>
-                  <Tag className="h-3.5 w-3.5 mr-1.5" />
-                  Category ({selectedMenuItems.size})
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-green-500" onClick={handleOpenBulkCategoryDialog} disabled={selectedMenuItems.size === 0}>
+                      <Tag className="h-3.5 w-3.5 mr-1.5" />
+                      Category ({selectedMenuItems.size})
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Change category for {selectedMenuItems.size} selected menu items</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
           )}
@@ -1041,28 +1090,49 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           <div className="flex items-center gap-3">
             {/* Validation FAB - Only show when enabled */}
             {dataValidationEnabled && (
-              <Button className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${validationResults && !validationResults.isValid ? "bg-red-500 hover:bg-red-600 text-white" : validationResults && validationResults.summary.warnings > 0 ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-emerald-500 hover:bg-emerald-600 text-white"}`} onClick={runValidation} aria-label="Validate inventory data" title="Run data validation">
-                {validationResults && !validationResults.isValid ? <AlertTriangle className="h-5 w-5" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${validationResults && !validationResults.isValid ? "bg-red-500 hover:bg-red-600 text-white" : validationResults && validationResults.summary.warnings > 0 ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-emerald-500 hover:bg-emerald-600 text-white"}`} onClick={runValidation} aria-label="Validate inventory data">
+                    {validationResults && !validationResults.isValid ? <AlertTriangle className="h-5 w-5" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Run data validation</p>
+                </TooltipContent>
+              </Tooltip>
             )}
 
             {/* Bulk Selection Toggle FAB */}
-            <Button className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${bulkSelectionMode ? "bg-red-500 hover:bg-red-600 text-white" : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"}`} onClick={handleToggleBulkSelection} aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}>
-              {bulkSelectionMode ? <X className="h-5 w-5" /> : <Check className="h-5 w-5" />}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${bulkSelectionMode ? "bg-red-500 hover:bg-red-600 text-white" : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"}`} onClick={handleToggleBulkSelection} aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}>
+                  {bulkSelectionMode ? <X className="h-5 w-5" /> : <Check className="h-5 w-5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Primary FAB - Add Menu Item */}
-          <Button
-            className="h-14 w-14 rounded-full bg-primary hover:bg-teal-600 text-white shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 relative"
-            onClick={() => {
-              setEditingMenuItem(null);
-              setShowMenuItemForm(true);
-            }}
-            aria-label="Add new menu item"
-          >
-            <Plus className="h-6 w-6" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className="h-14 w-14 rounded-full bg-primary hover:bg-teal-600 text-white shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 relative"
+                onClick={() => {
+                  setEditingMenuItem(null);
+                  setShowMenuItemForm(true);
+                }}
+                aria-label="Add new menu item"
+              >
+                <Plus className="h-6 w-6" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Add new menu item</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -1107,6 +1177,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   );
 };

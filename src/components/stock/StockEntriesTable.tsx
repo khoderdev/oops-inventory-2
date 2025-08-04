@@ -17,7 +17,8 @@ import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
 import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial, StockFormData, AddStockData, RecordWasteData, MaterialWithStock } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
-import { AlertTriangle, Check, Edit, Eye, FileText, Plus, Printer, RefreshCw, Search, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { AlertTriangle, Check, Edit, Eye, EyeOff, FileText, Plus, Printer, RefreshCw, Search, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef } from "react";
 import { useAtom } from "jotai";
 import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from "@/store/inventoryAtoms";
@@ -646,7 +647,7 @@ export function StockEntriesTable() {
   };
 
   return (
-    <>
+    <TooltipProvider delayDuration={100} skipDelayDuration={10}>
       <div className="h-full flex flex-col">
         {/* Header Section */}
         <div className="p-4 sm:p-6 space-y-4">
@@ -848,30 +849,42 @@ export function StockEntriesTable() {
                   {!bulkSelectionMode && (
                     <div className="flex items-center justify-between pt-3 border-t border-gray-200">
                       <div className="flex items-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditStockEntry(entry);
-                          }} 
-                          className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                          title="Edit stock entry"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
-                              title="Delete stock entry"
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditStockEntry(entry);
+                              }} 
+                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Edit className="h-4 w-4" />
                             </Button>
-                          </AlertDialogTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Edit {material?.name} stock entry</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <AlertDialog>
+                          <Tooltip>
+                            <AlertDialogTrigger asChild>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                            </AlertDialogTrigger>
+                            <TooltipContent>
+                              <p>Delete {material?.name} stock entry</p>
+                            </TooltipContent>
+                          </Tooltip>
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Stock Entry</AlertDialogTitle>
@@ -891,30 +904,42 @@ export function StockEntriesTable() {
                     </div>
 
                       <div className="flex items-center gap-2">
-                        <Button 
-                          variant={entry.isPOSItem ? "default" : "outline"} 
-                          size="sm" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTogglePOSVisibility(entry);
-                          }} 
-                          className={`h-8 w-8 p-0 ${entry.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"}`}
-                          title={entry.isPOSItem ? "Hide from POS" : "Show in POS"}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenPrinterDialog(entry);
-                          }} 
-                          className={`h-8 w-8 p-0 ${entry.assignedPrinter ? "border-blue-500 text-blue-600" : "hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"}`}
-                          title={entry.assignedPrinter ? `Assigned to: ${entry.assignedPrinter.name}` : "Assign printer"}
-                        >
-                          <Printer className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant={entry.isPOSItem ? "default" : "outline"} 
+                              size="sm" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePOSVisibility(entry);
+                              }} 
+                              className={`h-8 w-8 p-0 ${entry.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"}`}
+                            >
+                              {entry.isPOSItem ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{entry.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenPrinterDialog(entry);
+                              }} 
+                              className={`h-8 w-8 p-0 ${entry.assignedPrinter ? "border-blue-500 text-blue-600" : "hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"}`}
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{entry.assignedPrinter ? `Assigned to: ${entry.assignedPrinter.name}` : "Assign printer to " + material?.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
                   )}
@@ -1055,51 +1080,77 @@ export function StockEntriesTable() {
                               <TableCell className="w-[10%] px-4 py-4 text-gray-700">{new Date(entry.purchaseDate).toLocaleDateString()}</TableCell>
                               <TableCell className="w-[13%] px-6 py-4">
                                 <div className="flex items-center justify-center gap-2">
-                                  <Button
-                                    variant={entry.isPOSItem ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      handleTogglePOSVisibility(entry);
-                                    }}
-                                    title={entry.isPOSItem ? "Hide from POS" : "Show in POS"}
-                                    className={`h-8 w-8 p-0 ${entry.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"}`}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      handleOpenPrinterDialog(entry);
-                                    }}
-                                    title={entry.assignedPrinter ? `Assigned to: ${entry.assignedPrinter.name}` : "Assign printer"}
-                                    className={`h-8 w-8 p-0 ${entry.assignedPrinter ? "border-blue-500 text-blue-600" : "hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"}`}
-                                  >
-                                    <Printer className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      handleEditStockEntry(entry as StockEntry);
-                                    }}
-                                    className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant={entry.isPOSItem ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          handleTogglePOSVisibility(entry);
+                                        }}
+                                        className={`h-8 w-8 p-0 ${entry.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"}`}
+                                      >
+                                        {entry.isPOSItem ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{entry.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          handleOpenPrinterDialog(entry);
+                                        }}
+                                        className={`h-8 w-8 p-0 ${entry.assignedPrinter ? "border-blue-500 text-blue-600" : "hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"}`}
+                                      >
+                                        <Printer className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{entry.assignedPrinter ? `Assigned to: ${entry.assignedPrinter.name}` : "Assign printer to " + (entry.material?.name || "stock entry")}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
                                       <Button 
                                         variant="outline" 
                                         size="sm" 
-                                        className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          handleEditStockEntry(entry as StockEntry);
+                                        }}
+                                        className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
                                       >
-                                        <Trash2 className="h-4 w-4" />
+                                        <Edit className="h-4 w-4" />
                                       </Button>
-                                    </AlertDialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Edit {entry.material?.name || "stock entry"}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <AlertDialog>
+                                    <Tooltip>
+                                      <AlertDialogTrigger asChild>
+                                        <TooltipTrigger asChild>
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                      </AlertDialogTrigger>
+                                      <TooltipContent>
+                                        <p>Delete {entry.material?.name || "stock entry"}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
                                     <AlertDialogContent>
                                       <AlertDialogHeader>
                                         <AlertDialogTitle>Delete Stock Entry</AlertDialogTitle>
@@ -1173,14 +1224,21 @@ export function StockEntriesTable() {
               : 'translate-y-16 opacity-0 scale-95 pointer-events-none'
           }`}
         >
-          <Button 
-            onClick={handleAddStock} 
-            className="bg-primary hover:bg-primary/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group"
-            size="lg"
-          >
-            <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                onClick={handleAddStock} 
+                className="bg-primary hover:bg-primary/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group"
+                size="lg"
+              >
+                <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Add new stock entry</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
-    </>
+    </TooltipProvider>
   );
 }
