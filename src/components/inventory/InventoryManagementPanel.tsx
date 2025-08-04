@@ -473,43 +473,42 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
   return (
     <div className="h-[calc(100vh-4rem)] w-full flex flex-col overflow-hidden">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-3 gap-1 p-1 bg-gray-100 rounded-lg mb-2 sm:mb-4">
+        <TabsList className="grid w-full grid-cols-3">
           {[
-            { value: "material", label: "Materials", icon: Package, color: "blue", short: "Mat", loading: tabLoading.material },
-            { value: "stock", label: "Stock Entries", icon: Warehouse, color: "green", short: "Stock", loading: tabLoading.stock },
-            { value: "sections", label: "Sections", icon: MapPin, color: "purple", short: "Sec", loading: tabLoading.sections }
-          ].map(({ value, label, icon: Icon, color, short, loading }) => (
+            { value: "material", label: "Materials", icon: Package, short: "Mat", loading: tabLoading.material },
+            { value: "stock", label: "Stock Entries", icon: Warehouse, short: "Stock", loading: tabLoading.stock },
+            { value: "sections", label: "Sections", icon: MapPin, short: "Sec", loading: tabLoading.sections }
+          ].map(({ value, label, icon: Icon, short, loading }) => (
             <TabsTrigger
               key={value}
               value={value}
-              className={`
-                flex items-center justify-center gap-1 px-2 py-2 sm:px-3 sm:py-2.5 
-                text-xs sm:text-sm font-medium text-gray-600 transition-all duration-200
-                bg-white rounded-md shadow-sm border border-gray-200
-                data-[state=active]:bg-${color}-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border-${color}-600
-                hover:bg-${color}-50 hover:text-${color}-700 hover:border-${color}-300
-                focus:outline-none focus:ring-2 focus:ring-${color}-500 focus:ring-offset-1
-                min-h-[2.5rem] sm:min-h-[3rem]
-              `}
+              className="
+                flex items-center justify-center gap-2 px-3 py-3
+                text-sm font-medium text-gray-600 transition-colors
+                bg-whites
+                data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-700 
+                hover:text-gray-800
+                border-b
+                min-h-[3rem]
+              "
             >
-              <Icon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-              <span className="hidden xs:inline sm:hidden text-xs">{short}</span>
-              <span className="hidden sm:inline truncate">{label}</span>
-              <span className="xs:hidden text-[10px] leading-tight">{short}</span>
-              {loading && <Loader2 className="w-3 h-3 ml-1 animate-spin flex-shrink-0" />}
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">{label}</span>
+              <span className="sm:hidden">{short}</span>
+              {loading && <Loader2 className="w-4 h-4 ml-1 animate-spin flex-shrink-0" />}
             </TabsTrigger>
-          ))}
+          ))} 
         </TabsList>
 
-        <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden bg-white rounded-lg border border-gray-200">
+        <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden ">
           <MaterialTable filteredMaterials={filteredMaterials} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
         </TabsContent>
 
-        <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden bg-white rounded-lg border border-gray-200">
+        <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden ">
           <StockEntriesTable />
         </TabsContent>
 
-        <TabsContent value="sections" className="flex-1 focus-visible:outline-none overflow-hidden bg-white rounded-lg border border-gray-200">
+        <TabsContent value="sections" className="flex-1 focus-visible:outline-none overflow-hidden ">
           <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
         </TabsContent>
       </Tabs>
