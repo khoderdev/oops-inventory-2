@@ -118,7 +118,8 @@ class BackupApiClient {
   async createBackup(
     options: {
       name?: string;
-      type?: "custom" | "directory" | "sql";
+      formats?: ("custom" | "directory" | "sql")[];
+      type?: "custom" | "directory" | "sql"; // Deprecated: use formats instead
       includeData?: boolean;
       includeSchema?: boolean;
     } = {}
@@ -126,6 +127,16 @@ class BackupApiClient {
     this.clearCache(); // Clear cache when creating new backup
 
     try {
+      // Handle backward compatibility: if type is provided but not formats, use type
+      if (options.type && !options.formats) {
+        options.formats = [options.type];
+      }
+      
+      // Default to all formats if none specified
+      if (!options.formats || options.formats.length === 0) {
+        options.formats = ["custom", "directory", "sql"];
+      }
+      
       const response = await api.post('/backup/create', options);
       return response.data;
     } catch (error) {

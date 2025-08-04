@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { promisify } from "util";
+import os from "os";
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -10,6 +11,68 @@ const __dirname = path.dirname(__filename);
 
 console.log("🗄️  PostgreSQL pg_dump Compatible Backup");
 console.log("========================================");
+
+// Cross-platform PostgreSQL detection
+function findPostgreSQLPath() {
+  const platform = os.platform();
+  console.log(`🖥️  Detected OS: ${platform}`);
+
+  if (platform === "win32") {
+    // Windows paths
+    const possiblePaths = ["C:\\Program Files\\PostgreSQL\\17\\bin", "C:\\Program Files\\PostgreSQL\\16\\bin", "C:\\Program Files\\PostgreSQL\\15\\bin", "C:\\Program Files\\PostgreSQL\\14\\bin", "C:\\Program Files\\PostgreSQL\\13\\bin", "C:\\Program Files (x86)\\PostgreSQL\\17\\bin", "C:\\Program Files (x86)\\PostgreSQL\\16\\bin", "C:\\Program Files (x86)\\PostgreSQL\\15\\bin"];
+
+    for (const pgPath of possiblePaths) {
+      const pgDumpPath = path.join(pgPath, "pg_dump.exe");
+      if (fs.existsSync(pgDumpPath)) {
+        console.log(`   ✓ Found PostgreSQL at: ${pgPath}`);
+        return { binPath: pgPath, executable: "pg_dump.exe" };
+      }
+    }
+  } else {
+    // Linux/macOS paths
+    const possiblePaths = ["/usr/bin", "/usr/local/bin", "/usr/local/pgsql/bin", "/opt/postgresql/bin", "/usr/lib/postgresql/17/bin", "/usr/lib/postgresql/16/bin", "/usr/lib/postgresql/15/bin", "/usr/lib/postgresql/14/bin", "/usr/lib/postgresql/13/bin"];
+
+    for (const pgPath of possiblePaths) {
+      const pgDumpPath = path.join(pgPath, "pg_dump");
+      if (fs.existsSync(pgDumpPath)) {
+        console.log(`   ✓ Found PostgreSQL at: ${pgPath}`);
+        return { binPath: pgPath, executable: "pg_dump" };
+      }
+    }
+  }
+
+  // Try to find pg_dump in PATH
+  console.log("   🔍 Checking if pg_dump is in PATH...");
+  return { binPath: "", executable: platform === "win32" ? "pg_dump.exe" : "pg_dump" };
+}
+
+// Function to test pg_dump availability
+async function testPgDumpAvailability(pgDumpCommand) {
+  try {
+    await execAsync(`${pgDumpCommand} --version`);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Parse command line arguments for format selection
+const args = process.argv.slice(2);
+const formatArgs = args.filter(arg => arg.startsWith('--format='));
+const selectedFormats = formatArgs.length > 0 
+  ? formatArgs[0].replace('--format=', '').split(',').map(f => f.trim())
+  : ['custom', 'directory', 'sql']; // Default to all formats
+
+// Validate format selection
+const validFormats = ['custom', 'directory', 'sql'];
+const invalidFormats = selectedFormats.filter(f => !validFormats.includes(f));
+if (invalidFormats.length > 0) {
+  console.error(`❌ Invalid format(s): ${invalidFormats.join(', ')}`);
+  console.error(`Valid formats: ${validFormats.join(', ')}`);
+  process.exit(1);
+}
+
+console.log(`📋 Selected formats: ${selectedFormats.join(', ')}`);
 
 try {
   // Import database config to test connection
@@ -28,24 +91,52 @@ try {
   // Close sequelize connection
   await sequelize.close();
 
+  // Find PostgreSQL installation
+  console.log("🔍 Locating PostgreSQL installation...");
+  const pgInfo = findPostgreSQLPath();
+
+  let pgDumpCommand;
+  if (pgInfo.binPath) {
+    pgDumpCommand = path.join(pgInfo.binPath, pgInfo.executable);
+  } else {
+    pgDumpCommand = pgInfo.executable;
+  }
+
+  // Test pg_dump availability
+  console.log(`🧪 Testing pg_dump command: ${pgDumpCommand}`);
+  const isAvailable = await testPgDumpAvailability(pgDumpCommand);
+
+  if (!isAvailable) {
+    throw new Error(`pg_dump command not found or not working: ${pgDumpCommand}`);
+  }
+
+  console.log("   ✓ pg_dump command is available");
+
   // Create backup directory structure
   const baseBackupDir = path.join(__dirname, "..", "backups");
   if (!fs.existsSync(baseBackupDir)) {
     fs.mkdirSync(baseBackupDir, { recursive: true });
   }
 
-  // Generate backup folder with readable format
+  // Generate backup folder with readable format (including seconds for uniqueness)
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   const hours = now.getHours();
   const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
   const ampm = hours >= 12 ? "PM" : "AM";
   const displayHours = hours % 12 || 12;
 
-  const backupFolderName = `pgdump_${year}-${month}-${day}_${displayHours}-${minutes}-${ampm}`;
+  const backupFolderName = `pgdump_${year}-${month}-${day}_${displayHours}-${minutes}-${seconds}-${ampm}`;
   const backupDir = path.join(baseBackupDir, backupFolderName);
+
+  // Remove existing backup folder if it exists (cleanup)
+  if (fs.existsSync(backupDir)) {
+    console.log(`🧹 Cleaning up existing backup folder...`);
+    fs.rmSync(backupDir, { recursive: true, force: true });
+  }
 
   // Create individual backup folder
   fs.mkdirSync(backupDir, { recursive: true });
@@ -60,56 +151,120 @@ try {
     port: 5432
   };
 
-  // PostgreSQL bin path (auto-detected)
-  const PG_BIN_PATH = "C:\\Program Files\\PostgreSQL\\17\\bin";
-  const PG_DUMP_EXE = path.join(PG_BIN_PATH, "pg_dump.exe");
-
   // Set PGPASSWORD environment variable
   const env = { ...process.env, PGPASSWORD: DB_CONFIG.password };
 
-  console.log("🔄 Creating multiple backup formats...");
+  console.log(`🔄 Creating ${selectedFormats.length} backup format(s)...`);
+
+  // Helper function to build pg_dump command
+  function buildPgDumpCommand(format, outputFile, additionalOptions = "") {
+    const baseOptions = `--host=${DB_CONFIG.host} --port=${DB_CONFIG.port} --username=${DB_CONFIG.username} --dbname=${DB_CONFIG.database} --verbose --clean --create --if-exists --no-owner --no-privileges`;
+
+    if (os.platform() === "win32") {
+      return `"${pgDumpCommand}" ${baseOptions} --format=${format} ${additionalOptions} --file="${outputFile}"`;
+    } else {
+      return `"${pgDumpCommand}" ${baseOptions} --format=${format} ${additionalOptions} --file="${outputFile}"`;
+    }
+  }
+
+  // Store created files for summary
+  const createdFiles = [];
 
   // 1. Custom format backup (for pg_restore)
-  console.log("   📦 Creating custom format backup...");
-  const customBackupFile = path.join(backupDir, "backup.custom");
-  const customCommand = `"${PG_DUMP_EXE}" --host=${DB_CONFIG.host} --port=${DB_CONFIG.port} --username=${DB_CONFIG.username} --dbname=${DB_CONFIG.database} --format=custom --verbose --clean --create --if-exists --no-owner --no-privileges --file="${customBackupFile}"`;
+  if (selectedFormats.includes('custom')) {
+    console.log("   📦 Creating custom format backup...");
+    const customBackupFile = path.join(backupDir, "backup.custom");
+    const customCommand = buildPgDumpCommand("custom", customBackupFile);
 
-  await execAsync(customCommand, { env });
-  console.log("   ✓ Custom format backup created");
+    await execAsync(customCommand, { env });
+    console.log("   ✓ Custom format backup created");
+    createdFiles.push({ name: "backup.custom", type: "custom", path: customBackupFile });
+  }
 
   // 2. Directory format backup (for pg_restore)
-  console.log("   📁 Creating directory format backup...");
-  const dirBackupPath = path.join(backupDir, "backup_directory");
-  const dirCommand = `"${PG_DUMP_EXE}" --host=${DB_CONFIG.host} --port=${DB_CONFIG.port} --username=${DB_CONFIG.username} --dbname=${DB_CONFIG.database} --format=directory --verbose --clean --create --if-exists --no-owner --no-privileges --file="${dirBackupPath}"`;
+  if (selectedFormats.includes('directory')) {
+    console.log("   📁 Creating directory format backup...");
+    const dirBackupPath = path.join(backupDir, "backup_directory");
 
-  await execAsync(dirCommand, { env });
-  console.log("   ✓ Directory format backup created");
+    // Ensure directory doesn't exist (pg_dump --format=directory fails if target exists)
+    if (fs.existsSync(dirBackupPath)) {
+      fs.rmSync(dirBackupPath, { recursive: true, force: true });
+    }
+
+    const dirCommand = buildPgDumpCommand("directory", dirBackupPath);
+
+    await execAsync(dirCommand, { env });
+    console.log("   ✓ Directory format backup created");
+    createdFiles.push({ name: "backup_directory/", type: "directory", path: dirBackupPath });
+  }
 
   // 3. Plain SQL backup (for psql)
-  console.log("   📄 Creating plain SQL backup...");
-  const sqlBackupFile = path.join(backupDir, "backup.sql");
-  const sqlCommand = `"${PG_DUMP_EXE}" --host=${DB_CONFIG.host} --port=${DB_CONFIG.port} --username=${DB_CONFIG.username} --dbname=${DB_CONFIG.database} --format=plain --verbose --clean --create --if-exists --column-inserts --no-owner --no-privileges --file="${sqlBackupFile}"`;
+  if (selectedFormats.includes('sql')) {
+    console.log("   📄 Creating plain SQL backup...");
+    const sqlBackupFile = path.join(backupDir, "backup.sql");
+    const sqlCommand = buildPgDumpCommand("plain", sqlBackupFile, "--column-inserts");
 
-  await execAsync(sqlCommand, { env });
-  console.log("   ✓ Plain SQL backup created");
+    await execAsync(sqlCommand, { env });
+    console.log("   ✓ Plain SQL backup created");
+    createdFiles.push({ name: "backup.sql", type: "sql", path: sqlBackupFile });
+  }
 
-  // Get file sizes
-  const customStats = fs.statSync(customBackupFile);
-  const sqlStats = fs.statSync(sqlBackupFile);
+  // Get file sizes for created files
+  const fileStats = {};
+  createdFiles.forEach(file => {
+    try {
+      if (file.type === 'directory') {
+        // Calculate directory size
+        const dirSize = getDirSize(file.path);
+        fileStats[file.type] = { size: dirSize, path: file.path };
+      } else {
+        const stats = fs.statSync(file.path);
+        fileStats[file.type] = { size: stats.size, path: file.path };
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not get size for ${file.name}:`, error.message);
+      fileStats[file.type] = { size: 0, path: file.path };
+    }
+  });
+
+  // Helper function to calculate directory size
+  function getDirSize(dirPath) {
+    let totalSize = 0;
+    try {
+      const files = fs.readdirSync(dirPath, { withFileTypes: true });
+      for (const file of files) {
+        const filePath = path.join(dirPath, file.name);
+        if (file.isDirectory()) {
+          totalSize += getDirSize(filePath);
+        } else {
+          const stats = fs.statSync(filePath);
+          totalSize += stats.size;
+        }
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not calculate size for directory ${dirPath}:`, error.message);
+    }
+    return totalSize;
+  }
 
   // Create comprehensive restore instructions
-  const restoreInstructions = `# PostgreSQL Backup Restore Instructions
+  let restoreInstructions = `# PostgreSQL Backup Restore Instructions
 
 ## Backup Information
 - **Created**: ${new Date().toLocaleString()}
 - **Database**: ${DB_CONFIG.database}
 - **PostgreSQL Version**: Compatible with PostgreSQL 17+
+- **Selected Formats**: ${selectedFormats.join(', ').toUpperCase()}
 
 ## Available Backup Formats
 
-### 1. Custom Format (backup.custom)
+`;
+
+  // Add instructions for each created format
+  if (selectedFormats.includes('custom') && fileStats.custom) {
+    restoreInstructions += `### Custom Format (backup.custom)
 **Best for**: pgAdmin Restore, pg_restore command
-**Size**: ${(customStats.size / 1024 / 1024).toFixed(2)} MB
+**Size**: ${(fileStats.custom.size / 1024 / 1024).toFixed(2)} MB
 
 #### Using pgAdmin:
 1. Right-click on your database → Restore
@@ -125,9 +280,13 @@ createdb -U postgres new_inventory_db
 pg_restore -U postgres -d new_inventory_db -v backup.custom
 \`\`\`
 
-### 2. Directory Format (backup_directory/)
+`;
+  }
+
+  if (selectedFormats.includes('directory') && fileStats.directory) {
+    restoreInstructions += `### Directory Format (backup_directory/)
 **Best for**: Parallel restore, large databases
-**Format**: Directory with multiple files
+**Size**: ${(fileStats.directory.size / 1024 / 1024).toFixed(2)} MB
 
 #### Using pg_restore command:
 \`\`\`bash
@@ -138,9 +297,13 @@ createdb -U postgres new_inventory_db
 pg_restore -U postgres -d new_inventory_db -v -j 4 backup_directory/
 \`\`\`
 
-### 3. Plain SQL Format (backup.sql)
+`;
+  }
+
+  if (selectedFormats.includes('sql') && fileStats.sql) {
+    restoreInstructions += `### Plain SQL Format (backup.sql)
 **Best for**: Cross-platform compatibility, manual editing
-**Size**: ${(sqlStats.size / 1024 / 1024).toFixed(2)} MB
+**Size**: ${(fileStats.sql.size / 1024 / 1024).toFixed(2)} MB
 
 #### Using psql command:
 \`\`\`bash
@@ -153,7 +316,10 @@ psql -U postgres -f backup.sql
 2. Open backup.sql file
 3. Execute the SQL statements
 
-## Important Notes
+`;
+  }
+
+  restoreInstructions += `## Important Notes
 - All backups include schema, data, indexes, and constraints
 - Backups are created with --clean and --create flags
 - No ownership or privilege information is included for portability
@@ -173,26 +339,90 @@ psql -U postgres -f backup.sql
   console.log("==========================================");
   console.log(`📁 Backup folder: ${backupDir}`);
   console.log("");
-  console.log("📦 Files created:");
-  console.log(`   📦 backup.custom - Custom format (${(customStats.size / 1024 / 1024).toFixed(2)} MB)`);
-  console.log(`   📁 backup_directory/ - Directory format`);
-  console.log(`   📄 backup.sql - Plain SQL (${(sqlStats.size / 1024 / 1024).toFixed(2)} MB)`);
+  console.log(`📦 Files created (${createdFiles.length} format${createdFiles.length !== 1 ? 's' : ''}):`);
+  
+  // Show details for each created file
+  createdFiles.forEach(file => {
+    const stats = fileStats[file.type];
+    const sizeStr = stats ? `(${(stats.size / 1024 / 1024).toFixed(2)} MB)` : '';
+    
+    switch (file.type) {
+      case 'custom':
+        console.log(`   📦 ${file.name} - Custom format ${sizeStr}`);
+        break;
+      case 'directory':
+        console.log(`   📁 ${file.name} - Directory format ${sizeStr}`);
+        break;
+      case 'sql':
+        console.log(`   📄 ${file.name} - Plain SQL ${sizeStr}`);
+        break;
+    }
+  });
+  
   console.log(`   📋 RESTORE.md - Detailed restore instructions`);
 
   console.log("");
-  console.log("✅ All backup formats created successfully!");
-  console.log("   Use backup.custom or backup_directory with pgAdmin Restore");
-  console.log("   Use backup.sql with psql or pgAdmin Query Tool");
+  console.log(`✅ Selected backup format${selectedFormats.length !== 1 ? 's' : ''} created successfully!`);
+  
+  // Show usage instructions based on created formats
+  const usageInstructions = [];
+  if (selectedFormats.includes('custom') || selectedFormats.includes('directory')) {
+    usageInstructions.push('Use backup.custom or backup_directory with pgAdmin Restore');
+  }
+  if (selectedFormats.includes('sql')) {
+    usageInstructions.push('Use backup.sql with psql or pgAdmin Query Tool');
+  }
+  
+  usageInstructions.forEach(instruction => {
+    console.log(`   ${instruction}`);
+  });
+  
+  console.log("");
+  console.log(`📝 Usage: node pgDumpFixed.js --format=${selectedFormats.join(',')}`);
+  console.log(`📝 Available formats: ${validFormats.join(', ')}`);
+  console.log(`📝 Example: node pgDumpFixed.js --format=sql,custom`);
 } catch (error) {
   console.error("\n❌ pg_dump backup failed!");
   console.error("Error:", error.message);
 
-  if (error.message.includes("pg_dump")) {
-    console.error("\n💡 Troubleshooting:");
-    console.error("   - Make sure PostgreSQL client tools are installed");
-    console.error("   - Add PostgreSQL bin directory to your PATH");
-    console.error("   - Verify pg_dump command is available");
+  console.error("\n💡 Cross-Platform Troubleshooting:");
+
+  const platform = os.platform();
+  if (platform === "win32") {
+    console.error("\n🪟 Windows:");
+    console.error("   1. Install PostgreSQL from: https://www.postgresql.org/download/windows/");
+    console.error("   2. During installation, make sure 'Command Line Tools' is selected");
+    console.error("   3. Add PostgreSQL bin to PATH:");
+    console.error("      - Add: C:\\Program Files\\PostgreSQL\\[VERSION]\\bin");
+    console.error("   4. Restart your terminal/command prompt");
+    console.error("   5. Test with: pg_dump --version");
+  } else if (platform === "linux") {
+    console.error("\n🐧 Linux:");
+    console.error("   Ubuntu/Debian:");
+    console.error("     sudo apt update");
+    console.error("     sudo apt install postgresql-client");
+    console.error("   CentOS/RHEL/Fedora:");
+    console.error("     sudo yum install postgresql (CentOS/RHEL)");
+    console.error("     sudo dnf install postgresql (Fedora)");
+    console.error("   Test with: pg_dump --version");
+  } else if (platform === "darwin") {
+    console.error("\n🍎 macOS:");
+    console.error("   Using Homebrew:");
+    console.error("     brew install postgresql");
+    console.error("   Using MacPorts:");
+    console.error("     sudo port install postgresql17");
+    console.error("   Test with: pg_dump --version");
   }
+
+  console.error("\n🔧 General Solutions:");
+  console.error("   - Ensure PostgreSQL client tools are installed");
+  console.error("   - Verify pg_dump is in your system PATH");
+  console.error("   - Check PostgreSQL service is running");
+  console.error("   - Verify database connection parameters");
+  console.error("   - Check if PGPASSWORD environment variable is set correctly");
+
+  console.error("\n📋 Quick Test:");
+  console.error(`   Run: ${platform === "win32" ? "pg_dump.exe" : "pg_dump"} --version`);
 
   process.exit(1);
 }

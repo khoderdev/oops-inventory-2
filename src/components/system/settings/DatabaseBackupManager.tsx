@@ -63,7 +63,7 @@ interface CreateBackupDialogProps {
 const CreateBackupDialog: React.FC<CreateBackupDialogProps> = ({ open, onOpenChange, onBackupCreated }) => {
   const [loading, setLoading] = useState(false);
   const [backupName, setBackupName] = useState("");
-  const [backupType, setBackupType] = useState<"custom" | "directory" | "sql">("custom");
+  const [selectedFormats, setSelectedFormats] = useState<("custom" | "directory" | "sql")[]>(["sql"]);
   const [includeData, setIncludeData] = useState(true);
   const [includeSchema, setIncludeSchema] = useState(true);
   const [progress, setProgress] = useState<BackupProgress | null>(null);
@@ -74,11 +74,16 @@ const CreateBackupDialog: React.FC<CreateBackupDialogProps> = ({ open, onOpenCha
       return;
     }
 
+    if (selectedFormats.length === 0) {
+      alert("Please select at least one backup format");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await backupAPI.createBackup({
         name: backupName,
-        type: backupType,
+        formats: selectedFormats,
         includeData,
         includeSchema
       });
@@ -98,6 +103,7 @@ const CreateBackupDialog: React.FC<CreateBackupDialogProps> = ({ open, onOpenCha
                 onBackupCreated();
                 onOpenChange(false);
                 setBackupName("");
+                setSelectedFormats(["sql"]);
                 setProgress(null);
               }
             }
@@ -111,6 +117,16 @@ const CreateBackupDialog: React.FC<CreateBackupDialogProps> = ({ open, onOpenCha
       setLoading(false);
       console.error("Failed to create backup:", error);
     }
+  };
+
+  const handleFormatToggle = (format: "custom" | "directory" | "sql") => {
+    setSelectedFormats(prev => {
+      if (prev.includes(format)) {
+        return prev.filter(f => f !== format);
+      } else {
+        return [...prev, format];
+      }
+    });
   };
 
   return (
@@ -128,17 +144,68 @@ const CreateBackupDialog: React.FC<CreateBackupDialogProps> = ({ open, onOpenCha
           </div>
 
           <div>
-            <Label htmlFor="backup-type">Backup Type</Label>
-            <Select value={backupType} onValueChange={(value: "custom" | "directory" | "sql") => setBackupType(value)} disabled={loading}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sql">Plain SQL (Recommended)</SelectItem>
-                <SelectItem value="custom">Custom Format</SelectItem>
-                <SelectItem value="directory">Directory Format</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>Backup Formats</Label>
+            <div className="space-y-3 mt-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="format-sql"
+                  checked={selectedFormats.includes("sql")}
+                  onChange={() => handleFormatToggle("sql")}
+                  disabled={loading}
+                  className="rounded"
+                />
+                <Label htmlFor="format-sql" className="flex items-center space-x-2 cursor-pointer">
+                  <FileText className="h-4 w-4" />
+                  <div>
+                    <span className="font-medium">Plain SQL</span>
+                    <p className="text-xs text-muted-foreground">Cross-platform compatibility, manual editing</p>
+                  </div>
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="format-custom"
+                  checked={selectedFormats.includes("custom")}
+                  onChange={() => handleFormatToggle("custom")}
+                  disabled={loading}
+                  className="rounded"
+                />
+                <Label htmlFor="format-custom" className="flex items-center space-x-2 cursor-pointer">
+                  <Database className="h-4 w-4" />
+                  <div>
+                    <span className="font-medium">Custom Format</span>
+                    <p className="text-xs text-muted-foreground">Best for pgAdmin Restore, pg_restore command</p>
+                  </div>
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="format-directory"
+                  checked={selectedFormats.includes("directory")}
+                  onChange={() => handleFormatToggle("directory")}
+                  disabled={loading}
+                  className="rounded"
+                />
+                <Label htmlFor="format-directory" className="flex items-center space-x-2 cursor-pointer">
+                  <HardDrive className="h-4 w-4" />
+                  <div>
+                    <span className="font-medium">Directory Format</span>
+                    <p className="text-xs text-muted-foreground">Parallel restore, large databases</p>
+                  </div>
+                </Label>
+              </div>
+            </div>
+            
+            {selectedFormats.length > 0 && (
+              <div className="mt-2 p-2 bg-muted rounded text-sm">
+                <span className="font-medium">Selected:</span> {selectedFormats.map(f => f.toUpperCase()).join(", ")}
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -345,6 +412,64 @@ interface UploadBackupDialogProps {
   onBackupUploaded: () => void;
 }
 
+interface DeleteConfirmationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  backup: BackupInfo | null;
+  onConfirm: () => void;
+}
+
+const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({ open, onOpenChange, backup, onConfirm }) => {
+  const handleConfirm = () => {
+    onConfirm();
+    onOpenChange(false);
+  };
+
+  if (!backup) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Delete Backup</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete this backup? This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              This will permanently delete the backup "{backup.name}" and all its formats.
+            </AlertDescription>
+          </Alert>
+
+          <div className="bg-muted p-3 rounded">
+            <p className="text-sm font-medium mb-2">Backup Details:</p>
+            <div className="text-xs space-y-1">
+              <p><span className="font-medium">Name:</span> {backup.name}</p>
+              <p><span className="font-medium">Created:</span> {backupAPI.formatDate(backup.createdAt)}</p>
+              <p><span className="font-medium">Size:</span> {backupAPI.formatFileSize(backup.totalSize)}</p>
+              <p><span className="font-medium">Formats:</span> {backup.formats.map(f => f.type.toUpperCase()).join(", ")}</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirm}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Backup
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenChange, onBackupUploaded }) => {
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -391,27 +516,27 @@ const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenCha
 
   const handleFileSelect = (file: File) => {
     // Validate file type
-    const validExtensions = ['.sql', '.custom', '.zip', '.tar', '.gz'];
-    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-    
+    const validExtensions = [".sql", ".custom", ".zip", ".tar", ".gz"];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
+
     if (!validExtensions.includes(fileExtension)) {
-      alert(`Invalid file type. Please select a backup file with one of these extensions: ${validExtensions.join(', ')}`);
+      alert(`Invalid file type. Please select a backup file with one of these extensions: ${validExtensions.join(", ")}`);
       return;
     }
 
     // Validate file size (max 1GB)
     const maxSize = 1024 * 1024 * 1024; // 1GB
     if (file.size > maxSize) {
-      alert('File size too large. Maximum allowed size is 1GB.');
+      alert("File size too large. Maximum allowed size is 1GB.");
       return;
     }
 
     setSelectedFile(file);
-    
+
     // Auto-generate backup name from filename
     if (!backupName) {
-      const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.'));
-      setBackupName(`uploaded_${nameWithoutExt}_${new Date().toISOString().split('T')[0]}`);
+      const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf("."));
+      setBackupName(`uploaded_${nameWithoutExt}_${new Date().toISOString().split("T")[0]}`);
     }
   };
 
@@ -423,12 +548,12 @@ const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenCha
 
   const handleUpload = async () => {
     if (!selectedFile) {
-      alert('Please select a backup file to upload.');
+      alert("Please select a backup file to upload.");
       return;
     }
 
     if (!backupName.trim()) {
-      alert('Please enter a backup name.');
+      alert("Please enter a backup name.");
       return;
     }
 
@@ -455,7 +580,7 @@ const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenCha
       }, 200);
 
       const response = await backupAPI.uploadBackup(selectedFile, backupName);
-      
+
       clearInterval(progressInterval);
       setUploadProgress(100);
 
@@ -470,7 +595,7 @@ const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenCha
         try {
           const validation = await backupAPI.validateBackup(response.data.backup.id);
           setValidationResult(validation);
-          
+
           if (validation.valid) {
             console.log(`🔄 [${timestamp}] Triggering forced data refresh after successful upload and validation...`);
             setTimeout(() => {
@@ -480,7 +605,7 @@ const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenCha
             }, 1000);
           }
         } catch (validationError) {
-          console.warn('Backup uploaded but validation failed:', validationError);
+          console.warn("Backup uploaded but validation failed:", validationError);
           // Notify parent component to refresh data
           console.log(`🔄 [${timestamp}] Triggering data refresh after upload...`);
           onBackupUploaded();
@@ -492,19 +617,19 @@ const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenCha
         }
       }
     } catch (error) {
-      console.error('Failed to upload backup:', error);
-      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Failed to upload backup:", error);
+      alert(`Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setLoading(false);
     }
   };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   return (
@@ -512,47 +637,26 @@ const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenCha
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Upload Database Backup</DialogTitle>
-          <DialogDescription>
-            Upload a backup file to restore or store in your backup collection.
-          </DialogDescription>
+          <DialogDescription>Upload a backup file to restore or store in your backup collection.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Supported formats: .sql, .custom, .zip, .tar, .gz (max 1GB)
-            </AlertDescription>
+            <AlertDescription>Supported formats: .sql, .custom, .zip, .tar, .gz (max 1GB)</AlertDescription>
           </Alert>
 
           {/* File Upload Area */}
-          <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-              dragActive
-                ? 'border-primary bg-primary/5'
-                : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
+          <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-muted-foreground/50"}`} onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}>
             {selectedFile ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-center space-x-2">
                   <FileText className="h-8 w-8 text-primary" />
                   <div className="text-left">
                     <p className="font-medium">{selectedFile.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatFileSize(selectedFile.size)}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedFile(null)}
-                    disabled={loading}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedFile(null)} disabled={loading}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -564,36 +668,19 @@ const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenCha
                   <p className="text-sm font-medium">Drop your backup file here</p>
                   <p className="text-xs text-muted-foreground">or click to browse</p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={loading}
-                >
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={loading}>
                   Browse Files
                 </Button>
               </div>
             )}
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".sql,.custom,.zip,.tar,.gz"
-            onChange={handleFileInputChange}
-            className="hidden"
-          />
+          <input ref={fileInputRef} type="file" accept=".sql,.custom,.zip,.tar,.gz" onChange={handleFileInputChange} className="hidden" />
 
           {/* Backup Name Input */}
           <div>
             <Label htmlFor="backup-name">Backup Name</Label>
-            <Input
-              id="backup-name"
-              placeholder="Enter backup name"
-              value={backupName}
-              onChange={(e) => setBackupName(e.target.value)}
-              disabled={loading}
-            />
+            <Input id="backup-name" placeholder="Enter backup name" value={backupName} onChange={e => setBackupName(e.target.value)} disabled={loading} />
           </div>
 
           {/* Upload Progress */}
@@ -639,17 +726,10 @@ const UploadBackupDialog: React.FC<UploadBackupDialogProps> = ({ open, onOpenCha
 
           {/* Action Buttons */}
           <div className="flex justify-end space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button
-              onClick={handleUpload}
-              disabled={loading || !selectedFile || !backupName.trim()}
-            >
+            <Button onClick={handleUpload} disabled={loading || !selectedFile || !backupName.trim()}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -678,14 +758,16 @@ const DatabaseBackupManager: React.FC = () => {
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<BackupInfo | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [backupToDelete, setBackupToDelete] = useState<BackupInfo | null>(null);
   const [schedulerRefreshTrigger, setSchedulerRefreshTrigger] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const loadData = useCallback(async (forceRefresh = false) => {
     try {
       const timestamp = new Date().toLocaleTimeString();
-      console.log(`🔄 [${timestamp}] Loading database backup data${forceRefresh ? ' (forced refresh)' : ''}...`);
-      
+      console.log(`🔄 [${timestamp}] Loading database backup data${forceRefresh ? " (forced refresh)" : ""}...`);
+
       // Clear cache if this is a forced refresh (e.g., after upload)
       if (forceRefresh) {
         console.log(`🗑️ [${timestamp}] Clearing API cache for fresh data...`);
@@ -694,7 +776,7 @@ const DatabaseBackupManager: React.FC = () => {
         // Add a small delay to ensure backend has processed the upload
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
-      
+
       const [dbInfo, backupsResponse] = await Promise.all([backupAPI.getDatabaseInfo(), backupAPI.getBackups()]);
 
       console.log(`📊 [${timestamp}] Database Info loaded:`, {
@@ -710,16 +792,19 @@ const DatabaseBackupManager: React.FC = () => {
         dataKeys: Object.keys(backupsResponse.data),
         backupsArray: backupsResponse.data.backups
       });
-      
+
       // Log ALL backup details for verification
-      console.log(`📋 [${timestamp}] Complete backup list:`, backupsResponse.data.backups.map(backup => ({
-        id: backup.id,
-        name: backup.name,
-        createdAt: backup.createdAt,
-        formats: backup.formats.length,
-        totalSize: backup.totalSize
-      })));
-      
+      console.log(
+        `📋 [${timestamp}] Complete backup list:`,
+        backupsResponse.data.backups.map(backup => ({
+          id: backup.id,
+          name: backup.name,
+          createdAt: backup.createdAt,
+          formats: backup.formats.length,
+          totalSize: backup.totalSize
+        }))
+      );
+
       // Log backup details for verification
       if (backupsResponse.data.backups.length > 0) {
         console.log(`📄 [${timestamp}] Latest backup:`, {
@@ -757,16 +842,23 @@ const DatabaseBackupManager: React.FC = () => {
     await loadData(true); // Force refresh after upload
   };
 
+  const handleDeleteBackup = (backup: BackupInfo) => {
+    setBackupToDelete(backup);
+    setDeleteDialogOpen(true);
+  };
 
-
-  const handleDeleteBackup = async (backupId: string) => {
-    if (!confirm("Are you sure you want to delete this backup?")) return;
+  const handleConfirmDelete = async () => {
+    if (!backupToDelete) return;
 
     try {
-      await backupAPI.deleteBackup(backupId);
-      setBackups(backups.filter(b => b.id !== backupId));
+      await backupAPI.deleteBackup(backupToDelete.id);
+      console.log(`Backup ${backupToDelete.name} deleted successfully`);
+      await loadData();
     } catch (error) {
-      console.error("Failed to delete backup:", error);
+      console.error('Error deleting backup:', error);
+    } finally {
+      setDeleteDialogOpen(false);
+      setBackupToDelete(null);
     }
   };
 
@@ -802,11 +894,7 @@ const DatabaseBackupManager: React.FC = () => {
           <h2 className="text-2xl font-bold">Database Backup Manager</h2>
           <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
             <p className="text-muted-foreground">Manage database backups and restore operations</p>
-            {lastRefresh && (
-              <p className="text-xs text-muted-foreground">
-                Last refreshed: {lastRefresh.toLocaleTimeString()}
-              </p>
-            )}
+            {lastRefresh && <p className="text-xs text-muted-foreground">Last refreshed: {lastRefresh.toLocaleTimeString()}</p>}
           </div>
         </div>
         <div className="flex items-center space-x-2">
@@ -937,7 +1025,7 @@ const DatabaseBackupManager: React.FC = () => {
                           <RefreshCw className="h-4 w-4 mr-2" />
                           Restore
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteBackup(backup.id)}>
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteBackup(backup)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
                         </Button>
@@ -1007,6 +1095,13 @@ const DatabaseBackupManager: React.FC = () => {
       <RestoreBackupDialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen} backup={selectedBackup} onRestoreCompleted={loadData} />
 
       <UploadBackupDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} onBackupUploaded={handleUploadComplete} />
+
+      <DeleteConfirmationDialog 
+        open={deleteDialogOpen} 
+        onOpenChange={setDeleteDialogOpen} 
+        backup={backupToDelete} 
+        onConfirm={handleConfirmDelete} 
+      />
     </div>
   );
 };
