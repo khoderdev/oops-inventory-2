@@ -943,13 +943,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               <Button variant="outline" onClick={handleCloseBulkCategoryDialog}>
                 Cancel
               </Button>
-              <Button onClick={() => setShowMenuItemForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Menu Item
-              </Button>
-              <Button onClick={runValidation} variant="outline" className={`${validationResults && !validationResults.isValid ? "border-red-500 text-red-600" : validationResults && validationResults.summary.warnings > 0 ? "border-yellow-500 text-yellow-600" : "border-green-500 text-green-600"}`}>
-                {validationResults && !validationResults.isValid ? <AlertTriangle className="h-4 w-4 mr-2" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-4 w-4 mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                Validate Data
+              <Button onClick={handleBulkCategoryUpdate} disabled={!bulkCategoryValue}>
+                <Tag className="h-4 w-4 mr-2" />
+                Update Category
               </Button>
             </div>
           </div>
