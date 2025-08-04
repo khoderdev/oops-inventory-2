@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
+import os from "os";
 import sequelize from "../config/database.js";
 
 const router = express.Router();
@@ -19,8 +20,64 @@ const upload = multer({
   }
 });
 
-// PostgreSQL configuration
-const PG_BIN_PATH = "C:\\Program Files\\PostgreSQL\\17\\bin";
+// Cross-platform PostgreSQL detection
+function findPostgreSQLPath() {
+  const platform = os.platform();
+  
+  if (platform === "win32") {
+    // Windows paths
+    const possiblePaths = [
+      "C:\\Program Files\\PostgreSQL\\17\\bin",
+      "C:\\Program Files\\PostgreSQL\\16\\bin",
+      "C:\\Program Files\\PostgreSQL\\15\\bin",
+      "C:\\Program Files\\PostgreSQL\\14\\bin",
+      "C:\\Program Files\\PostgreSQL\\13\\bin",
+      "C:\\Program Files (x86)\\PostgreSQL\\17\\bin",
+      "C:\\Program Files (x86)\\PostgreSQL\\16\\bin",
+      "C:\\Program Files (x86)\\PostgreSQL\\15\\bin"
+    ];
+
+    for (const pgPath of possiblePaths) {
+      const pgDumpPath = path.join(pgPath, "pg_dump.exe");
+      try {
+        require('fs').accessSync(pgDumpPath);
+        return { binPath: pgPath, executable: ".exe" };
+      } catch (e) {
+        // Continue to next path
+      }
+    }
+  } else {
+    // Linux/macOS paths
+    const possiblePaths = [
+      "/usr/bin",
+      "/usr/local/bin",
+      "/usr/local/pgsql/bin",
+      "/opt/postgresql/bin",
+      "/usr/lib/postgresql/17/bin",
+      "/usr/lib/postgresql/16/bin",
+      "/usr/lib/postgresql/15/bin",
+      "/usr/lib/postgresql/14/bin",
+      "/usr/lib/postgresql/13/bin"
+    ];
+
+    for (const pgPath of possiblePaths) {
+      const pgDumpPath = path.join(pgPath, "pg_dump");
+      try {
+        require('fs').accessSync(pgDumpPath);
+        return { binPath: pgPath, executable: "" };
+      } catch (e) {
+        // Continue to next path
+      }
+    }
+  }
+
+  // Fallback to PATH
+  return { binPath: "", executable: platform === "win32" ? ".exe" : "" };
+}
+
+const pgConfig = findPostgreSQLPath();
+const PG_BIN_PATH = pgConfig.binPath;
+const PG_EXECUTABLE_EXT = pgConfig.executable;
 const BACKUP_DIR = path.join(__dirname, "..", "backups");
 
 // Ensure backup directory exists
@@ -546,17 +603,22 @@ router.post("/restore/:backupId", async (req, res) => {
 
     let restoreCommand;
     let filePath;
+    let tempFilePath = null; // Track temp file for cleanup
 
-    const pgRestorePath = path.join(PG_BIN_PATH, "pg_restore.exe");
-    const psqlPath = path.join(PG_BIN_PATH, "psql.exe");
+    const pgRestorePath = PG_BIN_PATH ? path.join(PG_BIN_PATH, `pg_restore${PG_EXECUTABLE_EXT}`) : `pg_restore${PG_EXECUTABLE_EXT}`;
+    const psqlPath = PG_BIN_PATH ? path.join(PG_BIN_PATH, `psql${PG_EXECUTABLE_EXT}`) : `psql${PG_EXECUTABLE_EXT}`;
 
     const dbConfig = {
-      host: "localhost",
-      port: 5432,
-      username: "postgres",
-      password: "postgres",
-      database: targetDatabase || "test_restore"
+      host: sequelize.config.host,
+      port: sequelize.config.port,
+      username: sequelize.config.username,
+      password: sequelize.config.password,
+      database: targetDatabase || sequelize.config.database
     };
+    
+    console.log(`🔄 Restoring to database: ${dbConfig.database}`);
+    console.log(`🛠️  Using PostgreSQL tools from: ${PG_BIN_PATH || 'PATH'}`);
+    console.log(`📋 Request body:`, { targetDatabase, dropExisting, restoreData, restoreSchema });
 
     switch (type) {
       case "custom":
@@ -578,7 +640,168 @@ router.post("/restore/:backupId", async (req, res) => {
         if (!sqlFile) throw new Error("SQL backup file not found");
         filePath = path.join(backupDir, sqlFile);
 
-        restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --file="${filePath}"`;
+        // Read the SQL file to check for database-level commands
+        const sqlContent = await fs.readFile(filePath, 'utf8');
+        const hasDbCommands = sqlContent.includes('DROP DATABASE') || sqlContent.includes('CREATE DATABASE');
+        
+        if (hasDbCommands) {
+          // For SQL backups with database commands, we need to modify the file
+          // to use the target database name
+          tempFilePath = path.join(backupDir, `temp_${sqlFile}`);
+          
+          // Extract original database name from the backup
+          const dbNameMatch = sqlContent.match(/(?:DROP DATABASE IF EXISTS|CREATE DATABASE)\s+(\w+)/i);
+          const originalDbName = dbNameMatch ? dbNameMatch[1] : null;
+          
+          let modifiedContent = sqlContent;
+          
+          if (originalDbName && originalDbName !== dbConfig.database) {
+            console.log(`📝 Replacing database name from '${originalDbName}' to '${dbConfig.database}'`);
+            
+            // Replace database name in the SQL content
+            modifiedContent = sqlContent
+              .replace(new RegExp(`DROP DATABASE IF EXISTS ${originalDbName}`, 'gi'), `DROP DATABASE IF EXISTS ${dbConfig.database}`)
+              .replace(new RegExp(`CREATE DATABASE ${originalDbName}`, 'gi'), `CREATE DATABASE ${dbConfig.database}`)
+              .replace(new RegExp(`\\connect ${originalDbName}`, 'gi'), `\\connect ${dbConfig.database}`);
+            
+            // Add connection termination before DROP DATABASE
+            const dropDbPattern = new RegExp(`(DROP DATABASE IF EXISTS ${dbConfig.database})`, 'gi');
+            modifiedContent = modifiedContent.replace(dropDbPattern, 
+              `-- Terminate existing connections to the database\n` +
+              `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${dbConfig.database}' AND pid <> pg_backend_pid();\n` +
+              `$1`);
+          }
+          
+          // Handle conflicts based on dropExisting setting
+          if (dropExisting) {
+            console.log(`🔧 Dropping existing database and recreating`);
+            // When dropExisting is true, we want to drop and recreate everything
+            // The backup already contains DROP DATABASE and CREATE DATABASE commands
+            // No additional conflict handling needed
+          } else {
+            console.log(`🔧 Preserving existing database, handling schema conflicts`);
+            
+            // Remove DROP DATABASE and CREATE DATABASE commands to preserve existing database
+            modifiedContent = modifiedContent.replace(
+              /-- Terminate existing connections to the database[\s\S]*?DROP DATABASE IF EXISTS [^;]+;/gi,
+              '-- Database preservation mode: DROP DATABASE command removed'
+            );
+            modifiedContent = modifiedContent.replace(
+              /CREATE DATABASE [^;]+;/gi,
+              '-- Database preservation mode: CREATE DATABASE command removed'
+            );
+            modifiedContent = modifiedContent.replace(
+              /\\connect [^;\n]+/gi,
+              '-- Database preservation mode: connect command removed'
+            );
+            
+            // Add conflict resolution for schema objects WITHOUT dropping existing data
+            // Handle TYPE conflicts by adding IF NOT EXISTS equivalent
+            modifiedContent = modifiedContent.replace(
+              /CREATE TYPE ([^\s]+) AS ENUM/g,
+              (match, typeName) => {
+                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '${typeName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
+              }
+            );
+            
+            // Handle TABLE conflicts by skipping existing tables instead of dropping them
+            modifiedContent = modifiedContent.replace(
+              /CREATE TABLE ([^\s]+)/g,
+              (match, tableName) => {
+                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '${tableName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
+              }
+            );
+            
+            // Add IF NOT EXISTS to CREATE EXTENSION statements
+            modifiedContent = modifiedContent.replace(
+              /CREATE EXTENSION ([^\s;]+)/g,
+              'CREATE EXTENSION IF NOT EXISTS $1'
+            );
+            
+            // Handle SEQUENCE conflicts by adding IF NOT EXISTS equivalent
+            modifiedContent = modifiedContent.replace(
+              /CREATE SEQUENCE ([^\s]+)/g,
+              (match, sequenceName) => {
+                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM information_schema.sequences WHERE sequence_name = '${sequenceName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
+              }
+            );
+            
+            // Handle INDEX conflicts by adding IF NOT EXISTS equivalent
+            modifiedContent = modifiedContent.replace(
+              /CREATE (UNIQUE )?INDEX ([^\s]+)/g,
+              (match, unique, indexName) => {
+                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = '${indexName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
+              }
+            );
+          }
+          
+          // Write modified content to temp file
+          await fs.writeFile(tempFilePath, modifiedContent);
+          filePath = tempFilePath;
+          
+          // Determine connection database based on dropExisting and database commands
+          if (dropExisting) {
+            // When dropping existing, connect to postgres database for database-level operations
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=postgres --set ON_ERROR_STOP=on --file="${filePath}"`;
+          } else {
+            // When preserving existing, connect directly to target database
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --set ON_ERROR_STOP=on --file="${filePath}"`;
+          }
+        } else {
+          // No database-level commands, restore directly to target database
+          // Handle schema conflicts when not dropping existing
+          if (!dropExisting) {
+            console.log(`🔧 Handling schema conflicts for schema-only restore`);
+            tempFilePath = path.join(backupDir, `temp_${sqlFile}`);
+            
+            let modifiedContent = sqlContent;
+            
+            // Handle schema conflicts WITHOUT dropping existing objects
+            // Handle TYPE conflicts by adding IF NOT EXISTS equivalent
+            modifiedContent = modifiedContent.replace(
+              /CREATE TYPE ([^\s]+) AS ENUM/g,
+              (match, typeName) => {
+                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '${typeName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
+              }
+            );
+            
+            // Handle TABLE conflicts by skipping existing tables instead of dropping them
+            modifiedContent = modifiedContent.replace(
+              /CREATE TABLE ([^\s]+)/g,
+              (match, tableName) => {
+                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '${tableName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
+              }
+            );
+            
+            // Add IF NOT EXISTS to CREATE EXTENSION statements
+            modifiedContent = modifiedContent.replace(
+              /CREATE EXTENSION ([^\s;]+)/g,
+              'CREATE EXTENSION IF NOT EXISTS $1'
+            );
+            
+            // Handle SEQUENCE conflicts by adding IF NOT EXISTS equivalent
+            modifiedContent = modifiedContent.replace(
+              /CREATE SEQUENCE ([^\s]+)/g,
+              (match, sequenceName) => {
+                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM information_schema.sequences WHERE sequence_name = '${sequenceName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
+              }
+            );
+            
+            // Handle INDEX conflicts by adding IF NOT EXISTS equivalent
+            modifiedContent = modifiedContent.replace(
+              /CREATE (UNIQUE )?INDEX ([^\s]+)/g,
+              (match, unique, indexName) => {
+                return `DO $$ BEGIN\n    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = '${indexName.replace(/["']/g, '')}') THEN\n        ${match};\n    END IF;\nEND $$;`;
+              }
+            );
+            
+            // Write modified content to temp file
+            await fs.writeFile(tempFilePath, modifiedContent);
+            filePath = tempFilePath;
+          }
+          
+          restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --set ON_ERROR_STOP=on --file="${filePath}"`;
+        }
         break;
 
       case "directory":
@@ -598,9 +821,20 @@ router.post("/restore/:backupId", async (req, res) => {
     const env = { ...process.env, PGPASSWORD: dbConfig.password };
 
     // Execute restore command
+    console.log(`⚡ Executing restore command: ${restoreCommand}`);
     const startTime = Date.now();
     await execAsync(restoreCommand, { env });
     const duration = Date.now() - startTime;
+
+    // Cleanup temp file if created
+    if (typeof tempFilePath !== 'undefined' && tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath);
+        console.log(`🗑️ Cleaned up temp file: ${tempFilePath}`);
+      } catch (cleanupError) {
+        console.warn(`⚠️ Failed to cleanup temp file: ${cleanupError.message}`);
+      }
+    }
 
     // Get restore statistics (simplified)
     const dbStats = await getDatabaseStats();
@@ -615,6 +849,16 @@ router.post("/restore/:backupId", async (req, res) => {
       }
     });
   } catch (error) {
+    // Cleanup temp file if created
+    if (typeof tempFilePath !== 'undefined' && tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath);
+        console.log(`🗑️ Cleaned up temp file after error: ${tempFilePath}`);
+      } catch (cleanupError) {
+        console.warn(`⚠️ Failed to cleanup temp file after error: ${cleanupError.message}`);
+      }
+    }
+    
     console.error("Error restoring backup:", error);
     res.status(500).json({
       success: false,

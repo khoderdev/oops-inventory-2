@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { promisify } from "util";
 import os from "os";
+import sequelize from "../config/database.js";
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -142,14 +143,16 @@ try {
   fs.mkdirSync(backupDir, { recursive: true });
   console.log(`📁 Created backup folder: ${backupFolderName}`);
 
-  // Database configuration
+  // Database configuration from main config
   const DB_CONFIG = {
-    host: "localhost",
-    database: "inventory_db",
-    username: "postgres",
-    password: "postgres",
-    port: 5432
+    host: sequelize.config.host,
+    database: sequelize.config.database,
+    username: sequelize.config.username,
+    password: sequelize.config.password,
+    port: sequelize.config.port
   };
+  
+  console.log(`🗄️  Backing up database: ${DB_CONFIG.database}`);
 
   // Set PGPASSWORD environment variable
   const env = { ...process.env, PGPASSWORD: DB_CONFIG.password };
