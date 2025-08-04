@@ -454,10 +454,10 @@ export function StockEntriesTable() {
   };
 
   return (
-    <Card className="w-full !border-none overflow-hidden h-screen">
-      <CardHeader className="space-y-6">
+    <>
+      <CardHeader className="!space-y-0">
         {/* Title Section */}
-        <div className="flex flex-col space-y-4">
+        <div className="flex flex-col space-y-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex flex-col space-y-2">
               <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900">Stock Entries</CardTitle>
@@ -651,9 +651,9 @@ export function StockEntriesTable() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-2 sm:p-4 lg:p-6">
+      <CardContent className="p-2 sm:p-4 lg:px-6 flex-1 overflow-hidden">
         {/* Mobile Card View */}
-        <div className="block lg:hidden space-y-3">
+        <div className="block lg:hidden h-full overflow-y-auto space-y-3 pr-2">
           {stockEntriesWithMaterial.map(entry => {
             const material = materialsMap.get(entry.materialId);
             const isNegative = hasNegativeStock(entry);
@@ -662,7 +662,7 @@ export function StockEntriesTable() {
             const isExpiringSoon = isExpiringSoonEntry(entry);
             
             return (
-              <Card key={entry.id} className={`p-3 border-l-4 ${
+              <Card key={entry.id} className={`p-3 bg-gray-100 rounded-lg border-l-4 ${
                 isNegative ? 'border-l-red-500 bg-red-50' : 
                 isVirtual ? 'border-l-orange-500 bg-orange-50' :
                 isExpired ? 'border-l-gray-500 bg-gray-50' :
@@ -933,6 +933,6 @@ export function StockEntriesTable() {
           </div>
         </div>
       )}
-    </Card>
+    </>
   );
 }

@@ -471,7 +471,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] w-full flex flex-col overflow-hidden -m-2 sm:-m-4 lg:-m-6">
+    <div className="h-[calc(100vh-4rem)] w-full flex flex-col overflow-hidden">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
         <TabsList className="grid w-full grid-cols-3 gap-1 p-1 bg-gray-100 rounded-lg mb-2 sm:mb-4">
           {[
