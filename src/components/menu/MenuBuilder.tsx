@@ -858,7 +858,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                 </Button>
                 
                 <Button 
-                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-gray-200/50"
+                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-yellow-500"
                   onClick={handleOpenBulkPrinterDialog} 
                   disabled={selectedMenuItems.size === 0}
                 >
@@ -867,7 +867,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                 </Button>
                 
                 <Button 
-                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-gray-200/50"
+                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-green-500"
                   onClick={handleOpenBulkCategoryDialog} 
                   disabled={selectedMenuItems.size === 0}
                 >
@@ -883,7 +883,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             {/* Validation FAB - Only show when enabled */}
             {dataValidationEnabled && (
               <Button
-                className={`h-11 w-11 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${
+                className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${
                   validationResults && !validationResults.isValid 
                     ? "bg-red-500 hover:bg-red-600 text-white" 
                     : validationResults && validationResults.summary.warnings > 0 
@@ -906,7 +906,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
             {/* Bulk Selection Toggle FAB */}
             <Button 
-              className={`h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${
+              className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${
                 bulkSelectionMode 
                   ? "bg-red-500 hover:bg-red-600 text-white" 
                   : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"
@@ -924,7 +924,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
           {/* Primary FAB - Add Menu Item */}
           <Button
-            className="h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 relative"
+            className="h-14 w-14 rounded-full bg-primary hover:bg-teal-600 text-white shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 relative"
             onClick={() => {
               setEditingMenuItem(null);
               setShowMenuItemForm(true);
