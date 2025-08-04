@@ -941,62 +941,65 @@ const DatabaseBackupManager: React.FC = () => {
               </Card>
             ) : (
               backups.map(backup => (
-                <Card key={backup.id}>
+                <Card key={backup.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        {getMainBackupIcon(backup)}
-                        <div>
-                          <CardTitle className="text-lg">{backup.name}</CardTitle>
-                          <CardDescription>Created {backupAPI.formatDate(backup.createdAt)}</CardDescription>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Database className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <CardTitle className="text-lg font-semibold">
+                            {backup.metadata?.database ? 
+                              `${backup.metadata.database} Backup` : 
+                              backup.name.replace(/^pgdump_/, '').replace(/_/g, ' ')
+                            }
+                          </CardTitle>
+                          <CardDescription className="text-sm">
+                            Created {backupAPI.formatDate(backup.createdAt)}
+                          </CardDescription>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        {backup.formats.map(format => (
-                          <div key={format.type}>{getBackupTypeBadge(format.type)}</div>
-                        ))}
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-muted-foreground">Total Size</p>
+                        <p className="text-lg font-semibold">{backupAPI.formatFileSize(backup.totalSize)}</p>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <p className="text-sm font-medium">Total Size</p>
-                        <p className="text-sm text-muted-foreground">{backupAPI.formatFileSize(backup.totalSize)}</p>
+                    {/* Database Metadata */}
+                    {backup.metadata && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Database</p>
+                          <p className="text-sm font-semibold">{backup.metadata.database}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Tables</p>
+                          <p className="text-sm font-semibold">{backup.metadata.tables}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Records</p>
+                          <p className="text-sm font-semibold">{backup.metadata.records?.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Formats</p>
+                          <p className="text-sm font-semibold">{backup.formats.length} available</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">Formats</p>
-                        <p className="text-sm text-muted-foreground">{backup.formats.length} available</p>
-                      </div>
-                      {backup.metadata && (
-                        <>
-                          <div>
-                            <p className="text-sm font-medium">Tables</p>
-                            <p className="text-sm text-muted-foreground">{backup.metadata.tables}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">Records</p>
-                            <p className="text-sm text-muted-foreground">{backup.metadata.records?.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">Database</p>
-                            <p className="text-sm text-muted-foreground">{backup.metadata.database}</p>
-                          </div>
-                        </>
-                      )}
-                    </div>
+                    )}
 
                     {/* Format Details */}
                     <div className="mb-4">
-                      <p className="text-sm font-medium mb-2">Available Formats:</p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <p className="text-sm font-medium text-muted-foreground mb-3">Available Formats</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {backup.formats.map(format => (
-                          <div key={format.type} className="flex items-center justify-between p-2 bg-muted rounded">
+                          <div key={format.type} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border/50 hover:bg-muted/70 transition-colors">
                             <div className="flex items-center space-x-2">
                               {getBackupTypeIcon(format.type)}
-                              <span className="text-sm font-medium">{format.type.toUpperCase()}</span>
+                              <span className="text-sm font-semibold">{format.type.toUpperCase()}</span>
                             </div>
-                            <span className="text-xs text-muted-foreground">{backupAPI.formatFileSize(format.size)}</span>
+                            <span className="text-sm font-medium text-muted-foreground">{backupAPI.formatFileSize(format.size)}</span>
                           </div>
                         ))}
                       </div>
@@ -1004,16 +1007,23 @@ const DatabaseBackupManager: React.FC = () => {
 
                     <Separator className="my-4" />
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {backup.formats.map(format => (
-                          <Button key={format.type} variant="outline" size="sm" onClick={() => handleDownloadBackup(backup, format)}>
-                            <Download className="h-4 w-4 mr-2" />
-                            {format.type.toUpperCase()}
-                          </Button>
-                        ))}
+                    {/* Action Buttons */}
+                    <div className="space-y-3">
+                      {/* Download Buttons */}
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Download Options</p>
+                        <div className="flex flex-wrap gap-2">
+                          {backup.formats.map(format => (
+                            <Button key={format.type} variant="outline" size="sm" onClick={() => handleDownloadBackup(backup, format)} className="flex-1 min-w-[100px]">
+                              <Download className="h-4 w-4 mr-2" />
+                              {format.type.toUpperCase()}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      
+                      {/* Management Actions */}
+                      <div className="flex items-center justify-end space-x-2 pt-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -1021,11 +1031,17 @@ const DatabaseBackupManager: React.FC = () => {
                             setSelectedBackup(backup);
                             setRestoreDialogOpen(true);
                           }}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                         >
                           <RefreshCw className="h-4 w-4 mr-2" />
                           Restore
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteBackup(backup)}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleDeleteBackup(backup)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
                         </Button>
