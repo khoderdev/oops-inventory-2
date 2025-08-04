@@ -126,9 +126,14 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   );
 
   const totalIngredientsCost = useMemo(() => {
-    const total = ingredients.reduce((total, ingredient) => total + calculateIngredientCost(ingredient), 0);
+    const total = ingredients.reduce((total, ingredient) => {
+      // Use stored cost if available (for existing menu items), otherwise calculate
+      const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
+      const cost = storedCost || calculateIngredientCost(ingredient);
+      return total + cost;
+    }, 0);
     return total;
-  }, [ingredients, calculateIngredientCost]);
+  }, [ingredients, calculateIngredientCost, menuItem]);
 
   const validateForm = useCallback(() => {
     const newErrors: typeof errors = {};
@@ -380,7 +385,9 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
               <TableBody>
                 {ingredients.map((ingredient, index) => {
                   const material = materials.find(m => String(m.id) === String(ingredient.materialId));
-                  const ingredientCost = calculateIngredientCost(ingredient);
+                  // Use stored cost if available (for existing menu items), otherwise calculate
+                  const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
+                  const ingredientCost = storedCost || calculateIngredientCost(ingredient);
                   const costPerBaseUnit = getMaterialCostPerBaseUnit(ingredient.materialId);
                   return (
                     <TableRow key={index}>
