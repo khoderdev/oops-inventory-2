@@ -189,20 +189,25 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export function formatNumber(num: number | string, unit?: string): string {
+export function formatNumber(num: number | string | null | undefined, unit?: string): string {
+  // Handle null or undefined values
+  if (num === null || num === undefined) {
+    return "0";
+  }
+
   // Convert string input to number if needed
   if (typeof num === "string") {
     num = parseFloat(num);
     if (isNaN(num)) {
       console.warn("formatNumber received invalid num:", num);
-      return "";
+      return "0";
     }
   }
 
   // Handle case where num is still not a number (shouldn't happen with TypeScript but good to check)
   if (typeof num !== "number" || isNaN(num)) {
     console.warn("formatNumber received invalid num:", num);
-    return "";
+    return "0";
   }
 
   // Handle whole number units

@@ -25,15 +25,14 @@ interface WasteFromEntryTabProps {
 }
 
 export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMaterial, stockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
-  const watchedQuantity = useWatch({ control: form.control, name: "purchasedQuantity" });
+  const watchedQuantity = useWatch({ control: form.control, name: "wasteQuantity" });
   const watchedCostPerUnit = useWatch({ control: form.control, name: "costPerPurchasedUnit" });
   const watchedPurchasedUnit = useWatch({ control: form.control, name: "purchasedUnit" });
 
-  // Set costPerPurchasedUnit based on purchasedUnit and calculate proportional cost from original entry
   useEffect(() => {
     const purchasedUnit = watchedPurchasedUnit;
 
-    if (!selectedMaterial || !stockEntry) {
+    if (!selectedMaterial || !stockEntry || !purchasedUnit) {
       form.setValue("costPerPurchasedUnit", "0.0000");
       return;
     }
@@ -53,7 +52,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
 
     if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity) {
       const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle"];
-      
+
       if (purchasedUnit === selectedMaterial.baseUnit) {
         // If wasting in base unit (e.g., pieces), calculate cost per piece
         const costPerPiece = costPerOriginalUnit / selectedMaterial.packageQuantity;
@@ -88,39 +87,17 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
     const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
     const totalCost = quantity * costPerUnit;
     form.setValue("totalCost", isNaN(totalCost) ? "0.00" : totalCost.toFixed(2));
-    
-    // Debug logging for cost calculations
-    if (stockEntry && selectedMaterial) {
-      console.log("💰 Waste Cost Calculation Debug:", {
-        originalEntry: {
-          totalCost: stockEntry.totalCost,
-          quantity: stockEntry.purchasedQuantity,
-          unit: stockEntry.purchasedUnit,
-          costPerUnit: Number(stockEntry.totalCost) / Number(stockEntry.purchasedQuantity)
-        },
-        wasteCalculation: {
-          wasteQuantity: quantity,
-          wasteUnit: watchedPurchasedUnit,
-          costPerWasteUnit: costPerUnit,
-          totalWasteCost: totalCost
-        }
-      });
-    }
   }, [watchedQuantity, watchedCostPerUnit, watchedPurchasedUnit, form, stockEntry, selectedMaterial]);
 
-  const handleSubmit = (data: StockFormInputs) => {
-    console.log("🚀 WasteFromEntryTab2 handleSubmit called with data:", data);
-    console.log("🔍 Debug purchasedQuantity:", data.purchasedQuantity, typeof data.purchasedQuantity);
-    console.log("🔍 Debug wasteReason:", data.wasteReason, typeof data.wasteReason);
+  const handleSubmit = async () => {
+    const data = form.getValues();
+    const wasteQty = parseFloat(data.wasteQuantity) || 0;
 
-    const wasteQty = parseFloat(data.purchasedQuantity) || 0;
-    console.log("🔍 Parsed purchasedQuantity:", wasteQty);
-
-    // Convert StockFormInputs to StockFormData format with stockEntryId
     const formData: StockFormData & { stockEntryId: string } = {
       materialId: data.materialId,
       supplier: stockEntry.supplier,
-      purchasedQuantity: wasteQty,
+      wasteQuantity: wasteQty,
+      purchasedQuantity: stockEntry.purchasedQuantity,
       purchasedUnit: data.purchasedUnit,
       costPerPurchasedUnit: parseFloat(data.costPerPurchasedUnit) || 0,
       totalCost: parseFloat(data.totalCost) || 0,
@@ -132,9 +109,6 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
       wasteReason: data.wasteReason,
       stockEntryId: stockEntry.id
     };
-
-    console.log("📦 Converted formData:", formData);
-    console.log("📞 Calling onRecordWaste...");
 
     onRecordWaste(formData);
   };
@@ -159,13 +133,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
       </div>
 
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(handleSubmit, errors => {
-            console.error("❌ Form validation failed:", errors);
-            console.log("📝 Current form values:", form.getValues());
-          })}
-          className="space-y-6"
-        >
+        <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <FormField
               control={form.control}
@@ -201,7 +169,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
 
             <FormField
               control={form.control}
-              name="purchasedQuantity"
+              name="wasteQuantity"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -341,7 +309,9 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
               </div>
               <div>
                 <span className="text-gray-500">Original Quantity:</span>
-                <span className="ml-2 font-medium">{stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}</span>
+                <span className="ml-2 font-medium">
+                  {stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}
+                </span>
               </div>
               <div>
                 <span className="text-gray-500">Cost per {stockEntry?.purchasedUnit}:</span>
@@ -349,12 +319,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
               </div>
               <div>
                 <span className="text-gray-500">Remaining Stock:</span>
-                <span className="ml-2 font-medium">
-                  {stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit 
-                    ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}`
-                    : `${stockEntry?.purchasedQuantity} ${stockEntry?.purchasedUnit}`
-                  }
-                </span>
+                <span className="ml-2 font-medium">{stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}` : `${stockEntry?.purchasedQuantity} ${stockEntry?.purchasedUnit}`}</span>
               </div>
             </div>
           </div>
@@ -365,21 +330,12 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              className="bg-red-600 hover:bg-red-700 text-white"
-              onClick={() => {
-                console.log("🔴 Record Waste button clicked!");
-                console.log("📝 Form state:", form.getValues());
-                console.log("⚠️ Form errors:", form.formState.errors);
-                console.log("✅ Form is valid:", form.formState.isValid);
-              }}
-            >
+            <Button type="button" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleSubmit}>
               <Trash2 className="h-4 w-4 mr-2" />
               Record Waste
             </Button>
           </div>
-        </form>
+        </div>
       </Form>
     </div>
   );

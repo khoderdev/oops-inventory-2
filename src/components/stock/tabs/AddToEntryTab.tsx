@@ -81,7 +81,33 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
     }
   }, [watchedCostPerUnit, watchedQuantity, watchedUnit, selectedMaterial, form]);
 
-  const handleSubmit = (data: StockFormInputs) => {
+  const handleSubmit = async () => {
+    console.log("🚀 AddToEntryTab handleSubmit called!");
+    
+    // Get current form values
+    const data = form.getValues();
+    console.log("📝 Current form values:", data);
+    
+    // Validate only the fields we need for adding to entry (skip waste fields)
+    const fieldsToValidate = [
+      'materialId',
+      'supplier', 
+      'purchasedQuantity',
+      'purchasedUnit',
+      'costPerPurchasedUnit',
+      'totalCost'
+    ];
+    
+    console.log("🔍 Validating specific fields:", fieldsToValidate);
+    const isValid = await form.trigger(fieldsToValidate);
+    console.log("🔍 Validation result:", isValid);
+    console.log("🔍 Errors after validation:", form.formState.errors);
+    
+    if (!isValid) {
+      console.log("❌ Validation failed, not submitting");
+      return;
+    }
+    
     const formData = data as unknown as StockFormData;
     const specificEntryData = {
       ...formData,
@@ -91,10 +117,14 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       costPerPurchasedUnit: parseFloat(data.costPerPurchasedUnit) || 0,
       totalCost: parseFloat(data.totalCost) || 0
     };
-    console.log("Submitting:", specificEntryData);
+    console.log("📤 Calling onAddToSpecificEntry with:", specificEntryData);
     onAddToSpecificEntry(specificEntryData);
   };
 
+  console.log("📌 AddToEntryTab is rendering! This should be the ADD TO ENTRY tab, not waste!");
+  console.log("📌 Stock Entry:", stockEntry);
+  console.log("📌 Selected Material:", selectedMaterial);
+  
   return (
     <div className="space-y-6">
       <div className="bg-green-50 border border-green-200 rounded-xl p-4">
@@ -120,7 +150,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <FormField
               control={form.control}
@@ -323,12 +353,16 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white" disabled={!!form.formState.errors.purchasedQuantity || !!form.formState.errors.costPerPurchasedUnit}>
+            <Button 
+              type="button" 
+              className="bg-green-600 hover:bg-green-700 text-white" 
+              onClick={handleSubmit}
+            >
               <TrendingUp className="h-4 w-4 mr-2" />
               Add to Entry
             </Button>
           </div>
-        </form>
+        </div>
       </Form>
     </div>
   );

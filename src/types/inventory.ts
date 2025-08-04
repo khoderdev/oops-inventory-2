@@ -890,8 +890,8 @@ export interface StockFormProps {
   onSubmit: (data: StockFormData) => void;
   onAddStock?: (data: StockFormData) => void;
   onRecordWaste?: (data: RecordWasteData) => void;
-  onAddToSpecificEntry?: (data: StockFormData) => void;
-  onWasteFromSpecificEntry?: (data: StockFormData & { stockEntryId?: string }) => void;
+  onAddToSpecificEntry?: (data: StockFormData & { stockEntryId: string }) => void;
+  onWasteFromSpecificEntry?: (data: StockFormData & { stockEntryId: string }) => void;
   onCancel: () => void;
 }
 

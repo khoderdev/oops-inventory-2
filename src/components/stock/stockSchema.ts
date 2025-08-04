@@ -41,6 +41,24 @@ export const addStockSchema = z.object({
     .pipe(z.coerce.number().refine(val => val > 0, "Please enter a quantity to add")),
 });
 
+// Schema for adding to specific entry - requires quantity, excludes waste validation
+export const addToEntrySchema = z.object({
+  materialId: z.string().min(1, "Please select a material"),
+  supplier: z.string().min(1, "Please enter a supplier"),
+  purchasedQuantity: z.union([z.number(), z.string()])
+    .pipe(z.coerce.number().refine(val => val > 0, "Please enter a quantity to add")),
+  costPerPurchasedUnit: z.union([z.number(), z.string()])
+    .pipe(z.coerce.number().refine(val => val >= 0, "Cost must be positive")),
+  totalCost: z.union([z.number(), z.string()])
+    .pipe(z.coerce.number().refine(val => val >= 0, "Total cost must be positive")),
+  purchasedUnit: z.string().min(1, "Please select a unit"),
+  purchaseDate: z.date().optional(),
+  expiryDate: z.date().optional(),
+  batchNumber: z.string().optional(),
+  notes: z.string().optional(),
+  // Explicitly exclude waste fields from validation
+});
+
 // Schema for waste operations - requires waste quantity and reason
 export const wasteSchema = z.object({
   ...baseStockSchema,
@@ -56,11 +74,4 @@ export const updateEntrySchema = z.object({
   purchasedQuantity: z.union([z.number(), z.string()])
     .pipe(z.coerce.number().refine(val => val > 0, "Quantity must be greater than 0"))
     .optional(),
-});
-
-// Schema for adding to existing entry - requires quantity
-export const addToEntrySchema = z.object({
-  ...baseStockSchema,
-  purchasedQuantity: z.union([z.number(), z.string()])
-    .pipe(z.coerce.number().refine(val => val > 0, "Please enter a quantity to add")),
 });

@@ -88,6 +88,20 @@ export const inventoryAPIWithPrefetch = {
       store.set(prefetchStockAction, { force: true }).catch(console.error);
       return result;
     },
+    wasteFromSpecificEntryWithCache: async (...args: Parameters<typeof stockAPI.wasteFromSpecificEntry>) => {
+      const result = await stockAPI.wasteFromSpecificEntry(...args);
+      // Invalidate and refresh stock cache
+      store.set(invalidateCacheAction, 'stock');
+      store.set(prefetchStockAction, { force: true }).catch(console.error);
+      return result;
+    },
+    addToSpecificEntryWithCache: async (...args: Parameters<typeof stockAPI.addToSpecificEntry>) => {
+      const result = await stockAPI.addToSpecificEntry(...args);
+      // Invalidate and refresh stock cache
+      store.set(invalidateCacheAction, 'stock');
+      store.set(prefetchStockAction, { force: true }).catch(console.error);
+      return result;
+    },
   },
   menu: {
     ...menuAPI,

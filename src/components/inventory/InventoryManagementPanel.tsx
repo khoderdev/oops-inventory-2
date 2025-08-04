@@ -23,9 +23,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
     parallel: true,
     onError: error => {
       toast({
-        title: "Data Loading Error",
-        description: `Failed to load inventory data: ${error.message}`,
-        variant: "destructive"
+        title: "Loading Error",
+        description: "Failed to load data",
+        variant: "destructive",
+        duration: 1500
       });
     }
   });
@@ -134,8 +135,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
             isPOSItem: selectedMaterial.isPOSItem
           });
           toast({
-            title: "Material Updated",
-            description: `${data.name} has been updated successfully.`
+            title: "Updated",
+            description: `${data.name} updated`,
+            duration: 1500
           });
         } else {
           // Create new material
@@ -144,8 +146,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
             isPOSItem: false
           });
           toast({
-            title: "Material Created",
-            description: `${data.name} has been created successfully.`
+            title: "Created",
+            description: `${data.name} created`,
+            duration: 1500
           });
         }
 
@@ -157,8 +160,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       } catch (error) {
         toast({
           title: "Error",
-          description: `Failed to ${selectedMaterial ? "update" : "create"} material: ${error instanceof Error ? error.message : "Unknown error"}`,
-          variant: "destructive"
+          description: `Failed to ${selectedMaterial ? "update" : "create"} material`,
+          variant: "destructive",
+          duration: 2000
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, material: false }));
@@ -175,15 +179,17 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           // Update existing stock entry
           await inventoryAPIWithPrefetch.stock.updateStockEntryWithCache(selectedStockEntry.id, data);
           toast({
-            title: "Stock Entry Updated",
-            description: "Stock entry has been updated successfully."
+            title: "Updated",
+            description: "Stock entry updated",
+            duration: 1500
           });
         } else {
           // Create new stock entry
           await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(data);
           toast({
-            title: "Stock Entry Created",
-            description: "Stock entry has been created successfully."
+            title: "Created",
+            description: "Stock entry created",
+            duration: 1500
           });
         }
 
@@ -198,8 +204,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       } catch (error) {
         toast({
           title: "Error",
-          description: `Failed to ${selectedStockEntry ? "update" : "create"} stock entry: ${error instanceof Error ? error.message : "Unknown error"}`,
-          variant: "destructive"
+          description: `Failed to ${selectedStockEntry ? "update" : "create"} stock entry`,
+          variant: "destructive",
+          duration: 2000
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, stock: false }));
@@ -239,8 +246,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         await refresh("stock");
 
         toast({
-          title: "Material Deleted",
-          description: "Material has been deleted successfully."
+          title: "Deleted",
+          description: "Material deleted",
+          duration: 1500
         });
         if (onDeleteMaterial) {
           onDeleteMaterial(materialId);
@@ -248,8 +256,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       } catch (error) {
         toast({
           title: "Error",
-          description: `Failed to delete material: ${error instanceof Error ? error.message : "Unknown error"}`,
-          variant: "destructive"
+          description: "Failed to delete material",
+          variant: "destructive",
+          duration: 2000
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, [`delete-material-${materialId}`]: false }));
@@ -270,8 +279,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         await refresh("materials");
 
         toast({
-          title: "Stock Entry Deleted",
-          description: "Stock entry has been deleted successfully."
+          title: "Deleted",
+          description: "Stock entry deleted",
+          duration: 1500
         });
         if (onDeleteStockEntry) {
           onDeleteStockEntry(stockEntryId);
@@ -279,8 +289,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       } catch (error) {
         toast({
           title: "Error",
-          description: `Failed to delete stock entry: ${error instanceof Error ? error.message : "Unknown error"}`,
-          variant: "destructive"
+          description: "Failed to delete stock entry",
+          variant: "destructive",
+          duration: 2000
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, [`delete-stock-${stockEntryId}`]: false }));
@@ -310,14 +321,16 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         await refresh("stock");
         await refresh("materials");
         toast({
-          title: "Stock Added",
-          description: "Stock has been added successfully."
+          title: "Added",
+          description: "Stock added",
+          duration: 1500
         });
       } catch (error) {
         toast({
           title: "Error",
-          description: `Failed to add stock: ${error instanceof Error ? error.message : "Unknown error"}`,
-          variant: "destructive"
+          description: "Failed to add stock",
+          variant: "destructive",
+          duration: 2000
         });
       }
     },
@@ -332,14 +345,16 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         await refresh("stock");
         await refresh("materials");
         toast({
-          title: "Waste Recorded",
-          description: "Waste has been recorded successfully."
+          title: "Recorded",
+          description: "Waste recorded",
+          duration: 1500
         });
       } catch (error) {
         toast({
           title: "Error",
-          description: `Failed to record waste: ${error instanceof Error ? error.message : "Unknown error"}`,
-          variant: "destructive"
+          description: "Failed to record waste",
+          variant: "destructive",
+          duration: 2000
         });
       }
     },
@@ -357,8 +372,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       } catch (error) {
         toast({
           title: "Error",
-          description: `Failed to add to specific entry: ${error instanceof Error ? error.message : "Unknown error"}`,
-          variant: "destructive"
+          description: "Failed to add to entry",
+          variant: "destructive",
+          duration: 2000
         });
       }
     },
@@ -389,14 +405,16 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         await refresh("stock");
         await refresh("materials");
         toast({
-          title: "Waste Recorded",
-          description: "Waste from specific entry has been recorded successfully."
+          title: "Recorded",
+          description: "Waste recorded",
+          duration: 1500
         });
       } catch (error) {
         toast({
           title: "Error",
-          description: `Failed to record waste from specific entry: ${error instanceof Error ? error.message : "Unknown error"}`,
-          variant: "destructive"
+          description: "Failed to record waste",
+          variant: "destructive",
+          duration: 2000
         });
       }
     },
@@ -447,15 +465,17 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       setSelectedSection(null);
 
       toast({
-        title: selectedSection ? "Section Updated" : "Section Created",
-        description: `Section has been ${selectedSection ? "updated" : "created"} successfully.`
+        title: selectedSection ? "Updated" : "Created",
+        description: `Section ${selectedSection ? "updated" : "created"}`,
+        duration: 1500
       });
     } catch (error) {
       console.error("Failed to submit section:", error);
       toast({
         title: "Error",
-        description: `Failed to ${selectedSection ? "update" : "create"} section: ${error instanceof Error ? error.message : "Unknown error"}`,
-        variant: "destructive"
+        description: `Failed to ${selectedSection ? "update" : "create"} section`,
+        variant: "destructive",
+        duration: 2000
       });
     }
   };

@@ -31,7 +31,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       batchNumber: stockEntry?.batchNumber || "",
       // Waste-related fields
       wasteQuantity: "0",
-      wasteReason: undefined,
+      wasteReason: "",
       wasteDate: new Date()
     }
   });
@@ -77,12 +77,16 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       materialId: stockEntry?.materialId || selectedMaterialId || "",
       supplier: stockEntry?.supplier || "",
       purchasedQuantity: shouldClearQuantityFields ? "" : stockEntry?.purchasedQuantity?.toString() || "0",
-      purchasedUnit: shouldClearQuantityFields ? "" : stockEntry?.purchasedUnit || "",
+      purchasedUnit: isWasteFromEntry ? (stockEntry?.purchasedUnit || "") : (shouldClearQuantityFields ? "" : stockEntry?.purchasedUnit || ""),
       costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "0",
       totalCost: stockEntry?.totalCost?.toString() || "0",
       purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
       expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
-      batchNumber: stockEntry?.batchNumber || ""
+      batchNumber: stockEntry?.batchNumber || "",
+      // Waste-related fields
+      wasteQuantity: "0",
+      wasteReason: "",
+      wasteDate: new Date()
     });
   }, [stockEntry, selectedMaterialId, form, activeTab]);
 

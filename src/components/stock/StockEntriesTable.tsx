@@ -214,6 +214,115 @@ export function StockEntriesTable() {
     }
   };
 
+  const handleWasteFromSpecificEntryOperation = async (
+    data: {
+      materialId?: string;
+      supplier?: string;
+      purchasedQuantity?: number;
+      costPerPurchasedUnit?: number;
+      totalCost?: number;
+      purchasedUnit?: string;
+      wasteQuantity?: number;
+      purchaseDate?: Date;
+      expiryDate?: Date;
+      batchNumber?: string;
+      notes?: string;
+      wasteReason?: string;
+    } & { stockEntryId: string }
+  ) => {
+    try {
+      console.log("🚀 handleWasteFromSpecificEntryOperation called with:", data);
+      
+      // Convert the data to the format expected by the API
+      const wasteData = {
+        wasteQuantity: data.wasteQuantity || data.purchasedQuantity || 0,
+        unit: data.purchasedUnit || "g",
+        wasteReason: data.wasteReason || "unspecified",
+        wasteDate: new Date(),
+        notes: data.notes
+      };
+      
+      console.log("📤 Calling wasteFromSpecificEntryWithCache with ID:", data.stockEntryId, "and data:", wasteData);
+      
+      // Call the API to record waste from specific entry
+      await inventoryAPIWithPrefetch.stock.wasteFromSpecificEntryWithCache(data.stockEntryId, wasteData);
+      
+      await refresh("stock");
+      await refresh("materials");
+      
+      // Close the dialog
+      setShowStockForm(false);
+      
+      toast({
+        title: "Recorded",
+        description: "Waste recorded",
+        duration: 1500
+      });
+    } catch (error) {
+      console.error("❌ Error recording waste from specific entry:", error);
+      toast({
+        title: "Error",
+        description: "Failed to record waste",
+        variant: "destructive",
+        duration: 2000
+      });
+    }
+  };
+
+  const handleAddToSpecificEntryOperation = async (
+    data: {
+      materialId?: string;
+      supplier?: string;
+      purchasedQuantity?: number;
+      costPerPurchasedUnit?: number;
+      totalCost?: number;
+      purchasedUnit?: string;
+      wasteQuantity?: number;
+      purchaseDate?: Date;
+      expiryDate?: Date;
+      batchNumber?: string;
+      notes?: string;
+      wasteReason?: string;
+    } & { stockEntryId: string }
+  ) => {
+    try {
+      console.log("🚀 handleAddToSpecificEntryOperation called with:", data);
+      
+      // Convert the data to the format expected by the API
+      const addData = {
+        additionalQuantity: data.purchasedQuantity || 0,
+        unit: data.purchasedUnit || "g",
+        additionDate: new Date(),
+        notes: data.notes
+      };
+      
+      console.log("📤 Calling addToSpecificEntryWithCache with ID:", data.stockEntryId, "and data:", addData);
+      
+      // Call the API to add to specific entry
+      await inventoryAPIWithPrefetch.stock.addToSpecificEntryWithCache(data.stockEntryId, addData);
+      
+      await refresh("stock");
+      await refresh("materials");
+      
+      // Close the dialog
+      setShowStockForm(false);
+      
+      toast({
+        title: "Added",
+        description: "Stock added",
+        duration: 1500
+      });
+    } catch (error) {
+      console.error("❌ Error adding to specific entry:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add stock",
+        variant: "destructive",
+        duration: 2000
+      });
+    }
+  };
+
   // Get unique materials for filter
   const uniqueMaterials = Array.from(new Set(stockEntries.map(entry => {
     const material = materialsMap.get(entry.materialId);
@@ -1043,6 +1152,8 @@ export function StockEntriesTable() {
                   onSubmit={handleStockSubmit}
                   onAddStock={handleAddStockOperation}
                   onRecordWaste={handleRecordWasteOperation}
+                  onAddToSpecificEntry={handleAddToSpecificEntryOperation}
+                  onWasteFromSpecificEntry={handleWasteFromSpecificEntryOperation}
                   onCancel={() => {
                     setShowStockForm(false);
                     setSelectedStockEntry(null);
