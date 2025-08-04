@@ -102,6 +102,11 @@ function isMassUnit(unit) {
   return ["kg", "g", "lb", "oz"].includes(unit.toLowerCase());
 }
 
+// Helper function to check if a unit is a volume unit
+function isVolumeUnit(unit) {
+  return ["l", "ml", "gallon", "qt", "pt"].includes(unit.toLowerCase());
+}
+
 // Helper function to convert any mass unit to grams
 function convertMassToGrams(value, fromUnit) {
   const unitsToGrams = {
@@ -120,6 +125,25 @@ function convertMassToGrams(value, fromUnit) {
   return value * conversionFactor;
 }
 
+// Helper function to convert any volume unit to milliliters
+function convertVolumeToMilliliters(value, fromUnit) {
+  const unitsToMilliliters = {
+    l: 1000,
+    ml: 1,
+    gallon: 3785.41,
+    qt: 946.353,
+    pt: 473.176
+  };
+
+  const conversionFactor = unitsToMilliliters[fromUnit.toLowerCase()];
+  if (!conversionFactor) {
+    console.warn(`Unknown volume unit: ${fromUnit}, returning original value`);
+    return value;
+  }
+
+  return value * conversionFactor;
+}
+
 // Helper function to calculate converted values
 async function calculateConvertedValues(stockEntry) {
   try {
@@ -132,15 +156,21 @@ async function calculateConvertedValues(stockEntry) {
     }
 
     const isMassMaterial = material.unitType === "mass" && isMassUnit(stockEntry.purchasedUnit);
+    const isVolumeMaterial = material.unitType === "volume" && isVolumeUnit(stockEntry.purchasedUnit);
 
-    if (!isMassMaterial) {
+    if (isMassMaterial) {
+      const convertedQuantity = convertMassToGrams(stockEntry.purchasedQuantity, stockEntry.purchasedUnit);
+      stockEntry.purchasedConvertedQuantity = Math.round(convertedQuantity);
+      stockEntry.purchasedConvertedUnit = "g";
+    } else if (isVolumeMaterial) {
+      const convertedQuantity = convertVolumeToMilliliters(stockEntry.purchasedQuantity, stockEntry.purchasedUnit);
+      stockEntry.purchasedConvertedQuantity = Math.round(convertedQuantity);
+      stockEntry.purchasedConvertedUnit = "ml";
+    } else {
+      // For non-mass and non-volume materials, keep original values
       stockEntry.purchasedConvertedQuantity = stockEntry.purchasedQuantity;
       stockEntry.purchasedConvertedUnit = stockEntry.purchasedUnit;
-      return;
     }
-    const convertedQuantity = convertMassToGrams(stockEntry.purchasedQuantity, stockEntry.purchasedUnit);
-    stockEntry.purchasedConvertedQuantity = Math.round(convertedQuantity);
-    stockEntry.purchasedConvertedUnit = "g";
   } catch (error) {
     console.error("Error calculating converted values:", error);
     stockEntry.purchasedConvertedQuantity = stockEntry.purchasedQuantity;

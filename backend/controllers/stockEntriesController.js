@@ -112,6 +112,23 @@ const stockEntriesController = {
           purchasedIndividualQuantity = numericPurchasedQuantity;
           purchasedIndividualUnit = purchasedUnit;
         }
+      } else if (material.unitType === "volume") {
+        const volumeConversions = {
+          l: 1000,
+          ml: 1,
+          gallon: 3785.41,
+          qt: 946.353,
+          pt: 473.176
+        };
+        const conversionFactor = volumeConversions[purchasedUnit.toLowerCase()];
+        if (conversionFactor) {
+          purchasedIndividualQuantity = Math.round(numericPurchasedQuantity * conversionFactor);
+          purchasedIndividualUnit = material.baseUnit;
+        } else {
+          console.warn(`Unknown volume unit: ${purchasedUnit} for material: ${material.name}`);
+          purchasedIndividualQuantity = numericPurchasedQuantity;
+          purchasedIndividualUnit = purchasedUnit;
+        }
       }
 
       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : purchasedIndividualQuantity > 0 ? parseFloat((numericTotalCost / purchasedIndividualQuantity).toFixed(6)) : 0;
@@ -123,6 +140,8 @@ const stockEntriesController = {
         purchasedUnit,
         purchasedIndividualQuantity,
         purchasedIndividualUnit,
+        purchasedConvertedQuantity: purchasedIndividualQuantity,
+        purchasedConvertedUnit: purchasedIndividualUnit,
         costPerPurchasedUnit: numericCostPerPurchasedUnit,
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: numericTotalCost,
@@ -226,6 +245,19 @@ const stockEntriesController = {
           updatedIndividualQuantity = Math.round(finalPurchasedQuantity * conversionFactor);
           updatedIndividualUnit = material.baseUnit;
         }
+      } else if (material.unitType === "volume") {
+        const volumeConversions = {
+          l: 1000,
+          ml: 1,
+          gallon: 3785.41,
+          qt: 946.353,
+          pt: 473.176
+        };
+        const conversionFactor = volumeConversions[finalPurchasedUnit.toLowerCase()];
+        if (conversionFactor) {
+          updatedIndividualQuantity = Math.round(finalPurchasedQuantity * conversionFactor);
+          updatedIndividualUnit = material.baseUnit;
+        }
       } else {
         updatedIndividualQuantity = Math.round(finalPurchasedQuantity);
         updatedIndividualUnit = finalPurchasedUnit;
@@ -240,6 +272,8 @@ const stockEntriesController = {
         purchasedUnit: finalPurchasedUnit,
         purchasedIndividualQuantity: updatedIndividualQuantity,
         purchasedIndividualUnit: updatedIndividualUnit,
+        purchasedConvertedQuantity: updatedIndividualQuantity,
+        purchasedConvertedUnit: updatedIndividualUnit,
         costPerPurchasedUnit: finalCostPerPurchasedUnit,
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: finalTotalCost,
