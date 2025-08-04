@@ -78,6 +78,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       { value: "plates", label: "Plates" },
       { value: "salads", label: "Salads" },
       { value: "desserts", label: "Desserts" },
+      { value: "cold", label: "Cold" },
+      { value: "hot", label: "Hot" },
+      { value: "breakfast", label: "Breakfast" },
       { value: "shisha", label: "Shisha" }
     ],
     []
