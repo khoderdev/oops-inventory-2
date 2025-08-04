@@ -455,59 +455,115 @@ export function StockEntriesTable() {
 
   return (
     <Card className="w-full !border-none overflow-hidden h-screen">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <CardTitle className="text-3xl font-bold">Stock Entries</CardTitle>
-            {negativeStockCount > 0 && (
-              <div className="flex items-center gap-2 text-red-600">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-medium">
-                  {negativeStockCount} negative stock entries
-                  {virtualEntryCount > 0 && ` (${virtualEntryCount} virtual)`}
-                </span>
+      <CardHeader className="space-y-6">
+        {/* Title Section */}
+        <div className="flex flex-col space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col space-y-2">
+              <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900">Stock Entries</CardTitle>
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                <span>Total: {stockEntries.length} entries</span>
+                {searchTerm && (
+                  <span className="text-blue-600">Filtered: {stockEntriesWithMaterial.length} results</span>
+                )}
+                {negativeStockCount > 0 && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-700 rounded-full border border-red-200">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span className="font-medium">
+                      {negativeStockCount} negative
+                      {virtualEntryCount > 0 && ` (${virtualEntryCount} virtual)`}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {bulkSelectionMode && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSelectAllStockEntries}
-                  disabled={stockEntriesWithMaterial.length === 0}
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  {selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect All" : "Select All"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleOpenBulkPrinterDialog}
-                  disabled={selectedStockEntries.size === 0}
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  Assign Printer ({selectedStockEntries.size})
-                </Button>
-              </>
-            )}
-            <Button
-              size="sm"
-              variant={bulkSelectionMode ? "default" : "outline"}
-              onClick={handleToggleBulkSelection}
+            </div>
+            
+            {/* Primary Action */}
+            <Button 
+              onClick={handleAddStock} 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm w-full sm:w-auto"
             >
-              <Check className="h-4 w-4 mr-2" />
-              {bulkSelectionMode ? "Exit Selection" : "Bulk Select"}
+              <Plus className="h-4 w-4 mr-2" />
+              Add Stock
             </Button>
-            {negativeStockCount > 0 && (
-              <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={fetchNegativeStockReport} disabled={loadingReport}>
-                    {loadingReport ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                    Negative Stock Report
+          </div>
+
+          {/* Action Bar */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input 
+                placeholder="Search by material name or supplier..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+                className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500" 
+              />
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-2">
+              {bulkSelectionMode && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSelectAllStockEntries}
+                    disabled={stockEntriesWithMaterial.length === 0}
+                    className="border-gray-200 hover:border-gray-300"
+                  >
+                    <Check className="h-4 w-4 mr-1.5" />
+                    <span className="hidden sm:inline">
+                      {selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect All" : "Select All"}
+                    </span>
+                    <span className="sm:hidden">
+                      {selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect" : "Select"}
+                    </span>
                   </Button>
-                </DialogTrigger>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleOpenBulkPrinterDialog}
+                    disabled={selectedStockEntries.size === 0}
+                    className="border-gray-200 hover:border-gray-300"
+                  >
+                    <Printer className="h-4 w-4 mr-1.5" />
+                    <span className="hidden sm:inline">Assign Printer ({selectedStockEntries.size})</span>
+                    <span className="sm:hidden">Printer ({selectedStockEntries.size})</span>
+                  </Button>
+                </>
+              )}
+              
+              <Button
+                size="sm"
+                variant={bulkSelectionMode ? "default" : "outline"}
+                onClick={handleToggleBulkSelection}
+                className={bulkSelectionMode ? "bg-blue-600 hover:bg-blue-700" : "border-gray-200 hover:border-gray-300"}
+              >
+                <Check className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">{bulkSelectionMode ? "Exit Selection" : "Bulk Select"}</span>
+                <span className="sm:hidden">{bulkSelectionMode ? "Exit" : "Select"}</span>
+              </Button>
+              
+              {negativeStockCount > 0 && (
+                <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={fetchNegativeStockReport} 
+                      disabled={loadingReport}
+                      className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+                    >
+                      {loadingReport ? (
+                        <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
+                      ) : (
+                        <FileText className="h-4 w-4 mr-1.5" />
+                      )}
+                      <span className="hidden sm:inline">Negative Stock Report</span>
+                      <span className="sm:hidden">Report</span>
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
@@ -591,24 +647,8 @@ export function StockEntriesTable() {
                 </DialogContent>
               </Dialog>
             )}
-            <Button size="sm" onClick={handleAddStock} className="w-fit">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Stock
-            </Button>
-          </div>
-        </div>
-
-        {/* Search Input */}
-        <div className="mt-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search by material name or supplier..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
-          </div>
-          {searchTerm && (
-            <div className="mt-2 text-sm text-muted-foreground">
-              Showing {stockEntriesWithMaterial.length} of {stockEntries.length} entries
             </div>
-          )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-2 sm:p-4 lg:p-6">
