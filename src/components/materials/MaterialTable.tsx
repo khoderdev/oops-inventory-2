@@ -49,57 +49,104 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
           )}
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-[calc(100vh-240px)] overflow-hidden border rounded-md">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 border-b">
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-          </Table>
-          <div className="h-[calc(100%-53px)] overflow-y-auto">
+      <CardContent className="p-2 sm:p-4 lg:p-6">
+        {/* Mobile Card View */}
+        <div className="block lg:hidden space-y-3">
+          {searchFilteredMaterials.map(material => (
+            <Card key={material.id} className="p-3 border-l-4 border-l-blue-500">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-sm">{highlightText(material.name, searchTerm)}</h3>
+                  <Badge variant="secondary" className="mt-1 text-xs">
+                    {MATERIAL_CATEGORIES.find(c => c.value === material.category)?.label}
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="flex gap-1 mt-3">
+                <Button variant="outline" size="sm" onClick={() => onEditMaterial(material)} className="h-7 px-2 text-xs">
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)} className="h-7 px-2 text-xs">
+                  <Plus className="h-3 w-3 mr-1" />
+                  Stock
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Material</AlertDialogTitle>
+                      <AlertDialogDescription>Are you sure you want to delete "{material.name}"? This action cannot be undone.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDeleteMaterial(material.id)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </Card>
+          ))}
+        </div>
+        
+        {/* Desktop Table View */}
+        <div className="hidden lg:block">
+          <div className="h-[calc(100vh-240px)] overflow-hidden border rounded-md">
             <Table>
-              <TableBody>
-                {searchFilteredMaterials.map(material => (
-                  <TableRow key={material.id}>
-                    <TableCell className="font-medium">{highlightText(material.name, searchTerm)}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{MATERIAL_CATEGORIES.find(c => c.value === material.category)?.label}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => onEditMaterial(material)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)}>
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Material</AlertDialogTitle>
-                              <AlertDialogDescription>Are you sure you want to delete "{material.name}"? This action cannot be undone.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => onDeleteMaterial(material.id)}>Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
+              <TableHeader className="sticky top-0 bg-background z-10 border-b">
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
             </Table>
+            <div className="h-[calc(100%-53px)] overflow-y-auto">
+              <Table>
+                <TableBody>
+                  {searchFilteredMaterials.map(material => (
+                    <TableRow key={material.id}>
+                      <TableCell className="font-medium">{highlightText(material.name, searchTerm)}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{MATERIAL_CATEGORIES.find(c => c.value === material.category)?.label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => onEditMaterial(material)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Material</AlertDialogTitle>
+                                <AlertDialogDescription>Are you sure you want to delete "{material.name}"? This action cannot be undone.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDeleteMaterial(material.id)}>Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </div>
       </CardContent>

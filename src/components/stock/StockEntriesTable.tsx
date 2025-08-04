@@ -192,6 +192,52 @@ export function StockEntriesTable() {
     return entry.supplier === "VIRTUAL - Negative Stock";
   };
 
+  const isExpiredEntry = (entry: (typeof stockEntriesWithMaterial)[0]) => {
+    if (!entry.expiryDate) return false;
+    const today = new Date();
+    const expiryDate = new Date(entry.expiryDate);
+    return expiryDate < today;
+  };
+
+  const isExpiringSoonEntry = (entry: (typeof stockEntriesWithMaterial)[0]) => {
+    if (!entry.expiryDate) return false;
+    const today = new Date();
+    const expiryDate = new Date(entry.expiryDate);
+    const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    // Consider items expiring within 7 days as "expiring soon"
+    return daysUntilExpiry > 0 && daysUntilExpiry <= 7;
+  };
+
+  const renderUnitTypeBadges = (material: Material | undefined) => {
+    if (!material) return null;
+    
+    const getUnitTypeColor = (unitType: string) => {
+      switch (unitType) {
+        case 'mass': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'volume': return 'bg-green-100 text-green-800 border-green-200';
+        case 'piece': return 'bg-purple-100 text-purple-800 border-purple-200';
+        case 'package': return 'bg-orange-100 text-orange-800 border-orange-200';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      }
+    };
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        <Badge variant="outline" className={`text-xs ${getUnitTypeColor(material.unitType)}`}>
+          {material.unitType}
+        </Badge>
+        <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-300">
+          {material.baseUnit}
+        </Badge>
+        {material.inputUnit && material.inputUnit !== material.baseUnit && (
+          <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300">
+            {material.inputUnit}
+          </Badge>
+        )}
+      </div>
+    );
+  };
+
   const fetchNegativeStockReport = async () => {
     setLoadingReport(true);
     try {
@@ -565,37 +611,138 @@ export function StockEntriesTable() {
           )}
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="w-full h-[calc(100vh-240px)] border rounded-md overflow-x-auto">
-          <div className="min-w-full h-full flex flex-col">
-            {/* Fixed Header */}
-            <div className="flex-shrink-0 bg-background border-b">
-              <Table className="min-w-full">
-                <TableHeader>
-                  <TableRow>
-                    {bulkSelectionMode && (
-                      <TableHead className="w-12 bg-background">
-                        <input
-                          type="checkbox"
-                          checked={selectedStockEntries.size === stockEntriesWithMaterial.length && stockEntriesWithMaterial.length > 0}
-                          onChange={handleSelectAllStockEntries}
-                          className="h-4 w-4"
-                          aria-label="Select all stock entries"
-                        />
-                      </TableHead>
-                    )}
-                    <TableHead className="min-w-[200px] bg-background">Material</TableHead>
-                    <TableHead className="min-w-[150px] bg-background">Supplier</TableHead>
-                    <TableHead className="min-w-[150px] bg-background">Remaining Qty</TableHead>
-                    <TableHead className="min-w-[120px] bg-background">Unit</TableHead>
-                    <TableHead className="min-w-[120px] bg-background">Cost/Unit</TableHead>
-                    <TableHead className="min-w-[120px] bg-background">Total Cost</TableHead>
-                    <TableHead className="min-w-[140px] bg-background">Purchase Date</TableHead>
-                    <TableHead className="min-w-[220px] bg-background">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-              </Table>
-            </div>
+      <CardContent className="p-2 sm:p-4 lg:p-6">
+        {/* Mobile Card View */}
+        <div className="block lg:hidden space-y-3">
+          {stockEntriesWithMaterial.map(entry => {
+            const material = materialsMap.get(entry.materialId);
+            const isNegative = hasNegativeStock(entry);
+            const isVirtual = isVirtualEntry(entry);
+            const isExpired = isExpiredEntry(entry);
+            const isExpiringSoon = isExpiringSoonEntry(entry);
+            
+            return (
+              <Card key={entry.id} className={`p-3 border-l-4 ${
+                isNegative ? 'border-l-red-500 bg-red-50' : 
+                isVirtual ? 'border-l-orange-500 bg-orange-50' :
+                isExpired ? 'border-l-gray-500 bg-gray-50' :
+                isExpiringSoon ? 'border-l-yellow-500 bg-yellow-50' :
+                'border-l-green-500'
+              }`}>
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm">{material?.name || 'Unknown Material'}</h3>
+                    <p className="text-xs text-muted-foreground">{entry.supplier}</p>
+                  </div>
+                  {renderUnitTypeBadges(material)}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                  <div>
+                    <span className="text-muted-foreground">Qty:</span>
+                    <span className={`ml-1 font-medium ${
+                      isNegative ? 'text-red-600' : 
+                      isVirtual ? 'text-orange-600' : ''
+                    }`}>
+                      {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Cost/Unit:</span>
+                    <span className="ml-1 font-medium">{formatCurrency(entry.costPerPurchasedUnit)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Total:</span>
+                    <span className="ml-1 font-medium">{formatCurrency(entry.totalCost)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Date:</span>
+                    <span className="ml-1">{new Date(entry.purchaseDate).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap gap-1 justify-between items-center">
+                  <div className="flex gap-1">
+                    <Button variant="outline" size="sm" onClick={() => handleEditStockEntry(entry)} className="h-7 px-2 text-xs">
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Stock Entry</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this stock entry for "{material?.name}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteStockEntry(entry.id)}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                  
+                  <div className="flex gap-1">
+                    <Button
+                      variant={entry.isPOSItem ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleTogglePOSVisibility(entry)}
+                      className="h-7 px-2 text-xs"
+                    >
+                      {entry.isPOSItem ? <Check className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenPrinterDialog(entry)}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Printer className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+        
+        {/* Desktop Table View */}
+        <div className="hidden lg:block">
+          <div className="w-full h-[calc(100vh-240px)] border rounded-md overflow-x-auto">
+            <div className="min-w-full h-full flex flex-col">
+              {/* Fixed Header */}
+              <div className="flex-shrink-0 bg-background border-b">
+                <Table className="min-w-full">
+                  <TableHeader>
+                    <TableRow>
+                      {bulkSelectionMode && (
+                        <TableHead className="w-12 bg-background">
+                          <input
+                            type="checkbox"
+                            checked={selectedStockEntries.size === stockEntriesWithMaterial.length && stockEntriesWithMaterial.length > 0}
+                            onChange={handleSelectAllStockEntries}
+                            className="h-4 w-4"
+                            aria-label="Select all stock entries"
+                          />
+                        </TableHead>
+                      )}
+                      <TableHead className="min-w-[200px] bg-background">Material</TableHead>
+                      <TableHead className="min-w-[150px] bg-background">Supplier</TableHead>
+                      <TableHead className="min-w-[150px] bg-background">Remaining Qty</TableHead>
+                      <TableHead className="min-w-[120px] bg-background">Unit</TableHead>
+                      <TableHead className="min-w-[120px] bg-background">Cost/Unit</TableHead>
+                      <TableHead className="min-w-[120px] bg-background">Total Cost</TableHead>
+                      <TableHead className="min-w-[140px] bg-background">Purchase Date</TableHead>
+                      <TableHead className="min-w-[220px] bg-background">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                </Table>
+              </div>
 
             {/* Scrollable Body */}
             <div className="flex-1 overflow-y-auto">
@@ -710,6 +857,7 @@ export function StockEntriesTable() {
               </Table>
             </div>
           </div>
+        </div>
         </div>
       </CardContent>
 

@@ -471,9 +471,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] !overflow-hidden flex flex-col">
+    <div className="h-[calc(100vh-4rem)] w-full flex flex-col overflow-hidden -m-2 sm:-m-4 lg:-m-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-3 gap-1 p-1 bg-gray-100 rounded-lg mb-2 sm:mb-4">
           {[
             { value: "material", label: "Materials", icon: Package, color: "blue", short: "Mat", loading: tabLoading.material },
             { value: "stock", label: "Stock Entries", icon: Warehouse, color: "green", short: "Stock", loading: tabLoading.stock },
@@ -483,36 +483,41 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
               key={value}
               value={value}
               className={`
-          flex-1 flex items-center justify-center bg-slate-200 gap-1 px-3 py-2 text-sm rounded-md font-medium text-gray-600 transition
-          data-[state=active]:bg-${color}-600 data-[state=active]:text-primary data-[state=active]:shadow-md
-          hover:bg-${color}-100 hover:text-${color}-700
-        `}
+                flex items-center justify-center gap-1 px-2 py-2 sm:px-3 sm:py-2.5 
+                text-xs sm:text-sm font-medium text-gray-600 transition-all duration-200
+                bg-white rounded-md shadow-sm border border-gray-200
+                data-[state=active]:bg-${color}-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border-${color}-600
+                hover:bg-${color}-50 hover:text-${color}-700 hover:border-${color}-300
+                focus:outline-none focus:ring-2 focus:ring-${color}-500 focus:ring-offset-1
+                min-h-[2.5rem] sm:min-h-[3rem]
+              `}
             >
-              <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{label}</span>
-              <span className="sm:hidden">{short}</span>
-              {loading && <Loader2 className="w-3 h-3 ml-1 animate-spin" />}
+              <Icon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="hidden xs:inline sm:hidden text-xs">{short}</span>
+              <span className="hidden sm:inline truncate">{label}</span>
+              <span className="xs:hidden text-[10px] leading-tight">{short}</span>
+              {loading && <Loader2 className="w-3 h-3 ml-1 animate-spin flex-shrink-0" />}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden bg-white">
+        <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden bg-white rounded-lg border border-gray-200">
           <MaterialTable filteredMaterials={filteredMaterials} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
         </TabsContent>
 
-        <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden bg-white">
+        <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden bg-white rounded-lg border border-gray-200">
           <StockEntriesTable />
         </TabsContent>
 
-        <TabsContent value="sections" className="flex-1 focus-visible:outline-none overflow-hidden bg-white">
+        <TabsContent value="sections" className="flex-1 focus-visible:outline-none overflow-hidden bg-white rounded-lg border border-gray-200">
           <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
         </TabsContent>
       </Tabs>
 
       {/* Forms */}
       {showMaterialForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-xs sm:max-w-lg md:max-w-2xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl">
             <MaterialForm
               material={selectedMaterial || undefined}
               onSubmit={handleMaterialSubmit}
@@ -526,8 +531,8 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       )}
 
       {showStockForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-xs sm:max-w-lg md:max-w-2xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl">
             <StockForm
               materials={materialsWithStock}
               stockEntry={selectedStockEntry || undefined}
@@ -549,17 +554,19 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
 
       {/* Section Form Dialog */}
       <Dialog open={showSectionForm} onOpenChange={setShowSectionForm}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
-          <DialogHeader className="px-6 py-4 border-b">
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <Building2 className="h-5 w-5" />
-              {selectedSection ? "Edit Section" : "Create New Section"}
+        <DialogContent className="w-[95vw] max-w-xs sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-6xl max-h-[95vh] sm:max-h-[90vh] p-0 m-2 sm:m-4">
+          <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="truncate">{selectedSection ? "Edit Section" : "Create New Section"}</span>
             </DialogTitle>
-            <DialogDescription>{selectedSection ? "Update the section details below" : "Create a new section to organize your inventory items"}</DialogDescription>
+            <DialogDescription className="text-sm sm:text-base">
+              {selectedSection ? "Update the section details below" : "Create a new section to organize your inventory items"}
+            </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[calc(90vh-120px)]">
-            <div className="px-6 py-4">
+          <ScrollArea className="max-h-[calc(95vh-100px)] sm:max-h-[calc(90vh-120px)]">
+            <div className="px-4 sm:px-6 py-3 sm:py-4">
               <SectionForm
                 section={selectedSection || undefined}
                 onSubmit={handleSectionSubmit}
