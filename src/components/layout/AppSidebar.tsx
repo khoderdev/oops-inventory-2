@@ -171,7 +171,7 @@ export function AppSidebar() {
     <Sidebar className="border-r border-sidebar-border transition-all duration-300 ease-in-out">
       <SidebarHeader className="border-b border-sidebar-border h-16 flex items-center justify-center">
         <div className="flex items-center justify-center transition-all duration-300 ease-in-out">
-          <div className="relative flex items-center justify-center">{state === "expanded" ? <img src="/oops-logo.png" alt="Restaurant Management System" className="w-36 h-auto transition-all duration-300 crisp-edges" /> : <img src="/oops-icon.png" alt="POS" className="w-28" />}</div>
+          <div className="relative flex items-center justify-center">{state === "expanded" ? <img onClick={() => navigate("/")} src="/oops-logo.png" alt="Restaurant Management System" className="w-36 h-auto transition-all duration-300 crisp-edges" /> : <img onClick={() => navigate("/")} src="/oops-icon.png" alt="POS" className="w-28" />}</div>
         </div>
       </SidebarHeader>
 

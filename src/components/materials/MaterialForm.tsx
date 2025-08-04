@@ -3,38 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Material, MATERIAL_CATEGORIES } from "@/types/inventory";
+import { MATERIAL_CATEGORIES, MaterialFormData, MaterialFormProps } from "@/types/inventory";
 import { UNIT_DEFINITIONS } from "@/utils/enhancedConversions";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-
-const materialSchema = z.object({
-  name: z.string().min(1, "Material name is required"),
-  category: z.string().min(1, "Category is required"),
-  unitType: z.string().min(1, "Unit type is required"),
-  inputUnit: z.string().min(1, "Input unit is required"),
-  packageQuantity: z.number().optional(),
-  baseUnit: z.string().min(1, "Base unit is required")
-});
-
-type MaterialFormData = z.infer<typeof materialSchema>;
-
-interface MaterialFormProps {
-  material?: Material;
-  onSubmit: (data: MaterialFormData) => void;
-  onCancel: () => void;
-}
+import { materialSchema } from "./materialsSchema";
 
 export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps) {
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
     defaultValues: {
       name: material?.name || "",
-      category: material?.category || "",
-      unitType: material?.unitType || "",
+      category: material?.category || "other",
+      unitType: material?.unitType || "piece",
       inputUnit: material?.inputUnit || material?.baseUnit || "",
       packageQuantity: material?.packageQuantity || 1,
       baseUnit: material?.baseUnit || ""

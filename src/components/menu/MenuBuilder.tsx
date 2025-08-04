@@ -18,7 +18,7 @@ import { MenuItemForm } from "./MenuItemForm";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 
-export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, sections }) => {
+export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData } = useInventoryStore();
 
   // Helper function to calculate cost per unit for a material
@@ -138,27 +138,11 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 
   const handleAddMenuItem = useCallback(
-    (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
+    (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
       console.log("🍽️ handleAddMenuItem - Creating new menu item with data:", data);
 
-      const ingredientsWithCosts = data.ingredients.map(ingredient => {
-        const material = availableMaterials.find(m => m.id === String(ingredient.materialId));
-        if (!material) {
-          console.warn(`Material not found for ID: ${ingredient.materialId}`);
-          return { ...ingredient, cost: 0 };
-        }
-
-        const materialStockEntries = stockEntries.filter(entry => entry.materialId === String(ingredient.materialId));
-        const costPerUnit = calculateMaterialCostPerUnit(material, materialStockEntries);
-        const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
-
-        const cost = ingredient.quantity * conversionFactor * costPerUnit;
-
-        return {
-          ...ingredient,
-          cost: parseFloat(cost.toFixed(8)) // Ensure precision for small values
-        };
-      });
+      // Use the costs already calculated by MenuItemForm
+      const ingredientsWithCosts = data.ingredients;
 
       const menuItemToCreate: MenuItem = {
         id: `menu-${Date.now()}`, // Temporary ID, server should assign real ID
@@ -175,28 +159,19 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       setShowMenuItemForm(false);
       setEditingMenuItem(null);
     },
-    [availableMaterials, onCreateMenuItem, stockEntries, calculateMaterialCostPerUnit]
+    [onCreateMenuItem]
   );
 
   const handleUpdateMenuItem = useCallback(
-    (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => {
+    (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
       if (!editingMenuItem || !onUpdateMenuItem) {
         console.error("editingMenuItem or onUpdateMenuItem handler not provided");
         return;
       }
 
       try {
-        const ingredientsWithCosts = data.ingredients.map(ingredient => {
-          const material = availableMaterials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
-          if (!material) throw new Error(`Material not found: ${ingredient.materialId}`);
-          const materialStockEntries = stockEntries.filter(entry => entry.materialId === String(ingredient.materialId));
-          const costPerUnit = calculateMaterialCostPerUnit(material, materialStockEntries);
-          const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
-          return {
-            ...ingredient,
-            cost: parseFloat((ingredient.quantity * conversionFactor * costPerUnit).toFixed(8))
-          };
-        });
+        // Use the costs already calculated by MenuItemForm
+        const ingredientsWithCosts = data.ingredients;
 
         const updatedMenuItem: MenuItem = {
           ...editingMenuItem,
@@ -214,7 +189,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         setEditingMenuItem(null);
       }
     },
-    [editingMenuItem, availableMaterials, onUpdateMenuItem, stockEntries, calculateMaterialCostPerUnit]
+    [editingMenuItem, onUpdateMenuItem]
   );
 
   const handleDeleteMenuItem = useCallback(

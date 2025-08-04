@@ -15,7 +15,7 @@ interface MenuItemFormProps {
   materials: Material[];
   stockEntries: StockEntry[];
   categories: { value: MenuItemCategory; label: string }[];
-  onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: Omit<MenuItemIngredient, "cost">[] }) => void;
+  onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;
   onCancel: () => void;
 }
 
@@ -53,45 +53,60 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         return 0;
       }
 
-      const materialStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(ingredient.materialId) && entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0);
+      // Get all stock entries for this material
+      const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(ingredient.materialId));
+      
+      if (allStockEntries.length === 0) {
+        return 0;
+      }
 
       let costPerUnit = 0;
+      let totalWeightedCost = 0;
+      let totalQuantity = 0;
 
-      if (materialStockEntries.length > 0) {
-        const { totalCost, totalQuantity } = materialStockEntries.reduce(
-          (acc, entry) => {
-            const quantity = entry.purchasedIndividualQuantity || 0;
-            const cost = entry.costPerBaseUnit || 0;
-            return {
-              totalCost: acc.totalCost + cost * quantity,
-              totalQuantity: acc.totalQuantity + quantity
-            };
-          },
-          { totalCost: 0, totalQuantity: 0 }
-        );
-
-        if (totalQuantity > 0) {
-          costPerUnit = parseFloat((totalCost / totalQuantity).toFixed(8));
+      // Calculate weighted average cost per base unit from all stock entries
+      for (const entry of allStockEntries) {
+        // Use purchasedIndividualQuantity if available, otherwise use purchasedQuantity converted to base units
+        let quantity = entry.purchasedIndividualQuantity || 0;
+        if (quantity <= 0 && entry.purchasedQuantity) {
+          // Convert purchased quantity to base units
+          const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
+          quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
         }
-      } else {
-        const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(ingredient.materialId));
-        if (allStockEntries.length > 0) {
-          const { totalCost, totalQuantity } = allStockEntries.reduce(
-            (acc, entry) => {
-              const quantity = entry.purchasedIndividualQuantity || 0;
-              const cost = parseFloat(String(entry.totalCost || "0")) / (entry.purchasedIndividualQuantity || 1);
-              return {
-                totalCost: acc.totalCost + cost * quantity,
-                totalQuantity: acc.totalQuantity + quantity
-              };
-            },
-            { totalCost: 0, totalQuantity: 0 }
-          );
-          if (totalQuantity > 0) {
-            costPerUnit = parseFloat((totalCost / totalQuantity).toFixed(8));
-          }
+        
+        if (quantity <= 0) {
+          continue;
+        }
+
+        let unitCost = 0;
+        
+        // First try to use costPerBaseUnit if available
+        if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
+          unitCost = entry.costPerBaseUnit;
+        } 
+        // Otherwise calculate from totalCost and quantity (in base units)
+        else if (entry.totalCost && entry.totalCost > 0) {
+          unitCost = parseFloat(String(entry.totalCost)) / quantity;
+        }
+        // Fallback to costPerPurchasedUnit with conversion
+        else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+          // Convert from purchased unit cost to base unit cost
+          const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
+          unitCost = parseFloat(String(entry.costPerPurchasedUnit)) * conversionFactor;
+        }
+
+        if (unitCost > 0) {
+          totalWeightedCost += unitCost * quantity;
+          totalQuantity += quantity;
         }
       }
+
+      // Calculate average cost per base unit
+      if (totalQuantity > 0) {
+        costPerUnit = totalWeightedCost / totalQuantity;
+      }
+
+      // Convert ingredient quantity to base unit and calculate final cost
       const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
       const finalCost = ingredient.quantity * conversionFactor * costPerUnit;
 
@@ -102,27 +117,57 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   const getMaterialCostPerBaseUnit = useCallback(
     (materialId: string) => {
-      const materialStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(materialId) && entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit));
-
-      if (materialStockEntries.length === 0) {
+      const material = materials.find(m => String(m.id) === String(materialId));
+      if (!material) {
         return 0;
       }
 
-      const { totalCost, totalQuantity } = materialStockEntries.reduce(
-        (acc, entry) => {
-          const quantity = entry.purchasedIndividualQuantity || 0;
-          const cost = entry.costPerBaseUnit || parseFloat(String(entry.totalCost || "0")) / (entry.purchasedIndividualQuantity || 1);
-          return {
-            totalCost: acc.totalCost + cost * quantity,
-            totalQuantity: acc.totalQuantity + quantity
-          };
-        },
-        { totalCost: 0, totalQuantity: 0 }
-      );
+      const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(materialId));
+      
+      if (allStockEntries.length === 0) {
+        return 0;
+      }
 
-      return totalQuantity > 0 ? parseFloat((totalCost / totalQuantity).toFixed(6)) : 0;
+      let totalWeightedCost = 0;
+      let totalQuantity = 0;
+
+      // Calculate weighted average cost per base unit from all stock entries
+      for (const entry of allStockEntries) {
+        // Use purchasedIndividualQuantity if available, otherwise use purchasedQuantity converted to base units
+        let quantity = entry.purchasedIndividualQuantity || 0;
+        if (quantity <= 0 && entry.purchasedQuantity) {
+          // Convert purchased quantity to base units
+          const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
+          quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
+        }
+        if (quantity <= 0) continue;
+
+        let unitCost = 0;
+        
+        // First try to use costPerBaseUnit if available
+        if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
+          unitCost = entry.costPerBaseUnit;
+        } 
+        // Otherwise calculate from totalCost and quantity (in base units)
+        else if (entry.totalCost && entry.totalCost > 0) {
+          unitCost = parseFloat(String(entry.totalCost)) / quantity;
+        }
+        // Fallback to costPerPurchasedUnit with conversion
+        else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+          // Convert from purchased unit cost to base unit cost
+          const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
+          unitCost = parseFloat(String(entry.costPerPurchasedUnit)) * conversionFactor;
+        }
+
+        if (unitCost > 0) {
+          totalWeightedCost += unitCost * quantity;
+          totalQuantity += quantity;
+        }
+      }
+
+      return totalQuantity > 0 ? totalWeightedCost / totalQuantity : 0;
     },
-    [stockEntries]
+    [stockEntries, materials]
   );
 
   const totalIngredientsCost = useMemo(() => {
@@ -225,11 +270,17 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
 
     try {
+      // Calculate costs for all ingredients before submitting
+      const ingredientsWithCosts = ingredients.map(ingredient => ({
+        ...ingredient,
+        cost: calculateIngredientCost(ingredient)
+      }));
+      
       onSubmit({
         name: name.trim(),
         category: category as MenuItemCategory,
         price: parseFloat(price),
-        ingredients,
+        ingredients: ingredientsWithCosts,
         isPOSItem,
         image,
         menuItemIngredients: false
@@ -247,7 +298,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       console.error("Error submitting form:", error);
       onCancel();
     }
-  }, [name, category, price, isPOSItem, image, ingredients, onSubmit, onCancel, validateForm]);
+  }, [name, category, price, isPOSItem, image, ingredients, onSubmit, onCancel, validateForm, calculateIngredientCost]);
 
   const handleMaterialSelect = useCallback(
     (materialId: string) => {

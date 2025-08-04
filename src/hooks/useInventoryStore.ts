@@ -1,21 +1,9 @@
 import { activeTabAtom, categoryFilterAtom, filteredMaterialsAtom, lowStockFilterAtom, materialsWithStockAtom, menuItemsAtom, optimisticStockEntriesAtom, searchTermAtom, sectionAssignmentsAtom, sectionsAtom, selectedMaterialAtom, selectedSectionAtom, selectedStockEntryAtom, showMaterialFormAtom, showSectionFormAtom, showStockFormAtom, tabErrorAtom, tabLoadingAtom } from "@/store/inventoryAtoms";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
-
 import { addToSpecificEntryAction, addToStockAction, createMaterialAction, createMenuItemAction, createStockEntryAction, deleteMaterialAction, deleteMenuItemAction, deleteStockEntryAction, fetchTabDataAction, recordWasteAction, updateMaterialAction, updateMenuItemAction, updateStockEntryAction, wasteFromSpecificEntryAction } from "@/store/inventoryActions";
-import { AddStockData, MaterialCategory, MaterialWithStock, MenuItem, RecordWasteData, Section, StockEntry, StockFormData, UnitType } from "@/types/inventory";
+import { AddStockData, MaterialFormData, MaterialWithStock, MenuItem, RecordWasteData, Section, StockEntry, StockFormData } from "@/types/inventory";
 import { toast } from "./use-toast";
-
-// Form data interface
-interface MaterialFormData {
-  name: string;
-  category: MaterialCategory;
-  baseUnit: string;
-  unitType: UnitType;
-  inputUnit: string;
-  packageQuantity?: number;
-  description?: string;
-}
 
 export function useInventoryStore() {
   const materialsWithStock = useAtomValue(materialsWithStockAtom);

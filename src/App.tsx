@@ -227,26 +227,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                   }
                 />
                 <Route
-                  path="/pos/kitchen-display"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_KITCHEN_DISPLAY}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Kitchen Display" description="Kitchen order display system" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/pos/customer-display"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_CUSTOMER_DISPLAY}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Customer Display" description="Customer-facing display system" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
                   path="/pos/floor-designer"
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.POS_CUSTOMER_DISPLAY}>
@@ -256,91 +236,20 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/pos/thermal-printer-test"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
-                      <AuthenticatedLayout>
-                        <ThermalPrinterTestPage />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Materials Management */}
-                <Route
-                  path="/materials"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MATERIALS_READ}>
-                      <AuthenticatedLayout>
-                        <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
 
                 {/* Inventory & Stock Management */}
                 <Route
                   path="/inventory"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ}>
+                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ || PERMISSIONS.REPORTS_READ}>
                       <AuthenticatedLayout>
                         <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/inventory/adjustments"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_ADJUST}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Stock Adjustments" description="Adjust stock quantities and manage inventory discrepancies" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/inventory/transfers"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_TRANSFER}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Stock Transfers" description="Transfer stock between locations and sections" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/inventory/waste"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_WASTE_RECORD}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Waste Management" description="Record and track inventory waste" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/inventory/assignments"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ASSIGNMENTS_READ}>
-                      <AuthenticatedLayout>
-                        <InventoryManagementPanel />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/inventory/sections"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SECTIONS_READ}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Section Management" description="Manage inventory sections and organization" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
+       
+      
                 {/* Sales & Transactions */}
                 <Route
                   path="/sales"
@@ -384,16 +293,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/orders/queue"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_MANAGE_QUEUE}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Order Queue" description="Manage order processing queue" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+               
 
                 {/* Menu Management */}
                 <Route
@@ -406,16 +306,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/inventory/menu-items"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
-                      <AuthenticatedLayout>
-                        <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} sections={sections} />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+               
                 <Route
                   path="/menu/categories"
                   element={
@@ -436,17 +327,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/menu/pricing"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_PRICING}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Menu Pricing" description="Manage menu item pricing and cost analysis" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
+               
                 {/* Day Operations */}
                 <Route
                   path="/day-operations"
@@ -490,88 +371,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/reports/sales"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
-                      <AuthenticatedLayout>
-                        <ReportGenerator className="w-full" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/reports/inventory"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_INVENTORY}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Inventory Reports" description="Generate inventory and stock reports" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/reports/financial"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_FINANCIAL}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Financial Reports" description="Generate financial and accounting reports" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/analytics"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_DASHBOARD}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Analytics Dashboard" description="Business intelligence and analytics overview" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/analytics/trends"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ANALYTICS_TRENDS}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Trends Analysis" description="Sales and inventory trend analysis" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Financial Management */}
-                <Route
-                  path="/finance"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.FINANCE_VIEW_COSTS}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Financial Overview" description="Financial management and cost analysis" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/finance/budgets"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.FINANCE_BUDGETS}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Budget Management" description="Create and manage budgets" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/finance/expenses"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.FINANCE_EXPENSES}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Expense Tracking" description="Track and categorize business expenses" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+               
 
                 {/* Employee Management */}
                 <Route
@@ -607,37 +407,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                   }
                 />
 
-                {/* Customer & Supplier Management */}
-                <Route
-                  path="/customers"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.CUSTOMERS_READ}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Customer Management" description="Manage customer information and relationships" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/suppliers"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SUPPLIERS_READ}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Supplier Management" description="Manage supplier relationships and contracts" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/procurement"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.PROCUREMENT_ORDERS}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Procurement" description="Manage procurement orders and receiving" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+              
 
                 {/* Profile Management */}
                 <Route
@@ -672,16 +442,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/admin/permissions"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.USERS_MANAGE_PERMISSIONS} requiredRole={["admin"]}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Permission Management" description="Manage user permissions and access control" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+          
                 <Route
                   path="/admin/system"
                   element={
@@ -708,38 +469,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_LOGS}>
                       <AuthenticatedLayout>
                         <SystemLogs />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/audit"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.AUDIT_TRAILS} requiredRole={["admin", "manager"]}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Audit & Compliance" description="Audit trails and compliance reporting" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Communication */}
-                <Route
-                  path="/communication/announcements"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.COMMUNICATION_ANNOUNCEMENTS}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Announcements" description="Create and manage system announcements" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/communication/messages"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.COMMUNICATION_MESSAGES}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Messages" description="Internal messaging and communication" />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }

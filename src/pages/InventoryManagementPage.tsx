@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryCRUD } from "@/hooks/useInventoryCRUD";
 import { useInventoryData } from "@/hooks/useInventoryData";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { CreateMaterialData, CreateStockEntryData, MaterialWithStock, MenuItem, UpdateMaterialData, UpdateStockEntryData } from "@/types/inventory";
+import { MaterialWithStock, MenuItem} from "@/types/inventory";
 import { calculateMaterialInventory } from "@/utils/inventoryCalculations";
 import { BarChart3, Calendar, FileText, Loader2, Package, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -16,9 +16,9 @@ import { useNavigate } from "react-router-dom";
 export const InventoryManagementPage = () => {
   const navigate = useNavigate();
   // Fetch data from backend
-  const { materials, stockEntries, menuItems, sections, sectionAssignments, loading, error, refetch } = useInventoryData();
+  const { materials, stockEntries, sectionAssignments, loading, error, refetch } = useInventoryData();
   // CRUD operations
-  const { createMaterial, updateMaterial, deleteMaterial, createStockEntry, updateStockEntry, deleteStockEntry, createMenuItem, updateMenuItem, deleteMenuItem, createSection, updateSection, deleteSection, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
+  const {  deleteStockEntry, createMenuItem, updateMenuItem, deleteMenuItem, createSection, updateSection, deleteSection, loading: crudLoading, error: crudError } = useInventoryCRUD(refetch);
   // Optimistic updates for instant UI changes
   const { handleDeleteMaterial: optimisticDeleteMaterial } = useInventoryStore();
 
@@ -77,45 +77,12 @@ export const InventoryManagementPage = () => {
     });
   }, [materials, stockEntries]);
 
-  // CRUD handlers - now use backend API
-  const handleCreateMaterial = async (data: CreateMaterialData) => {
-    try {
-      await createMaterial(data);
-    } catch (error) {
-      console.error("Failed to create material:", error);
-    }
-  };
-
-  const handleUpdateMaterial = async (id: string, data: UpdateMaterialData) => {
-    try {
-      await updateMaterial(id, data);
-    } catch (error) {
-      console.error("Failed to update material:", error);
-    }
-  };
-
   const handleDeleteMaterial = async (id: string) => {
     try {
       // Use optimistic delete for instant UI updates
       await optimisticDeleteMaterial(id);
     } catch (error) {
       console.error("Failed to delete material:", error);
-    }
-  };
-
-  const handleCreateStockEntry = async (data: CreateStockEntryData) => {
-    try {
-      await createStockEntry(data);
-    } catch (error) {
-      console.error("Failed to create stock entry:", error);
-    }
-  };
-
-  const handleUpdateStockEntry = async (id: string, data: UpdateStockEntryData) => {
-    try {
-      await updateStockEntry(id, data);
-    } catch (error) {
-      console.error("Failed to update stock entry:", error);
     }
   };
 

@@ -261,6 +261,7 @@ User.prototype.getRolePermissions = function () {
       "dayOperations.cashCount": true,
 
       // === REPORTS & ANALYTICS ===
+      "reports.read": true,
       "reports.sales": true,
       "reports.inventory": true,
       "reports.financial": true,
@@ -447,6 +448,7 @@ User.prototype.getRolePermissions = function () {
       "dayOperations.cashCount": true,
 
       // === REPORTS & ANALYTICS ===
+      "reports.read": true,
       "reports.sales": true,
       "reports.inventory": true,
       "reports.financial": true,

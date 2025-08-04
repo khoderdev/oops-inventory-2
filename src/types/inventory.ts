@@ -5,6 +5,7 @@ import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
+import { materialSchema } from "@/components/materials/materialsSchema";
 
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco" | "hotDrinks" | "coldDrinks";
 
@@ -101,6 +102,24 @@ export interface Material {
   updatedAt?: Date;
 }
 
+// Form data interfaces
+export interface MaterialFormData extends z.infer<typeof materialSchema> {
+  name: string;
+  category: MaterialCategory;
+  baseUnit: string;
+  unitType: UnitType;
+  inputUnit: string;
+  packageQuantity?: number;
+  description?: string;
+}
+
+
+export interface MaterialFormProps {
+  material?: Material;
+  onSubmit: (data: MaterialFormData) => void;
+  onCancel: () => void;
+}
+
 export interface CreateMaterialData {
   name: string;
   category: MaterialCategory;
@@ -133,7 +152,6 @@ export interface MaterialTableProps {
 //-----------------------------------------------------------------------------
 
 export interface StockEntry {
-  wasteReason: string;
   id: string;
   materialId: string;
   supplier: string;
@@ -823,7 +841,22 @@ export interface RecordWasteTabProps {
   onCancel: () => void;
 }
 
-export type StockFormData = z.infer<typeof stockSchema>;
+// export type StockFormData = z.infer<typeof stockSchema>;
+
+export interface StockFormData extends z.infer<typeof stockSchema> {
+  materialId: string;
+  supplier: string;
+  purchasedQuantity: number;
+  purchasedUnit: string;
+  purchasedIndividualQuantity?: number;
+  purchasedIndividualUnit?: string;
+  costPerPurchasedUnit: number;
+  totalCost: number;
+  purchaseDate: Date;
+  expiryDate?: Date;
+  batchNumber?: string;
+  notes?: string;
+}
 
 // Form interface with string types for inputs
 export interface StockFormInputs {
