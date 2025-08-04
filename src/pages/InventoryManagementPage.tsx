@@ -13,6 +13,23 @@ import { BarChart3, Calendar, FileText, Loader2, Package, RefreshCw } from "luci
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+/**
+ * Page that displays the inventory management interface.
+ *
+ * This page displays a tabbed interface with the following tabs:
+ * - POS: a point of sale interface for taking orders
+ * - Inventory: a management interface for managing inventory, including
+ *   creating, editing, and deleting materials, stock entries, menu items, and
+ *   sections
+ * - Reports: a page for generating reports on sales history and inventory
+ *   levels
+ *
+ * The page also displays a navigation bar at the top with links to the day
+ * operations page and the sales history page.
+ *
+ * The page is designed to be responsive and to work well on both desktop and
+ * mobile devices.
+ */
 export const InventoryManagementPage = () => {
   const navigate = useNavigate();
   // Fetch data from backend
@@ -171,7 +188,7 @@ export const InventoryManagementPage = () => {
   }
 
   return (
-    <>
+    <div className="h-[calc(100vh-4rem)] w-full flex flex-col overflow-hidden">
       {/* Show CRUD loading/error states */}
       {crudLoading && (
         <Alert>
@@ -186,47 +203,6 @@ export const InventoryManagementPage = () => {
         </Alert>
       )}
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="">
-        <TabsList className="grid w-full grid-cols-3 sticky top-0 bg-white !z-50">
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/day-operations")} className="h-8 px-3 text-xs" title="Day Operations">
-              <Calendar className="h-4 w-4 mr-1" />
-              Day Ops
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/sales-history")} className="h-8 px-3 text-xs" title="Sales History">
-              <BarChart3 className="h-4 w-4 mr-1" />
-              Sales
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleManualRefresh} disabled={isRefreshing || loading} className="h-8 w-8 p-0" title="Refresh all data">
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
-          <TabsTrigger value="pos" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <BarChart3 className="h-4 w-4" />
-            POS
-          </TabsTrigger>
-          <TabsTrigger value="inventory" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Package className="h-4 w-4" />
-            Inventory
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2 text-gray-950 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <FileText className="h-4 w-4" />
-            Reports
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="inventory" className="p-4">
-          <InventoryManagementPanel onDeleteMaterial={handleDeleteMaterial} onDeleteStockEntry={handleDeleteStockEntry} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} onCreateSection={handleCreateSection} onUpdateSection={handleUpdateSection} onDeleteSection={handleDeleteSection} />
-        </TabsContent>
-
-        <TabsContent value="pos" className="p-4">
-          <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
-        </TabsContent>
-
-        <TabsContent value="reports" className="p-4">
-          <ReportGenerator className="w-full" />
-        </TabsContent>
-      </Tabs>
-    </>
+    </div>
   );
 };

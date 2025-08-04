@@ -16,7 +16,6 @@ import { useState, useCallback, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
 import { activeTabAtom, searchTermAtom, categoryFilterAtom, lowStockFilterAtom, showMaterialFormAtom, showStockFormAtom, showSectionFormAtom, selectedMaterialAtom, selectedStockEntryAtom, selectedSectionAtom } from "@/store/inventoryAtoms";
 
-
 export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem, onCreateSection, onUpdateSection, onDeleteSection }: InventoryManagementPanelProps = {}) {
   // Use prefetch system for data
   const { materials, stock, menu, status, refresh, isCacheValid } = usePrefetch({
@@ -149,10 +148,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
             description: `${data.name} has been created successfully.`
           });
         }
-        
+
         // Force immediate refresh to ensure UI updates
         await refresh("materials");
-        
+
         setShowMaterialForm(false);
         setSelectedMaterial(null);
       } catch (error) {
@@ -187,12 +186,12 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
             description: "Stock entry has been created successfully."
           });
         }
-        
+
         // Force immediate refresh to ensure UI updates
         await refresh("stock");
         // Also refresh materials since stock affects material calculations
         await refresh("materials");
-        
+
         setShowStockForm(false);
         setSelectedStockEntry(null);
         setSelectedMaterial(null);
@@ -233,12 +232,12 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       setOperationLoading(prev => ({ ...prev, [`delete-material-${materialId}`]: true }));
       try {
         await inventoryAPIWithPrefetch.materials.deleteMaterialWithCache(materialId);
-        
+
         // Force immediate refresh to ensure UI updates
         await refresh("materials");
         // Also refresh stock since deleting material affects stock entries
         await refresh("stock");
-        
+
         toast({
           title: "Material Deleted",
           description: "Material has been deleted successfully."
@@ -264,12 +263,12 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       setOperationLoading(prev => ({ ...prev, [`delete-stock-${stockEntryId}`]: true }));
       try {
         await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId);
-        
+
         // Force immediate refresh to ensure UI updates
         await refresh("stock");
         // Also refresh materials since stock affects material calculations
         await refresh("materials");
-        
+
         toast({
           title: "Stock Entry Deleted",
           description: "Stock entry has been deleted successfully."
@@ -290,72 +289,81 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
     [onDeleteStockEntry, refresh]
   );
 
-  const handleAddStockOperation = useCallback(async (data: Partial<CreateStockEntryData> & { wasteQuantity?: number; wasteReason?: string }) => {
-    try {
-      // Convert the data to CreateStockEntryData format
-      const stockEntryData = {
-        materialId: data.materialId!,
-        supplier: data.supplier!,
-        purchasedQuantity: data.purchasedQuantity!,
-        purchasedUnit: data.purchasedUnit!,
-        costPerPurchasedUnit: data.costPerPurchasedUnit!,
-        totalCost: data.totalCost!,
-        purchaseDate: data.purchaseDate!,
-        expiryDate: data.expiryDate,
-        batchNumber: data.batchNumber,
-        notes: data.notes
-      };
-      await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(stockEntryData);
-      // Force immediate refresh to ensure UI updates
-      await refresh("stock");
-      await refresh("materials");
-      toast({
-        title: "Stock Added",
-        description: "Stock has been added successfully."
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to add stock: ${error instanceof Error ? error.message : "Unknown error"}`,
-        variant: "destructive"
-      });
-    }
-  }, [refresh]);
+  const handleAddStockOperation = useCallback(
+    async (data: Partial<CreateStockEntryData> & { wasteQuantity?: number; wasteReason?: string }) => {
+      try {
+        // Convert the data to CreateStockEntryData format
+        const stockEntryData = {
+          materialId: data.materialId!,
+          supplier: data.supplier!,
+          purchasedQuantity: data.purchasedQuantity!,
+          purchasedUnit: data.purchasedUnit!,
+          costPerPurchasedUnit: data.costPerPurchasedUnit!,
+          totalCost: data.totalCost!,
+          purchaseDate: data.purchaseDate!,
+          expiryDate: data.expiryDate,
+          batchNumber: data.batchNumber,
+          notes: data.notes
+        };
+        await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(stockEntryData);
+        // Force immediate refresh to ensure UI updates
+        await refresh("stock");
+        await refresh("materials");
+        toast({
+          title: "Stock Added",
+          description: "Stock has been added successfully."
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: `Failed to add stock: ${error instanceof Error ? error.message : "Unknown error"}`,
+          variant: "destructive"
+        });
+      }
+    },
+    [refresh]
+  );
 
-  const handleRecordWasteOperation = useCallback(async (data: RecordWasteData) => {
-    try {
-      await inventoryAPIWithPrefetch.stock.recordWasteWithCache(data);
-      // Force immediate refresh to ensure UI updates
-      await refresh("stock");
-      await refresh("materials");
-      toast({
-        title: "Waste Recorded",
-        description: "Waste has been recorded successfully."
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to record waste: ${error instanceof Error ? error.message : "Unknown error"}`,
-        variant: "destructive"
-      });
-    }
-  }, [refresh]);
+  const handleRecordWasteOperation = useCallback(
+    async (data: RecordWasteData) => {
+      try {
+        await inventoryAPIWithPrefetch.stock.recordWasteWithCache(data);
+        // Force immediate refresh to ensure UI updates
+        await refresh("stock");
+        await refresh("materials");
+        toast({
+          title: "Waste Recorded",
+          description: "Waste has been recorded successfully."
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: `Failed to record waste: ${error instanceof Error ? error.message : "Unknown error"}`,
+          variant: "destructive"
+        });
+      }
+    },
+    [refresh]
+  );
 
-  const handleAddToSpecificEntryOperation = useCallback(async (data: { materialId?: string; supplier?: string; purchasedQuantity?: number; costPerPurchasedUnit?: number; totalCost?: number; purchasedUnit?: string; wasteQuantity?: number; purchaseDate?: Date; expiryDate?: Date; batchNumber?: string; notes?: string; wasteReason?: string }) => {
-    try {
-      // Would use specific stock entry API when available
-      console.log("Add to specific entry:", data);
-      // For now, just refresh the data
-      await refresh("stock");
-      await refresh("materials");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to add to specific entry: ${error instanceof Error ? error.message : "Unknown error"}`,
-        variant: "destructive"
-      });
-    }
-  }, [refresh]);
+  const handleAddToSpecificEntryOperation = useCallback(
+    async (data: { materialId?: string; supplier?: string; purchasedQuantity?: number; costPerPurchasedUnit?: number; totalCost?: number; purchasedUnit?: string; wasteQuantity?: number; purchaseDate?: Date; expiryDate?: Date; batchNumber?: string; notes?: string; wasteReason?: string }) => {
+      try {
+        // Would use specific stock entry API when available
+        console.log("Add to specific entry:", data);
+        // For now, just refresh the data
+        await refresh("stock");
+        await refresh("materials");
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: `Failed to add to specific entry: ${error instanceof Error ? error.message : "Unknown error"}`,
+          variant: "destructive"
+        });
+      }
+    },
+    [refresh]
+  );
 
   const handleWasteFromSpecificEntryOperation = useCallback(
     async (
@@ -431,13 +439,13 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           await onCreateSection(data);
         }
       }
-      
+
       // Force immediate refresh to ensure UI updates
       await handleDataRefresh();
-      
+
       setShowSectionForm(false);
       setSelectedSection(null);
-      
+
       toast({
         title: selectedSection ? "Section Updated" : "Section Created",
         description: `Section has been ${selectedSection ? "updated" : "created"} successfully.`
@@ -463,9 +471,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
   };
 
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden">
+    <div className="h-[calc(100vh-4rem)] !overflow-hidden flex flex-col">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
-        <TabsList className="sticky top-0 z-10 flex w-full bg-white shadow-sm px-2 py-1 gap-2 rounded-md overflow-x-auto">
+        <TabsList>
           {[
             { value: "material", label: "Materials", icon: Package, color: "blue", short: "Mat", loading: tabLoading.material },
             { value: "stock", label: "Stock Entries", icon: Warehouse, color: "green", short: "Stock", loading: tabLoading.stock },
@@ -475,8 +483,8 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
               key={value}
               value={value}
               className={`
-          flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm rounded-md font-medium text-gray-600 transition
-          data-[state=active]:bg-${color}-600 data-[state=active]:text-white data-[state=active]:shadow-md
+          flex-1 flex items-center justify-center bg-slate-200 gap-1 px-3 py-2 text-sm rounded-md font-medium text-gray-600 transition
+          data-[state=active]:bg-${color}-600 data-[state=active]:text-primary data-[state=active]:shadow-md
           hover:bg-${color}-100 hover:text-${color}-700
         `}
             >
@@ -488,22 +496,16 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           ))}
         </TabsList>
 
-        <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden">
-          <div className="h-full bg-white border border-gray-200 shadow-sm rounded-lg p-4 overflow-auto">
-            <MaterialTable filteredMaterials={filteredMaterials} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
-          </div>
+        <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden bg-white">
+          <MaterialTable filteredMaterials={filteredMaterials} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
         </TabsContent>
 
-        <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden">
-          <div className="h-full bg-white border border-gray-200 shadow-sm rounded-lg p-4 overflow-auto">
-            <StockEntriesTable />
-          </div>
+        <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden bg-white">
+          <StockEntriesTable />
         </TabsContent>
 
-        <TabsContent value="sections" className="flex-1 focus-visible:outline-none overflow-hidden">
-          <div className="h-full bg-white border border-gray-200 shadow-sm rounded-lg p-4 overflow-auto">
-            <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
-          </div>
+        <TabsContent value="sections" className="flex-1 focus-visible:outline-none overflow-hidden bg-white">
+          <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
         </TabsContent>
       </Tabs>
 
