@@ -58,37 +58,39 @@ export function SidebarLayout({ children, showSearch = true, showNotifications =
               </Button>
             )}
             {showNotifications && (
-              <Button variant="ghost" size="icon" className="relative btn-touch" onClick={() => navigate("/pos")}>
+              <Button variant="ghost" size="icon" className="relative btn-touch sm:mx-6" onClick={() => navigate("/pos")}>
                 <img src="/pos.png" alt="POS" className="h-7 w-7 object-contain" />
               </Button>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="btn-touch transition-all duration-200">
-                  <div className="w-9 h-9 bg-primary rounded-full flex items-center justify-center">
-                    <span className="text-primary-foreground text-base font-medium">{user?.firstName?.charAt(0)?.toUpperCase() || "U"}</span>
-                  </div>
-                  <span className="sr-only">User menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium">{user?.fullName || "User"}</p>
-                    <p className="text-xs text-muted-foreground">{user?.username}</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/profile")} className="transition-all duration-200">
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/profile/sessions")} className="transition-all duration-200">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="block md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="btn-touch transition-all duration-200">
+                    <div className="w-9 h-9 bg-primary rounded-full flex items-center justify-center">
+                      <span className="text-primary-foreground text-base font-medium">{user?.firstName?.charAt(0)?.toUpperCase() || "U"}</span>
+                    </div>
+                    <span className="sr-only">User menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium">{user?.fullName || "User"}</p>
+                      <p className="text-xs text-muted-foreground">{user?.username}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/profile")} className="transition-all duration-200">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/profile/sessions")} className="transition-all duration-200">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
         <main className="flex-1 flex flex-col min-h-0">
