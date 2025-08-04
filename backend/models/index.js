@@ -19,7 +19,7 @@ import ScheduleExecution from "./ScheduleExecution.js";
 import Section from "./sections.js";
 import Session from "./Session.js";
 import StockEntry from "./StockEntry.js";
-import StockEntryLogSimple from "./StockEntryLogSimple.js";
+import SystemLogs from "./StockEntryLogSimple.js"; // SystemLogs model
 import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";
@@ -603,4 +603,44 @@ Printer.hasMany(MenuItem, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, StockEntryLogSimple, Table, User, Wasting };
+// SystemLogs relationships
+SystemLogs.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+User.hasMany(SystemLogs, {
+  foreignKey: "userId",
+  as: "systemLogs",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+SystemLogs.belongsTo(StockEntry, {
+  foreignKey: "stockEntryId",
+  as: "stockEntry",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+StockEntry.hasMany(SystemLogs, {
+  foreignKey: "stockEntryId",
+  as: "systemLogs",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+SystemLogs.belongsTo(Material, {
+  foreignKey: "materialId",
+  as: "material",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Material.hasMany(SystemLogs, {
+  foreignKey: "materialId",
+  as: "systemLogs",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Wasting };

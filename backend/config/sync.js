@@ -26,10 +26,10 @@ async function syncDatabase() {
     }
     */
     
-    if (sequelize.models.StockEntryLogSimple) {
-      console.log("✅ StockEntryLogSimple model synchronized.");
+    if (sequelize.models.SystemLogs) {
+      console.log("✅ SystemLogs model synchronized.");
     } else {
-      console.log("⚠️  StockEntryLogSimple model not found in registered models.");
+      console.log("⚠️  SystemLogs model not found in registered models.");
     }
     
   } catch (error) {

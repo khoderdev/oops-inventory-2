@@ -1,4 +1,4 @@
-import StockEntryLogSimple from "../models/StockEntryLogSimple.js";
+import SystemLogs from "../models/StockEntryLogSimple.js";
 import { Material } from "../models/index.js";
 import { Op } from "sequelize";
 
@@ -30,7 +30,7 @@ class StockEntryLoggerSimple {
       this._validateActionData(enrichedData);
 
       // Create log entry
-      const logEntry = await StockEntryLogSimple.logAction(enrichedData);
+      const logEntry = await SystemLogs.logAction(enrichedData);
 
       return logEntry;
     } catch (error) {
@@ -405,7 +405,7 @@ class StockEntryLoggerSimple {
       whereClause.actionType = actionTypes;
     }
 
-    return await StockEntryLogSimple.findAll({
+    return await SystemLogs.findAll({
       where: whereClause,
       order: [["actionTimestamp", "DESC"]],
       limit,
@@ -444,7 +444,7 @@ class StockEntryLoggerSimple {
       };
     }
 
-    return await StockEntryLogSimple.findAll({
+    return await SystemLogs.findAll({
       where: whereClause,
       order: [["actionTimestamp", "DESC"]],
       limit,
@@ -492,7 +492,7 @@ class StockEntryLoggerSimple {
       };
     }
 
-    return await StockEntryLogSimple.findAll({
+    return await SystemLogs.findAll({
       where: whereClause,
       order: [["actionTimestamp", "DESC"]],
       limit,

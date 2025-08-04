@@ -248,10 +248,10 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
       try {
         console.log("🔄 Synchronizing database schema...");
 
-        // Use validate instead of alter to avoid USING syntax errors
+        // Sync database with proper table creation
         await sequelize.sync({
           force: false,
-          alter: false,
+          alter: true, // Enable alter to create missing tables and columns
           logging: sql => {
             // Only log non-SELECT queries to reduce noise
             if (!sql.trim().toUpperCase().startsWith("SELECT")) {

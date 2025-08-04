@@ -1,7 +1,7 @@
 import express from "express";
 import { Op } from "sequelize";
 import { StockEntryAuditHelperSimple } from "../decorators/stockEntryAuditDecoratorSimple.js";
-import { StockEntryLogSimple } from "../models/index.js";
+import { SystemLogs } from "../models/index.js";
 
 const router = express.Router();
 
@@ -76,7 +76,7 @@ router.get("/stock-entries", async (req, res) => {
     const offset = (page - 1) * limit;
 
     // Execute query
-    const { count, rows: logs } = await StockEntryLogSimple.findAndCountAll({
+    const { count, rows: logs } = await SystemLogs.findAndCountAll({
       where: whereClause,
       order: [[sortBy, sortOrder.toUpperCase()]],
       limit: parseInt(limit),
@@ -311,24 +311,24 @@ router.get("/summary", async (req, res) => {
     }
 
     // Get overall counts
-    const totalLogs = await StockEntryLogSimple.count({ where: dateFilter });
-    const successfulLogs = await StockEntryLogSimple.count({
+    const totalLogs = await SystemLogs.count({ where: dateFilter });
+    const successfulLogs = await SystemLogs.count({
       where: { ...dateFilter, status: "success" }
     });
-    const failedLogs = await StockEntryLogSimple.count({
+    const failedLogs = await SystemLogs.count({
       where: { ...dateFilter, status: "failure" }
     });
 
     // Get action breakdown
-    const actionBreakdown = await StockEntryLogSimple.findAll({
+    const actionBreakdown = await SystemLogs.findAll({
       where: dateFilter,
-      attributes: ["actionType", [StockEntryLogSimple.sequelize.fn("COUNT", StockEntryLogSimple.sequelize.col("id")), "count"], [StockEntryLogSimple.sequelize.fn("SUM", StockEntryLogSimple.sequelize.col("quantityDelta")), "totalQuantityChange"], [StockEntryLogSimple.sequelize.fn("SUM", StockEntryLogSimple.sequelize.col("costDelta")), "totalCostChange"]],
+      attributes: ["actionType", [SystemLogs.sequelize.fn("COUNT", SystemLogs.sequelize.col("id")), "count"], [SystemLogs.sequelize.fn("SUM", SystemLogs.sequelize.col("quantityDelta")), "totalQuantityChange"], [SystemLogs.sequelize.fn("SUM", SystemLogs.sequelize.col("costDelta")), "totalCostChange"]],
       group: ["actionType"],
-      order: [[StockEntryLogSimple.sequelize.fn("COUNT", StockEntryLogSimple.sequelize.col("id")), "DESC"]]
+      order: [[SystemLogs.sequelize.fn("COUNT", SystemLogs.sequelize.col("id")), "DESC"]]
     });
 
     // Get recent activity
-    const recentActivity = await StockEntryLogSimple.findAll({
+    const recentActivity = await SystemLogs.findAll({
       where: dateFilter,
       order: [["actionTimestamp", "DESC"]],
       limit: 10,
@@ -336,20 +336,20 @@ router.get("/summary", async (req, res) => {
     });
 
     // Get top active users
-    const topUsers = await StockEntryLogSimple.findAll({
+    const topUsers = await SystemLogs.findAll({
       where: { ...dateFilter, userId: { [Op.not]: null } },
-      attributes: ["userId", "userName", [StockEntryLogSimple.sequelize.fn("COUNT", StockEntryLogSimple.sequelize.col("id")), "activityCount"]],
+      attributes: ["userId", "userName", [SystemLogs.sequelize.fn("COUNT", SystemLogs.sequelize.col("id")), "activityCount"]],
       group: ["userId", "userName"],
-      order: [[StockEntryLogSimple.sequelize.fn("COUNT", StockEntryLogSimple.sequelize.col("id")), "DESC"]],
+      order: [[SystemLogs.sequelize.fn("COUNT", SystemLogs.sequelize.col("id")), "DESC"]],
       limit: 10
     });
 
     // Get top materials
-    const topMaterials = await StockEntryLogSimple.findAll({
+    const topMaterials = await SystemLogs.findAll({
       where: dateFilter,
-      attributes: ["materialId", "materialName", [StockEntryLogSimple.sequelize.fn("COUNT", StockEntryLogSimple.sequelize.col("id")), "activityCount"]],
+      attributes: ["materialId", "materialName", [SystemLogs.sequelize.fn("COUNT", SystemLogs.sequelize.col("id")), "activityCount"]],
       group: ["materialId", "materialName"],
-      order: [[StockEntryLogSimple.sequelize.fn("COUNT", StockEntryLogSimple.sequelize.col("id")), "DESC"]],
+      order: [[SystemLogs.sequelize.fn("COUNT", SystemLogs.sequelize.col("id")), "DESC"]],
       limit: 10
     });
 
@@ -438,7 +438,7 @@ router.get("/export", async (req, res) => {
       };
     }
 
-    const logs = await StockEntryLogSimple.findAll({
+    const logs = await SystemLogs.findAll({
       where: whereClause,
       order: [["actionTimestamp", "DESC"]],
       limit: parseInt(limit)
@@ -528,7 +528,7 @@ router.get("/search", async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    const { count, rows: logs } = await StockEntryLogSimple.findAndCountAll({
+    const { count, rows: logs } = await SystemLogs.findAndCountAll({
       where: whereClause,
       order: [["actionTimestamp", "DESC"]],
       limit: parseInt(limit),
