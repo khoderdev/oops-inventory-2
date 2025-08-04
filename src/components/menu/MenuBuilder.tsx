@@ -601,60 +601,70 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     <>
       <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
         <Card className="!border-0 !shadow-none !bg-background flex flex-col h-full">
-          <CardHeader className="flex-shrink-0 px-8">
-            <div className="flex justify-between items-center mb-2">
-              <CardTitle className="text-3xl font-bold">Menu Items</CardTitle>
-            </div>
-
-            {/* Search and Filter Controls */}
-            <div className="mt-4 flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Search by name, description, or ingredients..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+          <CardHeader className="flex-shrink-0 px-4 sm:px-6 lg:px-8">
+            {/* Desktop: Title and Controls Inline, Mobile: Stacked */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              {/* Page Title */}
+              <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex-shrink-0">
+                Menu Items
+              </CardTitle>
+              
+              {/* Search and Filter Controls */}
+              <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 flex-1 lg:max-w-2xl">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    type="search" 
+                    placeholder="Search menu items..." 
+                    value={searchTerm} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                    className="pl-10 h-10" 
+                  />
+                </div>
+                <Select value={selectedCategory} onValueChange={value => setSelectedCategory(value as MenuItemCategory | "all")}>
+                  <SelectTrigger className="w-full sm:w-[180px] lg:w-[200px] h-10">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {MENU_CATEGORIES.map(category => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={selectedCategory} onValueChange={value => setSelectedCategory(value as MenuItemCategory | "all")}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {MENU_CATEGORIES.map(category => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             {/* Validation Results Panel */}
             {dataValidationEnabled && validationResults && (validationResults.summary.errors > 0 || validationResults.summary.warnings > 0) && (
-              <div className={`mt-4 p-4 rounded-lg border ${validationResults.summary.errors > 0 ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}`}>
-                <div className="flex items-center justify-between mb-2">
+              <div className={`mt-4 p-3 sm:p-4 rounded-lg border ${validationResults.summary.errors > 0 ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
-                    {validationResults.summary.errors > 0 ? <AlertTriangle className="h-5 w-5 text-red-600" /> : <AlertTriangle className="h-5 w-5 text-yellow-600" />}
-                    <h3 className={`font-medium ${validationResults.summary.errors > 0 ? "text-red-800" : "text-yellow-800"}`}>Data Validation Issues Found</h3>
+                    {validationResults.summary.errors > 0 ? <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" /> : <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />}
+                    <h3 className={`font-medium text-sm sm:text-base ${validationResults.summary.errors > 0 ? "text-red-800" : "text-yellow-800"}`}>Data Validation Issues Found</h3>
                   </div>
-                  <Button size="sm" variant="ghost" onClick={() => setShowValidationPanel(!showValidationPanel)} className="text-xs">
+                  <Button size="sm" variant="ghost" onClick={() => setShowValidationPanel(!showValidationPanel)} className="text-xs self-start sm:self-auto">
                     {showValidationPanel ? "Hide Details" : "Show Details"}
                   </Button>
                 </div>
 
-                <div className="text-sm mb-2">
+                <div className="text-xs sm:text-sm mb-2">
                   <span className={validationResults.summary.errors > 0 ? "text-red-700" : "text-yellow-700"}>
                     {validationResults.summary.errors} errors, {validationResults.summary.warnings} warnings
                   </span>
                 </div>
 
                 {showValidationPanel && (
-                  <div className="space-y-2 max-h-80 overflow-y-auto border rounded-md bg-white/50 p-2">
+                  <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto border rounded-md bg-white/50 p-2">
                     {validationResults.issues.map((issue, index) => (
-                      <div key={index} className={`p-3 rounded-md text-sm border-l-4 ${issue.type === "error" ? "bg-red-50 border-l-red-500 text-red-900" : issue.type === "warning" ? "bg-yellow-50 border-l-yellow-500 text-yellow-900" : "bg-blue-50 border-l-blue-500 text-blue-900"}`}>
+                      <div key={index} className={`p-2 sm:p-3 rounded-md text-xs sm:text-sm border-l-4 ${issue.type === "error" ? "bg-red-50 border-l-red-500 text-red-900" : issue.type === "warning" ? "bg-yellow-50 border-l-yellow-500 text-yellow-900" : "bg-blue-50 border-l-blue-500 text-blue-900"}`}>
                         <div className="flex items-start gap-2">
-                          <div className="flex-shrink-0 mt-0.5">{issue.type === "error" ? <span className="text-red-600 font-bold">❌</span> : issue.type === "warning" ? <span className="text-yellow-600 font-bold">⚠️</span> : <span className="text-blue-600 font-bold">ℹ️</span>}</div>
+                          <div className="flex-shrink-0 mt-0.5">{issue.type === "error" ? <span className="text-red-600 font-bold text-xs">❌</span> : issue.type === "warning" ? <span className="text-yellow-600 font-bold text-xs">⚠️</span> : <span className="text-blue-600 font-bold text-xs">ℹ️</span>}</div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold mb-1">{issue.materialName || "System"}</div>
-                            <div className="mb-2">{issue.message}</div>
+                            <div className="font-semibold mb-1 text-xs sm:text-sm">{issue.materialName || "System"}</div>
+                            <div className="mb-2 text-xs sm:text-sm">{issue.message}</div>
                             {issue.suggestion && (
                               <div className="mt-2 p-2 bg-white/70 rounded text-xs border-l-2 border-l-gray-300">
                                 <span className="font-medium text-gray-600">💡 Suggestion:</span> {issue.suggestion}
@@ -672,24 +682,185 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
             {/* Results Counter */}
             {(searchTerm || selectedCategory !== "all") && (
-              <div className="mt-2 text-sm text-muted-foreground">
-                Showing {filteredMenuItems.length} of {menuItems.length} menu items
-                {searchTerm && ` matching "${searchTerm}"`}
-                {selectedCategory !== "all" && ` in ${MENU_CATEGORIES.find(c => c.value === selectedCategory)?.label}`}
+              <div className="mt-3 text-xs sm:text-sm text-muted-foreground px-1">
+                Showing <span className="font-medium">{filteredMenuItems.length}</span> of <span className="font-medium">{menuItems.length}</span> menu items
+                {searchTerm && <span className="block sm:inline"> matching <span className="font-medium">"${searchTerm}"</span></span>}
+                {selectedCategory !== "all" && <span className="block sm:inline"> in <span className="font-medium">{MENU_CATEGORIES.find(c => c.value === selectedCategory)?.label}</span></span>}
               </div>
             )}
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col overflow-hidden p-6">
+          <CardContent className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4 lg:p-6">
             <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
-              <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
+              <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
                 <DialogHeader>
-                  <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
+                  <DialogTitle className="text-lg sm:text-xl">{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
                 </DialogHeader>
                 <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} stockEntries={stockEntries} />
               </DialogContent>
             </Dialog>
 
-            <div className="flex-1 flex flex-col min-h-0 border rounded-md">
+            {/* Mobile Card View - Show on small screens */}
+            <div className="lg:hidden flex-1 overflow-auto">
+              <div className="space-y-3">
+                {filteredMenuItems.length > 0 ? (
+                  filteredMenuItems.map(item => {
+                    const totalCost = calculateMenuItemCost(item.ingredients);
+                    const profit = item.price - totalCost;
+                    const profitMargin = item.price ? (profit / item.price) * 100 : 0;
+                    const isSelected = selectedMenuItems.has(item.id);
+
+                    return (
+                      <div 
+                        key={item.id} 
+                        className={`p-4 rounded-lg border bg-white shadow-sm transition-all duration-200 ${
+                          isSelected ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
+                        }`}
+                        onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : undefined}
+                      >
+                        {/* Mobile Card Header */}
+                        <div className="flex items-start gap-3 mb-3">
+                          {bulkSelectionMode && (
+                            <input 
+                              type="checkbox" 
+                              checked={isSelected} 
+                              onChange={() => handleSelectMenuItem(item.id)} 
+                              className="h-4 w-4 mt-1" 
+                              onClick={e => e.stopPropagation()}
+                            />
+                          )}
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-md border flex-shrink-0" />
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-100 rounded-md border flex items-center justify-center flex-shrink-0">
+                              <Package className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 truncate">{item.name}</h3>
+                            {item.description && (
+                              <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
+                            )}
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}
+                              </span>
+                              {item.isPOSItem && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  POS
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mobile Card Content */}
+                        <div className="space-y-3">
+                          {/* Ingredients */}
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-700 mb-1">Ingredients</h4>
+                            <div className="text-sm text-gray-600">
+                              {item.ingredients.map((ingredient, idx) => {
+                                const materialName = getMaterialName(ingredient.materialId);
+                                return (
+                                  <div key={idx} className="flex justify-between">
+                                    <span>{materialName}</span>
+                                    <span>{formatNumber(ingredient.quantity)} {ingredient.unit}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Financial Info */}
+                          <div className="grid grid-cols-3 gap-4 py-3 border-t border-gray-100">
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500">Cost</div>
+                              <div className="font-semibold text-gray-900">{formatCurrency(totalCost)}</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500">Price</div>
+                              <div className="font-semibold text-gray-900">{formatCurrency(item.price)}</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500">Profit</div>
+                              <div className={`font-semibold ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
+                                {formatCurrency(profit)}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Mobile Actions */}
+                          <div className="flex gap-2 pt-2 border-t border-gray-100">
+                            <Button
+                              size="sm"
+                              variant={item.isPOSItem ? "default" : "outline"}
+                              className={`flex-1 ${item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}`}
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleTogglePOSVisibility(item);
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              {item.isPOSItem ? "Hide from POS" : "Show in POS"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleOpenPrinterDialog(item);
+                              }}
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingMenuItem(item);
+                                setShowMenuItemForm(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                                  <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-12">
+                    <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-medium mb-2">No menu items found</p>
+                    <p className="text-sm text-muted-foreground mb-4">{searchTerm ? "Try a different search term" : "Create your first menu item"}</p>
+                    <Button onClick={() => setShowMenuItemForm(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Menu Item
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop Table View - Show on large screens */}
+            <div className="hidden lg:flex flex-1 flex-col min-h-0 border rounded-md">
               <div className="flex-1 overflow-auto">
                 <Table className="min-w-full">
                   <TableHeader className="sticky top-0 bg-background z-10 border-b">
