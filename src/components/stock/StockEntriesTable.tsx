@@ -230,6 +230,18 @@ export function StockEntriesTable() {
                 </div>
               </>
             );
+          } else if (material?.unitType === "volume" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
+            return (
+              <>
+                <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
+                  {isNegative && <AlertTriangle className="h-4 w-4" />}
+                  {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  (from {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit})
+                </div>
+              </>
+            );
           } else if (material?.unitType === "package" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
             return (
               <>
@@ -270,16 +282,25 @@ export function StockEntriesTable() {
             if (material?.unitType === "package" && entry.purchasedIndividualUnit) {
               return <div className="text-sm text-muted-foreground">{entry.purchasedIndividualUnit}</div>;
             }
-            // For mass units, show converted unit (e.g., g)
+            // For mass and volume units, show converted unit (e.g., g for mass, ml for volume)
             else if (entry.purchasedConvertedUnit && entry.purchasedConvertedUnit !== entry.purchasedUnit) {
               return <div className="text-sm text-muted-foreground">{entry.purchasedConvertedUnit}</div>;
             }
+            // Fallback: show base unit if different from purchased unit
+            else if (material?.baseUnit && material.baseUnit !== entry.purchasedUnit) {
+              return <div className="text-sm text-muted-foreground">{material.baseUnit}</div>;
+            }
             return null;
-          })()}
+          })()} 
         </div>
         {material?.unitType === "package" && (
           <Badge variant="outline" className="text-xs">
             Package
+          </Badge>
+        )}
+        {material?.unitType === "volume" && (
+          <Badge variant="outline" className="text-xs">
+            Volume
           </Badge>
         )}
       </div>
