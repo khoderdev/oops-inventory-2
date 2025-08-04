@@ -27,7 +27,7 @@ export async function seedMenuItems() {
       ingredients: [
         { materialName: "Halloumi", quantity: 150, unit: "g", cost: 1.80 },
         { materialName: "Iceberg Lettuce", quantity: 50, unit: "g", cost: 0.13 },
-        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
+        { materialName: "Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
         { materialName: "Pesto Sauce", quantity: 30, unit: "ml", cost: 0.36 }
       ]
     },
@@ -59,8 +59,8 @@ export async function seedMenuItems() {
       price: 8.00,
       isPOSItem: true,
       ingredients: [
-        { materialName: "Crispy Chicken", quantity: 200, unit: "g", cost: 3.00 },
-        { materialName: "Special Sauce", quantity: 30, unit: "ml", cost: 0.30 }
+        { materialName: "Crispy Chicken", quantity: 5, unit: "piece", cost: 2.50 },
+        { materialName: "Cocktail Sauce", quantity: 40, unit: "ml", cost: 0.32 }
       ]
     },
     {
@@ -70,10 +70,10 @@ export async function seedMenuItems() {
       price: 10.00,
       isPOSItem: true,
       ingredients: [
-        { materialName: "Chicken Wings", quantity: 300, unit: "g", cost: 5.40 },
-        { materialName: "BBQ Sauce", quantity: 40, unit: "ml", cost: 0.24 },
-        { materialName: "Buffalo Sauce", quantity: 40, unit: "ml", cost: 0.34 },
-        { materialName: "Honey Mustard Sauce", quantity: 40, unit: "ml", cost: 0.30 }
+        { materialName: "Chicken Wings", quantity: 8, unit: "piece", cost: 3.20 },
+        { materialName: "BBQ Sauce", quantity: 30, unit: "ml", cost: 0.18 },
+        { materialName: "Buffalo Sauce", quantity: 30, unit: "ml", cost: 0.26 },
+        { materialName: "Honey Mustard Sauce", quantity: 30, unit: "ml", cost: 0.23 }
       ]
     },
     {
@@ -226,94 +226,6 @@ export async function seedMenuItems() {
         { materialName: "Wedges", quantity: 200, unit: "g", cost: 0.50 }
       ]
     },
-    {
-      name: "Juicy Balls",
-      description: "Cheese balls, special sauce",
-      category: "appetizers",
-      price: 8.00,
-      isPOSItem: true,
-      ingredients: [
-        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
-        { materialName: "Special Sauce", quantity: 40, unit: "ml", cost: 0.40 }
-      ]
-    },
-    {
-      name: "Mozzarella Sticks",
-      description: "6 Mozzarella sticks",
-      category: "appetizers",
-      price: 6.00,
-      isPOSItem: true,
-      ingredients: [
-        { materialName: "Mozzarella Cheese", quantity: 180, unit: "g", cost: 1.44 }
-      ]
-    },
-    {
-      name: "Chicken Tenders",
-      description: "5 Crispy chicken, Cocktail Sauce",
-      category: "appetizers",
-      price: 8.00,
-      isPOSItem: true,
-      ingredients: [
-        { materialName: "Crispy Chicken", quantity: 5, unit: "piece", cost: 2.50 },
-        { materialName: "Cocktail Sauce", quantity: 40, unit: "ml", cost: 0.32 }
-      ]
-    },
-    {
-      name: "Chicken Wings",
-      description: "BBQ, Buffalo, Honey mustard",
-      category: "appetizers",
-      price: 10.00,
-      isPOSItem: true,
-      ingredients: [
-        { materialName: "Chicken Wings", quantity: 8, unit: "piece", cost: 3.20 },
-        { materialName: "BBQ Sauce", quantity: 30, unit: "ml", cost: 0.18 },
-        { materialName: "Buffalo Sauce", quantity: 30, unit: "ml", cost: 0.26 },
-        { materialName: "Honey Mustard Sauce", quantity: 30, unit: "ml", cost: 0.23 }
-      ]
-    },
-    {
-      name: "French Fries",
-      description: "French Fries, Ketchup",
-      category: "appetizers",
-      price: 3.00,
-      isPOSItem: true,
-      ingredients: [
-        { materialName: "French Fries", quantity: 200, unit: "g", cost: 0.40 },
-        { materialName: "Ketchup", quantity: 30, unit: "ml", cost: 0.12 }
-      ]
-    },
-
-    // Salads
-    {
-      name: "Rocca Salad",
-      description: "Rocca, fresh mushroom, cherry tomatoes, parmesan, walnuts, balsamic sauce",
-      category: "salads",
-      price: 11.00,
-      isPOSItem: true,
-      ingredients: [
-        { materialName: "Rocca", quantity: 100, unit: "g", cost: 0.40 },
-        { materialName: "Mushroom", quantity: 80, unit: "g", cost: 0.40 },
-        { materialName: "Cherry Tomatoes", quantity: 100, unit: "g", cost: 0.35 },
-        { materialName: "Parmesan", quantity: 40, unit: "g", cost: 0.72 },
-        { materialName: "Walnuts", quantity: 30, unit: "g", cost: 0.45 },
-        { materialName: "Balsamic Sauce", quantity: 40, unit: "ml", cost: 0.32 }
-      ]
-    },
-    {
-      name: "Chicken Caesar Salad",
-      description: "Iceberg, grilled marinated chicken, cherry tomatoes, croutons, parmesan cheese, Caesar sauce",
-      category: "salads",
-      price: 14.00,
-      isPOSItem: true,
-      ingredients: [
-        { materialName: "Iceberg Lettuce", quantity: 150, unit: "g", cost: 0.38 },
-        { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
-        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
-        { materialName: "Croutons", quantity: 40, unit: "g", cost: 0.32 },
-        { materialName: "Parmesan", quantity: 30, unit: "g", cost: 0.54 },
-        { materialName: "Caesar Sauce", quantity: 50, unit: "ml", cost: 0.40 }
-      ]
-    },
 
     // =============================================================================
     // PASTA - 9 ITEMS
@@ -321,7 +233,7 @@ export async function seedMenuItems() {
     {
       name: "Penne Arrabiata",
       description: "Penne, red sauce, parmesan",
-      category: "pasta",
+      category: "plates",
       price: 10.00,
       isPOSItem: true,
       ingredients: [
@@ -333,7 +245,7 @@ export async function seedMenuItems() {
     {
       name: "Penne Rose",
       description: "Penne, sauce rose, parmesan",
-      category: "pasta",
+      category: "plates",
       price: 11.00,
       isPOSItem: true,
       ingredients: [
@@ -345,7 +257,7 @@ export async function seedMenuItems() {
     {
       name: "Pesto Pasta",
       description: "Penne, creamy pesto sauce, parmesan",
-      category: "pasta",
+      category: "plates",
       price: 11.00,
       isPOSItem: true,
       ingredients: [
@@ -357,7 +269,7 @@ export async function seedMenuItems() {
     {
       name: "Fettuccine Alfredo",
       description: "Tagliatelle, grilled chicken, mushroom, parmesan",
-      category: "pasta",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -371,7 +283,7 @@ export async function seedMenuItems() {
     {
       name: "Shrimp Alfredo",
       description: "Tagliatelle, shrimp, creamy sauce",
-      category: "pasta",
+      category: "plates",
       price: 15.00,
       isPOSItem: true,
       ingredients: [
@@ -384,7 +296,7 @@ export async function seedMenuItems() {
     {
       name: "Spaghetti Shrimp",
       description: "Linguine, shrimp, red sauce, parmesan",
-      category: "pasta",
+      category: "plates",
       price: 15.00,
       isPOSItem: true,
       ingredients: [
@@ -397,7 +309,7 @@ export async function seedMenuItems() {
     {
       name: "Vegetable Noodles",
       description: "Fresh noodles, mix of vegetables, oyster sauce",
-      category: "pasta",
+      category: "plates",
       price: 10.00,
       isPOSItem: true,
       ingredients: [
@@ -409,7 +321,7 @@ export async function seedMenuItems() {
     {
       name: "Chicken Noodles",
       description: "Fresh noodles, chicken, mix of vegetables, oyster sauce",
-      category: "pasta",
+      category: "plates",
       price: 12.00,
       isPOSItem: true,
       ingredients: [
@@ -422,7 +334,7 @@ export async function seedMenuItems() {
     {
       name: "Shrimp Noodles",
       description: "Fresh noodles, marinated shrimp, mix of vegetables, oyster sauce",
-      category: "pasta",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -439,7 +351,7 @@ export async function seedMenuItems() {
     {
       name: "Taouk Platter",
       description: "Taouk, fries, coleslaw, pickles, garlic mayo sauce",
-      category: "main_course",
+      category: "plates",
       price: 12.00,
       isPOSItem: true,
       ingredients: [
@@ -453,7 +365,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy Platter",
       description: "5 crispy chicken, coleslaw, fries, garlic mayo sauce",
-      category: "main_course",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -466,7 +378,7 @@ export async function seedMenuItems() {
     {
       name: "Bajaxy",
       description: "2 chicken roulade, fettuccine pasta, fries, creamy sauce",
-      category: "main_course",
+      category: "plates",
       price: 19.00,
       isPOSItem: true,
       ingredients: [
@@ -479,7 +391,7 @@ export async function seedMenuItems() {
     {
       name: "Chicken Mushroom",
       description: "Grilled chicken breast, wedges, grilled vegetables, creamy mushroom sauce",
-      category: "main_course",
+      category: "plates",
       price: 18.00,
       isPOSItem: true,
       ingredients: [
@@ -492,7 +404,7 @@ export async function seedMenuItems() {
     {
       name: "Chicken Pesto",
       description: "Grilled chicken breast, wedges, grilled vegetables, creamy pesto sauce",
-      category: "main_course",
+      category: "plates",
       price: 18.00,
       isPOSItem: true,
       ingredients: [
@@ -505,7 +417,7 @@ export async function seedMenuItems() {
     {
       name: "Chicken Parmigiana",
       description: "2 crispy chicken topped with red sauce and mozzarella cheese, red sauce pasta",
-      category: "main_course",
+      category: "plates",
       price: 19.00,
       isPOSItem: true,
       ingredients: [
@@ -518,7 +430,7 @@ export async function seedMenuItems() {
     {
       name: "Chicken Halloumi",
       description: "Grilled chicken breast, grilled halloumi, grilled vegetables, light mayo pesto sauce",
-      category: "main_course",
+      category: "plates",
       price: 20.00,
       isPOSItem: true,
       ingredients: [
@@ -531,7 +443,7 @@ export async function seedMenuItems() {
     {
       name: "Chicken Strogonoff",
       description: "Marinated chicken, fresh mushroom, creamy sauce, served with white rice",
-      category: "main_course",
+      category: "plates",
       price: 18.00,
       isPOSItem: true,
       ingredients: [
@@ -544,7 +456,7 @@ export async function seedMenuItems() {
     {
       name: "Beef Strogonoff",
       description: "Tender beef, fresh mushroom, served with white rice",
-      category: "main_course",
+      category: "plates",
       price: 18.00,
       isPOSItem: true,
       ingredients: [
@@ -557,7 +469,7 @@ export async function seedMenuItems() {
     {
       name: "Butter Shrimp",
       description: "Marinated shrimp, indian sauce, served with white rice",
-      category: "main_course",
+      category: "plates",
       price: 18.00,
       isPOSItem: true,
       ingredients: [
@@ -569,7 +481,7 @@ export async function seedMenuItems() {
     {
       name: "Butter Chicken",
       description: "Marinated chicken, indian sauce, served with white rice",
-      category: "main_course",
+      category: "plates",
       price: 17.00,
       isPOSItem: true,
       ingredients: [
@@ -581,7 +493,7 @@ export async function seedMenuItems() {
     {
       name: "Steak Mushroom",
       description: "Grilled beef filet, mashed potatoes, grilled vegetables, mushroom sauce",
-      category: "main_course",
+      category: "plates",
       price: 23.00,
       isPOSItem: true,
       ingredients: [
@@ -594,7 +506,7 @@ export async function seedMenuItems() {
     {
       name: "Cashew Chicken",
       description: "Marinated chicken, mixed vegetables, served with white rice",
-      category: "main_course",
+      category: "plates",
       price: 21.00,
       isPOSItem: true,
       ingredients: [
@@ -607,7 +519,7 @@ export async function seedMenuItems() {
     {
       name: "Oops Platter",
       description: "Fried chicken strips, fettuccine, curly fries, special sauce",
-      category: "main_course",
+      category: "plates",
       price: 21.00,
       isPOSItem: true,
       ingredients: [
@@ -620,7 +532,7 @@ export async function seedMenuItems() {
     {
       name: "Grilled Salmon",
       description: "Grilled salmon, mashed potatoes, grilled vegetables",
-      category: "main_course",
+      category: "plates",
       price: 24.00,
       isPOSItem: true,
       ingredients: [
@@ -636,7 +548,7 @@ export async function seedMenuItems() {
     {
       name: "Pizza Margherita",
       description: "Sourdough, San Marzano Tomatoes, low moisture Mozzarella",
-      category: "pizza",
+      category: "plates",
       price: 10.00,
       isPOSItem: true,
       ingredients: [
@@ -648,7 +560,7 @@ export async function seedMenuItems() {
     {
       name: "Pizza Pepperoni",
       description: "Sourdough, Homemade Marinara Sauce, Low Moisture Italian Mozzarella, Pepperoni",
-      category: "pizza",
+      category: "plates",
       price: 13.00,
       isPOSItem: true,
       ingredients: [
@@ -661,7 +573,7 @@ export async function seedMenuItems() {
     {
       name: "Pizza Lebanese",
       description: "Sourdough, Homemade Marinara Sauce, Low Moisture Italian Mozzarella, Ham Pork, Mushrooms, Onions, Green Pepper, Black Olives",
-      category: "pizza",
+      category: "plates",
       price: 13.00,
       isPOSItem: true,
       ingredients: [
@@ -678,7 +590,7 @@ export async function seedMenuItems() {
     {
       name: "Pizza Alla Vodka",
       description: "Sourdough, Speciality Vodka Sauce, Low Moisture Italian Mozzarella Cheese",
-      category: "pizza",
+      category: "plates",
       price: 12.00,
       isPOSItem: true,
       ingredients: [
@@ -690,7 +602,7 @@ export async function seedMenuItems() {
     {
       name: "Pizza Chicken Alfredo",
       description: "Sourdough, Homemade White Alfredo Sauce, Low Moisture Italian Mozzarella, Grilled Chicken Breast, Mushrooms",
-      category: "pizza",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -704,7 +616,7 @@ export async function seedMenuItems() {
     {
       name: "Pizza Buffalo Chicken",
       description: "Sourdough, Homemade Marinara Sauce, Grilled Chicken Breast, Onions, Buffalo Sauce, A Drizzle OF Blue Cheese Sauce",
-      category: "pizza",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -719,7 +631,7 @@ export async function seedMenuItems() {
     {
       name: "Pizza TRIO",
       description: "Sourdough, TRIO of Sauces: Homemade Marinara Sauce, Speciality Vodka Sauce, Basil Pesto Cream Sauce, Low Moisture Italian Mozzarella",
-      category: "pizza",
+      category: "plates",
       price: 12.00,
       isPOSItem: true,
       ingredients: [
@@ -733,7 +645,7 @@ export async function seedMenuItems() {
     {
       name: "Pizza Mexican",
       description: "Sourdough, Homemade Marinara Sauce, Grilled Chicken Breast, Grilled Onions & Green Peppers, Low Moisture Italian Mozzarella, Mexican Salsa, Guacamole",
-      category: "pizza",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -750,7 +662,7 @@ export async function seedMenuItems() {
     {
       name: "BBQ Chicken Pizza",
       description: "Sourdough, Homemade Marinara Sauce, Grilled Chicken Breast, Grilled Onions BBQ sauce, Low Moisture Italian Mozzarella",
-      category: "pizza",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -765,7 +677,7 @@ export async function seedMenuItems() {
     {
       name: "Spicy Chicken Pizza",
       description: "Sourdough, Homemade Marinara Sauce, Grilled Chicken Breast, Homemade southern spicy sauce, Low Moisture Italian Mozzarella",
-      category: "pizza",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -779,7 +691,7 @@ export async function seedMenuItems() {
     {
       name: "Vegetarian Pizza",
       description: "Sourdough, Homemade Marinara Sauce, Low Moisture Italian Mozzarella, Mushrooms, Onions, Green Pepper, Black Olives",
-      category: "pizza",
+      category: "plates",
       price: 12.00,
       isPOSItem: true,
       ingredients: [
@@ -795,7 +707,7 @@ export async function seedMenuItems() {
     {
       name: "PestoRoni Pizza",
       description: "Sourdough, Basil Pesto Cream Sauce, Low Moisture Italian Mozzarella, Pepperoni, Our Signature Districts' Hot Honey",
-      category: "pizza",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -815,7 +727,7 @@ export async function seedMenuItems() {
     {
       name: "Edamame",
       description: "Steamed soy beans, rock salt",
-      category: "sushi",
+      category: "plates",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -826,7 +738,7 @@ export async function seedMenuItems() {
     {
       name: "Spicy Edamame",
       description: "Steamed soy beans, sriracha, togarashi",
-      category: "sushi",
+      category: "plates",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -838,7 +750,7 @@ export async function seedMenuItems() {
     {
       name: "Shoyu Carpaccio",
       description: "120g thin slices of fresh salmon & tuna, sesame seeds, green onions",
-      category: "sushi",
+      category: "plates",
       price: 12.00,
       isPOSItem: true,
       ingredients: [
@@ -851,7 +763,7 @@ export async function seedMenuItems() {
     {
       name: "Dynamite Salmon",
       description: "150g tube fresh salmon with special sauce",
-      category: "sushi",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -864,7 +776,7 @@ export async function seedMenuItems() {
     {
       name: "Oishi Kani",
       description: "Premium crab sticks, cucumber, carrots, red cabbage, mango, crispy flakes",
-      category: "sushi",
+      category: "plates",
       price: 9.50,
       isPOSItem: true,
       ingredients: [
@@ -879,7 +791,7 @@ export async function seedMenuItems() {
     {
       name: "Crunchy Salmon",
       description: "Fresh salmon, crispy flakes served with special sauce",
-      category: "sushi",
+      category: "plates",
       price: 12.00,
       isPOSItem: true,
       ingredients: [
@@ -891,7 +803,7 @@ export async function seedMenuItems() {
     {
       name: "Crunchy Tuna",
       description: "Fresh tuna, crispy flakes served with special sauce",
-      category: "sushi",
+      category: "plates",
       price: 14.00,
       isPOSItem: true,
       ingredients: [
@@ -903,7 +815,7 @@ export async function seedMenuItems() {
     {
       name: "Exotic Poke Bowl",
       description: "Sushi rice, fresh salmon, shrimps, crab, mango, avocado, red cabbage, edamame, strawberry exotic mango sauce",
-      category: "sushi",
+      category: "plates",
       price: 15.00,
       isPOSItem: true,
       ingredients: [
@@ -921,7 +833,7 @@ export async function seedMenuItems() {
     {
       name: "Rainbow",
       description: "Premium crab sticks, shrimps, fresh salmon & tuna, mango, avocado, red cabbage, exotic mango sauce",
-      category: "sushi",
+      category: "plates",
       price: 15.00,
       isPOSItem: true,
       ingredients: [
@@ -940,7 +852,7 @@ export async function seedMenuItems() {
     {
       name: "Crab Sashimi",
       description: "3 PC",
-      category: "sushi",
+      category: "plates",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -950,7 +862,7 @@ export async function seedMenuItems() {
     {
       name: "Shrimp Sashimi",
       description: "3 PC",
-      category: "sushi",
+      category: "plates",
       price: 5.50,
       isPOSItem: true,
       ingredients: [
@@ -960,7 +872,7 @@ export async function seedMenuItems() {
     {
       name: "Salmon Sashimi",
       description: "3 PC",
-      category: "sushi",
+      category: "plates",
       price: 6.50,
       isPOSItem: true,
       ingredients: [
@@ -970,7 +882,7 @@ export async function seedMenuItems() {
     {
       name: "Tuna Sashimi",
       description: "3 PC",
-      category: "sushi",
+      category: "plates",
       price: 8.00,
       isPOSItem: true,
       ingredients: [
@@ -982,7 +894,7 @@ export async function seedMenuItems() {
     {
       name: "Crab Temaki",
       description: "Hand roll with crab",
-      category: "sushi",
+      category: "plates",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -994,7 +906,7 @@ export async function seedMenuItems() {
     {
       name: "Shrimp Temaki",
       description: "Hand roll with shrimp",
-      category: "sushi",
+      category: "plates",
       price: 5.50,
       isPOSItem: true,
       ingredients: [
@@ -1006,7 +918,7 @@ export async function seedMenuItems() {
     {
       name: "Salmon Temaki",
       description: "Hand roll with salmon",
-      category: "sushi",
+      category: "plates",
       price: 6.00,
       isPOSItem: true,
       ingredients: [
@@ -1018,7 +930,7 @@ export async function seedMenuItems() {
     {
       name: "Shoyu Temaki",
       description: "Special hand roll",
-      category: "sushi",
+      category: "plates",
       price: 6.50,
       isPOSItem: true,
       ingredients: [
@@ -1033,7 +945,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy California",
       description: "Crispy wrap, Premium crab sticks, cucumber, avocado",
-      category: "sushi",
+      category: "plates",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -1048,7 +960,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy Shrimps",
       description: "Crispy wrap, shrimps, avocado",
-      category: "sushi",
+      category: "plates",
       price: 4.50,
       isPOSItem: true,
       ingredients: [
@@ -1062,7 +974,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy Salmon",
       description: "Crispy wrap, salmon, avocado, cream cheese",
-      category: "sushi",
+      category: "plates",
       price: 6.00,
       isPOSItem: true,
       ingredients: [
@@ -1077,7 +989,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy Tuna",
       description: "Crispy wrap, tuna, avocado, cream cheese",
-      category: "sushi",
+      category: "plates",
       price: 6.00,
       isPOSItem: true,
       ingredients: [
@@ -1092,7 +1004,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy Crazy",
       description: "Crispy wrap, crab mix, crab mix topping",
-      category: "sushi",
+      category: "plates",
       price: 5.00,
       isPOSItem: true,
       ingredients: [
@@ -1107,7 +1019,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Strawberry",
       description: "Ura maki with strawberry",
-      category: "sushi",
+      category: "plates",
       price: 4.50,
       isPOSItem: true,
       ingredients: [
@@ -1120,7 +1032,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Kiwi",
       description: "Ura maki with kiwi",
-      category: "sushi",
+      category: "plates",
       price: 4.50,
       isPOSItem: true,
       ingredients: [
@@ -1133,7 +1045,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Mango",
       description: "Ura maki with mango",
-      category: "sushi",
+      category: "plates",
       price: 5.00,
       isPOSItem: true,
       ingredients: [
@@ -1146,7 +1058,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Avo",
       description: "Ura maki with avocado",
-      category: "sushi",
+      category: "plates",
       price: 5.00,
       isPOSItem: true,
       ingredients: [
@@ -1159,7 +1071,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Shrimps",
       description: "Ura maki with shrimps",
-      category: "sushi",
+      category: "plates",
       price: 5.00,
       isPOSItem: true,
       ingredients: [
@@ -1172,7 +1084,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Salmon",
       description: "Ura maki with salmon",
-      category: "sushi",
+      category: "plates",
       price: 5.50,
       isPOSItem: true,
       ingredients: [
@@ -1185,7 +1097,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Tuna",
       description: "Ura maki with tuna",
-      category: "sushi",
+      category: "plates",
       price: 6.00,
       isPOSItem: true,
       ingredients: [
@@ -1198,7 +1110,7 @@ export async function seedMenuItems() {
     {
       name: "Spicy Shrimps",
       description: "Spicy ura maki with shrimps",
-      category: "sushi",
+      category: "plates",
       price: 5.50,
       isPOSItem: true,
       ingredients: [
@@ -1211,7 +1123,7 @@ export async function seedMenuItems() {
     {
       name: "Spicy Salmon",
       description: "Spicy ura maki with salmon",
-      category: "sushi",
+      category: "plates",
       price: 6.00,
       isPOSItem: true,
       ingredients: [
@@ -1224,7 +1136,7 @@ export async function seedMenuItems() {
     {
       name: "Spicy Tuna",
       description: "Spicy ura maki with tuna",
-      category: "sushi",
+      category: "plates",
       price: 6.50,
       isPOSItem: true,
       ingredients: [
@@ -1239,7 +1151,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Avocado",
       description: "Thin roll with avocado",
-      category: "sushi",
+      category: "plates",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -1251,7 +1163,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Mango",
       description: "Thin roll with mango",
-      category: "sushi",
+      category: "plates",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -1263,7 +1175,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Salmon",
       description: "Thin roll with salmon",
-      category: "sushi",
+      category: "plates",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -1275,7 +1187,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Tuna",
       description: "Thin roll with tuna",
-      category: "sushi",
+      category: "plates",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -1287,7 +1199,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Shrimp",
       description: "Thin roll with shrimp",
-      category: "sushi",
+      category: "plates",
       price: 3.50,
       isPOSItem: true,
       ingredients: [
@@ -1299,7 +1211,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Crab Sticks",
       description: "Thin roll with crab sticks",
-      category: "sushi",
+      category: "plates",
       price: 3.50,
       isPOSItem: true,
       ingredients: [
@@ -1313,7 +1225,7 @@ export async function seedMenuItems() {
     {
       name: "Burrito California",
       description: "Crab mix, avocado, crispy, dynamite sauce, teriyaki",
-      category: "sushi",
+      category: "plates",
       price: 8.00,
       isPOSItem: true,
       ingredients: [
@@ -1329,7 +1241,7 @@ export async function seedMenuItems() {
     {
       name: "Burrito Lady Choice",
       description: "Shrimp mix, crab mix, avocado, mango, cream cheese, tobiko, crispy flakes, mayo, teriyaki",
-      category: "sushi",
+      category: "plates",
       price: 8.00,
       isPOSItem: true,
       ingredients: [
@@ -1349,7 +1261,7 @@ export async function seedMenuItems() {
     {
       name: "Burrito Tokyo",
       description: "Salmon, tuna, crab mix, cream cheese, avocado, tobiko, crispy flakes, kimchi mayo, teriyaki",
-      category: "sushi",
+      category: "plates",
       price: 11.00,
       isPOSItem: true,
       ingredients: [
@@ -1373,7 +1285,7 @@ export async function seedMenuItems() {
     {
       name: "Labneh",
       description: "Traditional Lebanese labneh",
-      category: "breakfast",
+      category: "plates",
       price: 3.50,
       isPOSItem: true,
       ingredients: [
@@ -1383,7 +1295,7 @@ export async function seedMenuItems() {
     {
       name: "Eggs",
       description: "Fresh eggs",
-      category: "breakfast",
+      category: "plates",
       price: 3.50,
       isPOSItem: true,
       ingredients: [
@@ -1391,19 +1303,9 @@ export async function seedMenuItems() {
       ]
     },
     {
-      name: "Grilled Halloumi",
-      description: "Grilled halloumi cheese",
-      category: "breakfast",
-      price: 4.00,
-      isPOSItem: true,
-      ingredients: [
-        { materialName: "Halloumi Cheese", quantity: 100, unit: "g", cost: 1.20 }
-      ]
-    },
-    {
       name: "Sahen Khodra",
       description: "Fresh vegetables plate",
-      category: "breakfast",
+      category: "plates",
       price: 1.50,
       isPOSItem: true,
       ingredients: [
@@ -1413,7 +1315,7 @@ export async function seedMenuItems() {
     {
       name: "Sajj Zaatar",
       description: "Sajj bread with zaatar",
-      category: "breakfast",
+      category: "plates",
       price: 2.00,
       isPOSItem: true,
       ingredients: [
@@ -1424,7 +1326,7 @@ export async function seedMenuItems() {
     {
       name: "Sajj Zaatar + Khodra",
       description: "Sajj bread with zaatar and vegetables",
-      category: "breakfast",
+      category: "plates",
       price: 2.50,
       isPOSItem: true,
       ingredients: [
@@ -1436,7 +1338,7 @@ export async function seedMenuItems() {
     {
       name: "Sajj Labneh",
       description: "Sajj bread with labneh",
-      category: "breakfast",
+      category: "plates",
       price: 2.50,
       isPOSItem: true,
       ingredients: [
@@ -1447,7 +1349,7 @@ export async function seedMenuItems() {
     {
       name: "Sajj Labneh + Khodra",
       description: "Sajj bread with labneh and vegetables",
-      category: "breakfast",
+      category: "plates",
       price: 3.00,
       isPOSItem: true,
       ingredients: [
@@ -1459,7 +1361,7 @@ export async function seedMenuItems() {
     {
       name: "Sajj Cheese",
       description: "Sajj bread with cheese",
-      category: "breakfast",
+      category: "plates",
       price: 3.00,
       isPOSItem: true,
       ingredients: [
@@ -1470,7 +1372,7 @@ export async function seedMenuItems() {
     {
       name: "Sajj Cheese & Ham",
       description: "Sajj bread with cheese and ham",
-      category: "breakfast",
+      category: "plates",
       price: 3.50,
       isPOSItem: true,
       ingredients: [
@@ -1482,7 +1384,7 @@ export async function seedMenuItems() {
     {
       name: "Sajj Lahmeh B3ajin",
       description: "Sajj bread with meat paste",
-      category: "breakfast",
+      category: "plates",
       price: 4.50,
       isPOSItem: true,
       ingredients: [
@@ -1493,7 +1395,7 @@ export async function seedMenuItems() {
     {
       name: "Sajj Lahmeh & Cheese",
       description: "Sajj bread with meat and cheese",
-      category: "breakfast",
+      category: "plates",
       price: 5.00,
       isPOSItem: true,
       ingredients: [
@@ -1515,7 +1417,7 @@ export async function seedMenuItems() {
       ingredients: [
         { materialName: "Rocca", quantity: 100, unit: "g", cost: 0.80 },
         { materialName: "Fresh Mushroom", quantity: 80, unit: "g", cost: 0.64 },
-        { materialName: "Cherry Tomatoes", quantity: 100, unit: "g", cost: 0.35 },
+        { materialName: "Tomatoes", quantity: 100, unit: "g", cost: 0.35 },
         { materialName: "Parmesan Cheese", quantity: 50, unit: "g", cost: 0.75 },
         { materialName: "Walnuts", quantity: 30, unit: "g", cost: 0.60 },
         { materialName: "Balsamic Sauce", quantity: 30, unit: "ml", cost: 0.24 }
@@ -1530,7 +1432,7 @@ export async function seedMenuItems() {
       ingredients: [
         { materialName: "Mixed Greens", quantity: 120, unit: "g", cost: 0.96 },
         { materialName: "Halloumi", quantity: 100, unit: "g", cost: 1.20 },
-        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
+        { materialName: "Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
         { materialName: "Dried Fruits", quantity: 40, unit: "g", cost: 0.80 },
         { materialName: "Walnuts", quantity: 30, unit: "g", cost: 0.60 },
         { materialName: "Balsamic Sauce", quantity: 30, unit: "ml", cost: 0.24 }
@@ -1545,7 +1447,7 @@ export async function seedMenuItems() {
       ingredients: [
         { materialName: "Iceberg Lettuce", quantity: 120, unit: "g", cost: 0.31 },
         { materialName: "Crab Sticks", quantity: 100, unit: "g", cost: 2.50 },
-        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
+        { materialName: "Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
         { materialName: "Corn", quantity: 60, unit: "g", cost: 0.18 },
         { materialName: "Avocado", quantity: 80, unit: "g", cost: 1.20 },
         { materialName: "Lemon Mayo Sauce", quantity: 40, unit: "ml", cost: 0.32 }
@@ -1560,7 +1462,7 @@ export async function seedMenuItems() {
       ingredients: [
         { materialName: "Iceberg Lettuce", quantity: 120, unit: "g", cost: 0.31 },
         { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
-        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
+        { materialName: "Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
         { materialName: "Croutons", quantity: 40, unit: "g", cost: 0.20 },
         { materialName: "Parmesan Cheese", quantity: 50, unit: "g", cost: 0.75 },
         { materialName: "Caesar Sauce", quantity: 40, unit: "ml", cost: 0.32 }
@@ -1576,7 +1478,7 @@ export async function seedMenuItems() {
         { materialName: "Kale", quantity: 100, unit: "g", cost: 0.90 },
         { materialName: "Rocca", quantity: 50, unit: "g", cost: 0.40 },
         { materialName: "Feta Cheese", quantity: 80, unit: "g", cost: 0.96 },
-        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
+        { materialName: "Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
         { materialName: "Dried Figs", quantity: 40, unit: "g", cost: 0.80 },
         { materialName: "Cranberry", quantity: 30, unit: "g", cost: 0.60 },
         { materialName: "Walnuts", quantity: 30, unit: "g", cost: 0.60 },
@@ -1610,7 +1512,7 @@ export async function seedMenuItems() {
         { materialName: "Shrimp", quantity: 120, unit: "g", cost: 3.36 },
         { materialName: "Avocado", quantity: 80, unit: "g", cost: 1.20 },
         { materialName: "Mango", quantity: 80, unit: "g", cost: 1.20 },
-        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
+        { materialName: "Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
         { materialName: "Walnuts", quantity: 30, unit: "g", cost: 0.60 },
         { materialName: "Lemon Mustard Sauce", quantity: 40, unit: "ml", cost: 0.32 }
       ]
@@ -1623,7 +1525,7 @@ export async function seedMenuItems() {
       isPOSItem: true,
       ingredients: [
         { materialName: "Tuna", quantity: 120, unit: "g", cost: 2.40 },
-        { materialName: "Cherry Tomatoes", quantity: 100, unit: "g", cost: 0.35 },
+        { materialName: "Tomatoes", quantity: 100, unit: "g", cost: 0.35 },
         { materialName: "Corn", quantity: 60, unit: "g", cost: 0.18 },
         { materialName: "Black Olives", quantity: 40, unit: "g", cost: 0.60 },
         { materialName: "Lemon Mayo Sauce", quantity: 40, unit: "ml", cost: 0.32 }
@@ -1642,7 +1544,7 @@ export async function seedMenuItems() {
         { materialName: "Red Cabbage", quantity: 50, unit: "g", cost: 0.15 },
         { materialName: "Carrot", quantity: 40, unit: "g", cost: 0.08 },
         { materialName: "Cucumber", quantity: 50, unit: "g", cost: 0.10 },
-        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
+        { materialName: "Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
         { materialName: "Walnuts", quantity: 30, unit: "g", cost: 0.60 },
         { materialName: "Avocado", quantity: 80, unit: "g", cost: 1.20 },
         { materialName: "Mango", quantity: 60, unit: "g", cost: 0.90 },
@@ -1782,7 +1684,7 @@ export async function seedMenuItems() {
       ingredients: [
         { materialName: "Halloumi", quantity: 120, unit: "g", cost: 1.44 },
         { materialName: "Rocca", quantity: 50, unit: "g", cost: 0.40 },
-        { materialName: "Cherry Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
+        { materialName: "Tomatoes", quantity: 80, unit: "g", cost: 0.28 },
         { materialName: "Pesto Sauce", quantity: 30, unit: "ml", cost: 0.36 }
       ]
     },
@@ -2067,6 +1969,7 @@ export async function seedMenuItems() {
         console.log(`✅ Created menu item: ${itemData.name} with ${itemData.ingredients.length} ingredients`);
         createdCount++;
       } else {
+        console.log(`⏭️  Skipped existing menu item: ${itemData.name}`);
         skippedCount++;
       }
     } catch (error) {

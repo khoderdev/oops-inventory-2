@@ -150,7 +150,13 @@ export async function seedMaterials() {
     { name: "Dried Figs", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "vegetables" },
     { name: "Cranberry", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "vegetables" },
     { name: "Eggs", baseUnit: "piece", unitType: "package", inputUnit: "pack", packageQuantity: 12, category: "dairy" },
-    { name: "Lahmeh", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "meat" }
+    { name: "Lahmeh", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "meat" },
+    
+    // Missing materials from menu items
+    { name: "Tomatoes", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "vegetables" },
+    { name: "Light Mayo", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
+    { name: "Calamari", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "seafood" },
+    { name: "Fish Fingers", baseUnit: "piece", unitType: "package", inputUnit: "pack", packageQuantity: 20, category: "seafood" }
   ];
 
   let createdCount = 0;

@@ -172,6 +172,7 @@ export async function seedStockEntries() {
         console.log(`✅ Created stock entry: ${entryData.materialName} - ${entryData.quantity} ${entryData.unit}`);
         createdCount++;
       } else {
+        console.log(`⏭️  Skipped existing stock entry: ${entryData.materialName} - ${entryData.supplier}`);
         skippedCount++;
       }
     } catch (error) {
