@@ -674,12 +674,12 @@ router.post("/restore/:backupId", async (req, res) => {
           
           // Handle conflicts based on dropExisting setting
           if (dropExisting) {
-            console.log(`🔧 Dropping existing database and recreating`);
+            console.log(`🔧 Complete database replacement mode - ensuring data integrity`);
             // When dropExisting is true, we want to drop and recreate everything
-            // The backup already contains DROP DATABASE and CREATE DATABASE commands
-            // No additional conflict handling needed
+            // This ensures all foreign key relationships are preserved
           } else {
-            console.log(`🔧 Preserving existing database, allowing conflicts to be ignored`);
+            console.log(`⚠️  WARNING: Preserving existing database may cause foreign key constraint violations`);
+            console.log(`⚠️  For complete data integrity, use dropExisting: true`);
             
             // Remove DROP DATABASE and CREATE DATABASE commands to preserve existing database
             modifiedContent = modifiedContent.replace(
@@ -701,8 +701,11 @@ router.post("/restore/:backupId", async (req, res) => {
               'CREATE EXTENSION IF NOT EXISTS $1'
             );
             
-            // Note: We'll allow other conflicts (types, tables, sequences, indexes) to be handled
-            // by removing the ON_ERROR_STOP flag so PostgreSQL continues despite conflicts
+            // Add error handling for foreign key constraint violations
+            modifiedContent = `-- Foreign key constraint handling for partial restore\n` +
+              `SET session_replication_role = replica; -- Disable FK checks temporarily\n` +
+              modifiedContent +
+              `\nSET session_replication_role = DEFAULT; -- Re-enable FK checks\n`;
           }
           
           // Write modified content to temp file
@@ -714,19 +717,26 @@ router.post("/restore/:backupId", async (req, res) => {
             // When dropping existing, connect to postgres database for database-level operations
             restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=postgres --set ON_ERROR_STOP=on --file="${filePath}"`;
           } else {
-            // When preserving existing, connect directly to target database and continue on errors
-            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --file="${filePath}"`;
+            // When preserving existing, connect directly to target database with detailed error reporting
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --echo-errors --file="${filePath}"`;
           }
         } else {
           // No database-level commands, restore directly to target database
           // Handle schema conflicts when not dropping existing
           if (!dropExisting) {
-            console.log(`🔧 Allowing conflicts for schema-only restore`);
+            console.log(`⚠️  WARNING: Schema-only restore may have foreign key constraint issues`);
+            console.log(`⚠️  Recommend using dropExisting: true for complete data integrity`);
             tempFilePath = path.join(backupDir, `temp_${sqlFile}`);
             
             let modifiedContent = sqlContent;
             
-            // Only handle extensions to avoid conflicts
+            // Add foreign key constraint handling
+            modifiedContent = `-- Foreign key constraint handling for schema-only restore\n` +
+              `SET session_replication_role = replica; -- Disable FK checks temporarily\n` +
+              modifiedContent +
+              `\nSET session_replication_role = DEFAULT; -- Re-enable FK checks\n`;
+            
+            // Handle extensions to avoid conflicts
             modifiedContent = modifiedContent.replace(
               /CREATE EXTENSION ([^\s;]+)/g,
               'CREATE EXTENSION IF NOT EXISTS $1'
@@ -740,7 +750,7 @@ router.post("/restore/:backupId", async (req, res) => {
           if (dropExisting) {
             restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --set ON_ERROR_STOP=on --file="${filePath}"`;
           } else {
-            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --file="${filePath}"`;
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --echo-errors --file="${filePath}"`;
           }
         }
         break;
@@ -777,18 +787,52 @@ router.post("/restore/:backupId", async (req, res) => {
       }
     }
 
-    // Get restore statistics (simplified)
+    // Get restore statistics and check for potential data integrity issues
     const dbStats = await getDatabaseStats();
+    
+    // Check for potential foreign key constraint issues
+    let warnings = [];
+    if (!dropExisting) {
+      // Check if menuItemIngredients table has data (common foreign key issue)
+      try {
+        const menuItemIngredientsCount = await sequelize.query(
+          'SELECT COUNT(*) as count FROM "menuItemIngredients"',
+          { type: sequelize.QueryTypes.SELECT }
+        );
+        const menuItemsCount = await sequelize.query(
+          'SELECT COUNT(*) as count FROM "menuItems"',
+          { type: sequelize.QueryTypes.SELECT }
+        );
+        
+        if (menuItemsCount[0].count > 0 && menuItemIngredientsCount[0].count === 0) {
+          warnings.push({
+            type: 'foreign_key_violation',
+            message: 'Menu items exist but no ingredients were restored. This indicates foreign key constraint violations.',
+            recommendation: 'Use dropExisting: true for complete data integrity'
+          });
+        }
+      } catch (checkError) {
+        console.warn('Could not check for foreign key issues:', checkError.message);
+      }
+    }
 
-    res.json({
+    const response = {
       success: true,
       data: {
-        message: "Database restored successfully",
+        message: dropExisting ? "Database restored successfully with complete data integrity" : "Database restored with potential data integrity issues",
         restoredTables: dbStats.tables,
         restoredRecords: dbStats.records,
-        duration: Math.round(duration / 1000) // Convert to seconds
+        duration: Math.round(duration / 1000), // Convert to seconds
+        warnings: warnings.length > 0 ? warnings : undefined,
+        recommendation: !dropExisting && warnings.length > 0 ? "For complete data integrity, use dropExisting: true when restoring" : undefined
       }
-    });
+    };
+    
+    if (warnings.length > 0) {
+      console.warn('⚠️  Restore completed with warnings:', warnings);
+    }
+
+    res.json(response);
   } catch (error) {
     // Cleanup temp file if created
     if (typeof tempFilePath !== 'undefined' && tempFilePath) {
