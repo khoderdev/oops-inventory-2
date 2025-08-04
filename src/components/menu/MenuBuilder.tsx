@@ -27,8 +27,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   // Debug: Log validation state on mount and changes
   useEffect(() => {
-    console.log('🎆 [MenuBuilder] Component mounted/updated, dataValidationEnabled:', dataValidationEnabled);
-    console.log('🎆 [MenuBuilder] localStorage value:', localStorage.getItem('dataValidationEnabled'));
+    console.log("🎆 [MenuBuilder] Component mounted/updated, dataValidationEnabled:", dataValidationEnabled);
+    console.log("🎆 [MenuBuilder] localStorage value:", localStorage.getItem("dataValidationEnabled"));
   }, [dataValidationEnabled]);
 
   // State for validation
@@ -39,11 +39,11 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   // Automatic validation when data changes (only if enabled)
   useEffect(() => {
     const validateData = async () => {
-      console.log('🔍 [MenuBuilder] dataValidationEnabled:', dataValidationEnabled);
-      
+      console.log("🔍 [MenuBuilder] dataValidationEnabled:", dataValidationEnabled);
+
       // Skip validation if disabled
       if (!dataValidationEnabled) {
-        console.log('⏭️ [MenuBuilder] Validation disabled, skipping auto-validation');
+        console.log("⏭️ [MenuBuilder] Validation disabled, skipping auto-validation");
         setValidationResults(null);
         return;
       }
@@ -112,7 +112,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   // Manual validation trigger
   const runValidation = useCallback(() => {
     if (!dataValidationEnabled) {
-      console.log('⏭️ [MenuBuilder] Manual validation blocked - validation is disabled');
+      console.log("⏭️ [MenuBuilder] Manual validation blocked - validation is disabled");
       toast({
         title: "Validation Disabled",
         description: "Data validation is disabled. Enable it in System Settings to run validation.",
@@ -123,7 +123,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
     if (!materials || !stockEntries) return;
 
-    console.log('🔍 [MenuBuilder] Running manual validation');
+    console.log("🔍 [MenuBuilder] Running manual validation");
     const result = dataValidator.validateData(materials, stockEntries);
     setValidationResults(result);
     setLastValidationTime(Date.now());
@@ -597,320 +597,344 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, MENU_CATEGORIES, fetchTabData, handleCloseBulkCategoryDialog]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden -m-2 sm:-m-4 lg:-m-6">
-      <Card className="!border-0 !shadow-none !bg-background flex flex-col h-full">
-        <CardHeader className="flex-shrink-0">
-          <div className="flex justify-between items-center mb-2">
-            <CardTitle className="text-3xl font-bold">Menu Items</CardTitle>
-            <div className="flex gap-2 flex-wrap">
-            {dataValidationEnabled && (
-              <Button 
-                size="sm" 
-                onClick={runValidation} 
-                variant="outline" 
-                className={`${
-                  validationResults && !validationResults.isValid 
-                    ? "border-red-500 text-red-600" 
-                    : validationResults && validationResults.summary.warnings > 0 
-                    ? "border-yellow-500 text-yellow-600" 
-                    : "border-green-500 text-green-600"
-                }`} 
-                aria-label="Validate inventory data"
-                title="Run manual data validation"
-              >
-                {validationResults && !validationResults.isValid ? (
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                ) : validationResults && validationResults.summary.warnings > 0 ? (
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                ) : (
-                  <CheckCircle className="h-4 w-4 mr-2" />
+    <>
+      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+        <Card className="!border-0 !shadow-none !bg-background flex flex-col h-full">
+          <CardHeader className="flex-shrink-0 px-8">
+            <div className="flex justify-between items-center mb-2">
+              <CardTitle className="text-3xl font-bold">Menu Items</CardTitle>
+              {/* Desktop action buttons - hidden on mobile/tablet */}
+              <div className="hidden xl:flex gap-2 flex-wrap">
+                {dataValidationEnabled && (
+                  <Button size="sm" onClick={runValidation} variant="outline" className={`${validationResults && !validationResults.isValid ? "border-red-500 text-red-600" : validationResults && validationResults.summary.warnings > 0 ? "border-yellow-500 text-yellow-600" : "border-green-500 text-green-600"}`} aria-label="Validate inventory data" title="Run manual data validation">
+                    {validationResults && !validationResults.isValid ? <AlertTriangle className="h-4 w-4 mr-2" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-4 w-4 mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                    Validate Data
+                  </Button>
                 )}
-                Validate Data
-              </Button>
-            )}
-              {bulkSelectionMode && (
-                <>
-                  <Button size="sm" variant="outline" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0}>
-                    <Check className="h-4 w-4 mr-2" />
-                    {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleOpenBulkPrinterDialog} disabled={selectedMenuItems.size === 0}>
-                    <Printer className="h-4 w-4 mr-2" />
-                    Assign Printer ({selectedMenuItems.size})
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleOpenBulkCategoryDialog} disabled={selectedMenuItems.size === 0}>
-                    <Tag className="h-4 w-4 mr-2" />
-                    Update Category ({selectedMenuItems.size})
-                  </Button>
-                </>
-              )}
-              <Button size="sm" variant={bulkSelectionMode ? "destructive" : "outline"} onClick={handleToggleBulkSelection}>
-                <Check className="h-4 w-4 mr-2" />
-                {bulkSelectionMode ? "Exit Selection" : "Bulk Select"}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditingMenuItem(null);
-                  setShowMenuItemForm(true);
-                }}
-                aria-label="Add new menu item"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Menu Item
-              </Button>
-          
-          
-            </div>
-          </div>
-
-          {/* Search and Filter Controls */}
-          <div className="mt-4 flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input type="search" placeholder="Search by name, description, or ingredients..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
-            </div>
-            <Select value={selectedCategory} onValueChange={value => setSelectedCategory(value as MenuItemCategory | "all")}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {MENU_CATEGORIES.map(category => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Validation Results Panel */}
-          {dataValidationEnabled && validationResults && (validationResults.summary.errors > 0 || validationResults.summary.warnings > 0) && (
-            <div className={`mt-4 p-4 rounded-lg border ${validationResults.summary.errors > 0 ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}`}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  {validationResults.summary.errors > 0 ? <AlertTriangle className="h-5 w-5 text-red-600" /> : <AlertTriangle className="h-5 w-5 text-yellow-600" />}
-                  <h3 className={`font-medium ${validationResults.summary.errors > 0 ? "text-red-800" : "text-yellow-800"}`}>Data Validation Issues Found</h3>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => setShowValidationPanel(!showValidationPanel)} className="text-xs">
-                  {showValidationPanel ? "Hide Details" : "Show Details"}
+                {bulkSelectionMode && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0}>
+                      <Check className="h-4 w-4 mr-2" />
+                      {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleOpenBulkPrinterDialog} disabled={selectedMenuItems.size === 0}>
+                      <Printer className="h-4 w-4 mr-2" />
+                      Assign Printer ({selectedMenuItems.size})
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleOpenBulkCategoryDialog} disabled={selectedMenuItems.size === 0}>
+                      <Tag className="h-4 w-4 mr-2" />
+                      Update Category ({selectedMenuItems.size})
+                    </Button>
+                  </>
+                )}
+                <Button size="sm" variant={bulkSelectionMode ? "destructive" : "outline"} onClick={handleToggleBulkSelection}>
+                  <Check className="h-4 w-4 mr-2" />
+                  {bulkSelectionMode ? "Exit Selection" : "Bulk Select"}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingMenuItem(null);
+                    setShowMenuItemForm(true);
+                  }}
+                  aria-label="Add new menu item"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Menu Item
                 </Button>
               </div>
+            </div>
 
-              <div className="text-sm mb-2">
-                <span className={validationResults.summary.errors > 0 ? "text-red-700" : "text-yellow-700"}>
-                  {validationResults.summary.errors} errors, {validationResults.summary.warnings} warnings
-                </span>
+            {/* Search and Filter Controls */}
+            <div className="mt-4 flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input type="search" placeholder="Search by name, description, or ingredients..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
               </div>
+              <Select value={selectedCategory} onValueChange={value => setSelectedCategory(value as MenuItemCategory | "all")}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {MENU_CATEGORIES.map(category => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              {showValidationPanel && (
-                <div className="space-y-2 max-h-80 overflow-y-auto border rounded-md bg-white/50 p-2">
-                  {validationResults.issues.map((issue, index) => (
-                    <div key={index} className={`p-3 rounded-md text-sm border-l-4 ${
-                      issue.type === "error" 
-                        ? "bg-red-50 border-l-red-500 text-red-900" 
-                        : issue.type === "warning"
-                        ? "bg-yellow-50 border-l-yellow-500 text-yellow-900"
-                        : "bg-blue-50 border-l-blue-500 text-blue-900"
-                    }`}>
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 mt-0.5">
-                          {issue.type === "error" ? (
-                            <span className="text-red-600 font-bold">❌</span>
-                          ) : issue.type === "warning" ? (
-                            <span className="text-yellow-600 font-bold">⚠️</span>
-                          ) : (
-                            <span className="text-blue-600 font-bold">ℹ️</span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold mb-1">{issue.materialName || "System"}</div>
-                          <div className="mb-2">{issue.message}</div>
-                          {issue.suggestion && (
-                            <div className="mt-2 p-2 bg-white/70 rounded text-xs border-l-2 border-l-gray-300">
-                              <span className="font-medium text-gray-600">💡 Suggestion:</span> {issue.suggestion}
-                            </div>
-                          )}
+            {/* Validation Results Panel */}
+            {dataValidationEnabled && validationResults && (validationResults.summary.errors > 0 || validationResults.summary.warnings > 0) && (
+              <div className={`mt-4 p-4 rounded-lg border ${validationResults.summary.errors > 0 ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {validationResults.summary.errors > 0 ? <AlertTriangle className="h-5 w-5 text-red-600" /> : <AlertTriangle className="h-5 w-5 text-yellow-600" />}
+                    <h3 className={`font-medium ${validationResults.summary.errors > 0 ? "text-red-800" : "text-yellow-800"}`}>Data Validation Issues Found</h3>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => setShowValidationPanel(!showValidationPanel)} className="text-xs">
+                    {showValidationPanel ? "Hide Details" : "Show Details"}
+                  </Button>
+                </div>
+
+                <div className="text-sm mb-2">
+                  <span className={validationResults.summary.errors > 0 ? "text-red-700" : "text-yellow-700"}>
+                    {validationResults.summary.errors} errors, {validationResults.summary.warnings} warnings
+                  </span>
+                </div>
+
+                {showValidationPanel && (
+                  <div className="space-y-2 max-h-80 overflow-y-auto border rounded-md bg-white/50 p-2">
+                    {validationResults.issues.map((issue, index) => (
+                      <div key={index} className={`p-3 rounded-md text-sm border-l-4 ${issue.type === "error" ? "bg-red-50 border-l-red-500 text-red-900" : issue.type === "warning" ? "bg-yellow-50 border-l-yellow-500 text-yellow-900" : "bg-blue-50 border-l-blue-500 text-blue-900"}`}>
+                        <div className="flex items-start gap-2">
+                          <div className="flex-shrink-0 mt-0.5">{issue.type === "error" ? <span className="text-red-600 font-bold">❌</span> : issue.type === "warning" ? <span className="text-yellow-600 font-bold">⚠️</span> : <span className="text-blue-600 font-bold">ℹ️</span>}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold mb-1">{issue.materialName || "System"}</div>
+                            <div className="mb-2">{issue.message}</div>
+                            {issue.suggestion && (
+                              <div className="mt-2 p-2 bg-white/70 rounded text-xs border-l-2 border-l-gray-300">
+                                <span className="font-medium text-gray-600">💡 Suggestion:</span> {issue.suggestion}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  <div className="text-xs text-center py-2 text-gray-500 border-t">
-                    Showing all {validationResults.issues.length} validation issues
+                    ))}
+                    <div className="text-xs text-center py-2 text-gray-500 border-t">Showing all {validationResults.issues.length} validation issues</div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
 
-          {/* Results Counter */}
-          {(searchTerm || selectedCategory !== "all") && (
-            <div className="mt-2 text-sm text-muted-foreground">
-              Showing {filteredMenuItems.length} of {menuItems.length} menu items
-              {searchTerm && ` matching "${searchTerm}"`}
-              {selectedCategory !== "all" && ` in ${MENU_CATEGORIES.find(c => c.value === selectedCategory)?.label}`}
-            </div>
-          )}
-        </CardHeader>
-        <CardContent className="flex-1 flex flex-col overflow-hidden p-6">
-          <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
-            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
-              <DialogHeader>
-                <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
-              </DialogHeader>
-              <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} stockEntries={stockEntries} />
-            </DialogContent>
-          </Dialog>
+            {/* Results Counter */}
+            {(searchTerm || selectedCategory !== "all") && (
+              <div className="mt-2 text-sm text-muted-foreground">
+                Showing {filteredMenuItems.length} of {menuItems.length} menu items
+                {searchTerm && ` matching "${searchTerm}"`}
+                {selectedCategory !== "all" && ` in ${MENU_CATEGORIES.find(c => c.value === selectedCategory)?.label}`}
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col overflow-hidden p-6">
+            <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
+              <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
+                <DialogHeader>
+                  <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
+                </DialogHeader>
+                <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} stockEntries={stockEntries} />
+              </DialogContent>
+            </Dialog>
 
-          <div className="flex-1 flex flex-col min-h-0 border rounded-md">
-            <div className="flex-1 overflow-auto">
-              <Table className="min-w-full">
-                <TableHeader className="sticky top-0 bg-background z-10 border-b">
-                  <TableRow>
-                  {bulkSelectionMode && (
-                    <TableHead className="w-12">
-                      <input type="checkbox" checked={selectedMenuItems.size === filteredMenuItems.length && filteredMenuItems.length > 0} onChange={handleSelectAllMenuItems} className="h-4 w-4" aria-label="Select all menu items" />
-                    </TableHead>
-                  )}
-                  <TableHead className="min-w-[80px]">Image</TableHead>
-                  <TableHead className="min-w-[200px]">Name</TableHead>
-                  <TableHead className="min-w-[150px]">Category</TableHead>
-                  <TableHead className="min-w-[200px]">Ingredients</TableHead>
-                  <TableHead className="min-w-[120px]">Cost</TableHead>
-                  <TableHead className="min-w-[120px]">Price</TableHead>
-                  <TableHead className="min-w-[120px]">Profit</TableHead>
-                  <TableHead className="text-right min-w-[200px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMenuItems.length > 0 ? (
-                  filteredMenuItems.map(item => {
-                    const totalCost = calculateMenuItemCost(item.ingredients);
-                    const profit = item.price - totalCost;
-                    const profitMargin = item.price ? (profit / item.price) * 100 : 0;
+            <div className="flex-1 flex flex-col min-h-0 border rounded-md">
+              <div className="flex-1 overflow-auto">
+                <Table className="min-w-full">
+                  <TableHeader className="sticky top-0 bg-background z-10 border-b">
+                    <TableRow>
+                      {bulkSelectionMode && (
+                        <TableHead className="w-12">
+                          <input type="checkbox" checked={selectedMenuItems.size === filteredMenuItems.length && filteredMenuItems.length > 0} onChange={handleSelectAllMenuItems} className="h-4 w-4" aria-label="Select all menu items" />
+                        </TableHead>
+                      )}
+                      <TableHead className="min-w-[80px]">Image</TableHead>
+                      <TableHead className="min-w-[200px]">Name</TableHead>
+                      <TableHead className="min-w-[150px]">Category</TableHead>
+                      <TableHead className="min-w-[200px]">Ingredients</TableHead>
+                      <TableHead className="min-w-[120px]">Cost</TableHead>
+                      <TableHead className="min-w-[120px]">Price</TableHead>
+                      <TableHead className="min-w-[120px]">Profit</TableHead>
+                      <TableHead className="text-right min-w-[200px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMenuItems.length > 0 ? (
+                      filteredMenuItems.map(item => {
+                        const totalCost = calculateMenuItemCost(item.ingredients);
+                        const profit = item.price - totalCost;
+                        const profitMargin = item.price ? (profit / item.price) * 100 : 0;
 
-                    const isSelected = selectedRowId === item.id;
+                        const isSelected = selectedRowId === item.id;
 
-                    return (
-                      <TableRow key={item.id} onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : () => handleRowClick(item.id)} className={`cursor-pointer transition-colors ${isSelected ? "bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100" : selectedMenuItems.has(item.id) ? "bg-green-50 border-l-4 border-l-green-500 hover:bg-green-100" : "hover:bg-muted/50"}`}>
-                        {bulkSelectionMode && (
-                          <TableCell className="w-12">
-                            <input type="checkbox" checked={selectedMenuItems.has(item.id)} onChange={() => handleSelectMenuItem(item.id)} className="h-4 w-4" aria-label={`Select ${item.name}`} onClick={e => e.stopPropagation()} />
-                          </TableCell>
-                        )}
-                        <TableCell className="min-w-[80px]">
-                          {item.image ? (
-                            <img src={item.image} alt={item.name} className="w-12 h-12 object-cover rounded-md border" />
-                          ) : (
-                            <div className="w-12 h-12 bg-gray-100 rounded-md border flex items-center justify-center">
-                              <Package className="h-6 w-6 text-gray-400" />
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium min-w-[200px]">
-                          <div>{highlightText(item.name, searchTerm)}</div>
-                          {item.description && <div className="text-sm text-muted-foreground">{highlightText(item.description, searchTerm)}</div>}
-                        </TableCell>
-                        <TableCell className="min-w-[150px]">{MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}</TableCell>
-                        <TableCell className="min-w-[200px]">
-                          <div className="space-y-1">
-                            {item.ingredients.map((ingredient, idx) => {
-                              const materialName = getMaterialName(ingredient.materialId);
-                              return (
-                                <div key={idx} className="text-sm">
-                                  {formatNumber(ingredient.quantity)} {ingredient.unit} {highlightText(materialName, searchTerm)}
+                        return (
+                          <TableRow key={item.id} onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : () => handleRowClick(item.id)} className={`cursor-pointer transition-colors ${isSelected ? "bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100" : selectedMenuItems.has(item.id) ? "bg-green-50 border-l-4 border-l-green-500 hover:bg-green-100" : "hover:bg-muted/50"}`}>
+                            {bulkSelectionMode && (
+                              <TableCell className="w-12">
+                                <input type="checkbox" checked={selectedMenuItems.has(item.id)} onChange={() => handleSelectMenuItem(item.id)} className="h-4 w-4" aria-label={`Select ${item.name}`} onClick={e => e.stopPropagation()} />
+                              </TableCell>
+                            )}
+                            <TableCell className="min-w-[80px]">
+                              {item.image ? (
+                                <img src={item.image} alt={item.name} className="w-12 h-12 object-cover rounded-md border" />
+                              ) : (
+                                <div className="w-12 h-12 bg-gray-100 rounded-md border flex items-center justify-center">
+                                  <Package className="h-6 w-6 text-gray-400" />
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </TableCell>
-                        <TableCell className="min-w-[120px]">{formatCurrency(totalCost)}</TableCell>
-                        <TableCell className="min-w-[120px]">{formatCurrency(item.price)}</TableCell>
-                        <TableCell className={`min-w-[120px] ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
-                          {formatCurrency(profit)} ({formatNumber(profitMargin)}%)
-                        </TableCell>
-                        <TableCell className="text-right min-w-[200px]">
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              size="sm"
-                              variant={item.isPOSItem ? "default" : "outline"}
-                              className={item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleTogglePOSVisibility(item);
-                              }}
-                              title={item.isPOSItem ? "Hide from POS" : "Show in POS"}
-                              aria-label={`${item.isPOSItem ? "Hide from" : "Show in"} POS`}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleOpenPrinterDialog(item);
-                              }}
-                              title={`Assign printer to ${item.name}`}
-                              aria-label={`Assign printer to ${item.name}`}
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setEditingMenuItem(item);
-                                setShowMenuItemForm(true);
-                              }}
-                              aria-label={`Edit ${item.name}`}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
-                                  <Trash2 className="h-4 w-4" />
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium min-w-[200px]">
+                              <div>{highlightText(item.name, searchTerm)}</div>
+                              {item.description && <div className="text-sm text-muted-foreground">{highlightText(item.description, searchTerm)}</div>}
+                            </TableCell>
+                            <TableCell className="min-w-[150px]">{MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}</TableCell>
+                            <TableCell className="min-w-[200px]">
+                              <div className="space-y-1">
+                                {item.ingredients.map((ingredient, idx) => {
+                                  const materialName = getMaterialName(ingredient.materialId);
+                                  return (
+                                    <div key={idx} className="text-sm">
+                                      {formatNumber(ingredient.quantity)} {ingredient.unit} {highlightText(materialName, searchTerm)}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </TableCell>
+                            <TableCell className="min-w-[120px]">{formatCurrency(totalCost)}</TableCell>
+                            <TableCell className="min-w-[120px]">{formatCurrency(item.price)}</TableCell>
+                            <TableCell className={`min-w-[120px] ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
+                              {formatCurrency(profit)} ({formatNumber(profitMargin)}%)
+                            </TableCell>
+                            <TableCell className="text-right min-w-[200px]">
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  size="sm"
+                                  variant={item.isPOSItem ? "default" : "outline"}
+                                  className={item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleTogglePOSVisibility(item);
+                                  }}
+                                  title={item.isPOSItem ? "Hide from POS" : "Show in POS"}
+                                  aria-label={`${item.isPOSItem ? "Hide from" : "Show in"} POS`}
+                                >
+                                  <Eye className="h-4 w-4" />
                                 </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                                  <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleOpenPrinterDialog(item);
+                                  }}
+                                  title={`Assign printer to ${item.name}`}
+                                  aria-label={`Assign printer to ${item.name}`}
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingMenuItem(item);
+                                    setShowMenuItemForm(true);
+                                  }}
+                                  aria-label={`Edit ${item.name}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                                      <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={bulkSelectionMode ? 9 : 8} className="text-center py-8">
+                          <div className="flex flex-col items-center justify-center space-y-2">
+                            <Package className="h-12 w-12 text-muted-foreground" />
+                            <p className="text-lg font-medium">No menu items found</p>
+                            <p className="text-sm text-muted-foreground">{searchTerm ? "Try a different search term" : "Create your first menu item"}</p>
+                            <Button className="mt-4" onClick={() => setShowMenuItemForm(true)}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Menu Item
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={bulkSelectionMode ? 9 : 8} className="text-center py-8">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <Package className="h-12 w-12 text-muted-foreground" />
-                        <p className="text-lg font-medium">No menu items found</p>
-                        <p className="text-sm text-muted-foreground">{searchTerm ? "Try a different search term" : "Create your first menu item"}</p>
-                        <Button className="mt-4" onClick={() => setShowMenuItemForm(true)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Menu Item
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Floating Action Buttons - Mobile and Tablet */}
+      <div className="xl:hidden">
+        {/* Primary FAB - Add Menu Item */}
+        <Button
+          size="lg"
+          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+          onClick={() => {
+            setEditingMenuItem(null);
+            setShowMenuItemForm(true);
+          }}
+          aria-label="Add new menu item"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
+
+        {/* Secondary FAB - Bulk Selection Toggle */}
+        <Button size="lg" variant={bulkSelectionMode ? "destructive" : "secondary"} className="fixed bottom-6 right-24 z-50 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" onClick={handleToggleBulkSelection} aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}>
+          <Check className="h-5 w-5" />
+        </Button>
+
+        {/* Validation FAB - Only show when validation is enabled */}
+        {dataValidationEnabled && (
+          <Button
+            size="lg"
+            variant="outline"
+            className={`fixed bottom-6 right-36 z-50 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 ${validationResults && !validationResults.isValid ? "border-red-500 text-red-600 bg-red-50 hover:bg-red-100" : validationResults && validationResults.summary.warnings > 0 ? "border-yellow-500 text-yellow-600 bg-yellow-50 hover:bg-yellow-100" : "border-green-500 text-green-600 bg-green-50 hover:bg-green-100"}`}
+            onClick={runValidation}
+            aria-label="Validate inventory data"
+            title="Run manual data validation"
+          >
+            {validationResults && !validationResults.isValid ? <AlertTriangle className="h-5 w-5" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
+          </Button>
+        )}
+
+        {/* Bulk Selection Actions - Show when in bulk mode */}
+        {bulkSelectionMode && (
+          <>
+            {/* Select All FAB */}
+            <Button size="sm" variant="outline" className="fixed bottom-24 right-6 z-50 h-10 px-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 bg-background" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0} aria-label={selectedMenuItems.size === filteredMenuItems.length ? "Deselect all items" : "Select all items"}>
+              <Check className="h-4 w-4 mr-2" />
+              <span className="text-xs">{selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}</span>
+            </Button>
+
+            {/* Assign Printer FAB */}
+            <Button size="sm" variant="outline" className="fixed bottom-36 right-6 z-50 h-10 px-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 bg-background" onClick={handleOpenBulkPrinterDialog} disabled={selectedMenuItems.size === 0} aria-label={`Assign printer to ${selectedMenuItems.size} selected items`}>
+              <Printer className="h-4 w-4 mr-2" />
+              <span className="text-xs">Printer ({selectedMenuItems.size})</span>
+            </Button>
+
+            {/* Update Category FAB */}
+            <Button size="sm" variant="outline" className="fixed bottom-48 right-6 z-50 h-10 px-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 bg-background" onClick={handleOpenBulkCategoryDialog} disabled={selectedMenuItems.size === 0} aria-label={`Update category for ${selectedMenuItems.size} selected items`}>
+              <Tag className="h-4 w-4 mr-2" />
+              <span className="text-xs">Category ({selectedMenuItems.size})</span>
+            </Button>
+          </>
+        )}
+      </div>
 
       {/* Printer Assignment Dialog */}
       <PrinterAssignmentDialog open={showPrinterDialog} onOpenChange={setShowPrinterDialog} item={selectedMenuItemForPrinter} itemType="menu" onAssignmentChange={handlePrinterAssignmentComplete} />
@@ -953,6 +977,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );  
+    </>
+  );
 };

@@ -172,72 +172,172 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   }, []);
 
   return (
-    <Card className="w-full max-w-4xl mx-auto shadow-lg border-0 bg-gradient-to-br from-white to-gray-50/50">
-      <CardContent className="p-6">
-        <div className="text-center pb-4 border-b border-gray-200 mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Stock Management</h2>
+    <div className="w-full h-full flex flex-col bg-background">
+      {/* Header */}
+      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b bg-white">
+        <div className="text-center">
+          <h2 className="text-xl sm:text-2xl font-semibold text-foreground">Stock Management</h2>
+          <p className="text-sm text-muted-foreground mt-1">Manage your inventory stock entries</p>
         </div>
+      </div>
 
+      {/* Tabs Navigation */}
+      <div className="flex-shrink-0 px-4 sm:px-6 py-4 bg-muted/30">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-100 p-1 rounded-lg mb-6">
+          <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-background border shadow-sm">
             {stockEntry ? (
               <>
-                <TabsTrigger value="update-entry" className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200">
-                  <Package className="h-4 w-4" />
-                  Update Entry
+                <TabsTrigger 
+                  value="update-entry" 
+                  className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-muted"
+                >
+                  <Package className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Update Entry</span>
+                  <span className="sm:hidden">Update</span>
                 </TabsTrigger>
-                <TabsTrigger value="add-to-entry" className="flex items-center gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200">
-                  <TrendingUp className="h-4 w-4" />
-                  Add to This Entry
+                <TabsTrigger 
+                  value="add-to-entry" 
+                  className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-muted"
+                >
+                  <TrendingUp className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Add to Entry</span>
+                  <span className="sm:hidden">Add</span>
                 </TabsTrigger>
-                <TabsTrigger value="waste-from-entry" className="flex items-center gap-2 data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200">
-                  <Trash2 className="h-4 w-4" />
-                  Record Waste
+                <TabsTrigger 
+                  value="waste-from-entry" 
+                  className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-muted"
+                >
+                  <Trash2 className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Record Waste</span>
+                  <span className="sm:hidden">Waste</span>
                 </TabsTrigger>
               </>
             ) : (
               <>
-                <TabsTrigger value="new-stock" className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200">
-                  <Plus className="h-4 w-4" />
-                  New Stock Entry
+                <TabsTrigger 
+                  value="new-stock" 
+                  className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-muted"
+                >
+                  <Plus className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">New Stock</span>
+                  <span className="sm:hidden">New</span>
                 </TabsTrigger>
-                <TabsTrigger value="add-stock" className="flex items-center gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200">
-                  <TrendingUp className="h-4 w-4" />
-                  Add Stock
+                <TabsTrigger 
+                  value="add-stock" 
+                  className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-muted"
+                >
+                  <TrendingUp className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Add Stock</span>
+                  <span className="sm:hidden">Add</span>
                 </TabsTrigger>
-                <TabsTrigger value="record-waste" className="flex items-center gap-2 data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200">
-                  <Trash2 className="h-4 w-4" />
-                  Record Waste
+                <TabsTrigger 
+                  value="record-waste" 
+                  className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-muted"
+                >
+                  <Trash2 className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Record Waste</span>
+                  <span className="sm:hidden">Waste</span>
                 </TabsTrigger>
               </>
             )}
           </TabsList>
 
-          <TabsContent value="new-stock">
-            <NewStockTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} stockEntry={stockEntry} onSubmit={onSubmit} onCancel={onCancel} />
-          </TabsContent>
+          {/* Tab Content Area */}
+          <div className="flex-1 overflow-hidden mt-4">
+            <div className="h-full overflow-y-auto">
+              <TabsContent value="new-stock" className="mt-0 h-full">
+                <div className="px-4 sm:px-6 py-4">
+                  <NewStockTab 
+                    form={form} 
+                    materials={materials} 
+                    availableUnits={availableUnits} 
+                    selectedMaterial={selectedMaterial} 
+                    watchedQuantity={watchedQuantity} 
+                    watchedCostPerUnit={watchedCostPerUnit} 
+                    stockEntry={stockEntry} 
+                    onSubmit={onSubmit} 
+                    onCancel={onCancel} 
+                  />
+                </div>
+              </TabsContent>
 
-          <TabsContent value="add-stock">
-            <AddStockTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} onAddStock={onAddStock} onCancel={onCancel} />
-          </TabsContent>
+              <TabsContent value="add-stock" className="mt-0 h-full">
+                <div className="px-4 sm:px-6 py-4">
+                  <AddStockTab 
+                    form={form} 
+                    materials={materials} 
+                    availableUnits={availableUnits} 
+                    selectedMaterial={selectedMaterial} 
+                    watchedQuantity={watchedQuantity} 
+                    watchedCostPerUnit={watchedCostPerUnit} 
+                    onAddStock={onAddStock} 
+                    onCancel={onCancel} 
+                  />
+                </div>
+              </TabsContent>
 
-          <TabsContent value="update-entry">
-            <UpdateEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} stockEntry={stockEntry} onSubmit={onSubmit} onCancel={onCancel} />
-          </TabsContent>
+              <TabsContent value="update-entry" className="mt-0 h-full">
+                <div className="px-4 sm:px-6 py-4">
+                  <UpdateEntryTab 
+                    form={form} 
+                    materials={materials} 
+                    availableUnits={availableUnits} 
+                    selectedMaterial={selectedMaterial} 
+                    watchedQuantity={watchedQuantity} 
+                    watchedCostPerUnit={watchedCostPerUnit} 
+                    stockEntry={stockEntry} 
+                    onSubmit={onSubmit} 
+                    onCancel={onCancel} 
+                  />
+                </div>
+              </TabsContent>
 
-          <TabsContent value="add-to-entry">
-            <AddToEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} stockEntry={stockEntry} onAddToSpecificEntry={onAddToSpecificEntry} onCancel={onCancel} />
-          </TabsContent>
+              <TabsContent value="add-to-entry" className="mt-0 h-full">
+                <div className="px-4 sm:px-6 py-4">
+                  <AddToEntryTab 
+                    form={form} 
+                    materials={materials} 
+                    availableUnits={availableUnits} 
+                    selectedMaterial={selectedMaterial} 
+                    watchedQuantity={watchedQuantity} 
+                    watchedCostPerUnit={watchedCostPerUnit} 
+                    stockEntry={stockEntry} 
+                    onAddToSpecificEntry={onAddToSpecificEntry} 
+                    onCancel={onCancel} 
+                  />
+                </div>
+              </TabsContent>
 
-          <TabsContent value="waste-from-entry">
-            <WasteFromEntryTab2 form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
-          </TabsContent>
+              <TabsContent value="waste-from-entry" className="mt-0 h-full">
+                <div className="px-4 sm:px-6 py-4">
+                  <WasteFromEntryTab2 
+                    form={form} 
+                    materials={materials} 
+                    availableUnits={availableUnits} 
+                    selectedMaterial={selectedMaterial} 
+                    stockEntry={stockEntry} 
+                    onRecordWaste={handleWasteFromEntry} 
+                    onCancel={onCancel} 
+                  />
+                </div>
+              </TabsContent>
 
-          <TabsContent value="record-waste">
-            <RecordWasteTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} onRecordWaste={onRecordWaste} onCancel={onCancel} />
-          </TabsContent>
+              <TabsContent value="record-waste" className="mt-0 h-full">
+                <div className="px-4 sm:px-6 py-4">
+                  <RecordWasteTab 
+                    form={form} 
+                    materials={materials} 
+                    availableUnits={availableUnits} 
+                    selectedMaterial={selectedMaterial} 
+                    onRecordWaste={onRecordWaste} 
+                    onCancel={onCancel} 
+                  />
+                </div>
+              </TabsContent>
+            </div>
+          </div>
         </Tabs>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

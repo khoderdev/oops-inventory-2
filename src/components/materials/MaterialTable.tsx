@@ -109,11 +109,11 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
 
   return (
     <>
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col p-2">
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between p-4 sm:px-6 space-y-4 border">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-4 px-5">
           {/* Title Section */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 ">
             <div className="space-y-1">
               <h1 className="text-2xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Materials</h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -161,7 +161,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
         </div>
 
         {/* Content Section */}
-        <div ref={scrollContainerRef} className="px-4 sm:px-6 pb-4 sm:pb-6 flex-1 overflow-hidden overflow-y-auto relative">
+        <div ref={scrollContainerRef} className="flex-1 overflow-hidden overflow-y-auto relative">
           {/* Mobile Card View */}
           <div className="lg:hidden space-y-4">
             {searchFilteredMaterials.map(material => {
@@ -256,10 +256,10 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
           </div>
 
           {/* Desktop Table View */}
-          <div className="hidden lg:block">
-            <div className="w-full h-[calc(100vh-260px)] border rounded-lg overflow-hidden bg-white shadow-sm">
+          <div className="hidden lg:block px-4">
+            <div className="w-full h-[calc(100vh-210px)] rounded-lg border overflow-hidden bg-white shadow-sm">
               <Table className="w-full">
-                <TableHeader className="bg-gray-50/80 sticky top-0 z-10">
+                <TableHeader className="bg-gray-100 sticky top-0 z-10">
                   <TableRow className="border-b border-gray-200">
                     <TableHead className="w-[25%] px-6 py-4 text-left font-semibold text-gray-900">
                       <Button 
