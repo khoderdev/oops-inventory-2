@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { usePrefetch } from "@/hooks/usePrefetch";
@@ -16,8 +17,8 @@ import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
 import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial, StockFormData, AddStockData, RecordWasteData, MaterialWithStock } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
-import { AlertTriangle, Check, Edit, Eye, FileText, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, Check, Edit, Eye, FileText, Plus, Printer, RefreshCw, Search, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useAtom } from "jotai";
 import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from "@/store/inventoryAtoms";
 import { StockForm } from "@/components/stock/StockForm";
@@ -32,6 +33,12 @@ export function StockEntriesTable() {
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const [sortField, setSortField] = useState<"materialName" | "supplier" | "purchaseDate">("purchaseDate");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [showFloatingButton, setShowFloatingButton] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [negativeStockReport, setNegativeStockReport] = useState<NegativeStockReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -41,6 +48,40 @@ export function StockEntriesTable() {
   const [selectedStockEntries, setSelectedStockEntries] = useState<Set<string>>(new Set());
   const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
   const materialsMap = new Map(materials.map(m => [m.id, m]));
+
+  // Handle sorting
+  const handleSort = (field: "materialName" | "supplier" | "purchaseDate") => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // Handle scroll for floating button
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollContainer = scrollContainerRef.current;
+      if (!scrollContainer) return;
+
+      const currentScrollY = scrollContainer.scrollTop;
+      
+      if (currentScrollY < lastScrollY || currentScrollY < 50) {
+        setShowFloatingButton(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setShowFloatingButton(false);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+      return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, [lastScrollY]);
 
   // Handler functions
   const handleEditStockEntry = (stockEntry: StockEntry) => {
@@ -173,6 +214,10 @@ export function StockEntriesTable() {
     }
   };
 
+  // Get unique suppliers for filter
+  const uniqueSuppliers = Array.from(new Set(stockEntries.map(entry => entry.supplier).filter(Boolean)));
+
+  // Filter and sort stock entries
   const stockEntriesWithMaterial = stockEntries
     .map(entry => ({
       ...entry,
@@ -182,7 +227,36 @@ export function StockEntriesTable() {
       const materialName = entry.material?.name;
       const supplier = entry.supplier;
       const searchLower = searchTerm.toLowerCase();
-      return !searchTerm || materialName?.toLowerCase().includes(searchLower) || supplier?.toLowerCase().includes(searchLower);
+      const matchesSearch = !searchTerm || materialName?.toLowerCase().includes(searchLower) || supplier?.toLowerCase().includes(searchLower);
+      const matchesSupplier = supplierFilter === "all" || entry.supplier === supplierFilter;
+      return matchesSearch && matchesSupplier;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortField) {
+        case "materialName": {
+          const nameA = a.material?.name || "";
+          const nameB = b.material?.name || "";
+          comparison = nameA.localeCompare(nameB);
+          break;
+        }
+        case "supplier": {
+          const supplierA = a.supplier || "";
+          const supplierB = b.supplier || "";
+          comparison = supplierA.localeCompare(supplierB);
+          break;
+        }
+        case "purchaseDate":
+        default: {
+          const dateA = new Date(a.purchaseDate || 0).getTime();
+          const dateB = new Date(b.purchaseDate || 0).getTime();
+          comparison = dateA - dateB;
+          break;
+        }
+      }
+
+      return sortDirection === "asc" ? comparison : -comparison;
     });
 
   const hasNegativeStock = (entry: (typeof stockEntriesWithMaterial)[0]) => {
@@ -461,83 +535,102 @@ export function StockEntriesTable() {
 
   return (
     <>
-      <div className="h-full flex flex-col bg-white">
+      <div className="h-full flex flex-col">
         {/* Header Section */}
-        <div className="px-4 py-6 border-b border-gray-200">
+        <div className="p-4 sm:p-6 space-y-4">
           {/* Title Section */}
-          <div className="flex flex-col space-y-0">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex flex-col space-y-2">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Stock Entries</h1>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                  <span>Total: {stockEntries.length} entries</span>
-                  {searchTerm && <span className="text-blue-600">Filtered: {stockEntriesWithMaterial.length} results</span>}
-                  {negativeStockCount > 0 && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-700 rounded-full border border-red-200">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      <span className="font-medium">
-                        {negativeStockCount} negative
-                        {virtualEntryCount > 0 && ` (${virtualEntryCount} virtual)`}
-                      </span>
-                    </div>
-                  )}
-                </div>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Stock Entries</h1>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                <span>Total: {stockEntries.length} entries</span>
+                {(searchTerm || supplierFilter !== "all") && (
+                  <span className="text-blue-600 font-medium">
+                    Filtered: {stockEntriesWithMaterial.length} results
+                    {supplierFilter !== "all" && ` (${supplierFilter})`}
+                  </span>
+                )}
+                {negativeStockCount > 0 && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-700 rounded-full border border-red-200">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span className="font-medium">
+                      {negativeStockCount} negative
+                      {virtualEntryCount > 0 && ` (${virtualEntryCount} virtual)`}
+                    </span>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
 
-              {/* Primary Action */}
-              <Button onClick={handleAddStock} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Stock
-              </Button>
+          {/* Action Bar */}
+          <div className="flex items-center gap-3">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+              <Input 
+                placeholder="Search by material name or supplier..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+                className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem]" 
+              />
             </div>
 
-            {/* Action Bar */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              {/* Search Input */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input placeholder="Search by material name or supplier..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500" />
-              </div>
+            {/* Supplier Filter */}
+            <div className="w-fit shrink-0">
+              <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+                <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-full">
+                  <SelectValue placeholder="All Suppliers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Suppliers</SelectItem>
+                  {uniqueSuppliers.map(supplier => (
+                    <SelectItem key={supplier} value={supplier}>
+                      {supplier}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2">
-                {bulkSelectionMode && (
-                  <>
-                    <Button size="sm" variant="outline" onClick={handleSelectAllStockEntries} disabled={stockEntriesWithMaterial.length === 0} className="border-gray-200 hover:border-gray-300">
-                      <Check className="h-4 w-4 mr-1.5" />
-                      <span className="hidden sm:inline">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect All" : "Select All"}</span>
-                      <span className="sm:hidden">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect" : "Select"}</span>
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleOpenBulkPrinterDialog} disabled={selectedStockEntries.size === 0} className="border-gray-200 hover:border-gray-300">
-                      <Printer className="h-4 w-4 mr-1.5" />
-                      <span className="hidden sm:inline">Assign Printer ({selectedStockEntries.size})</span>
-                      <span className="sm:hidden">Printer ({selectedStockEntries.size})</span>
-                    </Button>
-                  </>
-                )}
-
-                <Button size="sm" variant={bulkSelectionMode ? "default" : "outline"} onClick={handleToggleBulkSelection} className={bulkSelectionMode ? "bg-blue-600 hover:bg-blue-700" : "border-gray-200 hover:border-gray-300"}>
-                  <Check className="h-4 w-4 mr-1.5" />
-                  <span className="hidden sm:inline">{bulkSelectionMode ? "Exit Selection" : "Bulk Select"}</span>
-                  <span className="sm:hidden">{bulkSelectionMode ? "Exit" : "Select"}</span>
-                </Button>
-
-                {negativeStockCount > 0 && (
-                  <Button variant="outline" size="sm" onClick={fetchNegativeStockReport} disabled={loadingReport} className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300">
-                    {loadingReport ? <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
-                    <span className="hidden sm:inline">Negative Stock Report</span>
-                    <span className="sm:hidden">Report</span>
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-2">
+              {bulkSelectionMode && (
+                <>
+                  <Button size="sm" variant="outline" onClick={handleSelectAllStockEntries} disabled={stockEntriesWithMaterial.length === 0} className="border-gray-200 hover:border-gray-300">
+                    <Check className="h-4 w-4 mr-1.5" />
+                    <span className="hidden sm:inline">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect All" : "Select All"}</span>
+                    <span className="sm:hidden">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect" : "Select"}</span>
                   </Button>
-                )}
-              </div>
+                  <Button size="sm" variant="outline" onClick={handleOpenBulkPrinterDialog} disabled={selectedStockEntries.size === 0} className="border-gray-200 hover:border-gray-300">
+                    <Printer className="h-4 w-4 mr-1.5" />
+                    <span className="hidden sm:inline">Assign Printer ({selectedStockEntries.size})</span>
+                    <span className="sm:hidden">Printer ({selectedStockEntries.size})</span>
+                  </Button>
+                </>
+              )}
+
+              <Button size="sm" variant={bulkSelectionMode ? "default" : "outline"} onClick={handleToggleBulkSelection} className={bulkSelectionMode ? "bg-blue-600 hover:bg-blue-700" : "border-gray-200 hover:border-gray-300"}>
+                <Check className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">{bulkSelectionMode ? "Exit Selection" : "Bulk Select"}</span>
+                <span className="sm:hidden">{bulkSelectionMode ? "Exit" : "Select"}</span>
+              </Button>
+
+              {negativeStockCount > 0 && (
+                <Button variant="outline" size="sm" onClick={fetchNegativeStockReport} disabled={loadingReport} className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300">
+                  {loadingReport ? <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+                  <span className="hidden sm:inline">Negative Stock Report</span>
+                  <span className="sm:hidden">Report</span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
 
         {/* Content Section */}
-        <div className="p-2 sm:p-4 lg:px-6 flex-1 overflow-hidden">
+        <div ref={scrollContainerRef} className="px-4 sm:px-6 pb-4 sm:pb-6 flex-1 overflow-hidden overflow-y-auto relative">
           {/* Mobile Card View */}
-          <div className="block lg:hidden h-full overflow-y-auto space-y-3 pr-2">
+          <div className="lg:hidden space-y-4">
             {stockEntriesWithMaterial.map(entry => {
               const material = materialsMap.get(entry.materialId);
               const isNegative = hasNegativeStock(entry);
@@ -546,7 +639,7 @@ export function StockEntriesTable() {
               const isExpiringSoon = isExpiringSoonEntry(entry);
 
               return (
-                <div key={entry.id} className={`p-3 bg-gray-100 rounded-lg border-l-4 shadow-sm ${isNegative ? "border-l-red-500 bg-red-50" : isVirtual ? "border-l-orange-500 bg-orange-50" : isExpired ? "border-l-gray-500 bg-gray-50" : isExpiringSoon ? "border-l-yellow-500 bg-yellow-50" : "border-l-green-500"}`}>
+                <div key={entry.id} className={`p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow ${isNegative ? "border-l-4 border-l-red-500" : isVirtual ? "border-l-4 border-l-orange-500" : isExpired ? "border-l-4 border-l-gray-500" : isExpiringSoon ? "border-l-4 border-l-yellow-500" : ""}`}>
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
                       <h3 className="font-semibold text-sm">{material?.name || "Unknown Material"}</h3>
@@ -616,44 +709,97 @@ export function StockEntriesTable() {
 
           {/* Desktop Table View */}
           <div className="hidden lg:block">
-            <div className="w-full h-[calc(100vh-310px)] border rounded-md overflow-x-auto">
-              <div className="min-w-full h-full flex flex-col">
-                {/* Fixed Header */}
-                <div className="flex-shrink-0 bg-background border-b">
-                  <Table className="min-w-full">
-                    <TableHeader>
-                      <TableRow>
-                        {bulkSelectionMode && (
-                          <TableHead className="w-12 bg-background">
-                            <input type="checkbox" checked={selectedStockEntries.size === stockEntriesWithMaterial.length && stockEntriesWithMaterial.length > 0} onChange={handleSelectAllStockEntries} className="h-4 w-4" aria-label="Select all stock entries" />
-                          </TableHead>
-                        )}
-                        <TableHead className="min-w-[200px] bg-background">Material</TableHead>
-                        <TableHead className="min-w-[150px] bg-background">Supplier</TableHead>
-                        <TableHead className="min-w-[150px] bg-background">Remaining Qty</TableHead>
-                        <TableHead className="min-w-[120px] bg-background">Unit</TableHead>
-                        <TableHead className="min-w-[120px] bg-background">Cost/Unit</TableHead>
-                        <TableHead className="min-w-[120px] bg-background">Total Cost</TableHead>
-                        <TableHead className="min-w-[140px] bg-background">Purchase Date</TableHead>
-                        <TableHead className="min-w-[220px] bg-background">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                  </Table>
-                </div>
+            <div className="w-full h-[calc(100vh-260px)] border rounded-lg overflow-hidden bg-white shadow-sm">
+              <Table className="w-full">
+                <TableHeader className="bg-gray-50/80 sticky top-0 z-10">
+                  <TableRow className="border-b border-gray-200">
+                    {bulkSelectionMode && (
+                      <TableHead className="w-12 px-6 py-4 text-left font-semibold text-gray-900">
+                        <input type="checkbox" checked={selectedStockEntries.size === stockEntriesWithMaterial.length && stockEntriesWithMaterial.length > 0} onChange={handleSelectAllStockEntries} className="h-4 w-4" aria-label="Select all stock entries" />
+                      </TableHead>
+                    )}
+                    <TableHead className="w-[20%] px-6 py-4 text-left font-semibold text-gray-900">
+                      <Button 
+                        variant="ghost" 
+                        className="h-auto p-0 font-semibold text-gray-900 hover:text-gray-700 flex items-center justify-between w-full group transition-colors duration-200 hover:bg-transparent" 
+                        onClick={() => handleSort("materialName")}
+                      >
+                        <span>Material Name</span>
+                        <div className="flex items-center justify-center w-5 h-5 ml-2">
+                          {sortField === "materialName" ? (
+                            sortDirection === "asc" ? (
+                              <ChevronUp className="h-4 w-4 text-emerald-600 transition-all duration-200" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-emerald-600 transition-all duration-200" />
+                            )
+                          ) : (
+                            <div className="flex flex-col items-center justify-center opacity-60 group-hover:opacity-80 transition-opacity duration-200">
+                              <ChevronUp className="h-2.5 w-2.5 text-gray-400 -mb-0.5" />
+                              <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                      </Button>
+                    </TableHead>
+                    <TableHead className="w-[15%] px-4 py-4 text-left font-semibold text-gray-900">
+                      <Button 
+                        variant="ghost" 
+                        className="h-auto p-0 font-semibold text-gray-900 hover:text-gray-700 flex items-center justify-between w-full group transition-colors duration-200 hover:bg-transparent" 
+                        onClick={() => handleSort("supplier")}
+                      >
+                        <span>Supplier</span>
+                        <div className="flex items-center justify-center w-5 h-5 ml-2">
+                          {sortField === "supplier" ? (
+                            sortDirection === "asc" ? (
+                              <ChevronUp className="h-4 w-4 text-emerald-600 transition-all duration-200" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-emerald-600 transition-all duration-200" />
+                            )
+                          ) : (
+                            <div className="flex flex-col items-center justify-center opacity-60 group-hover:opacity-80 transition-opacity duration-200">
+                              <ChevronUp className="h-2.5 w-2.5 text-gray-400 -mb-0.5" />
+                              <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                      </Button>
+                    </TableHead>
+                    <TableHead className="w-[12%] px-4 py-4 text-left font-semibold text-gray-900">Remaining Qty</TableHead>
+                    <TableHead className="w-[10%] px-4 py-4 text-left font-semibold text-gray-900">Unit</TableHead>
+                    <TableHead className="w-[10%] px-4 py-4 text-left font-semibold text-gray-900">Cost/Unit</TableHead>
+                    <TableHead className="w-[10%] px-4 py-4 text-left font-semibold text-gray-900">Total Cost</TableHead>
+                    <TableHead className="w-[10%] px-4 py-4 text-left font-semibold text-gray-900">
+                      <Button 
+                        variant="ghost" 
+                        className="h-auto p-0 font-semibold text-gray-900 hover:text-gray-700 flex items-center justify-between w-full group transition-colors duration-200 hover:bg-transparent" 
+                        onClick={() => handleSort("purchaseDate")}
+                      >
+                        <span>Purchase Date</span>
+                        <div className="flex items-center justify-center w-5 h-5 ml-2">
+                          {sortField === "purchaseDate" ? (
+                            sortDirection === "asc" ? (
+                              <ChevronUp className="h-4 w-4 text-emerald-600 transition-all duration-200" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-emerald-600 transition-all duration-200" />
+                            )
+                          ) : (
+                            <div className="flex flex-col items-center justify-center opacity-60 group-hover:opacity-80 transition-opacity duration-200">
+                              <ChevronUp className="h-2.5 w-2.5 text-gray-400 -mb-0.5" />
+                              <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                      </Button>
+                    </TableHead>
+                    <TableHead className="w-[13%] px-6 py-4 text-center font-semibold text-gray-900">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+              </Table>
 
-                {/* Scrollable Body */}
-                <div className="flex-1 overflow-y-auto">
-                  <Table className="min-w-full">
-                    <TableBody>
+              <div className="h-[calc(100%-60px)] overflow-y-auto">
+                <Table className="w-full">
+                  <TableBody>
                       {stockEntriesWithMaterial
-                        .sort((a, b) => {
-                          // Sort negative stock entries to the top, then by purchase date
-                          const aNegative = hasNegativeStock(a);
-                          const bNegative = hasNegativeStock(b);
-                          if (aNegative && !bNegative) return -1;
-                          if (!aNegative && bNegative) return 1;
-                          return new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime();
-                        })
                         .map(entry => {
                           const isNegative = hasNegativeStock(entry);
                           const isVirtual = isVirtualEntry(entry);
@@ -781,7 +927,23 @@ export function StockEntriesTable() {
             </div>
           )}
         </div>
-      </div>
+        
+        {/* Floating Add Button */}
+        <div 
+          className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-in-out transform ${
+            showFloatingButton 
+              ? 'translate-y-0 opacity-100 scale-100' 
+              : 'translate-y-16 opacity-0 scale-95 pointer-events-none'
+          }`}
+        >
+          <Button 
+            onClick={handleAddStock} 
+            className="bg-primary hover:bg-primary/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group"
+            size="lg"
+          >
+            <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+          </Button>
+        </div>
     </>
   );
 }

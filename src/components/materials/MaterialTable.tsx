@@ -111,11 +111,11 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     <>
       <div className="h-full flex flex-col">
         {/* Header Section */}
-        <div className="p-4 sm:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between p-4 sm:px-6 space-y-4 border">
           {/* Title Section */}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="space-y-1">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Materials</h1>
+              <h1 className="text-2xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Materials</h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                 <span>Total: {filteredMaterials.length} materials</span>
                 {(searchTerm || categoryFilter !== "all") && (
