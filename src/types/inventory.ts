@@ -677,7 +677,7 @@ export interface CategoryTabsProps {
 
 //-----------------------------------------------------------------------------
 
-export type MenuItemCategory = "appetizers" | "burgers" | "sandwiches" | "plates" | "salads" | "desserts" | "cold" | "hot" | "alcohol" | "breakfast" | "shisha";
+export type MenuItemCategory = "appetizers" | "burgers" | "sandwiches" | "plates" | "pasta" | "sushi" | "pizza" | "salads" | "desserts" | "cold" | "hot" | "alcohol" | "breakfast" | "shisha";
 
 export interface MenuItem {
   id: string;
@@ -779,6 +779,9 @@ export const MENU_CATEGORIES = [
   { value: "burgers", label: "Burgers" },
   { value: "sandwiches", label: "Sandwiches" },
   { value: "plates", label: "Plates" },
+  { value: "pasta", label: "Pasta" },
+  { value: "sushi", label: "Sushi" },
+  { value: "pizza", label: "Pizza" },
   { value: "salads", label: "Salads" },
   { value: "desserts", label: "Desserts" },
   { value: "cold", label: "Cold" },
