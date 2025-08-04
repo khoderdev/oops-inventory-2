@@ -8,7 +8,7 @@ export const MASS_CONVERSIONS = {
 };
 
 export const VOLUME_CONVERSIONS = {
-  liter: { toMl: 1000, toGallon: 0.264172 },
+  l: { toMl: 1000, toGallon: 0.264172 },
   ml: { toLiter: 0.001, toGallon: 0.000264172 },
   gallon: { toLiter: 3.78541, toMl: 3785.41 }
 };

@@ -20,7 +20,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
   });
 
   // Early return if critical data is missing
-  if (!selectedMaterial || numQuantity === 0) {
+  if (!selectedMaterial) {
     return (
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mt-4">
         <div className="flex items-center gap-3 mb-4">
@@ -29,7 +29,22 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
           </div>
           <h3 className="text-lg font-semibold text-blue-800">Cost Breakdown</h3>
         </div>
-        <p className="text-sm text-red-600">Unable to calculate cost: Missing material or quantity data.</p>
+        <p className="text-sm text-gray-500">Select a material to see cost breakdown.</p>
+      </div>
+    );
+  }
+
+  // If quantity is 0, show a loading/waiting state instead of an error
+  if (numQuantity === 0) {
+    return (
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mt-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Calculator className="h-5 w-5 text-blue-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-blue-800">Cost Breakdown</h3>
+        </div>
+        <p className="text-sm text-gray-500">Enter quantity to see cost breakdown.</p>
       </div>
     );
   }

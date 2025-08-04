@@ -15,7 +15,7 @@ const MASS_UNITS = [
 ];
 
 const VOLUME_UNITS = [
-  { value: "liter", label: "Liters (L)" },
+  { value: "l", label: "Liters (L)" },
   { value: "ml", label: "Milliliters (ml)" },
   { value: "gallon", label: "Gallons (gal)" }
 ];

@@ -26,8 +26,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       purchasedUnit: stockEntry?.purchasedUnit || "",
       costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "0",
       totalCost: stockEntry?.totalCost?.toString() || "0",
-      purchaseDate: stockEntry?.purchaseDate || new Date(),
-      expiryDate: stockEntry?.expiryDate,
+      purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
+      expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
       batchNumber: stockEntry?.batchNumber || "",
       // Waste-related fields
       wasteQuantity: "0",
@@ -80,8 +80,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       purchasedUnit: shouldClearQuantityFields ? "" : stockEntry?.purchasedUnit || "",
       costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "0",
       totalCost: stockEntry?.totalCost?.toString() || "0",
-      purchaseDate: stockEntry?.purchaseDate || new Date(),
-      expiryDate: stockEntry?.expiryDate,
+      purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
+      expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
       batchNumber: stockEntry?.batchNumber || ""
     });
   }, [stockEntry, selectedMaterialId, form, activeTab]);

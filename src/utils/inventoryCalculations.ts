@@ -133,7 +133,7 @@ export function getSuggestedUnits(unitType: string): string[] {
     case "mass":
       return ["kg", "g"];
     case "volume":
-      return ["liter", "ml"];
+      return ["l", "ml"];
     case "piece":
       return ["piece", "unit"];
     case "package":

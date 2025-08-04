@@ -59,7 +59,9 @@ export const inventoryAPIWithPrefetch = {
       return result;
     },
     updateStockEntryWithCache: async (...args: Parameters<typeof stockAPI.updateStockEntry>) => {
+      console.log('🔧 updateStockEntryWithCache called with args:', args);
       const result = await stockAPI.updateStockEntry(...args);
+      console.log('📡 API call result:', result);
       // Invalidate and refresh stock cache
       store.set(invalidateCacheAction, 'stock');
       store.set(prefetchStockAction, { force: true }).catch(console.error);

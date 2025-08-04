@@ -21,7 +21,7 @@ const BASE_UNITS = [
   { value: 'gram', label: 'Grams' },
   { value: 'kg', label: 'Kilograms' },
   { value: 'ml', label: 'Milliliters' },
-  { value: 'liter', label: 'Liters' }
+  { value: 'l', label: 'Liters' }
 ];
 
 const DEFAULT_PACKAGES: PackagedGood[] = [

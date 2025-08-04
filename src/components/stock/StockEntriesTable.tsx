@@ -10,27 +10,167 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
+import { usePrefetch } from "@/hooks/usePrefetch";
+import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
+import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial, StockFormData, AddStockData, RecordWasteData, MaterialWithStock } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
 import { AlertTriangle, Check, Edit, Eye, FileText, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useAtom } from "jotai";
+import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from "@/store/inventoryAtoms";
+import { StockForm } from "@/components/stock/StockForm";
 
 export function StockEntriesTable() {
-  const { stockEntries, materialsWithStock, handleEditStockEntry, handleDeleteStockEntry, setShowStockForm, fetchTabData } = useInventoryStore();
+  const { stock: stockEntries, materials: materialsWithStock, refresh } = usePrefetch();
   const materials = materialsWithStock;
+  
+  // Atom states for form management
+  const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
+  const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
+  const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [negativeStockReport, setNegativeStockReport] = useState<NegativeStockReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [showPrinterDialog, setShowPrinterDialog] = useState(false);
-  const [selectedStockEntry, setSelectedStockEntry] = useState<StockEntryWithMaterial | null>(null);
   const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
   const [selectedStockEntries, setSelectedStockEntries] = useState<Set<string>>(new Set());
   const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
   const materialsMap = new Map(materials.map(m => [m.id, m]));
+
+  // Handler functions
+  const handleEditStockEntry = (stockEntry: StockEntry) => {
+    console.log('Edit stock entry:', stockEntry);
+    setSelectedStockEntry(stockEntry);
+    // Find and set the associated material
+    const material = materialsWithStock.find(m => m.id === stockEntry.materialId);
+    if (material) {
+      setSelectedMaterial(material);
+    }
+    setShowStockForm(true);
+  };
+
+  const handleDeleteStockEntry = async (stockEntryId: string | number) => {
+    try {
+      await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId.toString());
+      await refresh("stock");
+      await refresh("materials");
+      toast({
+        title: "Stock Entry Deleted",
+        description: "Stock entry has been successfully deleted",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Error deleting stock entry:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete stock entry",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAddStock = () => {
+    setSelectedStockEntry(null);
+    setSelectedMaterial(null);
+    setShowStockForm(true);
+  };
+
+  // Stock form handlers
+  const handleStockSubmit = async (data: StockFormData) => {
+    console.log('🚀 handleStockSubmit called with data:', data);
+    console.log('📝 selectedStockEntry:', selectedStockEntry);
+    
+    try {
+      if (selectedStockEntry) {
+        console.log('🔄 Updating existing stock entry with ID:', selectedStockEntry.id);
+        // Update existing stock entry
+        const result = await inventoryAPIWithPrefetch.stock.updateStockEntryWithCache(selectedStockEntry.id, data);
+        console.log('✅ Update result:', result);
+        toast({
+          title: "Stock Entry Updated",
+          description: "Stock entry has been updated successfully.",
+          variant: "default"
+        });
+      } else {
+        console.log('➕ Creating new stock entry');
+        // Create new stock entry
+        const result = await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(data);
+        console.log('✅ Create result:', result);
+        toast({
+          title: "Stock Entry Created",
+          description: "New stock entry has been created successfully.",
+          variant: "default"
+        });
+      }
+      
+      console.log('🔄 Refreshing data...');
+      // Reset form state
+      setShowStockForm(false);
+      setSelectedStockEntry(null);
+      setSelectedMaterial(null);
+      
+      // Refresh data
+      await refresh("stock");
+      await refresh("materials");
+      console.log('✅ Data refresh completed');
+    } catch (error) {
+      console.error('❌ Error submitting stock form:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      });
+      toast({
+        title: "Error",
+        description: `Failed to ${selectedStockEntry ? "update" : "create"} stock entry: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAddStockOperation = async (data: AddStockData) => {
+    try {
+      await inventoryAPIWithPrefetch.stock.addToStockWithCache(data);
+      await refresh("stock");
+      await refresh("materials");
+      toast({
+        title: "Stock Added",
+        description: "Stock has been added successfully",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Error adding stock:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add stock",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRecordWasteOperation = async (data: RecordWasteData) => {
+    try {
+      await inventoryAPIWithPrefetch.stock.recordWasteWithCache(data);
+      await refresh("stock");
+      await refresh("materials");
+      toast({
+        title: "Waste Recorded",
+        description: "Waste has been recorded successfully",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Error recording waste:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record waste",
+        variant: "destructive"
+      });
+    }
+  };
 
   const stockEntriesWithMaterial = stockEntries
     .map(entry => ({
@@ -182,7 +322,7 @@ export function StockEntriesTable() {
       });
 
       // Refresh the data to show updated state
-      await fetchTabData("stock");
+      await refresh("stock");
     } catch (error) {
       console.error("Error updating stock entry POS visibility:", error);
       toast({
@@ -200,7 +340,7 @@ export function StockEntriesTable() {
 
   const handlePrinterAssignmentChange = async () => {
     // Refresh the data to show updated printer assignments
-    await fetchTabData("stock");
+    await refresh("stock");
   };
 
   const handleToggleBulkSelection = () => {
@@ -240,14 +380,14 @@ export function StockEntriesTable() {
 
   const handleBulkPrinterAssignmentComplete = async () => {
     // Refresh the stock entries data to show updated printer assignments
-    await fetchTabData("stock");
+    await refresh("stock");
     setSelectedStockEntries(new Set());
     setBulkSelectionMode(false);
     setShowBulkPrinterDialog(false);
   };
 
   return (
-    <Card className="w-full !border-none">
+    <Card className="w-full !border-none overflow-hidden h-screen">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -384,7 +524,7 @@ export function StockEntriesTable() {
                 </DialogContent>
               </Dialog>
             )}
-            <Button size="sm" onClick={() => setShowStockForm(true)} className="w-fit">
+            <Button size="sm" onClick={handleAddStock} className="w-fit">
               <Plus className="h-4 w-4 mr-2" />
               Add Stock
             </Button>
@@ -486,7 +626,7 @@ export function StockEntriesTable() {
                             {entry.material?.unitType === "package" && <span className="text-xs text-muted-foreground ml-1">(per {entry.purchasedUnit})</span>}
                           </TableCell>
                           <TableCell className="min-w-[120px]">{formatCurrency(entry.totalCost)}</TableCell>
-                          <TableCell className="min-w-[140px]">{entry.purchaseDate.toLocaleDateString()}</TableCell>
+                          <TableCell className="min-w-[140px]">{new Date(entry.purchaseDate).toLocaleDateString()}</TableCell>
                           <TableCell className="min-w-[220px]">
                             <div className="flex gap-2">
                               <Button
@@ -563,6 +703,27 @@ export function StockEntriesTable() {
         itemType="stock"
         onAssignmentChange={handleBulkPrinterAssignmentComplete}
       />
+      
+      {/* Stock Form Dialog */}
+      {showStockForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <StockForm
+              materials={materialsWithStock}
+              stockEntry={selectedStockEntry || undefined}
+              selectedMaterialId={selectedMaterial?.id}
+              onSubmit={handleStockSubmit}
+              onAddStock={handleAddStockOperation}
+              onRecordWaste={handleRecordWasteOperation}
+              onCancel={() => {
+                setShowStockForm(false);
+                setSelectedStockEntry(null);
+                setSelectedMaterial(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

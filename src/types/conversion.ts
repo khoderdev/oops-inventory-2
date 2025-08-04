@@ -1,7 +1,7 @@
 // Core conversion types and interfaces
 
 export type MassUnit = "kg" | "gram" | "lb";
-export type VolumeUnit = "liter" | "ml" | "gallon";
+export type VolumeUnit = "l" | "ml" | "gallon";
 export type PackageUnit = "box" | "pack" | "case" | "piece" | "bottle";
 
 export interface ConversionResult {

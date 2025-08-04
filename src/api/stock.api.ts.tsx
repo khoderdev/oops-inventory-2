@@ -32,7 +32,10 @@ export const stockAPI = {
       }
     >(`/stock-entries/${id}/waste-from-entry`, data),
 
-  updateStockEntry: (id: string, stockEntryData: UpdateStockEntryData) => api.put<StockEntry, UpdateStockEntryData>(`/stock-entries/${id}`, stockEntryData),
+  updateStockEntry: (id: string, stockEntryData: UpdateStockEntryData) => {
+    console.log('📡 stockAPI.updateStockEntry called with:', { id, stockEntryData });
+    return api.put<StockEntry, UpdateStockEntryData>(`/stock-entries/${id}`, stockEntryData);
+  },
   updateStockEntryPOS: (id: string, posData: { isPOSItem: boolean }) => api.patch<StockEntry, { isPOSItem: boolean }>(`/stock-entries/${id}/pos`, posData),
   deleteStockEntry: (id: string) => api.delete<null>(`/stock-entries/${id}`),
 

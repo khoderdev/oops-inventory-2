@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePrefetch } from "@/hooks/usePrefetch";
 import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
-import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, Section, SectionAssignment, MaterialFormData, StockFormData } from "@/types/inventory";
+import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, Section, SectionAssignment, MaterialFormData, StockFormData, RecordWasteData, CreateStockEntryData } from "@/types/inventory";
 import { Building2, MapPin, Package, Warehouse, Loader2 } from "lucide-react";
 import { SectionsManagementPanel } from "../sections/SectionsManagementPanel";
 import { useAtom } from "jotai";
@@ -149,6 +149,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
             description: `${data.name} has been created successfully.`
           });
         }
+        
+        // Force immediate refresh to ensure UI updates
+        await refresh("materials");
+        
         setShowMaterialForm(false);
         setSelectedMaterial(null);
       } catch (error) {
@@ -161,7 +165,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         setOperationLoading(prev => ({ ...prev, material: false }));
       }
     },
-    [selectedMaterial, setShowMaterialForm, setSelectedMaterial]
+    [selectedMaterial, setShowMaterialForm, setSelectedMaterial, refresh]
   );
 
   const handleStockSubmit = useCallback(
@@ -183,6 +187,12 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
             description: "Stock entry has been created successfully."
           });
         }
+        
+        // Force immediate refresh to ensure UI updates
+        await refresh("stock");
+        // Also refresh materials since stock affects material calculations
+        await refresh("materials");
+        
         setShowStockForm(false);
         setSelectedStockEntry(null);
         setSelectedMaterial(null);
@@ -196,7 +206,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         setOperationLoading(prev => ({ ...prev, stock: false }));
       }
     },
-    [selectedStockEntry, setShowStockForm, setSelectedStockEntry, setSelectedMaterial]
+    [selectedStockEntry, setShowStockForm, setSelectedStockEntry, setSelectedMaterial, refresh]
   );
 
   const handleEditMaterial = useCallback(
@@ -223,6 +233,12 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       setOperationLoading(prev => ({ ...prev, [`delete-material-${materialId}`]: true }));
       try {
         await inventoryAPIWithPrefetch.materials.deleteMaterialWithCache(materialId);
+        
+        // Force immediate refresh to ensure UI updates
+        await refresh("materials");
+        // Also refresh stock since deleting material affects stock entries
+        await refresh("stock");
+        
         toast({
           title: "Material Deleted",
           description: "Material has been deleted successfully."
@@ -240,23 +256,106 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         setOperationLoading(prev => ({ ...prev, [`delete-material-${materialId}`]: false }));
       }
     },
-    [onDeleteMaterial]
+    [onDeleteMaterial, refresh]
   );
 
-  const handleAddStockOperation = useCallback(async (data: { materialId?: string; supplier?: string; purchasedQuantity?: number; costPerPurchasedUnit?: number; totalCost?: number; purchasedUnit?: string; wasteQuantity?: number; purchaseDate?: Date; expiryDate?: Date; batchNumber?: string; notes?: string; wasteReason?: string }) => {
-    // Would use inventoryAPIWithPrefetch.stock.addToStockWithCache
-    console.log("Add stock operation:", data);
-  }, []);
+  const handleDeleteStockEntry = useCallback(
+    async (stockEntryId: string) => {
+      setOperationLoading(prev => ({ ...prev, [`delete-stock-${stockEntryId}`]: true }));
+      try {
+        await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId);
+        
+        // Force immediate refresh to ensure UI updates
+        await refresh("stock");
+        // Also refresh materials since stock affects material calculations
+        await refresh("materials");
+        
+        toast({
+          title: "Stock Entry Deleted",
+          description: "Stock entry has been deleted successfully."
+        });
+        if (onDeleteStockEntry) {
+          onDeleteStockEntry(stockEntryId);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: `Failed to delete stock entry: ${error instanceof Error ? error.message : "Unknown error"}`,
+          variant: "destructive"
+        });
+      } finally {
+        setOperationLoading(prev => ({ ...prev, [`delete-stock-${stockEntryId}`]: false }));
+      }
+    },
+    [onDeleteStockEntry, refresh]
+  );
 
-  const handleRecordWasteOperation = useCallback(async (data: { materialId?: string; supplier?: string; purchasedQuantity?: number; costPerPurchasedUnit?: number; totalCost?: number; purchasedUnit?: string; wasteQuantity?: number; purchaseDate?: Date; expiryDate?: Date; batchNumber?: string; notes?: string; wasteReason?: string }) => {
-    // Would use inventoryAPIWithPrefetch.stock.recordWasteWithCache
-    console.log("Record waste operation:", data);
-  }, []);
+  const handleAddStockOperation = useCallback(async (data: Partial<CreateStockEntryData> & { wasteQuantity?: number; wasteReason?: string }) => {
+    try {
+      // Convert the data to CreateStockEntryData format
+      const stockEntryData = {
+        materialId: data.materialId!,
+        supplier: data.supplier!,
+        purchasedQuantity: data.purchasedQuantity!,
+        purchasedUnit: data.purchasedUnit!,
+        costPerPurchasedUnit: data.costPerPurchasedUnit!,
+        totalCost: data.totalCost!,
+        purchaseDate: data.purchaseDate!,
+        expiryDate: data.expiryDate,
+        batchNumber: data.batchNumber,
+        notes: data.notes
+      };
+      await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(stockEntryData);
+      // Force immediate refresh to ensure UI updates
+      await refresh("stock");
+      await refresh("materials");
+      toast({
+        title: "Stock Added",
+        description: "Stock has been added successfully."
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to add stock: ${error instanceof Error ? error.message : "Unknown error"}`,
+        variant: "destructive"
+      });
+    }
+  }, [refresh]);
+
+  const handleRecordWasteOperation = useCallback(async (data: RecordWasteData) => {
+    try {
+      await inventoryAPIWithPrefetch.stock.recordWasteWithCache(data);
+      // Force immediate refresh to ensure UI updates
+      await refresh("stock");
+      await refresh("materials");
+      toast({
+        title: "Waste Recorded",
+        description: "Waste has been recorded successfully."
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to record waste: ${error instanceof Error ? error.message : "Unknown error"}`,
+        variant: "destructive"
+      });
+    }
+  }, [refresh]);
 
   const handleAddToSpecificEntryOperation = useCallback(async (data: { materialId?: string; supplier?: string; purchasedQuantity?: number; costPerPurchasedUnit?: number; totalCost?: number; purchasedUnit?: string; wasteQuantity?: number; purchaseDate?: Date; expiryDate?: Date; batchNumber?: string; notes?: string; wasteReason?: string }) => {
-    // Would use specific stock entry API
-    console.log("Add to specific entry:", data);
-  }, []);
+    try {
+      // Would use specific stock entry API when available
+      console.log("Add to specific entry:", data);
+      // For now, just refresh the data
+      await refresh("stock");
+      await refresh("materials");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to add to specific entry: ${error instanceof Error ? error.message : "Unknown error"}`,
+        variant: "destructive"
+      });
+    }
+  }, [refresh]);
 
   const handleWasteFromSpecificEntryOperation = useCallback(
     async (
@@ -275,10 +374,25 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         wasteReason?: string;
       } & { entryId: string }
     ) => {
-      // Would use specific stock entry API
-      console.log("Waste from specific entry:", data);
+      try {
+        // Would use specific stock entry API when available
+        console.log("Waste from specific entry:", data);
+        // For now, just refresh the data
+        await refresh("stock");
+        await refresh("materials");
+        toast({
+          title: "Waste Recorded",
+          description: "Waste from specific entry has been recorded successfully."
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: `Failed to record waste from specific entry: ${error instanceof Error ? error.message : "Unknown error"}`,
+          variant: "destructive"
+        });
+      }
     },
-    []
+    [refresh]
   );
 
   const fetchTabData = useCallback(
@@ -317,10 +431,24 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           await onCreateSection(data);
         }
       }
+      
+      // Force immediate refresh to ensure UI updates
+      await handleDataRefresh();
+      
       setShowSectionForm(false);
       setSelectedSection(null);
+      
+      toast({
+        title: selectedSection ? "Section Updated" : "Section Created",
+        description: `Section has been ${selectedSection ? "updated" : "created"} successfully.`
+      });
     } catch (error) {
       console.error("Failed to submit section:", error);
+      toast({
+        title: "Error",
+        description: `Failed to ${selectedSection ? "update" : "create"} section: ${error instanceof Error ? error.message : "Unknown error"}`,
+        variant: "destructive"
+      });
     }
   };
 

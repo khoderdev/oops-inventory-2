@@ -28,7 +28,7 @@ export const UNIT_DEFINITIONS: Record<string, PackagingUnit> = {
   oz: { name: "ounce", baseQuantity: 0.0283495, baseUnit: "kg", category: "mass" },
 
   // Volume units
-  liter: { name: "liter", baseQuantity: 1, baseUnit: "liter", category: "volume" },
+  l: { name: "liter", baseQuantity: 1, baseUnit: "liter", category: "volume" },
   ml: { name: "milliliter", baseQuantity: 0.001, baseUnit: "liter", category: "volume" },
   gallon: { name: "gallon", baseQuantity: 3.78541, baseUnit: "liter", category: "volume" },
   cup: { name: "cup", baseQuantity: 0.236588, baseUnit: "liter", category: "volume" },
@@ -352,7 +352,7 @@ export class EnhancedUnitConverter {
       unit: 2,
       kg: 3,
       g: 3,
-      liter: 3,
+      l: 3,
       ml: 3,
       pack: 4,
       box: 4,
