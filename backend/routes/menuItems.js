@@ -9,9 +9,11 @@ router.get("/:id", menuItemsController.getMenuItemById);
 router.post("/", upload.single('image'), menuItemsController.createMenuItem);
 router.put("/:id", upload.single('image'), menuItemsController.updateMenuItem);
 router.delete("/:id", menuItemsController.deleteMenuItem);
-
+// Bulk category update route
+router.patch("/bulk-update-category", menuItemsController.bulkUpdateCategory);
 // Printer assignment routes
 router.patch("/:id/assign-printer", menuItemsController.assignPrinter);
 router.patch("/bulk-assign-printer", menuItemsController.bulkAssignPrinter);
+
 
 export default router;

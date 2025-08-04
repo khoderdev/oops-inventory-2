@@ -12,7 +12,7 @@ import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIng
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
-import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2 } from "lucide-react";
+import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { MenuItemForm } from "./MenuItemForm";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
@@ -69,6 +69,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
   const [selectedMenuItems, setSelectedMenuItems] = useState<Set<string>>(new Set());
   const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
+  const [showBulkCategoryDialog, setShowBulkCategoryDialog] = useState(false);
+  const [bulkCategoryValue, setBulkCategoryValue] = useState<MenuItemCategory | "">("")
 
   const MENU_CATEGORIES = useMemo<{ value: MenuItemCategory; label: string }[]>(
     () => [
@@ -323,6 +325,71 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     handleCloseBulkPrinterDialog();
   }, [fetchTabData, handleCloseBulkPrinterDialog]);
 
+  const handleOpenBulkCategoryDialog = useCallback(() => {
+    if (selectedMenuItems.size > 0) {
+      setBulkCategoryValue("");
+      setShowBulkCategoryDialog(true);
+    }
+  }, [selectedMenuItems.size]);
+
+  const handleCloseBulkCategoryDialog = useCallback(() => {
+    setShowBulkCategoryDialog(false);
+    setBulkCategoryValue("");
+  }, []);
+
+  const handleBulkCategoryUpdate = useCallback(async () => {
+    if (!bulkCategoryValue || selectedMenuItems.size === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a category",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const selectedItemsArray = Array.from(selectedMenuItems);
+      
+      // Use the bulk API method for better performance
+      const response = await menuAPI.bulkUpdateCategory(selectedItemsArray, bulkCategoryValue);
+      
+      if (!response || !response.data) {
+        throw new Error("Failed to update menu items");
+      }
+
+      // Update local state for all updated items
+      if (onUpdateMenuItem && response.data.menuItems) {
+        response.data.menuItems.forEach(updatedItem => {
+          onUpdateMenuItem(updatedItem.id, updatedItem);
+        });
+      }
+
+      const categoryLabel = MENU_CATEGORIES.find(c => c.value === bulkCategoryValue)?.label || bulkCategoryValue;
+      
+      toast({
+        title: "Success",
+        description: `Updated ${response.data.updatedCount} menu items to ${categoryLabel} category`,
+        variant: "default"
+      });
+
+      // Refresh the data to show updated state
+      await fetchTabData("menu");
+      
+      // Reset selection and close dialog
+      setSelectedMenuItems(new Set());
+      setBulkSelectionMode(false);
+      handleCloseBulkCategoryDialog();
+      
+    } catch (error) {
+      console.error("Error updating menu item categories:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update menu item categories",
+        variant: "destructive"
+      });
+    }
+  }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, MENU_CATEGORIES, fetchTabData, handleCloseBulkCategoryDialog]);
+
   return (
     <>
       <Card className="!border-0 !shadow-none !bg-background">
@@ -349,6 +416,15 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                   >
                     <Printer className="h-4 w-4 mr-2" />
                     Assign Printer ({selectedMenuItems.size})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleOpenBulkCategoryDialog}
+                    disabled={selectedMenuItems.size === 0}
+                  >
+                    <Tag className="h-4 w-4 mr-2" />
+                    Update Category ({selectedMenuItems.size})
                   </Button>
                 </>
               )}
@@ -595,6 +671,44 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         itemType="menu"
         onAssignmentChange={handleBulkPrinterAssignmentComplete}
       />
+      
+      {/* Bulk Category Update Dialog */}
+      <Dialog open={showBulkCategoryDialog} onOpenChange={setShowBulkCategoryDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Category for {selectedMenuItems.size} Items</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select New Category</label>
+              <Select value={bulkCategoryValue} onValueChange={(value) => setBulkCategoryValue(value as MenuItemCategory)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MENU_CATEGORIES.map(category => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              This will update the category for all {selectedMenuItems.size} selected menu items.
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={handleCloseBulkCategoryDialog}>
+                Cancel
+              </Button>
+              <Button onClick={handleBulkCategoryUpdate} disabled={!bulkCategoryValue}>
+                <Tag className="h-4 w-4 mr-2" />
+                Update Category
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

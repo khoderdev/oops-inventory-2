@@ -496,6 +496,82 @@ const menuItemsController = {
       next(error);
     }
   },
+
+  // Bulk update category for multiple menu items
+  bulkUpdateCategory: async (req, res, next) => {
+    try {
+      const { menuItemIds, category } = req.body;
+
+      // Validate input
+      if (!Array.isArray(menuItemIds) || menuItemIds.length === 0) {
+        return res.status(400).json({ error: "Menu item IDs array is required" });
+      }
+
+      if (!category || typeof category !== 'string') {
+        return res.status(400).json({ error: "Category is required and must be a string" });
+      }
+
+      // Validate category
+      const validCategories = [
+        "appetizers", "burgers", "sandwiches", "plates", "pasta", 
+        "sushi", "pizza", "salads", "desserts", "beverages", 
+        "cold", "hot", "alcohol", "breakfast", "shisha"
+      ];
+      
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({ 
+          error: "Invalid category", 
+          validCategories 
+        });
+      }
+
+      // Update multiple menu items
+      const [updatedRowsCount] = await MenuItem.update(
+        { category },
+        { where: { id: menuItemIds } }
+      );
+
+      if (updatedRowsCount === 0) {
+        return res.status(404).json({ error: "No menu items found with the provided IDs" });
+      }
+
+      // Fetch updated menu items to return them
+      const updatedMenuItems = await MenuItem.findAll({
+        where: { id: menuItemIds },
+        include: [
+          {
+            model: MenuItemIngredient,
+            as: "menuItemIngredients",
+            include: [{ model: Material, as: "material" }]
+          },
+          {
+            model: Printer,
+            as: "assignedPrinter",
+            required: false
+          }
+        ]
+      });
+
+      const formattedMenuItems = updatedMenuItems.map(item => ({
+        ...item.get(),
+        ingredients: item.menuItemIngredients.map(ingredient => ({
+          materialId: ingredient.materialId,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          cost: ingredient.cost
+        }))
+      }));
+
+      res.status(200).json({
+        message: `${updatedRowsCount} menu items updated to category: ${category}`,
+        updatedCount: updatedRowsCount,
+        menuItems: formattedMenuItems
+      });
+    } catch (error) {
+      console.error("Error bulk updating category:", error);
+      next(error);
+    }
+  },
 };
 
 export default menuItemsController;
