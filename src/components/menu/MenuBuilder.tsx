@@ -12,8 +12,9 @@ import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIng
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
-import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataValidation";
+import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag, AlertTriangle, CheckCircle } from "lucide-react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { MenuItemForm } from "./MenuItemForm";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
@@ -21,91 +22,189 @@ import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterA
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData } = useInventoryStore();
 
-  // Helper function to calculate cost per unit for a material
-  const calculateMaterialCostPerUnit = useCallback(
-    (material: Material, materialStockEntries: StockEntry[] = []) => {
-      if (!materialStockEntries.length) return 0;
+  // State for validation
+  const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
+  const [showValidationPanel, setShowValidationPanel] = useState(false);
+  const [lastValidationTime, setLastValidationTime] = useState<number>(0);
 
-      let totalWeightedCost = 0;
-      let totalQuantity = 0;
+  // Automatic validation when data changes
+  useEffect(() => {
+    const validateData = async () => {
+      if (!materials || !stockEntries || materials.length === 0) return;
 
-      materialStockEntries.forEach(entry => {
-        let costPerBaseUnit = 0;
-        let quantityInBaseUnits = 0;
+      const now = Date.now();
+      // Only validate if data changed or it's been more than 30 seconds
+      if (now - lastValidationTime < 30000) return;
 
-        // Try to get cost per base unit from multiple sources
-        if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
-          // Use direct costPerBaseUnit if available
-          costPerBaseUnit = entry.costPerBaseUnit;
-        } else if (entry.totalCost && entry.totalCost > 0) {
-          // Calculate from totalCost and quantity
-          if (entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
-            // Use individual quantity if available (already in base units)
-            costPerBaseUnit = entry.totalCost / entry.purchasedIndividualQuantity;
-          } else if (entry.purchasedQuantity && entry.purchasedQuantity > 0) {
-            // Convert purchased quantity to base units
-            try {
-              const conversionFactor = getConversionFactor(
-                entry.purchasedUnit, 
-                material.baseUnit, 
-                material.unitType || "piece", 
-                material
-              );
-              const quantityInBase = entry.purchasedQuantity * conversionFactor;
-              if (quantityInBase > 0) {
-                costPerBaseUnit = entry.totalCost / quantityInBase;
-              }
-            } catch (error) {
-              console.warn(`Unit conversion error for material "${material.name}": ${entry.purchasedUnit} to ${material.baseUnit}`, error);
-            }
-          }
-        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          // Convert costPerPurchasedUnit to costPerBaseUnit
-          try {
-            const conversionFactor = getConversionFactor(
-              entry.purchasedUnit, 
-              material.baseUnit, 
-              material.unitType || "piece", 
-              material
-            );
-            costPerBaseUnit = entry.costPerPurchasedUnit / conversionFactor;
-          } catch (error) {
-            console.warn(`Unit conversion error for material "${material.name}": ${entry.purchasedUnit} to ${material.baseUnit}`, error);
-          }
+      try {
+        const result = dataValidator.validateData(materials, stockEntries);
+        setValidationResults(result);
+        setLastValidationTime(now);
+
+        // Show validation results if there are issues
+        if (!result.isValid || result.summary.warnings > 0) {
+          dataValidator.showValidationResults(result, "Menu Builder Data Validation");
         }
+      } catch (error) {
+        console.error("Validation error:", error);
+      }
+    };
 
-        // Get quantity in base units
-        if (entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
-          quantityInBaseUnits = entry.purchasedIndividualQuantity;
-        } else if (entry.purchasedQuantity && entry.purchasedQuantity > 0) {
-          try {
-            const conversionFactor = getConversionFactor(
-              entry.purchasedUnit, 
-              material.baseUnit, 
-              material.unitType || "piece", 
-              material
-            );
-            quantityInBaseUnits = entry.purchasedQuantity * conversionFactor;
-          } catch (error) {
-            console.warn(`Unit conversion error for material "${material.name}": ${entry.purchasedUnit} to ${material.baseUnit}`, error);
-            // Use purchased quantity as fallback
-            quantityInBaseUnits = entry.purchasedQuantity;
-          }
-        }
+    validateData();
+  }, [materials, stockEntries, lastValidationTime]);
 
-        // Add to weighted average calculation
-        if (costPerBaseUnit > 0 && quantityInBaseUnits > 0) {
-          totalWeightedCost += costPerBaseUnit * quantityInBaseUnits;
-          totalQuantity += quantityInBaseUnits;
+  // Enhanced debugging with validation context
+  const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
+    if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
+
+    // For now, we'll do basic validation since validateIngredient method may not exist
+    const issues: ValidationIssue[] = [];
+
+    // Check unit compatibility
+    const ingredientUnitType = dataValidator.getUnitTypeFromUnit(ingredient.unit);
+    const materialUnitType = dataValidator.getUnitTypeFromUnit(material.baseUnit);
+
+    if (ingredientUnitType !== "unknown" && materialUnitType !== "unknown" && ingredientUnitType !== materialUnitType) {
+      issues.push({
+        type: "warning",
+        category: "unit_mismatch",
+        materialId: material.id,
+        materialName: material.name,
+        ingredientUnit: ingredient.unit,
+        message: `Unit type mismatch: ingredient uses ${ingredient.unit} (${ingredientUnitType}) but material base unit is ${material.baseUnit} (${materialUnitType})`,
+        suggestion: `Consider using ${materialUnitType} units for this ingredient`,
+        impact: "medium",
+        autoFixable: false
+      });
+    }
+
+    if (issues.length > 0) {
+      console.group(`🔍 Ingredient Validation Issues for ${material.name}`);
+      issues.forEach(issue => {
+        const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
+        console.log(`${icon} ${issue.message}`);
+        if (issue.suggestion) {
+          console.log(`   💡 ${issue.suggestion}`);
         }
       });
+      console.groupEnd();
+    }
+  }, []);
 
-      // Return weighted average cost per base unit
-      if (totalQuantity > 0) {
-        return parseFloat((totalWeightedCost / totalQuantity).toFixed(8));
+  // Manual validation trigger
+  const runValidation = useCallback(() => {
+    if (!materials || !stockEntries) return;
+
+    const result = dataValidator.validateData(materials, stockEntries);
+    setValidationResults(result);
+    setLastValidationTime(Date.now());
+    dataValidator.showValidationResults(result, "Manual Data Validation");
+    setShowValidationPanel(true);
+  }, [materials, stockEntries]);
+
+  // Helper function to calculate cost per unit for a material
+  const calculateMaterialCostPerUnit = useCallback(
+    (material: Material | undefined, materialStockEntries: StockEntry[]): number => {
+      if (!material || !materialStockEntries.length) {
+        console.warn(`⚠️ No material or stock entries found for cost calculation`);
+        return 0;
       }
 
-      return 0; // Fallback to 0 if no valid cost data found
+      // Validate material and stock entries
+      const materialIssues = dataValidator.validateMaterial(material);
+      if (materialIssues.length > 0) {
+        console.group(`🔍 Material Issues for ${material.name}`);
+        materialIssues.forEach(issue => {
+          const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
+          console.log(`${icon} ${issue.message}`);
+          if (issue.suggestion) {
+            console.log(`   💡 ${issue.suggestion}`);
+          }
+        });
+        console.groupEnd();
+      }
+
+      let totalCost = 0;
+      let totalQuantity = 0;
+      let validEntries = 0;
+
+      for (const entry of materialStockEntries) {
+        // Validate stock entries for this material (we'll validate all entries for this material once)
+        if (materialStockEntries.indexOf(entry) === 0) {
+          const entryIssues = dataValidator.validateStockEntries(material, materialStockEntries);
+          if (entryIssues.length > 0) {
+            console.group(`🔍 Stock Entry Issues for ${material.name}`);
+            entryIssues.forEach(issue => {
+              const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
+              console.log(`${icon} ${issue.message}`);
+              if (issue.suggestion) {
+                console.log(`   💡 ${issue.suggestion}`);
+              }
+            });
+            console.groupEnd();
+          }
+        }
+
+        let entryCost = 0;
+        let entryQuantity = 0;
+
+        try {
+          // Priority 1: Use costPerBaseUnit if available
+          if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
+            entryCost = entry.costPerBaseUnit;
+            entryQuantity = 1;
+            console.log(`💰 Using costPerBaseUnit: ${entryCost} for ${material.name}`);
+          }
+          // Priority 2: Calculate from totalCost and purchasedIndividualQuantity
+          else if (entry.totalCost && entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
+            entryCost = entry.totalCost / entry.purchasedIndividualQuantity;
+            entryQuantity = entry.purchasedIndividualQuantity;
+            console.log(`💰 Calculated from totalCost/purchasedIndividualQuantity: ${entryCost} for ${material.name}`);
+          }
+          // Priority 3: Calculate from totalCost and converted purchasedQuantity
+          else if (entry.totalCost && entry.purchasedQuantity && entry.purchasedQuantity > 0) {
+            try {
+              const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+              const convertedQuantity = entry.purchasedQuantity * conversionFactor;
+              if (convertedQuantity > 0) {
+                entryCost = entry.totalCost / convertedQuantity;
+                entryQuantity = convertedQuantity;
+                console.log(`💰 Calculated from totalCost/convertedQuantity: ${entryCost} for ${material.name}`);
+              }
+            } catch (conversionError) {
+              console.warn(`⚠️ Unit conversion failed for ${material.name}:`, conversionError);
+            }
+          }
+          // Priority 4: Convert costPerPurchasedUnit to base unit cost
+          else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+            try {
+              const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+              entryCost = entry.costPerPurchasedUnit / conversionFactor;
+              entryQuantity = 1;
+              console.log(`💰 Converted costPerPurchasedUnit: ${entryCost} for ${material.name}`);
+            } catch (conversionError) {
+              console.warn(`⚠️ Unit conversion failed for costPerPurchasedUnit ${material.name}:`, conversionError);
+            }
+          }
+
+          if (entryCost > 0 && entryQuantity > 0) {
+            totalCost += entryCost * entryQuantity;
+            totalQuantity += entryQuantity;
+            validEntries++;
+          }
+        } catch (error) {
+          console.error(`❌ Error processing stock entry for ${material.name}:`, error);
+        }
+      }
+
+      if (validEntries === 0) {
+        console.warn(`⚠️ No valid cost data found for material: ${material.name}`);
+        return 0;
+      }
+
+      const weightedAverageCost = totalCost / totalQuantity;
+      console.log(`✅ Final weighted average cost for ${material.name}: ${weightedAverageCost.toFixed(8)}`);
+      return parseFloat(weightedAverageCost.toFixed(8));
     },
     [] // No dependencies needed since function receives materialStockEntries as parameter
   );
@@ -134,7 +233,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [selectedMenuItems, setSelectedMenuItems] = useState<Set<string>>(new Set());
   const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
   const [showBulkCategoryDialog, setShowBulkCategoryDialog] = useState(false);
-  const [bulkCategoryValue, setBulkCategoryValue] = useState<MenuItemCategory | "">("")
+  const [bulkCategoryValue, setBulkCategoryValue] = useState<MenuItemCategory | "">("");
 
   const MENU_CATEGORIES = useMemo<{ value: MenuItemCategory; label: string }[]>(
     () => [
@@ -198,30 +297,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           console.warn(`Material not found for ID: ${ingredient.materialId}`);
           return sum;
         }
+
+        // Validate ingredient data
+        validateIngredientData(ingredient, material);
+
         const materialStockEntries = stockEntries.filter(entry => entry.materialId === String(ingredient.materialId));
         const costPerUnit = calculateMaterialCostPerUnit(material, materialStockEntries);
-        
-        // Debug unit conversion issues
-        if (ingredient.unit && material.baseUnit && ingredient.unit !== material.baseUnit) {
-          const fromUnit = ingredient.unit.toLowerCase();
-          const toUnit = material.baseUnit.toLowerCase();
-          const massUnits = ['kg', 'kgs', 'g', 'gram', 'grams', 'lb', 'lbs', 'pound', 'pounds', 'oz', 'ounce', 'ounces'];
-          const volumeUnits = ['l', 'liter', 'liters', 'ml', 'milliliter', 'milliliters', 'gal', 'gallon', 'gallons', 'fl oz', 'fluid ounce', 'fluid ounces'];
-          
-          const fromIsMass = massUnits.includes(fromUnit);
-          const toIsMass = massUnits.includes(toUnit);
-          const fromIsVolume = volumeUnits.includes(fromUnit);
-          const toIsVolume = volumeUnits.includes(toUnit);
-          
-          if ((fromIsMass && toIsVolume) || (fromIsVolume && toIsMass)) {
-            console.warn(`⚠️ Material "${material.name}" (ID: ${material.id}) has unit type mismatch:`);
-            console.warn(`  - Ingredient unit: ${ingredient.unit} (${fromIsMass ? 'mass' : fromIsVolume ? 'volume' : 'unknown'})`);
-            console.warn(`  - Material baseUnit: ${material.baseUnit} (${toIsMass ? 'mass' : toIsVolume ? 'volume' : 'unknown'})`);
-            console.warn(`  - Material unitType: ${material.unitType}`);
-            console.warn(`  - This may indicate incorrect material configuration`);
-          }
-        }
-        
+
         let conversionFactor = 1;
         try {
           conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
@@ -230,13 +312,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           // Use 1:1 conversion as fallback
           conversionFactor = 1;
         }
-        
+
         const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
         console.log(`Ingredient cost: ${ingredient.quantity} * ${conversionFactor} * ${costPerUnit} = ${ingredientCost}`);
         return sum + ingredientCost;
       }, 0);
     },
-    [availableMaterials, stockEntries, calculateMaterialCostPerUnit]
+    [availableMaterials, stockEntries, calculateMaterialCostPerUnit, validateIngredientData]
   );
 
   const handleAddMenuItem = useCallback(
@@ -443,10 +525,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
     try {
       const selectedItemsArray = Array.from(selectedMenuItems);
-      
+
       // Use the bulk API method for better performance
       const response = await menuAPI.bulkUpdateCategory(selectedItemsArray, bulkCategoryValue);
-      
+
       if (!response || !response.data) {
         throw new Error("Failed to update menu items");
       }
@@ -459,7 +541,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       }
 
       const categoryLabel = MENU_CATEGORIES.find(c => c.value === bulkCategoryValue)?.label || bulkCategoryValue;
-      
+
       toast({
         title: "Success",
         description: `Updated ${response.data.updatedCount} menu items to ${categoryLabel} category`,
@@ -468,12 +550,11 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
       // Refresh the data to show updated state
       await fetchTabData("menu");
-      
+
       // Reset selection and close dialog
       setSelectedMenuItems(new Set());
       setBulkSelectionMode(false);
       handleCloseBulkCategoryDialog();
-      
     } catch (error) {
       console.error("Error updating menu item categories:", error);
       toast({
@@ -493,40 +574,21 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             <div className="flex gap-2">
               {bulkSelectionMode && (
                 <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleSelectAllMenuItems}
-                    disabled={filteredMenuItems.length === 0}
-                  >
+                  <Button size="sm" variant="outline" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0}>
                     <Check className="h-4 w-4 mr-2" />
                     {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleOpenBulkPrinterDialog}
-                    disabled={selectedMenuItems.size === 0}
-                  >
+                  <Button size="sm" variant="outline" onClick={handleOpenBulkPrinterDialog} disabled={selectedMenuItems.size === 0}>
                     <Printer className="h-4 w-4 mr-2" />
                     Assign Printer ({selectedMenuItems.size})
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleOpenBulkCategoryDialog}
-                    disabled={selectedMenuItems.size === 0}
-                  >
+                  <Button size="sm" variant="outline" onClick={handleOpenBulkCategoryDialog} disabled={selectedMenuItems.size === 0}>
                     <Tag className="h-4 w-4 mr-2" />
                     Update Category ({selectedMenuItems.size})
                   </Button>
                 </>
               )}
-              <Button
-                size="sm"
-                variant={bulkSelectionMode ? "default" : "outline"}
-                onClick={handleToggleBulkSelection}
-              >
+              <Button size="sm" variant={bulkSelectionMode ? "default" : "outline"} onClick={handleToggleBulkSelection}>
                 <Check className="h-4 w-4 mr-2" />
                 {bulkSelectionMode ? "Exit Selection" : "Bulk Select"}
               </Button>
@@ -540,6 +602,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Menu Item
+              </Button>
+              <Button size="sm" onClick={runValidation} variant="outline" className={`${validationResults && !validationResults.isValid ? "border-red-500 text-red-600" : validationResults && validationResults.summary.warnings > 0 ? "border-yellow-500 text-yellow-600" : "border-green-500 text-green-600"}`} aria-label="Validate inventory data">
+                {validationResults && !validationResults.isValid ? <AlertTriangle className="h-4 w-4 mr-2" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-4 w-4 mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Validate Data
               </Button>
             </div>
           </div>
@@ -564,6 +630,40 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               </SelectContent>
             </Select>
           </div>
+
+          {/* Validation Results Panel */}
+          {validationResults && (validationResults.summary.errors > 0 || validationResults.summary.warnings > 0) && (
+            <div className={`mt-4 p-4 rounded-lg border ${validationResults.summary.errors > 0 ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {validationResults.summary.errors > 0 ? <AlertTriangle className="h-5 w-5 text-red-600" /> : <AlertTriangle className="h-5 w-5 text-yellow-600" />}
+                  <h3 className={`font-medium ${validationResults.summary.errors > 0 ? "text-red-800" : "text-yellow-800"}`}>Data Validation Issues Found</h3>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setShowValidationPanel(!showValidationPanel)} className="text-xs">
+                  {showValidationPanel ? "Hide Details" : "Show Details"}
+                </Button>
+              </div>
+
+              <div className="text-sm mb-2">
+                <span className={validationResults.summary.errors > 0 ? "text-red-700" : "text-yellow-700"}>
+                  {validationResults.summary.errors} errors, {validationResults.summary.warnings} warnings
+                </span>
+              </div>
+
+              {showValidationPanel && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {validationResults.issues.slice(0, 10).map((issue, index) => (
+                    <div key={index} className={`p-2 rounded text-xs ${issue.type === "error" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"}`}>
+                      <div className="font-medium">{issue.materialName || "Unknown Material"}</div>
+                      <div>{issue.message}</div>
+                      {issue.suggestion && <div className="mt-1 italic opacity-75">💡 {issue.suggestion}</div>}
+                    </div>
+                  ))}
+                  {validationResults.issues.length > 10 && <div className="text-xs text-center py-2 opacity-75">... and {validationResults.issues.length - 10} more issues</div>}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Results Counter */}
           {(searchTerm || selectedCategory !== "all") && (
@@ -590,13 +690,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                 <TableRow>
                   {bulkSelectionMode && (
                     <TableHead className="w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedMenuItems.size === filteredMenuItems.length && filteredMenuItems.length > 0}
-                        onChange={handleSelectAllMenuItems}
-                        className="h-4 w-4"
-                        aria-label="Select all menu items"
-                      />
+                      <input type="checkbox" checked={selectedMenuItems.size === filteredMenuItems.length && filteredMenuItems.length > 0} onChange={handleSelectAllMenuItems} className="h-4 w-4" aria-label="Select all menu items" />
                     </TableHead>
                   )}
                   <TableHead className="min-w-[80px]">Image</TableHead>
@@ -622,23 +716,12 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                       <TableRow key={item.id} onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : () => handleRowClick(item.id)} className={`cursor-pointer transition-colors ${isSelected ? "bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100" : selectedMenuItems.has(item.id) ? "bg-green-50 border-l-4 border-l-green-500 hover:bg-green-100" : "hover:bg-muted/50"}`}>
                         {bulkSelectionMode && (
                           <TableCell className="w-12">
-                            <input
-                              type="checkbox"
-                              checked={selectedMenuItems.has(item.id)}
-                              onChange={() => handleSelectMenuItem(item.id)}
-                              className="h-4 w-4"
-                              aria-label={`Select ${item.name}`}
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                            <input type="checkbox" checked={selectedMenuItems.has(item.id)} onChange={() => handleSelectMenuItem(item.id)} className="h-4 w-4" aria-label={`Select ${item.name}`} onClick={e => e.stopPropagation()} />
                           </TableCell>
                         )}
                         <TableCell className="min-w-[80px]">
                           {item.image ? (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-12 h-12 object-cover rounded-md border"
-                            />
+                            <img src={item.image} alt={item.name} className="w-12 h-12 object-cover rounded-md border" />
                           ) : (
                             <div className="w-12 h-12 bg-gray-100 rounded-md border flex items-center justify-center">
                               <Package className="h-6 w-6 text-gray-400" />
@@ -747,25 +830,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </div>
         </CardContent>
       </Card>
-      
+
       {/* Printer Assignment Dialog */}
-      <PrinterAssignmentDialog
-        open={showPrinterDialog}
-        onOpenChange={setShowPrinterDialog}
-        item={selectedMenuItemForPrinter}
-        itemType="menu"
-        onAssignmentChange={handlePrinterAssignmentComplete}
-      />
-      
+      <PrinterAssignmentDialog open={showPrinterDialog} onOpenChange={setShowPrinterDialog} item={selectedMenuItemForPrinter} itemType="menu" onAssignmentChange={handlePrinterAssignmentComplete} />
+
       {/* Bulk Printer Assignment Dialog */}
-      <BulkPrinterAssignmentDialog
-        open={showBulkPrinterDialog}
-        onOpenChange={setShowBulkPrinterDialog}
-        selectedItems={selectedMenuItems}
-        itemType="menu"
-        onAssignmentChange={handleBulkPrinterAssignmentComplete}
-      />
-      
+      <BulkPrinterAssignmentDialog open={showBulkPrinterDialog} onOpenChange={setShowBulkPrinterDialog} selectedItems={selectedMenuItems} itemType="menu" onAssignmentChange={handleBulkPrinterAssignmentComplete} />
+
       {/* Bulk Category Update Dialog */}
       <Dialog open={showBulkCategoryDialog} onOpenChange={setShowBulkCategoryDialog}>
         <DialogContent className="max-w-md">
@@ -775,7 +846,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Select New Category</label>
-              <Select value={bulkCategoryValue} onValueChange={(value) => setBulkCategoryValue(value as MenuItemCategory)}>
+              <Select value={bulkCategoryValue} onValueChange={value => setBulkCategoryValue(value as MenuItemCategory)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a category" />
                 </SelectTrigger>
@@ -788,16 +859,18 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                 </SelectContent>
               </Select>
             </div>
-            <div className="text-sm text-muted-foreground">
-              This will update the category for all {selectedMenuItems.size} selected menu items.
-            </div>
+            <div className="text-sm text-muted-foreground">This will update the category for all {selectedMenuItems.size} selected menu items.</div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={handleCloseBulkCategoryDialog}>
                 Cancel
               </Button>
-              <Button onClick={handleBulkCategoryUpdate} disabled={!bulkCategoryValue}>
-                <Tag className="h-4 w-4 mr-2" />
-                Update Category
+              <Button onClick={() => setShowMenuItemForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Menu Item
+              </Button>
+              <Button onClick={runValidation} variant="outline" className={`${validationResults && !validationResults.isValid ? "border-red-500 text-red-600" : validationResults && validationResults.summary.warnings > 0 ? "border-yellow-500 text-yellow-600" : "border-green-500 text-green-600"}`}>
+                {validationResults && !validationResults.isValid ? <AlertTriangle className="h-4 w-4 mr-2" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-4 w-4 mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Validate Data
               </Button>
             </div>
           </div>

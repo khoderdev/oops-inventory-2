@@ -662,7 +662,12 @@ router.post("/restore/:backupId", async (req, res) => {
             modifiedContent = sqlContent
               .replace(new RegExp(`DROP DATABASE IF EXISTS ${originalDbName}`, 'gi'), `DROP DATABASE IF EXISTS ${dbConfig.database}`)
               .replace(new RegExp(`CREATE DATABASE ${originalDbName}`, 'gi'), `CREATE DATABASE ${dbConfig.database}`)
-              .replace(new RegExp(`\\connect ${originalDbName}`, 'gi'), `\\connect ${dbConfig.database}`);
+              .replace(new RegExp(`\\\\connect ${originalDbName}`, 'gi'), `\\connect ${dbConfig.database}`);
+              
+            console.log(`🔍 Debug: Original database name: ${originalDbName}`);
+            console.log(`🔍 Debug: Target database name: ${dbConfig.database}`);
+            console.log(`🔍 Debug: Connect command before replacement: ${sqlContent.includes(`\\connect ${originalDbName}`) ? 'Found' : 'Not found'}`);
+            console.log(`🔍 Debug: Connect command after replacement: ${modifiedContent.includes(`\\connect ${dbConfig.database}`) ? 'Found' : 'Not found'}`);
             
             // Add connection termination before DROP DATABASE
             const dropDbPattern = new RegExp(`(DROP DATABASE IF EXISTS ${dbConfig.database})`, 'gi');
