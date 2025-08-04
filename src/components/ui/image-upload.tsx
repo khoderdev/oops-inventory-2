@@ -143,7 +143,7 @@ export function ImageUpload({
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        onClick={!value ? handleUploadClick : undefined}
+        onClick={handleUploadClick}
       >
         {value ? (
           // Image preview
@@ -210,20 +210,6 @@ export function ImageUpload({
       {/* Error message */}
       {error && (
         <p className="text-sm text-destructive">{error}</p>
-      )}
-
-      {/* Upload button (alternative to drag & drop) */}
-      {!value && !isLoading && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleUploadClick}
-          disabled={disabled}
-          className="w-full"
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          Choose Image
-        </Button>
       )}
     </div>
   );
