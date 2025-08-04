@@ -131,7 +131,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
           {/* Action Bar */}
           <div className="flex items-center gap-3">
             {/* Search Input */}
-            <div className="relative flex-1 min-w-0">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
               <Input 
                 placeholder="Search by material name..." 
@@ -381,7 +381,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
         >
           <Button 
             onClick={() => setShowMaterialForm(true)} 
-            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group"
+            className="bg-primary hover:bg-primary/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group"
             size="lg"
           >
             <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
