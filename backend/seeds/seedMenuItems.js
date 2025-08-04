@@ -630,11 +630,13 @@ export async function seedMenuItems() {
       ]
     },
 
-    // Pizza
+    // =============================================================================
+    // PIZZA - 12 ITEMS
+    // =============================================================================
     {
       name: "Pizza Margherita",
       description: "Sourdough, San Marzano Tomatoes, low moisture Mozzarella",
-      category: "plates",
+      category: "pizza",
       price: 10.00,
       isPOSItem: true,
       ingredients: [
@@ -646,7 +648,7 @@ export async function seedMenuItems() {
     {
       name: "Pizza Pepperoni",
       description: "Sourdough, Homemade Marinara Sauce, Low Moisture Italian Mozzarella, Pepperoni",
-      category: "plates",
+      category: "pizza",
       price: 13.00,
       isPOSItem: true,
       ingredients: [
@@ -656,22 +658,309 @@ export async function seedMenuItems() {
         { materialName: "Pepperoni", quantity: 60, unit: "g", cost: 0.96 }
       ]
     },
+    {
+      name: "Pizza Lebanese",
+      description: "Sourdough, Homemade Marinara Sauce, Low Moisture Italian Mozzarella, Ham Pork, Mushrooms, Onions, Green Pepper, Black Olives",
+      category: "pizza",
+      price: 13.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
+        { materialName: "Ham", quantity: 60, unit: "g", cost: 0.90 },
+        { materialName: "Fresh Mushroom", quantity: 50, unit: "g", cost: 0.40 },
+        { materialName: "Onion", quantity: 40, unit: "g", cost: 0.06 },
+        { materialName: "Green Pepper", quantity: 40, unit: "g", cost: 0.12 },
+        { materialName: "Black Olives", quantity: 30, unit: "g", cost: 0.36 }
+      ]
+    },
+    {
+      name: "Pizza Alla Vodka",
+      description: "Sourdough, Speciality Vodka Sauce, Low Moisture Italian Mozzarella Cheese",
+      category: "pizza",
+      price: 12.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Vodka Sauce", quantity: 80, unit: "ml", cost: 0.64 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 }
+      ]
+    },
+    {
+      name: "Pizza Chicken Alfredo",
+      description: "Sourdough, Homemade White Alfredo Sauce, Low Moisture Italian Mozzarella, Grilled Chicken Breast, Mushrooms",
+      category: "pizza",
+      price: 14.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Alfredo Sauce", quantity: 80, unit: "ml", cost: 0.56 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
+        { materialName: "Chicken Breast", quantity: 100, unit: "g", cost: 0.85 },
+        { materialName: "Fresh Mushroom", quantity: 50, unit: "g", cost: 0.40 }
+      ]
+    },
+    {
+      name: "Pizza Buffalo Chicken",
+      description: "Sourdough, Homemade Marinara Sauce, Grilled Chicken Breast, Onions, Buffalo Sauce, A Drizzle OF Blue Cheese Sauce",
+      category: "pizza",
+      price: 14.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
+        { materialName: "Chicken Breast", quantity: 100, unit: "g", cost: 0.85 },
+        { materialName: "Onion", quantity: 40, unit: "g", cost: 0.06 },
+        { materialName: "Buffalo Sauce", quantity: 30, unit: "ml", cost: 0.24 },
+        { materialName: "Blue Cheese Sauce", quantity: 20, unit: "ml", cost: 0.32 }
+      ]
+    },
+    {
+      name: "Pizza TRIO",
+      description: "Sourdough, TRIO of Sauces: Homemade Marinara Sauce, Speciality Vodka Sauce, Basil Pesto Cream Sauce, Low Moisture Italian Mozzarella",
+      category: "pizza",
+      price: 12.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Marinara Sauce", quantity: 30, unit: "ml", cost: 0.15 },
+        { materialName: "Vodka Sauce", quantity: 30, unit: "ml", cost: 0.24 },
+        { materialName: "Pesto Sauce", quantity: 30, unit: "ml", cost: 0.36 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 }
+      ]
+    },
+    {
+      name: "Pizza Mexican",
+      description: "Sourdough, Homemade Marinara Sauce, Grilled Chicken Breast, Grilled Onions & Green Peppers, Low Moisture Italian Mozzarella, Mexican Salsa, Guacamole",
+      category: "pizza",
+      price: 14.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
+        { materialName: "Chicken Breast", quantity: 100, unit: "g", cost: 0.85 },
+        { materialName: "Onion", quantity: 40, unit: "g", cost: 0.06 },
+        { materialName: "Green Pepper", quantity: 40, unit: "g", cost: 0.12 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
+        { materialName: "Mexican Salsa", quantity: 30, unit: "ml", cost: 0.24 },
+        { materialName: "Guacamole", quantity: 30, unit: "g", cost: 0.36 }
+      ]
+    },
+    {
+      name: "BBQ Chicken Pizza",
+      description: "Sourdough, Homemade Marinara Sauce, Grilled Chicken Breast, Grilled Onions BBQ sauce, Low Moisture Italian Mozzarella",
+      category: "pizza",
+      price: 14.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
+        { materialName: "Chicken Breast", quantity: 100, unit: "g", cost: 0.85 },
+        { materialName: "Onion", quantity: 40, unit: "g", cost: 0.06 },
+        { materialName: "BBQ Sauce", quantity: 30, unit: "ml", cost: 0.18 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 }
+      ]
+    },
+    {
+      name: "Spicy Chicken Pizza",
+      description: "Sourdough, Homemade Marinara Sauce, Grilled Chicken Breast, Homemade southern spicy sauce, Low Moisture Italian Mozzarella",
+      category: "pizza",
+      price: 14.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
+        { materialName: "Chicken Breast", quantity: 100, unit: "g", cost: 0.85 },
+        { materialName: "Spicy Sauce", quantity: 30, unit: "ml", cost: 0.24 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 }
+      ]
+    },
+    {
+      name: "Vegetarian Pizza",
+      description: "Sourdough, Homemade Marinara Sauce, Low Moisture Italian Mozzarella, Mushrooms, Onions, Green Pepper, Black Olives",
+      category: "pizza",
+      price: 12.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
+        { materialName: "Fresh Mushroom", quantity: 50, unit: "g", cost: 0.40 },
+        { materialName: "Onion", quantity: 40, unit: "g", cost: 0.06 },
+        { materialName: "Green Pepper", quantity: 40, unit: "g", cost: 0.12 },
+        { materialName: "Black Olives", quantity: 30, unit: "g", cost: 0.36 }
+      ]
+    },
+    {
+      name: "PestoRoni Pizza",
+      description: "Sourdough, Basil Pesto Cream Sauce, Low Moisture Italian Mozzarella, Pepperoni, Our Signature Districts' Hot Honey",
+      category: "pizza",
+      price: 14.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
+        { materialName: "Pesto Sauce", quantity: 80, unit: "ml", cost: 0.96 },
+        { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
+        { materialName: "Pepperoni", quantity: 60, unit: "g", cost: 0.96 },
+        { materialName: "Hot Honey", quantity: 20, unit: "ml", cost: 0.40 }
+      ]
+    },
 
-    // Sushi - Sample items
+    // =============================================================================
+    // SUSHI - 77+ ITEMS
+    // =============================================================================
+    
+    // SUSHI STARTERS
     {
       name: "Edamame",
       description: "Steamed soy beans, rock salt",
-      category: "appetizers",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
-        { materialName: "Edamame", quantity: 150, unit: "g", cost: 1.28 }
+        { materialName: "Edamame", quantity: 150, unit: "g", cost: 1.28 },
+        { materialName: "Rock Salt", quantity: 2, unit: "g", cost: 0.01 }
+      ]
+    },
+    {
+      name: "Spicy Edamame",
+      description: "Steamed soy beans, sriracha, togarashi",
+      category: "sushi",
+      price: 4.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Edamame", quantity: 150, unit: "g", cost: 1.28 },
+        { materialName: "Sriracha", quantity: 10, unit: "ml", cost: 0.08 },
+        { materialName: "Togarashi", quantity: 2, unit: "g", cost: 0.12 }
+      ]
+    },
+    {
+      name: "Shoyu Carpaccio",
+      description: "120g thin slices of fresh salmon & tuna, sesame seeds, green onions",
+      category: "sushi",
+      price: 12.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Salmon", quantity: 60, unit: "g", cost: 1.32 },
+        { materialName: "Tuna", quantity: 60, unit: "g", cost: 1.80 },
+        { materialName: "Sesame Seeds", quantity: 5, unit: "g", cost: 0.15 },
+        { materialName: "Green Onions", quantity: 10, unit: "g", cost: 0.05 }
+      ]
+    },
+    {
+      name: "Dynamite Salmon",
+      description: "150g tube fresh salmon with special sauce",
+      category: "sushi",
+      price: 14.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Salmon", quantity: 150, unit: "g", cost: 3.30 },
+        { materialName: "Special Sauce", quantity: 30, unit: "ml", cost: 0.30 }
+      ]
+    },
+
+    // SUSHI SALADS
+    {
+      name: "Oishi Kani",
+      description: "Premium crab sticks, cucumber, carrots, red cabbage, mango, crispy flakes",
+      category: "sushi",
+      price: 9.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Crab Sticks", quantity: 80, unit: "g", cost: 1.20 },
+        { materialName: "Cucumber", quantity: 50, unit: "g", cost: 0.10 },
+        { materialName: "Carrots", quantity: 30, unit: "g", cost: 0.06 },
+        { materialName: "Red Cabbage", quantity: 40, unit: "g", cost: 0.12 },
+        { materialName: "Mango", quantity: 50, unit: "g", cost: 0.40 },
+        { materialName: "Crispy Flakes", quantity: 10, unit: "g", cost: 0.20 }
+      ]
+    },
+    {
+      name: "Crunchy Salmon",
+      description: "Fresh salmon, crispy flakes served with special sauce",
+      category: "sushi",
+      price: 12.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Salmon", quantity: 100, unit: "g", cost: 2.20 },
+        { materialName: "Crispy Flakes", quantity: 15, unit: "g", cost: 0.30 },
+        { materialName: "Special Sauce", quantity: 30, unit: "ml", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Crunchy Tuna",
+      description: "Fresh tuna, crispy flakes served with special sauce",
+      category: "sushi",
+      price: 14.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Tuna", quantity: 100, unit: "g", cost: 3.00 },
+        { materialName: "Crispy Flakes", quantity: 15, unit: "g", cost: 0.30 },
+        { materialName: "Special Sauce", quantity: 30, unit: "ml", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Exotic Poke Bowl",
+      description: "Sushi rice, fresh salmon, shrimps, crab, mango, avocado, red cabbage, edamame, strawberry exotic mango sauce",
+      category: "sushi",
+      price: 15.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 120, unit: "g", cost: 0.48 },
+        { materialName: "Salmon", quantity: 60, unit: "g", cost: 1.32 },
+        { materialName: "Shrimp", quantity: 40, unit: "g", cost: 0.60 },
+        { materialName: "Crab Sticks", quantity: 40, unit: "g", cost: 0.60 },
+        { materialName: "Mango", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Red Cabbage", quantity: 30, unit: "g", cost: 0.09 },
+        { materialName: "Edamame", quantity: 30, unit: "g", cost: 0.26 },
+        { materialName: "Exotic Mango Sauce", quantity: 30, unit: "ml", cost: 0.36 }
+      ]
+    },
+    {
+      name: "Rainbow",
+      description: "Premium crab sticks, shrimps, fresh salmon & tuna, mango, avocado, red cabbage, exotic mango sauce",
+      category: "sushi",
+      price: 15.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Crab Sticks", quantity: 50, unit: "g", cost: 0.75 },
+        { materialName: "Shrimp", quantity: 50, unit: "g", cost: 0.75 },
+        { materialName: "Salmon", quantity: 50, unit: "g", cost: 1.10 },
+        { materialName: "Tuna", quantity: 50, unit: "g", cost: 1.50 },
+        { materialName: "Mango", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Red Cabbage", quantity: 30, unit: "g", cost: 0.09 },
+        { materialName: "Exotic Mango Sauce", quantity: 30, unit: "ml", cost: 0.36 }
+      ]
+    },
+
+    // SASHIMI
+    {
+      name: "Crab Sashimi",
+      description: "3 PC",
+      category: "sushi",
+      price: 4.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Crab Sticks", quantity: 60, unit: "g", cost: 0.90 }
+      ]
+    },
+    {
+      name: "Shrimp Sashimi",
+      description: "3 PC",
+      category: "sushi",
+      price: 5.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Shrimp", quantity: 60, unit: "g", cost: 0.90 }
       ]
     },
     {
       name: "Salmon Sashimi",
       description: "3 PC",
-      category: "appetizers",
+      category: "sushi",
       price: 6.50,
       isPOSItem: true,
       ingredients: [
@@ -679,9 +968,72 @@ export async function seedMenuItems() {
       ]
     },
     {
+      name: "Tuna Sashimi",
+      description: "3 PC",
+      category: "sushi",
+      price: 8.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Tuna", quantity: 60, unit: "g", cost: 1.80 }
+      ]
+    },
+
+    // TEMAKI
+    {
+      name: "Crab Temaki",
+      description: "Hand roll with crab",
+      category: "sushi",
+      price: 4.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Sushi Rice", quantity: 40, unit: "g", cost: 0.16 },
+        { materialName: "Crab Sticks", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Shrimp Temaki",
+      description: "Hand roll with shrimp",
+      category: "sushi",
+      price: 5.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Sushi Rice", quantity: 40, unit: "g", cost: 0.16 },
+        { materialName: "Shrimp", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Salmon Temaki",
+      description: "Hand roll with salmon",
+      category: "sushi",
+      price: 6.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Sushi Rice", quantity: 40, unit: "g", cost: 0.16 },
+        { materialName: "Salmon", quantity: 30, unit: "g", cost: 0.66 }
+      ]
+    },
+    {
+      name: "Shoyu Temaki",
+      description: "Special hand roll",
+      category: "sushi",
+      price: 6.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Sushi Rice", quantity: 40, unit: "g", cost: 0.16 },
+        { materialName: "Mixed Sushi Fish", quantity: 30, unit: "g", cost: 0.75 },
+        { materialName: "Soy Sauce", quantity: 5, unit: "ml", cost: 0.03 }
+      ]
+    },
+
+    // CRISPY URA MAKI
+    {
       name: "Crispy California",
       description: "Crispy wrap, Premium crab sticks, cucumber, avocado",
-      category: "appetizers",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       ingredients: [
@@ -689,15 +1041,339 @@ export async function seedMenuItems() {
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
         { materialName: "Crab Sticks", quantity: 40, unit: "g", cost: 0.60 },
         { materialName: "Cucumber", quantity: 30, unit: "g", cost: 0.06 },
-        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 }
+        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Crispy Flakes", quantity: 5, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Crispy Shrimps",
+      description: "Crispy wrap, shrimps, avocado",
+      category: "sushi",
+      price: 4.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Shrimp", quantity: 40, unit: "g", cost: 0.60 },
+        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Crispy Flakes", quantity: 5, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Crispy Salmon",
+      description: "Crispy wrap, salmon, avocado, cream cheese",
+      category: "sushi",
+      price: 6.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Salmon", quantity: 40, unit: "g", cost: 0.88 },
+        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Cream Cheese", quantity: 20, unit: "g", cost: 0.24 },
+        { materialName: "Crispy Flakes", quantity: 5, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Crispy Tuna",
+      description: "Crispy wrap, tuna, avocado, cream cheese",
+      category: "sushi",
+      price: 6.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Tuna", quantity: 40, unit: "g", cost: 1.20 },
+        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Cream Cheese", quantity: 20, unit: "g", cost: 0.24 },
+        { materialName: "Crispy Flakes", quantity: 5, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Crispy Crazy",
+      description: "Crispy wrap, crab mix, crab mix topping",
+      category: "sushi",
+      price: 5.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Crab Mix", quantity: 60, unit: "g", cost: 0.90 },
+        { materialName: "Crispy Flakes", quantity: 5, unit: "g", cost: 0.10 }
       ]
     },
 
-    // Breakfast
+    // URA MAKI
+    {
+      name: "Crazy Strawberry",
+      description: "Ura maki with strawberry",
+      category: "sushi",
+      price: 4.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Strawberry", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Crab Mix", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Crazy Kiwi",
+      description: "Ura maki with kiwi",
+      category: "sushi",
+      price: 4.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Kiwi", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Crab Mix", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Crazy Mango",
+      description: "Ura maki with mango",
+      category: "sushi",
+      price: 5.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Mango", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Crab Mix", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Crazy Avo",
+      description: "Ura maki with avocado",
+      category: "sushi",
+      price: 5.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Crab Mix", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Crazy Shrimps",
+      description: "Ura maki with shrimps",
+      category: "sushi",
+      price: 5.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Shrimp", quantity: 40, unit: "g", cost: 0.60 },
+        { materialName: "Crab Mix", quantity: 20, unit: "g", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Crazy Salmon",
+      description: "Ura maki with salmon",
+      category: "sushi",
+      price: 5.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Salmon", quantity: 40, unit: "g", cost: 0.88 },
+        { materialName: "Crab Mix", quantity: 20, unit: "g", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Crazy Tuna",
+      description: "Ura maki with tuna",
+      category: "sushi",
+      price: 6.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Tuna", quantity: 40, unit: "g", cost: 1.20 },
+        { materialName: "Crab Mix", quantity: 20, unit: "g", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Spicy Shrimps",
+      description: "Spicy ura maki with shrimps",
+      category: "sushi",
+      price: 5.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Shrimp", quantity: 40, unit: "g", cost: 0.60 },
+        { materialName: "Spicy Mayo", quantity: 15, unit: "ml", cost: 0.12 }
+      ]
+    },
+    {
+      name: "Spicy Salmon",
+      description: "Spicy ura maki with salmon",
+      category: "sushi",
+      price: 6.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Salmon", quantity: 40, unit: "g", cost: 0.88 },
+        { materialName: "Spicy Mayo", quantity: 15, unit: "ml", cost: 0.12 }
+      ]
+    },
+    {
+      name: "Spicy Tuna",
+      description: "Spicy ura maki with tuna",
+      category: "sushi",
+      price: 6.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Tuna", quantity: 40, unit: "g", cost: 1.20 },
+        { materialName: "Spicy Mayo", quantity: 15, unit: "ml", cost: 0.12 }
+      ]
+    },
+
+    // HOSO MAKI
+    {
+      name: "Hoso Avocado",
+      description: "Thin roll with avocado",
+      category: "sushi",
+      price: 4.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Avocado", quantity: 30, unit: "g", cost: 0.24 }
+      ]
+    },
+    {
+      name: "Hoso Mango",
+      description: "Thin roll with mango",
+      category: "sushi",
+      price: 4.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Mango", quantity: 30, unit: "g", cost: 0.24 }
+      ]
+    },
+    {
+      name: "Hoso Salmon",
+      description: "Thin roll with salmon",
+      category: "sushi",
+      price: 4.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Salmon", quantity: 30, unit: "g", cost: 0.66 }
+      ]
+    },
+    {
+      name: "Hoso Tuna",
+      description: "Thin roll with tuna",
+      category: "sushi",
+      price: 4.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Tuna", quantity: 30, unit: "g", cost: 0.90 }
+      ]
+    },
+    {
+      name: "Hoso Shrimp",
+      description: "Thin roll with shrimp",
+      category: "sushi",
+      price: 3.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Shrimp", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Hoso Crab Sticks",
+      description: "Thin roll with crab sticks",
+      category: "sushi",
+      price: 3.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Crab Sticks", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+
+    // BURRITO
+    {
+      name: "Burrito California",
+      description: "Crab mix, avocado, crispy, dynamite sauce, teriyaki",
+      category: "sushi",
+      price: 8.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 120, unit: "g", cost: 0.48 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Crab Mix", quantity: 60, unit: "g", cost: 0.90 },
+        { materialName: "Avocado", quantity: 50, unit: "g", cost: 0.40 },
+        { materialName: "Crispy Flakes", quantity: 10, unit: "g", cost: 0.20 },
+        { materialName: "Dynamite Sauce", quantity: 20, unit: "ml", cost: 0.24 },
+        { materialName: "Teriyaki Sauce", quantity: 15, unit: "ml", cost: 0.12 }
+      ]
+    },
+    {
+      name: "Burrito Lady Choice",
+      description: "Shrimp mix, crab mix, avocado, mango, cream cheese, tobiko, crispy flakes, mayo, teriyaki",
+      category: "sushi",
+      price: 8.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 120, unit: "g", cost: 0.48 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Shrimp Mix", quantity: 40, unit: "g", cost: 0.60 },
+        { materialName: "Crab Mix", quantity: 40, unit: "g", cost: 0.60 },
+        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Mango", quantity: 30, unit: "g", cost: 0.24 },
+        { materialName: "Cream Cheese", quantity: 20, unit: "g", cost: 0.24 },
+        { materialName: "Tobiko", quantity: 10, unit: "g", cost: 0.60 },
+        { materialName: "Crispy Flakes", quantity: 10, unit: "g", cost: 0.20 },
+        { materialName: "Mayo", quantity: 15, unit: "ml", cost: 0.09 },
+        { materialName: "Teriyaki Sauce", quantity: 15, unit: "ml", cost: 0.12 }
+      ]
+    },
+    {
+      name: "Burrito Tokyo",
+      description: "Salmon, tuna, crab mix, cream cheese, avocado, tobiko, crispy flakes, kimchi mayo, teriyaki",
+      category: "sushi",
+      price: 11.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sushi Rice", quantity: 120, unit: "g", cost: 0.48 },
+        { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
+        { materialName: "Salmon", quantity: 40, unit: "g", cost: 0.88 },
+        { materialName: "Tuna", quantity: 40, unit: "g", cost: 1.20 },
+        { materialName: "Crab Mix", quantity: 30, unit: "g", cost: 0.45 },
+        { materialName: "Cream Cheese", quantity: 20, unit: "g", cost: 0.24 },
+        { materialName: "Avocado", quantity: 40, unit: "g", cost: 0.32 },
+        { materialName: "Tobiko", quantity: 10, unit: "g", cost: 0.60 },
+        { materialName: "Crispy Flakes", quantity: 10, unit: "g", cost: 0.20 },
+        { materialName: "Kimchi Mayo", quantity: 15, unit: "ml", cost: 0.18 },
+        { materialName: "Teriyaki Sauce", quantity: 15, unit: "ml", cost: 0.12 }
+      ]
+    },
+
+    // =============================================================================
+    // BREAKFAST - 12 ITEMS
+    // =============================================================================
     {
       name: "Labneh",
       description: "Traditional Lebanese labneh",
-      category: "appetizers",
+      category: "breakfast",
       price: 3.50,
       isPOSItem: true,
       ingredients: [
@@ -707,7 +1383,7 @@ export async function seedMenuItems() {
     {
       name: "Eggs",
       description: "Fresh eggs",
-      category: "appetizers",
+      category: "breakfast",
       price: 3.50,
       isPOSItem: true,
       ingredients: [
@@ -715,9 +1391,29 @@ export async function seedMenuItems() {
       ]
     },
     {
+      name: "Grilled Halloumi",
+      description: "Grilled halloumi cheese",
+      category: "breakfast",
+      price: 4.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Halloumi Cheese", quantity: 100, unit: "g", cost: 1.20 }
+      ]
+    },
+    {
+      name: "Sahen Khodra",
+      description: "Fresh vegetables plate",
+      category: "breakfast",
+      price: 1.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Mixed Vegetables", quantity: 150, unit: "g", cost: 0.90 }
+      ]
+    },
+    {
       name: "Sajj Zaatar",
       description: "Sajj bread with zaatar",
-      category: "appetizers",
+      category: "breakfast",
       price: 2.00,
       isPOSItem: true,
       ingredients: [
@@ -726,14 +1422,84 @@ export async function seedMenuItems() {
       ]
     },
     {
+      name: "Sajj Zaatar + Khodra",
+      description: "Sajj bread with zaatar and vegetables",
+      category: "breakfast",
+      price: 2.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
+        { materialName: "Zaatar", quantity: 20, unit: "g", cost: 0.24 },
+        { materialName: "Mixed Vegetables", quantity: 50, unit: "g", cost: 0.30 }
+      ]
+    },
+    {
       name: "Sajj Labneh",
       description: "Sajj bread with labneh",
-      category: "appetizers",
+      category: "breakfast",
       price: 2.50,
       isPOSItem: true,
       ingredients: [
         { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
         { materialName: "Labneh", quantity: 60, unit: "g", cost: 0.36 }
+      ]
+    },
+    {
+      name: "Sajj Labneh + Khodra",
+      description: "Sajj bread with labneh and vegetables",
+      category: "breakfast",
+      price: 3.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
+        { materialName: "Labneh", quantity: 60, unit: "g", cost: 0.36 },
+        { materialName: "Mixed Vegetables", quantity: 50, unit: "g", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Sajj Cheese",
+      description: "Sajj bread with cheese",
+      category: "breakfast",
+      price: 3.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
+        { materialName: "Cheese", quantity: 60, unit: "g", cost: 0.54 }
+      ]
+    },
+    {
+      name: "Sajj Cheese & Ham",
+      description: "Sajj bread with cheese and ham",
+      category: "breakfast",
+      price: 3.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
+        { materialName: "Cheese", quantity: 50, unit: "g", cost: 0.45 },
+        { materialName: "Ham", quantity: 40, unit: "g", cost: 0.60 }
+      ]
+    },
+    {
+      name: "Sajj Lahmeh B3ajin",
+      description: "Sajj bread with meat paste",
+      category: "breakfast",
+      price: 4.50,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
+        { materialName: "Meat Paste", quantity: 80, unit: "g", cost: 1.20 }
+      ]
+    },
+    {
+      name: "Sajj Lahmeh & Cheese",
+      description: "Sajj bread with meat and cheese",
+      category: "breakfast",
+      price: 5.00,
+      isPOSItem: true,
+      ingredients: [
+        { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
+        { materialName: "Meat Paste", quantity: 60, unit: "g", cost: 0.90 },
+        { materialName: "Cheese", quantity: 50, unit: "g", cost: 0.45 }
       ]
     },
 
@@ -1260,9 +2026,7 @@ export async function seedMenuItems() {
   ];
 
   // TODO: Continue with remaining categories:
-  // - SUSHI (77 items)
-  // - PIZZA (12 items)
-  // - BREAKFAST (12 items)
+  // - SUSHI (77 items) - PARTIALLY COMPLETE (~36 more items needed)
 
   let createdCount = 0;
   let skippedCount = 0;
