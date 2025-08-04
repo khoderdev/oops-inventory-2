@@ -13,7 +13,7 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
 import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataValidation";
-import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag, AlertTriangle, CheckCircle, X } from "lucide-react";
+import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag, AlertTriangle, CheckCircle, X, CheckSquare, Square } from "lucide-react";
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { useAtom } from "jotai";
 import { dataValidationEnabledAtom } from "@/store/settingsStore";
@@ -848,29 +848,17 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             <div className="flex flex-col items-end gap-2 mb-2">
               {/* Bulk Action Pills */}
               <div className="flex flex-col gap-2">
-                <Button 
-                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-gray-200/50"
-                  onClick={handleSelectAllMenuItems} 
-                  disabled={filteredMenuItems.length === 0}
-                >
-                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-blue-500" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0}>
+                  {selectedMenuItems.size === filteredMenuItems.length ? <CheckSquare className="h-3.5 w-3.5 mr-1.5" /> : <Square className="h-3.5 w-3.5 mr-1.5" />}
                   {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
                 </Button>
-                
-                <Button 
-                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-yellow-500"
-                  onClick={handleOpenBulkPrinterDialog} 
-                  disabled={selectedMenuItems.size === 0}
-                >
+
+                <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-yellow-500" onClick={handleOpenBulkPrinterDialog} disabled={selectedMenuItems.size === 0}>
                   <Printer className="h-3.5 w-3.5 mr-1.5" />
                   Printer ({selectedMenuItems.size})
                 </Button>
-                
-                <Button 
-                  className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-green-500"
-                  onClick={handleOpenBulkCategoryDialog} 
-                  disabled={selectedMenuItems.size === 0}
-                >
+
+                <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-green-500" onClick={handleOpenBulkCategoryDialog} disabled={selectedMenuItems.size === 0}>
                   <Tag className="h-3.5 w-3.5 mr-1.5" />
                   Category ({selectedMenuItems.size})
                 </Button>
@@ -882,43 +870,14 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           <div className="flex items-center gap-3">
             {/* Validation FAB - Only show when enabled */}
             {dataValidationEnabled && (
-              <Button
-                className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${
-                  validationResults && !validationResults.isValid 
-                    ? "bg-red-500 hover:bg-red-600 text-white" 
-                    : validationResults && validationResults.summary.warnings > 0 
-                    ? "bg-amber-500 hover:bg-amber-600 text-white" 
-                    : "bg-emerald-500 hover:bg-emerald-600 text-white"
-                }`}
-                onClick={runValidation}
-                aria-label="Validate inventory data"
-                title="Run data validation"
-              >
-                {validationResults && !validationResults.isValid ? (
-                  <AlertTriangle className="h-5 w-5" />
-                ) : validationResults && validationResults.summary.warnings > 0 ? (
-                  <AlertTriangle className="h-5 w-5" />
-                ) : (
-                  <CheckCircle className="h-5 w-5" />
-                )}
+              <Button className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${validationResults && !validationResults.isValid ? "bg-red-500 hover:bg-red-600 text-white" : validationResults && validationResults.summary.warnings > 0 ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-emerald-500 hover:bg-emerald-600 text-white"}`} onClick={runValidation} aria-label="Validate inventory data" title="Run data validation">
+                {validationResults && !validationResults.isValid ? <AlertTriangle className="h-5 w-5" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
               </Button>
             )}
 
             {/* Bulk Selection Toggle FAB */}
-            <Button 
-              className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${
-                bulkSelectionMode 
-                  ? "bg-red-500 hover:bg-red-600 text-white" 
-                  : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"
-              }`}
-              onClick={handleToggleBulkSelection} 
-              aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}
-            >
-              {bulkSelectionMode ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Check className="h-5 w-5" />
-              )}
+            <Button className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${bulkSelectionMode ? "bg-red-500 hover:bg-red-600 text-white" : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"}`} onClick={handleToggleBulkSelection} aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}>
+              {bulkSelectionMode ? <X className="h-5 w-5" /> : <Check className="h-5 w-5" />}
             </Button>
           </div>
 
