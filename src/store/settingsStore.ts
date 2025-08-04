@@ -1,26 +1,36 @@
 import { atom } from 'jotai';
 
-// System settings atoms
-export const dataValidationEnabledAtom = atom<boolean>(
-  // Load from localStorage, default to true
-  typeof window !== 'undefined' 
-    ? JSON.parse(localStorage.getItem('dataValidationEnabled') ?? 'true')
-    : true
-);
+// Get initial value from localStorage
+const getInitialValidationSetting = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  try {
+    const stored = localStorage.getItem('dataValidationEnabled');
+    return stored ? JSON.parse(stored) : true;
+  } catch {
+    return true;
+  }
+};
 
-// Derived atom that also persists to localStorage
-export const dataValidationEnabledWithPersistenceAtom = atom(
-  (get) => get(dataValidationEnabledAtom),
+// Main atom with persistence
+export const dataValidationEnabledAtom = atom(
+  getInitialValidationSetting(),
   (get, set, newValue: boolean) => {
     set(dataValidationEnabledAtom, newValue);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('dataValidationEnabled', JSON.stringify(newValue));
+      try {
+        localStorage.setItem('dataValidationEnabled', JSON.stringify(newValue));
+      } catch (error) {
+        console.warn('Failed to save validation setting to localStorage:', error);
+      }
     }
   }
 );
 
+// Alias for backward compatibility
+export const dataValidationEnabledWithPersistenceAtom = dataValidationEnabledAtom;
+
 // Other system settings can be added here in the future
 export const systemSettingsAtom = atom({
-  dataValidationEnabled: true,
+  dataValidationEnabled: true
   // Add more settings as needed
 });

@@ -15,21 +15,39 @@ import { highlightText } from "@/utils/highlightText";
 import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataValidation";
 import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag, AlertTriangle, CheckCircle } from "lucide-react";
 import { useCallback, useMemo, useState, useEffect } from "react";
+import { useAtom } from "jotai";
+import { dataValidationEnabledAtom } from "@/store/settingsStore";
 import { MenuItemForm } from "./MenuItemForm";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData } = useInventoryStore();
+  const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
+
+  // Debug: Log validation state on mount and changes
+  useEffect(() => {
+    console.log('🎆 [MenuBuilder] Component mounted/updated, dataValidationEnabled:', dataValidationEnabled);
+    console.log('🎆 [MenuBuilder] localStorage value:', localStorage.getItem('dataValidationEnabled'));
+  }, [dataValidationEnabled]);
 
   // State for validation
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
   const [lastValidationTime, setLastValidationTime] = useState<number>(0);
 
-  // Automatic validation when data changes
+  // Automatic validation when data changes (only if enabled)
   useEffect(() => {
     const validateData = async () => {
+      console.log('🔍 [MenuBuilder] dataValidationEnabled:', dataValidationEnabled);
+      
+      // Skip validation if disabled
+      if (!dataValidationEnabled) {
+        console.log('⏭️ [MenuBuilder] Validation disabled, skipping auto-validation');
+        setValidationResults(null);
+        return;
+      }
+
       if (!materials || !stockEntries || materials.length === 0) return;
 
       const now = Date.now();
@@ -51,7 +69,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     };
 
     validateData();
-  }, [materials, stockEntries, lastValidationTime]);
+  }, [materials, stockEntries, lastValidationTime, dataValidationEnabled]);
 
   // Enhanced debugging with validation context
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
@@ -93,20 +111,32 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   // Manual validation trigger
   const runValidation = useCallback(() => {
+    if (!dataValidationEnabled) {
+      console.log('⏭️ [MenuBuilder] Manual validation blocked - validation is disabled');
+      toast({
+        title: "Validation Disabled",
+        description: "Data validation is disabled. Enable it in System Settings to run validation.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!materials || !stockEntries) return;
 
+    console.log('🔍 [MenuBuilder] Running manual validation');
     const result = dataValidator.validateData(materials, stockEntries);
     setValidationResults(result);
     setLastValidationTime(Date.now());
     dataValidator.showValidationResults(result, "Manual Data Validation");
     setShowValidationPanel(true);
-  }, [materials, stockEntries]);
+  }, [materials, stockEntries, dataValidationEnabled]);
 
   // Helper function to calculate cost per unit for a material
   const calculateMaterialCostPerUnit = useCallback(
     (material: Material | undefined, materialStockEntries: StockEntry[]): number => {
       if (!material || !materialStockEntries.length) {
-        console.warn(`⚠️ No material or stock entries found for cost calculation`);
+        // Silently return 0 for missing materials or stock entries
+        // This is normal when materials don't have stock entries yet
         return 0;
       }
 
@@ -153,13 +183,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
             entryCost = entry.costPerBaseUnit;
             entryQuantity = 1;
-            console.log(`💰 Using costPerBaseUnit: ${entryCost} for ${material.name}`);
+            // console.log(`💰 Using costPerBaseUnit: ${entryCost} for ${material.name}`);
           }
           // Priority 2: Calculate from totalCost and purchasedIndividualQuantity
           else if (entry.totalCost && entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
             entryCost = entry.totalCost / entry.purchasedIndividualQuantity;
             entryQuantity = entry.purchasedIndividualQuantity;
-            console.log(`💰 Calculated from totalCost/purchasedIndividualQuantity: ${entryCost} for ${material.name}`);
+            // console.log(`💰 Calculated from totalCost/purchasedIndividualQuantity: ${entryCost} for ${material.name}`);
           }
           // Priority 3: Calculate from totalCost and converted purchasedQuantity
           else if (entry.totalCost && entry.purchasedQuantity && entry.purchasedQuantity > 0) {
@@ -203,7 +233,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       }
 
       const weightedAverageCost = totalCost / totalQuantity;
-      console.log(`✅ Final weighted average cost for ${material.name}: ${weightedAverageCost.toFixed(8)}`);
+      // console.log(`✅ Final weighted average cost for ${material.name}: ${weightedAverageCost.toFixed(8)}`);
       return parseFloat(weightedAverageCost.toFixed(8));
     },
     [] // No dependencies needed since function receives materialStockEntries as parameter
@@ -314,7 +344,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         }
 
         const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
-        console.log(`Ingredient cost: ${ingredient.quantity} * ${conversionFactor} * ${costPerUnit} = ${ingredientCost}`);
+        // Only log ingredient cost if there are issues or debugging is needed
+        // console.log(`Ingredient cost: ${ingredient.quantity} * ${conversionFactor} * ${costPerUnit} = ${ingredientCost}`);
         return sum + ingredientCost;
       }, 0);
     },
@@ -572,6 +603,31 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           <div className="flex justify-between items-center mb-2">
             <CardTitle className="text-3xl font-bold">Menu Items</CardTitle>
             <div className="flex gap-2">
+            {dataValidationEnabled && (
+              <Button 
+                size="sm" 
+                onClick={runValidation} 
+                variant="outline" 
+                className={`${
+                  validationResults && !validationResults.isValid 
+                    ? "border-red-500 text-red-600" 
+                    : validationResults && validationResults.summary.warnings > 0 
+                    ? "border-yellow-500 text-yellow-600" 
+                    : "border-green-500 text-green-600"
+                }`} 
+                aria-label="Validate inventory data"
+                title="Run manual data validation"
+              >
+                {validationResults && !validationResults.isValid ? (
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                ) : validationResults && validationResults.summary.warnings > 0 ? (
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                )}
+                Validate Data
+              </Button>
+            )}
               {bulkSelectionMode && (
                 <>
                   <Button size="sm" variant="outline" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0}>
@@ -588,7 +644,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                   </Button>
                 </>
               )}
-              <Button size="sm" variant={bulkSelectionMode ? "default" : "outline"} onClick={handleToggleBulkSelection}>
+              <Button size="sm" variant={bulkSelectionMode ? "destructive" : "outline"} onClick={handleToggleBulkSelection}>
                 <Check className="h-4 w-4 mr-2" />
                 {bulkSelectionMode ? "Exit Selection" : "Bulk Select"}
               </Button>
@@ -603,10 +659,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                 <Plus className="h-4 w-4 mr-2" />
                 Add Menu Item
               </Button>
-              <Button size="sm" onClick={runValidation} variant="outline" className={`${validationResults && !validationResults.isValid ? "border-red-500 text-red-600" : validationResults && validationResults.summary.warnings > 0 ? "border-yellow-500 text-yellow-600" : "border-green-500 text-green-600"}`} aria-label="Validate inventory data">
-                {validationResults && !validationResults.isValid ? <AlertTriangle className="h-4 w-4 mr-2" /> : validationResults && validationResults.summary.warnings > 0 ? <AlertTriangle className="h-4 w-4 mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                Validate Data
-              </Button>
+          
+          
             </div>
           </div>
 
@@ -632,7 +686,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </div>
 
           {/* Validation Results Panel */}
-          {validationResults && (validationResults.summary.errors > 0 || validationResults.summary.warnings > 0) && (
+          {dataValidationEnabled && validationResults && (validationResults.summary.errors > 0 || validationResults.summary.warnings > 0) && (
             <div className={`mt-4 p-4 rounded-lg border ${validationResults.summary.errors > 0 ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -651,15 +705,40 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               </div>
 
               {showValidationPanel && (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {validationResults.issues.slice(0, 10).map((issue, index) => (
-                    <div key={index} className={`p-2 rounded text-xs ${issue.type === "error" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"}`}>
-                      <div className="font-medium">{issue.materialName || "Unknown Material"}</div>
-                      <div>{issue.message}</div>
-                      {issue.suggestion && <div className="mt-1 italic opacity-75">💡 {issue.suggestion}</div>}
+                <div className="space-y-2 max-h-80 overflow-y-auto border rounded-md bg-white/50 p-2">
+                  {validationResults.issues.map((issue, index) => (
+                    <div key={index} className={`p-3 rounded-md text-sm border-l-4 ${
+                      issue.type === "error" 
+                        ? "bg-red-50 border-l-red-500 text-red-900" 
+                        : issue.type === "warning"
+                        ? "bg-yellow-50 border-l-yellow-500 text-yellow-900"
+                        : "bg-blue-50 border-l-blue-500 text-blue-900"
+                    }`}>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-shrink-0 mt-0.5">
+                          {issue.type === "error" ? (
+                            <span className="text-red-600 font-bold">❌</span>
+                          ) : issue.type === "warning" ? (
+                            <span className="text-yellow-600 font-bold">⚠️</span>
+                          ) : (
+                            <span className="text-blue-600 font-bold">ℹ️</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold mb-1">{issue.materialName || "System"}</div>
+                          <div className="mb-2">{issue.message}</div>
+                          {issue.suggestion && (
+                            <div className="mt-2 p-2 bg-white/70 rounded text-xs border-l-2 border-l-gray-300">
+                              <span className="font-medium text-gray-600">💡 Suggestion:</span> {issue.suggestion}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
-                  {validationResults.issues.length > 10 && <div className="text-xs text-center py-2 opacity-75">... and {validationResults.issues.length - 10} more issues</div>}
+                  <div className="text-xs text-center py-2 text-gray-500 border-t">
+                    Showing all {validationResults.issues.length} validation issues
+                  </div>
                 </div>
               )}
             </div>
