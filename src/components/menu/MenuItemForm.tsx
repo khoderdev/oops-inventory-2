@@ -25,9 +25,11 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
-  const [imageFile, setImageFile] = useState<File | undefined>(undefined);
+  const [, setImageFile] = useState<File | undefined>(undefined);
   const [ingredients, setIngredients] = useState<Omit<MenuItemIngredient, "cost">[]>(menuItem?.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit })) || []);
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
+  const [materialSearchTerm, setMaterialSearchTerm] = useState("");
+  const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const [ingredientQuantity, setIngredientQuantity] = useState("");
   const [ingredientUnit, setIngredientUnit] = useState("");
   const [errors, setErrors] = useState<{
@@ -44,6 +46,15 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
     return materials.filter(m => !usedMaterialIds.has(m.id));
   }, [materials, ingredients]);
+
+  const filteredMaterials = useMemo(() => {
+    if (!materialSearchTerm.trim()) {
+      return availableMaterials;
+    }
+    return availableMaterials.filter(material =>
+      material.name.toLowerCase().includes(materialSearchTerm.toLowerCase())
+    );
+  }, [availableMaterials, materialSearchTerm]);
 
   const calculateIngredientCost = useCallback(
     (ingredient: Omit<MenuItemIngredient, "cost">) => {
@@ -240,6 +251,8 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
     setIngredients(prev => [...prev, newIngredient]);
     setSelectedMaterialId("");
+    setMaterialSearchTerm("");
+    setShowMaterialDropdown(false);
     setIngredientQuantity("");
     setIngredientUnit("");
     setErrors(prev => ({ ...prev, ingredientQuantity: undefined, ingredients: undefined }));
@@ -301,8 +314,10 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   }, [name, category, price, isPOSItem, image, ingredients, onSubmit, onCancel, validateForm, calculateIngredientCost]);
 
   const handleMaterialSelect = useCallback(
-    (materialId: string) => {
+    (materialId: string, materialName?: string) => {
       setSelectedMaterialId(materialId);
+      setMaterialSearchTerm(materialName || "");
+      setShowMaterialDropdown(false);
       const material = materials.find(m => String(m.id) === materialId);
       if (material) {
         setIngredientUnit(material.baseUnit);
@@ -312,6 +327,22 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     },
     [materials]
   );
+
+  const handleMaterialSearchChange = useCallback((value: string) => {
+    setMaterialSearchTerm(value);
+    setSelectedMaterialId("");
+    setIngredientUnit("");
+    setShowMaterialDropdown(value.length > 0);
+  }, []);
+
+  const handleMaterialInputFocus = useCallback(() => {
+    setShowMaterialDropdown(materialSearchTerm.length > 0 || filteredMaterials.length > 0);
+  }, [materialSearchTerm, filteredMaterials]);
+
+  const handleMaterialInputBlur = useCallback(() => {
+    // Delay hiding dropdown to allow for clicks
+    setTimeout(() => setShowMaterialDropdown(false), 150);
+  }, []);
 
   const handleCancel = useCallback(() => {
     onCancel();
@@ -478,20 +509,49 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
-          <div>
+          <div className="relative">
             <label htmlFor="material" className="block text-sm font-medium mb-1">
               Material
             </label>
-            <select id="material" value={selectedMaterialId} onChange={e => handleMaterialSelect(e.target.value)} onKeyDown={handleKeyDown} className="w-full px-3 py-2 border border-input bg-background rounded-md" disabled={availableMaterials.length === 0} aria-describedby="material-description" ref={materialSelectRef}>
-              <option value="">Select material</option>
-              {availableMaterials.map(material => (
-                <option key={material.id} value={material.id}>
-                  {material.name} ({material.baseUnit})
-                </option>
-              ))}
-            </select>
+            <Input
+              id="material"
+              type="text"
+              value={materialSearchTerm}
+              onChange={e => handleMaterialSearchChange(e.target.value)}
+              onFocus={handleMaterialInputFocus}
+              onBlur={handleMaterialInputBlur}
+              onKeyDown={handleKeyDown}
+              placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."}
+              disabled={availableMaterials.length === 0}
+              aria-describedby="material-description"
+              ref={materialSelectRef}
+              autoComplete="off"
+            />
+            {showMaterialDropdown && filteredMaterials.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-input rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {filteredMaterials.map(material => (
+                  <button
+                    key={material.id}
+                    type="button"
+                    className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0"
+                    onClick={() => handleMaterialSelect(material.id, material.name)}
+                    onMouseDown={e => e.preventDefault()} // Prevent blur on click
+                  >
+                    <div className="font-medium">{material.name}</div>
+                    <div className="text-sm text-muted-foreground">Base unit: {material.baseUnit}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {showMaterialDropdown && filteredMaterials.length === 0 && materialSearchTerm && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-input rounded-md shadow-lg">
+                <div className="px-3 py-2 text-muted-foreground text-center">
+                  No materials found matching "{materialSearchTerm}"
+                </div>
+              </div>
+            )}
             <p id="material-description" className="text-sm text-muted-foreground mt-1">
-              {availableMaterials.length === 0 ? "All materials are already used" : "Select a material to add"}
+              {availableMaterials.length === 0 ? "All materials are already used" : "Type to search and select a material"}
             </p>
           </div>
           <div>
