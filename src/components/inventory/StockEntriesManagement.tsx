@@ -9,7 +9,7 @@ export const StockEntriesManagement: React.FC<StockEntriesManagementProps> = ({
   onDeleteStockEntry
 }) => {
   return (
-    <div className="space-y-4">
+    <div className="">
       <StockEntriesTable />
     </div>
   );

@@ -91,8 +91,8 @@ export function SidebarLayout({ children, showSearch = true, showNotifications =
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 flex flex-col min-h-0 safe-area-padding safe-area-bottom">
-          <div className="spacing-responsive flex-1 flex flex-col gap-4 animate-fade-in">{children}</div>
+        <main className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 flex flex-col gap-4 animate-fade-in">{children}</div>
         </main>
       </SidebarInset>
     </SidebarProvider>
