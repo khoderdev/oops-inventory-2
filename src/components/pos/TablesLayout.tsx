@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { tablesAPI } from "@/api/tables.api";
-import { Clock, Users, Move } from "lucide-react";
+import { Clock, Users, Move, Circle, Square, RectangleHorizontal, Trash2, Plus } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -26,6 +27,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   // Dragging state
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragMode, setIsDragMode] = useState(false);
+  const [isArrangeMode, setIsArrangeMode] = useState(false); // Controls toolbar visibility
+  const [selectedTool, setSelectedTool] = useState<string>('select');
+  const [isCreatingTable, setIsCreatingTable] = useState(false);
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     tableId: string;
@@ -275,6 +279,102 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     }
   }, [isDragMode, onTableSelect]);
 
+  // Handle canvas click for creating tables
+  const handleCanvasClick = useCallback(async (e: React.MouseEvent) => {
+    if (selectedTool === 'select' || isDragMode || !isArrangeMode || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    // Convert to percentage
+    const position = {
+      x: (clickX / rect.width) * 100,
+      y: (clickY / rect.height) * 100
+    };
+    
+    // Constrain position
+    const constrainedPosition = constrainPosition(position.x, position.y);
+    
+    // Define table properties based on selected tool
+    const tableConfigs = {
+      'round-table': { shape: 'round' as const, seats: 4 },
+      'square-table': { shape: 'square' as const, seats: 4 },
+      'rectangular-table': { shape: 'rectangle' as const, seats: 6 }
+    };
+    
+    const config = tableConfigs[selectedTool as keyof typeof tableConfigs];
+    if (!config) return;
+    
+    try {
+      setIsCreatingTable(true);
+      
+      // Find the next available table number
+      const existingNumbers = updatedTables.map(t => t.number).sort((a, b) => a - b);
+      let nextNumber = 1;
+      for (const num of existingNumbers) {
+        if (num === nextNumber) {
+          nextNumber++;
+        } else {
+          break;
+        }
+      }
+      
+      // Create new table
+      const newTableData = {
+        number: nextNumber,
+        seats: config.seats,
+        shape: config.shape,
+        position: constrainedPosition
+      };
+      
+      const response = await tablesAPI.createTable(newTableData);
+      
+      // Add to local state
+      setUpdatedTables(prev => [...prev, response.data]);
+      
+      toast.success(`Table ${nextNumber} created successfully`);
+      
+      // Reset tool to select
+      setSelectedTool('select');
+    } catch (error) {
+      console.error('Failed to create table:', error);
+      toast.error('Failed to create table');
+    } finally {
+      setIsCreatingTable(false);
+    }
+  }, [selectedTool, isDragMode, constrainPosition, updatedTables]);
+
+  // Handle table deletion
+  const handleDeleteTable = useCallback(async (table: Table) => {
+    if (!selectedTable || selectedTable.id !== table.id) {
+      toast.error('Please select a table first');
+      return;
+    }
+    
+    if (table.status === 'opened') {
+      toast.error('Cannot delete a table with an active order');
+      return;
+    }
+    
+    try {
+      await tablesAPI.deleteTable(table.id);
+      
+      // Remove from local state
+      setUpdatedTables(prev => prev.filter(t => t.id !== table.id));
+      
+      // Clear selection if deleted table was selected
+      if (selectedTable?.id === table.id) {
+        onTableSelect(updatedTables[0] || null);
+      }
+      
+      toast.success(`Table ${table.number} deleted successfully`);
+    } catch (error) {
+      console.error('Failed to delete table:', error);
+      toast.error('Failed to delete table');
+    }
+  }, [selectedTable, onTableSelect, updatedTables]);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-xl w-full h-full max-h-[100vh] flex flex-col">
@@ -282,33 +382,139 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Restaurant Tables</h2>
+            {isArrangeMode && (
+              <p className="text-blue-600 mt-1 text-sm font-medium">
+                {isDragMode ? "Drag mode: Click and drag tables to reposition them" : "Arrangement mode: Create, delete, or arrange tables"}
+              </p>
+            )}
           </div>
           
-          {/* Drag Mode Toggle */}
-          <Button
-            variant={isDragMode ? "outline" : "outline"}
-            size="sm"
-            onClick={() => setIsDragMode(!isDragMode)}
-            className={isDragMode ? "bg-red-500/10 border border-red-500 mr-4" : "mr-4"}
-          >
-            <Move className="w-4 h-4 mr-2" />
-            {isDragMode ? "Exit Drag Mode" : "Arrange Tables"}
-          </Button>
+          {/* Toolbar - Only visible in arrange mode */}
+          {isArrangeMode ? (
+            <div className="flex items-center gap-2">
+              {/* Table Creation Tools */}
+              <div className="flex gap-1">
+                <Button
+                  variant={selectedTool === 'select' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTool('select')}
+                  disabled={isDragMode}
+                  className="flex items-center gap-1"
+                >
+                  Select
+                </Button>
+                <Button
+                  variant={selectedTool === 'round-table' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTool('round-table')}
+                  disabled={isDragMode}
+                  className="flex items-center gap-1"
+                  title="Create Round Table"
+                >
+                  <Circle className="w-3 h-3" />
+                </Button>
+                <Button
+                  variant={selectedTool === 'square-table' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTool('square-table')}
+                  disabled={isDragMode}
+                  className="flex items-center gap-1"
+                  title="Create Square Table"
+                >
+                  <Square className="w-3 h-3" />
+                </Button>
+                <Button
+                  variant={selectedTool === 'rectangular-table' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTool('rectangular-table')}
+                  disabled={isDragMode}
+                  className="flex items-center gap-1"
+                  title="Create Rectangular Table"
+                >
+                  <RectangleHorizontal className="w-3 h-3" />
+                </Button>
+              </div>
+              
+              <Separator orientation="vertical" className="h-6" />
+              
+              {/* Table Actions */}
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => selectedTable && handleDeleteTable(selectedTable)}
+                  disabled={!selectedTable || selectedTable.status === 'opened' || isDragMode}
+                  className="flex items-center gap-1 hover:bg-destructive hover:text-destructive-foreground"
+                  title="Delete Selected Table"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+              
+              <Separator orientation="vertical" className="h-6" />
+              
+              {/* Drag Mode Toggle */}
+              <Button
+                variant={isDragMode ? "outline" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setIsDragMode(!isDragMode);
+                  if (!isDragMode) {
+                    setSelectedTool('select');
+                  }
+                }}
+                className={isDragMode ? "bg-red-500/10 border border-red-500" : ""}
+              >
+                <Move className="w-4 h-4 mr-1" />
+                {isDragMode ? "Exit Drag Mode" : "Drag Mode"}
+              </Button>
+              
+              <Separator orientation="vertical" className="h-6" />
+              
+              {/* Exit Arrange Mode */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsArrangeMode(false);
+                  setIsDragMode(false);
+                  setSelectedTool('select');
+                }}
+                className="text-red-600 hover:bg-red-50"
+              >
+                Exit Arrange
+              </Button>
+            </div>
+          ) : (
+            /* Simple Arrange Button */
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsArrangeMode(true);
+                setSelectedTool('select');
+              }}
+            >
+              <Move className="w-4 h-4 mr-2" />
+              Arrange Tables
+            </Button>
+          )}
         </div>
 
         {/* Tables Layout */}
         <div className="flex-1 overflow-auto">
-          <div className="relative bg-gray-50 rounded-lg min-h-full p-4">
+          <div className="relative bg-gray-50 rounded-lg min-h-full">
             {/* Restaurant Floor Plan */}
             <div 
               ref={canvasRef}
-              className={`relative w-full h-full min-h-[600px] ${
-                isDragMode ? 'cursor-default' : ''
+              className={`relative w-full h-full min-h-[700px] xl:min-h-[830px] border-red-500 border${
+                isDragMode ? 'cursor-default' : (isArrangeMode && selectedTool !== 'select') ? 'cursor-crosshair' : ''
               }`}
               style={{
                 backgroundImage: isDragMode ? 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.1) 1px, transparent 0)' : 'none',
                 backgroundSize: isDragMode ? '20px 20px' : 'auto',
               }}
+              onClick={handleCanvasClick}
             >
               {safeTablesList.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
@@ -403,6 +609,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
             <div className="text-sm text-gray-600">
               {isDragMode ? (
                 "Drag mode active - Click and drag tables to reposition them"
+              ) : isArrangeMode && selectedTool !== 'select' ? (
+                `Click anywhere to place a ${selectedTool.replace('-', ' ')}`
               ) : selectedTable ? (
                 <>
                   Selected: Table {selectedTable.number} ({selectedTable.seats} seats) - {getTableStatusText(selectedTable.status)}
@@ -437,7 +645,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              {!isDragMode && (
+              {!isArrangeMode && (
                 <Button 
                   onClick={() => selectedTable && onTableSelect(selectedTable)} 
                   disabled={!selectedTable || selectedTable.status === "cleaning"} 
