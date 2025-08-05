@@ -511,6 +511,7 @@ export interface POSItem {
   availableQuantity: number;
   costPerUnit: number;
   materialId?: number;
+  menuItemId?: number | string;
   material?: Material;
   ingredients?: Array<{
     materialId: number;
@@ -567,6 +568,7 @@ export interface ProductGridProps {
   posItems: POSItem[];
   onAddToCart: (item: POSItem) => void;
   rightPanelPixelWidth?: number;
+  isLoading?: boolean;
 }
 
 export interface OrderSummaryProps {
@@ -615,7 +617,7 @@ export interface POSLayoutProps {
 export interface POSClientOrdersProps {
   isOpen?: boolean;
   onClose?: () => void;
-  onOrderSelect?: (order: Order) => void;
+  onOrderSelect?: (order: OrderSummary) => void;
 }
 
 export interface OrderFilters {

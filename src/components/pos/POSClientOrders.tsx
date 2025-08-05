@@ -365,34 +365,16 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 
   // Handle order selection for editing
   const handleOrderSelect = useCallback(
-    async (orderSummary: OrderSummary) => {
+    (orderSummary: OrderSummary) => {
       if (!stableOnOrderSelect.current) {
         return;
       }
 
-      setIsLoading(true);
-      setError(null);
+      // Pass the OrderSummary directly since that's what the interface expects
+      stableOnOrderSelect.current(orderSummary);
 
-      try {
-        const response = await ordersAPI.getOrder(orderSummary.id);
-        // Handle nested response structure
-        const responseData = response.data as { data?: Order } | Order;
-        const orderData = "data" in responseData ? responseData.data : responseData;
-
-        if (!orderData) {
-          throw new Error("Order data not found");
-        }
-
-        stableOnOrderSelect.current(orderData as Order);
-
-        if (stableOnClose.current) {
-          stableOnClose.current();
-        }
-      } catch (error) {
-        console.error("Failed to load order for editing:", error);
-        setError("Failed to load order for editing. Please try again.");
-      } finally {
-        setIsLoading(false);
+      if (stableOnClose.current) {
+        stableOnClose.current();
       }
     },
     [] // No dependencies to prevent re-renders
@@ -816,7 +798,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 };
 
 // Memoize the component to prevent unnecessary re-renders
-export const POSClientOrders = React.memo(POSClientOrdersComponent, (prevProps, nextProps) => {
+export const POSClientOrders: React.FC<POSClientOrdersProps> = React.memo(POSClientOrdersComponent, (prevProps, nextProps) => {
   // Custom comparison function
   const isEqual = prevProps.isOpen === nextProps.isOpen && prevProps.onClose === nextProps.onClose && prevProps.onOrderSelect === nextProps.onOrderSelect;
 

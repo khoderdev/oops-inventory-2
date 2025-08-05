@@ -4,7 +4,7 @@ import { formatCurrency } from "@/utils/conversionLogic";
 import { Package, ShoppingCart } from "lucide-react";
 import React from "react";
 
-export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0 }) => {
+export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0, isLoading = false }) => {
   const getGridColumns = (width: number) => {
     if (width <= 400) return "grid-cols-2";
     if (width <= 600) return "grid-cols-3";
@@ -80,8 +80,21 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
         ))}
       </div>
 
+      {/* Loading State */}
+      {isLoading && posItems.length === 0 && (
+        <div className="flex flex-col items-center justify-center h-96 text-gray-500">
+          <div className="relative">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mb-6 shadow-inner animate-pulse">
+              <Package className="w-12 h-12 text-blue-400 animate-bounce" />
+            </div>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">Loading products...</h3>
+          <p className="text-sm text-center max-w-md text-gray-500 leading-relaxed">Please wait while we load your products.</p>
+        </div>
+      )}
+
       {/* Enhanced Empty State */}
-      {posItems.length === 0 && (
+      {!isLoading && posItems.length === 0 && (
         <div className="flex flex-col items-center justify-center h-96 text-gray-500">
           <div className="relative">
             <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-6 shadow-inner">
