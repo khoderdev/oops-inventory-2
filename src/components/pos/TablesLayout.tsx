@@ -401,12 +401,12 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-xl w-full h-full max-h-[100vh] flex flex-col">
+    <div className="h-[calc(100vh-0rem)] w-full flex flex-col overflow-hidden">
+      <div className="h-full flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Tables</h2>
+            <h2 className={`text-2xl font-bold text-gray-800 ${isArrangeMode ? 'hidden sm:block' : ''}`}>Tables</h2>
           </div>
 
           {/* Toolbar - Only visible in arrange mode */}
@@ -487,12 +487,12 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         </div>
 
         {/* Tables Layout */}
-        <div className="flex-1 overflow-auto">
-          <div className="relative bg-gray-50 rounded-lg min-h-full">
+        <div className="flex-1 overflow-hidden">
+          <div className="relative bg-gray-50 h-full">
             {/* Restaurant Floor Plan - Red border defines the table placement area */}
             <div
               ref={canvasRef}
-              className={`relative w-full h-full min-h-[815px] xl:min-h-[830px] border-red-500 border${isDragMode ? "cursor-default" : isArrangeMode && selectedTool !== "select" ? "cursor-crosshair" : ""}`}
+              className={`relative w-full h-full border-red-500 border${isDragMode ? "cursor-default" : isArrangeMode && selectedTool !== "select" ? "cursor-crosshair" : ""}`}
               style={{
                 backgroundImage: isDragMode ? "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.1) 1px, transparent 0)" : "none",
                 backgroundSize: isDragMode ? "20px 20px" : "auto"
@@ -596,7 +596,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         {/* Footer */}
         <div className="px-6 py-2 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
-            <div className="px-6 py- border-b border-gray-100">
+            <div className="px-6  border-b border-gray-100">
               <div className="flex items-center space-x-6">
                 {[
                   { status: "available", color: "bg-green-100 border-green-300", label: "Available" },
