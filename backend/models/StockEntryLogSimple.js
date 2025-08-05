@@ -52,12 +52,12 @@ const SystemLogs = sequelize.define(
     // Item Details
     stockEntryId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       comment: "ID of the stock entry being affected"
     },
     materialId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       comment: "ID of the material associated with the stock entry"
     },
     materialName: {
