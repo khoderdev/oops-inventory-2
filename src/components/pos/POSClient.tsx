@@ -837,7 +837,20 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, []);
 
-  // Comprehensive refresh function that updates both POSLayout and POSClient counts
+  // Refresh only order-related data (without inventory to prevent products grid reload)
+  const refreshOrderData = useCallback(async () => {
+    // Run order-related refreshes in parallel
+    await Promise.all([
+      // Refresh prefetched orders data
+      refreshOrders(),
+      // Refresh tables data for Tables Layout screen
+      fetchTablesData(),
+      // Refresh POSLayout counts (orders and sales)
+      refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()
+    ]);
+  }, [refreshOrders, fetchTablesData, refreshCountsRef]);
+
+  // Comprehensive refresh function that updates both orders and inventory (use sparingly)
   const refreshAllCounts = useCallback(async () => {
     // Run all refreshes in parallel for better performance
     await Promise.all([
@@ -1079,9 +1092,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         showSuccess(`Table ${table.number} selected - Ready for new order`);
       }
 
-      await refreshAllCounts();
+      await refreshOrderData();
     },
-    [loadOrder, menuItems, stockEntries, showSuccess, showError, refreshAllCounts, clearOrder]
+    [loadOrder, menuItems, stockEntries, showSuccess, showError, refreshOrderData, clearOrder]
   );
 
   const handleCloseTablesLayout = useCallback(() => {
@@ -1450,8 +1463,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Print items to their assigned printers
       await printItemsToAssignedPrinters(cart);
 
-      // Refresh all counts immediately after saving (POSLayout + table notifications)
-      await refreshAllCounts();
+      // Refresh order data immediately after saving (POSLayout + table notifications)
+      await refreshOrderData();
 
       // Clear all state after successful save (same as cancel)
       // Clear cart with animation
@@ -1495,7 +1508,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshAllCounts, printItemsToAssignedPrinters]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshOrderData, printItemsToAssignedPrinters]);
 
   // Handle payment
   const handlePayment = useCallback(async () => {
