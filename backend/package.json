@@ -8,7 +8,10 @@
     "sync": "node ./config/sync.js",
     "backup": "node scripts/pgDumpFixed.js",
     "seed": "node scripts/runSeed.js",
-    "truncate": "node scripts/truncateTables.js"
+    "truncate": "node scripts/truncateTables.js",
+    "cleanup-system-logs": "node scripts/cleanupSystemLogs.js",
+    "fix-system-logs-constraints": "node scripts/fixSystemLogsConstraints.js",
+    "update-suppliers": "node scripts/updateSuppliers.js"
   },
   "author": "",
   "license": "ISC",

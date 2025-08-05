@@ -126,8 +126,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
   // Helper function to constrain position within canvas bounds (percentage-based)
   const constrainPosition = useCallback((x: number, y: number) => {
-    const constrainedX = Math.max(5, Math.min(x, 95)); // Keep 5% margin from edges
-    const constrainedY = Math.max(10, Math.min(y, 90)); // Keep 10% margin from top/bottom
+    // Account for table size (tables are 20x20 or 24x16, so we need more margin)
+    // Keep tables well within the red border area
+    const constrainedX = Math.max(8, Math.min(x, 92)); // Keep 8% margin from left/right edges
+    const constrainedY = Math.max(12, Math.min(y, 88)); // Keep 12% margin from top/bottom edges
     return { x: constrainedX, y: constrainedY };
   }, []);
 
@@ -148,6 +150,13 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     e.stopPropagation();
     
     if (!isDragMode || !canvasRef.current) return;
+
+    // Debug log to check table data
+    console.log('Mouse down on table:', {
+      tableId: table.id,
+      tableNumber: table.number,
+      table: table
+    });
 
     const rect = canvasRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -209,6 +218,12 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     if (finalPosition) {
       try {
         setIsUpdatingPosition(currentDragState.tableId);
+        
+        // Debug log to check table ID
+        console.log('Updating table position:', {
+          tableId: currentDragState.tableId,
+          position: finalPosition
+        });
         
         // Update position via API
         await tablesAPI.updateTable(currentDragState.tableId, {
@@ -309,16 +324,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     try {
       setIsCreatingTable(true);
       
-      // Find the next available table number
-      const existingNumbers = safeTablesList.map(t => t.number).sort((a, b) => a - b);
-      let nextNumber = 1;
-      for (const num of existingNumbers) {
-        if (num === nextNumber) {
-          nextNumber++;
-        } else {
-          break;
-        }
-      }
+      // Find the next table number by getting max + 1 (always increment, never reuse numbers)
+      const existingNumbers = updatedTables.map(t => t.number);
+      const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+      const nextNumber = maxNumber + 1;
       
       // Create new table
       const newTableData = {
@@ -330,8 +339,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       
       const response = await tablesAPI.createTable(newTableData);
       
-      // Add to local state
-      setUpdatedTables(prev => [...prev, response.data]);
+      // Add to local state - backend returns { message, table }
+      const newTable = response.data.table || response.data;
+      console.log('Created table:', newTable); // Debug log
+      setUpdatedTables(prev => [...prev, newTable]);
       
       toast.success(`Table ${nextNumber} created successfully`);
       
@@ -343,7 +354,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     } finally {
       setIsCreatingTable(false);
     }
-  }, [selectedTool, isDragMode, isArrangeMode, constrainPosition, safeTablesList]);
+  }, [selectedTool, isDragMode, isArrangeMode, constrainPosition, updatedTables]);
 
   // Handle table deletion
   const handleDeleteTable = useCallback(async (table: Table) => {
@@ -381,12 +392,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Restaurant Tables</h2>
-            {isArrangeMode && (
-              <p className="text-blue-600 mt-1 text-sm font-medium">
-                {isDragMode ? "Drag mode: Click and drag tables to reposition them" : "Arrangement mode: Create, delete, or arrange tables"}
-              </p>
-            )}
+            <h2 className="text-2xl font-bold text-gray-800">Tables</h2>
+            
           </div>
           
           {/* Toolbar - Only visible in arrange mode */}
@@ -394,45 +401,25 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
             <div className="flex items-center gap-2">
               {/* Table Creation Tools */}
               <div className="flex gap-1">
-                <Button
-                  variant={selectedTool === 'select' ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedTool('select')}
-                  disabled={isDragMode}
-                  className="flex items-center gap-1"
-                >
-                  Select
-                </Button>
-                <Button
-                  variant={selectedTool === 'round-table' ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedTool('round-table')}
-                  disabled={isDragMode}
-                  className="flex items-center gap-1"
-                  title="Create Round Table"
-                >
-                  <Circle className="w-3 h-3" />
-                </Button>
-                <Button
-                  variant={selectedTool === 'square-table' ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedTool('square-table')}
-                  disabled={isDragMode}
-                  className="flex items-center gap-1"
-                  title="Create Square Table"
-                >
-                  <Square className="w-3 h-3" />
-                </Button>
-                <Button
-                  variant={selectedTool === 'rectangular-table' ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedTool('rectangular-table')}
-                  disabled={isDragMode}
-                  className="flex items-center gap-1"
-                  title="Create Rectangular Table"
-                >
-                  <RectangleHorizontal className="w-3 h-3" />
-                </Button>
+                {[
+                  { tool: 'select', label: 'Select', icon: null, title: undefined },
+                  { tool: 'round-table', label: null, icon: Circle, title: 'Create Round Table' },
+                  { tool: 'square-table', label: null, icon: Square, title: 'Create Square Table' },
+                  { tool: 'rectangular-table', label: null, icon: RectangleHorizontal, title: 'Create Rectangular Table' }
+                ].map(({ tool, label, icon: Icon, title }) => (
+                  <Button
+                    key={tool}
+                    variant={selectedTool === tool ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedTool(tool)}
+                    disabled={isDragMode}
+                    className="flex items-center gap-1"
+                    title={title}
+                  >
+                    {Icon && <Icon className="w-3 h-3" />}
+                    {label}
+                  </Button>
+                ))}
               </div>
               
               <Separator orientation="vertical" className="h-6" />
@@ -504,10 +491,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         {/* Tables Layout */}
         <div className="flex-1 overflow-auto">
           <div className="relative bg-gray-50 rounded-lg min-h-full">
-            {/* Restaurant Floor Plan */}
+            {/* Restaurant Floor Plan - Red border defines the table placement area */}
             <div 
               ref={canvasRef}
-              className={`relative w-full h-full min-h-[700px] xl:min-h-[830px] border-red-500 border${
+              className={`relative w-full h-full min-h-[815px] xl:min-h-[830px] border-red-500 border${
                 isDragMode ? 'cursor-default' : (isArrangeMode && selectedTool !== 'select') ? 'cursor-crosshair' : ''
               }`}
               style={{
@@ -527,8 +514,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 updatedTables.map((table, index) => {
                   // Ensure table has valid position, fallback to grid layout if missing
                   const basePosition = table.position || {
-                    x: 20 + (index % 4) * 20, // Grid layout: 20%, 40%, 60%, 80%
-                    y: 20 + Math.floor(index / 4) * 25 // Rows: 20%, 45%, 70%
+                    // Use constrainPosition to ensure fallback positions are within red border area
+                    ...constrainPosition(
+                      15 + (index % 4) * 20, // Grid layout: 15%, 35%, 55%, 75% (within 8-92% bounds)
+                      20 + Math.floor(index / 4) * 20  // Rows: 20%, 40%, 60%, 80% (within 12-88% bounds)
+                    )
                   };
                   
                   const isDragging = dragState?.tableId === table.id;
@@ -606,38 +596,19 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         {/* Footer */}
         <div className="px-6 py-2 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              {isDragMode ? (
-                "Drag mode active - Click and drag tables to reposition them"
-              ) : isArrangeMode && selectedTool !== 'select' ? (
-                `Click anywhere to place a ${selectedTool.replace('-', ' ')}`
-              ) : selectedTable ? (
-                <>
-                  Selected: Table {selectedTable.number} ({selectedTable.seats} seats) - {getTableStatusText(selectedTable.status)}
-                </>
-              ) : (
-                "Select a table to continue"
-              )}
-            </div>
-
             <div className="px-6 py- border-b border-gray-100">
               <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 rounded-full bg-green-100 border-2 border-green-300"></div>
-                  <span className="text-sm text-gray-600">Available</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 rounded-full bg-red-100 border-2 border-red-300"></div>
-                  <span className="text-sm text-gray-600">Open</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 rounded-full bg-yellow-100 border-2 border-yellow-300"></div>
-                  <span className="text-sm text-gray-600">Reserved</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 rounded-full bg-gray-100 border-2 border-gray-300"></div>
-                  <span className="text-sm text-gray-600">Cleaning</span>
-                </div>
+                {[
+                  { status: 'available', color: 'bg-green-100 border-green-300', label: 'Available' },
+                  { status: 'opened', color: 'bg-red-100 border-red-300', label: 'Open' },
+                  { status: 'reserved', color: 'bg-yellow-100 border-yellow-300', label: 'Reserved' },
+                  { status: 'cleaning', color: 'bg-gray-100 border-gray-300', label: 'Cleaning' }
+                ].map(item => (
+                  <div key={item.status} className="flex items-center space-x-2">
+                    <div className={`w-4 h-4 rounded-full ${item.color} border-2`}></div>
+                    <span className="text-sm text-gray-600">{item.label}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -677,29 +648,48 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
             <Card className="w-52 shadow-xl border-0 bg-white backdrop-blur-sm animate-in fade-in-0 zoom-in-95 duration-200">
               <CardContent className="p-4">
                 <div className="space-y-3">
-                  {/* Order Number */}
-                  <div className="text-center">
-                    <div className="font-bold text-lg text-gray-800 m">{hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}</div>
-                  </div>
-
-                  {/* Time */}
-                  <div className="flex items-center justify-center text-gray-600">
-                    <Clock className="w-4 h-4 mr-2 text-blue-500" />
-                    <span className="font-medium">{formatTime(hoveredTable.currentOrder?.startTime || new Date())}</span>
-                  </div>
-
-                  {/* Items Count */}
-                  <div className="flex items-center justify-center text-gray-600">
-                    <div className="w-4 h-4 mr-2 rounded-full bg-orange-100 flex items-center justify-center">
-                      <span className="text-xs font-bold text-orange-600">{hoveredTable.currentOrder?.itemCount || 0}</span>
+                  {[
+                    {
+                      key: 'order-number',
+                      content: (
+                        <div className="text-center">
+                          <div className="font-bold text-lg text-gray-800 m">{hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}</div>
+                        </div>
+                      )
+                    },
+                    {
+                      key: 'time',
+                      content: (
+                        <div className="flex items-center justify-center text-gray-600">
+                          <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                          <span className="font-medium">{formatTime(hoveredTable.currentOrder?.startTime || new Date())}</span>
+                        </div>
+                      )
+                    },
+                    {
+                      key: 'items-count',
+                      content: (
+                        <div className="flex items-center justify-center text-gray-600">
+                          <div className="w-4 h-4 mr-2 rounded-full bg-orange-100 flex items-center justify-center">
+                            <span className="text-xs font-bold text-orange-600">{hoveredTable.currentOrder?.itemCount || 0}</span>
+                          </div>
+                          <span className="font-medium">{hoveredTable.currentOrder?.itemCount || 0} items</span>
+                        </div>
+                      )
+                    },
+                    {
+                      key: 'total-amount',
+                      content: (
+                        <div className="text-center pt-2 border-t border-gray-100">
+                          <div className="text-xl font-bold text-green-600">{formatCurrency(hoveredTable.currentOrder?.totalAmount || 0)}</div>
+                        </div>
+                      )
+                    }
+                  ].map(({ key, content }) => (
+                    <div key={key}>
+                      {content}
                     </div>
-                    <span className="font-medium">{hoveredTable.currentOrder?.itemCount || 0} items</span>
-                  </div>
-
-                  {/* Total Amount */}
-                  <div className="text-center pt-2 border-t border-gray-100">
-                    <div className="text-xl font-bold text-green-600">{formatCurrency(hoveredTable.currentOrder?.totalAmount || 0)}</div>
-                  </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

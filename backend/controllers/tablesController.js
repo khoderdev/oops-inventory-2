@@ -105,12 +105,17 @@ export const tablesController = {
   // Create new table
   createTable: async (req, res) => {
     try {
-      const { number, name, seats, shape, position, section, notes } = req.body;
+      let { number, name, seats, shape, position, section, notes } = req.body;
 
-      // Check if table number already exists
-      const existingTable = await Table.findOne({ where: { number } });
-      if (existingTable) {
-        return res.status(400).json({ message: "Table number already exists" });
+      // If no number provided or number already exists, auto-assign next available number
+      if (!number || await Table.findOne({ where: { number } })) {
+        // Find the highest existing table number and add 1
+        const maxNumberResult = await Table.findOne({
+          attributes: [[Table.sequelize.fn('MAX', Table.sequelize.col('number')), 'maxNumber']],
+          raw: true
+        });
+        const maxNumber = maxNumberResult?.maxNumber || 0;
+        number = maxNumber + 1;
       }
 
       const table = await Table.create({

@@ -647,6 +647,7 @@ export interface SalesFilters {
 }
 
 export interface Table {
+  table: Table;
   id: string;
   number: number;
   seats: number;

@@ -25,16 +25,11 @@ import userRoutes from "./routes/users.js";
 import PrinterService from "./services/PrinterService.js";
 import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
-// Old seed imports commented out to prevent conflicts with new comprehensive seeding system
-// import { seedMaterials } from "./utils/seedMaterials.js";
-// import { seedMenuItems } from "./utils/seedMenuItems.js";
-// import { seedStockEntries } from "./utils/seedStockEntries.js";
 import { seedTables } from "./utils/seedTables.js";
 
 // Enhanced error handling and process management
 process.on("uncaughtException", error => {
   console.error("🚨 Uncaught Exception:", error.message);
-  console.error("Stack:", error.stack);
   // Log the error but don't exit - keep server running
   console.log("🔄 Server continuing to run despite uncaught exception...");
 });
@@ -248,10 +243,12 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
       try {
         console.log("🔄 Synchronizing database schema...");
 
-        // Sync database with proper table creation
+        // Sync database with improved strategy for foreign key constraints
         await sequelize.sync({
           force: false,
-          alter: true, // Enable alter to create missing tables and columns
+          alter: {
+            drop: false  // Don't drop existing columns/constraints
+          },
           logging: sql => {
             // Only log non-SELECT queries to reduce noise
             if (!sql.trim().toUpperCase().startsWith("SELECT")) {
