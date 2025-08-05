@@ -21,7 +21,7 @@ import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
 import { CategoryTabs } from "./CategoryTabs";
@@ -44,10 +44,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     onError: (error) => console.error('Failed to load inventory data:', error)
   });
   
+  // Memoize onError callback to prevent infinite loop
+  const handleOrdersError = useCallback((error: Error) => {
+    console.error('Failed to load orders data:', error);
+  }, []);
+
+  // Memoize dataTypes array to prevent infinite loop
+  const orderDataTypes = useMemo(() => ['orderSummaries'] as const, []);
+
   const { orderSummaries, isLoading: ordersLoading, refresh: refreshOrders } = useOrdersPrefetch({
     autoFetch: true,
-    dataTypes: ['orderSummaries'],
-    onError: (error) => console.error('Failed to load orders data:', error)
+    dataTypes: orderDataTypes,
+    onError: handleOrdersError
   });
 
   // Debug logging for prefetch data (throttled to reduce spam)

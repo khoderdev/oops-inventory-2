@@ -10,7 +10,8 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   ready: "bg-green-100 text-green-800",
   served: "bg-purple-100 text-purple-800",
   paid: "bg-emerald-100 text-emerald-800",
-  cancelled: "bg-red-100 text-red-800"
+  cancelled: "bg-red-100 text-red-800",
+  complete: "bg-emerald-100 text-emerald-800"
 };
 
 export const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
@@ -46,14 +47,9 @@ export const getOrderTypeLabel = (type: OrderType, selectedTable: Table | null |
       return "TAKE AWAY";
     case "table":
       if (selectedTable) {
-        // Debug logging to understand the selectedTable structure
-        console.log("🪑 Selected table data:", selectedTable);
-
         // Check for name property first, then number, then id as fallback
         const tableWithName = selectedTable as Table & { name?: string };
         const tableName = tableWithName.name || (selectedTable.number !== undefined && selectedTable.number !== null ? selectedTable.number : null) || selectedTable.id;
-
-        console.log("🏷️ Table name resolved to:", tableName);
         return `TABLE ${tableName}`;
       }
       return "TABLES";

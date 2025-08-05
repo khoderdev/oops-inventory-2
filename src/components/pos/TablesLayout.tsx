@@ -310,7 +310,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       setIsCreatingTable(true);
       
       // Find the next available table number
-      const existingNumbers = updatedTables.map(t => t.number).sort((a, b) => a - b);
+      const existingNumbers = safeTablesList.map(t => t.number).sort((a, b) => a - b);
       let nextNumber = 1;
       for (const num of existingNumbers) {
         if (num === nextNumber) {
@@ -343,7 +343,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     } finally {
       setIsCreatingTable(false);
     }
-  }, [selectedTool, isDragMode, constrainPosition, updatedTables]);
+  }, [selectedTool, isDragMode, isArrangeMode, constrainPosition, safeTablesList]);
 
   // Handle table deletion
   const handleDeleteTable = useCallback(async (table: Table) => {
