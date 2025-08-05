@@ -226,16 +226,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/pos/floor-designer"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_CUSTOMER_DISPLAY}>
-                      <AuthenticatedLayout>
-                        <FloorDesignerPage />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
 
                 {/* Inventory & Stock Management */}
                 <Route
