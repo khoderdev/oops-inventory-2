@@ -282,17 +282,14 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Restaurant Tables</h2>
-            {isDragMode && (
-              <p className="text-blue-600 mt-1 text-sm font-medium">Drag mode: Click and drag tables to reposition them</p>
-            )}
           </div>
           
           {/* Drag Mode Toggle */}
           <Button
-            variant={isDragMode ? "default" : "outline"}
+            variant={isDragMode ? "outline" : "outline"}
             size="sm"
             onClick={() => setIsDragMode(!isDragMode)}
-            className={isDragMode ? "bg-blue-600 hover:bg-blue-700" : ""}
+            className={isDragMode ? "bg-red-500/10 border border-red-500 mr-4" : "mr-4"}
           >
             <Move className="w-4 h-4 mr-2" />
             {isDragMode ? "Exit Drag Mode" : "Arrange Tables"}
