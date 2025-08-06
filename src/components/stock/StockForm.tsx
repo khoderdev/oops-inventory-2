@@ -42,12 +42,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
 
   // Wrapper function to handle waste from specific entry with proper data conversion
   const handleWasteFromEntry = (data: StockFormData & { stockEntryId: string }) => {
-    console.log("🔄 StockForm handleWasteFromEntry called with data:", data);
-    
     if (onWasteFromSpecificEntry) {
-      console.log("✅ onWasteFromSpecificEntry exists, calling it...");
-      // The onWasteFromSpecificEntry expects the data format that handleWasteFromSpecificEntryOperation uses
-      // which is StockFormData & { stockEntryId: string }, so we pass the data as-is
       onWasteFromSpecificEntry(data);
     } else {
       console.error("❌ onWasteFromSpecificEntry is not defined!");
