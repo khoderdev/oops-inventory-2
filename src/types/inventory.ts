@@ -618,6 +618,7 @@ export interface POSClientOrdersProps {
   isOpen?: boolean;
   onClose?: () => void;
   onOrderSelect?: (order: OrderSummary) => void;
+  onOrderStatusChange?: () => void; // Callback to refresh table badges when order status changes
 }
 
 export interface OrderFilters {

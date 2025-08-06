@@ -57,6 +57,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
 
   const [cart, setCart] = useState<POSCartItem[]>([]);
+  
+  // Debug cart changes
+  useEffect(() => {
+    console.log('🛒 Cart state changed:', cart.length, 'items:', cart);
+  }, [cart]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +177,28 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Load selected order into cart when selectedOrderForPOS changes
   useEffect(() => {
+    console.log('🔍 selectedOrderForPOS changed:', selectedOrderForPOS);
+    
+    if (selectedOrderForPOS) {
+      console.log('📋 Order structure:', {
+        id: selectedOrderForPOS.id,
+        orderNumber: selectedOrderForPOS.orderNumber,
+        hasItems: !!selectedOrderForPOS.items,
+        itemsLength: selectedOrderForPOS.items?.length || 0,
+        items: selectedOrderForPOS.items
+      });
+      
+      if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
+        console.log('⚠️ Order has no items, need to fetch full order details');
+        // Need to fetch the full order details since we only have the summary
+        if (loadOrder) {
+          console.log('🔄 Loading full order details for:', selectedOrderForPOS.id);
+          loadOrder(selectedOrderForPOS.id.toString());
+        }
+        return;
+      }
+    }
+    
     if (selectedOrderForPOS && selectedOrderForPOS.items) {
       const orderId = selectedOrderForPOS.id.toString();
 
@@ -186,19 +213,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Convert order items to cart items
       const cartItems: POSCartItem[] = selectedOrderForPOS.items
         .map((item: any) => {
+          console.log('🔄 Converting order item to cart item:', item);
+          
           if (item.menuItem) {
-            return {
+            const cartItem = {
               id: item.menuItem.id.toString(),
               name: item.menuItem.name,
               price: item.menuItem.price,
               quantity: item.quantity,
-              type: "menu" as const,
+              type: "menu_item" as const, // Fixed: was "menu", should be "menu_item"
               menuItemId: item.menuItem.id,
               originalItem: item.menuItem,
               stockEntryId: undefined
             };
+            console.log('✅ Created menu cart item:', cartItem);
+            return cartItem;
           } else if (item.material) {
-            return {
+            const cartItem = {
               id: item.material.id.toString(),
               name: item.material.name,
               price: parseFloat(item.unitPrice),
@@ -208,11 +239,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               originalItem: item.material,
               stockEntryId: undefined
             };
+            console.log('✅ Created material cart item:', cartItem);
+            return cartItem;
           }
 
+          console.log('⚠️ Unknown item type, skipping:', item);
           return null;
         })
         .filter(Boolean) as POSCartItem[];
+      
+      console.log('📦 Total cart items created:', cartItems.length, cartItems);
 
       // Set order type first
       setOrderType(selectedOrderForPOS.orderType);
@@ -235,19 +271,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       if (loadOrder) {
         loadOrder(selectedOrderForPOS.id.toString());
       }
-      // Use setTimeout to ensure cart is set AFTER all other state updates complete
-      // This prevents race conditions where other state updates might clear the cart
+      // Set cart items immediately with proper logging
+      console.log('🛒 Setting cart with items:', cartItems);
+      setCart(cartItems);
+      
+      // Clear the processed order ref after a short delay
       setTimeout(() => {
-        setCart(cartItems);
-
-        // Clear the processed order ref after cart is set to allow future cart clearing
-        // But keep it for a bit longer to prevent immediate clearing
-        setTimeout(() => {
-          if (processedOrderRef.current === orderId) {
-            processedOrderRef.current = null;
-          }
-        }, 1500); // Clear after 5 seconds
-      }, 10);
+        if (processedOrderRef.current === orderId) {
+          processedOrderRef.current = null;
+          console.log('🔄 Cleared processed order ref for:', orderId);
+        }
+      }, 1000);
 
       // Mark as having unsaved changes since we're editing an existing order
       setHasUnsavedChanges(true);
@@ -256,6 +290,92 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       processedOrderRef.current = null;
     }
   }, [selectedOrderForPOS, loadOrder]);
+
+  // Handle when currentOrder is loaded (after loadOrder is called)
+  useEffect(() => {
+    if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
+      console.log('📄 currentOrder loaded with items:', currentOrder);
+      
+      // Check if this order matches the selected order and we haven't processed it yet
+      const currentOrderId = currentOrder.id.toString();
+      if (selectedOrderForPOS && selectedOrderForPOS.id.toString() === currentOrderId && processedOrderRef.current !== currentOrderId) {
+        console.log('🔄 Processing currentOrder items into cart');
+        
+        // Mark as being processed
+        processedOrderRef.current = currentOrderId;
+        
+        // Convert currentOrder items to cart items
+        const cartItems: POSCartItem[] = currentOrder.items
+          .map((item: any) => {
+            console.log('🔄 Converting currentOrder item to cart item:', item);
+            
+            if (item.menuItem) {
+              const cartItem = {
+                id: item.menuItem.id.toString(),
+                name: item.menuItem.name,
+                price: item.menuItem.price,
+                quantity: item.quantity,
+                type: "menu_item" as const,
+                menuItemId: item.menuItem.id,
+                originalItem: item.menuItem,
+                stockEntryId: undefined
+              };
+              console.log('✅ Created menu cart item from currentOrder:', cartItem);
+              return cartItem;
+            } else if (item.material) {
+              const cartItem = {
+                id: item.material.id.toString(),
+                name: item.material.name,
+                price: parseFloat(item.unitPrice),
+                quantity: item.quantity,
+                type: "material" as const,
+                materialId: item.material.id,
+                originalItem: item.material,
+                stockEntryId: undefined
+              };
+              console.log('✅ Created material cart item from currentOrder:', cartItem);
+              return cartItem;
+            }
+
+            console.log('⚠️ Unknown item type in currentOrder, skipping:', item);
+            return null;
+          })
+          .filter(Boolean) as POSCartItem[];
+        
+        console.log('📦 Total cart items created from currentOrder:', cartItems.length, cartItems);
+        
+        // Set cart items
+        setCart(cartItems);
+        
+        // Apply other order properties
+        setOrderType(currentOrder.orderType);
+        
+        if (currentOrder.orderType === "table" && currentOrder.tableId) {
+          setSelectedTable(tables.find(t => t.id === currentOrder.tableId));
+        }
+        
+        // Apply any existing discount
+        if (currentOrder.discountAmount && parseFloat(currentOrder.discountAmount.toString()) > 0) {
+          setAppliedDiscount({
+            type: (currentOrder.discountType as "percentage" | "fixed") || "fixed",
+            value: parseFloat(currentOrder.discountValue?.toString() || "0"),
+            amount: parseFloat(currentOrder.discountAmount.toString()),
+            reason: currentOrder.discountReason || undefined
+          });
+        }
+        
+        setHasUnsavedChanges(true);
+        
+        // Clear processed ref after a delay
+        setTimeout(() => {
+          if (processedOrderRef.current === currentOrderId) {
+            processedOrderRef.current = null;
+            console.log('🔄 Cleared processed order ref for currentOrder:', currentOrderId);
+          }
+        }, 1000);
+      }
+    }
+  }, [currentOrder, selectedOrderForPOS, tables]);
 
   // Clear cart with animation
   const clearCartWithAnimation = useCallback(() => {
@@ -2127,7 +2247,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       )}
 
       {/* Orders Management Dialog */}
-      <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelectCallback} />
+      <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelectCallback} onOrderStatusChange={fetchIncompleteOrders} />
 
       {/* Tables Layout Dialog */}
       {showTablesLayout && (

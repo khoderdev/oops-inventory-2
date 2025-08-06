@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { OrderDetailsDialog } from "./OrderDetailsDialog";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
-const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onClose, onOrderSelect }) => {
+const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onClose, onOrderSelect, onOrderStatusChange }) => {
   const renderCount = useRef(0);
   renderCount.current += 1;
 
@@ -160,9 +160,16 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       });
     }
 
+    // Always call the callback to refresh table badges when any order status changes
+    // This ensures table badges are updated immediately for any status change
+    if (onOrderStatusChange) {
+      console.log("🔄 POSClientOrders: Calling onOrderStatusChange to refresh table badges after status change to:", updatedOrder.status);
+      onOrderStatusChange();
+    }
+
     // Update the selected order if it's the same one
     setSelectedOrder(updatedOrder);
-  }, []);
+  }, [onOrderStatusChange]);
 
   // Fetch orders when component opens or filters change
   useEffect(() => {
