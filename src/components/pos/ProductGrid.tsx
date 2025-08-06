@@ -23,10 +23,10 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
           <Card key={item.id} className="group relative items-card cursor-pointer select-none transition-all duration-300 hover:shadow-xl hover:shadow-primary/20 hover:-translate-y-1 border border-gray-200/60 hover:border-primary/40 rounded-xl bg-white/95 backdrop-blur-sm overflow-hidden btn-touch" onClick={() => onAddToCart(item)}>
             <CardContent className="p-0 h-full flex flex-col">
               {/* Image Container */}
-              <div className="relative aspect-square w-full overflow-hidden">
+              <div className="relative aspect-[4/3] w-full overflow-hidden">
                 {item.type === "menu_item" && item.image ? (
                   <img
-                    src={item.image.startsWith("data:") ? item.image : `http://localhost:5000${item.image}`}
+                    src={item.image.startsWith("data:") ? item.image : `http://localhost:3000${item.image}`}
                     alt={item.name}
                     className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-110"
                     onError={e => {
@@ -59,7 +59,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
               </div>
 
               {/* Content Section */}
-              <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between">
+              <div className="flex-1 px-2 flex flex-col justify-between">
                 <div className="space-y-1">
                   <h4 className="text-sm sm:text-base font-semibold text-gray-900 line-clamp-2 leading-tight group-hover:text-primary transition-colors duration-200">{item.name}</h4>
                 </div>
