@@ -7,7 +7,7 @@ import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
 import { materialSchema } from "@/components/materials/materialsSchema";
 
-export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco" | "hotDrinks" | "coldDrinks";
+export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco" | "hot" | "cold";
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
 
@@ -112,7 +112,6 @@ export interface MaterialFormData extends z.infer<typeof materialSchema> {
   packageQuantity?: number;
   description?: string;
 }
-
 
 export interface MaterialFormProps {
   material?: Material;
@@ -766,10 +765,10 @@ export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label
   { value: "spices", label: "Spices & Seasonings" },
   { value: "beverages", label: "Beverages" },
   { value: "alcohol", label: "Alcohol" },
-  { value: "hotDrinks", label: "Hot Drinks" },
-  { value: "coldDrinks", label: "Cold Drinks" },
+  { value: "cold", label: "Cold" },
+  { value: "hot", label: "Hot" },
   { value: "tobacco", label: "Tobacco" },
-  { value: "packaging", label: "Packaging Materials" },
+  { value: "packaging", label: "Packaging" },
   { value: "other", label: "Other" }
 ];
 

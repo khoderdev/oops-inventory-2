@@ -7,10 +7,10 @@ export const MATERIAL_CATEGORIES = [
   { value: "spices", label: "Spices & Seasonings" },
   { value: "beverages", label: "Beverages" },
   { value: "alcohol", label: "Alcohol" },
-  { value: "hotDrinks", label: "Hot Drinks" },
-  { value: "coldDrinks", label: "Cold Drinks" },
+  { value: "hot", label: "Hot" },
+  { value: "cold", label: "Cold" },
   { value: "tobacco", label: "Tobacco" },
-  { value: "packaging", label: "Packaging Materials" },
+  { value: "packaging", label: "Packaging" },
   { value: "other", label: "Other" }
 ];
 

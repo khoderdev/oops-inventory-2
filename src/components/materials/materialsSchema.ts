@@ -4,7 +4,7 @@ import { z } from "zod";
 const materialCategoryEnum = z.enum([
   "meat", "dairy", "vegetables", "grains", "spices", 
   "beverages", "alcohol", "packaging", "other", "sweets", 
-  "tobacco", "hotDrinks", "coldDrinks"
+  "tobacco", "hot", "cold"
 ]);
 
 // Define the valid unit types
