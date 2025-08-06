@@ -168,16 +168,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
 
   return (
     <div className="w-full h-full flex flex-col bg-background">
-      {/* Header */}
-      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b bg-white">
-        <div className="text-center">
-          <h2 className="text-xl sm:text-2xl font-semibold text-foreground">Stock Management</h2>
-          <p className="text-sm text-muted-foreground mt-1">Manage your inventory stock entries</p>
-        </div>
-      </div>
-
-      {/* Tabs Navigation */}
-      <div className="flex-shrink-0 px-4 sm:px-6 py-4 bg-muted/30">
+      {/* <div className="flex-shrink-0 px-4 sm:px-6 py-4 bg-muted/30"> */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-background border shadow-sm">
             {stockEntry ? (
@@ -332,7 +323,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
             </div>
           </div>
         </Tabs>
-      </div>
+      {/* </div> */}
     </div>
   );
 }
