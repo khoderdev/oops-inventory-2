@@ -1,11 +1,7 @@
 import { menuAPI } from "@/api/menu.api.ts.tsx";
 import { ordersAPI } from "@/api/orders.api";
-import { ordersAPIWithPrefetch } from "@/api/ordersWithPrefetch.api";
-import { posAPI } from "@/api/pos.api.ts";
 import { printerAPI } from "@/api/printer.api";
-import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { tablesAPI } from "@/api/tables.api";
-import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
 import { usePrefetch } from "@/hooks/usePrefetch";
 import { useOrdersPrefetch } from "@/hooks/useOrdersPrefetch";
 import PrinterSelector from "@/components/common/PrinterSelector";
@@ -16,7 +12,7 @@ import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { Employee } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { Order, OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
+import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
@@ -38,7 +34,7 @@ import { VoidOrderDialog } from "./VoidOrderDialog";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
   // Prefetch hooks for data management
-  const { materials, stock, menu, isLoading: inventoryLoading, refresh: refreshInventory } = usePrefetch({
+  const { stock, menu, isLoading: inventoryLoading, refresh: refreshInventory } = usePrefetch({
     autoFetch: true,
     parallel: true,
     onError: (error) => console.error('Failed to load inventory data:', error)
@@ -52,7 +48,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Memoize dataTypes array to prevent infinite loop
   const orderDataTypes = useMemo(() => ['orderSummaries'] as const, []);
 
-  const { orderSummaries, isLoading: ordersLoading, refresh: refreshOrders } = useOrdersPrefetch({
+  const { isLoading: ordersLoading, refresh: refreshOrders } = useOrdersPrefetch({
     autoFetch: true,
     dataTypes: orderDataTypes,
     onError: handleOrdersError
