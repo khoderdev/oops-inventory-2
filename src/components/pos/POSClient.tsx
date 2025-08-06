@@ -34,26 +34,30 @@ import { VoidOrderDialog } from "./VoidOrderDialog";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
   // Prefetch hooks for data management
-  const { stock, menu, isLoading: inventoryLoading, refresh: refreshInventory } = usePrefetch({
+  const {
+    stock,
+    menu,
+    isLoading: inventoryLoading,
+    refresh: refreshInventory
+  } = usePrefetch({
     autoFetch: true,
     parallel: true,
-    onError: (error) => console.error('Failed to load inventory data:', error)
+    onError: error => console.error("Failed to load inventory data:", error)
   });
-  
+
   // Memoize onError callback to prevent infinite loop
   const handleOrdersError = useCallback((error: Error) => {
-    console.error('Failed to load orders data:', error);
+    console.error("Failed to load orders data:", error);
   }, []);
 
   // Memoize dataTypes array to prevent infinite loop
-  const orderDataTypes = useMemo(() => ['orderSummaries'] as ('orderSummaries' | 'orders')[], []);
+  const orderDataTypes = useMemo(() => ["orderSummaries"] as ("orderSummaries" | "orders")[], []);
 
   const { isLoading: ordersLoading, refresh: refreshOrders } = useOrdersPrefetch({
     autoFetch: true,
     dataTypes: orderDataTypes,
     onError: handleOrdersError
   });
-
 
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
@@ -184,8 +188,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Load selected order into cart when selectedOrderForPOS changes
   useEffect(() => {
-    console.log('🔍 selectedOrderForPOS changed:', selectedOrderForPOS);
-    
     if (selectedOrderForPOS) {
       if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
         // Need to fetch the full order details since we only have the summary
@@ -195,7 +197,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         return;
       }
     }
-    
+
     if (selectedOrderForPOS && selectedOrderForPOS.items) {
       const orderId = selectedOrderForPOS.id.toString();
 
@@ -238,7 +240,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           return null;
         })
         .filter(Boolean) as POSCartItem[];
-      
 
       // Set order type first
       setOrderType(selectedOrderForPOS.orderType);
@@ -263,12 +264,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
       // Set cart items immediately with proper logging
       setCart(cartItems);
-      
+
       // Clear the processed order ref after a short delay
       setTimeout(() => {
         if (processedOrderRef.current === orderId) {
           processedOrderRef.current = null;
-          console.log('🔄 Cleared processed order ref for:', orderId);
         }
       }, 1000);
 
@@ -286,14 +286,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Check if this order matches the selected order and we haven't processed it yet
       const currentOrderId = currentOrder.id.toString();
       if (selectedOrderForPOS && selectedOrderForPOS.id.toString() === currentOrderId && processedOrderRef.current !== currentOrderId) {
-        
         // Mark as being processed
         processedOrderRef.current = currentOrderId;
-        
+
         // Convert currentOrder items to cart items
         const cartItems: POSCartItem[] = currentOrder.items
           .map((item: any) => {
-            
             if (item.menuItem) {
               const cartItem = {
                 id: item.menuItem.id.toString(),
@@ -323,18 +321,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             return null;
           })
           .filter(Boolean) as POSCartItem[];
-        
-        
+
         // Set cart items
         setCart(cartItems);
-        
+
         // Apply other order properties
         setOrderType(currentOrder.orderType);
-        
+
         if (currentOrder.orderType === "table" && currentOrder.tableId) {
           setSelectedTable(tables.find(t => t.id === currentOrder.tableId));
         }
-        
+
         // Apply any existing discount
         if (currentOrder.discountAmount && parseFloat(currentOrder.discountAmount.toString()) > 0) {
           setAppliedDiscount({
@@ -344,14 +341,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             reason: currentOrder.discountReason || undefined
           });
         }
-        
+
         setHasUnsavedChanges(true);
-        
+
         // Clear processed ref after a delay
         setTimeout(() => {
           if (processedOrderRef.current === currentOrderId) {
             processedOrderRef.current = null;
-            console.log('🔄 Cleared processed order ref for currentOrder:', currentOrderId);
           }
         }, 1000);
       }
@@ -362,7 +358,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const clearCartWithAnimation = useCallback(() => {
     // Don't clear cart if we're currently processing a selected order
     if (processedOrderRef.current) {
-      console.log("🚫 Preventing cart clear - order is being processed:", processedOrderRef.current);
       return;
     }
 
@@ -453,22 +448,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [showSuccess]);
 
   // Payment with selected printer (deprecated - now handled in ReceiptPrinter component)
-  const handlePaymentWithPrinter = useCallback(async (printer: any) => {
-    console.log("💰 Payment completed, printer selected:", printer);
-    // This function is now deprecated as printer selection is handled in ReceiptPrinter component
-    // The payment flow now directly shows the ReceiptPrinter dialog
-  }, []);
+  const handlePaymentWithPrinter = useCallback(async (printer: any) => {}, []);
 
   // Print receipt with selected printer
   const handlePrintReceiptWithPrinter = useCallback(
     async (printer: any) => {
-      console.log("🖨️ Printing receipt with selected printer:", printer);
-      // TODO: Send receipt data to selected printer
-
       // If no lastSaleData, create it from current order/cart
       let receiptData = lastSaleData;
       if (!receiptData) {
-        console.log("📝 Creating receipt data for printer");
         // Use current order data if available, otherwise use cart
         const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
 
@@ -537,14 +524,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Show printer selector for settings/changing printer
   const handleShowPrinterSettings = useCallback(() => {
-    console.log("⚙️ Opening printer settings");
     setPrinterSelectionContext("manual_print");
     setShowPrinterSelector(true);
   }, []);
 
   // Handle successful print - don't auto-close dialog, let user close manually
   const handlePrintSuccess = useCallback(() => {
-    console.log("✅ Receipt printed successfully");
     showSuccess("Receipt printed successfully!");
     // Don't automatically clear states or close dialog - let user close manually
   }, [showSuccess]);
@@ -647,7 +632,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           console.error("❌ loadOrder function is not available!");
         }
 
-        setHasUnsavedChanges(false); 
+        setHasUnsavedChanges(false);
       } catch (error) {
         showError("Failed to load order for editing. Please try again.");
       } finally {
@@ -706,13 +691,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   useEffect(() => {
     if (menu && menu.length > 0) {
       setMenuItems(menu);
-
     }
   }, [menu]);
 
   // Convert prefetched data to POS items immediately
   useEffect(() => {
-
     if (menu && stock) {
       const convertToPOSItems = () => {
         const posItemsFromData: POSItem[] = [];
@@ -725,7 +708,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               name: menuItem.name,
               price: menuItem.price,
               category: menuItem.category,
-              type: 'menu_item',
+              type: "menu_item",
               menuItemId: menuItem.id,
               unit: menuItem.unit,
               availableQuantity: menuItem.availableQuantity,
@@ -746,7 +729,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               name: stockEntry.material.name,
               price: stockEntry.costPerBaseUnit || 0,
               category: stockEntry.material.category,
-              type: 'material',
+              type: "material",
               materialId: stockEntry.materialId,
               stockEntryId: stockEntry.id,
               unit: stockEntry.material.baseUnit,
@@ -754,8 +737,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             });
           }
         });
-
-
 
         setPosItems(posItemsFromData);
       };
@@ -1214,12 +1195,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     // Check if we have a saved printer
     if (hasSavedPrinter()) {
       const savedPrinter = getSavedPrinter();
-      console.log("🖨️ Using saved printer for receipt:", savedPrinter?.name);
       // Directly print with saved printer
       handlePrintReceiptWithPrinter(savedPrinter);
     } else {
       // Show printer selector for first-time selection
-      console.log("🖨️ No saved printer, showing selector");
       setPrinterSelectionContext("manual_print");
       setShowPrinterSelector(true);
     }
@@ -1318,8 +1297,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     // Clear any error or success messages
     setError(null);
     setSuccessMessage(null);
-
-    console.log("🧹 Order cancelled - all state cleared");
   }, [clearOrder]);
 
   // Format items for printer output using utility function
@@ -1341,15 +1318,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const printItemsToAssignedPrinters = useCallback(
     async (cartItems: POSCartItem[]) => {
       try {
-        console.log(
-          "🖨️ Starting automatic printing for order items:",
-          cartItems.map(item => ({
-            name: item.name,
-            printerId: item.printerId,
-            assignedPrinter: item.assignedPrinter?.name
-          }))
-        );
-
         // Group items by printer
         const itemsByPrinter = new Map<number, POSCartItem[]>();
 
@@ -1360,16 +1328,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               itemsByPrinter.set(printerId, []);
             }
             itemsByPrinter.get(printerId)!.push(item);
-            console.log(`📋 Item "${item.name}" assigned to printer ${printerId} (${item.assignedPrinter?.name || "Unknown"})`);
-          } else {
-            console.log(`⚠️ Item "${item.name}" has no printer assignment - will not be printed`);
           }
         });
 
-        console.log(`🎯 Items grouped into ${itemsByPrinter.size} printer(s):`);
         itemsByPrinter.forEach((items, printerId) => {
           const printerName = items[0]?.assignedPrinter?.name || `Printer ${printerId}`;
-          console.log(`  - ${printerName}: ${items.map(i => i.name).join(", ")}`);
         });
 
         // Print to each printer
@@ -1394,10 +1357,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 timestamp: new Date().toISOString()
               }
             };
-
             const result = await printerAPI.createPrintJob(printJobData);
-            console.log(`✅ Print job created for printer ${printerId}:`, result);
-
             return { printerId, success: true, jobId: result.job?.id };
           } catch (error) {
             console.error(`❌ Failed to print to printer ${printerId}:`, error);
@@ -1442,8 +1402,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Save the order - update if currentOrder exists, create if new
       let savedOrder;
       if (currentOrder) {
-        console.log("📝 Updating existing order:", currentOrder.id);
-
         // For updates, use the existing order items structure but update quantities/prices
         const updateData = {
           items: cart.map(cartItem => {
@@ -1472,9 +1430,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         savedOrder = await updateOrder(updateData);
       } else {
-        console.log("🆕 Creating new order");
-
-        // For creation, use the simpler structure without IDs
         const createData = {
           orderType,
           tableId: selectedTable?.id,
@@ -1544,8 +1499,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       // Clear order notes
       setOrderNotes("");
-
-      console.log("💾 Order saved and state cleared");
     } catch (error) {
       console.error("Failed to save order:", error);
       showError("Failed to save order. Please try again.");
@@ -1563,12 +1516,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     // Check if current order is already completed
     if (currentOrder && currentOrder.status === "paid") {
-      console.log("⚠️ Order is already completed:", {
-        id: currentOrder.id,
-        orderNumber: currentOrder.orderNumber,
-        status: currentOrder.status,
-        completedAt: currentOrder.completedAt
-      });
       showError(`Order ${currentOrder.orderNumber || currentOrder.id} is already completed`);
       setShowPaymentDialog(false);
       // Clear the current order since it's completed
@@ -1715,7 +1662,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
           setTables(refreshedTables);
         } catch (error) {
-          console.log("⚠️ Table update error (non-critical):", error);
+          console.error("⚠️ Table update error (non-critical):", error);
         }
       }
 
@@ -1725,7 +1672,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const posTransactionId = order.orderNumber || saleId;
           await recordEmployeeUsage(selectedEmployee, cart, posTransactionId);
         } catch (error) {
-          console.log("⚠️ Employee usage recording error (non-critical):", error);
+          console.error("⚠️ Employee usage recording error (non-critical):", error);
         }
       }
 
@@ -1809,12 +1756,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Calculate right panel width for ProductGrid
       const rightPanelWidth = 100 - newWidth;
       const calculatedRightPanelPixelWidth = (rightPanelWidth / 100) * containerRect.width;
-      console.log('🔄 Resize calculation:', {
-        newWidth,
-        rightPanelWidth,
-        containerWidth: containerRect.width,
-        calculatedRightPanelPixelWidth
-      });
       setRightPanelPixelWidth(calculatedRightPanelPixelWidth);
     }
   };
