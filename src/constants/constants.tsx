@@ -1,7 +1,7 @@
 import { Employee } from "@/types/employee";
 import { Table } from "@/types/inventory";
 import { OrderStatus, OrderType } from "@/types/orders";
-import { Car, Package, ShoppingBag, Truck, UserCheck, Utensils, Wine } from "lucide-react";
+import { Bike, Package, Car,  UserCheck, Utensils, Wine } from "lucide-react";
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -15,9 +15,9 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
 };
 
 export const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
-  delivery: <Truck className="w-4 h-4" />,
+  delivery: <Bike className="w-4 h-4" />,
   takeaway: <Package className="w-4 h-4" />,
-  table: <ShoppingBag className="w-4 h-4" />,
+  table: <Car className="w-4 h-4" />,
   employees: <UserCheck className="w-4 h-4" />,
   bar: <Wine className="w-4 h-4" />
 };
@@ -25,9 +25,9 @@ export const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
 export const getOrderTypeIcon = (type: OrderType) => {
   switch (type) {
     case "delivery":
-      return <Car className="w-4 h-4" />;
+      return <Bike className="w-4 h-4" />;
     case "takeaway":
-      return <ShoppingBag className="w-4 h-4" />;
+      return <Car className="w-4 h-4" />;
     case "table":
       return <Utensils className="w-4 h-4" />;
     case "employees":
@@ -35,7 +35,7 @@ export const getOrderTypeIcon = (type: OrderType) => {
     case "bar":
       return <Wine className="w-4 h-4" />;
     default:
-      return <ShoppingBag className="w-4 h-4" />;
+      return <Car className="w-4 h-4" />;
   }
 };
 
