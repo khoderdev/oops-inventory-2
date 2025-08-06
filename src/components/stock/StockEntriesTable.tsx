@@ -1192,6 +1192,130 @@ export function StockEntriesTable() {
           {/* Bulk Printer Assignment Dialog */}
           <BulkPrinterAssignmentDialog open={showBulkPrinterDialog} onOpenChange={setShowBulkPrinterDialog} selectedItems={selectedStockEntries} itemType="stock" onAssignmentChange={handleBulkPrinterAssignmentComplete} />
 
+          {/* Negative Stock Report Dialog */}
+          <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+            <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  Negative Stock Report
+                </DialogTitle>
+                <DialogDescription>
+                  Items with negative stock quantities that need attention
+                </DialogDescription>
+              </DialogHeader>
+              
+              {negativeStockReport && (
+                <div className="space-y-6">
+                  {/* Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-red-600">
+                        {negativeStockReport.totalNegativeEntries || 0}
+                      </div>
+                      <div className="text-sm text-red-700">Items with Negative Stock</div>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {negativeStockReport.summary?.totalVirtualEntries || 0}
+                      </div>
+                      <div className="text-sm text-orange-700">Virtual Entries</div>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {negativeStockReport.generatedAt ? new Date(negativeStockReport.generatedAt).toLocaleDateString() : new Date().toLocaleDateString()}
+                      </div>
+                      <div className="text-sm text-blue-700">Report Date</div>
+                    </div>
+                  </div>
+
+                  {/* Negative Items Table */}
+                  {negativeStockReport.negativeStockItems && negativeStockReport.negativeStockItems.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Negative Stock Items</h3>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-gray-50">
+                              <TableHead>Material</TableHead>
+                              <TableHead>Supplier</TableHead>
+                              <TableHead>Individual Quantity</TableHead>
+                              <TableHead>Unit</TableHead>
+                              <TableHead>Purchased Quantity</TableHead>
+                              <TableHead>Purchased Unit</TableHead>
+                              <TableHead>Category</TableHead>
+                              <TableHead>Last Updated</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {negativeStockReport.negativeStockItems.map((item, index) => (
+                              <TableRow key={index} className="border-b">
+                                <TableCell className="font-medium">
+                                  <div className="flex items-center gap-2">
+                                    {item.isVirtualEntry && <AlertTriangle className="h-4 w-4 text-red-600" />}
+                                    {item.materialName}
+                                    {item.isVirtualEntry && (
+                                      <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                                        VIRTUAL
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className={item.isVirtualEntry ? "text-red-600 font-medium" : ""}>
+                                  {item.supplier}
+                                </TableCell>
+                                <TableCell className="text-red-600 font-medium flex items-center gap-2">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  {formatNumber(item.purchasedIndividualQuantity)}
+                                </TableCell>
+                                <TableCell>{item.purchasedIndividualUnit}</TableCell>
+                                <TableCell className="text-red-600 font-medium">
+                                  {formatNumber(item.purchasedQuantity)}
+                                </TableCell>
+                                <TableCell>{item.purchasedUnit}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.category}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : 'N/A'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Message */}
+                  {negativeStockReport.message && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h3 className="text-lg font-semibold text-blue-900 mb-2">Report Summary</h3>
+                      <p className="text-blue-800">{negativeStockReport.message}</p>
+                    </div>
+                  )}
+
+                  {/* Category Summary */}
+                  {negativeStockReport.summary?.categorySummary && Object.keys(negativeStockReport.summary.categorySummary).length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Negative Stock by Category</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {Object.entries(negativeStockReport.summary.categorySummary).map(([category, count]) => (
+                          <div key={category} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                            <div className="text-lg font-bold text-gray-900">{count}</div>
+                            <div className="text-sm text-gray-600 capitalize">{category}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
           {/* Stock Form Dialog */}
           {showStockForm && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

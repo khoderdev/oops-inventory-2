@@ -44,13 +44,13 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
       quantity: "text-sm"
     };
     if (width <= 1400) return {
-      itemName: "text-xl",
-      price: "text-2xl",
+      itemName: "text-lg",
+      price: "text-xl",
       quantity: "text-base"
     };
     return {
-      itemName: "text-xl",
-      price: "text-2xl",
+      itemName: "text-lg",
+      price: "text-xl",
       quantity: "text-base"
     };
   };
@@ -109,7 +109,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
               </div>
 
               {/* Content Section */}
-              <div className="flex-1 px-2 flex flex-col justify-between">
+              <div className="flex-1 p-2 flex flex-col justify-between">
                 <div className="space-y-1">
                   <h4 className={`${textSizes.itemName} font-semibold text-gray-900 line-clamp-2 leading-tight group-hover:text-primary transition-colors duration-200`}>{item.name}</h4>
                 </div>
@@ -131,7 +131,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
       </div>
 
       {/* Loading State */}
-      {isLoading && posItems.length === 0 && (
+      {/* {isLoading && posItems.length === 0 && (
         <div className="flex flex-col items-center justify-center h-96 text-gray-500">
           <div className="relative">
             <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mb-6 shadow-inner animate-pulse">
@@ -141,10 +141,10 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
           <h3 className="text-xl font-semibold text-gray-700 mb-2">Loading products...</h3>
           <p className="text-sm text-center max-w-md text-gray-500 leading-relaxed">Please wait while we load your products.</p>
         </div>
-      )}
+      )} */}
 
       {/* Enhanced Empty State */}
-      {!isLoading && posItems.length === 0 && (
+      {/* {!isLoading && posItems.length === 0 && (
         <div className="flex flex-col items-center justify-center h-96 text-gray-500">
           <div className="relative">
             <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-6 shadow-inner">
@@ -157,7 +157,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
           <h3 className="text-xl font-semibold text-gray-700 mb-2">No products available</h3>
           <p className="text-sm text-center max-w-md text-gray-500 leading-relaxed">No products match your current filter. Try selecting a different category or check if items are marked as POS-enabled.</p>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
