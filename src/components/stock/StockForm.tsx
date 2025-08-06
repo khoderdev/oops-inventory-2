@@ -29,10 +29,10 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
       expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
       batchNumber: stockEntry?.batchNumber || "",
-      // Waste-related fields
-      wasteQuantity: "0",
-      wasteReason: "",
-      wasteDate: new Date()
+      // Waste-related fields - only set if this is a waste operation
+      wasteQuantity: undefined,
+      wasteReason: undefined,
+      wasteDate: undefined
     }
   });
 
@@ -83,10 +83,10 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
       expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
       batchNumber: stockEntry?.batchNumber || "",
-      // Waste-related fields
-      wasteQuantity: "0",
-      wasteReason: "",
-      wasteDate: new Date()
+      // Waste-related fields - only set if this is a waste operation
+      wasteQuantity: undefined,
+      wasteReason: undefined,
+      wasteDate: undefined
     });
   }, [stockEntry, selectedMaterialId, form, activeTab]);
 

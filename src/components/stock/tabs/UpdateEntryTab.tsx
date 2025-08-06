@@ -25,7 +25,14 @@ interface UpdateEntryTabProps {
 
 export function UpdateEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onSubmit, onCancel }: UpdateEntryTabProps) {
   const handleSubmit = (data: StockFormInputs) => {
+    console.log("🚀 UpdateEntryTab handleSubmit called with data:", data);
+    console.log("📝 Form validation state:", {
+      isValid: form.formState.isValid,
+      errors: form.formState.errors,
+      isDirty: form.formState.isDirty
+    });
     const formData = data as unknown as StockFormData;
+    console.log("📤 Calling onSubmit with formData:", formData);
     onSubmit(formData);
   };
 
@@ -278,7 +285,22 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit">Update Entry</Button>
+            <Button 
+              type="submit" 
+              onClick={() => {
+                console.log("💆 Update Entry button clicked!");
+                console.log("📝 Current form values:", form.getValues());
+                console.log("📝 Form errors (detailed):", JSON.stringify(form.formState.errors, null, 2));
+                console.log("📝 Form valid:", form.formState.isValid);
+                
+                // Log specific error details
+                Object.entries(form.formState.errors).forEach(([field, error]) => {
+                  console.log(`❌ Field '${field}' error:`, error);
+                });
+              }}
+            >
+              Update Entry
+            </Button>
           </div>
         </form>
       </Form>

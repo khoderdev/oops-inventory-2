@@ -50,17 +50,31 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
   }
 
   let costPerBaseUnit = 0;
-  let calculatedTotalCost = 0; // Will be calculated based on waste quantity × cost per base unit
+  let calculatedTotalCost = 0;
 
   // Handle packaged goods
-  if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity && selectedMaterial.costPerUnit && selectedMaterial.baseUnit) {
+  if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity && selectedMaterial.baseUnit) {
+    // For package items, if user enters cost in base unit (e.g., cost per piece),
+    // we need to calculate the cost per package
+    let costPerPackage: number;
+    
+    if (purchasedUnit === selectedMaterial.baseUnit) {
+      // User entered cost per individual unit (e.g., $0.5 per piece)
+      // Convert to cost per package: cost per piece × pieces per package
+      costPerPackage = numCostPerUnit * selectedMaterial.packageQuantity;
+      console.log(`🔄 Converting cost per ${purchasedUnit} to cost per package: $${numCostPerUnit} × ${selectedMaterial.packageQuantity} = $${costPerPackage}`);
+    } else {
+      // User entered cost per package directly
+      costPerPackage = numCostPerUnit;
+    }
+
     const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle"];
     const packageType: PackageUnit = validPackageUnits.includes(selectedMaterial.inputUnit as PackageUnit) ? (selectedMaterial.inputUnit as PackageUnit) : "pack";
 
     const packagedGood: PackagedGood = {
       name: selectedMaterial.name || "Unknown Material",
-      costPerPackage: selectedMaterial.costPerUnit, // e.g., $6.00 for a pack
-      unitsPerPackage: selectedMaterial.packageQuantity, // e.g., 30 eggs
+      costPerPackage,
+      unitsPerPackage: selectedMaterial.packageQuantity, // e.g., 6 pieces per pack
       baseUnit: selectedMaterial.baseUnit, // e.g., "piece"
       packageType
     };
@@ -81,11 +95,14 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
       );
     }
 
+    console.log("📦 Package Calculation Input:", { packagedGood, numQuantity, purchasedUnit });
     const costBreakdown = calculatePackagedGoodCost(packagedGood, numQuantity, purchasedUnit);
     costPerBaseUnit = packagedGood.costPerPackage / packagedGood.unitsPerPackage; // e.g., $6.00 ÷ 30 = $0.20
     calculatedTotalCost = costBreakdown.totalCost; // Use calculated total cost.
 
     // Debugging: Log cost breakdown steps
+    console.log("📦 Package Cost Breakdown:", costBreakdown);
+    console.log("📦 Calculated Total Cost:", calculatedTotalCost);
     console.log("Cost Breakdown Steps:", costBreakdown.steps);
   } else {
     // Non-packaged goods logic
