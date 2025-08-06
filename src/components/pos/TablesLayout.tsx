@@ -155,12 +155,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
       if (!isDragMode || !canvasRef.current) return;
 
-      // Debug log to check table data
-      console.log("Mouse down on table:", {
-        tableId: table.id,
-        tableNumber: table.number,
-        table: table
-      });
+
 
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -228,11 +223,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       try {
         setIsUpdatingPosition(currentDragState.tableId);
 
-        // Debug log to check table ID
-        console.log("Updating table position:", {
-          tableId: currentDragState.tableId,
-          position: finalPosition
-        });
+
 
         // Update position via API
         await tablesAPI.updateTable(currentDragState.tableId, {
@@ -350,7 +341,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
         // Add to local state - backend returns { message, table }
         const newTable = response.data.table || response.data;
-        console.log("Created table:", newTable); // Debug log
+
         setUpdatedTables(prev => [...prev, newTable]);
 
         toast.success(`Table ${nextNumber} created successfully`);

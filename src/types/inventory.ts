@@ -688,6 +688,9 @@ export interface MenuItem {
   description?: string;
   category: MenuItemCategory;
   price: number;
+  unit: string;
+  availableQuantity: number;
+  costPerUnit: number;
   ingredients: MenuItemIngredient[];
   menuItemIngredients: boolean;
   isPOSItem?: boolean;

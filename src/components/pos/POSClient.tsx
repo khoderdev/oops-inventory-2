@@ -58,13 +58,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     onError: handleOrdersError
   });
 
-  // Debug logging for prefetch data (throttled to reduce spam)
-  const logRef = useRef({ lastLog: 0, logCount: 0 });
-  const now = Date.now();
-  if (now - logRef.current.lastLog > 2000 || logRef.current.logCount < 3) { // Log every 2 seconds or first 3 times
-    logRef.current.lastLog = now;
-    logRef.current.logCount++;
-  }
+
 
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
@@ -458,80 +452,86 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     // Don't automatically clear states or close dialog - let user close manually
   }, [showSuccess]);
 
-  // Process incomplete orders from prefetched data
-  const processIncompleteOrders = useCallback(() => {
-    console.log('📋 POS Client - Orders Data Processing:', {
-      timestamp: new Date().toISOString(),
-      orderSummariesExists: !!orderSummaries,
-      orderSummariesLength: orderSummaries?.length || 0,
-      orderSummaries: orderSummaries?.map(order => ({
-        id: order.id,
-        orderNumber: order.orderNumber,
-        status: order.status,
-        orderType: order.orderType,
-        tableNumber: order.tableNumber,
-        total: order.total,
-        itemCount: order.itemCount
-      })) || []
-    });
-    
-    if (!orderSummaries || orderSummaries.length === 0) {
-      console.log('⚠️ POS Client - No order summaries available');
+  // Fetch incomplete orders count and table orders for notifications (using direct API like old setup)
+  const fetchIncompleteOrders = useCallback(async () => {
+    try {
+      // Fetch all orders (we'll filter on frontend since backend doesn't support multiple status filtering)
+      const response = await ordersAPI.getOrders();
+
+      if (response?.data) {
+        // Handle the nested response structure: {data: {data: Array}}
+        let ordersArray: OrderSummaryType[];
+
+        // Define type for nested response
+        type NestedResponse = { data: OrderSummaryType[] };
+
+        // Check if response.data is a nested structure or direct array
+        if (Array.isArray(response.data)) {
+          ordersArray = response.data;
+        } else if (response.data && typeof response.data === "object" && "data" in response.data && Array.isArray((response.data as NestedResponse).data)) {
+          ordersArray = (response.data as NestedResponse).data;
+        } else {
+          setIncompleteOrdersCount(0);
+          setTableOrders({});
+          setIncompleteTableOrdersCount(0);
+          setIncompleteDeliveryTakeawayCount(0);
+          setIncompleteDeliveryCount(0);
+          setIncompleteTakeawayCount(0);
+          return;
+        }
+
+        // Filter for incomplete orders (using same criteria as POSClientOrders)
+        // Incomplete = orders that are still in progress, not yet completed
+        const incompleteStatuses = ["draft", "confirmed", "preparing", "ready"];
+        const incompleteOrders = ordersArray.filter(order => incompleteStatuses.includes(order.status));
+
+        // Count total incomplete orders
+        setIncompleteOrdersCount(incompleteOrders.length);
+
+        // Separate counts by order type
+        const deliveryCount = incompleteOrders.filter(order => order.orderType === "delivery").length;
+        const takeawayCount = incompleteOrders.filter(order => order.orderType === "takeaway").length;
+        const deliveryTakeawayCount = deliveryCount + takeawayCount;
+
+        // Count unique tables with incomplete orders (not total orders)
+        const uniqueTablesWithOrders = new Set(incompleteOrders.filter(order => order.orderType === "table" && order.tableNumber).map(order => order.tableNumber));
+        const tableOrdersCount = uniqueTablesWithOrders.size;
+
+        setIncompleteTableOrdersCount(tableOrdersCount);
+        setIncompleteDeliveryTakeawayCount(deliveryTakeawayCount);
+        setIncompleteDeliveryCount(deliveryCount);
+        setIncompleteTakeawayCount(takeawayCount);
+
+        // Group orders by table for table notifications
+        const tableOrdersMap: { [tableId: string]: number } = {};
+        incompleteOrders.forEach(order => {
+          if (order.tableNumber) {
+            const tableKey = order.tableNumber.toString();
+            tableOrdersMap[tableKey] = (tableOrdersMap[tableKey] || 0) + 1;
+          }
+        });
+        setTableOrders(tableOrdersMap);
+      } else {
+        // No data received
+        setIncompleteOrdersCount(0);
+        setTableOrders({});
+        setIncompleteTableOrdersCount(0);
+        setIncompleteDeliveryTakeawayCount(0);
+        setIncompleteDeliveryCount(0);
+        setIncompleteTakeawayCount(0);
+      }
+    } catch (error) {
+      console.error("Error fetching incomplete orders:", error);
+      // Reset counts on error
       setIncompleteOrdersCount(0);
       setTableOrders({});
       setIncompleteTableOrdersCount(0);
       setIncompleteDeliveryTakeawayCount(0);
       setIncompleteDeliveryCount(0);
       setIncompleteTakeawayCount(0);
-      return;
+      // Don't show error to user as this is background functionality
     }
-
-    // Filter for incomplete orders (using same criteria as POSClientOrders)
-    // Incomplete = orders that are still in progress, not yet completed
-    const incompleteStatuses = ["draft", "confirmed", "preparing", "ready"];
-    const incompleteOrders = orderSummaries.filter(order => incompleteStatuses.includes(order.status));
-
-    // Count total incomplete orders
-    setIncompleteOrdersCount(incompleteOrders.length);
-
-    // Separate counts by order type
-    const deliveryCount = incompleteOrders.filter(order => order.orderType === "delivery").length;
-    const takeawayCount = incompleteOrders.filter(order => order.orderType === "takeaway").length;
-    const deliveryTakeawayCount = deliveryCount + takeawayCount;
-
-    // Count unique tables with incomplete orders (not total orders)
-    const uniqueTablesWithOrders = new Set(incompleteOrders.filter(order => order.orderType === "table" && order.tableNumber).map(order => order.tableNumber));
-    const tableOrdersCount = uniqueTablesWithOrders.size;
-
-    setIncompleteTableOrdersCount(tableOrdersCount);
-    setIncompleteDeliveryTakeawayCount(deliveryTakeawayCount);
-    setIncompleteDeliveryCount(deliveryCount);
-    setIncompleteTakeawayCount(takeawayCount);
-
-    // Group orders by table for table notifications
-    const tableOrdersMap: { [tableId: string]: number } = {};
-    incompleteOrders.forEach(order => {
-      if (order.tableNumber) {
-        const tableKey = order.tableNumber.toString();
-        tableOrdersMap[tableKey] = (tableOrdersMap[tableKey] || 0) + 1;
-      }
-    });
-    setTableOrders(tableOrdersMap);
-    
-    console.log('✅ POS Client - Orders processing completed:', {
-      totalIncompleteOrders: incompleteOrders.length,
-      tableOrdersCount,
-      deliveryTakeawayCount,
-      deliveryCount,
-      takeawayCount,
-      tableOrdersMap
-    });
-  }, [orderSummaries]);
-
-  // Process incomplete orders when order summaries change
-  useEffect(() => {
-    processIncompleteOrders();
-  }, [processIncompleteOrders]);
+  }, []);
 
   // Handle order selection for editing
   const handleOrderSelect = useCallback(
@@ -540,24 +540,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setIsLoading(true);
         setError(null);
 
-        // Clear current cart and state first
         setCart([]);
         setHasUnsavedChanges(false);
         setAppliedDiscount(null);
         setDiscountAmount(0);
-
-        // Load the order using the order management hook
-        // This will set currentOrder, which will trigger the useEffect to transform items to cart
         if (loadOrder) {
           await loadOrder(order.id);
         } else {
           console.error("❌ loadOrder function is not available!");
         }
 
-        // The cart transformation will be handled by the useEffect that watches currentOrder
-        // No need to manually transform items here anymore
-
-        setHasUnsavedChanges(false); // This is an existing order, not unsaved
+        setHasUnsavedChanges(false); 
       } catch (error) {
         showError("Failed to load order for editing. Please try again.");
       } finally {
@@ -608,55 +601,20 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Update local state when prefetched data changes
   useEffect(() => {
-    console.log('📦 POS Client - Stock Data Processing:', {
-      timestamp: new Date().toISOString(),
-      stockExists: !!stock,
-      stockLength: stock?.length || 0,
-      stockWithPOSFlag: stock?.filter(item => item.isPOSItem).length || 0,
-      stockEntries: stock?.map(item => ({
-        id: item.id,
-        materialName: item.material?.name,
-        isPOSItem: item.isPOSItem,
-        category: item.material?.category
-      })) || []
-    });
-    
     if (stock && stock.length > 0) {
       setStockEntries(stock);
-      console.log('✅ POS Client - Stock entries set successfully:', stock.length, 'items');
     }
   }, [stock]);
 
   useEffect(() => {
-    console.log('🍽️ POS Client - Menu Data Processing:', {
-      timestamp: new Date().toISOString(),
-      menuExists: !!menu,
-      menuLength: menu?.length || 0,
-      menuWithPOSFlag: menu?.filter(item => item.isPOSItem).length || 0,
-      menuItems: menu?.map(item => ({
-        id: item.id,
-        name: item.name,
-        isPOSItem: item.isPOSItem,
-        category: item.category,
-        price: item.price
-      })) || []
-    });
-    
     if (menu && menu.length > 0) {
       setMenuItems(menu);
-      console.log('✅ POS Client - Menu items set successfully:', menu.length, 'items');
+
     }
   }, [menu]);
 
   // Convert prefetched data to POS items immediately
   useEffect(() => {
-    console.log('🔄 POS Items Conversion - Data Status:', {
-      menuLength: menu?.length || 0,
-      stockLength: stock?.length || 0,
-      inventoryLoading,
-      menuItems: menu?.filter(item => item.isPOSItem).length || 0,
-      stockItems: stock?.filter(item => item.isPOSItem).length || 0
-    });
 
     if (menu && stock) {
       const convertToPOSItems = () => {
@@ -670,8 +628,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               name: menuItem.name,
               price: menuItem.price,
               category: menuItem.category,
-              type: 'menu_item', // Fixed: use 'menu_item' to match addToCart logic
+              type: 'menu_item',
               menuItemId: menuItem.id,
+              unit: menuItem.unit,
+              availableQuantity: menuItem.availableQuantity,
+              costPerUnit: menuItem.costPerUnit,
+              createdAt: menuItem.createdAt,
+              updatedAt: menuItem.updatedAt,
               description: menuItem.description,
               image: menuItem.image
             });
@@ -695,24 +658,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }
         });
 
-        console.log('✅ POS Items Converted (FINAL RESULT):', {
-          totalItems: posItemsFromData.length,
-          menuItems: posItemsFromData.filter(item => item.type === 'menu_item').length,
-          materialItems: posItemsFromData.filter(item => item.type === 'material').length,
-          // Show actual items being converted
-          convertedMenuItems: posItemsFromData.filter(item => item.type === 'menu_item').map(item => ({
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            price: item.price
-          })),
-          convertedMaterialItems: posItemsFromData.filter(item => item.type === 'material').map(item => ({
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            price: item.price
-          }))
-        });
+
 
         setPosItems(posItemsFromData);
       };
@@ -865,16 +811,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     ]);
   }, [refreshOrders, refreshInventory, fetchTablesData, refreshCountsRef]);
 
-  // Set up periodic refresh for orders data
+  // Fetch incomplete orders for notifications (like old setup)
   useEffect(() => {
+    // Initial fetch
+    fetchIncompleteOrders();
+
     // Set up interval to refresh every 30 seconds
-    const interval = setInterval(() => {
-      refreshOrders();
-    }, 30000);
+    const interval = setInterval(fetchIncompleteOrders, 30000);
 
     // Cleanup interval on unmount
     return () => clearInterval(interval);
-  }, [refreshOrders]);
+  }, [fetchIncompleteOrders]);
 
   // Get available POS items (filter by search term and category)
   const availablePosItems = posItems.filter(posItem => {
