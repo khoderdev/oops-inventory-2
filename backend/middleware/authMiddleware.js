@@ -1,16 +1,3 @@
-/**
- * Authentication Middleware with Sliding Session Management
- *
- * This middleware implements a sliding session expiration system where:
- * - Sessions are automatically extended on each request (sliding window)
- * - Sessions only expire when:
- *   1. User explicitly logs out
- *   2. Session exceeds maximum duration (30 days)
- *   3. Browser is closed (client-side token removal)
- * - Session extensions are throttled to prevent excessive database updates
- * - Sessions maintain activity tracking for security auditing
- */
-
 import { AuditLog, Session, User } from "../models/index.js";
 
 // Extract token from request headers
@@ -82,23 +69,15 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    // Check if session is expired (only if it's truly expired, not just needs extension)
+    // Check if session has exceeded maximum duration (30 days)
     if (session.isExpired()) {
-      // Check if session can be extended (within maximum duration)
-      const sessionAge = Date.now() - new Date(session.createdAt).getTime();
-
-      if (sessionAge > SESSION_CONFIG.MAX_DURATION) {
-        // Session has exceeded maximum duration, force logout
-        await session.update({ isActive: false });
-        await AuditLog.logFailedAction(session.userId, "session_expired", "authentication", "Session exceeded maximum duration", req);
-        return res.status(401).json({
-          error: "Access denied",
-          message: "Session has expired due to maximum duration limit"
-        });
-      }
-
-      // Session is expired but within max duration, extend it
-      console.log(`🔄 Extending expired session for user ${session.userId}`);
+      // Session has exceeded maximum duration, force logout
+      await session.update({ isActive: false });
+      await AuditLog.logFailedAction(session.userId, "session_expired", "authentication", "Session exceeded maximum duration", req);
+      return res.status(401).json({
+        error: "Access denied",
+        message: "Session has expired due to maximum duration limit"
+      });
     }
 
     const user = session.user;
@@ -317,21 +296,12 @@ export const optionalAuth = async (req, res, next) => {
     });
 
     if (session && !session.user.isLocked()) {
-      // Check session expiration with extension logic
-      let sessionValid = true;
-
+      // Check if session has exceeded maximum duration (30 days)
       if (session.isExpired()) {
-        const sessionAge = Date.now() - new Date(session.createdAt).getTime();
-
-        if (sessionAge > SESSION_CONFIG.MAX_DURATION) {
-          // Session exceeded maximum duration
-          await session.update({ isActive: false });
-          sessionValid = false;
-        }
-        // If within max duration, session will be extended below
-      }
-
-      if (sessionValid) {
+        // Session exceeded maximum duration
+        await session.update({ isActive: false });
+        req.isAuthenticated = false;
+      } else {
         req.user = session.user;
         req.session = session;
         req.isAuthenticated = true;
@@ -355,8 +325,6 @@ export const optionalAuth = async (req, res, next) => {
         }
 
         await session.update(updateData);
-      } else {
-        req.isAuthenticated = false;
       }
     } else {
       req.isAuthenticated = false;

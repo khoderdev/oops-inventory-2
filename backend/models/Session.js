@@ -135,7 +135,14 @@ const Session = sequelize.define(
 
 // Instance methods
 Session.prototype.isExpired = function () {
-  return this.expiresAt < new Date();
+  // Check if session is truly expired (beyond the 30-day maximum duration)
+  const now = new Date();
+  const sessionAge = now.getTime() - new Date(this.createdAt).getTime();
+  const MAX_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
+  
+  // Only consider expired if session age exceeds maximum duration
+  // This prevents race conditions with the sliding window extension
+  return sessionAge > MAX_DURATION;
 };
 
 Session.prototype.isOnline = function () {

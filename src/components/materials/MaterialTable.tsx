@@ -281,7 +281,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
           <div className="hidden lg:block px-4">
             <div className="w-full h-[calc(100vh-210px)] rounded-lg border overflow-hidden bg-white mt-4">
               <Table className="w-full">
-                <TableHeader className="bg-gray-100 sticky top-0 z-10">
+                <TableHeader className="bg-gray-100 sticky top-0">
                   <TableRow className="border-b border-gray-200">
                     <TableHead className="w-[25%] px-6 py-4 text-left font-semibold text-gray-900">
                       <Button 

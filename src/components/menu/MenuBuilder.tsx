@@ -865,7 +865,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             <div className="hidden lg:flex flex-1 flex-col min-h-0 border rounded-md">
               <div className="flex-1 overflow-auto">
                 <Table className="min-w-full">
-                  <TableHeader className="sticky top-0 bg-background z-10 border-b">
+                  <TableHeader className="sticky top-0 bg-background border-b">
                     <TableRow>
                       {bulkSelectionMode && (
                         <TableHead className="w-12">

@@ -162,7 +162,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           title: "Error",
           description: `Failed to ${selectedMaterial ? "update" : "create"} material`,
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, material: false }));
@@ -206,7 +206,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           title: "Error",
           description: `Failed to ${selectedStockEntry ? "update" : "create"} stock entry`,
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, stock: false }));
@@ -258,7 +258,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           title: "Error",
           description: "Failed to delete material",
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, [`delete-material-${materialId}`]: false }));
@@ -291,7 +291,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           title: "Error",
           description: "Failed to delete stock entry",
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, [`delete-stock-${stockEntryId}`]: false }));
@@ -330,7 +330,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           title: "Error",
           description: "Failed to add stock",
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       }
     },
@@ -354,7 +354,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           title: "Error",
           description: "Failed to record waste",
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       }
     },
@@ -374,7 +374,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           title: "Error",
           description: "Failed to add to entry",
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       }
     },
@@ -414,7 +414,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           title: "Error",
           description: "Failed to record waste",
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       }
     },
@@ -475,7 +475,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
         title: "Error",
         description: `Failed to ${selectedSection ? "update" : "create"} section`,
         variant: "destructive",
-        duration: 2000
+        duration: 1500
       });
     }
   };

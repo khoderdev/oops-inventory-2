@@ -872,7 +872,7 @@ export function StockEntriesTable() {
           <div className="hidden lg:block">
             <div className="w-full h-[calc(100vh-260px)] border rounded-lg overflow-hidden bg-white shadow-sm">
               <Table className="w-full">
-                <TableHeader className="bg-gray-50/80 sticky top-0 z-10">
+                <TableHeader className="bg-gray-50/80 sticky top-0">
                   <TableRow className="border-b border-gray-200">
                     {bulkSelectionMode && (
                       <TableHead className="w-12 px-6 py-4 text-left font-semibold text-gray-900">
