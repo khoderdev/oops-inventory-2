@@ -7,7 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -124,25 +124,18 @@ export function StockEntriesTable() {
 
   // Stock form handlers
   const handleStockSubmit = async (data: StockFormData) => {
-    console.log("🚀 handleStockSubmit called with data:", data);
-    console.log("📝 selectedStockEntry:", selectedStockEntry);
-
     try {
       if (selectedStockEntry) {
-        console.log("🔄 Updating existing stock entry with ID:", selectedStockEntry.id);
         // Update existing stock entry
         const result = await inventoryAPIWithPrefetch.stock.updateStockEntryWithCache(selectedStockEntry.id, data);
-        console.log("✅ Update result:", result);
         toast({
           title: "Stock Entry Updated",
           description: "Stock entry has been updated successfully.",
           variant: "default"
         });
       } else {
-        console.log("➕ Creating new stock entry");
         // Create new stock entry
         const result = await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(data);
-        console.log("✅ Create result:", result);
         toast({
           title: "Stock Entry Created",
           description: "New stock entry has been created successfully.",
@@ -150,7 +143,6 @@ export function StockEntriesTable() {
         });
       }
 
-      console.log("🔄 Refreshing data...");
       // Reset form state
       setShowStockForm(false);
       setSelectedStockEntry(null);
@@ -159,7 +151,6 @@ export function StockEntriesTable() {
       // Refresh data
       await refresh("stock");
       await refresh("materials");
-      console.log("✅ Data refresh completed");
     } catch (error) {
       console.error("❌ Error submitting stock form:", error);
       console.error("❌ Error details:", {
@@ -232,9 +223,6 @@ export function StockEntriesTable() {
     } & { stockEntryId: string }
   ) => {
     try {
-      console.log("🚀 handleWasteFromSpecificEntryOperation called with:", data);
-
-      // Convert the data to the format expected by the API
       const wasteData = {
         wasteQuantity: data.wasteQuantity || data.purchasedQuantity || 0,
         unit: data.purchasedUnit || "g",
@@ -243,15 +231,10 @@ export function StockEntriesTable() {
         notes: data.notes
       };
 
-      console.log("📤 Calling wasteFromSpecificEntryWithCache with ID:", data.stockEntryId, "and data:", wasteData);
-
-      // Call the API to record waste from specific entry
       await inventoryAPIWithPrefetch.stock.wasteFromSpecificEntryWithCache(data.stockEntryId, wasteData);
 
       await refresh("stock");
       await refresh("materials");
-
-      // Close the dialog
       setShowStockForm(false);
 
       toast({
@@ -287,9 +270,6 @@ export function StockEntriesTable() {
     } & { stockEntryId: string }
   ) => {
     try {
-      console.log("🚀 handleAddToSpecificEntryOperation called with:", data);
-
-      // Convert the data to the format expected by the API
       const addData = {
         additionalQuantity: data.purchasedQuantity || 0,
         unit: data.purchasedUnit || "g",
@@ -297,15 +277,10 @@ export function StockEntriesTable() {
         notes: data.notes
       };
 
-      console.log("📤 Calling addToSpecificEntryWithCache with ID:", data.stockEntryId, "and data:", addData);
-
-      // Call the API to add to specific entry
       await inventoryAPIWithPrefetch.stock.addToSpecificEntryWithCache(data.stockEntryId, addData);
 
       await refresh("stock");
       await refresh("materials");
-
-      // Close the dialog
       setShowStockForm(false);
 
       toast({
@@ -553,7 +528,6 @@ export function StockEntriesTable() {
   };
 
   const negativeStockCount = stockEntriesWithMaterial.filter(hasNegativeStock).length;
-  const virtualEntryCount = stockEntriesWithMaterial.filter(isVirtualEntry).length;
 
   const handleRowClick = (entryId: string) => {
     setSelectedRowId(selectedRowId === entryId ? null : entryId);
@@ -638,10 +612,6 @@ export function StockEntriesTable() {
     if (selectedStockEntries.size > 0) {
       setShowBulkPrinterDialog(true);
     }
-  };
-
-  const handleCloseBulkPrinterDialog = () => {
-    setShowBulkPrinterDialog(false);
   };
 
   const handleBulkPrinterAssignmentComplete = async () => {

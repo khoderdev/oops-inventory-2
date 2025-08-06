@@ -895,7 +895,7 @@ export interface StockFormProps {
   stockEntry?: StockEntry;
   selectedMaterialId?: string;
   onSubmit: (data: StockFormData) => void;
-  onAddStock?: (data: StockFormData) => void;
+  onAddStock?: (data: AddStockData) => void;
   onRecordWaste?: (data: RecordWasteData) => void;
   onAddToSpecificEntry?: (data: StockFormData & { stockEntryId: string }) => void;
   onWasteFromSpecificEntry?: (data: StockFormData & { stockEntryId: string }) => void;
