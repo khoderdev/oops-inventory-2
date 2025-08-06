@@ -528,9 +528,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
           <StockEntriesTable />
         </TabsContent>
 
-        <TabsContent value="sections" className="flex-1 focus-visible:outline-none overflow-hidden ">
+        {/* <TabsContent value="sections" className="flex-1 focus-visible:outline-none overflow-hidden ">
           <SectionsManagementPanel sections={sections} sectionAssignments={sectionAssignments} materials={materialsWithStock} stockEntries={stockEntries} menuItems={menuItems} onCreateSection={onCreateSection} onUpdateSection={onUpdateSection} onDeleteSection={onDeleteSection} onDataRefresh={handleDataRefresh} />
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
 
       {/* Forms */}
@@ -550,6 +550,39 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry,
       )}
 
 
+
+      {/* Stock Form Dialog */}
+      <Dialog open={showStockForm} onOpenChange={setShowStockForm}>
+        <DialogContent className="w-[95vw] max-w-xs sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-6xl max-h-[95vh] sm:max-h-[90vh] p-0 m-2 sm:m-4">
+          <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Package className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="truncate">{selectedStockEntry ? "Edit Stock Entry" : "Add New Stock Entry"}</span>
+            </DialogTitle>
+            <DialogDescription className="text-sm sm:text-base">
+              {selectedStockEntry ? "Update the stock entry details below" : "Add new stock for the selected material"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[calc(95vh-100px)] sm:max-h-[calc(90vh-120px)]">
+            <div className="px-4 sm:px-6 py-3 sm:py-4">
+              <StockForm
+                materials={materialsWithStock}
+                stockEntry={selectedStockEntry || undefined}
+                selectedMaterialId={selectedMaterial?.id}
+                onSubmit={handleStockSubmit}
+                onAddStock={handleAddStockOperation}
+                onRecordWaste={handleRecordWasteOperation}
+                onCancel={() => {
+                  setShowStockForm(false);
+                  setSelectedStockEntry(null);
+                  setSelectedMaterial(null);
+                }}
+              />
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       {/* Section Form Dialog */}
       <Dialog open={showSectionForm} onOpenChange={setShowSectionForm}>
