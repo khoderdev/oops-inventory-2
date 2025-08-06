@@ -116,18 +116,21 @@ export const tokenManager = {
   LAST_ACTIVITY_KEY: "last_activity",
   SESSION_ID_KEY: "session_id",
 
-  // Session configuration
-  REFRESH_THRESHOLD: 5 * 60 * 1000, // Refresh token 5 minutes before expiry
-  ACTIVITY_TIMEOUT: 2 * 60 * 60 * 1000, // 2 hours of inactivity (increased from 30 minutes)
-  MAX_SESSION_DURATION: 24 * 60 * 60 * 1000, // 24 hours maximum session (increased from 8 hours)
+  // Session configuration - FOR UI DISPLAY ONLY (NO AUTOMATIC EXPIRATION)
+  REFRESH_THRESHOLD: 5 * 60 * 1000, // UI indicator only - no automatic refresh
+  ACTIVITY_TIMEOUT: Number.MAX_SAFE_INTEGER, // Disabled - sessions never expire due to inactivity
+  MAX_SESSION_DURATION: Number.MAX_SAFE_INTEGER, // Disabled - sessions never expire due to duration
+
+  // Private property for timeout reference
+  _refreshTimeout: null as NodeJS.Timeout | null,
 
   getToken: (): string | null => {
     try {
       const token = localStorage.getItem(tokenManager.TOKEN_KEY);
       if (!token) return null;
 
-      // No automatic expiration checks - tokens only expire on manual logout or browser close
-      // Update last activity for tracking purposes only
+      // NO AUTOMATIC EXPIRATION - tokens persist until manual logout
+      // Update last activity for UI tracking purposes only
       tokenManager.updateLastActivity();
       return token;
     } catch (error) {
@@ -193,48 +196,26 @@ export const tokenManager = {
   },
 
   isTokenExpired: (token?: string): boolean => {
-    try {
-      const expiryStr = localStorage.getItem(tokenManager.TOKEN_EXPIRY_KEY);
-      if (!expiryStr) return true;
-      
-      const expiry = parseInt(expiryStr, 10) * 1000;
-      const now = Date.now();
-      
-      return now >= expiry;
-    } catch {
-      return true;
-    }
+    // DISABLED - tokens never expire automatically
+    // Always return false to prevent automatic logout
+    return false;
   },
 
   shouldRefreshToken: (token?: string): boolean => {
-    try {
-      const expiryStr = localStorage.getItem(tokenManager.TOKEN_EXPIRY_KEY);
-      if (!expiryStr) return false;
-      
-      const expiry = parseInt(expiryStr, 10) * 1000;
-      const now = Date.now();
-      
-      return (expiry - now) <= tokenManager.REFRESH_THRESHOLD;
-    } catch {
-      return false;
-    }
+    // DISABLED - no automatic token refresh
+    // Tokens persist until manual logout
+    return false;
   },
 
   isSessionInactive: (): boolean => {
-    try {
-      const lastActivity = localStorage.getItem(tokenManager.LAST_ACTIVITY_KEY);
-      if (!lastActivity) return true;
-      
-      const lastActivityTime = parseInt(lastActivity, 10);
-      const now = Date.now();
-      
-      return (now - lastActivityTime) > tokenManager.ACTIVITY_TIMEOUT;
-    } catch {
-      return true;
-    }
+    // DISABLED - sessions never become inactive automatically
+    // Always return false to prevent automatic logout
+    return false;
   },
 
   updateLastActivity: (): void => {
+    // Update activity timestamp for UI display purposes only
+    // No expiration logic based on this timestamp
     localStorage.setItem(tokenManager.LAST_ACTIVITY_KEY, Date.now().toString());
   },
 
@@ -256,20 +237,13 @@ export const tokenManager = {
   },
 
   scheduleTokenRefresh: (expiryTime: number): void => {
-    // Clear existing timeout
+    // DISABLED - no automatic token refresh scheduling
+    // Clear any existing timeout to prevent automatic refresh
     if (tokenManager._refreshTimeout) {
       clearTimeout(tokenManager._refreshTimeout);
+      tokenManager._refreshTimeout = null;
     }
-
-    const now = Date.now();
-    const timeUntilRefresh = expiryTime - now - tokenManager.REFRESH_THRESHOLD;
-    
-    if (timeUntilRefresh > 0 && timeUntilRefresh < 24 * 60 * 60 * 1000) { // Only schedule if less than 24 hours
-      tokenManager._refreshTimeout = setTimeout(() => {
-        // Trigger refresh through custom event
-        window.dispatchEvent(new CustomEvent("tokenRefreshNeeded"));
-      }, timeUntilRefresh);
-    }
+    // No automatic refresh events will be dispatched
   },
 
   getSessionInfo: () => {
@@ -290,8 +264,5 @@ export const tokenManager = {
       shouldRefresh: false, // No automatic refresh needed
       isInactive: false // Never inactive - only manual logout or browser close
     };
-  },
-
-  // Private property for timeout reference
-  _refreshTimeout: null as NodeJS.Timeout | null
+  }
 };
