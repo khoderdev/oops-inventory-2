@@ -6,14 +6,64 @@ import React from "react";
 
 export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0, isLoading = false }) => {
   const getGridColumns = (width: number) => {
-    if (width <= 400) return "grid-cols-2";
-    if (width <= 600) return "grid-cols-3";
-    if (width <= 800) return "grid-cols-4";
-    if (width <= 1000) return "grid-cols-5";
-    return "grid-cols-6";
+    // Enhanced responsive breakpoints for better panel resizing experience
+    if (width <= 300) return "grid-cols-1"; // Very narrow panels
+    if (width <= 450) return "grid-cols-2"; // Small panels
+    if (width <= 650) return "grid-cols-3"; // Medium panels
+    if (width <= 850) return "grid-cols-4"; // Large panels
+    if (width <= 1100) return "grid-cols-5"; // Extra large panels
+    if (width <= 1400) return "grid-cols-6"; // Very large panels
+    return "grid-cols-7"; // Ultra-wide panels
+  };
+
+  // Dynamic text sizes based on panel width instead of screen width
+  const getTextSizes = (width: number) => {
+    if (width <= 300) return {
+      itemName: "text-xs",
+      price: "text-sm",
+      quantity: "text-xs"
+    };
+    if (width <= 450) return {
+      itemName: "text-xs",
+      price: "text-sm",
+      quantity: "text-xs"
+    };
+    if (width <= 650) return {
+      itemName: "text-sm",
+      price: "text-base",
+      quantity: "text-xs"
+    };
+    if (width <= 850) return {
+      itemName: "text-base",
+      price: "text-lg",
+      quantity: "text-sm"
+    };
+    if (width <= 1100) return {
+      itemName: "text-lg",
+      price: "text-xl",
+      quantity: "text-sm"
+    };
+    if (width <= 1400) return {
+      itemName: "text-xl",
+      price: "text-2xl",
+      quantity: "text-base"
+    };
+    return {
+      itemName: "text-xl",
+      price: "text-2xl",
+      quantity: "text-base"
+    };
   };
 
   const gridColumns = getGridColumns(rightPanelPixelWidth);
+  const textSizes = getTextSizes(rightPanelPixelWidth);
+
+  // Debug logging
+  console.log('📋 ProductGrid received:', {
+    rightPanelPixelWidth,
+    gridColumns,
+    textSizes
+  });
 
   return (
     <div className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto safe-area-padding">
@@ -61,14 +111,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
               {/* Content Section */}
               <div className="flex-1 px-2 flex flex-col justify-between">
                 <div className="space-y-1">
-                  <h4 className="text-sm sm:text-base font-semibold text-gray-900 line-clamp-2 leading-tight group-hover:text-primary transition-colors duration-200">{item.name}</h4>
+                  <h4 className={`${textSizes.itemName} font-semibold text-gray-900 line-clamp-2 leading-tight group-hover:text-primary transition-colors duration-200`}>{item.name}</h4>
                 </div>
 
                 <div className="mt-2 pt-2 border-t border-gray-100">
                   <div className="flex items-center justify-center">
-                    <span className="text-lg sm:text-xl font-bold text-primary">{formatCurrency(item.price)}</span>
+                    <span className={`${textSizes.price} font-bold text-primary`}>{formatCurrency(item.price)}</span>
                     {item.availableQuantity && item.availableQuantity !== 999 && (
-                      <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
+                      <span className={`${textSizes.quantity} text-gray-500 bg-gray-50 px-2 py-1 rounded-full`}>
                         {item.availableQuantity} {item.unit}
                       </span>
                     )}

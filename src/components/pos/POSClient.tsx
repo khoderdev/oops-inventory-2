@@ -46,7 +46,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, []);
 
   // Memoize dataTypes array to prevent infinite loop
-  const orderDataTypes = useMemo(() => ['orderSummaries'] as const, []);
+  const orderDataTypes = useMemo(() => ['orderSummaries'] as ('orderSummaries' | 'orders')[], []);
 
   const { isLoading: ordersLoading, refresh: refreshOrders } = useOrdersPrefetch({
     autoFetch: true,
@@ -55,13 +55,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   });
 
 
-
   const [cart, setCart] = useState<POSCartItem[]>([]);
-  
-  // Debug cart changes
-  useEffect(() => {
-    console.log('🛒 Cart state changed:', cart.length, 'items:', cart);
-  }, [cart]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +97,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Resizable panel state
   const [leftPanelWidth, setLeftPanelWidth] = useState(33.33); // Default 33.33% (1/3)
+  const [rightPanelPixelWidth, setRightPanelPixelWidth] = useState(0); // Track right panel pixel width for ProductGrid responsiveness
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showDiscountDialog, setShowDiscountDialog] = useState(false);
@@ -167,32 +162,34 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       if (containerWidth < 1024) {
         setLeftPanelWidth(33.33);
       }
+
+      // Calculate and update right panel pixel width for ProductGrid responsiveness
+      const rightPanelWidth = 100 - leftPanelWidth;
+      const calculatedRightPanelPixelWidth = (rightPanelWidth / 100) * containerWidth;
+      setRightPanelPixelWidth(calculatedRightPanelPixelWidth);
     };
 
-    window.addEventListener("resize", handleResize);
-    handleResize(); // Initial check
+    // Use setTimeout to ensure DOM is ready
+    const timeoutId = setTimeout(() => {
+      handleResize(); // Initial calculation
+    }, 100);
 
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [leftPanelWidth]); // Add leftPanelWidth as dependency
 
   // Load selected order into cart when selectedOrderForPOS changes
   useEffect(() => {
     console.log('🔍 selectedOrderForPOS changed:', selectedOrderForPOS);
     
     if (selectedOrderForPOS) {
-      console.log('📋 Order structure:', {
-        id: selectedOrderForPOS.id,
-        orderNumber: selectedOrderForPOS.orderNumber,
-        hasItems: !!selectedOrderForPOS.items,
-        itemsLength: selectedOrderForPOS.items?.length || 0,
-        items: selectedOrderForPOS.items
-      });
-      
       if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
-        console.log('⚠️ Order has no items, need to fetch full order details');
         // Need to fetch the full order details since we only have the summary
         if (loadOrder) {
-          console.log('🔄 Loading full order details for:', selectedOrderForPOS.id);
           loadOrder(selectedOrderForPOS.id.toString());
         }
         return;
@@ -213,20 +210,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Convert order items to cart items
       const cartItems: POSCartItem[] = selectedOrderForPOS.items
         .map((item: any) => {
-          console.log('🔄 Converting order item to cart item:', item);
-          
           if (item.menuItem) {
             const cartItem = {
               id: item.menuItem.id.toString(),
               name: item.menuItem.name,
               price: item.menuItem.price,
               quantity: item.quantity,
-              type: "menu_item" as const, // Fixed: was "menu", should be "menu_item"
+              type: "menu_item" as const,
               menuItemId: item.menuItem.id,
               originalItem: item.menuItem,
               stockEntryId: undefined
             };
-            console.log('✅ Created menu cart item:', cartItem);
             return cartItem;
           } else if (item.material) {
             const cartItem = {
@@ -239,16 +233,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               originalItem: item.material,
               stockEntryId: undefined
             };
-            console.log('✅ Created material cart item:', cartItem);
             return cartItem;
           }
-
-          console.log('⚠️ Unknown item type, skipping:', item);
           return null;
         })
         .filter(Boolean) as POSCartItem[];
       
-      console.log('📦 Total cart items created:', cartItems.length, cartItems);
 
       // Set order type first
       setOrderType(selectedOrderForPOS.orderType);
@@ -272,7 +262,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         loadOrder(selectedOrderForPOS.id.toString());
       }
       // Set cart items immediately with proper logging
-      console.log('🛒 Setting cart with items:', cartItems);
       setCart(cartItems);
       
       // Clear the processed order ref after a short delay
@@ -294,12 +283,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Handle when currentOrder is loaded (after loadOrder is called)
   useEffect(() => {
     if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
-      console.log('📄 currentOrder loaded with items:', currentOrder);
-      
       // Check if this order matches the selected order and we haven't processed it yet
       const currentOrderId = currentOrder.id.toString();
       if (selectedOrderForPOS && selectedOrderForPOS.id.toString() === currentOrderId && processedOrderRef.current !== currentOrderId) {
-        console.log('🔄 Processing currentOrder items into cart');
         
         // Mark as being processed
         processedOrderRef.current = currentOrderId;
@@ -307,7 +293,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Convert currentOrder items to cart items
         const cartItems: POSCartItem[] = currentOrder.items
           .map((item: any) => {
-            console.log('🔄 Converting currentOrder item to cart item:', item);
             
             if (item.menuItem) {
               const cartItem = {
@@ -320,7 +305,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 originalItem: item.menuItem,
                 stockEntryId: undefined
               };
-              console.log('✅ Created menu cart item from currentOrder:', cartItem);
               return cartItem;
             } else if (item.material) {
               const cartItem = {
@@ -333,16 +317,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 originalItem: item.material,
                 stockEntryId: undefined
               };
-              console.log('✅ Created material cart item from currentOrder:', cartItem);
               return cartItem;
             }
 
-            console.log('⚠️ Unknown item type in currentOrder, skipping:', item);
             return null;
           })
           .filter(Boolean) as POSCartItem[];
         
-        console.log('📦 Total cart items created from currentOrder:', cartItems.length, cartItems);
         
         // Set cart items
         setCart(cartItems);
@@ -1827,7 +1808,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       // Calculate right panel width for ProductGrid
       const rightPanelWidth = 100 - newWidth;
-      const rightPanelPixelWidth = (rightPanelWidth / 100) * containerRect.width;
+      const calculatedRightPanelPixelWidth = (rightPanelWidth / 100) * containerRect.width;
+      console.log('🔄 Resize calculation:', {
+        newWidth,
+        rightPanelWidth,
+        containerWidth: containerRect.width,
+        calculatedRightPanelPixelWidth
+      });
+      setRightPanelPixelWidth(calculatedRightPanelPixelWidth);
     }
   };
 
@@ -2059,7 +2047,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 overflow-y-auto !bg-gray-50">
-              <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={containerRef.current ? ((100 - leftPanelWidth) / 100) * containerRef.current.offsetWidth : 0} isLoading={inventoryLoading || (posItems.length === 0 && (menu.length === 0 || stock.length === 0))} />
+              <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={inventoryLoading || (posItems.length === 0 && (menu.length === 0 || stock.length === 0))} />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}
