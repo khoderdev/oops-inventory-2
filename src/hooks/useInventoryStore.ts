@@ -202,14 +202,21 @@ export function useInventoryStore() {
 
   const handleDeleteMenuItem = useCallback(
     async (id: string) => {
+      console.log("🗑️ [InventoryStore] handleDeleteMenuItem called with id:", id);
+      console.log("🗑️ [InventoryStore] Current menuItems count:", menuItems.length);
+      
       try {
+        console.log("🗑️ [InventoryStore] Calling deleteMenuItem action with id:", id);
         await deleteMenuItem(id);
+        console.log("✅ [InventoryStore] Delete action completed successfully for id:", id);
+        console.log("🗑️ [InventoryStore] New menuItems count:", menuItems.length);
       } catch (error) {
-        console.error("Failed to delete menu item:", error);
+        console.error("❌ [InventoryStore] Failed to delete menu item:", error);
         // Error handling is already done in the action
+        throw error; // Re-throw so MenuBuilder can catch it
       }
     },
-    [deleteMenuItem]
+    [deleteMenuItem, menuItems.length]
   );
 
   const handleAddStockOperation = useCallback(

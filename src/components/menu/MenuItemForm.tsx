@@ -44,7 +44,11 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   const availableMaterials = useMemo(() => {
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
-    return materials.filter(m => !usedMaterialIds.has(m.id));
+    const excludedCategories = ['beverages', 'cold', 'hot', 'alcohol'];
+    return materials.filter(m => 
+      !usedMaterialIds.has(m.id) && 
+      !excludedCategories.includes(m.category?.toLowerCase() || '')
+    );
   }, [materials, ingredients]);
 
   const filteredMaterials = useMemo(() => {
@@ -296,7 +300,10 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         ingredients: ingredientsWithCosts,
         isPOSItem,
         image,
-        menuItemIngredients: false
+        menuItemIngredients: false,
+        unit: "",
+        availableQuantity: 0,
+        costPerUnit: 0
       });
       setName("");
       setCategory("");

@@ -443,16 +443,35 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
 });
 
 export const deleteMenuItemAction = atom(null, async (get, set, id: string) => {
+  console.log("🗑️ [DeleteAction] deleteMenuItemAction called with id:", id);
+  
   // Get current state before optimistic update
   const currentMenuItems = get(menuItemsAtom);
+  console.log("🗑️ [DeleteAction] Current menuItems count:", currentMenuItems.length);
+  console.log("🗑️ [DeleteAction] Looking for item with id:", id);
+  
+  const itemToDelete = currentMenuItems.find(item => item.id === id);
+  if (!itemToDelete) {
+    console.error("❌ [DeleteAction] Menu item not found with id:", id);
+    throw new Error(`Menu item with id ${id} not found`);
+  }
+  
+  console.log("🗑️ [DeleteAction] Found item to delete:", itemToDelete.name);
 
   // Optimistic update - remove menu item immediately
-  set(menuItemsAtom, prev => prev.filter(item => item.id !== id));
+  set(menuItemsAtom, prev => {
+    const filtered = prev.filter(item => item.id !== id);
+    console.log("🗑️ [DeleteAction] Optimistic update - new count:", filtered.length);
+    return filtered;
+  });
 
   try {
+    console.log("🗑️ [DeleteAction] Making API call to delete item:", id);
     // Make API call
     await inventoryAPI.menu.deleteMenuItem(id);
+    console.log("✅ [DeleteAction] API call successful for id:", id);
   } catch (error) {
+    console.error("❌ [DeleteAction] API call failed, reverting optimistic update:", error);
     // Revert optimistic update
     set(menuItemsAtom, currentMenuItems);
     console.error("Failed to delete menu item:", error);

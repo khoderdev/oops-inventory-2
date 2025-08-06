@@ -26,12 +26,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const { fetchTabData } = useInventoryStore();
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
 
-  // Debug: Log validation state on mount and changes
-  useEffect(() => {
-    console.log("🎆 [MenuBuilder] Component mounted/updated, dataValidationEnabled:", dataValidationEnabled);
-    console.log("🎆 [MenuBuilder] localStorage value:", localStorage.getItem("dataValidationEnabled"));
-  }, [dataValidationEnabled]);
-
   // State for validation
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
@@ -40,11 +34,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   // Automatic validation when data changes (only if enabled)
   useEffect(() => {
     const validateData = async () => {
-      console.log("🔍 [MenuBuilder] dataValidationEnabled:", dataValidationEnabled);
-
       // Skip validation if disabled
       if (!dataValidationEnabled) {
-        console.log("⏭️ [MenuBuilder] Validation disabled, skipping auto-validation");
         setValidationResults(null);
         return;
       }
@@ -72,11 +63,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     validateData();
   }, [materials, stockEntries, lastValidationTime, dataValidationEnabled]);
 
-  // Enhanced debugging with validation context
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
     if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
 
-    // For now, we'll do basic validation since validateIngredient method may not exist
     const issues: ValidationIssue[] = [];
 
     // Check unit compatibility
@@ -113,7 +102,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   // Manual validation trigger
   const runValidation = useCallback(() => {
     if (!dataValidationEnabled) {
-      console.log("⏭️ [MenuBuilder] Manual validation blocked - validation is disabled");
       toast({
         title: "Validation Disabled",
         description: "Data validation is disabled. Enable it in System Settings to run validation.",
@@ -124,7 +112,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
     if (!materials || !stockEntries) return;
 
-    console.log("🔍 [MenuBuilder] Running manual validation");
     const result = dataValidator.validateData(materials, stockEntries);
     setValidationResults(result);
     setLastValidationTime(Date.now());
@@ -410,12 +397,31 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 
   const handleDeleteMenuItem = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!onDeleteMenuItem) {
-        console.error("onDeleteMenuItem handler not provided");
+        console.error("❌ [MenuBuilder] onDeleteMenuItem handler not provided");
         return;
       }
-      onDeleteMenuItem(id);
+
+      try {
+        await onDeleteMenuItem(id);
+
+        // Show success toast
+        toast({
+          title: "Success",
+          description: "Menu item deleted successfully",
+          variant: "default"
+        });
+      } catch (error) {
+        console.error("❌ [MenuBuilder] Error deleting menu item:", error);
+
+        // Show error toast
+        toast({
+          title: "Error",
+          description: "Failed to delete menu item",
+          variant: "destructive"
+        });
+      }
     },
     [onDeleteMenuItem]
   );
@@ -818,30 +824,30 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                                 <p>Edit {item.name}</p>
                               </TooltipContent>
                             </Tooltip>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
                                     <Button size="sm" variant="outline">
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Delete {item.name}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                                  <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                                      <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Delete {item.name}</p>
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
                         </div>
                       </div>
@@ -986,30 +992,32 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                                     <p>Edit {item.name}</p>
                                   </TooltipContent>
                                 </Tooltip>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
                                         <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
                                           <Trash2 className="h-4 w-4" />
                                         </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Delete {item.name}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                                      <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                                          <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={() => handleDeleteMenuItem(item.id)}>
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Delete {item.name}</p>
+                                  </TooltipContent>
+                                </Tooltip>
                               </div>
                             </TableCell>
                           </TableRow>
