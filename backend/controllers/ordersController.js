@@ -489,7 +489,7 @@ export const ordersController = {
             materialName: item.name
           })),
         menuItems: order.items
-          .filter(item => item.type === "menu")
+          .filter(item => item.type === "menu_item")
           .map(item => ({
             menuItemId: item.menuItemId,
             quantity: item.quantity,

@@ -125,51 +125,50 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   }, []);
 
   // Handle order updates from OrderDetailsDialog
-  const handleOrderUpdate = useCallback((updatedOrder: Order) => {
-    console.log("📝 POSClientOrders: Order updated:", updatedOrder);
+  const handleOrderUpdate = useCallback(
+    (updatedOrder: Order) => {
 
-    // Check if the updated order is still incomplete
-    const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
-    const isStillIncomplete = incompleteStatuses.includes(updatedOrder.status);
+      // Check if the updated order is still incomplete
+      const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
+      const isStillIncomplete = incompleteStatuses.includes(updatedOrder.status);
 
-    if (isStillIncomplete) {
-      // Update the orders list with the new order data
-      setOrders(prevOrders => {
-        return prevOrders.map(order => {
-          if (order.id === updatedOrder.id) {
-            // Update only the properties that exist in OrderSummary
-            const updatedOrderSummary: OrderSummary = {
-              ...order,
-              status: updatedOrder.status,
-              total: updatedOrder.total,
-              itemCount: updatedOrder.items?.length || order.itemCount || 0,
-              customerName: updatedOrder.customerName || order.customerName,
-              discountAmount: updatedOrder.discountAmount || 0
-            };
-            console.log("✅ POSClientOrders: Updated order in list:", updatedOrderSummary);
-            return updatedOrderSummary;
-          }
-          return order;
+      if (isStillIncomplete) {
+        // Update the orders list with the new order data
+        setOrders(prevOrders => {
+          return prevOrders.map(order => {
+            if (order.id === updatedOrder.id) {
+              // Update only the properties that exist in OrderSummary
+              const updatedOrderSummary: OrderSummary = {
+                ...order,
+                status: updatedOrder.status,
+                total: updatedOrder.total,
+                itemCount: updatedOrder.items?.length || order.itemCount || 0,
+                customerName: updatedOrder.customerName || order.customerName,
+                discountAmount: updatedOrder.discountAmount || 0
+              };
+              return updatedOrderSummary;
+            }
+            return order;
+          });
         });
-      });
-    } else {
-      // Order is now completed, remove it from the incomplete orders list
-      console.log("🎉 POSClientOrders: Order completed, removing from list:", updatedOrder.status);
-      setOrders(prevOrders => {
-        return prevOrders.filter(order => order.id !== updatedOrder.id);
-      });
-    }
+      } else {
+        // Order is now completed, remove it from the incomplete orders list
+        setOrders(prevOrders => {
+          return prevOrders.filter(order => order.id !== updatedOrder.id);
+        });
+      }
 
-    // Always call the callback to refresh table badges when any order status changes
-    // This ensures table badges are updated immediately for any status change
-    if (onOrderStatusChange) {
-      console.log("🔄 POSClientOrders: Calling onOrderStatusChange to refresh table badges after status change to:", updatedOrder.status);
-      onOrderStatusChange();
-    }
+      // Always call the callback to refresh table badges when any order status changes
+      // This ensures table badges are updated immediately for any status change
+      if (onOrderStatusChange) {
+        onOrderStatusChange();
+      }
 
-    // Update the selected order if it's the same one
-    setSelectedOrder(updatedOrder);
-  }, [onOrderStatusChange]);
+      // Update the selected order if it's the same one
+      setSelectedOrder(updatedOrder);
+    },
+    [onOrderStatusChange]
+  );
 
   // Fetch orders when component opens or filters change
   useEffect(() => {

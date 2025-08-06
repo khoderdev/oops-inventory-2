@@ -46,7 +46,7 @@ const OrderItem = sequelize.define(
       allowNull: false
     },
     type: {
-      type: DataTypes.ENUM("material", "menu"),
+      type: DataTypes.ENUM("material", "menu_item"),
       allowNull: false
     },
     quantity: {

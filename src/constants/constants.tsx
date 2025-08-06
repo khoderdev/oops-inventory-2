@@ -17,7 +17,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
 export const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
   delivery: <Bike className="w-4 h-4" />,
   takeaway: <Package className="w-4 h-4" />,
-  table: <Car className="w-4 h-4" />,
+  table: <Utensils className="w-4 h-4" />,
   employees: <UserCheck className="w-4 h-4" />,
   bar: <Wine className="w-4 h-4" />
 };

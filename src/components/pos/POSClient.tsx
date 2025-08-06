@@ -781,7 +781,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           if (item.type === "material" && item.materialId) {
             // Find the stock entry by materialId
             originalItem = stockEntries.find(se => se.materialId === item.materialId);
-          } else if (item.type === "menu" && item.menuItemId) {
+          } else if (item.type === "menu_item" && item.menuItemId) {
             // Find the menu item by menuItemId
             originalItem = menuItems.find(m => m.id === item.menuItemId);
           }
@@ -968,7 +968,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               name: posItem.name,
               price: posItem.price,
               quantity: 1,
-              type: "menu",
+              type: "menu_item",
               originalItem: menuItem,
               posItem,
               stockEntryId: undefined,
@@ -1077,7 +1077,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               if (item.type === "material" && item.materialId) {
                 // Find the stock entry by materialId
                 originalItem = stockEntries.find(se => se.materialId === item.materialId);
-              } else if (item.type === "menu" && item.menuItemId) {
+              } else if (item.type === "menu_item" && item.menuItemId) {
                 // Find the menu item by menuItemId
                 originalItem = menuItems.find(m => m.id === item.menuItemId);
               }
@@ -1406,12 +1406,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         const updateData = {
           items: cart.map(cartItem => {
             // Find matching existing order item or create new structure
-            const existingItem = currentOrder.items?.find(orderItem => (cartItem.type === "menu" && String(orderItem.menuItemId) === String(cartItem.menuItemId)) || (cartItem.type === "material" && String(orderItem.materialId) === String((cartItem.originalItem as StockEntryWithMaterial).materialId)));
+            const existingItem = currentOrder.items?.find(orderItem => (cartItem.type === "menu_item" && String(orderItem.menuItemId) === String(cartItem.menuItemId)) || (cartItem.type === "material" && String(orderItem.materialId) === String((cartItem.originalItem as StockEntryWithMaterial).materialId)));
 
             return {
               id: existingItem?.id || `temp-${Date.now()}-${Math.random()}`,
               materialId: cartItem.type === "material" ? String((cartItem.originalItem as StockEntryWithMaterial).materialId) : undefined,
-              menuItemId: cartItem.type === "menu" ? String((cartItem.originalItem as MenuItem).id) : undefined,
+              menuItemId: cartItem.type === "menu_item" ? String((cartItem.originalItem as MenuItem).id) : undefined,
               assignmentId: undefined,
               name: cartItem.name,
               quantity: cartItem.quantity,
@@ -1419,7 +1419,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               totalPrice: cartItem.price * cartItem.quantity,
               type: cartItem.type,
               notes: undefined,
-              menuItem: cartItem.type === "menu"
+              menuItem: cartItem.type === "menu_item"
             };
           }),
           discountType: appliedDiscount?.type,
@@ -1436,7 +1436,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           employeeId: selectedEmployee?.id,
           items: cart.map(item => ({
             materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
-            menuItemId: item.type === "menu" ? String((item.originalItem as MenuItem).id) : undefined,
+            menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
             assignmentId: undefined,
             name: item.name,
             quantity: item.quantity,
@@ -1444,7 +1444,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             totalPrice: item.price * item.quantity,
             type: item.type,
             notes: undefined,
-            menuItem: item.type === "menu"
+            menuItem: item.type === "menu_item"
           })),
           notes: orderNotes || undefined,
           discountType: appliedDiscount?.type,
@@ -1536,14 +1536,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           items: cart.map(item => {
             const orderItem = {
               materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
-              menuItemId: item.type === "menu" ? String((item.originalItem as MenuItem).id) : undefined,
+              menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
               assignmentId: undefined,
               name: item.name,
               quantity: item.quantity,
               unitPrice: item.price,
               totalPrice: item.price * item.quantity,
               type: item.type,
-              notes: undefined
+              notes: undefined,
+              menuItem: item.type === "menu_item"
             };
 
             return orderItem;

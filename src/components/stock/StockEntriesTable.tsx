@@ -50,6 +50,13 @@ export function StockEntriesTable() {
   const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
   const materialsMap = new Map(materials.map(m => [m.id, m]));
 
+  // Helper function to check if material belongs to allowed POS categories
+  const isAllowedPOSCategory = (material: Material | undefined) => {
+    if (!material || !material.category) return false;
+    const allowedCategories = ['beverages', 'cold', 'hot', 'alcohol'];
+    return allowedCategories.includes(material.category.toLowerCase());
+  };
+
   // Handle sorting
   const handleSort = (field: "materialName" | "supplier" | "purchaseDate") => {
     if (sortField === field) {
@@ -829,17 +836,31 @@ export function StockEntriesTable() {
                             <Button
                               variant={entry.isPOSItem ? "default" : "outline"}
                               size="sm"
+                              disabled={!isAllowedPOSCategory(material)}
                               onClick={e => {
                                 e.stopPropagation();
                                 handleTogglePOSVisibility(entry);
                               }}
-                              className={`h-8 w-8 p-0 ${entry.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"}`}
+                              className={`h-8 w-8 p-0 ${
+                                !isAllowedPOSCategory(material) 
+                                  ? "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400" 
+                                  : entry.isPOSItem 
+                                  ? "bg-teal-600 hover:bg-teal-700 text-white" 
+                                  : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                              }`}
                             >
                               {entry.isPOSItem ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{entry.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
+                            <p>
+                              {!isAllowedPOSCategory(material) 
+                                ? "Only beverage items can be shown in POS" 
+                                : entry.isPOSItem 
+                                ? "Hide from POS" 
+                                : "Show in POS"
+                              }
+                            </p>
                           </TooltipContent>
                         </Tooltip>
                         <Tooltip>
@@ -968,17 +989,31 @@ export function StockEntriesTable() {
                                   <Button
                                     variant={entry.isPOSItem ? "default" : "outline"}
                                     size="sm"
+                                    disabled={!isAllowedPOSCategory(entry.material)}
                                     onClick={e => {
                                       e.stopPropagation();
                                       handleTogglePOSVisibility(entry);
                                     }}
-                                    className={`h-8 w-8 p-0 ${entry.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"}`}
+                                    className={`h-8 w-8 p-0 ${
+                                      !isAllowedPOSCategory(entry.material) 
+                                        ? "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400" 
+                                        : entry.isPOSItem 
+                                        ? "bg-teal-600 hover:bg-teal-700 text-white" 
+                                        : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                                    }`}
                                   >
                                     {entry.isPOSItem ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{entry.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
+                                  <p>
+                                    {!isAllowedPOSCategory(entry.material) 
+                                      ? "Only beverage items can be shown in POS" 
+                                      : entry.isPOSItem 
+                                      ? "Hide from POS" 
+                                      : "Show in POS"
+                                    }
+                                  </p>
                                 </TooltipContent>
                               </Tooltip>
                               <Tooltip>

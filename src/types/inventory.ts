@@ -465,7 +465,7 @@ export interface POSCartItem {
   name: string;
   price: number;
   quantity: number;
-  type: "material" | "menu";
+  type: "material" | "menu_item";
   originalItem: StockEntryWithMaterial | MenuItem;
   posItem?: POSItem;
   stockEntryId?: number;
