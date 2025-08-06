@@ -651,8 +651,9 @@ export function StockEntriesTable() {
       <div className="h-full flex flex-col">
         {/* Header Section */}
         <div className="p-4 sm:p-6 space-y-4">
-          {/* Title Section */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          {/* Title and Controls Section */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {/* Title and Stats */}
             <div className="space-y-1">
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Stock Entries</h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -674,80 +675,52 @@ export function StockEntriesTable() {
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Action Bar */}
-          <div className="flex items-center gap-3">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-              <Input 
-              type="search"
-                placeholder="Search by material name or supplier..." 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
-                className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem]" 
-              />
-            </div>
-
-            {/* Material Filter */}
-            <div className="w-fit shrink-0">
-              <Select value={materialFilter} onValueChange={setMaterialFilter}>
-                <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-full">
-                  <SelectValue placeholder="All Materials" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Materials</SelectItem>
-                  {uniqueMaterials.map(material => (
-                    <SelectItem key={material} value={material}>
-                      {material}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-              {/* Bulk Selection Actions Row */}
-              {bulkSelectionMode && (
-                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={handleSelectAllStockEntries} 
-                    disabled={stockEntriesWithMaterial.length === 0} 
-                    className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0"
-                  >
-                    <Check className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                    <span className="hidden sm:inline">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect All" : "Select All"}</span>
-                    <span className="sm:hidden truncate">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect" : "Select"}</span>
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={handleOpenBulkPrinterDialog} 
-                    disabled={selectedStockEntries.size === 0} 
-                    className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0"
-                  >
-                    <Printer className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                    <span className="hidden sm:inline">Assign Printer ({selectedStockEntries.size})</span>
-                    <span className="sm:hidden truncate">Printer ({selectedStockEntries.size})</span>
-                  </Button>
+            {/* Search, Filter, and Action Controls - Inline on MD+ */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:flex-shrink-0">
+              {/* Search and Filter Row */}
+              <div className="flex items-center gap-3">
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                  <Input 
+                    type="search"
+                    placeholder="Search by material name or supplier..." 
+                    value={searchTerm} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                    className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-64 lg:w-80" 
+                  />
                 </div>
-              )}
 
-              {/* Main Actions Row */}
-              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                {/* Material Filter */}
+                <div className="w-fit shrink-0">
+                  <Select value={materialFilter} onValueChange={setMaterialFilter}>
+                    <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-48">
+                      <SelectValue placeholder="All Materials" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Materials</SelectItem>
+                      {uniqueMaterials.map(material => (
+                        <SelectItem key={material} value={material}>
+                          {material}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Action Buttons Row */}
+              <div className="flex items-center gap-2">
                 <Button 
                   size="sm" 
                   variant={bulkSelectionMode ? "default" : "outline"} 
                   onClick={handleToggleBulkSelection} 
-                  className={`flex sm:flex-none min-w-0 ${bulkSelectionMode ? "bg-red-600 hover:bg-red-700" : "border-gray-200 hover:border-gray-300"}`}
+                  className={`${bulkSelectionMode ? "bg-red-600 hover:bg-red-700" : "border-gray-200 hover:border-gray-300"}`}
                 >
-                  <Check className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                  <span className="hidden sm:inline">{bulkSelectionMode ? "cancel" : "Bulk Select"}</span>
-                  <span className="sm:hidden truncate">{bulkSelectionMode ? "Exit" : "Select"}</span>
+                  <Check className="h-4 w-4 mr-1.5" />
+                  <span className="hidden lg:inline">{bulkSelectionMode ? "Cancel" : "Bulk Select"}</span>
+                  <span className="lg:hidden">{bulkSelectionMode ? "Cancel" : "Select"}</span>
                 </Button>
 
                 {negativeStockCount > 0 && (
@@ -756,16 +729,46 @@ export function StockEntriesTable() {
                     size="sm" 
                     onClick={fetchNegativeStockReport} 
                     disabled={loadingReport} 
-                    className="flex-1 sm:flex-none border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 min-w-0"
+                    className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
                   >
-                    {loadingReport ? <RefreshCw className="h-4 w-4 mr-1.5 animate-spin flex-shrink-0" /> : <FileText className="h-4 w-4 mr-1.5 flex-shrink-0" />}
-                    <span className="hidden sm:inline">Negative Stock Report</span>
-                    <span className="sm:hidden truncate">Report</span>
+                    {loadingReport ? <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+                    <span className="hidden lg:inline">Negative Stock Report</span>
+                    <span className="lg:hidden">Report</span>
                   </Button>
                 )}
               </div>
             </div>
           </div>
+
+          {/* Bulk Selection Actions Row - Only shown when in bulk mode */}
+          {bulkSelectionMode && (
+            <div className="flex items-center gap-3">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={handleSelectAllStockEntries} 
+                  disabled={stockEntriesWithMaterial.length === 0} 
+                  className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0"
+                >
+                  <Check className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                  <span className="hidden sm:inline">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect All" : "Select All"}</span>
+                  <span className="sm:hidden truncate">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect" : "Select"}</span>
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={handleOpenBulkPrinterDialog} 
+                  disabled={selectedStockEntries.size === 0} 
+                  className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0"
+                >
+                  <Printer className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                  <span className="hidden sm:inline">Assign Printer ({selectedStockEntries.size})</span>
+                  <span className="sm:hidden truncate">Printer ({selectedStockEntries.size})</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content Section */}
