@@ -50,10 +50,43 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   };
   const selectedMaterial = materials.find(m => m.id === watchedMaterialId);
 
+  // Get available units based on the active tab and context
   const availableUnits = selectedMaterial
     ? (() => {
         const suggestedUnits = getSuggestedUnits(selectedMaterial.unitType);
 
+        // For add-to-entry and waste-from-entry tabs, only allow units compatible with the existing stock entry
+        if ((activeTab === "add-to-entry" || activeTab === "waste-from-entry") && stockEntry) {
+          const stockEntryUnit = stockEntry.purchasedUnit;
+          
+          if (selectedMaterial.unitType === "mass") {
+            // For mass materials, only allow mass units (kg, g, lb, oz)
+            const massUnits = ["kg", "g", "lb", "oz"];
+            return massUnits.filter(unit => 
+              unit === stockEntryUnit || // Same unit as stock entry
+              massUnits.includes(stockEntryUnit) // Stock entry is also a mass unit
+            );
+          } else if (selectedMaterial.unitType === "volume") {
+            // For volume materials, only allow volume units (l, ml)
+            const volumeUnits = ["l", "ml"];
+            return volumeUnits.filter(unit => 
+              unit === stockEntryUnit || // Same unit as stock entry
+              volumeUnits.includes(stockEntryUnit) // Stock entry is also a volume unit
+            );
+          } else if (selectedMaterial.unitType === "package") {
+            // For package materials, allow package units and piece/bottle conversions
+            if (stockEntryUnit === selectedMaterial.inputUnit) {
+              return [stockEntryUnit, "piece", "bottle"];
+            } else {
+              return [stockEntryUnit];
+            }
+          } else {
+            // For piece materials, only allow the same unit
+            return [stockEntryUnit];
+          }
+        }
+
+        // For other tabs, use the original logic
         if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit) {
           const filteredUnits = suggestedUnits.filter(unit => unit !== selectedMaterial.inputUnit);
           return [selectedMaterial.inputUnit, ...filteredUnits];

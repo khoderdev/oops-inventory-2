@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Material, StockEntry, StockFormData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { CalendarIcon, Minus, Package, Plus, TrendingUp } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
 
@@ -25,6 +25,7 @@ interface AddToEntryTabProps {
 }
 
 export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const watchedUnit = form.watch("purchasedUnit");
 
   // Set default costPerPurchasedUnit based on unit and material
@@ -84,9 +85,18 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   const handleSubmit = async () => {
     console.log("🚀 AddToEntryTab handleSubmit called!");
     
-    // Get current form values
-    const data = form.getValues();
-    console.log("📝 Current form values:", data);
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      console.log("⏳ Already submitting, ignoring duplicate request");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Get current form values
+      const data = form.getValues();
+      console.log("📝 Current form values:", data);
     
     // Validate only the fields we need for adding to entry (skip waste fields)
     const fieldsToValidate = [
@@ -99,7 +109,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
     ];
     
     console.log("🔍 Validating specific fields:", fieldsToValidate);
-    const isValid = await form.trigger(fieldsToValidate);
+    const isValid = await form.trigger(fieldsToValidate as (keyof StockFormInputs)[]);
     console.log("🔍 Validation result:", isValid);
     console.log("🔍 Errors after validation:", form.formState.errors);
     
@@ -109,16 +119,46 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
     }
     
     const formData = data as unknown as StockFormData;
+    
+    // Parse and validate quantities
+    const additionalQuantity = parseFloat(data.purchasedQuantity);
+    const costPerPurchasedUnit = parseFloat(data.costPerPurchasedUnit);
+    const totalCost = parseFloat(data.totalCost);
+    
+    // Additional validation to prevent sending invalid data
+    if (isNaN(additionalQuantity) || additionalQuantity <= 0) {
+      console.error("❌ Invalid additional quantity:", { purchasedQuantity: data.purchasedQuantity, additionalQuantity });
+      form.setError("purchasedQuantity", {
+        type: "manual",
+        message: "Additional quantity must be a positive number"
+      });
+      return;
+    }
+    
+    if (!data.purchasedUnit) {
+      console.error("❌ Missing unit:", { purchasedUnit: data.purchasedUnit });
+      form.setError("purchasedUnit", {
+        type: "manual",
+        message: "Unit is required"
+      });
+      return;
+    }
+    
     const specificEntryData = {
       ...formData,
       stockEntryId: stockEntry.id,
-      additionalQuantity: parseFloat(data.purchasedQuantity) || 0,
+      additionalQuantity,
       unit: data.purchasedUnit,
-      costPerPurchasedUnit: parseFloat(data.costPerPurchasedUnit) || 0,
-      totalCost: parseFloat(data.totalCost) || 0
+      costPerPurchasedUnit: isNaN(costPerPurchasedUnit) ? 0 : costPerPurchasedUnit,
+      totalCost: isNaN(totalCost) ? 0 : totalCost
     };
     console.log("📤 Calling onAddToSpecificEntry with:", specificEntryData);
-    onAddToSpecificEntry(specificEntryData);
+    await onAddToSpecificEntry(specificEntryData);
+    } catch (error) {
+      console.error("❌ Error adding to specific entry:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   console.log("📌 AddToEntryTab is rendering! This should be the ADD TO ENTRY tab, not waste!");
@@ -357,9 +397,19 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
               type="button" 
               className="bg-green-600 hover:bg-green-700 text-white" 
               onClick={handleSubmit}
+              disabled={isSubmitting}
             >
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Add to Entry
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Add to Entry
+                </>
+              )}
             </Button>
           </div>
         </div>

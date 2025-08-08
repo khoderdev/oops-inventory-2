@@ -79,9 +79,9 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
       packageType
     };
 
-    // Validate packagedGood data
-    if (packagedGood.unitsPerPackage <= 0 || packagedGood.costPerPackage <= 0) {
-      console.error("Invalid packagedGood data:", packagedGood);
+    // Validate packagedGood data - only check for critical missing data
+    if (packagedGood.unitsPerPackage <= 0) {
+      console.warn("Invalid packagedGood data (missing unitsPerPackage):", packagedGood);
       return (
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mt-4">
           <div className="flex items-center gap-3 mb-4">
@@ -90,7 +90,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
             </div>
             <h3 className="text-lg font-semibold text-blue-800">Cost Breakdown</h3>
           </div>
-          <p className="text-sm text-red-600">Invalid package data: Check cost or quantity per package.</p>
+          <p className="text-sm text-red-600">Invalid package data: Missing quantity per package configuration.</p>
         </div>
       );
     }
@@ -110,7 +110,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
       const conversionFactor = getConversionFactor(purchasedUnit, selectedMaterial.baseUnit, selectedMaterial.unitType, selectedMaterial);
       console.log("🔍 Cost Calculation Debug:", {
         purchasedUnit,
-        baseUnit: selectedMaterial.baseUnit,
+        baseUnit: selectedMaterial.baseUnit, 
         unitType: selectedMaterial.unitType,
         conversionFactor,
         numCostPerUnit,

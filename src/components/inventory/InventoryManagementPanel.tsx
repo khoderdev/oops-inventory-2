@@ -316,6 +316,105 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
     [refresh]
   );
 
+  const handleAddToSpecificEntryOperation = useCallback(
+    async (
+      data: {
+        materialId?: string;
+        supplier?: string;
+        purchasedQuantity?: number;
+        costPerPurchasedUnit?: number;
+        totalCost?: number;
+        purchasedUnit?: string;
+        wasteQuantity?: number;
+        purchaseDate?: Date;
+        expiryDate?: Date;
+        batchNumber?: string;
+        notes?: string;
+        wasteReason?: string;
+      } & { stockEntryId: string }
+    ) => {
+      try {
+        const addData = {
+          additionalQuantity: data.purchasedQuantity || 0,
+          unit: data.purchasedUnit || "g",
+          additionDate: new Date(),
+          notes: data.notes
+        };
+
+        await inventoryAPIWithPrefetch.stock.addToSpecificEntryWithCache(data.stockEntryId, addData);
+
+        await refresh("stock");
+        await refresh("materials");
+        setShowStockForm(false);
+
+        toast({
+          title: "Added",
+          description: "Stock added",
+          duration: 1500
+        });
+      } catch (error) {
+        console.error("❌ Error adding to specific entry:", error);
+        toast({
+          title: "Error",
+          description: "Failed to add stock",
+          variant: "destructive",
+          duration: 2000
+        });
+      }
+    },
+    [refresh, setShowStockForm]
+  );
+
+  const handleWasteFromSpecificEntryOperation = useCallback(
+    async (
+      data: {
+        materialId?: string;
+        supplier?: string;
+        purchasedQuantity?: number;
+        costPerPurchasedUnit?: number;
+        totalCost?: number;
+        purchasedUnit?: string;
+        wasteQuantity?: number;
+        purchaseDate?: Date;
+        expiryDate?: Date;
+        batchNumber?: string;
+        notes?: string;
+        wasteReason?: string;
+      } & { stockEntryId: string }
+    ) => {
+      try {
+        const wasteData = {
+          wasteQuantity: data.wasteQuantity || 0,
+          unit: data.purchasedUnit || "g",
+          wasteDate: new Date(),
+          reason: data.wasteReason || "Unknown",
+          notes: data.notes
+        };
+
+        await inventoryAPIWithPrefetch.stock.wasteFromSpecificEntryWithCache(data.stockEntryId, wasteData);
+
+        await refresh("stock");
+        await refresh("materials");
+        setShowStockForm(false);
+
+        toast({
+          title: "Recorded",
+          description: "Waste recorded",
+          duration: 1500
+        });
+      } catch (error) {
+        console.error("❌ Error recording waste from specific entry:", error);
+        toast({
+          title: "Error",
+          description: "Failed to record waste",
+          variant: "destructive",
+          duration: 2000
+        });
+      }
+    },
+    [refresh, setShowStockForm]
+  );
+
   const fetchTabData = useCallback(
     async (tabName: string) => {
       switch (tabName) {
@@ -413,6 +512,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
                 onSubmit={handleStockSubmit}
                 onAddStock={handleAddStockOperation}
                 onRecordWaste={handleRecordWasteOperation}
+                onAddToSpecificEntry={handleAddToSpecificEntryOperation}
+                onWasteFromSpecificEntry={handleWasteFromSpecificEntryOperation}
                 onCancel={() => {
                   setShowStockForm(false);
                   setSelectedStockEntry(null);

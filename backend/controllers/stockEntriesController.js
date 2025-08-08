@@ -357,14 +357,33 @@ const stockEntriesController = {
       const { id } = req.params;
       const { additionalQuantity, unit, additionDate, notes, costPerPurchasedUnit } = req.body;
 
+      // Debug logging
+      console.log(`🔍 [addToSpecificEntry] Request for stock entry ${id}:`, {
+        additionalQuantity,
+        unit,
+        additionDate,
+        notes,
+        costPerPurchasedUnit,
+        body: req.body
+      });
+
       if (!additionalQuantity || !unit) {
+        console.log(`❌ [addToSpecificEntry] Missing required fields:`, { additionalQuantity, unit });
         return res.status(400).json({ error: "Missing required fields: additionalQuantity, unit" });
       }
 
       const numericAdditionalQuantity = parseFloat(additionalQuantity);
       const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
 
+      console.log(`🔢 [addToSpecificEntry] Parsed values:`, {
+        numericAdditionalQuantity,
+        isNaN: isNaN(numericAdditionalQuantity),
+        isLessOrEqual: numericAdditionalQuantity <= 0,
+        numericCostPerPurchasedUnit
+      });
+
       if (isNaN(numericAdditionalQuantity) || numericAdditionalQuantity <= 0) {
+        console.log(`❌ [addToSpecificEntry] Invalid quantity:`, { numericAdditionalQuantity, additionalQuantity });
         return res.status(400).json({ error: "Additional quantity must be a positive number" });
       }
 
