@@ -209,6 +209,11 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle invalid inputs (NaN, undefined, null)
+    if (amount == null || isNaN(amount) || !isFinite(amount)) {
+      return "$0.00";
+    }
+    
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD"
@@ -422,7 +427,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                         <div className="text-sm text-muted-foreground">{settlement.usageItemsCount} usage items</div>
                       </TableCell>
                       <TableCell className="font-mono">{formatCurrency(settlement.baseSalary)}</TableCell>
-                      <TableCell className="font-mono text-red-600">-{formatCurrency(settlement.totalDeduction + (settlement.penaltyAmount || 0))}</TableCell>
+                      <TableCell className="font-mono text-red-600">-{formatCurrency(settlement.totalDeduction || 0)}</TableCell>
                       <TableCell className="font-mono font-medium">{formatCurrency(settlement.finalSalary)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={statusColors[settlement.status]}>
