@@ -610,13 +610,13 @@ export const markSettlementAsPaidAtom = atom(
 
 export const deleteSettlementAtom = atom(
   null,
-  async (get, set, id: number) => {
+  async (get, set, { id, force }: { id: number; force?: boolean }) => {
     set(settlementsLoadingAtom, true);
     set(settlementsErrorAtom, null);
 
     try {
       const { employeeAPI } = await import("@/api/employee.api");
-      const response = await employeeAPI.deleteSettlement(id);
+      const response = await employeeAPI.deleteSettlement(id, force);
 
       if (response.success) {
         // Remove settlement from the list

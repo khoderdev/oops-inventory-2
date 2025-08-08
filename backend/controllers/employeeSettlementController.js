@@ -675,6 +675,7 @@ export const previewSettlement = async (req, res) => {
 export const deleteSettlement = async (req, res) => {
   try {
     const { id } = req.params;
+    const { force } = req.query; // Check for force delete parameter
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {
@@ -711,7 +712,8 @@ export const deleteSettlement = async (req, res) => {
     }
 
     // Check if settlement can be deleted (only pending and disputed settlements should be deletable)
-    if (settlement.status === "paid") {
+    // Unless force delete is requested
+    if (settlement.status === "paid" && force !== "true") {
       return res.status(400).json({
         success: false,
         message: "Cannot delete paid settlements"
@@ -734,14 +736,15 @@ export const deleteSettlement = async (req, res) => {
 
     // Create audit log
     try {
+      const isForceDelete = force === "true";
       await AuditLog.create({
         userId: req.user.id,
-        action: "DELETE",
+        action: isForceDelete ? "FORCE_DELETE" : "DELETE",
         tableName: "EmployeeSettlement",
         recordId: settlementInfo.id,
         oldValues: settlementInfo,
         newValues: null,
-        description: `Deleted settlement for ${settlementInfo.employeeName} (${settlementInfo.settlementMonth}/${settlementInfo.settlementYear})`
+        description: `${isForceDelete ? "Force deleted" : "Deleted"} settlement for ${settlementInfo.employeeName} (${settlementInfo.settlementMonth}/${settlementInfo.settlementYear})${isForceDelete ? " - OVERRIDE BUSINESS RULES" : ""}`
       });
     } catch (auditError) {
       console.error("Error creating audit log:", auditError);

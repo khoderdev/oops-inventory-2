@@ -144,8 +144,9 @@ export const employeeAPI = {
     return response.data;
   },
 
-  async deleteSettlement(id: number): Promise<{ success: boolean; message: string }> {
-    const response = await api.delete<{ success: boolean; message: string }>(`/employees/settlements/${id}`);
+  async deleteSettlement(id: number, force?: boolean): Promise<{ success: boolean; message: string }> {
+    const url = `/employees/settlements/${id}${force ? '?force=true' : ''}`;
+    const response = await api.delete<{ success: boolean; message: string }>(url);
     return response.data;
   },
 
