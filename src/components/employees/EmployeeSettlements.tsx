@@ -60,6 +60,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [settlementToDelete, setSettlementToDelete] = useState<EmployeeSettlement | null>(null);
   const [forceDelete, setForceDelete] = useState(false);
+  const [internalSelectedEmployeeId, setInternalSelectedEmployeeId] = useState<number | null>(selectedEmployeeId || null);
 
   // Get user permissions
   const { user } = useAuth();
@@ -84,27 +85,30 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   // Load data when employee, year, or month changes
   useEffect(() => {
     const loadData = async () => {
-      // Create updated filters (only include the specific filters we're updating)
-      const updatedFilters = {
-        employeeId: selectedEmployeeId || undefined,
-        year: selectedYear,
-        month: selectedMonth
-      };
+      // Create updated filters by merging with existing filters to preserve status filter
+      setFilters(prevFilters => {
+        const updatedFilters = {
+          ...prevFilters, // Preserve existing filters (like status)
+          employeeId: internalSelectedEmployeeId || undefined,
+          year: selectedYear,
+          month: selectedMonth
+        };
 
-      // Update filters state
-      setFilters(updatedFilters);
+        // Fetch data with updated filters
+        fetchSettlements(updatedFilters);
+        fetchStats(updatedFilters);
 
-      // Fetch data with updated filters
-      await fetchSettlements(updatedFilters);
-      await fetchStats(updatedFilters);
+        return updatedFilters;
+      });
     };
 
     loadData();
-  }, [selectedEmployeeId, selectedYear, selectedMonth, fetchSettlements, fetchStats, setFilters]);
+  }, [internalSelectedEmployeeId, selectedYear, selectedMonth, fetchSettlements, fetchStats, setFilters]);
 
   const handleEmployeeChange = (employeeId: string) => {
     const id = employeeId === "all" ? null : parseInt(employeeId);
-    onEmployeeSelect?.(id);
+    setInternalSelectedEmployeeId(id);
+    onEmployeeSelect?.(id); // Still call the prop callback if provided
   };
 
   const handleStatusFilter = async (status: string) => {
@@ -294,7 +298,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         <CardContent>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex-1 min-w-[200px]">
-              <Select value={selectedEmployeeId?.toString() || "all"} onValueChange={handleEmployeeChange}>
+              <Select value={internalSelectedEmployeeId?.toString() || "all"} onValueChange={handleEmployeeChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
@@ -418,7 +422,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                         <div className="text-sm text-muted-foreground">{settlement.usageItemsCount} usage items</div>
                       </TableCell>
                       <TableCell className="font-mono">{formatCurrency(settlement.baseSalary)}</TableCell>
-                      <TableCell className="font-mono text-red-600">-{formatCurrency(settlement.totalDeduction)}</TableCell>
+                      <TableCell className="font-mono text-red-600">-{formatCurrency(settlement.totalDeduction + (settlement.penaltyAmount || 0))}</TableCell>
                       <TableCell className="font-mono font-medium">{formatCurrency(settlement.finalSalary)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={statusColors[settlement.status]}>
