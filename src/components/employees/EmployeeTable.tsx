@@ -123,7 +123,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4">
       <EmployeeStatsCards stats={employeeStats} />
       {/* Header with Add Button */}
       <div className="flex items-center justify-between">
@@ -230,11 +230,11 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10">
-                        <AvatarFallback>{getInitials(employee.user?.firstName, employee.user?.lastName)}</AvatarFallback>
+                        <AvatarFallback>{getInitials(employee.firstName, employee.lastName)}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-medium">
-                          {employee.user?.firstName} {employee.user?.lastName}
+                          {employee.firstName} {employee.lastName}
                         </div>
                         <div className="text-sm text-muted-foreground">#{employee.employeeNumber}</div>
                       </div>

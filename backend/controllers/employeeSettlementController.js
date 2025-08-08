@@ -50,7 +50,8 @@ export const createSettlement = async (req, res) => {
         {
           model: User,
           as: "user",
-          attributes: ["firstName", "lastName", "username"]
+          attributes: ["firstName", "lastName", "username"],
+          required: false // LEFT JOIN - include employees without users
         }
       ]
     });
@@ -135,7 +136,8 @@ export const createSettlement = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username"]
+              attributes: ["firstName", "lastName", "username"],
+              required: false // LEFT JOIN - include employees without users
             }
           ]
         }
@@ -184,7 +186,8 @@ export const getAllSettlements = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username"]
+              attributes: ["firstName", "lastName", "username"],
+              required: false // LEFT JOIN - include employees without users
             }
           ]
         }
@@ -238,7 +241,8 @@ export const getSettlementById = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username"]
+              attributes: ["firstName", "lastName", "username"],
+              required: false // LEFT JOIN - include employees without users
             }
           ]
         },
@@ -253,12 +257,14 @@ export const getSettlementById = async (req, res) => {
         {
           model: User,
           as: "processor",
-          attributes: ["firstName", "lastName", "username"]
+          attributes: ["firstName", "lastName", "username"],
+          required: false // LEFT JOIN - user who processed might not exist
         },
         {
           model: User,
           as: "approver",
-          attributes: ["firstName", "lastName", "username"]
+          attributes: ["firstName", "lastName", "username"],
+          required: false // LEFT JOIN - approver may not have user account
         }
       ]
     });
@@ -328,7 +334,8 @@ export const approveSettlement = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username"]
+              attributes: ["firstName", "lastName", "username"],
+              required: false // LEFT JOIN - include employees without users
             }
           ]
         }
@@ -400,7 +407,8 @@ export const markAsPaid = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username"]
+              attributes: ["firstName", "lastName", "username"],
+              required: false // LEFT JOIN - include employees without users
             }
           ]
         }
@@ -468,7 +476,8 @@ export const updateSettlement = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username"]
+              attributes: ["firstName", "lastName", "username"],
+              required: false // LEFT JOIN - include employees without users
             }
           ]
         }
@@ -524,7 +533,13 @@ export const getSettlementStats = async (req, res) => {
 
     const stats = await EmployeeSettlement.findAll({
       where,
-      attributes: ["status", [EmployeeSettlement.sequelize.fn("COUNT", EmployeeSettlement.sequelize.col("id")), "count"], [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("baseSalary")), "totalBaseSalary"], [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("totalDeduction")), "totalDeductions"], [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("finalSalary")), "totalFinalSalary"]],
+      attributes: [
+        "status", 
+        [EmployeeSettlement.sequelize.fn("COUNT", EmployeeSettlement.sequelize.col("id")), "count"], 
+        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("base_salary")), "totalBaseSalary"], 
+        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("total_deduction")), "totalDeductions"], 
+        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("final_salary")), "totalFinalSalary"]
+      ],
       group: ["status"],
       raw: true
     });
@@ -583,7 +598,8 @@ export const previewSettlement = async (req, res) => {
         {
           model: User,
           as: "user",
-          attributes: ["firstName", "lastName", "username"]
+          attributes: ["firstName", "lastName", "username"],
+          required: false // LEFT JOIN - include employees without users
         }
       ]
     });
@@ -606,7 +622,7 @@ export const previewSettlement = async (req, res) => {
     const preview = {
       employee: {
         id: employee.id,
-        name: employee.user ? `${employee.user.firstName} ${employee.user.lastName}` : "Unknown Employee",
+        name: `${employee.firstName} ${employee.lastName}`,
         employeeNumber: employee.employeeNumber,
         department: employee.department,
         discountPercentage: employee.discountPercentage

@@ -76,14 +76,35 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ isOpen, onCl
   };
 
   const getEmployeeInitials = (employee: Employee) => {
-    const firstName = employee.user?.firstName || "";
-    const lastName = employee.user?.lastName || "";
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || employee.employeeNumber.substring(0, 2);
+    // Try user account name first
+    let firstName = employee.user?.firstName || "";
+    let lastName = employee.user?.lastName || "";
+    
+    // Fall back to employee personal information if no user account name
+    if (!firstName && !lastName) {
+      firstName = employee.firstName || "";
+      lastName = employee.lastName || "";
+    }
+    
+    const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    return initials || employee.employeeNumber.substring(0, 2).toUpperCase();
   };
 
   const getEmployeeFullName = (employee: Employee) => {
-    const fullName = `${employee.user?.firstName || ""} ${employee.user?.lastName || ""}`.trim();
-    return fullName || employee.employeeNumber;
+    // Try user account name first
+    if (employee.user?.firstName || employee.user?.lastName) {
+      const fullName = `${employee.user.firstName || ""} ${employee.user.lastName || ""}`.trim();
+      if (fullName) return fullName;
+    }
+    
+    // Fall back to employee personal information
+    if (employee.firstName || employee.lastName) {
+      const personalName = `${employee.firstName || ""} ${employee.lastName || ""}`.trim();
+      if (personalName) return personalName;
+    }
+    
+    // Final fallback to employee number
+    return employee.employeeNumber;
   };
 
   return (

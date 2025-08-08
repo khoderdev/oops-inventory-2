@@ -11,19 +11,12 @@ import { useAtom } from "jotai";
 import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { EmployeeSettlementForm } from "./EmployeeSettlementForm";
+import { statusColors } from "@/constants/constants";
 
 interface EmployeeSettlementsProps {
   selectedEmployeeId?: number | null;
   onEmployeeSelect?: (employeeId: number | null) => void;
 }
-
-const statusColors = {
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-blue-100 text-blue-800",
-  paid: "bg-green-100 text-green-800",
-  disputed: "bg-red-100 text-red-800",
-  cancelled: "bg-gray-100 text-gray-800"
-};
 
 const statuses: SettlementStatus[] = ["pending", "approved", "paid", "disputed", "cancelled"];
 
@@ -70,9 +63,8 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   // Load data when employee, year, or month changes
   useEffect(() => {
     const loadData = async () => {
-      // Create updated filters
+      // Create updated filters (only include the specific filters we're updating)
       const updatedFilters = {
-        ...filters,
         employeeId: selectedEmployeeId || undefined,
         year: selectedYear,
         month: selectedMonth
@@ -171,7 +163,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -249,7 +241,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                   <SelectItem value="all">All Employees</SelectItem>
                   {employees.map(employee => (
                     <SelectItem key={employee.id} value={employee.id.toString()}>
-                      {employee.user?.firstName} {employee.user?.lastName} (#{employee.employeeNumber})
+                      {employee.firstName} {employee.lastName} (#{employee.employeeNumber})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -354,7 +346,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                     <TableRow key={settlement.id}>
                       <TableCell>
                         <div className="font-medium">
-                          {settlement.employee?.user?.firstName} {settlement.employee?.user?.lastName}
+                          {settlement.employee?.firstName} {settlement.employee?.lastName}
                         </div>
                         <div className="text-sm text-muted-foreground">#{settlement.employee?.employeeNumber}</div>
                       </TableCell>
@@ -424,7 +416,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                     <div>
                       <div className="text-sm text-muted-foreground">Employee</div>
                       <div className="font-medium">
-                        {selectedSettlement.employee?.user?.firstName} {selectedSettlement.employee?.user?.lastName}
+                        {selectedSettlement.employee?.firstName} {selectedSettlement.employee?.lastName}
                       </div>
                     </div>
                     <div>

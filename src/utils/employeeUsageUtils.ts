@@ -19,24 +19,33 @@ export const recordEmployeeUsage = async (employee: Employee, cartItems: POSCart
       let usageType: "material" | "menu_item" | "stock_entry";
       let itemId: number;
 
-      if (item.type === "menu" && item.menuItemId) {
+      if (item.type === "menu_item" && item.menuItemId) {
         usageType = "menu_item";
         itemId = item.menuItemId;
-      } else if (item.type === "material" && item.originalItem) {
+      } else if (item.type === "material") {
         // For material items, use the material ID from the original item
         usageType = "material";
-        if ('materialId' in item.originalItem) {
+        if (item.originalItem && 'materialId' in item.originalItem) {
           itemId = item.originalItem.materialId;
+        } else if (item.originalItem && 'id' in item.originalItem) {
+          // Try using the original item's ID (convert to number if it's a string)
+          const originalId = item.originalItem.id;
+          itemId = typeof originalId === 'string' ? parseInt(originalId) : originalId;
         } else {
-          // Fallback: try to parse the item ID
-          const parsedId = parseInt(item.id);
-          itemId = isNaN(parsedId) ? 0 : parsedId;
+          // Extract material ID from item.id format (e.g., "material-1234" -> 1234)
+          const materialMatch = item.id.match(/^material-(\d+)$/);
+          if (materialMatch) {
+            itemId = parseInt(materialMatch[1]);
+          } else {
+            console.warn("Could not extract material ID from cart item:", item);
+            itemId = 0;
+          }
         }
       } else {
-        // Default fallback - use material type with parsed ID
+        // This should not happen with proper cart item types
+        console.warn("Unknown cart item type:", item);
         usageType = "material";
-        const parsedId = parseInt(item.id);
-        itemId = isNaN(parsedId) ? 0 : parsedId;
+        itemId = 0;
       }
 
       return {

@@ -20,7 +20,11 @@ import { z } from "zod";
 const departments: EmployeeDepartment[] = ["kitchen", "service", "management", "cleaning", "security", "other"];
 
 const employeeSchema = z.object({
-  userId: z.number().min(1, "Please select a user"),
+  userId: z.number().optional(), // Now optional - employees can exist without user accounts
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Valid email is required"),
+  phone: z.string().min(1, "Phone number is required"),
   employeeNumber: z.string().optional(),
   department: z.enum(["kitchen", "service", "management", "cleaning", "security", "other"]),
   position: z.string().min(1, "Position is required"),
@@ -58,7 +62,11 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
     defaultValues: {
-      userId: 0,
+      userId: undefined, // Optional - can be undefined for employees without user accounts
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
       department: "service",
       position: "",
       baseSalary: 0,
@@ -94,7 +102,11 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
     if (employee && mode === "edit") {
       // Edit mode: populate with employee data
       form.reset({
-        userId: employee.userId,
+        userId: employee.userId || undefined,
+        firstName: employee.firstName || "",
+        lastName: employee.lastName || "",
+        email: employee.email || "",
+        phone: employee.phone || "",
         employeeNumber: employee.employeeNumber,
         department: employee.department,
         position: employee.position,
@@ -115,7 +127,11 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
     } else if (mode === "create") {
       // Create mode: reset to clean defaults
       form.reset({
-        userId: 0,
+        userId: undefined,
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
         employeeNumber: "",
         department: "service",
         position: "",
@@ -139,7 +155,11 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
   const onSubmit = async (data: EmployeeFormData) => {
     try {
       const formattedData = {
-        userId: data.userId,
+        userId: data.userId || undefined, // Optional - can be undefined for employees without user accounts
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
         employeeNumber: data.employeeNumber,
         department: data.department,
         position: data.position,
@@ -215,17 +235,78 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                 <CardContent className="space-y-4">
                   <FormField
                     control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter first name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter last name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="employee@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+1 (555) 123-4567" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="userId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>User Account</FormLabel>
-                        <Select onValueChange={value => field.onChange(parseInt(value))} value={field.value?.toString()} disabled={mode === "edit"}>
+                        <FormLabel>User Account (Optional)</FormLabel>
+                        <Select 
+                          onValueChange={value => field.onChange(value === "none" ? undefined : parseInt(value))} 
+                          value={field.value ? field.value.toString() : "none"} 
+                          disabled={mode === "edit"}
+                        >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select user account" />
+                              <SelectValue placeholder="Link to user account (optional)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value="none">No user account</SelectItem>
                             {availableUsers.map(user => (
                               <SelectItem key={user.id} value={user.id.toString()}>
                                 {user.firstName} {user.lastName} ({user.username})
@@ -233,6 +314,9 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Optional: Link this employee to a user account for system access
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

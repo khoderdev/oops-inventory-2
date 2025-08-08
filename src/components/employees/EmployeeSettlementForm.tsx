@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { months } from "@/constants/constants";
 import { employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, previewSettlementAtom, settlementFormLoadingAtom, settlementPreviewAtom, settlementPreviewLoadingAtom, settlementsAtom, settlementsErrorAtom } from "@/store/employeeAtoms";
 import type { CreateSettlementData, Employee, EmployeeUsageType, SettlementFormProps } from "@/types/employee";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,21 +35,6 @@ const usageTypeColors = {
   menu_item: "bg-green-100 text-green-800",
   stock_entry: "bg-orange-100 text-orange-800"
 };
-
-const months = [
-  { value: 1, label: "January" },
-  { value: 2, label: "February" },
-  { value: 3, label: "March" },
-  { value: 4, label: "April" },
-  { value: 5, label: "May" },
-  { value: 6, label: "June" },
-  { value: 7, label: "July" },
-  { value: 8, label: "August" },
-  { value: 9, label: "September" },
-  { value: 10, label: "October" },
-  { value: 11, label: "November" },
-  { value: 12, label: "December" }
-];
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
@@ -129,33 +115,34 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
     if (!watchedEmployeeId) return [];
 
     const currentYear = watchedYear || new Date().getFullYear();
-    const employeeSettlements = existingSettlements.filter(
-      settlement => settlement.employeeId === watchedEmployeeId && settlement.settlementYear === currentYear
-    );
+    const employeeSettlements = existingSettlements.filter(settlement => settlement.employeeId === watchedEmployeeId && settlement.settlementYear === currentYear);
 
     return employeeSettlements.map(settlement => settlement.settlementMonth);
   }, [watchedEmployeeId, watchedYear, existingSettlements]);
 
   // Check if a month is disabled (has existing settlement)
-  const isMonthDisabled = useCallback((monthValue: number) => {
-    const usedMonths = getUsedMonths();
-    const currentSettlementMonth = settlement?.settlementMonth;
-    
-    // If we're editing an existing settlement, allow the current month
-    if (currentSettlementMonth && monthValue === currentSettlementMonth) {
-      return false;
-    }
-    
-    // Otherwise, disable months that already have settlements
-    const isDisabled = usedMonths.includes(monthValue);
-    
-    // Debug logging
-    if (watchedEmployeeId === 2) {
-      console.log(`Month ${monthValue} disabled:`, isDisabled, 'Used months:', usedMonths);
-    }
-    
-    return isDisabled;
-  }, [getUsedMonths, settlement, watchedEmployeeId]);
+  const isMonthDisabled = useCallback(
+    (monthValue: number) => {
+      const usedMonths = getUsedMonths();
+      const currentSettlementMonth = settlement?.settlementMonth;
+
+      // If we're editing an existing settlement, allow the current month
+      if (currentSettlementMonth && monthValue === currentSettlementMonth) {
+        return false;
+      }
+
+      // Otherwise, disable months that already have settlements
+      const isDisabled = usedMonths.includes(monthValue);
+
+      // Debug logging
+      if (watchedEmployeeId === 2) {
+        console.log(`Month ${monthValue} disabled:`, isDisabled, "Used months:", usedMonths);
+      }
+
+      return isDisabled;
+    },
+    [getUsedMonths, settlement, watchedEmployeeId]
+  );
 
   // Get available months count for display
   const getAvailableMonthsCount = useCallback(() => {
@@ -167,7 +154,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
   useEffect(() => {
     if (watchedEmployeeId && watchedYear) {
       const currentMonth = form.getValues("settlementMonth");
-      
+
       // If current month is disabled and we're not editing an existing settlement
       if (currentMonth && isMonthDisabled(currentMonth) && !settlement) {
         form.setValue("settlementMonth", 0); // Reset to no selection
@@ -295,7 +282,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                               <SelectItem key={employee.id} value={employee.id.toString()}>
                                 <div className="flex items-center space-x-2">
                                   <span className="font-medium">
-                                    {employee.user?.firstName} {employee.user?.lastName}
+                                    {employee.firstName} {employee.lastName}
                                   </span>
                                   <span className="text-sm text-gray-500">({employee.employeeNumber})</span>
                                   <Badge variant="outline" className="text-xs">
@@ -370,17 +357,10 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                             </FormControl>
                             <SelectContent>
                               {months.map(month => (
-                                <SelectItem 
-                                  key={month.value} 
-                                  value={month.value.toString()}
-                                  disabled={isMonthDisabled(month.value)}
-                                  className={isMonthDisabled(month.value) ? "opacity-50 cursor-not-allowed" : ""}
-                                >
+                                <SelectItem key={month.value} value={month.value.toString()} disabled={isMonthDisabled(month.value)} className={isMonthDisabled(month.value) ? "opacity-50 cursor-not-allowed" : ""}>
                                   <div className="flex items-center justify-between w-full">
                                     <span>{month.label}</span>
-                                    {isMonthDisabled(month.value) && (
-                                      <span className="text-xs text-muted-foreground ml-2">(Has settlement)</span>
-                                    )}
+                                    {isMonthDisabled(month.value) && <span className="text-xs text-muted-foreground ml-2">(Has settlement)</span>}
                                   </div>
                                 </SelectItem>
                               ))}

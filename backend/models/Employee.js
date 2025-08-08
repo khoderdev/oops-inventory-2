@@ -10,15 +10,61 @@ const Employee = sequelize.define(
       autoIncrement: true,
       allowNull: false
     },
+    firstName: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      validate: {
+        len: {
+          args: [2, 50],
+          msg: "First name must be between 2 and 50 characters"
+        }
+      },
+      comment: "Employee's first name"
+    },
+    lastName: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      validate: {
+        len: {
+          args: [2, 50],
+          msg: "Last name must be between 2 and 50 characters"
+        }
+      },
+      comment: "Employee's last name"
+    },
+    email: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      unique: {
+        msg: "Email address already exists"
+      },
+      validate: {
+        isEmail: {
+          msg: "Must be a valid email address"
+        }
+      },
+      comment: "Employee's email address (optional)"
+    },
+    phone: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      validate: {
+        len: {
+          args: [10, 20],
+          msg: "Phone number must be between 10 and 20 characters"
+        }
+      },
+      comment: "Employee's phone number (optional)"
+    },
     userId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       unique: true,
       references: {
         model: "users",
         key: "id"
       },
-      comment: "Reference to User model for authentication"
+      comment: "Optional reference to User model for system access"
     },
     employeeNumber: {
       type: DataTypes.STRING(20),
@@ -160,6 +206,12 @@ const Employee = sequelize.define(
       },
       {
         fields: ["hireDate"]
+      },
+      {
+        fields: ["email"]
+      },
+      {
+        fields: ["firstName", "lastName"]
       }
     ],
     hooks: {
@@ -176,9 +228,15 @@ const Employee = sequelize.define(
 
 // Instance methods
 Employee.prototype.getFullName = function() {
-  // Check both User (capital U) and user (lowercase u) for compatibility
-  const userData = this.User || this.user;
-  return userData ? `${userData.firstName} ${userData.lastName}` : 'Unknown Employee';
+  return `${this.firstName} ${this.lastName}`;
+};
+
+Employee.prototype.getDisplayName = function() {
+  return `${this.firstName} ${this.lastName} (${this.employeeNumber})`;
+};
+
+Employee.prototype.hasSystemAccess = function() {
+  return !!this.userId;
 };
 
 Employee.prototype.calculateMonthlyDeduction = function(usageAmount) {
@@ -200,7 +258,8 @@ Employee.getActiveEmployees = function() {
     include: [{
       model: sequelize.models.User,
       as: 'user',
-      attributes: ['id', 'username', 'firstName', 'lastName', 'role']
+      attributes: ['id', 'username', 'firstName', 'lastName', 'role'],
+      required: false // LEFT JOIN - include employees without users
     }],
     order: [['employeeNumber', 'ASC']]
   });
@@ -216,8 +275,44 @@ Employee.getByDepartment = function(department) {
     include: [{
       model: sequelize.models.User,
       as: 'user',
-      attributes: ['id', 'username', 'firstName', 'lastName']
-    }]
+      attributes: ['id', 'username', 'firstName', 'lastName'],
+      required: false // LEFT JOIN - include employees without users
+    }],
+    order: [['employeeNumber', 'ASC']]
+  });
+};
+
+Employee.findByEmail = function(email) {
+  return this.findOne({
+    where: {
+      email,
+      isActive: true
+    }
+  });
+};
+
+Employee.findByPhone = function(phone) {
+  return this.findOne({
+    where: {
+      phone,
+      isActive: true
+    }
+  });
+};
+
+Employee.searchEmployees = function(searchTerm) {
+  return this.findAll({
+    where: {
+      isActive: true,
+      [sequelize.Op.or]: [
+        { firstName: { [sequelize.Op.iLike]: `%${searchTerm}%` } },
+        { lastName: { [sequelize.Op.iLike]: `%${searchTerm}%` } },
+        { employeeNumber: { [sequelize.Op.iLike]: `%${searchTerm}%` } },
+        { email: { [sequelize.Op.iLike]: `%${searchTerm}%` } },
+        { phone: { [sequelize.Op.iLike]: `%${searchTerm}%` } }
+      ]
+    },
+    order: [['firstName', 'ASC'], ['lastName', 'ASC']]
   });
 };
 

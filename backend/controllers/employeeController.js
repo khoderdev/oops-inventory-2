@@ -16,9 +16,15 @@ export const getAllEmployees = async (req, res) => {
       where.isActive = true; // Default to active employees
     }
 
-    const userWhere = {};
+    // Add search functionality for employee fields
     if (search) {
-      userWhere[Op.or] = [{ firstName: { [Op.iLike]: `%${search}%` } }, { lastName: { [Op.iLike]: `%${search}%` } }, { username: { [Op.iLike]: `%${search}%` } }];
+      where[Op.or] = [
+        { firstName: { [Op.iLike]: `%${search}%` } },
+        { lastName: { [Op.iLike]: `%${search}%` } },
+        { employeeNumber: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ];
     }
 
     const offset = (page - 1) * limit;
@@ -30,10 +36,10 @@ export const getAllEmployees = async (req, res) => {
           model: User,
           as: "user",
           attributes: ["id", "username", "firstName", "lastName", "role", "isActive"],
-          where: Object.keys(userWhere).length > 0 ? userWhere : undefined
+          required: false // LEFT JOIN - include employees without users
         }
       ],
-      order: [["employeeNumber", "ASC"]],
+      order: [["firstName", "ASC"], ["lastName", "ASC"]],
       limit: parseInt(limit),
       offset
     });
@@ -74,7 +80,8 @@ export const getEmployeeById = async (req, res) => {
         {
           model: User,
           as: "user",
-          attributes: ["id", "username", "firstName", "lastName", "role", "isActive", "lastLogin"]
+          attributes: ["id", "username", "firstName", "lastName", "role", "isActive", "lastLogin"],
+          required: false // LEFT JOIN - include employees without users
         },
         {
           model: EmployeeUsage,
@@ -126,31 +133,59 @@ export const getEmployeeById = async (req, res) => {
 // Create new employee
 export const createEmployee = async (req, res) => {
   try {
-    const { userId, employeeNumber, department, position, baseSalary, discountPercentage = 0, hireDate, emergencyContact, bankDetails, notes } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      phone, 
+      userId, 
+      employeeNumber, 
+      department, 
+      position, 
+      baseSalary, 
+      discountPercentage = 0, 
+      hireDate, 
+      emergencyContact, 
+      bankDetails, 
+      notes 
+    } = req.body;
 
     // Validate required fields
-    if (!userId || !department || !position || !baseSalary || !hireDate) {
+    if (!firstName || !lastName || !department || !position || !baseSalary || !hireDate) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields: userId, department, position, baseSalary, hireDate"
+        message: "Missing required fields: firstName, lastName, department, position, baseSalary, hireDate"
       });
     }
 
-    // Check if user exists and doesn't already have an employee record
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
-      });
+    // Check if userId is provided and user exists
+    if (userId) {
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found"
+        });
+      }
+
+      const existingEmployee = await Employee.findOne({ where: { userId } });
+      if (existingEmployee) {
+        return res.status(400).json({
+          success: false,
+          message: "User already has an employee record"
+        });
+      }
     }
 
-    const existingEmployee = await Employee.findOne({ where: { userId } });
-    if (existingEmployee) {
-      return res.status(400).json({
-        success: false,
-        message: "User already has an employee record"
-      });
+    // Check if email is unique (if provided)
+    if (email) {
+      const existingEmailEmployee = await Employee.findOne({ where: { email } });
+      if (existingEmailEmployee) {
+        return res.status(400).json({
+          success: false,
+          message: "Email address already exists"
+        });
+      }
     }
 
     // Generate employee number if not provided
@@ -181,7 +216,11 @@ export const createEmployee = async (req, res) => {
     }
 
     const employee = await Employee.create({
-      userId,
+      firstName,
+      lastName,
+      email: email || null,
+      phone: phone || null,
+      userId: userId || null,
       employeeNumber: finalEmployeeNumber,
       department,
       position,
@@ -200,7 +239,8 @@ export const createEmployee = async (req, res) => {
         {
           model: User,
           as: "user",
-          attributes: ["id", "username", "firstName", "lastName", "role"]
+          attributes: ["id", "username", "firstName", "lastName", "role"],
+          required: false // LEFT JOIN - include employees without users
         }
       ]
     });
@@ -227,7 +267,24 @@ export const createEmployee = async (req, res) => {
 export const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { employeeNumber, department, position, baseSalary, discountPercentage, hireDate, terminationDate, isActive, emergencyContact, bankDetails, notes } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      phone, 
+      userId, 
+      employeeNumber, 
+      department, 
+      position, 
+      baseSalary, 
+      discountPercentage, 
+      hireDate, 
+      terminationDate, 
+      isActive, 
+      emergencyContact, 
+      bankDetails, 
+      notes 
+    } = req.body;
 
     const employee = await Employee.findByPk(id);
     if (!employee) {
@@ -255,10 +312,55 @@ export const updateEmployee = async (req, res) => {
       }
     }
 
+    // Check if email is unique (if being changed)
+    if (email && email !== employee.email) {
+      const existingEmail = await Employee.findOne({
+        where: {
+          email,
+          id: { [Op.ne]: id }
+        }
+      });
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: "Email address already exists"
+        });
+      }
+    }
+
+    // Check if userId is valid (if being changed)
+    if (userId && userId !== employee.userId) {
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found"
+        });
+      }
+
+      const existingUserEmployee = await Employee.findOne({
+        where: {
+          userId,
+          id: { [Op.ne]: id }
+        }
+      });
+      if (existingUserEmployee) {
+        return res.status(400).json({
+          success: false,
+          message: "User already has an employee record"
+        });
+      }
+    }
+
     const updateData = {
       updatedBy: req.user.id
     };
 
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (email !== undefined) updateData.email = email || null;
+    if (phone !== undefined) updateData.phone = phone || null;
+    if (userId !== undefined) updateData.userId = userId || null;
     if (employeeNumber !== undefined) updateData.employeeNumber = employeeNumber;
     if (department !== undefined) updateData.department = department;
     if (position !== undefined) updateData.position = position;
@@ -279,7 +381,8 @@ export const updateEmployee = async (req, res) => {
         {
           model: User,
           as: "user",
-          attributes: ["id", "username", "firstName", "lastName", "role"]
+          attributes: ["id", "username", "firstName", "lastName", "role"],
+          required: false // LEFT JOIN - include employees without users
         }
       ]
     });
@@ -312,7 +415,8 @@ export const deleteEmployee = async (req, res) => {
         {
           model: User,
           as: "user",
-          attributes: ["id", "username", "firstName", "lastName"]
+          attributes: ["id", "username", "firstName", "lastName"],
+          required: false // LEFT JOIN - include employees without users
         }
       ]
     });

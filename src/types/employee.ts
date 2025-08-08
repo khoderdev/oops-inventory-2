@@ -8,7 +8,11 @@ export type PaymentMethod = "bank_transfer" | "cash" | "check" | "mobile_payment
 
 export interface Employee {
   id: number;
-  userId: number;
+  userId?: number | null; // Now optional - employees can exist without user accounts
+  firstName: string; // Employee's own first name
+  lastName: string; // Employee's own last name
+  email: string; // Employee's own email
+  phone: string; // Employee's own phone number
   employeeNumber: string;
   department: EmployeeDepartment;
   position: string;
@@ -175,7 +179,11 @@ export interface EmployeeSettlement {
 
 // Form Data Interfaces
 export interface CreateEmployeeData {
-  userId: number;
+  userId?: number; // Now optional - employees can exist without user accounts
+  firstName: string; // Employee's own first name
+  lastName: string; // Employee's own last name
+  email: string; // Employee's own email
+  phone: string; // Employee's own phone number
   employeeNumber?: string;
   department: EmployeeDepartment;
   position: string;
@@ -198,6 +206,10 @@ export interface CreateEmployeeData {
 }
 
 export interface UpdateEmployeeData {
+  firstName?: string; // Employee's own first name
+  lastName?: string; // Employee's own last name
+  email?: string; // Employee's own email
+  phone?: string; // Employee's own phone number
   employeeNumber?: string;
   department?: EmployeeDepartment;
   position?: string;

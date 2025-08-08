@@ -94,7 +94,8 @@ export const recordUsage = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username"]
+              attributes: ["firstName", "lastName", "username"],
+              required: false // LEFT JOIN - include employees without users
             }
           ]
         },
@@ -157,7 +158,8 @@ export const getUsageHistory = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username"]
+              attributes: ["firstName", "lastName", "username"],
+              required: false // LEFT JOIN - include employees without users
             }
           ]
         },
@@ -167,7 +169,8 @@ export const getUsageHistory = async (req, res) => {
         {
           model: User,
           as: "recorder",
-          attributes: ["firstName", "lastName", "username"]
+          attributes: ["firstName", "lastName", "username"],
+          required: false // LEFT JOIN - user who recorded might not exist
         }
       ],
       order: [["usageDate", "DESC"]],
@@ -292,7 +295,8 @@ export const getMonthlyUsageSummary = async (req, res) => {
         {
           model: User,
           as: "user",
-          attributes: ["firstName", "lastName", "username"]
+          attributes: ["firstName", "lastName", "username"],
+          required: false // LEFT JOIN - include employees without users
         }
       ]
     });
@@ -412,7 +416,8 @@ export const updateUsage = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["firstName", "lastName", "username"]
+              attributes: ["firstName", "lastName", "username"],
+              required: false // LEFT JOIN - include employees without users
             }
           ]
         },
