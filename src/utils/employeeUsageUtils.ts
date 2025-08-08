@@ -21,16 +21,16 @@ export const recordEmployeeUsage = async (employee: Employee, cartItems: POSCart
 
       if (item.type === "menu_item" && item.menuItemId) {
         usageType = "menu_item";
-        itemId = item.menuItemId;
+        itemId = typeof item.menuItemId === "string" ? parseInt(item.menuItemId) : item.menuItemId;
       } else if (item.type === "material") {
         // For material items, use the material ID from the original item
         usageType = "material";
-        if (item.originalItem && 'materialId' in item.originalItem) {
-          itemId = item.originalItem.materialId;
-        } else if (item.originalItem && 'id' in item.originalItem) {
+        if (item.originalItem && "materialId" in item.originalItem) {
+          itemId = typeof item.originalItem.materialId === "string" ? parseInt(item.originalItem.materialId) : item.originalItem.materialId;
+        } else if (item.originalItem && "id" in item.originalItem) {
           // Try using the original item's ID (convert to number if it's a string)
           const originalId = item.originalItem.id;
-          itemId = typeof originalId === 'string' ? parseInt(originalId) : originalId;
+          itemId = typeof originalId === "string" ? parseInt(originalId) : originalId;
         } else {
           // Extract material ID from item.id format (e.g., "material-1234" -> 1234)
           const materialMatch = item.id.match(/^material-(\d+)$/);
@@ -53,7 +53,7 @@ export const recordEmployeeUsage = async (employee: Employee, cartItems: POSCart
         itemId,
         itemName: item.name,
         quantity: item.quantity,
-        unit: "piece", // Default unit, could be enhanced based on item data
+        unit: "piece",
         unitCost: item.price
       };
     });

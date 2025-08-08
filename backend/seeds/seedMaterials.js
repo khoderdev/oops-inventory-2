@@ -156,7 +156,109 @@ export async function seedMaterials() {
     { name: "Tomatoes", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "vegetables" },
     { name: "Light Mayo", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
     { name: "Calamari", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "seafood" },
-    { name: "Fish Fingers", baseUnit: "piece", unitType: "package", inputUnit: "pack", packageQuantity: 20, category: "seafood" }
+    { name: "Fish Fingers", baseUnit: "piece", unitType: "package", inputUnit: "pack", packageQuantity: 20, category: "seafood" },
+
+    // Alcoholic Beverages - Beers
+    { name: "Mexican Red Bull", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "alcohol" },
+    { name: "Almaza Beer", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "alcohol" },
+    { name: "Almaza Light Beer", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "alcohol" },
+    { name: "Mexican Beer", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "alcohol" },
+    { name: "Almaza Rose Beer", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "alcohol" },
+    { name: "Mexican Energy Drink", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "alcohol" },
+
+    // Wines
+    { name: "Ksara Red Wine", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 12, category: "alcohol" },
+    { name: "Ksara White Wine", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 12, category: "alcohol" },
+    { name: "Ksara Rose Wine", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 12, category: "alcohol" },
+
+    // Spirits - Tequila
+    { name: "Jose Cuervo Silver", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Jose Cuervo Gold", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+
+    // Spirits - Gin
+    { name: "Beefeater Gin", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Tanqueray Gin", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Bombay Gin", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Gordons Gin", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+
+    // Spirits - Whiskey
+    { name: "J&B Whiskey", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Jack Daniels", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Glenfiddich", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Black Label", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Red Label", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Jameson", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Chivas 12y", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Chivas 15y", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Jim Beam", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+
+    // Spirits - Vodka
+    { name: "Grey Goose", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Belvedere", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Stoli Gold", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Stoli Red", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Smirnoff", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+    { name: "Russian Standard", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 6, category: "alcohol" },
+
+    // Non-Alcoholic Beverages
+    { name: "Red Bull Energy Drink", baseUnit: "can", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "beverages" },
+    { name: "Water Small", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "beverages" },
+    { name: "Water Large", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 12, category: "beverages" },
+    { name: "Soft Drinks", baseUnit: "can", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "beverages" },
+    { name: "7up", baseUnit: "can", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "beverages" },
+    { name: "Sparkling Water", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 12, category: "beverages" },
+    { name: "Bzurat", baseUnit: "bottle", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "beverages" },
+    { name: "Energy Drink", baseUnit: "can", unitType: "package", inputUnit: "box", packageQuantity: 24, category: "beverages" },
+
+    // Beverage Ingredients for Smoothies, Juices, Shakes, Coffee
+    { name: "Fresh Mango", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
+    { name: "Fresh Strawberry", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
+    { name: "Mixed Berries", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
+    { name: "Fresh Peach", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
+    { name: "Passion Fruit", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
+    { name: "Fresh Orange", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
+    { name: "Fresh Lemon", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
+    { name: "Fresh Mint", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "herbs" },
+    { name: "Ice Cream Vanilla", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "dairy" },
+    { name: "Ice Cream Chocolate", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "dairy" },
+    { name: "Ice Cream Strawberry", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "dairy" },
+    { name: "Milk", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "dairy" },
+    { name: "Bounty Chocolate", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "sweets" },
+    { name: "Lotus Biscuits", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "sweets" },
+    { name: "Oreo Cookies", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "sweets" },
+    { name: "Brownie Mix", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "sweets" },
+    { name: "Coffee Beans", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "beverages" },
+    { name: "Nescafe Gold", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "beverages" },
+    { name: "Hot Chocolate Powder", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "beverages" },
+    { name: "Tea Leaves", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "beverages" },
+    { name: "Turkish Coffee", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "beverages" },
+    { name: "Caramel Syrup", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
+    { name: "Vanilla Syrup", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
+    { name: "Toffee Syrup", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
+    { name: "Grenadine Syrup", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
+
+    // Cocktail Ingredients
+    { name: "Blue Curacao", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "Triple Sec", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "White Rum", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "Gold Rum", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "Coconut Syrup", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
+    { name: "Pineapple Juice", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "beverages" },
+    { name: "Cranberry Juice", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "beverages" },
+    { name: "Orange Juice", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "beverages" },
+    { name: "Lime Juice", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "beverages" },
+    { name: "Lemon Juice", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "beverages" },
+    { name: "Ginger Beer", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "beverages" },
+    { name: "Simple Syrup", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
+    { name: "Midori", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "Archer", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "Passion Syrup", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
+    { name: "Kahlua", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "Espresso", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "beverages" },
+    { name: "Malibu", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "Bailey's", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "Jager", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
+    { name: "Fresh Basil", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "herbs" }
   ];
 
   let createdCount = 0;
