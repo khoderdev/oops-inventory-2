@@ -162,10 +162,22 @@ export function LogsTable({ logType, data }: LogsTableProps) {
                 // Skip empty values but show "-" values
                 if (value === null || value === undefined || value === "") return null;
 
+                // Check if this is a long text field that needs special handling
+                const isLongTextField = header === "Item" || header === "Description";
+
+                if (isLongTextField) {
+                  return (
+                    <div key={header} className="py-1">
+                      <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{header}:</div>
+                      <div className={cn("text-sm font-semibold text-slate-900 dark:text-slate-100 break-words", value === "-" && "text-slate-400 dark:text-slate-500 italic")}>{typeof value === "object" ? value : String(value)}</div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={header} className="flex justify-between items-start py-1">
-                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate pr-3 min-w-0 flex-shrink-0">{header}:</span>
-                    <div className={cn("text-sm font-semibold text-slate-900 dark:text-slate-100 flex-shrink-0 text-right", value === "-" && "text-slate-400 dark:text-slate-500 italic", alignment === "text-center" && "text-center", alignment === "text-left" && "text-left")}>{typeof value === "object" ? value : String(value)}</div>
+                  <div key={header} className="flex justify-between items-start py-1 gap-3">
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400 flex-shrink-0">{header}:</span>
+                    <div className={cn("text-sm font-semibold text-slate-900 dark:text-slate-100 text-right break-words min-w-0", value === "-" && "text-slate-400 dark:text-slate-500 italic", alignment === "text-center" && "text-center", alignment === "text-left" && "text-left")}>{typeof value === "object" ? value : String(value)}</div>
                   </div>
                 );
               })}
@@ -200,9 +212,7 @@ export function LogsTable({ logType, data }: LogsTableProps) {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden" style={{ contain: "layout" }}>
       {/* Mobile Card View - Show on small screens */}
-      <div className="block lg:hidden">
-        {data.length > 0 && <MobileCardView />}
-      </div>
+      <div className="block lg:hidden">{data.length > 0 && <MobileCardView />}</div>
 
       {/* Desktop Table View - Show on large screens */}
       <div className="hidden lg:flex flex-col h-full">
@@ -298,7 +308,7 @@ export function LogsTable({ logType, data }: LogsTableProps) {
                             textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                           }}
                         >
-                          <div className="flex items-center min-h-[20px] sm:min-h-[24px] overflow-hidden">{formatLogsCellValue(row, header, logType)}</div>
+                          <div className={cn("min-h-[20px] sm:min-h-[24px]", header === "Item" || header === "Description" ? "break-words whitespace-normal leading-relaxed py-1" : "flex items-center overflow-hidden")}>{formatLogsCellValue(row, header, logType)}</div>
                         </TableCell>
                       );
                     })}

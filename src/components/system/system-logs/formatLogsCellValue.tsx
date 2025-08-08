@@ -189,7 +189,7 @@ export function formatLogsCellValue(row: Record<string, unknown>, header: string
       <div className="flex items-center gap-3">
         <Package className="w-4 h-4 text-gray-400 flex-shrink-0" />
         <div className="flex flex-col min-w-0">
-          <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{String(materialName || "-")}</span>
+          <span className="font-medium text-sm text-gray-900 dark:text-gray-100 break-words">{String(materialName || "-")}</span>
           {stockEntryId && (
             <Badge variant="outline" className="font-mono text-xs w-fit mt-1 px-2 py-0.5 bg-gray-50 dark:bg-gray-800">
               #{String(stockEntryId)}
@@ -251,16 +251,7 @@ export function formatLogsCellValue(row: Record<string, unknown>, header: string
       return <span className="text-gray-400">-</span>;
     }
 
-    if (description.length > 60) {
-      return (
-        <div className="max-w-sm">
-          <span className="text-sm text-gray-600 dark:text-gray-400" title={description}>
-            {description.substring(0, 60)}...
-          </span>
-        </div>
-      );
-    }
-    return <span className="text-sm text-gray-600 dark:text-gray-400">{description}</span>;
+    return <span className="text-sm text-gray-600 dark:text-gray-400 break-words">{description}</span>;
   }
 
   // Handle stock entry IDs
