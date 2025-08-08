@@ -608,6 +608,43 @@ export const markSettlementAsPaidAtom = atom(
   }
 );
 
+export const deleteSettlementAtom = atom(
+  null,
+  async (get, set, id: number) => {
+    set(settlementsLoadingAtom, true);
+    set(settlementsErrorAtom, null);
+
+    try {
+      const { employeeAPI } = await import("@/api/employee.api");
+      const response = await employeeAPI.deleteSettlement(id);
+
+      if (response.success) {
+        // Remove settlement from the list
+        const settlements = get(settlementsAtom);
+        const updatedSettlements = settlements.filter(settlement => settlement.id !== id);
+        set(settlementsAtom, updatedSettlements);
+        set(settlementsTotalAtom, get(settlementsTotalAtom) - 1);
+
+        // Clear selected settlement if it was deleted
+        const selectedSettlement = get(selectedSettlementAtom);
+        if (selectedSettlement?.id === id) {
+          set(selectedSettlementAtom, null);
+        }
+
+        return true;
+      } else {
+        throw new Error(response.message || "Failed to delete settlement");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete settlement";
+      set(settlementsErrorAtom, errorMessage);
+      throw error;
+    } finally {
+      set(settlementsLoadingAtom, false);
+    }
+  }
+);
+
 // ============================================================================
 // FETCH ATOMS
 // ============================================================================

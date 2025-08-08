@@ -5,13 +5,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { approveSettlementAtom, createSettlementAtom, employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom, settlementStatsLoadingAtom } from "@/store/employeeAtoms";
+import { approveSettlementAtom, createSettlementAtom, deleteSettlementAtom, employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom, settlementStatsLoadingAtom } from "@/store/employeeAtoms";
 import type { CreateSettlementData, EmployeeSettlement, SettlementStatus } from "@/types/employee";
 import { useAtom } from "jotai";
-import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus } from "lucide-react";
+import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { EmployeeSettlementForm } from "./EmployeeSettlementForm";
 import { statusColors } from "@/constants/constants";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface EmployeeSettlementsProps {
   selectedEmployeeId?: number | null;
@@ -48,11 +51,18 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [, approveSettlement] = useAtom(approveSettlementAtom);
   const [, markAsPaid] = useAtom(markSettlementAsPaidAtom);
   const [, createSettlement] = useAtom(createSettlementAtom);
+  const [, deleteSettlement] = useAtom(deleteSettlementAtom);
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [settlementFormOpen, setSettlementFormOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | undefined>(undefined);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [settlementToDelete, setSettlementToDelete] = useState<EmployeeSettlement | null>(null);
+
+  // Get user permissions
+  const { user } = useAuth();
+  const canDeleteSettlements = user?.role === "admin" || user?.role === "manager";
 
   // Initial data loading
   useEffect(() => {
@@ -131,12 +141,41 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     try {
       await createSettlement(data);
       setSettlementFormOpen(false);
+      toast.success("Settlement created successfully");
       // Refresh data
       await fetchSettlements(filters);
       await fetchStats({ year: selectedYear, month: selectedMonth });
     } catch (error) {
       console.error("Error creating settlement:", error);
+      toast.error("Failed to create settlement");
     }
+  };
+
+  const handleDeleteClick = (settlement: EmployeeSettlement) => {
+    setSettlementToDelete(settlement);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!settlementToDelete) return;
+
+    try {
+      await deleteSettlement(settlementToDelete.id);
+      setDeleteDialogOpen(false);
+      setSettlementToDelete(null);
+      toast.success("Settlement deleted successfully");
+      // Refresh data
+      await fetchSettlements(filters);
+      await fetchStats({ year: selectedYear, month: selectedMonth });
+    } catch (error) {
+      console.error("Error deleting settlement:", error);
+      toast.error("Failed to delete settlement");
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setSettlementToDelete(null);
   };
 
   const handleCancelForm = () => {
@@ -385,6 +424,13 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                               Mark Paid
                             </Button>
                           )}
+
+                          {canDeleteSettlements && (
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(settlement)} className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50">
+                              <Trash2 className="h-3 w-3" />
+                              Delete
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -543,6 +589,35 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
           <EmployeeSettlementForm onSubmit={handleCreateSettlement} onCancel={handleCancelForm} isLoading={formLoading} employees={employees} />
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Settlement</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this settlement record? This action cannot be undone.
+              {settlementToDelete && (
+                <div className="mt-3 p-3 bg-muted rounded-md">
+                  <div className="text-sm font-medium">
+                    Employee: {settlementToDelete.employee?.firstName} {settlementToDelete.employee?.lastName}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Period: {getMonthName(settlementToDelete.settlementMonth)} {settlementToDelete.settlementYear}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Final Salary: {formatCurrency(settlementToDelete.finalSalary)}</div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDeleteCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700 focus:ring-red-600">
+              Delete Settlement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

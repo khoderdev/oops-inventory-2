@@ -144,6 +144,11 @@ export const employeeAPI = {
     return response.data;
   },
 
+  async deleteSettlement(id: number): Promise<{ success: boolean; message: string }> {
+    const response = await api.delete<{ success: boolean; message: string }>(`/employees/settlements/${id}`);
+    return response.data;
+  },
+
   async getPendingSettlements(): Promise<{ success: boolean; data: EmployeeSettlement[]; message: string }> {
     const response = await api.get<{ success: boolean; data: EmployeeSettlement[]; message: string }>("/employees/settlements/pending");
     return response.data;
