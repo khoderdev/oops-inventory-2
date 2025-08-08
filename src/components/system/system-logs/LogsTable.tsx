@@ -199,8 +199,13 @@ export function LogsTable({ logType, data }: LogsTableProps) {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden" style={{ contain: "layout" }}>
-      {/* Always show desktop table view - same as Stock Entry Logs */}
-      <div className="flex flex-col h-full">
+      {/* Mobile Card View - Show on small screens */}
+      <div className="block lg:hidden">
+        {data.length > 0 && <MobileCardView />}
+      </div>
+
+      {/* Desktop Table View - Show on large screens */}
+      <div className="hidden lg:flex flex-col h-full">
         <div className={cn("flex-1 overflow-hidden relative", isResizing && "select-none")}>
           <div
             className={cn("h-full overflow-auto", "scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400", "dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600", "scroll-smooth", "scrollbar-gutter-stable")}
