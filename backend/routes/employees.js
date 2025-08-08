@@ -1,6 +1,6 @@
 import express from "express";
 import { createEmployee, deleteEmployee, getAllEmployees, getEmployeeById, getEmployeeStats, updateEmployee } from "../controllers/employeeController.js";
-import { approveSettlement, createSettlement, getAllSettlements, getPendingSettlements, getSettlementById, getSettlementStats, markAsPaid, previewSettlement, updateSettlement } from "../controllers/employeeSettlementController.js";
+import { approveSettlement, createSettlement, deleteSettlement, getAllSettlements, getPendingSettlements, getSettlementById, getSettlementStats, markAsPaid, previewSettlement, updateSettlement } from "../controllers/employeeSettlementController.js";
 import { deleteUsage, getMonthlyUsageSummary, getUsageHistory, getUsageStats, recordUsage, updateUsage } from "../controllers/employeeUsageController.js";
 import { authenticate, requirePermission } from "../middleware/authMiddleware.js";
 
@@ -26,6 +26,7 @@ router.get("/settlements/:id", requirePermission("employee.settlementView"), get
 router.put("/settlements/:id", requirePermission("employee.settlementProcess"), updateSettlement);
 router.put("/settlements/:id/approve", requirePermission("employee.settlementApprove"), approveSettlement);
 router.put("/settlements/:id/pay", requirePermission("employee.settlementProcess"), markAsPaid);
+router.delete("/settlements/:id", requirePermission("employee.settlementDelete"), deleteSettlement);
 
 // Employee stats route (specific route before parameterized routes)
 router.get("/stats", requirePermission("employee.read"), getEmployeeStats);

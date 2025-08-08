@@ -670,3 +670,94 @@ export const previewSettlement = async (req, res) => {
     });
   }
 };
+
+// Delete settlement
+export const deleteSettlement = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ID
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid settlement ID"
+      });
+    }
+
+    // Find the settlement
+    const settlement = await EmployeeSettlement.findByPk(id, {
+      include: [
+        {
+          model: Employee,
+          as: "employee",
+          attributes: ["firstName", "lastName", "employeeNumber"],
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: ["firstName", "lastName", "username"],
+              required: false
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!settlement) {
+      return res.status(404).json({
+        success: false,
+        message: "Settlement not found"
+      });
+    }
+
+    // Check if settlement can be deleted (only pending and disputed settlements should be deletable)
+    if (settlement.status === "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete paid settlements"
+      });
+    }
+
+    // Store settlement info for audit log
+    const settlementInfo = {
+      id: settlement.id,
+      employeeId: settlement.employeeId,
+      employeeName: `${settlement.employee.firstName} ${settlement.employee.lastName}`,
+      settlementMonth: settlement.settlementMonth,
+      settlementYear: settlement.settlementYear,
+      finalSalary: settlement.finalSalary,
+      status: settlement.status
+    };
+
+    // Delete the settlement
+    await settlement.destroy();
+
+    // Create audit log
+    try {
+      await AuditLog.create({
+        userId: req.user.id,
+        action: "DELETE",
+        tableName: "EmployeeSettlement",
+        recordId: settlementInfo.id,
+        oldValues: settlementInfo,
+        newValues: null,
+        description: `Deleted settlement for ${settlementInfo.employeeName} (${settlementInfo.settlementMonth}/${settlementInfo.settlementYear})`
+      });
+    } catch (auditError) {
+      console.error("Error creating audit log:", auditError);
+      // Don't fail the request if audit log fails
+    }
+
+    res.json({
+      success: true,
+      message: "Settlement deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error deleting settlement:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete settlement",
+      error: error.message
+    });
+  }
+};

@@ -329,6 +329,7 @@ User.prototype.getRolePermissions = function () {
       "employee.settlementApprove": true,
       "employee.settlementProcess": true,
       "employee.settlementView": true,
+      "employee.settlementDelete": true,
 
       // === COMMUNICATION ===
       "communication.announcements": true,
@@ -516,6 +517,7 @@ User.prototype.getRolePermissions = function () {
       "employee.settlementApprove": false,
       "employee.settlementProcess": false,
       "employee.settlementView": true,
+      "employee.settlementDelete": true,
 
       // === COMMUNICATION ===
       "communication.announcements": true,
