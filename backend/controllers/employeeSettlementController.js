@@ -548,10 +548,10 @@ export const getSettlementStats = async (req, res) => {
       where,
       attributes: [
         [EmployeeSettlement.sequelize.fn("COUNT", EmployeeSettlement.sequelize.col("id")), "totalCount"],
-        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("baseSalary")), "totalBaseSalary"],
-        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("totalDeduction")), "totalDeductions"],
-        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("finalSalary")), "totalFinalSalary"],
-        [EmployeeSettlement.sequelize.fn("AVG", EmployeeSettlement.sequelize.col("finalSalary")), "avgFinalSalary"]
+        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("base_salary")), "totalBaseSalary"],
+        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("total_deduction")), "totalDeductions"],
+        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("final_salary")), "totalFinalSalary"],
+        [EmployeeSettlement.sequelize.fn("AVG", EmployeeSettlement.sequelize.col("final_salary")), "avgFinalSalary"]
       ],
       raw: true
     });

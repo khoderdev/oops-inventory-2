@@ -66,8 +66,8 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const canDeleteSettlements = user?.role === "admin" || user?.role === "manager";
 
   // Check if a settlement can be deleted (business rules)
-  const canDeleteSettlement = (settlement: EmployeeSettlement) => {
-    if (!canDeleteSettlements) return false;
+  const canDeleteSettlement = (settlement: EmployeeSettlement | null) => {
+    if (!canDeleteSettlements || !settlement) return false;
     // Only allow deletion of pending, disputed, or cancelled settlements
     return ["pending", "disputed", "cancelled"].includes(settlement.status);
   };
@@ -182,7 +182,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
       await fetchStats({ year: selectedYear, month: selectedMonth });
     } catch (error) {
       console.error("Error deleting settlement:", error);
-      
+
       // Provide specific error messages based on the error
       if (error.message === "Cannot delete paid settlements") {
         toast.error("Cannot delete paid settlements. Only pending, disputed, or cancelled settlements can be deleted.");
@@ -636,20 +636,12 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
               {!canDeleteSettlement(settlementToDelete) && canForceDelete && (
                 <div className="mt-3 p-3 border border-orange-200 bg-orange-50 rounded-md">
                   <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="checkbox"
-                      id="forceDelete"
-                      checked={forceDelete}
-                      onChange={(e) => setForceDelete(e.target.checked)}
-                      className="rounded border-orange-300 text-orange-600 focus:ring-orange-500"
-                    />
+                    <input type="checkbox" id="forceDelete" checked={forceDelete} onChange={e => setForceDelete(e.target.checked)} className="rounded border-orange-300 text-orange-600 focus:ring-orange-500" />
                     <label htmlFor="forceDelete" className="text-sm font-medium text-orange-800">
                       Force Delete (Admin Override)
                     </label>
                   </div>
-                  <p className="text-xs text-orange-700">
-                    This will permanently delete the settlement regardless of its status. This action bypasses all business rules and should only be used in exceptional circumstances.
-                  </p>
+                  <p className="text-xs text-orange-700">This will permanently delete the settlement regardless of its status. This action bypasses all business rules and should only be used in exceptional circumstances.</p>
                 </div>
               )}
               <div className="mt-2 text-sm text-amber-600 bg-amber-50 p-2 rounded">
@@ -659,12 +651,8 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleDeleteCancel}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteConfirm} 
-              className={`${forceDelete ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-600' : 'bg-red-600 hover:bg-red-700 focus:ring-red-600'}`}
-              disabled={settlementToDelete && !canDeleteSettlement(settlementToDelete) && !forceDelete}
-            >
-              {forceDelete ? 'Force Delete Settlement' : 'Delete Settlement'}
+            <AlertDialogAction onClick={handleDeleteConfirm} className={`${forceDelete ? "bg-orange-600 hover:bg-orange-700 focus:ring-orange-600" : "bg-red-600 hover:bg-red-700 focus:ring-red-600"}`} disabled={settlementToDelete && !canDeleteSettlement(settlementToDelete) && !forceDelete}>
+              {forceDelete ? "Force Delete Settlement" : "Delete Settlement"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
