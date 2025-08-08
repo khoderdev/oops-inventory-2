@@ -16,6 +16,30 @@ export interface StockEntryLog {
   errorMessage?: string;
 }
 
+export interface AuditLog {
+  id: number;
+  userId?: number;
+  userName: string;
+  action: string;
+  resource: string;
+  recordId: string;
+  oldValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
+  description?: string;
+  timestamp: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export interface EmployeeAuditLog extends AuditLog {
+  resource: "employee" | "employees";
+}
+
+export interface SettlementAuditLog extends AuditLog {
+  resource: "employee_settlement" | "settlement";
+  settlementInfo?: Record<string, unknown>;
+}
+
 export interface PaginationInfo {
   currentPage: number;
   totalPages: number;
@@ -35,6 +59,80 @@ export interface LogsFilters {
   endDate?: string;
   materialName?: string;
   userName?: string;
+}
+
+export interface AuditLogFilters {
+  employeeId?: number;
+  settlementId?: number;
+  userId?: number;
+  action?: string | string[];
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface AuditLogQueryParams extends AuditLogFilters, LogsSorting {
+  page?: number;
+  limit?: number;
+}
+
+export interface EmployeeAuditLogsResponse {
+  success: boolean;
+  data: {
+    logs: EmployeeAuditLog[];
+    pagination: PaginationInfo;
+    filters: AuditLogFilters;
+    sorting: LogsSorting;
+  };
+  message: string;
+}
+
+export interface SettlementAuditLogsResponse {
+  success: boolean;
+  data: {
+    logs: SettlementAuditLog[];
+    pagination: PaginationInfo;
+    filters: AuditLogFilters;
+    sorting: LogsSorting;
+  };
+  message: string;
+}
+
+export interface AuditSummaryResponse {
+  success: boolean;
+  data: {
+    overview: {
+      totalEmployeeLogs: number;
+      totalSettlementLogs: number;
+      totalAuditLogs: number;
+      dateRange: {
+        startDate: string;
+        endDate: string;
+      };
+    };
+    employeeActions: Array<{
+      action: string;
+      count: number;
+    }>;
+    settlementActions: Array<{
+      action: string;
+      count: number;
+    }>;
+    recentActivity: Array<{
+      id: number;
+      action: string;
+      resource: string;
+      recordId: string;
+      userName: string;
+      timestamp: string;
+      description?: string;
+    }>;
+    topUsers: Array<{
+      userId: number;
+      userName: string;
+      activityCount: number;
+    }>;
+  };
+  message: string;
 }
 
 export interface LogsSorting {
@@ -421,6 +519,86 @@ export class LogsApiClient {
     }
   }
 
+  // ========================================================================
+  // Audit Log Methods (Employee & Settlement)
+  // ========================================================================
+
+  /**
+   * Get employee audit logs with filtering and pagination
+   */
+  async getEmployeeAuditLogs(params: AuditLogQueryParams = {}): Promise<EmployeeAuditLogsResponse> {
+    const queryString = this.buildQueryString(params);
+    const cacheKey = `employee-audit-logs-${queryString}`;
+
+    // Check cache first
+    const cached = this.getCachedData<EmployeeAuditLogsResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const response = await api.get<EmployeeAuditLogsResponse>(`/logs/employees?${queryString}`);
+
+      // Cache successful responses
+      this.setCachedData(cacheKey, response.data);
+      return response.data;
+    } catch (error) {
+      throw this.handleApiError(error, "Failed to fetch employee audit logs");
+    }
+  }
+
+  /**
+   * Get settlement audit logs with filtering and pagination
+   */
+  async getSettlementAuditLogs(params: AuditLogQueryParams = {}): Promise<SettlementAuditLogsResponse> {
+    const queryString = this.buildQueryString(params);
+    const cacheKey = `settlement-audit-logs-${queryString}`;
+
+    // Check cache first
+    const cached = this.getCachedData<SettlementAuditLogsResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const response = await api.get<SettlementAuditLogsResponse>(`/logs/settlements?${queryString}`);
+
+      // Cache successful responses
+      this.setCachedData(cacheKey, response.data);
+      return response.data;
+    } catch (error) {
+      throw this.handleApiError(error, "Failed to fetch settlement audit logs");
+    }
+  }
+
+  /**
+   * Get audit logs summary for employees and settlements
+   */
+  async getAuditSummary(
+    options: {
+      startDate?: string;
+      endDate?: string;
+    } = {}
+  ): Promise<AuditSummaryResponse> {
+    const queryString = this.buildQueryString(options);
+    const cacheKey = `audit-summary-${queryString}`;
+
+    const cached = this.getCachedData<AuditSummaryResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const response = await api.get<AuditSummaryResponse>(`/logs/audit-summary?${queryString}`);
+
+      // Cache summary for shorter time (2 minutes)
+      this.cache.set(cacheKey, { data: response.data, timestamp: Date.now() });
+      return response.data;
+    } catch (error) {
+      throw this.handleApiError(error, "Failed to fetch audit summary");
+    }
+  }
+
   /**
    * Get recent activity (last 50 logs)
    */
@@ -508,6 +686,162 @@ export class LogsApiClient {
       uniqueMaterials: analytics.uniqueMaterials,
       lastActivity: analytics.timeRange.latest
     };
+  }
+
+  // ========================================================================
+  // Audit Log Convenience Methods
+  // ========================================================================
+
+  /**
+   * Get recent employee audit activity
+   */
+  async getRecentEmployeeActivity(limit: number = 50): Promise<EmployeeAuditLog[]> {
+    const response = await this.getEmployeeAuditLogs({
+      limit,
+      sortBy: "timestamp",
+      sortOrder: "DESC"
+    });
+    return response.data.logs;
+  }
+
+  /**
+   * Get recent settlement audit activity
+   */
+  async getRecentSettlementActivity(limit: number = 50): Promise<SettlementAuditLog[]> {
+    const response = await this.getSettlementAuditLogs({
+      limit,
+      sortBy: "timestamp",
+      sortOrder: "DESC"
+    });
+    return response.data.logs;
+  }
+
+  /**
+   * Get employee audit logs for a specific employee
+   */
+  async getEmployeeAuditHistory(employeeId: number, limit: number = 100): Promise<EmployeeAuditLog[]> {
+    const response = await this.getEmployeeAuditLogs({
+      employeeId,
+      limit,
+      sortBy: "timestamp",
+      sortOrder: "DESC"
+    });
+    return response.data.logs;
+  }
+
+  /**
+   * Get settlement audit logs for a specific settlement
+   */
+  async getSettlementAuditHistory(settlementId: number, limit: number = 100): Promise<SettlementAuditLog[]> {
+    const response = await this.getSettlementAuditLogs({
+      settlementId,
+      limit,
+      sortBy: "timestamp",
+      sortOrder: "DESC"
+    });
+    return response.data.logs;
+  }
+
+  /**
+   * Get audit logs by action type
+   */
+  async getAuditLogsByAction(
+    action: string,
+    resource: "employee" | "settlement" | "both" = "both",
+    limit: number = 100
+  ): Promise<(EmployeeAuditLog | SettlementAuditLog)[]> {
+    const params = {
+      action,
+      limit,
+      sortBy: "timestamp",
+      sortOrder: "DESC" as const
+    };
+
+    if (resource === "employee") {
+      const response = await this.getEmployeeAuditLogs(params);
+      return response.data.logs;
+    } else if (resource === "settlement") {
+      const response = await this.getSettlementAuditLogs(params);
+      return response.data.logs;
+    } else {
+      // Get both employee and settlement logs
+      const [employeeResponse, settlementResponse] = await Promise.all([
+        this.getEmployeeAuditLogs(params),
+        this.getSettlementAuditLogs(params)
+      ]);
+
+      // Combine and sort by timestamp
+      const combinedLogs = [
+        ...employeeResponse.data.logs,
+        ...settlementResponse.data.logs
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return combinedLogs.slice(0, limit);
+    }
+  }
+
+  /**
+   * Get audit logs for a specific user across employees and settlements
+   */
+  async getUserAuditActivity(userId: number, limit: number = 100): Promise<(EmployeeAuditLog | SettlementAuditLog)[]> {
+    const params = {
+      userId,
+      limit: Math.ceil(limit / 2), // Split limit between employee and settlement logs
+      sortBy: "timestamp",
+      sortOrder: "DESC" as const
+    };
+
+    const [employeeResponse, settlementResponse] = await Promise.all([
+      this.getEmployeeAuditLogs(params),
+      this.getSettlementAuditLogs(params)
+    ]);
+
+    // Combine and sort by timestamp
+    const combinedLogs = [
+      ...employeeResponse.data.logs,
+      ...settlementResponse.data.logs
+    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    return combinedLogs.slice(0, limit);
+  }
+
+  /**
+   * Get audit logs for a date range
+   */
+  async getAuditLogsForDateRange(
+    startDate: string,
+    endDate: string,
+    resource: "employee" | "settlement" | "both" = "both",
+    limit: number = 500
+  ): Promise<(EmployeeAuditLog | SettlementAuditLog)[]> {
+    const params = {
+      startDate,
+      endDate,
+      limit: resource === "both" ? Math.ceil(limit / 2) : limit,
+      sortBy: "timestamp",
+      sortOrder: "DESC" as const
+    };
+
+    if (resource === "employee") {
+      const response = await this.getEmployeeAuditLogs(params);
+      return response.data.logs;
+    } else if (resource === "settlement") {
+      const response = await this.getSettlementAuditLogs(params);
+      return response.data.logs;
+    } else {
+      const [employeeResponse, settlementResponse] = await Promise.all([
+        this.getEmployeeAuditLogs(params),
+        this.getSettlementAuditLogs(params)
+      ]);
+
+      // Combine and sort by timestamp
+      const combinedLogs = [
+        ...employeeResponse.data.logs,
+        ...settlementResponse.data.logs
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return combinedLogs.slice(0, limit);
+    }
   }
 
   // ========================================================================
@@ -616,7 +950,34 @@ export class LogsApiClient {
 export const logsApiClient = new LogsApiClient();
 
 // Export individual methods for convenience
-export const { getAllLogs, getStockHistory, getMaterialActivity, getUserActivity, getSummary, searchLogs, exportLogs, getRecentActivity, getTodaysLogs, getFailedOperations, getLogsByActionType, getLogsForDateRange, getMaterialUsageStats, getUserPerformanceMetrics, clearCache } = logsApiClient;
+export const { 
+  getAllLogs, 
+  getStockHistory, 
+  getMaterialActivity, 
+  getUserActivity, 
+  getSummary, 
+  searchLogs, 
+  exportLogs, 
+  getRecentActivity, 
+  getTodaysLogs, 
+  getFailedOperations, 
+  getLogsByActionType, 
+  getLogsForDateRange, 
+  getMaterialUsageStats, 
+  getUserPerformanceMetrics,
+  // Audit log methods
+  getEmployeeAuditLogs,
+  getSettlementAuditLogs,
+  getAuditSummary,
+  getRecentEmployeeActivity,
+  getRecentSettlementActivity,
+  getEmployeeAuditHistory,
+  getSettlementAuditHistory,
+  getAuditLogsByAction,
+  getUserAuditActivity,
+  getAuditLogsForDateRange,
+  clearCache 
+} = logsApiClient;
 
 // Export static utility methods
 export const LogsApiUtils = {

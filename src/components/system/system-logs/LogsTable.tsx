@@ -142,27 +142,39 @@ export function LogsTable({ logType, data }: LogsTableProps) {
     };
   }, []);
 
-  const MobileCardView = () => (
-    <div className="block sm:hidden space-y-4 p-4">
-      {data.map((row, index) => (
-        <div key={index} className={cn("bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm", "hover:shadow-md transition-shadow duration-200")}>
-          <div className="space-y-3">
-            {headers.map((header, headerIndex) => {
-              const value = formatLogsCellValue(row, header, logType);
-              const alignment = getColumnAlignment(header);
-              if (!value || value === "-") return null;
-              return (
-                <div key={header} className="flex justify-between items-center py-1">
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate pr-3">{header}:</span>
-                  <div className={cn("text-sm font-semibold text-slate-900 dark:text-slate-100 flex-shrink-0", alignment === "text-right" && "text-right", alignment === "text-center" && "text-center")}>{value}</div>
-                </div>
-              );
-            })}
+  const MobileCardView = () => {
+    console.log("MobileCardView rendering with data:", data);
+    console.log("Headers:", headers);
+
+    if (!data || data.length === 0) {
+      return <div className="p-4 text-center text-gray-500">No data available</div>;
+    }
+
+    return (
+      <div className="space-y-4 p-4">
+        {data.map((row, index) => (
+          <div key={index} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <div className="space-y-3">
+              {headers.map(header => {
+                const value = formatLogsCellValue(row, header, logType);
+                const alignment = getColumnAlignment(header);
+
+                // Skip empty values but show "-" values
+                if (value === null || value === undefined || value === "") return null;
+
+                return (
+                  <div key={header} className="flex justify-between items-start py-1">
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate pr-3 min-w-0 flex-shrink-0">{header}:</span>
+                    <div className={cn("text-sm font-semibold text-slate-900 dark:text-slate-100 flex-shrink-0 text-right", value === "-" && "text-slate-400 dark:text-slate-500 italic", alignment === "text-center" && "text-center", alignment === "text-left" && "text-left")}>{typeof value === "object" ? value : String(value)}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
-  );
+        ))}
+      </div>
+    );
+  };
 
   if (data.length === 0) {
     return (
@@ -187,9 +199,8 @@ export function LogsTable({ logType, data }: LogsTableProps) {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden" style={{ contain: "layout" }}>
-      {data.length > 0 && <MobileCardView />}
-
-      <div className="hidden sm:flex flex-col h-full">
+      {/* Always show desktop table view - same as Stock Entry Logs */}
+      <div className="flex flex-col h-full">
         <div className={cn("flex-1 overflow-hidden relative", isResizing && "select-none")}>
           <div
             className={cn("h-full overflow-auto", "scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400", "dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600", "scroll-smooth", "scrollbar-gutter-stable")}

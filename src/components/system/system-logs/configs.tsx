@@ -1,6 +1,6 @@
-import { Activity, AlertTriangle, BarChart3, Calendar, FileText, Package, Search, User } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Calendar, FileText, Package, Search, User, Users, DollarSign } from "lucide-react";
 
-export type LogType = "stock-entry-logs" | "user-activity-logs" | "material-activity-logs" | "failed-operations" | "recent-activity" | "today-logs" | "action-type-logs" | "summary-overview" | "search-logs";
+export type LogType = "stock-entry-logs" | "user-activity-logs" | "material-activity-logs" | "failed-operations" | "recent-activity" | "today-logs" | "action-type-logs" | "summary-overview" | "search-logs" | "employee-logs" | "settlement-logs";
 
 export const LOG_CONFIGS: ReadonlyArray<{
   id: LogType;
@@ -102,6 +102,24 @@ export const LOG_CONFIGS: ReadonlyArray<{
     requiresAdditionalParams: true,
     additionalParamType: "searchQuery",
     additionalParamLabel: "Search Query"
+  },
+  {
+    id: "employee-logs",
+    name: "Employee Activity Logs",
+    description: "Complete audit trail of employee operations including create, update, delete, and status changes.",
+    icon: <Users className="h-4 w-4" />,
+    requiresDateRange: false,
+    supportsDateRange: true,
+    requiresAdditionalParams: false
+  },
+  {
+    id: "settlement-logs",
+    name: "Settlement Activity Logs", 
+    description: "Comprehensive tracking of settlement operations including creation, approval, payment, and modifications.",
+    icon: <DollarSign className="h-4 w-4" />,
+    requiresDateRange: false,
+    supportsDateRange: true,
+    requiresAdditionalParams: false
   }
 ];
 
@@ -112,7 +130,15 @@ export const ACTION_TYPE_OPTIONS = [
   { value: "delete", label: "Delete Stock Entry" },
   { value: "add_to_stock", label: "Add to Stock" },
   { value: "waste_from_stock", label: "Waste from Stock" },
-  { value: "pos_toggle", label: "POS Toggle" }
+  { value: "pos_toggle", label: "POS Toggle" },
+  { value: "create_employee", label: "Create Employee" },
+  { value: "update_employee", label: "Update Employee" },
+  { value: "delete_employee", label: "Delete Employee" },
+  { value: "create_settlement", label: "Create Settlement" },
+  { value: "approve_settlement", label: "Approve Settlement" },
+  { value: "mark_paid", label: "Mark Settlement as Paid" },
+  { value: "update_settlement", label: "Update Settlement" },
+  { value: "delete_settlement", label: "Delete Settlement" }
 ];
 
 // Status options for filtering

@@ -49,6 +49,164 @@ export async function generateStockEntryLogsReport(
   }
 }
 
+// Generate employee audit logs report
+export async function generateEmployeeLogsReport(
+  filters: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "ASC" | "DESC";
+    employeeId?: number;
+    userId?: number;
+    action?: string | string[];
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
+  try {
+    const response = await logsApiClient.getEmployeeAuditLogs({
+      page: 1,
+      limit: 1000, // Get more records for comprehensive report
+      sortBy: "timestamp",
+      sortOrder: "DESC",
+      ...filters
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || "Failed to fetch employee audit logs");
+    }
+
+    return response.data.logs.map(log => {
+      // Extract meaningful information based on resource type
+      let description = log.description || "-";
+      let itemInfo = "-";
+      let employeeInfo = "-";
+      
+      // Handle different employee-related resource types
+      if (["employee", "employee_usage"].includes(log.resource) && log.newValues) {
+        const usage = log.newValues;
+        
+        // Type guard for employee object
+        if (usage.employee && typeof usage.employee === 'object' && usage.employee !== null) {
+          const employee = usage.employee as { firstName?: string; lastName?: string; employeeNumber?: string };
+          if (employee.firstName && employee.lastName) {
+            employeeInfo = `${employee.firstName} ${employee.lastName}${employee.employeeNumber ? ` (${employee.employeeNumber})` : ''}`;
+          }
+        }
+        
+        // Type guard for menuItem object
+        if (usage.menuItem && typeof usage.menuItem === 'object' && usage.menuItem !== null) {
+          const menuItem = usage.menuItem as { name?: string; category?: string };
+          const quantity = typeof usage.quantity === 'number' || typeof usage.quantity === 'string' ? usage.quantity : '';
+          const finalCost = typeof usage.finalCost === 'number' || typeof usage.finalCost === 'string' ? usage.finalCost : '';
+          if (menuItem.name) {
+            itemInfo = `${menuItem.name}${menuItem.category ? ` (${menuItem.category})` : ''} - Qty: ${quantity}, Cost: $${finalCost}`;
+          }
+        } else if (usage.material && typeof usage.material === 'object' && usage.material !== null) {
+          const material = usage.material as { name?: string };
+          const quantity = typeof usage.quantity === 'number' || typeof usage.quantity === 'string' ? usage.quantity : '';
+          const finalCost = typeof usage.finalCost === 'number' || typeof usage.finalCost === 'string' ? usage.finalCost : '';
+          if (material.name) {
+            itemInfo = `${material.name} - Qty: ${quantity}, Cost: $${finalCost}`;
+          }
+        }
+        
+        // Enhanced description based on resource type
+        const resourceType = log.resource as "employee" | "employee_usage";
+        if (resourceType === "employee_usage") {
+          description = `Employee usage recorded`;
+          if (typeof usage.notes === 'string' && usage.notes) {
+            description += ` - ${usage.notes}`;
+          }
+        } else {
+          // For "employee" resource type
+          description = (typeof usage.notes === 'string' ? usage.notes : null) || `${log.action} ${log.resource}`;
+        }
+      } else if (log.resource === "employees" && log.newValues) {
+        const count = typeof log.newValues.count === 'number' || typeof log.newValues.count === 'string' ? log.newValues.count : 0;
+        description = `Viewed ${count} employee(s)`;
+        
+        if (log.newValues.filters && typeof log.newValues.filters === 'object' && log.newValues.filters !== null && Object.keys(log.newValues.filters).length > 0) {
+          description += ` with filters: ${JSON.stringify(log.newValues.filters)}`;
+        }
+      }
+      
+      // Try to extract employee info from oldValues if not found in newValues
+      if (employeeInfo === "-" && log.oldValues) {
+        if (log.oldValues.employee && typeof log.oldValues.employee === 'object' && log.oldValues.employee !== null) {
+          const employee = log.oldValues.employee as { firstName?: string; lastName?: string; employeeNumber?: string };
+          if (employee.firstName && employee.lastName) {
+            employeeInfo = `${employee.firstName} ${employee.lastName}${employee.employeeNumber ? ` (${employee.employeeNumber})` : ''}`;
+          }
+        }
+      }
+
+      // Return simple object structure like Stock Entry Logs
+      return {
+        Timestamp: log.timestamp,
+        User: log.userName || "System",
+        Action: log.action,
+        Resource: log.resource,
+        Employee: employeeInfo,
+        Item: itemInfo,
+        Description: description,
+        Status: "Success"
+      };
+    });
+  } catch (error) {
+    console.error("Error generating employee audit logs report:", error);
+    throw error;
+  }
+}
+
+// Generate settlement audit logs report
+export async function generateSettlementLogsReport(
+  filters: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "ASC" | "DESC";
+    settlementId?: number;
+    employeeId?: number;
+    userId?: number;
+    action?: string | string[];
+    startDate?: string;
+    endDate?: string;
+  } = {}
+) {
+  try {
+    const response = await logsApiClient.getSettlementAuditLogs({
+      page: 1,
+      limit: 1000, // Get more records for comprehensive report
+      sortBy: "timestamp",
+      sortOrder: "DESC",
+      ...filters
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || "Failed to fetch settlement audit logs");
+    }
+
+    return response.data.logs.map(log => ({
+      Timestamp: format(new Date(log.timestamp), "yyyy-MM-dd HH:mm:ss"),
+      User: log.userName || "System",
+      Action: log.action,
+      Resource: log.resource,
+      "Settlement ID": log.recordId,
+      recordId: log.recordId,
+      Description: log.description || "-",
+      "Old Values": log.oldValues ? JSON.stringify(log.oldValues, null, 2) : "-",
+      "New Values": log.newValues ? JSON.stringify(log.newValues, null, 2) : "-",
+      "Settlement Info": log.settlementInfo ? JSON.stringify(log.settlementInfo, null, 2) : "-",
+      "IP Address": log.ipAddress || "-",
+      "User Agent": log.userAgent || "-"
+    }));
+  } catch (error) {
+    console.error("Error generating settlement audit logs report:", error);
+    throw error;
+  }
+}
+
 // Generate user activity logs report
 export async function generateUserActivityLogsReport(
   userId: number,

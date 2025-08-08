@@ -15,7 +15,7 @@ import { format, isValid } from "date-fns";
 import { CalendarIcon, Database, Download, RotateCcw, TrendingUp, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ACTION_TYPE_OPTIONS, LOG_CONFIGS, LogType } from "./configs.tsx";
-import { generateActionTypeLogsReport, generateFailedOperationsReport, generateMaterialActivityLogsReport, generateRecentActivityReport, generateSearchLogsReport, generateStockEntryLogsReport, generateSummaryOverviewReport, generateTodayLogsReport, generateUserActivityLogsReport } from "./generationFunctions.ts";
+import { generateActionTypeLogsReport, generateFailedOperationsReport, generateMaterialActivityLogsReport, generateRecentActivityReport, generateSearchLogsReport, generateStockEntryLogsReport, generateSummaryOverviewReport, generateTodayLogsReport, generateUserActivityLogsReport, generateEmployeeLogsReport, generateSettlementLogsReport } from "./generationFunctions.ts";
 import { LogsTable } from "./LogsTable.tsx";
 
 export interface SystemLogsGeneratorProps {
@@ -279,6 +279,20 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
         case "search-logs":
           if (!searchQuery.trim()) throw new Error("Search query is required");
           logResults = await generateSearchLogsReport(searchQuery.trim(), {
+            startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+            endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
+          });
+          break;
+
+        case "employee-logs":
+          logResults = await generateEmployeeLogsReport({
+            startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
+            endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
+          });
+          break;
+
+        case "settlement-logs":
+          logResults = await generateSettlementLogsReport({
             startDate: dateFrom ? format(dateFrom, "yyyy-MM-dd") : undefined,
             endDate: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined
           });

@@ -1,7 +1,7 @@
 import express from "express";
 import { Op } from "sequelize";
 import { StockEntryAuditHelperSimple } from "../decorators/stockEntryAuditDecoratorSimple.js";
-import { SystemLogs } from "../models/index.js";
+import { SystemLogs, AuditLog, User, Employee } from "../models/index.js";
 
 const router = express.Router();
 
@@ -557,6 +557,405 @@ router.get("/search", async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to search logs",
+      details: error.message
+    });
+  }
+});
+
+// ============================================================================
+// GET /api/logs/employees - Get employee audit logs with filtering
+// ============================================================================
+router.get("/employees", async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 50, 
+      employeeId, 
+      userId, 
+      action, 
+      startDate, 
+      endDate, 
+      sortBy = "timestamp", 
+      sortOrder = "DESC" 
+    } = req.query;
+
+    // Build where clause for employee-related audit logs
+    const whereClause = {
+      resource: { [Op.in]: ["employee", "employees", "employee_usage"] }
+    };
+
+    if (employeeId) {
+      whereClause.recordId = employeeId;
+    }
+
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
+    if (action) {
+      if (Array.isArray(action)) {
+        whereClause.action = { [Op.in]: action };
+      } else {
+        whereClause.action = action;
+      }
+    }
+
+    if (startDate && endDate) {
+      whereClause.timestamp = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    } else if (startDate) {
+      whereClause.timestamp = {
+        [Op.gte]: new Date(startDate)
+      };
+    } else if (endDate) {
+      whereClause.timestamp = {
+        [Op.lte]: new Date(endDate)
+      };
+    }
+
+    // Calculate pagination
+    const offset = (page - 1) * limit;
+
+    // Execute query with user and employee associations
+    const { count, rows: logs } = await AuditLog.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "username", "firstName", "lastName"],
+          required: false
+        }
+      ],
+      order: [[sortBy, sortOrder.toUpperCase()]],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(count / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    // Format logs for response
+    const formattedLogs = logs.map(log => ({
+      id: log.id,
+      userId: log.userId,
+      userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : "System",
+      action: log.action,
+      resource: log.resource,
+      recordId: log.recordId,
+      oldValues: log.oldValues,
+      newValues: log.newValues,
+      description: log.description,
+      timestamp: log.timestamp,
+      ipAddress: log.ipAddress,
+      userAgent: log.userAgent
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        logs: formattedLogs,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalRecords: count,
+          recordsPerPage: parseInt(limit),
+          hasNextPage,
+          hasPrevPage
+        },
+        filters: { employeeId, userId, action, startDate, endDate },
+        sorting: { sortBy, sortOrder }
+      },
+      message: `Retrieved ${logs.length} employee audit log entries`
+    });
+  } catch (error) {
+    console.error("Error fetching employee audit logs:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch employee audit logs",
+      details: error.message
+    });
+  }
+});
+
+// ============================================================================
+// GET /api/logs/settlements - Get settlement audit logs with filtering
+// ============================================================================
+router.get("/settlements", async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 50, 
+      settlementId, 
+      employeeId, 
+      userId, 
+      action, 
+      startDate, 
+      endDate, 
+      sortBy = "timestamp", 
+      sortOrder = "DESC" 
+    } = req.query;
+
+    // Build where clause for settlement-related audit logs
+    const whereClause = {
+      resource: { [Op.in]: ["employee_settlement", "employee_settlements", "settlement"] }
+    };
+
+    if (settlementId) {
+      whereClause.recordId = settlementId;
+    }
+
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
+    if (action) {
+      if (Array.isArray(action)) {
+        whereClause.action = { [Op.in]: action };
+      } else {
+        whereClause.action = action;
+      }
+    }
+
+    if (startDate && endDate) {
+      whereClause.timestamp = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    } else if (startDate) {
+      whereClause.timestamp = {
+        [Op.gte]: new Date(startDate)
+      };
+    } else if (endDate) {
+      whereClause.timestamp = {
+        [Op.lte]: new Date(endDate)
+      };
+    }
+
+    // Calculate pagination
+    const offset = (page - 1) * limit;
+
+    // Execute query with user associations
+    const { count, rows: logs } = await AuditLog.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "username", "firstName", "lastName"],
+          required: false
+        }
+      ],
+      order: [[sortBy, sortOrder.toUpperCase()]],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(count / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    // Format logs for response
+    const formattedLogs = logs.map(log => ({
+      id: log.id,
+      userId: log.userId,
+      userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : "System",
+      action: log.action,
+      resource: log.resource,
+      recordId: log.recordId,
+      oldValues: log.oldValues,
+      newValues: log.newValues,
+      description: log.description,
+      timestamp: log.timestamp,
+      ipAddress: log.ipAddress,
+      userAgent: log.userAgent,
+      // Extract settlement-specific info from description or values
+      settlementInfo: log.newValues || log.oldValues
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        logs: formattedLogs,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalRecords: count,
+          recordsPerPage: parseInt(limit),
+          hasNextPage,
+          hasPrevPage
+        },
+        filters: { settlementId, employeeId, userId, action, startDate, endDate },
+        sorting: { sortBy, sortOrder }
+      },
+      message: `Retrieved ${logs.length} settlement audit log entries`
+    });
+  } catch (error) {
+    console.error("Error fetching settlement audit logs:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch settlement audit logs",
+      details: error.message
+    });
+  }
+});
+
+// ============================================================================
+// GET /api/logs/audit-summary - Get audit logs summary for employees and settlements
+// ============================================================================
+router.get("/audit-summary", async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate && endDate) {
+      dateFilter.timestamp = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    } else if (startDate) {
+      dateFilter.timestamp = {
+        [Op.gte]: new Date(startDate)
+      };
+    } else if (endDate) {
+      dateFilter.timestamp = {
+        [Op.lte]: new Date(endDate)
+      };
+    }
+
+    // Get employee audit logs summary
+    const employeeLogs = await AuditLog.count({
+      where: {
+        ...dateFilter,
+        resource: { [Op.in]: ["employee", "employees", "employee_usage"] }
+      }
+    });
+
+    // Get settlement audit logs summary
+    const settlementLogs = await AuditLog.count({
+      where: {
+        ...dateFilter,
+        resource: { [Op.in]: ["employee_settlement", "employee_settlements", "settlement"] }
+      }
+    });
+
+    // Get action breakdown for employees
+    const employeeActionBreakdown = await AuditLog.findAll({
+      where: {
+        ...dateFilter,
+        resource: { [Op.in]: ["employee", "employees", "employee_usage"] }
+      },
+      attributes: [
+        "action",
+        [AuditLog.sequelize.fn("COUNT", AuditLog.sequelize.col("id")), "count"]
+      ],
+      group: ["action"],
+      order: [[AuditLog.sequelize.fn("COUNT", AuditLog.sequelize.col("id")), "DESC"]]
+    });
+
+    // Get action breakdown for settlements
+    const settlementActionBreakdown = await AuditLog.findAll({
+      where: {
+        ...dateFilter,
+        resource: { [Op.in]: ["employee_settlement", "employee_settlements", "settlement"] }
+      },
+      attributes: [
+        "action",
+        [AuditLog.sequelize.fn("COUNT", AuditLog.sequelize.col("id")), "count"]
+      ],
+      group: ["action"],
+      order: [[AuditLog.sequelize.fn("COUNT", AuditLog.sequelize.col("id")), "DESC"]]
+    });
+
+    // Get recent activity
+    const recentActivity = await AuditLog.findAll({
+      where: {
+        ...dateFilter,
+        resource: { [Op.in]: ["employee", "employees", "employee_usage", "employee_settlement", "employee_settlements", "settlement"] }
+      },
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["firstName", "lastName"],
+          required: false
+        }
+      ],
+      order: [["timestamp", "DESC"]],
+      limit: 10
+    });
+
+    // Get top active users
+    const topUsers = await AuditLog.findAll({
+      where: {
+        ...dateFilter,
+        resource: { [Op.in]: ["employee", "employees", "employee_usage", "employee_settlement", "employee_settlements", "settlement"] },
+        userId: { [Op.not]: null }
+      },
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["firstName", "lastName"],
+          required: false
+        }
+      ],
+      attributes: [
+        "userId",
+        [AuditLog.sequelize.fn("COUNT", AuditLog.sequelize.col("AuditLog.id")), "activityCount"]
+      ],
+      group: ["userId", "user.id", "user.firstName", "user.lastName"],
+      order: [[AuditLog.sequelize.fn("COUNT", AuditLog.sequelize.col("AuditLog.id")), "DESC"]],
+      limit: 10
+    });
+
+    const summary = {
+      overview: {
+        totalEmployeeLogs: employeeLogs,
+        totalSettlementLogs: settlementLogs,
+        totalAuditLogs: employeeLogs + settlementLogs,
+        dateRange: {
+          startDate: startDate || "All time",
+          endDate: endDate || "Present"
+        }
+      },
+      employeeActions: employeeActionBreakdown.map(item => ({
+        action: item.action,
+        count: parseInt(item.dataValues.count)
+      })),
+      settlementActions: settlementActionBreakdown.map(item => ({
+        action: item.action,
+        count: parseInt(item.dataValues.count)
+      })),
+      recentActivity: recentActivity.map(log => ({
+        id: log.id,
+        action: log.action,
+        resource: log.resource,
+        recordId: log.recordId,
+        userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : "System",
+        timestamp: log.timestamp,
+        description: log.description
+      })),
+      topUsers: topUsers.map(user => ({
+        userId: user.userId,
+        userName: user.user ? `${user.user.firstName} ${user.user.lastName}` : "Unknown",
+        activityCount: parseInt(user.dataValues.activityCount)
+      }))
+    };
+
+    res.json({
+      success: true,
+      data: summary,
+      message: "Retrieved employee and settlement audit summary"
+    });
+  } catch (error) {
+    console.error("Error generating audit summary:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate audit summary",
       details: error.message
     });
   }

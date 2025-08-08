@@ -10,6 +10,8 @@ export function getLogsTableHeaders(logType: LogType): string[] {
     "recent-activity": ["Timestamp", "User", "Action", "Item", "Quantity", "Cost", "Description", "Status"],
     "today-logs": ["Timestamp", "User", "Action", "Item", "Quantity", "Cost", "Description", "Status"],
     "action-type-logs": ["Timestamp", "User", "Action", "Item", "Quantity", "Cost", "Description", "Status"],
+    "employee-logs": ["Timestamp", "User", "Action", "Resource", "Employee", "Item", "Description", "Status"],
+    "settlement-logs": ["Timestamp", "User", "Action", "Resource", "Employee", "Item", "Description", "Status"],
 
     "summary-overview": ["Metric", "Value", "Percentage", "Change", "Status"],
     "search-logs": ["Timestamp", "User", "Action", "Item", "Quantity", "Cost", "Description", "Status", "Relevance"]
