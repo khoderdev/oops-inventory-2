@@ -1,24 +1,26 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { employeesFiltersAtom, employeesLoadingAtom, employeeStatsAtom, fetchEmployeesAtom, fetchEmployeeStatsAtom } from "@/store/employeeAtoms";
+import { toast } from "@/components/ui/use-toast";
+import { employeeAPI } from "@/api/employee.api";
+import { deleteEmployeeAtom, employeesFiltersAtom, employeesLoadingAtom, employeeStatsAtom, fetchEmployeesAtom, fetchEmployeeStatsAtom } from "@/store/employeeAtoms";
 import type { Employee, EmployeeDepartment } from "@/types/employee";
 import { useAtom } from "jotai";
 import { Calendar, Edit, MoreHorizontal, Plus, Search, Trash2, TrendingUp } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { EmployeeForm } from "./EmployeeForm";
 import { EmployeeStatsCards } from "./EmployeeStatsCards";
 
 interface EmployeeTableProps {
   employees: Employee[];
   onEdit: (employee: Employee) => void;
-  onDelete: (employeeId: number) => void;
-  onViewUsage: (employeeId: number) => void;
-  onViewSettlements: (employeeId: number) => void;
+  // onDelete: (employeeId: number) => void;
 }
 
 const departmentColors = {
@@ -32,17 +34,24 @@ const departmentColors = {
 
 const departments: EmployeeDepartment[] = ["kitchen", "service", "management", "cleaning", "security", "other"];
 
-export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit, onDelete, onViewUsage, onViewSettlements }) => {
+export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit }) => {
+  const navigate = useNavigate();
   const [filters, setFilters] = useAtom(employeesFiltersAtom);
   const [loading] = useAtom(employeesLoadingAtom);
   const [, fetchEmployees] = useAtom(fetchEmployeesAtom);
   const [, fetchStats] = useAtom(fetchEmployeeStatsAtom);
   const [employeeStats] = useAtom(employeeStatsAtom);
+  const [, deleteEmployee] = useAtom(deleteEmployeeAtom);
 
   // Employee form state
   const [employeeFormOpen, setEmployeeFormOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
+
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch employees data and stats on component mount
   useEffect(() => {
@@ -52,12 +61,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
         await fetchEmployees();
         await fetchStats();
       } catch (error) {
-        console.error('Failed to load employee data:', error);
+        console.error("Failed to load employee data:", error);
       }
     };
-    
+
     loadData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to prevent infinite loops
 
   const handleSearchChange = (value: string) => {
@@ -105,6 +114,77 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
     // Refresh data after form operations
     fetchEmployees(filters);
     fetchStats();
+  };
+
+  // Smooth navigation handlers
+  const handleViewUsage = (employeeId: number) => {
+    // Navigate smoothly to employee usage view with the selected employee ID
+    navigate(`/employees/usage?employeeId=${employeeId}`);
+  };
+
+  const handleViewSettlements = (employeeId: number) => {
+    // Navigate smoothly to employee settlements view with the selected employee ID
+    navigate(`/employees/settlements?employeeId=${employeeId}`);
+  };
+
+  const handleDeleteEmployee = (employeeId: number) => {
+    // Find the employee to show in confirmation dialog
+    const employee = employees.find(emp => emp.id === employeeId);
+    if (employee) {
+      setEmployeeToDelete(employee);
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  const confirmDeleteEmployee = async () => {
+    if (!employeeToDelete) return;
+
+    const employeeName = `${employeeToDelete.firstName} ${employeeToDelete.lastName}`;
+    setIsDeleting(true);
+
+    try {
+      // Call the actual API to delete employee from database
+      const response = await employeeAPI.deleteEmployee(employeeToDelete.id);
+
+      if (response.success) {
+        // Update local state after successful API call
+        await deleteEmployee(employeeToDelete.id);
+
+        toast({
+          title: "Employee Deleted",
+          description: `${employeeName} has been successfully deleted.`,
+          variant: "default"
+        });
+
+        // Refresh the employee list and stats
+        await fetchEmployees(filters);
+        await fetchStats();
+
+        // Close dialog and reset state
+        setDeleteDialogOpen(false);
+        setEmployeeToDelete(null);
+      } else {
+        toast({
+          title: "Delete Failed",
+          description: response.message || `Failed to delete ${employeeName}. Please try again.`,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      toast({
+        title: "Delete Error",
+        description: `An error occurred while deleting ${employeeName}. Please try again.`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const cancelDeleteEmployee = () => {
+    setDeleteDialogOpen(false);
+    setEmployeeToDelete(null);
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {
@@ -270,16 +350,16 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
                           Edit Employee
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onViewUsage(employee.id)}>
+                        <DropdownMenuItem onClick={() => handleViewUsage(employee.id)}>
                           <TrendingUp className="mr-2 h-4 w-4" />
                           View Usage
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onViewSettlements(employee.id)}>
+                        <DropdownMenuItem onClick={() => handleViewSettlements(employee.id)}>
                           <Calendar className="mr-2 h-4 w-4" />
                           View Settlements
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onDelete(employee.id)} className="text-red-600">
+                        <DropdownMenuItem onClick={() => handleDeleteEmployee(employee.id)} className="text-red-600">
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
                         </DropdownMenuItem>
@@ -293,15 +373,41 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit,
         </Table>
       </div>
 
-      {/* Pagination would go here if needed */}
-
       {/* Employee Form Dialog */}
-      <EmployeeForm
-        open={employeeFormOpen}
-        onClose={handleFormClose}
-        employee={selectedEmployee}
-        mode={formMode}
-      />
+      <EmployeeForm open={employeeFormOpen} onClose={handleFormClose} employee={selectedEmployee} mode={formMode} />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Employee
+            </DialogTitle>
+            <DialogDescription className="text-left">
+              Are you sure you want to delete <span className="font-semibold">{employeeToDelete ? `${employeeToDelete.firstName} ${employeeToDelete.lastName}` : "this employee"}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={cancelDeleteEmployee} disabled={isDeleting} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteEmployee} disabled={isDeleting} className="w-full sm:w-auto">
+              {isDeleting ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Employee
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

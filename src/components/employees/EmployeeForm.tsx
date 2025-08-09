@@ -23,8 +23,8 @@ const employeeSchema = z.object({
   userId: z.number().optional(), // Now optional - employees can exist without user accounts
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Valid email is required"),
-  phone: z.string().min(1, "Phone number is required"),
+  email: z.string().optional(),
+  phone: z.string().optional(),
   employeeNumber: z.string().optional(),
   department: z.enum(["kitchen", "service", "management", "cleaning", "security", "other"]),
   position: z.string().min(1, "Position is required"),
@@ -295,11 +295,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>User Account (Optional)</FormLabel>
-                        <Select 
-                          onValueChange={value => field.onChange(value === "none" ? undefined : parseInt(value))} 
-                          value={field.value ? field.value.toString() : "none"} 
-                          disabled={mode === "edit"}
-                        >
+                        <Select onValueChange={value => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value ? field.value.toString() : "none"} disabled={mode === "edit"}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Link to user account (optional)" />
@@ -314,9 +310,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormDescription>
-                          Optional: Link this employee to a user account for system access
-                        </FormDescription>
+                        <FormDescription>Optional: Link this employee to a user account for system access</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

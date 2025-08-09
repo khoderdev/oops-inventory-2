@@ -17,6 +17,7 @@ import { POSClientOrders } from "./components/pos/POSClientOrders";
 import System from "./components/system";
 import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
+import { SidebarLayout } from "./components/layout/SidebarLayout";
 
 
 // Lazy load components for better performance
@@ -25,7 +26,6 @@ const ReportGenerator = lazy(() => import("./components/analytics/ReportGenerato
 const LoginPage = lazy(() => import("./components/auth/LoginPage"));
 const ProtectedRoutes = lazy(() => import("./components/auth/ProtectedRoute"));
 const InventoryManagementPanel = lazy(() => import("./components/inventory/InventoryManagementPanel").then(m => ({ default: m.InventoryManagementPanel })));
-const SidebarLayout = lazy(() => import("./components/layout/SidebarLayout").then(module => ({ default: module.SidebarLayout })));
 const MenuItemBuilder = lazy(() => import("./components/menu/MenuBuilder").then(m => ({ default: m.MenuItemBuilder })));
 const POSPanel = lazy(() => import("./components/POSPanel").then(m => ({ default: m.POSPanel })));
 const ProfilePage = lazy(() => import("./components/profile/ProfilePage"));
@@ -174,20 +174,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
     setFormOpen(true);
   };
 
-  const handleDeleteEmployee = (employeeId: number) => {
-    // TODO: Implement delete employee functionality
-    console.log("Delete employee:", employeeId);
-  };
-
-  const handleViewUsage = (employeeId: number) => {
-    // Navigate to employee usage view with the selected employee ID
-    window.location.href = `/employees/usage?employeeId=${employeeId}`;
-  };
-
-  const handleViewSettlements = (employeeId: number) => {
-    // Navigate to employee settlements view with the selected employee ID
-    window.location.href = `/employees/settlements?employeeId=${employeeId}`;
-  };
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -382,9 +368,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                         <EmployeeTable 
                           employees={employees} 
                           onEdit={handleEditEmployee} 
-                          onDelete={handleDeleteEmployee}
-                          onViewUsage={handleViewUsage}
-                          onViewSettlements={handleViewSettlements}
                         />
                       </AuthenticatedLayout>
                     </ProtectedRoute>

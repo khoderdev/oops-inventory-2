@@ -12,7 +12,8 @@
     "cleanup-system-logs": "node scripts/cleanupSystemLogs.js",
     "fix-system-logs-constraints": "node scripts/fixSystemLogsConstraints.js",
     "update-suppliers": "node scripts/updateSuppliers.js",
-    "update-print-job-enum": "node scripts/updatePrintJobEnum.js"
+    "update-print-job-enum": "node scripts/updatePrintJobEnum.js",
+    "fix-employee-constraints": "node scripts/fixEmployeeEmailPhoneConstraints.js"
   },
   "author": "",
   "license": "ISC",
