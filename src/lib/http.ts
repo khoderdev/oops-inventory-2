@@ -85,19 +85,12 @@ class ApiClient {
 
         // Handle specific status codes
         if (error.response?.status === 401) {
-          // Handle unauthorized - trigger logout
-          console.error("Unauthorized request - clearing session");
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("refresh_token");
-          localStorage.removeItem("token_expiry");
-          localStorage.removeItem("last_activity");
-          localStorage.removeItem("session_id");
-
-          // Trigger auth state reset
-          window.dispatchEvent(new CustomEvent("authError", { detail: { status: 401 } }));
+          // Log unauthorized request but DON'T automatically clear session
+          console.warn("Unauthorized request received - session remains active");
+          // Note: Manual logout required if session is truly invalid
         } else if (error.response?.status === 403) {
           console.error("Forbidden request");
-          window.dispatchEvent(new CustomEvent("authError", { detail: { status: 403 } }));
+          // Note: Not triggering automatic logout for 403 errors
         }
 
         return Promise.reject(errorResponse);

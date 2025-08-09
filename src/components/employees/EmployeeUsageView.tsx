@@ -111,17 +111,6 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
         return isNaN(parsed) ? 0 : parsed;
       })();
 
-      // Debug logging to check values (remove this after testing)
-      console.log("Usage cost values:", {
-        id: usage.id,
-        originalTotalCost: usage.totalCost,
-        originalDiscountAmount: usage.discountAmount,
-        originalFinalCost: usage.finalCost,
-        parsedTotalCost: totalCost,
-        parsedDiscountAmount: discountAmount,
-        parsedFinalCost: finalCost
-      });
-
       order.totalCost += totalCost;
       order.totalDiscountAmount += discountAmount;
       order.finalCost += finalCost;

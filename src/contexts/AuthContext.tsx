@@ -36,12 +36,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } catch (error) {
         console.error("Failed to restore session:", error);
-        // Only clear session if the error indicates invalid credentials
-        // This prevents clearing valid sessions due to network issues
-        if (error?.response?.status === 401 || error?.response?.status === 403) {
-          console.log('🔒 Invalid credentials detected - clearing session');
-          tokenManager.clearSession();
-        }
+        // DISABLED: Automatic session clearing on initialization errors
+        // This prevents interrupting user workflow with automatic logouts
+        console.log('🔒 Session restore failed but keeping session active - manual logout required if needed');
       } finally {
         setIsLoading(false);
       }
@@ -53,15 +50,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Setup event listeners for activity tracking (no automatic session expiration)
   useEffect(() => {
     const handleAuthError = async (event: CustomEvent) => {
-      console.error("Auth error received - manual logout required:", event.detail);
-      // Only clear session on explicit auth errors (401/403)
-      // Network errors or temporary issues should not clear the session
-      if (event.detail?.status === 401 || event.detail?.status === 403) {
-        setUser(null);
-        setToken(null);
-        setSessionInfo(null);
-        tokenManager.clearSession();
-      }
+      console.warn("Auth error received but session will remain active:", event.detail);
+      // DISABLED: Automatic session clearing on auth errors
+      // Users must manually logout if needed
+      // Note: This prevents interrupting user workflow with automatic logouts
     };
 
     const handleVisibilityChange = () => {
@@ -183,14 +175,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('✅ Token refreshed successfully - session continues indefinitely');
     } catch (error) {
       console.error("Token refresh failed:", error);
-      // Only clear session if the error indicates authentication failure
-      if (error?.response?.status === 401 || error?.response?.status === 403) {
-        console.log('🔒 Authentication failed during refresh - clearing session');
-        setUser(null);
-        setToken(null);
-        setSessionInfo(null);
-        tokenManager.clearSession();
-      }
+      // DISABLED: Automatic session clearing on token refresh failure
+      // This prevents interrupting user workflow with automatic logouts
+      console.log('🔒 Token refresh failed but keeping session active - manual logout required if needed');
       throw error;
     }
   };
