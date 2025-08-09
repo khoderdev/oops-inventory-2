@@ -521,7 +521,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             quantity: item.quantity,
             unitPrice: item.unitPrice || item.price,
             totalPrice: item.totalPrice || item.price * item.quantity,
-            type: item.type === "menu_item" ? "menu" : item.type
+            type: item.type
           })),
           subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === "string" ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
           tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : 0,
@@ -842,7 +842,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             name: item.name,
             price: item.unitPrice,
             quantity: item.quantity,
-            type: item.type as "material" | "menu",
+            type: item.type as "material" | "menu_item",
             originalItem,
             notes: item.notes || undefined // Preserve item notes
           };
@@ -1232,7 +1232,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         quantity: item.quantity,
         unitPrice: item.unitPrice || item.price,
         totalPrice: item.totalPrice || item.price * item.quantity,
-        type: item.type === "menu_item" ? "menu" : item.type
+        type: item.type
       })),
       subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === "string" ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
       tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : 0,
@@ -1479,7 +1479,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               quantity: cartItem.quantity,
               unitPrice: cartItem.price,
               totalPrice: cartItem.price * cartItem.quantity,
-              type: (cartItem.type === "menu_item" ? "menu" : "material") as "material" | "menu", // Map menu_item to menu, everything else to material
+              type: cartItem.type as "material" | "menu_item",
               notes: cartItem.notes || undefined
             };
           }),
@@ -1511,7 +1511,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               quantity: item.quantity,
               unitPrice: item.price,
               totalPrice: item.price * item.quantity,
-              type: (item.type === "menu_item" ? "menu" : "material") as "material" | "menu", // Map menu_item to menu, everything else to material
+              type: item.type as "material" | "menu_item",
               notes: item.notes || undefined,
               menuItem: item.type === "menu_item"
             };
@@ -1612,7 +1612,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               quantity: item.quantity,
               unitPrice: item.price,
               totalPrice: item.price * item.quantity,
-              type: item.type === "menu_item" ? "menu" : "material",
+              type: item.type as "material" | "menu_item",
               notes: item.notes || undefined,
               menuItem: item.type === "menu_item"
             };
@@ -1710,7 +1710,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           quantity: item.quantity,
           unitPrice: item.unitPrice || item.price,
           totalPrice: item.totalPrice || item.price * item.quantity,
-          type: item.type === "menu_item" ? "menu" : item.type
+          type: item.type
         })),
         subtotal: order.subtotal || subtotal,
         tax: order.tax || tax,
@@ -1846,17 +1846,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar"))) && (
+                {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees"))) && (
                   <span className="text-sm text-blue-600 font-bold">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
                         <span>{currentOrder.orderNumber}</span>
                         <span className={`text-xs font-medium ${currentOrder.status === "draft" ? "text-orange-600" : currentOrder.status === "paid" ? "text-green-600" : currentOrder.status === "cancelled" ? "text-red-600" : "text-gray-600"}`}>({currentOrder.status})</span>
                       </div>
-                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar") ? (
+                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees") ? (
                       <span>{generatePreviewOrderNumber()}</span>
                     ) : hasUnsavedChanges ? (
-                      "Unsaved"
+                      <span>{generatePreviewOrderNumber()}</span>
                     ) : null}
                   </span>
                 )}
@@ -1889,17 +1889,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             <div className={`flex items-center justify-between ${(hasUnsavedChanges || currentOrder || (cart && cart.length > 0)) && !showSuccessCheckmark ? "py-2" : ""}`}>
               <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
                 {/* Order Status Indicator */}
-                {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar"))) && !showSuccessCheckmark && (
+                {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees"))) && !showSuccessCheckmark && (
                   <span className="text-lg text-blue-600 font-bold">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
                         <span>{currentOrder.orderNumber}</span>
                         <span className={`text-xs font-medium ${currentOrder.status === "draft" ? "text-orange-600" : currentOrder.status === "paid" ? "text-green-600" : currentOrder.status === "cancelled" ? "text-red-600" : "text-gray-600"}`}>({currentOrder.status})</span>
                       </div>
-                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar") ? (
+                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees") ? (
                       <span>{generatePreviewOrderNumber()}</span>
                     ) : hasUnsavedChanges ? (
-                      "Unsaved"
+                      <span>{generatePreviewOrderNumber()}</span>
                     ) : null}
                   </span>
                 )}

@@ -38,7 +38,7 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-  type: "material" | "menu";
+  type: "material" | "menu_item";
   notes?: string;
 }
 

@@ -126,20 +126,27 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
   // Load data when employee or date range changes
   useEffect(() => {
     const loadData = async () => {
-      // Create updated filters
-      const updatedFilters = {
-        ...filters,
-        employeeId: selectedEmployeeId || undefined,
-        startDate: dateRange.from.toISOString().split("T")[0],
-        endDate: dateRange.to.toISOString().split("T")[0]
-      };
+      try {
+        // Create updated filters
+        const updatedFilters = {
+          ...filters,
+          employeeId: selectedEmployeeId || undefined,
+          startDate: dateRange.from.toISOString().split("T")[0],
+          endDate: dateRange.to.toISOString().split("T")[0]
+        };
 
-      // Update filters state
-      setFilters(updatedFilters);
+        // Update filters state
+        setFilters(updatedFilters);
 
-      // Fetch data with updated filters
-      await fetchUsages(updatedFilters);
-      await fetchStats(updatedFilters);
+        // Fetch data with updated filters - run in parallel for better performance
+        await Promise.all([
+          fetchUsages(updatedFilters),
+          fetchStats(updatedFilters)
+        ]);
+      } catch (error) {
+        console.error("Failed to load usage data:", error);
+        // Error handling is managed by the atoms, but we log for debugging
+      }
     };
 
     loadData();

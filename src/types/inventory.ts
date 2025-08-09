@@ -386,7 +386,7 @@ export interface MenuItemSale {
 
 export type CartItem = {
   id: string;
-  type: "individual" | "menu";
+  type: "individual" | "menu_item";
   name: string;
   quantity: number;
   unitPrice: number;
@@ -425,7 +425,7 @@ export interface ReceiptData {
     quantity: number;
     unitPrice: number;
     totalPrice: number;
-    type: "material" | "menu";
+    type: "material" | "menu_item";
   }>;
   subtotal: number;
   tax: number;

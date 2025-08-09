@@ -84,7 +84,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
   const availableItems = useMemo(() => {
     if (!selectedSectionId) return [];
     const items: Array<{
-      type: "individual" | "menu";
+      type: "individual" | "menu_item";
       id: string;
       name: string;
       unitPrice: number;
@@ -173,7 +173,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         }
 
         return {
-          type: "menu" as const,
+          type: "menu_item" as const,
           id: `menu-${menuItem.id}`,
           name: menuItem.name,
           unitPrice: menuItem.price,
@@ -183,7 +183,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         };
       })
       .filter(Boolean) as unknown as Array<{
-      type: "menu";
+      type: "menu_item";
       id: string;
       name: string;
       unitPrice: number;
@@ -345,7 +345,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
 
     // Check if we have individual items that require a section
     const hasIndividualItems = cart.some(item => item.type === "individual");
-    const hasMenuItems = cart.some(item => item.type === "menu");
+    const hasMenuItems = cart.some(item => item.type === "menu_item");
 
     if (hasIndividualItems && !selectedSectionId) {
       showError("Please select a section for individual item sales");
@@ -390,7 +390,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
               totalPrice: cartItem.totalPrice
             });
           }
-        } else if (cartItem.type === "menu") {
+        } else if (cartItem.type === "menu_item") {
           // Menu item sale
           menuItemsForSale.push({
             menuItemId: String(cartItem.menuItemId!),
@@ -624,7 +624,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                           </div>
 
                           {/* Menu Item Ingredients */}
-                          {item.type === "menu" && item.ingredients && item.ingredients.length > 0 && (
+                          {item.type === "menu_item" && item.ingredients && item.ingredients.length > 0 && (
                             <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
                               <div className="flex items-center gap-2 mb-2">
                                 <Package className="h-4 w-4 text-gray-500" />

@@ -118,7 +118,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
           quantity: menuItem.quantity,
           unitPrice: parseFloat(String(menuItem.unitPrice || 0)),
           totalPrice: parseFloat(String(menuItem.totalPrice || 0)),
-          type: "menu"
+          type: "menu_item"
         });
       });
 

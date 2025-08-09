@@ -34,7 +34,7 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
 
   // Count material items that would have stock restored (only if order exists)
   const materialItemsCount = order?.items?.filter(item => item.type === "material").length || 0;
-  const menuItemsCount = order?.items?.filter(item => item.type === "menu").length || 0;
+  const menuItemsCount = order?.items?.filter(item => item.type === "menu_item").length || 0;
 
   // Only show restore stock option for orders that have actually consumed stock
   // Draft orders haven't consumed stock yet, so there's nothing to restore

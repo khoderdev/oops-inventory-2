@@ -33,6 +33,14 @@ export function StockEntriesTable() {
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
 
+  // Local state for optimistic updates
+  const [optimisticStockEntries, setOptimisticStockEntries] = useState<typeof stockEntries>([]);
+
+  // Sync optimistic state with fetched data
+  useEffect(() => {
+    setOptimisticStockEntries(stockEntries);
+  }, [stockEntries]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [materialFilter, setMaterialFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<"materialName" | "supplier" | "purchaseDate">("purchaseDate");
@@ -309,7 +317,7 @@ export function StockEntriesTable() {
   // Get unique materials for filter
   const uniqueMaterials = Array.from(
     new Set(
-      stockEntries
+      optimisticStockEntries
         .map(entry => {
           const material = materialsMap.get(entry.materialId);
           return material?.name;
@@ -318,8 +326,8 @@ export function StockEntriesTable() {
     )
   ).sort();
 
-  // Filter and sort stock entries
-  const stockEntriesWithMaterial = stockEntries
+  // Filter and sort stock entries using optimistic state
+  const stockEntriesWithMaterial = optimisticStockEntries
     .map(entry => ({
       ...entry,
       material: materialsMap.get(entry.materialId)
@@ -550,10 +558,21 @@ export function StockEntriesTable() {
       return;
     }
 
-    try {
-      const newPOSStatus = !entry.isPOSItem;
+    const newPOSStatus = !entry.isPOSItem;
 
-      // Update the stock entry's POS visibility
+    // Optimistic update - instantly update the UI
+    setOptimisticStockEntries(prevEntries => 
+      prevEntries.map(stockEntry => 
+        stockEntry.id === entry.id 
+          ? { ...stockEntry, isPOSItem: newPOSStatus }
+          : stockEntry
+      )
+    );
+
+    // No toast needed - the visual icon change provides sufficient feedback
+
+    try {
+      // Update the stock entry's POS visibility in the background
       const response = await stockAPI.updateStockEntryPOS(entry.id.toString(), {
         isPOSItem: newPOSStatus
       });
@@ -562,19 +581,22 @@ export function StockEntriesTable() {
         throw new Error("Failed to update stock entry POS visibility");
       }
 
-      toast({
-        title: "Success",
-        description: `${entry.material.name} stock entry is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
-        variant: "default"
-      });
-
-      // Refresh the data to show updated state
-      await refresh("stock");
+      // No need to refresh the entire table - the optimistic update already handled the UI
     } catch (error) {
       console.error("Error updating stock entry POS visibility:", error);
+      
+      // Revert the optimistic update on error
+      setOptimisticStockEntries(prevEntries => 
+        prevEntries.map(stockEntry => 
+          stockEntry.id === entry.id 
+            ? { ...stockEntry, isPOSItem: !newPOSStatus }
+            : stockEntry
+        )
+      );
+
       toast({
         title: "Error",
-        description: "Failed to update POS visibility",
+        description: "Failed to update POS visibility. Changes have been reverted.",
         variant: "destructive"
       });
     }
@@ -585,9 +607,18 @@ export function StockEntriesTable() {
     setShowPrinterDialog(true);
   };
 
-  const handlePrinterAssignmentChange = async () => {
-    // Refresh the data to show updated printer assignments
-    await refresh("stock");
+  const handlePrinterAssignmentChange = async (updatedEntry?: StockEntry) => {
+    // If we have the updated entry data, use optimistic update instead of refreshing
+    if (updatedEntry) {
+      setOptimisticStockEntries(prevEntries => 
+        prevEntries.map(stockEntry => 
+          stockEntry.id === updatedEntry.id 
+            ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter }
+            : stockEntry
+        )
+      );
+    }
+    // No need to refresh the entire table - optimistic update handles the UI
   };
 
   const handleToggleBulkSelection = () => {
@@ -621,12 +652,24 @@ export function StockEntriesTable() {
     }
   };
 
-  const handleBulkPrinterAssignmentComplete = async () => {
-    // Refresh the stock entries data to show updated printer assignments
-    await refresh("stock");
+  const handleBulkPrinterAssignmentComplete = async (updatedEntries?: StockEntry[]) => {
+    // If we have updated entries data, use optimistic update instead of refreshing
+    if (updatedEntries && updatedEntries.length > 0) {
+      setOptimisticStockEntries(prevEntries => 
+        prevEntries.map(stockEntry => {
+          const updatedEntry = updatedEntries.find(updated => updated.id === stockEntry.id);
+          return updatedEntry 
+            ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter }
+            : stockEntry;
+        })
+      );
+    }
+    
+    // Clean up selection state
     setSelectedStockEntries(new Set());
     setBulkSelectionMode(false);
     setShowBulkPrinterDialog(false);
+    // No need to refresh the entire table - optimistic update handles the UI
   };
 
   return (
