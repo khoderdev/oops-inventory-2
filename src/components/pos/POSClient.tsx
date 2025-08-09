@@ -1140,7 +1140,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 name: item.name,
                 price: parseFloat(item.unitPrice.toString()),
                 quantity: item.quantity,
-                type: item.type as "material" | "menu",
+                type: item.type as "material" | "menu_item",
                 originalItem,
                 notes: item.notes || undefined // Preserve item notes
               };
