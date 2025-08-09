@@ -17,7 +17,7 @@ import { POSClientOrders } from "./components/pos/POSClientOrders";
 import System from "./components/system";
 import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
-import FloorDesignerPage from "./pages/FloorDesignerPage";
+
 
 // Lazy load components for better performance
 const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
