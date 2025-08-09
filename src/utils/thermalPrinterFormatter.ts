@@ -81,6 +81,15 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
     content += centerText(`${item.quantity}x ${itemName}`) + "\n";
     content += "\x1B\x46"; // ESC F - Bold OFF
 
+    // Add item notes for kitchen/station preparation instructions
+    if (item.notes && item.notes.trim()) {
+      const cleanNotes = handleArabicText(item.notes.trim());
+      // Format notes with indentation and italic style
+      content += "\x1B\x34"; // ESC 4 - Italic ON (if supported)
+      content += `   Note: ${cleanNotes}` + "\n";
+      content += "\x1B\x35"; // ESC 5 - Italic OFF (if supported)
+    }
+
     // Add spacing between items (except last item)
     if (index < items.length - 1) {
       content += "\n";
