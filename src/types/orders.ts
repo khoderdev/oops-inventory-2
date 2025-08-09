@@ -42,6 +42,39 @@ export interface OrderItem {
   notes?: string;
 }
 
+// Extended OrderItem interface with populated relationships (used when fetching from backend)
+export interface OrderItemWithRelations extends OrderItem {
+  menuItem?: {
+    id: string;
+    name: string;
+    price: number;
+    description?: string;
+    category: string;
+    unit: string;
+    availableQuantity: number;
+    costPerUnit: number;
+    isPOSItem?: boolean;
+    image?: string;
+    printerId?: number | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  material?: {
+    id: string;
+    name: string;
+    category: string;
+    baseUnit: string;
+    unitType: string;
+    inputUnit?: string;
+    costPerUnit: number;
+    packageQuantity?: number;
+    description?: string;
+    isPOSItem?: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+}
+
 export interface Order {
   id: string;
   employeeId?: string;
