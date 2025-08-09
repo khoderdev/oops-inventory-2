@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { POSCartItem } from "@/types/inventory";
 import { FileText } from "lucide-react";
@@ -68,12 +68,13 @@ export const ItemNotesDialog: React.FC<ItemNotesDialogProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <FileText className="w-5 h-5" />
-            <span>Item Notes</span>
-          </DialogTitle>
-        </DialogHeader>
+        <DialogTitle className="flex items-center space-x-2 text-lg font-semibold mb-4">
+          <FileText className="w-5 h-5" />
+          <span>Item Notes</span>
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          Add or edit special instructions and notes for this order item
+        </DialogDescription>
 
         <div className="space-y-4">
           {/* Item Information */}
@@ -102,7 +103,9 @@ export const ItemNotesDialog: React.FC<ItemNotesDialogProps> = ({
               onChange={e => setLocalNotes(e.target.value)}
               onKeyDown={handleKeyDown}
               className="min-h-[100px] resize-none"
-              autoFocus
+              // Note: Removed autoFocus to prevent aria-hidden conflicts with Radix UI Dialog
+              // Users can manually click/tab to the textarea when ready
+              // This is more accessible as it doesn't force unexpected focus changes
             />
             <p className="text-xs text-gray-500 mt-1">
               Enter to save, Shift+Enter for new line, Esc to cancel

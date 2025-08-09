@@ -56,7 +56,14 @@ export const NotesDialog: React.FC<NotesDialogProps> = ({ isOpen, onClose, notes
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
               Add notes (remarks) for this order:
             </label>
-            <Textarea id="notes" placeholder="Enter any special instructions or notes for this order... (Enter to save, Shift+Enter for new line, Esc to cancel)" value={localNotes} onChange={e => setLocalNotes(e.target.value)} onKeyDown={handleKeyDown} className="min-h-[120px] resize-none" autoFocus />
+            <Textarea 
+              id="notes" 
+              placeholder="Enter any special instructions or notes for this order... (Enter to save, Shift+Enter for new line, Esc to cancel)" 
+              value={localNotes} 
+              onChange={e => setLocalNotes(e.target.value)} 
+              onKeyDown={handleKeyDown} 
+              className="min-h-[120px] resize-none"
+            />
           </div>
 
           <div className="flex justify-end space-x-2">

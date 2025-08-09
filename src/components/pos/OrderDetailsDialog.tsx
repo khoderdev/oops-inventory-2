@@ -369,15 +369,17 @@ export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, 
       </DialogContent>
 
       {/* Receipt Printer Dialog */}
-      <ReceiptPrinter
-        isOpen={showReceiptDialog}
-        onClose={() => {
-          setShowReceiptDialog(false);
-          setReceiptData(null);
-        }}
-        receiptData={receiptData}
-        autoPrint={false}
-      />
+      {receiptData && (
+        <ReceiptPrinter
+          isOpen={showReceiptDialog}
+          onClose={() => {
+            setShowReceiptDialog(false);
+            setReceiptData(null);
+          }}
+          receiptData={receiptData}
+          autoPrint={false}
+        />
+      )}
     </Dialog>
   );
 };

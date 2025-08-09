@@ -116,25 +116,22 @@ const POSClientPage: React.FC = () => {
     setSessionStats(prev => ({
       totalSales: prev.totalSales + validSaleAmount,
       transactionCount: prev.transactionCount + 1,
-      incompleteOrdersCount: prev.incompleteOrdersCount // Keep existing count
+      incompleteOrdersCount: prev.incompleteOrdersCount
     }));
 
-    // Refresh data after sale
     fetchTabData("materials");
   };
 
   // Handle order selection from POSLayout
   const handleOrderSelect = useCallback(async (order: Order) => {
-    console.log("📎 POSClientPage: Order selected from POSLayout:", order);
-    // Set the selected order state which will trigger POSClient to load it
     setSelectedOrderForPOS(order);
   }, []);
 
   // Handle refresh counts callback from POSLayout
   const handleRefreshCounts = useCallback((refreshFn: () => Promise<void>) => {
     refreshCountsRef.current = async () => {
-      await refreshFn(); // Call the original refresh function
-      await fetchIncompleteOrders(); // Also refresh incomplete orders count
+      await refreshFn();
+      await fetchIncompleteOrders();
     };
   }, []);
 

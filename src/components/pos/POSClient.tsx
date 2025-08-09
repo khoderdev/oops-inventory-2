@@ -459,23 +459,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Handle item notes functionality
   const handleItemNotesChange = useCallback((itemId: string, notes: string) => {
-    console.log('💾 handleItemNotesChange called:', {
-      itemId,
-      notes,
-      notesTrimmed: notes.trim()
-    });
-    
     setCart(prevCart => {
       const updatedCart = prevCart.map(item => 
         item.id === itemId 
           ? { ...item, notes: notes.trim() || undefined }
           : item
       );
-      
-      console.log('🛒 Cart updated. Item with notes:', 
-        updatedCart.find(item => item.id === itemId)
-      );
-      console.log('🛒 Full cart state:', updatedCart);
       
       return updatedCart;
     });
@@ -489,13 +478,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [showSuccess]);
 
   const handleShowItemNotes = useCallback((item: POSCartItem) => {
-    console.log('🔍 handleShowItemNotes called with item:', {
-      id: item.id,
-      name: item.name,
-      notes: item.notes,
-      fullItem: item
-    });
-    
     // Create a fresh copy to ensure React detects the change
     const itemCopy = { ...item };
     
@@ -2136,15 +2118,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {showTablesLayout && <TablesLayout tables={Array.isArray(tables) ? tables : []} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} />}
 
       {/* Receipt Printer Dialog */}
-      <ReceiptPrinter
-        isOpen={showReceiptDialog}
-        onClose={() => {
-          setShowReceiptDialog(false);
-          setShouldAutoPrint(false); // Reset auto-print flag
-        }}
-        receiptData={lastSaleData}
-        autoPrint={shouldAutoPrint}
-      />
+      {showReceiptDialog && lastSaleData && (
+        <ReceiptPrinter
+          isOpen={showReceiptDialog}
+          onClose={() => {
+            setShowReceiptDialog(false);
+            setShouldAutoPrint(false); // Reset auto-print flag
+          }}
+          receiptData={lastSaleData}
+          autoPrint={shouldAutoPrint}
+        />
+      )}
 
       {/* Discount Dialog */}
       <DiscountDialog isOpen={showDiscountDialog} onClose={() => setShowDiscountDialog(false)} discountAmount={discountAmount} onDiscountAmountChange={handleDiscountAmountChange} onDiscount={() => {}} orderSubtotal={subtotal} onApplyDiscount={handleApplyDiscount} />

@@ -3,7 +3,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -793,7 +793,11 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     <>
       {isDialog ? (
         <Dialog open={isOpen} onOpenChange={handleDialogClose}>
-          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden z-50">{MainContent}</DialogContent>
+          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden z-50">
+            <DialogTitle className="sr-only">Orders Management</DialogTitle>
+            <DialogDescription className="sr-only">View and manage restaurant orders, update order status, and print receipts</DialogDescription>
+            {MainContent}
+          </DialogContent>
         </Dialog>
       ) : (
         MainContent
@@ -803,7 +807,9 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       <OrderDetailsDialog isOpen={showOrderDetails} onClose={handleCloseOrderDetails} order={selectedOrder} isLoading={isLoadingOrderDetails} onOrderUpdate={handleOrderUpdate} />
 
       {/* Receipt Printer Dialog */}
-      <ReceiptPrinter isOpen={showReceiptDialog} onClose={handleCloseReceiptDialog} receiptData={receiptData} autoPrint={false} />
+      {receiptData && (
+        <ReceiptPrinter isOpen={showReceiptDialog} onClose={handleCloseReceiptDialog} receiptData={receiptData} autoPrint={false} />
+      )}
     </>
   );
 };
