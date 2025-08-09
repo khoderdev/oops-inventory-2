@@ -229,7 +229,13 @@ export async function seedStockEntries() {
     { materialName: "Tonic Water", quantity: 60, unit: "piece", costPerUnit: 2.0, supplier: "Charles", isPOSItem: false },
     { materialName: "Club Soda", quantity: 60, unit: "piece", costPerUnit: 1.8, supplier: "Charles", isPOSItem: false },
     { materialName: "Fresh Mint", quantity: 5, unit: "kg", costPerUnit: 15.0, supplier: "Charles", isPOSItem: false },
-    { materialName: "Fresh Basil", quantity: 3, unit: "kg", costPerUnit: 18.0, supplier: "Charles", isPOSItem: false }
+    { materialName: "Fresh Basil", quantity: 3, unit: "kg", costPerUnit: 18.0, supplier: "Charles", isPOSItem: false },
+
+    // =============================================================================
+    // SHISHA SUPPLIES
+    // =============================================================================
+    { materialName: "Tobacco", quantity: 50, unit: "g", costPerUnit: 0.5, supplier: "Charles", isPOSItem: false },
+    { materialName: "Charcoal", quantity: 100, unit: "g", costPerUnit: 0.3, supplier: "Charles", isPOSItem: false }
   ];
 
   let createdCount = 0;

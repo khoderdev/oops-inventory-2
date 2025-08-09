@@ -17,6 +17,7 @@ interface ApiError {
   attemptsLeft?: number;
   lockTimeLeft?: number;
   details?: Record<string, unknown>;
+  error?: string; // Backend error details
 }
 
 // API configuration interface
@@ -62,11 +63,24 @@ class ApiClient {
         return response;
       },
       (error: AxiosError<ApiError>) => {
-        // Handle common error cases
+        // Extract error data from response
+        const errorData = error.response?.data;
+        
+        // Handle common error cases with enhanced error extraction
         const errorResponse: ApiError = {
-          message: error.response?.data?.message || "An error occurred",
-          code: error.code,
-          status: error.response?.status
+          message: errorData?.message || error.message || "An error occurred",
+          code: errorData?.code || error.code || "ERR_BAD_RESPONSE",
+          status: error.response?.status,
+          field: errorData?.field,
+          fields: errorData?.fields,
+          attemptsLeft: errorData?.attemptsLeft,
+          lockTimeLeft: errorData?.lockTimeLeft,
+          details: {
+            message: errorData?.message || error.message,
+            code: errorData?.code || error.code,
+            status: error.response?.status,
+            error: errorData?.error || error.message // Include backend error details
+          }
         };
 
         // Handle specific status codes

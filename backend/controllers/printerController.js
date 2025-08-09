@@ -215,13 +215,80 @@ export const createPrinter = async (req, res) => {
     const { name, channelId, type, connectionType, networkConfig, osConfig, settings, capabilities, location, description } = req.body;
     const userId = req.user.id;
 
+    // Validate required fields
+    if (!name || name.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: "Printer name is required"
+      });
+    }
+
+    if (!channelId) {
+      return res.status(400).json({
+        success: false,
+        message: "Printer channel is required"
+      });
+    }
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "Printer type is required"
+      });
+    }
+
+    if (!connectionType) {
+      return res.status(400).json({
+        success: false,
+        message: "Connection type is required"
+      });
+    }
+
     // Validate channel exists
     const channel = await PrinterChannel.findByPk(channelId);
     if (!channel) {
       return res.status(404).json({
         success: false,
-        message: "Printer channel not found"
+        message: "Selected printer channel does not exist"
       });
+    }
+
+    // Check if printer name already exists
+    const existingPrinter = await Printer.findOne({ where: { name: name.trim() } });
+    if (existingPrinter) {
+      return res.status(409).json({
+        success: false,
+        message: `A printer with the name "${name.trim()}" already exists`
+      });
+    }
+
+    // Validate network configuration for network printers
+    if (connectionType === 'network') {
+      if (!networkConfig || !networkConfig.ipAddress || networkConfig.ipAddress.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: "IP address is required for network printers"
+        });
+      }
+      
+      // Basic IP address validation
+      const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      if (!ipRegex.test(networkConfig.ipAddress.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: "Please enter a valid IP address"
+        });
+      }
+    }
+
+    // Validate OS configuration for USB printers
+    if (connectionType === 'usb') {
+      if (!osConfig || !osConfig.printerName || osConfig.printerName.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: "Printer name is required for USB printers"
+        });
+      }
     }
 
     const printer = await Printer.create({
@@ -260,10 +327,35 @@ export const createPrinter = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating printer:", error);
-    res.status(500).json({
+    
+    // Handle specific error types with more detailed messages
+    let errorMessage = "Failed to create printer";
+    let statusCode = 500;
+    
+    if (error.name === 'SequelizeValidationError') {
+      errorMessage = error.errors.map(err => err.message).join(', ');
+      statusCode = 400;
+    } else if (error.name === 'SequelizeUniqueConstraintError') {
+      errorMessage = "A printer with this name already exists";
+      statusCode = 409;
+    } else if (error.name === 'SequelizeForeignKeyConstraintError') {
+      errorMessage = "Invalid printer channel selected";
+      statusCode = 400;
+    } else if (error.name === 'SequelizeDatabaseError') {
+      errorMessage = `Database error: ${error.message}`;
+      statusCode = 500;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    res.status(statusCode).json({
       success: false,
-      message: "Failed to create printer",
-      error: error.message
+      message: errorMessage,
+      error: error.message,
+      details: {
+        type: error.name,
+        originalError: error.message
+      }
     });
   }
 };

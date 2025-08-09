@@ -10,17 +10,62 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreatePrinterChannelRequest, CreatePrinterRequest, Printer, PrinterChannel, WindowsPrinter } from "@/types/printer";
+import type { CreatePrinterChannelRequest, CreatePrinterRequest, Printer, PrinterChannel, WindowsPrinter, PrintJob } from "@/types/printer";
 import { AlertCircle, CheckCircle, Loader2, Monitor, Network, Plus, Power, Printer as PrinterIcon, Search, Settings, Trash2, Wifi, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const Printers = () => {
-  const [channels, setChannels] = useState<PrinterChannel[]>([]);
   const [printers, setPrinters] = useState<Printer[]>([]);
+  const [channels, setChannels] = useState<PrinterChannel[]>([]);
+  const [printJobs, setPrintJobs] = useState<PrintJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [operationLoading, setOperationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Utility function to extract meaningful error messages
+  const extractErrorMessage = (err: unknown, defaultMessage: string): string => {
+    let errorMessage = defaultMessage;
+    
+    if (err && typeof err === 'object') {
+      const errorObj = err as Record<string, unknown>;
+      
+      // First priority: Use the main message from backend
+      if (typeof errorObj.message === 'string') {
+        errorMessage = errorObj.message;
+      } else if (errorObj.details && typeof errorObj.details === 'object') {
+        const details = errorObj.details as Record<string, unknown>;
+        if (typeof details.message === 'string') {
+          errorMessage = details.message;
+        } else if (typeof details.error === 'string') {
+          errorMessage = details.error;
+        } else if (typeof details.originalError === 'string') {
+          errorMessage = details.originalError;
+        }
+      }
+      
+      // Don't add generic status code messages for specific errors
+      // Only add context for truly generic 500 errors
+      if (typeof errorObj.status === 'number') {
+        if (errorObj.status === 500 && errorMessage === defaultMessage) {
+          // Only add generic message if we couldn't extract a specific error
+          errorMessage += " - Server error occurred. Please check the server logs.";
+        } else if (errorObj.status === 404 && errorMessage === defaultMessage) {
+          errorMessage = "Required resource not found.";
+        } else if (errorObj.status === 403 && errorMessage === defaultMessage) {
+          errorMessage = "Access denied.";
+        } else if (errorObj.status === 409) {
+          // Conflict errors are usually specific enough on their own
+          // Don't add additional context
+        } else if (errorObj.status === 400 && errorMessage === defaultMessage) {
+          errorMessage = "Invalid data provided.";
+        }
+      }
+    }
+    
+    return errorMessage;
+  };
+
   const [activeTab, setActiveTab] = useState("channels");
 
   // Dialog states
@@ -94,9 +139,10 @@ const Printers = () => {
       if (printersResponse.success) {
         setPrinters(printersResponse.printers || []);
       }
-    } catch (err) {
-      setError("Failed to fetch printer data");
+    } catch (err: unknown) {
       console.error("Error fetching data:", err);
+      const errorMessage = extractErrorMessage(err, "Failed to fetch printer data");
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -160,9 +206,13 @@ const Printers = () => {
         setChannelDialogOpen(false);
         resetChannelForm();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error saving channel:", err);
-      setError(editingChannel ? "Failed to update channel" : "Failed to create channel");
+      const errorMessage = extractErrorMessage(
+        err,
+        editingChannel ? "Failed to update channel" : "Failed to create channel"
+      );
+      setError(errorMessage);
     } finally {
       setOperationLoading(false);
     }
@@ -197,9 +247,13 @@ const Printers = () => {
         setPrinterDialogOpen(false);
         resetPrinterForm();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error saving printer:", err);
-      setError(editingPrinter ? "Failed to update printer" : "Failed to create printer");
+      const errorMessage = extractErrorMessage(
+        err, 
+        editingPrinter ? "Failed to update printer" : "Failed to create printer"
+      );
+      setError(errorMessage);
     } finally {
       setOperationLoading(false);
     }
@@ -233,9 +287,10 @@ const Printers = () => {
         setSuccess("Channel deleted successfully");
         await fetchData();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error deleting channel:", err);
-      setError("Failed to delete channel");
+      const errorMessage = extractErrorMessage(err, "Failed to delete channel");
+      setError(errorMessage);
     }
   };
 
@@ -248,9 +303,10 @@ const Printers = () => {
         setSuccess("Printer deleted successfully");
         await fetchData();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error deleting printer:", err);
-      setError("Failed to delete printer");
+      const errorMessage = extractErrorMessage(err, "Failed to delete printer");
+      setError(errorMessage);
     }
   };
 
@@ -365,9 +421,13 @@ const Printers = () => {
         // Update local state
         setPrinters(prev => prev.map(p => (p.id === id ? { ...p, isActive } : p)));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error toggling printer status:", err);
-      setError(`Failed to ${isActive ? "activate" : "deactivate"} printer`);
+      const errorMessage = extractErrorMessage(
+        err,
+        `Failed to ${isActive ? "activate" : "deactivate"} printer`
+      );
+      setError(errorMessage);
     } finally {
       setOperationLoading(false);
     }
@@ -384,9 +444,13 @@ const Printers = () => {
         // Update local state
         setChannels(prev => prev.map(c => (c.id === id ? { ...c, isActive } : c)));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error toggling channel status:", err);
-      setError(`Failed to ${isActive ? "activate" : "deactivate"} channel`);
+      const errorMessage = extractErrorMessage(
+        err,
+        `Failed to ${isActive ? "activate" : "deactivate"} channel`
+      );
+      setError(errorMessage);
     } finally {
       setOperationLoading(false);
     }
@@ -406,9 +470,10 @@ const Printers = () => {
         setDetectedPrinters([]);
         setError("No printers detected or scan failed");
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error scanning printers:", err);
-      setError("Failed to scan for printers");
+      const errorMessage = extractErrorMessage(err, "Failed to scan for printers");
+      setError(errorMessage);
       setDetectedPrinters([]);
     } finally {
       setScanningPrinters(false);

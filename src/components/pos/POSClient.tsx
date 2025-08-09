@@ -231,7 +231,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               type: "menu_item" as const,
               menuItemId: item.menuItem.id,
               originalItem: item.menuItem,
-              stockEntryId: undefined
+              stockEntryId: undefined,
+              notes: item.notes || undefined // Preserve item notes
             };
             return cartItem;
           } else if (item.material) {
@@ -243,7 +244,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               type: "material" as const,
               materialId: item.material.id,
               originalItem: item.material,
-              stockEntryId: undefined
+              stockEntryId: undefined,
+              notes: item.notes || undefined // Preserve item notes
             };
             return cartItem;
           }
@@ -311,7 +313,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 type: "menu_item" as const,
                 menuItemId: item.menuItem.id,
                 originalItem: item.menuItem,
-                stockEntryId: undefined
+                stockEntryId: undefined,
+                notes: item.notes || undefined // Preserve item notes
               };
               return cartItem;
             } else if (item.material) {
@@ -323,7 +326,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 type: "material" as const,
                 materialId: item.material.id,
                 originalItem: item.material,
-                stockEntryId: undefined
+                stockEntryId: undefined,
+                notes: item.notes || undefined // Preserve item notes
               };
               return cartItem;
             }
@@ -839,7 +843,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             price: item.unitPrice,
             quantity: item.quantity,
             type: item.type as "material" | "menu",
-            originalItem
+            originalItem,
+            notes: item.notes || undefined // Preserve item notes
           };
         })
         .filter(Boolean) as POSCartItem[];
@@ -1136,7 +1141,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 price: parseFloat(item.unitPrice.toString()),
                 quantity: item.quantity,
                 type: item.type as "material" | "menu",
-                originalItem
+                originalItem,
+                notes: item.notes || undefined // Preserve item notes
               };
               return cartItem;
             })
