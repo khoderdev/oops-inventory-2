@@ -1605,7 +1605,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               quantity: item.quantity,
               unitPrice: item.price,
               totalPrice: item.price * item.quantity,
-              type: item.type === "menu_item" ? "menu" : item.type,
+              type: item.type === "menu_item" ? "menu" : "material",
               notes: item.notes || undefined,
               menuItem: item.type === "menu_item"
             };
