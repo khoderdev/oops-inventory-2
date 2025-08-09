@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { AlertTriangle } from "lucide-react";
 import React, { lazy, Suspense } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Employee, EmployeeSettlements, EmployeeTable, EmployeeUsageView } from "./components/employees";
 import { POSClientOrders } from "./components/pos/POSClientOrders";
 import System from "./components/system";
@@ -177,6 +177,16 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
   const handleDeleteEmployee = (employeeId: number) => {
     // TODO: Implement delete employee functionality
     console.log("Delete employee:", employeeId);
+  };
+
+  const handleViewUsage = (employeeId: number) => {
+    // Navigate to employee usage view with the selected employee ID
+    window.location.href = `/employees/usage?employeeId=${employeeId}`;
+  };
+
+  const handleViewSettlements = (employeeId: number) => {
+    // Navigate to employee settlements view with the selected employee ID
+    window.location.href = `/employees/settlements?employeeId=${employeeId}`;
   };
 
   return (
@@ -369,7 +379,13 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                   element={
                     <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_READ}>
                       <AuthenticatedLayout>
-                        <EmployeeTable employees={employees} onEdit={handleEditEmployee} onDelete={handleDeleteEmployee} />
+                        <EmployeeTable 
+                          employees={employees} 
+                          onEdit={handleEditEmployee} 
+                          onDelete={handleDeleteEmployee}
+                          onViewUsage={handleViewUsage}
+                          onViewSettlements={handleViewSettlements}
+                        />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }
