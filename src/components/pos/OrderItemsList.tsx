@@ -6,11 +6,10 @@ import { OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { FileText, Minus, Plus } from "lucide-react";
 import React from "react";
-import { EmployeeSelector } from "./EmployeeSelector";
+import { EmployeeSelector } from "../employees/EmployeeSelector";
 
 export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, selectedEmployee, onOrderTypeChange, onTableSelect, onEmployeeSelect, incompleteTableOrdersCount, orderStatus, isOrderCompleted, discountReason, leftPanelPixelWidth = 0, onShowItemNotes }) => {
   const isCompleted = isOrderCompleted || orderStatus === "paid" || orderStatus === "served";
-  const [showEmployeeSelector, setShowEmployeeSelector] = React.useState(false);
   const [selectedItemForNotes, setSelectedItemForNotes] = React.useState<string | null>(null);
   const shouldShowLabels = leftPanelPixelWidth > 430;
 
@@ -22,7 +21,8 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
   };
 
   const handleEmployeeSelectClick = () => {
-    setShowEmployeeSelector(true);
+    // Set order type to employees to show the dropdown
+    onOrderTypeChange("employees");
   };
 
   const handleEmployeeSelected = (employee: Employee | null) => {
@@ -30,7 +30,6 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
       onEmployeeSelect(employee);
       onOrderTypeChange("employees");
     }
-    setShowEmployeeSelector(false);
   };
 
   const handleItemClick = (itemId: string) => {
@@ -165,8 +164,17 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
         )}
       </div>
 
-      {/* Employee Selector Dialog */}
-      <EmployeeSelector isOpen={showEmployeeSelector} onClose={() => setShowEmployeeSelector(false)} onEmployeeSelect={handleEmployeeSelected} selectedEmployee={selectedEmployee} />
+      {/* Employee Selector Dropdown - Only show when employees order type is selected */}
+      {orderType === "employees" && (
+          <EmployeeSelector 
+            selectedEmployeeId={selectedEmployee?.id || null}
+            onEmployeeSelect={handleEmployeeSelected}
+            placeholder="Choose an employee"
+            showAvatar={false}
+            compact={true}
+            className="w-full"
+          />
+      )}
     </div>
   );
 };

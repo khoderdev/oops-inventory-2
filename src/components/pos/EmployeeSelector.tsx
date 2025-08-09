@@ -125,7 +125,7 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ isOpen, onCl
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
-            Select Employee
+            Select Employees
           </DialogTitle>
         </DialogHeader>
 

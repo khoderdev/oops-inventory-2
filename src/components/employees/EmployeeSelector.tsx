@@ -15,7 +15,7 @@ interface EmployeeSelectorProps {
   showAvatar?: boolean;
   compact?: boolean;
   className?: string;
-}
+} 
 
 export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmployeeId, onEmployeeSelect, placeholder = "Select employee", showAvatar = true, compact = false, className = "" }) => {
   const [employees, setEmployees] = useAtom(employeesAtom);
@@ -63,7 +63,7 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
           <div className="flex items-center gap-2">
             {showAvatar && selectedEmployee && (
               <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-xs">{getInitials(selectedEmployee.user?.firstName, selectedEmployee.user?.lastName)}</AvatarFallback>
+                <AvatarFallback className="text-xs">{getInitials(selectedEmployee.firstName, selectedEmployee.lastName)}</AvatarFallback>
               </Avatar>
             )}
             <SelectValue placeholder={placeholder} />
@@ -81,15 +81,12 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
               <div className="flex items-center gap-2">
                 {showAvatar && (
                   <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">{getInitials(employee.user?.firstName, employee.user?.lastName)}</AvatarFallback>
+                    <AvatarFallback className="text-xs">{getInitials(employee.firstName, employee.lastName)}</AvatarFallback>
                   </Avatar>
                 )}
                 <div className="flex flex-col">
                   <span className="font-medium">
-                    {employee.user?.firstName} {employee.user?.lastName}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    #{employee.employeeNumber} • {employee.department}
+                    {employee.firstName} {employee.lastName}
                   </span>
                 </div>
               </div>
@@ -109,21 +106,12 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
           <div className="flex items-center gap-3">
             {showAvatar && (
               <Avatar className="h-10 w-10">
-                <AvatarFallback>{getInitials(selectedEmployee.user?.firstName, selectedEmployee.user?.lastName)}</AvatarFallback>
+                <AvatarFallback>{getInitials(selectedEmployee.firstName, selectedEmployee.lastName)}</AvatarFallback>
               </Avatar>
             )}
             <div>
               <div className="font-medium">
-                {selectedEmployee.user?.firstName} {selectedEmployee.user?.lastName}
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>#{selectedEmployee.employeeNumber}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {selectedEmployee.department}
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  {selectedEmployee.discountPercentage}% discount
-                </Badge>
+                {selectedEmployee.firstName} {selectedEmployee.lastName}
               </div>
             </div>
           </div>
