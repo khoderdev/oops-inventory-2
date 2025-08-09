@@ -465,9 +465,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           : item
       );
       
-      console.log('🛒 Cart updated, item with ID', itemId, 'now has notes:', 
-        updatedCart.find(item => item.id === itemId)?.notes
+      console.log('🛒 Cart updated. Item with notes:', 
+        updatedCart.find(item => item.id === itemId)
       );
+      console.log('🛒 Full cart state:', updatedCart);
       
       return updatedCart;
     });
@@ -766,8 +767,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               unit: menuItem.unit,
               availableQuantity: menuItem.availableQuantity,
               costPerUnit: menuItem.costPerUnit,
-              createdAt: menuItem.createdAt,
-              updatedAt: menuItem.updatedAt,
+              createdAt: menuItem.createdAt.toString(),
+              updatedAt: menuItem.updatedAt.toString(),
               description: menuItem.description,
               image: menuItem.image
             });
@@ -1453,8 +1454,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setIsLoading(true);
 
       // Save the order - update if currentOrder exists, create if new
+      console.log('🚀 About to save order. Current cart state:', cart);
+      console.log('🔍 Cart items with notes:', cart.filter(item => item.notes));
+
       let savedOrder;
-      if (currentOrder) {
+
+      if (currentOrder?.id) {
         // For updates, use the existing order items structure but update quantities/prices
         const updateData = {
           items: cart.map(cartItem => {
@@ -1471,7 +1476,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               unitPrice: cartItem.price,
               totalPrice: cartItem.price * cartItem.quantity,
               type: cartItem.type,
-              notes: undefined,
+              notes: cartItem.notes || undefined,
               menuItem: cartItem.type === "menu_item"
             };
           }),
@@ -1487,18 +1492,27 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           orderType,
           tableId: selectedTable?.id,
           employeeId: selectedEmployee?.id,
-          items: cart.map(item => ({
-            materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
-            menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
-            assignmentId: undefined,
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.price * item.quantity,
-            type: item.type,
-            notes: undefined,
-            menuItem: item.type === "menu_item"
-          })),
+          items: cart.map(item => {
+            console.log('🔍 Creating order item:', {
+              id: item.id,
+              name: item.name,
+              notes: item.notes,
+              hasNotes: !!item.notes
+            });
+            
+            return {
+              materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+              menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
+              assignmentId: undefined,
+              name: item.name,
+              quantity: item.quantity,
+              unitPrice: item.price,
+              totalPrice: item.price * item.quantity,
+              type: item.type,
+              notes: item.notes || undefined,
+              menuItem: item.type === "menu_item"
+            };
+          }),
           notes: orderNotes || undefined,
           discountType: appliedDiscount?.type,
           discountValue: appliedDiscount?.value,
@@ -1596,7 +1610,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               unitPrice: item.price,
               totalPrice: item.price * item.quantity,
               type: item.type,
-              notes: undefined,
+              notes: item.notes || undefined,
               menuItem: item.type === "menu_item"
             };
 

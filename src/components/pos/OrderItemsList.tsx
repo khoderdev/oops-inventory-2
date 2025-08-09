@@ -8,13 +8,10 @@ import { FileText, Minus, Plus } from "lucide-react";
 import React from "react";
 import { EmployeeSelector } from "./EmployeeSelector";
 
-export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, selectedEmployee, onOrderTypeChange, onTableSelect, onEmployeeSelect, incompleteTableOrdersCount, orderStatus, isOrderCompleted, discountReason, leftPanelPixelWidth = 0, onItemNotesChange, onShowItemNotes }) => {
+export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCartQuantity, orderType, selectedTable, selectedEmployee, onOrderTypeChange, onTableSelect, onEmployeeSelect, incompleteTableOrdersCount, orderStatus, isOrderCompleted, discountReason, leftPanelPixelWidth = 0, onShowItemNotes }) => {
   const isCompleted = isOrderCompleted || orderStatus === "paid" || orderStatus === "served";
   const [showEmployeeSelector, setShowEmployeeSelector] = React.useState(false);
   const [selectedItemForNotes, setSelectedItemForNotes] = React.useState<string | null>(null);
-
-  // Determine if we should show labels based on left panel width
-  // Show labels when panel is wider than 370px (≈28%), otherwise show icons only
   const shouldShowLabels = leftPanelPixelWidth > 430;
 
   const handleQuantityUpdate = (cartId: string, newQuantity: number) => {
@@ -43,20 +40,10 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
 
   const handleItemNotesClick = (e: React.MouseEvent, item: POSCartItem) => {
     e.stopPropagation();
-    console.log('🖱️ handleItemNotesClick called:', {
-      itemId: item.id,
-      itemName: item.name,
-      itemNotes: item.notes,
-      isCompleted,
-      hasOnShowItemNotes: !!onShowItemNotes
-    });
-    
     if (isCompleted || !onShowItemNotes) {
-      console.log('❌ Blocked: isCompleted =', isCompleted, 'onShowItemNotes =', !!onShowItemNotes);
       return;
     }
-    
-    console.log('✅ Calling onShowItemNotes with item:', item);
+    onShowItemNotes(item);
     // Trigger the parent's item notes dialog
     onShowItemNotes(item);
   };
@@ -120,36 +107,39 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
             {(cart || []).map(item => (
               <div key={item.id} className="space-y-2">
                 {/* Main Item Row */}
-                <div 
-                  className={`flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0 cursor-pointer transition-colors duration-200 rounded-lg px-2 -mx-2 ${
-                    selectedItemForNotes === item.id ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
-                  } ${isCompleted ? 'cursor-default' : ''}`}
-                  onClick={() => handleItemClick(item.id)}
-                >
+                <div className={`flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0 cursor-pointer transition-colors duration-200 rounded-lg px-2 -mx-2 ${selectedItemForNotes === item.id ? "bg-blue-50 border-blue-200" : "hover:bg-gray-50"} ${isCompleted ? "cursor-default" : ""}`} onClick={() => handleItemClick(item.id)}>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2">
                       <div className="font-medium text-gray-800">{item.name}</div>
-                      {item.notes && (
-                        <FileText 
-                          className="w-4 h-4 text-blue-500 cursor-pointer hover:text-blue-600" 
-                          onClick={(e) => handleItemNotesClick(e, item)}
-                        />
-                      )}
-                      {!item.notes && !isCompleted && onShowItemNotes && (
-                        <FileText 
-                          className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-500 opacity-50 hover:opacity-100" 
-                          onClick={(e) => handleItemNotesClick(e, item)}
-                        />
-                      )}
+                      {item.notes && <FileText className="w-4 h-4 text-blue-500 cursor-pointer hover:text-blue-600" onClick={e => handleItemNotesClick(e, item)} />}
+                      {!item.notes && !isCompleted && onShowItemNotes && <FileText className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-500 opacity-50 hover:opacity-100" onClick={e => handleItemNotesClick(e, item)} />}
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleQuantityUpdate(item.id, item.quantity - 1); }} className="w-6 h-6 p-0" disabled={isCompleted}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleQuantityUpdate(item.id, item.quantity - 1);
+                        }}
+                        className="w-6 h-6 p-0"
+                        disabled={isCompleted}
+                      >
                         <Minus className="w-3 h-3" />
                       </Button>
                       <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleQuantityUpdate(item.id, item.quantity + 1); }} className="w-6 h-6 p-0" disabled={isCompleted}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleQuantityUpdate(item.id, item.quantity + 1);
+                        }}
+                        className="w-6 h-6 p-0"
+                        disabled={isCompleted}
+                      >
                         <Plus className="w-3 h-3" />
                       </Button>
                     </div>
@@ -165,18 +155,6 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
                       <div>
                         <div className="font-medium text-yellow-800 mb-1">Kitchen Notes:</div>
                         <div className="text-yellow-700">{item.notes}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Prompt to add notes when item is selected but has no notes */}
-                {selectedItemForNotes === item.id && !item.notes && !isCompleted && onItemNotesChange && (
-                  <div className="ml-4 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
-                    <div className="flex items-center space-x-2">
-                      <FileText className="w-4 h-4 text-blue-600" />
-                      <div className="text-blue-700">
-                        Click the notes icon to add special instructions for this item
                       </div>
                     </div>
                   </div>

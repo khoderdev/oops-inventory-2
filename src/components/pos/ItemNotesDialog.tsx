@@ -20,41 +20,19 @@ export const ItemNotesDialog: React.FC<ItemNotesDialogProps> = ({
 }) => {
   const [localNotes, setLocalNotes] = useState("");
 
-  console.log('🎭 ItemNotesDialog render:', {
-    isOpen,
-    itemId: item?.id,
-    itemName: item?.name,
-    itemNotes: item?.notes,
-    localNotes,
-    componentKey: `${item?.id}-${isOpen}`
-  });
 
   // Reset local notes whenever the dialog opens or item changes
   useEffect(() => {
-    console.log('🔄 ItemNotesDialog useEffect (open/item change):', {
-      isOpen,
-      itemId: item?.id,
-      itemNotes: item?.notes,
-      previousLocalNotes: localNotes
-    });
-    
     if (isOpen && item) {
       // Force reset the notes to the current item's notes
       const newNotes = item.notes || "";
-      console.log('📝 Setting localNotes to:', newNotes);
       setLocalNotes(newNotes);
     }
   }, [isOpen, item?.id]);
 
   // Clear notes when dialog closes
   useEffect(() => {
-    console.log('🚪 ItemNotesDialog useEffect (close):', {
-      isOpen,
-      localNotes
-    });
-    
     if (!isOpen) {
-      console.log('🧹 Clearing localNotes');
       setLocalNotes("");
     }
   }, [isOpen]);
