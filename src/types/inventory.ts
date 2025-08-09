@@ -477,6 +477,7 @@ export interface POSCartItem {
     type: string;
     status: string;
   };
+  notes?: string; // Individual item notes for kitchen/sections
 }
 
 export interface POSClientProps {
@@ -601,6 +602,8 @@ export interface OrderItemsListProps {
   isOrderCompleted?: boolean;
   discountReason?: string;
   leftPanelPixelWidth?: number;
+  onItemNotesChange?: (itemId: string, notes: string) => void;
+  onShowItemNotes?: (item: POSCartItem) => void;
 }
 
 export interface POSLayoutProps {

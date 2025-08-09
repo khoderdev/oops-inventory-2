@@ -58,12 +58,6 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart,
   const gridColumns = getGridColumns(rightPanelPixelWidth);
   const textSizes = getTextSizes(rightPanelPixelWidth);
 
-  // Debug logging
-  console.log('📋 ProductGrid received:', {
-    rightPanelPixelWidth,
-    gridColumns,
-    textSizes
-  });
 
   return (
     <div className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto safe-area-padding">

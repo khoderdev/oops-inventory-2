@@ -22,6 +22,7 @@ import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
 import { CategoryTabs } from "./CategoryTabs";
 import { DiscountDialog } from "./DiscountDialog";
+import { ItemNotesDialog } from "./ItemNotesDialog";
 import { NotesDialog } from "./NotesDialog";
 import { OrderItemsList } from "./OrderItemsList";
 import { OrderSummary } from "./OrderSummary";
@@ -106,6 +107,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const containerRef = useRef<HTMLDivElement>(null);
   const [showDiscountDialog, setShowDiscountDialog] = useState(false);
   const [showNotesDialog, setShowNotesDialog] = useState(false);
+  const [showItemNotesDialog, setShowItemNotesDialog] = useState(false);
+  const [selectedItemForNotes, setSelectedItemForNotes] = useState<POSCartItem | null>(null);
   const [orderNotes, setOrderNotes] = useState<string>("");
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [appliedDiscount, setAppliedDiscount] = useState<{
@@ -446,6 +449,56 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setDiscountAmount(0);
     showSuccess("Discount removed");
   }, [showSuccess]);
+
+  // Handle item notes functionality
+  const handleItemNotesChange = useCallback((itemId: string, notes: string) => {
+    console.log('💾 handleItemNotesChange called:', {
+      itemId,
+      notes,
+      notesTrimmed: notes.trim()
+    });
+    
+    setCart(prevCart => {
+      const updatedCart = prevCart.map(item => 
+        item.id === itemId 
+          ? { ...item, notes: notes.trim() || undefined }
+          : item
+      );
+      
+      console.log('🛒 Cart updated, item with ID', itemId, 'now has notes:', 
+        updatedCart.find(item => item.id === itemId)?.notes
+      );
+      
+      return updatedCart;
+    });
+    
+    // Show success message
+    if (notes.trim()) {
+      showSuccess("Item notes saved");
+    } else {
+      showSuccess("Item notes removed");
+    }
+  }, [showSuccess]);
+
+  const handleShowItemNotes = useCallback((item: POSCartItem) => {
+    console.log('🔍 handleShowItemNotes called with item:', {
+      id: item.id,
+      name: item.name,
+      notes: item.notes,
+      fullItem: item
+    });
+    
+    // Create a fresh copy to ensure React detects the change
+    const itemCopy = { ...item };
+    
+    setSelectedItemForNotes(itemCopy);
+    setShowItemNotesDialog(true);
+  }, []);
+
+  const handleCloseItemNotes = useCallback(() => {
+    setShowItemNotesDialog(false);
+    setSelectedItemForNotes(null);
+  }, []);
 
   // Payment with selected printer (deprecated - now handled in ReceiptPrinter component)
   const handlePaymentWithPrinter = useCallback(async (printer: any) => {}, []);
@@ -1869,6 +1922,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
                 discountReason={appliedDiscount?.reason || currentOrder?.discountReason}
                 leftPanelPixelWidth={containerRef.current ? (leftPanelWidth / 100) * containerRef.current.offsetWidth : 0}
+                onItemNotesChange={handleItemNotesChange}
+                onShowItemNotes={handleShowItemNotes}
               />
             </div>
 
@@ -1956,6 +2011,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"}
                 discountReason={appliedDiscount?.reason || currentOrder?.discountReason}
                 leftPanelPixelWidth={containerRef.current ? (leftPanelWidth / 100) * containerRef.current.offsetWidth : 0}
+                onItemNotesChange={handleItemNotesChange}
+                onShowItemNotes={handleShowItemNotes}
               />
             </div>
 
@@ -2209,6 +2266,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       {/* Notes Dialog */}
       <NotesDialog isOpen={showNotesDialog} onClose={() => setShowNotesDialog(false)} notes={orderNotes} onNotesChange={setOrderNotes} />
+
+      {/* Item Notes Dialog */}
+      <ItemNotesDialog 
+        key={selectedItemForNotes?.id || 'no-item'}
+        isOpen={showItemNotesDialog} 
+        onClose={handleCloseItemNotes} 
+        item={selectedItemForNotes} 
+        onNotesChange={handleItemNotesChange} 
+      />
     </>
   );
 };
