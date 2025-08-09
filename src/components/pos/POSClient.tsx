@@ -521,7 +521,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             quantity: item.quantity,
             unitPrice: item.unitPrice || item.price,
             totalPrice: item.totalPrice || item.price * item.quantity,
-            type: item.type
+            type: item.type === "menu_item" ? "menu" : item.type
           })),
           subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === "string" ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
           tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : 0,
@@ -1225,7 +1225,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         quantity: item.quantity,
         unitPrice: item.unitPrice || item.price,
         totalPrice: item.totalPrice || item.price * item.quantity,
-        type: item.type
+        type: item.type === "menu_item" ? "menu" : item.type
       })),
       subtotal: currentOrder?.subtotal ? (typeof currentOrder.subtotal === "string" ? parseFloat(currentOrder.subtotal) : currentOrder.subtotal) : subtotal,
       tax: currentOrder?.tax ? (typeof currentOrder.tax === "string" ? parseFloat(currentOrder.tax) : currentOrder.tax) : 0,
@@ -1472,9 +1472,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               quantity: cartItem.quantity,
               unitPrice: cartItem.price,
               totalPrice: cartItem.price * cartItem.quantity,
-              type: cartItem.type,
-              notes: cartItem.notes || undefined,
-              menuItem: cartItem.type === "menu_item"
+              type: (cartItem.type === "menu_item" ? "menu" : "material") as "material" | "menu", // Map menu_item to menu, everything else to material
+              notes: cartItem.notes || undefined
             };
           }),
           discountType: appliedDiscount?.type,
@@ -1505,7 +1504,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               quantity: item.quantity,
               unitPrice: item.price,
               totalPrice: item.price * item.quantity,
-              type: item.type,
+              type: (item.type === "menu_item" ? "menu" : "material") as "material" | "menu", // Map menu_item to menu, everything else to material
               notes: item.notes || undefined,
               menuItem: item.type === "menu_item"
             };
@@ -1606,7 +1605,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               quantity: item.quantity,
               unitPrice: item.price,
               totalPrice: item.price * item.quantity,
-              type: item.type,
+              type: item.type === "menu_item" ? "menu" : item.type,
               notes: item.notes || undefined,
               menuItem: item.type === "menu_item"
             };
@@ -1704,7 +1703,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           quantity: item.quantity,
           unitPrice: item.unitPrice || item.price,
           totalPrice: item.totalPrice || item.price * item.quantity,
-          type: item.type
+          type: item.type === "menu_item" ? "menu" : item.type
         })),
         subtotal: order.subtotal || subtotal,
         tax: order.tax || tax,
