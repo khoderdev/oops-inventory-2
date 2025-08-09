@@ -1021,7 +1021,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               originalItem: menuItem,
               posItem,
               stockEntryId: undefined,
-              menuItemId: menuItemId,
+              menuItemId: typeof menuItemId === "string" ? parseInt(menuItemId) || 0 : menuItemId,
               printerId: menuItem?.printerId || posItem?.printerId,
               assignedPrinter: menuItem?.assignedPrinter || posItem?.assignedPrinter
             };
