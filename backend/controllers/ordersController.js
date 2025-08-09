@@ -333,18 +333,25 @@ export const ordersController = {
         // Compare existing items with new items to find removed ones
         existingItems.forEach(existingItem => {
           const stillExists = items.some(newItem => {
-            // For menu items: match by menuItemId
+            // For menu items: match by menuItemId (convert to string for comparison)
             if (existingItem.menuItemId && newItem.menuItemId) {
-              return existingItem.menuItemId === newItem.menuItemId;
+              const existingMenuItemId = String(existingItem.menuItemId);
+              const newMenuItemId = String(newItem.menuItemId);
+              console.log(`🔍 Comparing menu items: existing=${existingMenuItemId}, new=${newMenuItemId}, match=${existingMenuItemId === newMenuItemId}`);
+              return existingMenuItemId === newMenuItemId;
             }
             
-            // For material items: match by materialId
+            // For material items: match by materialId (convert to string for comparison)
             if (existingItem.materialId && newItem.materialId) {
-              return existingItem.materialId === newItem.materialId;
+              const existingMaterialId = String(existingItem.materialId);
+              const newMaterialId = String(newItem.materialId);
+              console.log(`🔍 Comparing materials: existing=${existingMaterialId}, new=${newMaterialId}, match=${existingMaterialId === newMaterialId}`);
+              return existingMaterialId === newMaterialId;
             }
             
             // Fallback: match by name (but only if both items are the same type)
             if (existingItem.type === newItem.type && existingItem.name === newItem.name) {
+              console.log(`🔍 Comparing by name: existing=${existingItem.name}, new=${newItem.name}, match=true`);
               return true;
             }
             
@@ -353,7 +360,30 @@ export const ordersController = {
 
           if (!stillExists) {
             console.log(`🗑️ Item removed for voiding: ${existingItem.name} (type: ${existingItem.type}, qty: ${existingItem.quantity})`);
-            removedItems.push(existingItem);
+            console.log(`🔍 Removed item details:`, {
+              id: existingItem.id,
+              name: existingItem.name,
+              type: existingItem.type,
+              menuItemId: existingItem.menuItemId,
+              materialId: existingItem.materialId,
+              assignmentId: existingItem.assignmentId,
+              hasMenuItemData: !!existingItem.menuItem,
+              hasMaterialData: !!existingItem.material,
+              hasAssignmentData: !!existingItem.assignment,
+              menuItemName: existingItem.menuItem?.name,
+              materialName: existingItem.material?.name,
+              assignmentName: existingItem.assignment?.name
+            });
+            
+            // Store the item with its related data properly serialized
+            const removedItem = {
+              ...existingItem.toJSON(), // Convert Sequelize instance to plain object
+              menuItem: existingItem.menuItem ? existingItem.menuItem.toJSON() : null,
+              material: existingItem.material ? existingItem.material.toJSON() : null,
+              assignment: existingItem.assignment ? existingItem.assignment.toJSON() : null
+            };
+            
+            removedItems.push(removedItem);
           }
         });
 
@@ -961,6 +991,17 @@ export const ordersController = {
  */
 async function processVoidPrintJobs(removedItems, order, userId) {
   console.log(`🖨️ Processing void print jobs for ${removedItems.length} removed items`);
+  console.log(`🔍 Removed items details:`, removedItems.map(item => ({
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    menuItemId: item.menuItemId,
+    materialId: item.materialId,
+    assignmentId: item.assignmentId,
+    hasMenuItemData: !!item.menuItem,
+    hasMaterialData: !!item.material,
+    hasAssignmentData: !!item.assignment
+  })));
 
   try {
     // Group removed items by their assigned printer
@@ -970,21 +1011,35 @@ async function processVoidPrintJobs(removedItems, order, userId) {
       let printerId = null;
 
       // Determine printer assignment based on item type
-      if (item.menuItemId && item.menuItem) {
-        // Menu item - check if it has a printer assignment
+      if (item.menuItemId && item.menuItem && item.menuItem.printerId) {
+        // Menu item - use its specific printer assignment
         printerId = item.menuItem.printerId;
-      } else if (item.materialId && item.material) {
-        // Material item - check if it has a printer assignment
+        console.log(`📋 Menu item ${item.name} assigned to printer: ${printerId}`);
+      } else if (item.materialId && item.material && item.material.printerId) {
+        // Material item - use its specific printer assignment
         printerId = item.material.printerId;
-      } else if (item.assignmentId && item.assignment) {
-        // Assignment item - get printer from assignment
+        console.log(`🥘 Material item ${item.name} assigned to printer: ${printerId}`);
+      } else if (item.assignmentId && item.assignment && item.assignment.printerId) {
+        // Assignment item - use printer from assignment
         printerId = item.assignment.printerId;
+        console.log(`📝 Assignment item ${item.name} assigned to printer: ${printerId}`);
       }
 
-      // If no printer assigned, use default kitchen printer (ID: 2 based on your logs)
+      // If no specific printer assigned, determine by item type/category
       if (!printerId) {
-        console.log(`⚠️ No printer assigned for ${item.name} - using default kitchen printer`);
-        printerId = 2; // Default to kitchen printer for void items
+        // Try to determine printer based on item characteristics
+        const itemName = item.name?.toLowerCase() || '';
+        
+        if (itemName.includes('water') || itemName.includes('shake') || itemName.includes('juice') || itemName.includes('drink')) {
+          printerId = 3; // Bar Station
+          console.log(`🍹 Drink item ${item.name} assigned to Bar Station (printer 3)`);
+        } else if (itemName.includes('arguile') || itemName.includes('shisha')) {
+          printerId = 4; // Arguile Station
+          console.log(`💨 Arguile item ${item.name} assigned to Arguile Station (printer 4)`);
+        } else {
+          printerId = 2; // Kitchen Station (default)
+          console.log(`🍳 Food item ${item.name} assigned to Kitchen Station (printer 2)`);
+        }
       }
 
       // Group items by printer
@@ -1140,7 +1195,35 @@ function formatVoidItemsForThermalPrinter(items, order) {
 
     // List voided items with emphasis
     Object.values(groupedItems).forEach(item => {
-      const itemName = item.name || "Unknown Item";
+      let itemName = item.name;
+      
+      // Debug logging for item name resolution
+      console.log(`🔍 Formatting void item:`, {
+        itemName: item.name,
+        type: item.type,
+        menuItemId: item.menuItemId,
+        materialId: item.materialId,
+        hasMenuItemData: !!item.menuItem,
+        hasMaterialData: !!item.material
+      });
+      
+      // If no name, try to get it from related data
+      if (!itemName || itemName === "Unknown Item") {
+        if (item.menuItem && item.menuItem.name) {
+          itemName = item.menuItem.name;
+          console.log(`📋 Using menu item name: ${itemName}`);
+        } else if (item.material && item.material.name) {
+          itemName = item.material.name;
+          console.log(`🥘 Using material name: ${itemName}`);
+        } else if (item.assignment && item.assignment.name) {
+          itemName = item.assignment.name;
+          console.log(`📝 Using assignment name: ${itemName}`);
+        } else {
+          itemName = "Unknown Item";
+          console.log(`❌ Could not resolve item name, using fallback`);
+        }
+      }
+      
       const quantity = item.quantity || 1;
       
       // Bold text for emphasis (ESC/POS command)
@@ -1180,7 +1263,22 @@ function formatVoidItemsForThermalPrinter(items, order) {
     fallbackContent += centerText("VOIDED ITEMS") + "\n";
     
     items.forEach(item => {
-      fallbackContent += centerText(`${item.quantity}x ${item.name}`) + "\n";
+      let itemName = item.name;
+      
+      // If no name, try to get it from related data
+      if (!itemName || itemName === "Unknown Item") {
+        if (item.menuItem && item.menuItem.name) {
+          itemName = item.menuItem.name;
+        } else if (item.material && item.material.name) {
+          itemName = item.material.name;
+        } else if (item.assignment && item.assignment.name) {
+          itemName = item.assignment.name;
+        } else {
+          itemName = "Unknown Item";
+        }
+      }
+      
+      fallbackContent += centerText(`${item.quantity}x ${itemName}`) + "\n";
     });
     
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
