@@ -221,10 +221,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       // Convert order items to cart items
       const cartItems: POSCartItem[] = selectedOrderForPOS.items
-        .map((item: any) => {
+        .map((item: any, index: number) => {
           if (item.menuItem) {
             const cartItem = {
-              id: item.menuItem.id.toString(),
+              id: `order-${selectedOrderForPOS.id}-menu-${item.menuItem.id}-${index}`,
               name: item.menuItem.name,
               price: item.menuItem.price,
               quantity: item.quantity,
@@ -236,7 +236,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             return cartItem;
           } else if (item.material) {
             const cartItem = {
-              id: item.material.id.toString(),
+              id: `order-${selectedOrderForPOS.id}-material-${item.material.id}-${index}`,
               name: item.material.name,
               price: parseFloat(item.unitPrice),
               quantity: item.quantity,
@@ -301,10 +301,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         // Convert currentOrder items to cart items
         const cartItems: POSCartItem[] = currentOrder.items
-          .map((item: any) => {
+          .map((item: any, index: number) => {
             if (item.menuItem) {
               const cartItem = {
-                id: item.menuItem.id.toString(),
+                id: `current-${currentOrder.id}-menu-${item.menuItem.id}-${index}`,
                 name: item.menuItem.name,
                 price: item.menuItem.price,
                 quantity: item.quantity,
@@ -316,7 +316,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               return cartItem;
             } else if (item.material) {
               const cartItem = {
-                id: item.material.id.toString(),
+                id: `current-${currentOrder.id}-material-${item.material.id}-${index}`,
                 name: item.material.name,
                 price: parseFloat(item.unitPrice),
                 quantity: item.quantity,
@@ -2263,6 +2263,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {showTablesLayout && (
         <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
           <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 !z-50 bg-white overflow-hidden">
+            <DialogTitle className="sr-only">Tables Layout</DialogTitle>
+            <DialogDescription className="sr-only">Manage restaurant table layout and assignments</DialogDescription>
             <div className="w-full h-full flex flex-col overflow-hidden">
               <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} />
             </div>
@@ -2272,6 +2274,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
         <DialogContent className="w-screen h-screen max-w-none !z-50 max-h-none m-0 p-0 bg-white overflow-hidden">
+          <DialogTitle className="sr-only">Reports & Analytics</DialogTitle>
+          <DialogDescription className="sr-only">View sales reports, analytics, and business insights</DialogDescription>
           <div className="w-full h-full flex flex-col overflow-hidden">
             <div className="flex-shrink-0 flex items-center justify-between p-4 bg-primary">
               <div className="flex items-center gap-2">
@@ -2284,8 +2288,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </DialogContent>
       </Dialog>
 
-      {/* Receipt Printer Dialog */}
-      <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={lastSaleData} autoPrint={shouldAutoPrint} onPrintSuccess={handlePrintSuccess} />
+
 
       {/* Notes Dialog */}
       <NotesDialog isOpen={showNotesDialog} onClose={() => setShowNotesDialog(false)} notes={orderNotes} onNotesChange={setOrderNotes} />

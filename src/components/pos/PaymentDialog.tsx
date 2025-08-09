@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PaymentDialogProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
@@ -31,6 +31,9 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
             <HandCoins className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" />
             <span className="tracking-wide">Complete Payment</span>
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Enter payment amount and complete the transaction for the current order
+          </DialogDescription>
 
           <div className="flex-1 items-center overflow-y-auto min-h-0">
             <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
