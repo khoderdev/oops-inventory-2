@@ -72,7 +72,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
         offset: 0
       };
 
-      if (filters.orderType) {
+      if (filters.orderType && filters.orderType !== "employees") {
         params.orderType = filters.orderType;
       }
       const response = await ordersAPI.getOrders(params);
@@ -84,11 +84,14 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
       let fetchedOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
 
-      // Show all incomplete orders (including table orders)
+      // Show all incomplete orders (excluding staff/employee orders)
       // Incomplete = orders that are still in progress, not yet completed
       const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
       fetchedOrders = fetchedOrders.filter(order => {
-        // Only show incomplete orders (include all order types: table, delivery, takeaway, bar)
+        // Exclude employee orders completely
+        if (order.orderType === "employees") return false;
+        
+        // Only show incomplete orders (include order types: table, delivery, takeaway, bar)
         if (!incompleteStatuses.includes(order.status)) return false;
 
         // Apply search filter
@@ -300,9 +303,11 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     return ordersCopy;
   }, [orders, sortBy, sortOrder]);
 
-  // Calculate total amount of all incomplete orders
+  // Calculate total amount of all incomplete orders (excluding employee orders)
   const totalIncompleteAmount = useMemo(() => {
-    return orders.reduce((sum, order) => sum + order.total, 0);
+    return orders
+      .filter(order => order.orderType !== "employees")
+      .reduce((sum, order) => sum + order.total, 0);
   }, [orders]);
 
   // Handle filter changes
