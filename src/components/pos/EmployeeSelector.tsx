@@ -87,7 +87,19 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ isOpen, onCl
     }
     
     const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-    return initials || employee.employeeNumber.substring(0, 2).toUpperCase();
+    
+    // If we have initials, return them
+    if (initials && initials !== "") {
+      return initials;
+    }
+    
+    // Final fallback to employee number (with null check)
+    if (employee.employeeNumber) {
+      return employee.employeeNumber.substring(0, 2).toUpperCase();
+    }
+    
+    // Last resort fallback
+    return "EMP";
   };
 
   const getEmployeeFullName = (employee: Employee) => {
