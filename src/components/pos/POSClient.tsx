@@ -123,8 +123,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
 
-  // Calculate totals - with safety check for undefined cart
-  const subtotal = (cart || []).reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // Calculate totals - with safety check for undefined cart and null items
+  const subtotal = (cart || []).filter(Boolean).reduce((sum, item) => {
+    // Additional safety check for item properties
+    if (!item || typeof item.price !== 'number' || typeof item.quantity !== 'number') {
+      console.warn('Invalid cart item found:', item);
+      return sum;
+    }
+    return sum + item.price * item.quantity;
+  }, 0);
   const tax = 0; // No tax applied
   const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
   const total = Math.max(0, subtotal - discountAmountCalculated);
@@ -852,7 +859,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             type: item.type as "material" | "menu",
             originalItem
           };
-        });
+        })
+        .filter(Boolean) as POSCartItem[];
 
         setCart(cartItems);
         setOrderType(savedOrder.orderType);
@@ -1149,7 +1157,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 originalItem
               };
               return cartItem;
-            });
+            })
+            .filter(Boolean) as POSCartItem[];
 
             setCart(cartItems);
             showSuccess(`Loaded existing order ${existingOrder.orderNumber} for Table ${table.number}`);
