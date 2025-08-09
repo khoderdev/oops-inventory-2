@@ -402,9 +402,9 @@ export const ordersController = {
               return await OrderItem.create(
                 {
                   orderId: order.id,
-                  materialId: item.materialId,
-                  menuItemId: item.menuItemId,
-                  assignmentId: item.assignmentId,
+                  materialId: item.materialId === "undefined" || item.materialId === undefined ? null : item.materialId,
+                  menuItemId: item.menuItemId === "undefined" || item.menuItemId === undefined ? null : item.menuItemId,
+                  assignmentId: item.assignmentId === "undefined" || item.assignmentId === undefined ? null : item.assignmentId,
                   name: item.name,
                   type: item.type,
                   quantity: item.quantity,
@@ -1025,21 +1025,24 @@ async function processVoidPrintJobs(removedItems, order, userId) {
         console.log(`📝 Assignment item ${item.name} assigned to printer: ${printerId}`);
       }
 
-      // If no specific printer assigned, determine by item type/category
+      // If no specific printer assigned, use item type-based fallback
       if (!printerId) {
-        // Try to determine printer based on item characteristics
-        const itemName = item.name?.toLowerCase() || '';
-        
-        if (itemName.includes('water') || itemName.includes('shake') || itemName.includes('juice') || itemName.includes('drink')) {
+        // Fallback based on item type - this should be improved with proper categories in DB
+        if (item.type === 'material') {
+          // Materials are typically beverages/drinks - assign to Bar Station
           printerId = 3; // Bar Station
-          console.log(`🍹 Drink item ${item.name} assigned to Bar Station (printer 3)`);
-        } else if (itemName.includes('arguile') || itemName.includes('shisha')) {
-          printerId = 4; // Arguile Station
-          console.log(`💨 Arguile item ${item.name} assigned to Arguile Station (printer 4)`);
+          console.log(`🥤 Material item ${item.name} assigned to Bar Station (printer 3) - fallback`);
+        } else if (item.type === 'menu_item') {
+          // Menu items are typically food - assign to Kitchen Station
+          printerId = 2; // Kitchen Station
+          console.log(`🍳 Menu item ${item.name} assigned to Kitchen Station (printer 2) - fallback`);
         } else {
+          // Default fallback
           printerId = 2; // Kitchen Station (default)
-          console.log(`🍳 Food item ${item.name} assigned to Kitchen Station (printer 2)`);
+          console.log(`📋 Item ${item.name} assigned to Kitchen Station (printer 2) - default fallback`);
         }
+        
+        console.log(`⚠️ No specific printer assignment found for ${item.name} (${item.type}), using fallback logic`);
       }
 
       // Group items by printer
@@ -1066,8 +1069,22 @@ async function processVoidPrintJobs(removedItems, order, userId) {
           continue;
         }
 
+        // Debug printer information
+        console.log(`🖨️ Printer details for ID ${printerId}:`, {
+          id: printer.id,
+          name: printer.name,
+          type: printer.type,
+          isActive: printer.isActive,
+          channelId: printer.channelId,
+          channel: printer.channel ? {
+            id: printer.channel.id,
+            name: printer.channel.name,
+            type: printer.channel.type
+          } : null
+        });
+
         // Format void items for thermal printer
-        const voidContent = formatVoidItemsForThermalPrinter(printerItems, order);
+        const voidContent = formatVoidItemsForThermalPrinter(printerItems, order, printer);
 
         // Create print job
         const printJob = await PrintJob.create({
@@ -1136,7 +1153,7 @@ async function processVoidPrintJobs(removedItems, order, userId) {
 /**
  * Format void items for thermal printer output
  */
-function formatVoidItemsForThermalPrinter(items, order) {
+function formatVoidItemsForThermalPrinter(items, order, printer) {
   const now = new Date();
   const date = now.toLocaleDateString("en-US", {
     month: "short",
@@ -1149,9 +1166,37 @@ function formatVoidItemsForThermalPrinter(items, order) {
     hour12: true
   });
 
-  // Get printer name from the first item
-  const printerName = items[0]?.assignedPrinter?.name || "KITCHEN";
-  const stationName = printerName.toUpperCase();
+  // Get printer name from the printer parameter and map to proper station names
+  let stationName = "KITCHEN";
+  
+  if (printer) {
+    // Map printer IDs to proper station names
+    const stationMap = {
+      2: "KITCHEN",
+      3: "BAR", 
+      4: "ARGUILE"
+    };
+    
+    // Use mapped station name if available, otherwise try to extract from printer name
+    if (stationMap[printer.id]) {
+      stationName = stationMap[printer.id];
+    } else if (printer.name) {
+      // Try to extract meaningful name from printer name
+      const name = printer.name.toUpperCase();
+      if (name.includes('BAR')) {
+        stationName = "BAR";
+      } else if (name.includes('ARGUILE') || name.includes('SHISHA')) {
+        stationName = "ARGUILE";
+      } else if (name.includes('KITCHEN') || name.includes('FOOD')) {
+        stationName = "KITCHEN";
+      } else {
+        // Fallback: use printer name but clean it up
+        stationName = name.replace(/PRINTER\s*\d+/i, '').trim() || "KITCHEN";
+      }
+    }
+  }
+  
+  console.log(`🖨️ Formatting void items for printer ID ${printer?.id} (${printer?.name}) -> ${stationName} STATION`);
 
   // 80mm thermal receipt formatting (48 characters wide)
   let content = "";
