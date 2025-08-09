@@ -39,7 +39,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     ingredients?: string;
     ingredientQuantity?: string;
   }>({});
-  const materialSelectRef = useRef<HTMLSelectElement>(null);
+  const materialSelectRef = useRef<HTMLInputElement>(null);
   const ingredientsInputSectionRef = useRef<HTMLDivElement>(null);
 
   const availableMaterials = useMemo(() => {

@@ -1,6 +1,6 @@
 import { printerAPI } from "@/api/printer.api";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { ReceiptPrinterProps } from "@/types/inventory";
@@ -459,6 +459,10 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md w-full max-h-[95vh] h-auto flex flex-col p-0 pt-2">
+        <DialogTitle className="sr-only">Receipt Printer</DialogTitle>
+        <DialogDescription className="sr-only">
+          Print receipt for order {receiptData?.id || 'N/A'}. Review receipt details and click Print to send to thermal printer.
+        </DialogDescription>
         {/* Scrollable Receipt Container */}
         <div className="flex-1 overflow-y-auto p-0">
           <div ref={receiptRef} className="receipt bg-white text-black" style={{ width: "100%", maxWidth: "120mm", padding: "4mm", margin: "0 auto", fontFamily: "Courier New, monospace", fontSize: "16px", lineHeight: "1.2", transform: "scale(1)", transformOrigin: "top center" }}>
