@@ -118,6 +118,134 @@ export const formatItemsForPrinter = ({ items, currentOrder, orderType, selected
 };
 
 /**
+ * Format void items for thermal printer - used when items are removed from orders
+ */
+export const formatVoidItemsForPrinter = ({ items, currentOrder, orderType, selectedTable, selectedEmployee, generatePreviewOrderNumber }: FormatItemsForPrinterParams): string => {
+  const now = new Date();
+  const date = now.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+  const time = now.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  });
+  const orderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
+
+  // Get printer name from the first item (all items in this group go to same printer)
+  const printerName = items[0]?.assignedPrinter?.name || `Printer ${items[0]?.printerId || "Unknown"}`;
+  const stationName = printerName.toUpperCase();
+
+  // 80mm thermal receipt formatting (48 characters wide)
+  let content = "";
+
+  // Center text helper function
+  const centerText = (text: string, width: number = 48) => {
+    const padding = Math.max(0, Math.floor((width - text.length) / 2));
+    return " ".repeat(padding) + text;
+  };
+
+  // Function to handle Arabic text encoding for thermal printers
+  const handleArabicText = (text: string): string => {
+    if (!text) return text;
+    return text
+      .replace(/[\u4e00-\u9fff]+/g, '') // Remove Chinese character sequences only
+      .replace(/[^\x20-\x7E\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g, ''); // Keep printable ASCII and Arabic
+  };
+
+  try {
+    // Header with station name
+    content += centerText(`${stationName} STATION`) + "\n";
+    
+    // **VOID** indicator - make it prominent
+    content += centerText("*** VOID ITEMS ***") + "\n";
+    content += centerText("================") + "\n";
+
+    // Order details
+    content += `Order #: ${orderNumber}\n`;
+    content += `Date: ${date}\n`;
+    content += `Time: ${time}\n`;
+    content += `Type: ${orderType.toUpperCase()}\n`;
+
+    if (selectedTable && orderType === "table") {
+      content += `Table: ${selectedTable.number}\n`;
+    }
+
+    if (selectedEmployee) {
+      content += `Staff: ${selectedEmployee.firstName} ${selectedEmployee.lastName}\n`;
+    }
+
+    content += centerText("VOIDED ITEMS") + "\n";
+
+    // Group items by name and sum quantities
+    const groupedItems = items.reduce((acc, item) => {
+      const key = item.name;
+      if (acc[key]) {
+        acc[key].quantity += item.quantity;
+      } else {
+        acc[key] = { ...item };
+      }
+      return acc;
+    }, {} as Record<string, POSCartItem>);
+
+    // List voided items with emphasis
+    Object.values(groupedItems).forEach(item => {
+      const itemName = handleArabicText(item.name);
+      const quantity = item.quantity;
+      
+      // Bold text for emphasis (ESC/POS command)
+      content += "\x1B\x45"; // ESC E - Bold on
+      content += centerText(`${quantity}x ${itemName}`);
+      content += "\x1B\x46"; // ESC F - Bold off
+      content += "\n";
+    });
+
+    // Only show item count - no monetary totals for void items
+    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
+    content += "\n";
+    content += centerText("================") + "\n";
+    content += centerText(`Total Voided: ${itemCount}`) + "\n";
+    content += centerText("*** DO NOT PREPARE ***") + "\n";
+    content += "\n";
+    content += "\n";
+    content += "\n";
+    content += "\n";
+    content += "\n";
+
+    // Add thermal printer paper cut command (ESC/POS)
+    content += "\x1B\x69"; // ESC i - Full cut command
+
+    return content;
+  } catch (error) {
+    console.error('Error formatting void items for printer:', error);
+    
+    // Fallback to simple text format
+    let fallbackContent = "";
+    fallbackContent += centerText(`${stationName} STATION`) + "\n";
+    fallbackContent += centerText("*** VOID ITEMS ***") + "\n";
+    fallbackContent += `Order #: ${orderNumber}\n`;
+    fallbackContent += `Date: ${date}\n`;
+    fallbackContent += `Time: ${time}\n`;
+    fallbackContent += `Type: ${orderType.toUpperCase()}\n`;
+    fallbackContent += centerText("VOIDED ITEMS") + "\n";
+    
+    items.forEach(item => {
+      fallbackContent += centerText(`${item.quantity}x ${item.name}`) + "\n";
+    });
+    
+    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+    fallbackContent += centerText(`Total Voided: ${itemCount}`) + "\n";
+    fallbackContent += centerText("*** DO NOT PREPARE ***") + "\n";
+    fallbackContent += "\n\n\n\n\n";
+    
+    return fallbackContent;
+  }
+};
+
+/**
  * Center text helper function for thermal printer formatting
  */
 export const centerText = (text: string, width: number = 48): string => {

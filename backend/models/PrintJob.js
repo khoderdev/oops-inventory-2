@@ -27,7 +27,7 @@ const PrintJob = sequelize.define(
       }
     },
     jobType: {
-      type: DataTypes.ENUM('receipt', 'label', 'report', 'invoice', 'ticket', 'barcode'),
+      type: DataTypes.ENUM('receipt', 'label', 'report', 'invoice', 'ticket', 'barcode', 'void'),
       allowNull: false
     },
     

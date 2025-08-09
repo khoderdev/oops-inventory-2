@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import { auditOrderOperation } from "../middleware/auditMiddleware.js";
-import { Assignment, Material, MenuItem, Order, OrderItem, sequelize, Table, User } from "../models/index.js";
+import { Assignment, Material, MenuItem, Order, OrderItem, sequelize, Table, User, PrintJob, Printer, PrinterChannel } from "../models/index.js";
 import salesController from "./salesController.js";
 
 export const ordersController = {
@@ -311,6 +311,57 @@ export const ordersController = {
 
       // Update items if provided
       if (items) {
+        // Get existing items before deletion to track what was removed
+        const existingItems = await OrderItem.findAll({
+          where: { orderId },
+          include: [
+            { model: Material, as: "material" },
+            { model: MenuItem, as: "menuItem" },
+            { model: Assignment, as: "assignment" }
+          ],
+          transaction
+        });
+
+        // Track removed items for void printing
+        const removedItems = [];
+
+        console.log(`🔍 Void detection - Existing items (${existingItems.length}):`, 
+          existingItems.map(item => `${item.name} (type: ${item.type}, menuItemId: ${item.menuItemId}, materialId: ${item.materialId})`));
+        console.log(`🔍 Void detection - New items (${items.length}):`, 
+          items.map(item => `${item.name} (type: ${item.type}, menuItemId: ${item.menuItemId}, materialId: ${item.materialId})`));
+
+        // Compare existing items with new items to find removed ones
+        existingItems.forEach(existingItem => {
+          const stillExists = items.some(newItem => {
+            // For menu items: match by menuItemId
+            if (existingItem.menuItemId && newItem.menuItemId) {
+              return existingItem.menuItemId === newItem.menuItemId;
+            }
+            
+            // For material items: match by materialId
+            if (existingItem.materialId && newItem.materialId) {
+              return existingItem.materialId === newItem.materialId;
+            }
+            
+            // Fallback: match by name (but only if both items are the same type)
+            if (existingItem.type === newItem.type && existingItem.name === newItem.name) {
+              return true;
+            }
+            
+            return false;
+          });
+
+          if (!stillExists) {
+            console.log(`🗑️ Item removed for voiding: ${existingItem.name} (type: ${existingItem.type}, qty: ${existingItem.quantity})`);
+            removedItems.push(existingItem);
+          }
+        });
+
+        console.log(
+          `🗑️ Found ${removedItems.length} removed items for void printing:`,
+          removedItems.map(item => `${item.name} (qty: ${item.quantity})`)
+        );
+
         // Remove existing items
         await OrderItem.destroy({ where: { orderId }, transaction });
 
@@ -346,6 +397,13 @@ export const ordersController = {
         } else {
           await order.update({ subtotal: 0, tax: 0, total: 0 }, { transaction });
         }
+
+        // Generate void print jobs for removed items (after transaction commit)
+        if (removedItems.length > 0) {
+          // Store removed items for processing after transaction
+          req.removedItems = removedItems;
+          req.orderForVoidPrint = order;
+        }
       }
 
       await transaction.commit();
@@ -365,6 +423,16 @@ export const ordersController = {
           { model: Table, as: "table" }
         ]
       });
+
+      // Process void print jobs for removed items (after transaction commit)
+      if (req.removedItems && req.removedItems.length > 0) {
+        try {
+          await processVoidPrintJobs(req.removedItems, updatedOrder, userId);
+        } catch (voidPrintError) {
+          console.error("❌ Failed to process void print jobs:", voidPrintError);
+          // Don't fail the order update if void printing fails
+        }
+      }
 
       // Log successful order update
       if (userId) {
@@ -887,3 +955,239 @@ export const ordersController = {
     }
   }
 };
+
+/**
+ * Process void print jobs for removed items during order updates
+ */
+async function processVoidPrintJobs(removedItems, order, userId) {
+  console.log(`🖨️ Processing void print jobs for ${removedItems.length} removed items`);
+
+  try {
+    // Group removed items by their assigned printer
+    const itemsByPrinter = new Map();
+
+    for (const item of removedItems) {
+      let printerId = null;
+
+      // Determine printer assignment based on item type
+      if (item.menuItemId && item.menuItem) {
+        // Menu item - check if it has a printer assignment
+        printerId = item.menuItem.printerId;
+      } else if (item.materialId && item.material) {
+        // Material item - check if it has a printer assignment
+        printerId = item.material.printerId;
+      } else if (item.assignmentId && item.assignment) {
+        // Assignment item - get printer from assignment
+        printerId = item.assignment.printerId;
+      }
+
+      // If no printer assigned, use default kitchen printer (ID: 2 based on your logs)
+      if (!printerId) {
+        console.log(`⚠️ No printer assigned for ${item.name} - using default kitchen printer`);
+        printerId = 2; // Default to kitchen printer for void items
+      }
+
+      // Group items by printer
+      if (!itemsByPrinter.has(printerId)) {
+        itemsByPrinter.set(printerId, []);
+      }
+      itemsByPrinter.get(printerId).push(item);
+    }
+
+    console.log(`📊 Grouped void items into ${itemsByPrinter.size} printer groups`);
+
+    // Create void print jobs for each printer group
+    const printJobs = [];
+    
+    for (const [printerId, printerItems] of itemsByPrinter) {
+      try {
+        // Get printer details
+        const printer = await Printer.findByPk(printerId, {
+          include: [{ model: PrinterChannel, as: "channel" }]
+        });
+
+        if (!printer || !printer.isActive) {
+          console.log(`⚠️ Skipping void print for printer ${printerId} - not found or inactive`);
+          continue;
+        }
+
+        // Format void items for thermal printer
+        const voidContent = formatVoidItemsForThermalPrinter(printerItems, order);
+
+        // Create print job
+        const printJob = await PrintJob.create({
+          printerId: printer.id,
+          channelId: printer.channelId,
+          jobType: "void",
+          content: {
+            format: "text",
+            encoding: "utf8",
+            rawContent: voidContent,
+            data: {},
+            template: null
+          },
+          settings: {
+            copies: 1,
+            priority: "high" // High priority for void items
+          },
+          maxAttempts: 3,
+          attempts: 0,
+          status: "pending",
+          timestamps: {
+            created: new Date(),
+            queued: null,
+            started: null,
+            completed: null,
+            failed: null,
+            cancelled: null
+          },
+          metrics: {
+            dataSize: voidContent.length,
+            printTime: null,
+            queueTime: null,
+            totalTime: null
+          },
+          metadata: {
+            source: "api",
+            userId: userId,
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            voidedItems: printerItems.map(item => ({
+              id: item.id,
+              name: item.name,
+              quantity: item.quantity,
+              type: item.type
+            }))
+          }
+        });
+
+        printJobs.push(printJob);
+        console.log(`✅ Created void print job ${printJob.id} for printer ${printer.name} with ${printerItems.length} items`);
+
+      } catch (printerError) {
+        console.error(`❌ Failed to create void print job for printer ${printerId}:`, printerError);
+      }
+    }
+
+    console.log(`🖨️ Successfully created ${printJobs.length} void print jobs`);
+    return printJobs;
+
+  } catch (error) {
+    console.error("❌ Error processing void print jobs:", error);
+    throw error;
+  }
+}
+
+/**
+ * Format void items for thermal printer output
+ */
+function formatVoidItemsForThermalPrinter(items, order) {
+  const now = new Date();
+  const date = now.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+  const time = now.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  });
+
+  // Get printer name from the first item
+  const printerName = items[0]?.assignedPrinter?.name || "KITCHEN";
+  const stationName = printerName.toUpperCase();
+
+  // 80mm thermal receipt formatting (48 characters wide)
+  let content = "";
+
+  // Center text helper function
+  const centerText = (text, width = 48) => {
+    const padding = Math.max(0, Math.floor((width - text.length) / 2));
+    return " ".repeat(padding) + text;
+  };
+
+  try {
+    // Header with station name
+    content += centerText(`${stationName} STATION`) + "\n";
+    
+    // **VOID** indicator - make it prominent
+    content += centerText("*** VOID ITEMS ***") + "\n";
+    content += centerText("================") + "\n";
+
+    // Order details
+    content += `Order #: ${order.orderNumber}\n`;
+    content += `Date: ${date}\n`;
+    content += `Time: ${time}\n`;
+    content += `Type: ${order.orderType.toUpperCase()}\n`;
+
+    if (order.table) {
+      content += `Table: ${order.table.number}\n`;
+    }
+
+    content += centerText("VOIDED ITEMS") + "\n";
+
+    // Group items by name and sum quantities
+    const groupedItems = items.reduce((acc, item) => {
+      const key = item.name;
+      if (acc[key]) {
+        acc[key].quantity += item.quantity;
+      } else {
+        acc[key] = { ...item };
+      }
+      return acc;
+    }, {});
+
+    // List voided items with emphasis
+    Object.values(groupedItems).forEach(item => {
+      const itemName = item.name || "Unknown Item";
+      const quantity = item.quantity || 1;
+      
+      // Bold text for emphasis (ESC/POS command)
+      content += "\x1B\x45"; // ESC E - Bold on
+      content += `            ${quantity}x ${itemName}\n`;
+      content += "\x1B\x46"; // ESC F - Bold off
+    });
+
+    // Only show item count - no monetary totals for void items
+    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
+    content += "\n";
+    content += centerText("================") + "\n";
+    content += centerText(`Total Voided: ${itemCount}`) + "\n";
+    content += centerText("*** DO NOT PREPARE ***") + "\n";
+    content += "\n";
+    content += "\n";
+    content += "\n";
+    content += "\n";
+    content += "\n";
+
+    // Add thermal printer paper cut command (ESC/POS)
+    content += "\x1B\x69"; // ESC i - Full cut command
+
+    return content;
+  } catch (error) {
+    console.error('Error formatting void items for printer:', error);
+    
+    // Fallback to simple text format
+    let fallbackContent = "";
+    fallbackContent += centerText(`${stationName} STATION`) + "\n";
+    fallbackContent += centerText("*** VOID ITEMS ***") + "\n";
+    fallbackContent += `Order #: ${order.orderNumber}\n`;
+    fallbackContent += `Date: ${date}\n`;
+    fallbackContent += `Time: ${time}\n`;
+    fallbackContent += `Type: ${order.orderType.toUpperCase()}\n`;
+    fallbackContent += centerText("VOIDED ITEMS") + "\n";
+    
+    items.forEach(item => {
+      fallbackContent += centerText(`${item.quantity}x ${item.name}`) + "\n";
+    });
+    
+    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+    fallbackContent += centerText(`Total Voided: ${itemCount}`) + "\n";
+    fallbackContent += centerText("*** DO NOT PREPARE ***") + "\n";
+    fallbackContent += "\n\n\n\n\n";
+    
+    return fallbackContent;
+  }
+}
