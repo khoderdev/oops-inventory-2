@@ -112,8 +112,8 @@ const OrderItem = sequelize.define(
         if (this.type === "material" && !this.materialId) {
           throw new Error("materialId is required for material type items");
         }
-        if (this.type === "menu" && !this.menuItemId) {
-          throw new Error("menuItemId is required for menu type items");
+        if (this.type === "menu_item" && !this.menuItemId) {
+          throw new Error("menuItemId is required for menu_item type items");
         }
       }
     },
