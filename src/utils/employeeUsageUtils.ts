@@ -113,7 +113,7 @@ export const validateEmployeeForUsage = (employee: Employee | null) => {
 
 export const formatEmployeeUsageSummary = (employee: Employee, cartItems: POSCartItem[]) => {
   const costs = calculateEmployeeUsageCost(cartItems, employee);
-  const employeeName = `${employee.user?.firstName || ""} ${employee.user?.lastName || ""}`.trim() || employee.employeeNumber;
+  const employeeName = `${employee.firstName || ""} ${employee.lastName || ""}`.trim();
 
   return {
     employeeName,
@@ -124,6 +124,6 @@ export const formatEmployeeUsageSummary = (employee: Employee, cartItems: POSCar
     discountPercentage: costs.discountPercentage,
     discountAmount: costs.discountAmount,
     finalCost: costs.finalCost,
-    summary: `${employeeName} (${employee.employeeNumber}) - ${costs.itemCount} items, $${costs.finalCost.toFixed(2)} after ${costs.discountPercentage}% discount`
+    summary: `${employeeName} - ${costs.itemCount} items, $${costs.finalCost.toFixed(2)} after ${costs.discountPercentage}% discount`
   };
 };

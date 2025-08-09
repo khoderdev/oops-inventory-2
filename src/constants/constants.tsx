@@ -55,13 +55,13 @@ export const getOrderTypeLabel = (type: OrderType, selectedTable: Table | null |
       return "TABLES";
     case "employees":
       if (selectedEmployee) {
-        const fullName = `${selectedEmployee.user?.firstName || ""} ${selectedEmployee.user?.lastName || ""}`.trim();
-        return fullName || selectedEmployee.employeeNumber;
+        const fullName = `${selectedEmployee.firstName || ""} ${selectedEmployee.lastName || ""}`.trim();
+        return fullName;
       }
 
       // For existing orders without employeeId, try to extract employee name from discount reason
       if (discountReason && discountReason.includes("Employee discount -")) {
-        // Extract employee name from "Employee discount - Mia Malkova (service)"
+        // Extract employee name from "Employee discount - Mia Jaber (service)"
         const match = discountReason.match(/Employee discount - ([^(]+)/);
         if (match && match[1]) {
           return `STAFF ${match[1].trim()}`;

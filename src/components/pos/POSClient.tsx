@@ -989,15 +989,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const addToCart = useCallback(
     (posItem: POSItem) => {
       const cartId = `pos-${posItem.id}`;
+      console.log(`🔍 Adding item to cart: ${posItem.name} (ID: ${posItem.id}, CartID: ${cartId})`);
 
       setCart(prevCart => {
         const currentCart = prevCart || [];
         const existingItem = currentCart.find(cartItem => cartItem.id === cartId);
         let newCart: POSCartItem[];
 
+        console.log(`📋 Current cart items:`, currentCart.map(item => `${item.name} (ID: ${item.id}, Qty: ${item.quantity})`));
+        console.log(`🔎 Existing item found:`, existingItem ? `${existingItem.name} (Qty: ${existingItem.quantity})` : 'None');
+
         if (existingItem) {
+          console.log(`🔄 Item already exists! Incrementing quantity: ${existingItem.quantity} → ${existingItem.quantity + 1}`);
           newCart = currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
         } else {
+          console.log(`➕ Adding new item to cart: ${posItem.name}`);
           if (posItem.type === "menu_item") {
             // Handle menu items - extract the actual menu item ID from posItem.menuItemId
             const menuItemId = posItem.menuItemId;
@@ -1062,6 +1068,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           recalculateEmployeeDiscount(newCart);
         }, 0);
 
+        console.log(`✅ Final cart state:`, newCart.map(item => `${item.name} (ID: ${item.id}, Qty: ${item.quantity})`));
         return newCart;
       });
     },
