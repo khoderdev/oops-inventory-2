@@ -408,43 +408,46 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                   <CardDescription>Add bonus or penalty amounts to the settlement</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Bonus Amount */}
-                  <FormField
-                    control={form.control}
-                    name="bonusAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center space-x-2">
-                          <TrendingUp className="w-4 h-4 text-green-600" />
-                          <span>Bonus Amount</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
-                        </FormControl>
-                        <FormDescription>Additional bonus amount to add to the final salary</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Bonus and Penalty Amounts - Side by Side */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Bonus Amount */}
+                    <FormField
+                      control={form.control}
+                      name="bonusAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center space-x-2">
+                            <TrendingUp className="w-4 h-4 text-green-600" />
+                            <span>Bonus Amount</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                          </FormControl>
+                          <FormDescription>Additional bonus amount to add to the final salary</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {/* Penalty Amount */}
-                  <FormField
-                    control={form.control}
-                    name="penaltyAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center space-x-2">
-                          <TrendingDown className="w-4 h-4 text-red-600" />
-                          <span>Penalty Amount</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
-                        </FormControl>
-                        <FormDescription>Penalty amount to deduct from the final salary</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    {/* Penalty Amount */}
+                    <FormField
+                      control={form.control}
+                      name="penaltyAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center space-x-2">
+                            <TrendingDown className="w-4 h-4 text-red-600" />
+                            <span>Penalty Amount</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                          </FormControl>
+                          <FormDescription>Penalty amount to deduct from the final salary</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   {/* Notes */}
                   <FormField
@@ -544,7 +547,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                     {settlementPreview.usages.length > 0 && (
                       <div>
                         <Label className="text-sm font-medium text-gray-700 mb-2 block">Usage Items ({settlementPreview.usages.length})</Label>
-                        <div className="max-h-60 overflow-y-auto border rounded-lg">
+                        <div className="max-h-96 overflow-y-auto border rounded-lg">
                           <Table>
                             <TableHeader>
                               <TableRow>

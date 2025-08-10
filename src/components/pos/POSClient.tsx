@@ -34,26 +34,13 @@ import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
-  const {
-    stock,
-    menu,
-    status,
-    refresh: refreshInventory
-  } = usePrefetch({
-    autoFetch: true,
-    parallel: true,
-    onError: error => console.error("Failed to load inventory data:", error)
-  });
+  const { stock, menu, status, refresh: refreshInventory } = usePrefetch({ autoFetch: true, parallel: true, onError: error => console.error("Failed to load inventory data:", error) });
 
   const handleOrdersError = useCallback((error: Error) => {
     console.error("Failed to load orders data:", error);
   }, []);
   const orderDataTypes = useMemo(() => ["orderSummaries"] as ("orderSummaries" | "orders")[], []);
-  const { isLoading: ordersLoading, refresh: refreshOrders } = useOrdersPrefetch({
-    autoFetch: true,
-    dataTypes: orderDataTypes,
-    onError: handleOrdersError
-  });
+  const { isLoading: ordersLoading, refresh: refreshOrders } = useOrdersPrefetch({ autoFetch: true, dataTypes: orderDataTypes, onError: handleOrdersError });
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
