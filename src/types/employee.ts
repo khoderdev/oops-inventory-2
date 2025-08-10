@@ -444,6 +444,27 @@ export interface SettlementPreview {
     finalCost: number;
     usageDate: string;
   }>;
+  usageBreakdown?: Array<{
+    id: number;
+    usageType: EmployeeUsageType;
+    itemName: string;
+    quantity: number;
+    unit: string;
+    unitCost: number;
+    totalCost: number;
+    discountApplied: number;
+    finalCost: number;
+    usageDate: string;
+  }>;
+  calculationDetails?: {
+    baseSalary: number;
+    totalUsageCost: number;
+    discountPercentage: number;
+    totalDiscountAmount: number;
+    netDeduction: number;
+    bonusAmount: number;
+    penaltyAmount: number;
+  };
 }
 
 // Query Parameters

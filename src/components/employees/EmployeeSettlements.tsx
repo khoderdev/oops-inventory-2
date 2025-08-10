@@ -48,6 +48,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [settlementToDelete, setSettlementToDelete] = useState<EmployeeSettlement | null>(null);
   const [forceDelete, setForceDelete] = useState(false);
   const [internalSelectedEmployeeId, setInternalSelectedEmployeeId] = useState<number | null>(selectedEmployeeId || null);
+  const [newUsagesDialogOpen, setNewUsagesDialogOpen] = useState(false);
+  const [newUsages, setNewUsages] = useState<any[]>([]);
+  const [loadingNewUsages, setLoadingNewUsages] = useState(false);
   const { user } = useAuth();
   const canDeleteSettlements = user?.role === "admin" || user?.role === "manager";
   const canDeleteSettlement = (settlement: EmployeeSettlement | null) => {
@@ -125,6 +128,173 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     } catch (error) {
       console.error("Error marking usage items as settled:", error);
       throw error;
+    }
+  };
+
+  const fetchNewUsagesAfterSettlement = async (settlement: EmployeeSettlement) => {
+    setLoadingNewUsages(true);
+    try {
+      // Get usages created after the settlement date
+      const settlementDate = new Date(settlement.createdAt);
+      const startDate = settlementDate.toISOString().split("T")[0];
+      const endDate = new Date(settlement.settlementYear, settlement.settlementMonth, 0).toISOString().split("T")[0];
+
+      const usagesResponse = await employeeAPI.getUsageHistory({
+        employeeId: settlement.employeeId,
+        startDate,
+        endDate,
+        isSettled: false
+      });
+
+      if (usagesResponse.success && usagesResponse.data?.usages) {
+        // Filter usages that were created after the settlement
+        const newUsagesAfterSettlement = usagesResponse.data.usages.filter(usage => 
+          new Date(usage.createdAt) > settlementDate
+        );
+        setNewUsages(newUsagesAfterSettlement);
+        setNewUsagesDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Error fetching new usages:", error);
+      toast.error("Failed to fetch new usage records");
+    } finally {
+      setLoadingNewUsages(false);
+    }
+  };
+
+  const addUsagesToCurrentSettlement = async (usageIds: number[]) => {
+    if (!selectedSettlement) {
+      return;
+    }
+
+    try {
+      // Mark selected usages as settled with current settlement ID and collect the updated usages
+      const updatedUsages = [];
+      for (const usageId of usageIds) {
+        const updateResult = await employeeAPI.updateUsage(usageId, {
+          isSettled: true,
+          settlementId: selectedSettlement.id
+        });
+        
+        if (updateResult.success && updateResult.data) {
+          updatedUsages.push(updateResult.data);
+        }
+      }
+
+      // Get existing usages that already belong to this settlement
+      const existingUsagesResponse = await employeeAPI.getUsageHistory({
+        employeeId: selectedSettlement.employeeId,
+        startDate: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth - 1, 1).toISOString().split("T")[0],
+        endDate: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth, 0).toISOString().split("T")[0],
+        isSettled: true
+      });
+
+      if (existingUsagesResponse.success && existingUsagesResponse.data?.usages) {
+        // Get existing usages for this settlement (excluding the ones we just added)
+        const existingSettlementUsages = existingUsagesResponse.data.usages.filter(usage => 
+          usage.settlementId === selectedSettlement.id && !usageIds.includes(usage.id)
+        );
+        
+        // Combine existing usages with newly added ones
+        const allSettlementUsages = [...existingSettlementUsages, ...updatedUsages];
+
+        // Build complete usage breakdown
+        const completeUsageBreakdown = allSettlementUsages.map(usage => ({
+          id: usage.id,
+          usageType: usage.usageType,
+          itemName: usage.material?.name || usage.menuItem?.name || "Unknown Item",
+          quantity: Number(usage.quantity),
+          unit: usage.unit,
+          unitCost: Number(usage.unitCost),
+          totalCost: Number(usage.totalCost),
+          discountApplied: Number(usage.discountApplied),
+          finalCost: Number(usage.finalCost),
+          usageDate: usage.usageDate
+        }));
+
+        // Calculate totals
+        const totalUsageCost = completeUsageBreakdown.reduce((sum, item) => sum + item.totalCost, 0);
+        const totalDiscountAmount = completeUsageBreakdown.reduce((sum, item) => sum + (item.totalCost - item.finalCost), 0);
+        const totalDeduction = totalUsageCost - totalDiscountAmount;
+        const finalSalary = Number(selectedSettlement.baseSalary) - totalDeduction + Number(selectedSettlement.bonusAmount) - Number(selectedSettlement.penaltyAmount);
+
+        const { employeeAPI: api } = await import("@/api/employee.api");
+        
+        // Build settlement data in the format the backend expects (SettlementPreview)
+        const settlementDataForAPI = {
+          employee: {
+            id: selectedSettlement.employee.id,
+            name: `${selectedSettlement.employee.firstName} ${selectedSettlement.employee.lastName}`,
+            employeeNumber: selectedSettlement.employee.employeeNumber,
+            department: selectedSettlement.employee.department,
+            discountPercentage: Number(selectedSettlement.employee?.discountPercentage || 0)
+          },
+          period: {
+            month: selectedSettlement.settlementMonth,
+            year: selectedSettlement.settlementYear,
+            monthName: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth - 1).toLocaleString('default', { month: 'long' })
+          },
+          calculation: {
+            baseSalary: Number(selectedSettlement.baseSalary),
+            totalUsageCost,
+            totalDiscountAmount,
+            totalDeduction,
+            bonusAmount: Number(selectedSettlement.bonusAmount),
+            penaltyAmount: Number(selectedSettlement.penaltyAmount),
+            finalSalary,
+            usageItemsCount: completeUsageBreakdown.length
+          },
+          usages: completeUsageBreakdown,
+          usageBreakdown: completeUsageBreakdown
+        };
+
+        const updateSettlementResult = await api.updateSettlement(selectedSettlement.id, {
+          totalUsageCost,
+          totalDiscountAmount,
+          totalDeduction,
+          finalSalary,
+          settlementData: settlementDataForAPI
+        });
+
+        if (updateSettlementResult.success) {
+          // Build settlement data in the format expected by EmployeeSettlement type
+          const settlementDataForState = {
+            usageBreakdown: completeUsageBreakdown,
+            calculationDetails: {
+              baseSalary: Number(selectedSettlement.baseSalary),
+              totalUsageCost,
+              discountPercentage: Number(selectedSettlement.employee?.discountPercentage || 0),
+              totalDiscountAmount,
+              netDeduction: totalDeduction,
+              bonusAmount: Number(selectedSettlement.bonusAmount),
+              penaltyAmount: Number(selectedSettlement.penaltyAmount)
+            }
+          };
+
+          // Immediately update the selected settlement with the new data
+          const updatedSelectedSettlement = {
+            ...selectedSettlement,
+            totalUsageCost,
+            totalDiscountAmount,
+            totalDeduction,
+            finalSalary,
+            usageItemsCount: completeUsageBreakdown.length,
+            settlementData: settlementDataForState
+          };
+          
+          setSelectedSettlement(updatedSelectedSettlement);
+          
+          // Close the new usages dialog but keep the details dialog open to show updated data
+          setNewUsagesDialogOpen(false);
+        }
+      }
+
+      await fetchSettlements(filters);
+      
+      toast.success(`Added ${usageIds.length} usage records to the current settlement`);
+    } catch (error) {
+      console.error("Error adding usages to settlement:", error);
+      toast.error("Failed to add usages to settlement");
     }
   };
 
@@ -497,6 +667,18 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                 <DialogTitle>Settlement Details</DialogTitle>
                 <DialogDescription>Detailed breakdown of the settlement calculation</DialogDescription>
               </div>
+              {selectedSettlement && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchNewUsagesAfterSettlement(selectedSettlement)}
+                  disabled={loadingNewUsages}
+                  className="flex items-center space-x-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{loadingNewUsages ? "Loading..." : "Add New Usage"}</span>
+                </Button>
+              )}
             </div>
           </DialogHeader>
 
@@ -672,6 +854,91 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* New Usages Dialog */}
+      <Dialog open={newUsagesDialogOpen} onOpenChange={setNewUsagesDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Usage to Settlement</DialogTitle>
+            <DialogDescription>
+              Usage items created after the settlement date that can be added to the current settlement
+            </DialogDescription>
+          </DialogHeader>
+
+          {newUsages.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No new usage records found after the settlement creation date.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Found {newUsages.length} usage record(s) created after this settlement. Select which ones to add:
+              </div>
+              
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {newUsages.map((usage, index) => (
+                  <div key={usage.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                    <input
+                      type="checkbox"
+                      id={`usage-${usage.id}`}
+                      className="w-4 h-4"
+                      defaultChecked={true}
+                    />
+                    <label htmlFor={`usage-${usage.id}`} className="flex-1 cursor-pointer">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">
+                            {usage.usageType === "menu_item" ? "Menu Item" : "Material"}: {usage.material?.name || usage.menuItem?.name || "Unknown Item"}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Quantity: {usage.quantity} {usage.unit} • Cost: ${Number(usage.finalCost || 0).toFixed(2)} • Date: {new Date(usage.usageDate).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">${Number(usage.finalCost || 0).toFixed(2)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Created: {new Date(usage.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Total Cost: ${newUsages.reduce((sum, usage) => sum + Number(usage.finalCost || 0), 0).toFixed(2)}
+                </div>
+                <div className="space-x-2">
+                  <Button variant="outline" onClick={() => setNewUsagesDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      const selectedUsageIds = newUsages
+                        .filter((_, index) => {
+                          const checkbox = document.getElementById(`usage-${newUsages[index].id}`) as HTMLInputElement;
+                          return checkbox?.checked;
+                        })
+                        .map(usage => usage.id);
+                      
+                      if (selectedUsageIds.length > 0) {
+                        addUsagesToCurrentSettlement(selectedUsageIds);
+                      } else {
+                        toast.error("Please select at least one usage record to add");
+                      }
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Add Selected to Settlement
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

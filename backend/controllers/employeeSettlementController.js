@@ -437,7 +437,17 @@ export const markAsPaid = async (req, res) => {
 export const updateSettlement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { bonusAmount, penaltyAmount, notes, status } = req.body;
+    const { 
+      bonusAmount, 
+      penaltyAmount, 
+      notes, 
+      status, 
+      totalUsageCost, 
+      totalDiscountAmount, 
+      totalDeduction, 
+      finalSalary,
+      settlementData 
+    } = req.body;
 
     const settlement = await EmployeeSettlement.findByPk(id);
     if (!settlement) {
@@ -462,6 +472,22 @@ export const updateSettlement = async (req, res) => {
     if (notes !== undefined) updateData.notes = notes;
     if (status !== undefined && ["pending", "approved", "disputed", "cancelled"].includes(status)) {
       updateData.status = status;
+    }
+    
+    // Handle settlement calculation fields
+    if (totalUsageCost !== undefined) updateData.totalUsageCost = parseFloat(totalUsageCost);
+    if (totalDiscountAmount !== undefined) updateData.totalDiscountAmount = parseFloat(totalDiscountAmount);
+    if (totalDeduction !== undefined) updateData.totalDeduction = parseFloat(totalDeduction);
+    if (finalSalary !== undefined) updateData.finalSalary = parseFloat(finalSalary);
+    
+    // Handle settlement data (usage breakdown and calculation details)
+    if (settlementData !== undefined) {
+      updateData.settlementData = settlementData;
+      
+      // Update usage items count if usageBreakdown is provided
+      if (settlementData.usageBreakdown && Array.isArray(settlementData.usageBreakdown)) {
+        updateData.usageItemsCount = settlementData.usageBreakdown.length;
+      }
     }
 
     await settlement.update(updateData);
