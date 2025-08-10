@@ -70,6 +70,9 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
 
   const watchedEmployeeId = form.watch("employeeId");
   const watchedYear = form.watch("settlementYear");
+  const watchedMonth = form.watch("settlementMonth");
+  const watchedBonusAmount = form.watch("bonusAmount");
+  const watchedPenaltyAmount = form.watch("penaltyAmount");
 
   // Fetch employees data on component mount
   useEffect(() => {
@@ -161,6 +164,39 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
       }
     }
   }, [watchedEmployeeId, watchedYear, existingSettlements, form, settlement, isMonthDisabled]);
+
+  // Automatically generate preview when required fields are filled
+  useEffect(() => {
+    const generateAutoPreview = async () => {
+      // Only generate preview if all required fields are filled
+      if (watchedEmployeeId && watchedMonth && watchedYear) {
+        try {
+          const settlementData: CreateSettlementData = {
+            employeeId: watchedEmployeeId,
+            settlementMonth: watchedMonth,
+            settlementYear: watchedYear,
+            bonusAmount: watchedBonusAmount || 0,
+            penaltyAmount: watchedPenaltyAmount || 0,
+            notes: form.getValues("notes") || ""
+          };
+
+          await previewSettlementAction(settlementData);
+          setShowPreview(true);
+
+          if (onPreview) {
+            onPreview(settlementData);
+          }
+        } catch (error) {
+          console.error("Failed to generate auto preview:", error);
+        }
+      } else {
+        // Hide preview if required fields are not filled
+        setShowPreview(false);
+      }
+    };
+
+    generateAutoPreview();
+  }, [watchedEmployeeId, watchedMonth, watchedYear, watchedBonusAmount, watchedPenaltyAmount, onPreview]);
 
   // Handle form submission
   const handleSubmit = async (data: SettlementFormData) => {
