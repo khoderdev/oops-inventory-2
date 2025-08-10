@@ -1,7 +1,8 @@
 import { Employee } from "@/types/employee";
-import { Table } from "@/types/inventory";
+import { MenuItemCategory, Table } from "@/types/inventory";
 import { OrderStatus, OrderType } from "@/types/orders";
-import { Bike, Package, Car,  UserCheck, Utensils, Wine } from "lucide-react";
+import { Bike, Package, Car, UserCheck, Utensils, Wine } from "lucide-react";
+
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -76,7 +77,6 @@ export const getOrderTypeLabel = (type: OrderType, selectedTable: Table | null |
   }
 };
 
-
 export const months = [
   { value: 1, label: "January" },
   { value: 2, label: "February" },
@@ -99,3 +99,19 @@ export const statusColors = {
   disputed: "bg-red-100 text-red-800",
   cancelled: "bg-gray-100 text-gray-800"
 };
+
+export const MENU_CATEGORIES: { value: MenuItemCategory; label: string }[] = [
+  { value: "appetizers", label: "Appetizers" },
+  { value: "burgers", label: "Burgers" },
+  { value: "sandwiches", label: "Sandwiches" },
+  { value: "plates", label: "Plates" },
+  { value: "salads", label: "Salads" },
+  { value: "pasta", label: "Pasta" },
+  { value: "sushi", label: "Sushi" },
+  { value: "pizza", label: "Pizza" },
+  { value: "desserts", label: "Desserts" },
+  { value: "cold", label: "Cold" },
+  { value: "hot", label: "Hot" },
+  { value: "breakfast", label: "Breakfast" },
+  { value: "shisha", label: "Shisha" }
+];

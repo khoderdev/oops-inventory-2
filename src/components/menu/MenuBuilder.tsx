@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
+import { MENU_CATEGORIES } from "@/constants/constants";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
@@ -16,7 +17,8 @@ import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataVa
 import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag, AlertTriangle, CheckCircle, X, CheckSquare, Square } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCallback, useMemo, useState, useEffect, useRef } from "react";
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState, VisibilityState } from "@tanstack/react-table";
 import { useAtom } from "jotai";
 import { dataValidationEnabledAtom } from "@/store/settingsStore";
 import { MenuItemForm } from "./MenuItemForm";
@@ -255,53 +257,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [bulkCategoryValue, setBulkCategoryValue] = useState<MenuItemCategory | "">("");
   const [fabExpanded, setFabExpanded] = useState(false);
 
-  const MENU_CATEGORIES = useMemo<{ value: MenuItemCategory; label: string }[]>(
-    () => [
-      { value: "appetizers", label: "Appetizers" },
-      { value: "burgers", label: "Burgers" },
-      { value: "sandwiches", label: "Sandwiches" },
-      { value: "plates", label: "Plates" },
-      { value: "salads", label: "Salads" },
-      { value: "pasta", label: "Pasta" },
-      { value: "sushi", label: "Sushi" },
-      { value: "pizza", label: "Pizza" },
-      { value: "desserts", label: "Desserts" },
-      { value: "cold", label: "Cold" },
-      { value: "hot", label: "Hot" },
-      { value: "breakfast", label: "Breakfast" },
-      { value: "shisha", label: "Shisha" }
-    ],
-    []
-  );
-
-  const getMaterialName = useCallback(
-    (id: string | number) => {
-      const material = availableMaterials.find(m => m.id === String(id) || String(m.id) === String(id));
-      return material?.name || "Unknown";
-    },
-    [availableMaterials]
-  );
-
-  const filteredMenuItems = useMemo(() => {
-    return menuItems
-      .filter(item => {
-        const searchLower = searchTerm.toLowerCase();
-        const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
-        const matchesIngredients = item.ingredients.some(ingredient => {
-          const materialName = getMaterialName(ingredient.materialId);
-          return materialName.toLowerCase().includes(searchLower);
-        });
-        const matchesSearch = matchesNameOrDescription || matchesIngredients;
-        const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
-        return matchesSearch && matchesCategory;
-      })
-      .sort((a, b) => {
-        // Sort by createdAt date in descending order (latest first)
-        const dateA = new Date(a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdAt || 0).getTime();
-        return dateB - dateA;
-      });
-  }, [menuItems, searchTerm, selectedCategory, getMaterialName]);
+  // TanStack Table state
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {
@@ -329,18 +288,340 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
         } catch (error) {
           console.warn(`Unit conversion error for ingredient in material "${material.name}": ${ingredient.unit} to ${material.baseUnit}`, error);
-          // Use 1:1 conversion as fallback
           conversionFactor = 1;
         }
 
         const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
-        // Only log ingredient cost if there are issues or debugging is needed
-        // console.log(`Ingredient cost: ${ingredient.quantity} * ${conversionFactor} * ${costPerUnit} = ${ingredientCost}`);
         return sum + ingredientCost;
       }, 0);
     },
     [availableMaterials, stockEntries, calculateMaterialCostPerUnit, validateIngredientData]
   );
+
+  const getMaterialName = useCallback(
+    (id: string | number) => {
+      const material = availableMaterials.find(m => m.id === String(id) || String(m.id) === String(id));
+      return material?.name || "Unknown";
+    },
+    [availableMaterials]
+  );
+
+  // Define handler functions before they are used in columns
+  const handleDeleteMenuItem = useCallback(
+    async (id: string) => {
+      if (!onDeleteMenuItem) {
+        console.error("❌ [MenuBuilder] onDeleteMenuItem handler not provided");
+        return;
+      }
+
+      try {
+        await onDeleteMenuItem(id);
+
+        // Show success toast
+        toast({
+          title: "Success",
+          description: "Menu item deleted successfully",
+          variant: "default"
+        });
+      } catch (error) {
+        console.error("❌ [MenuBuilder] Error deleting menu item:", error);
+
+        // Show error toast
+        toast({
+          title: "Error",
+          description: "Failed to delete menu item",
+          variant: "destructive"
+        });
+      }
+    },
+    [onDeleteMenuItem]
+  );
+
+  const handleTogglePOSVisibility = useCallback(
+    async (item: MenuItem) => {
+      try {
+        const newPOSStatus = !item.isPOSItem;
+
+        // Update the menu item's POS visibility
+        const response = await menuAPI.updateMenuItem(item.id, {
+          isPOSItem: newPOSStatus
+        });
+
+        if (!response) {
+          throw new Error("Failed to update menu item POS visibility");
+        }
+
+        toast({
+          title: "Success",
+          description: `${item.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
+          variant: "default"
+        });
+
+        // Refresh the data to show updated state
+        await fetchTabData("menu");
+
+        // Update local state by calling the update handler
+        if (onUpdateMenuItem) {
+          onUpdateMenuItem(item.id, { ...item, isPOSItem: newPOSStatus });
+        }
+      } catch (error) {
+        console.error("Error updating menu item POS visibility:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update POS visibility",
+          variant: "destructive"
+        });
+      }
+    },
+    [onUpdateMenuItem, fetchTabData]
+  );
+
+  const handleOpenPrinterDialog = useCallback((menuItem: MenuItem) => {
+    setSelectedMenuItemForPrinter(menuItem);
+    setShowPrinterDialog(true);
+  }, []);
+
+  // Column helper for TanStack Table
+  const columnHelper = createColumnHelper<MenuItem>();
+
+  // Column definitions
+  const columns = useMemo<ColumnDef<MenuItem>[]>(
+    () => [
+      // Bulk selection checkbox column
+      columnHelper.display({
+        id: "select",
+        header: ({ table }) => <input type="checkbox" checked={table.getIsAllPageRowsSelected()} onChange={table.getToggleAllPageRowsSelectedHandler()} className="h-4 w-4" aria-label="Select all menu items" />,
+        cell: ({ row }) => <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} className="h-4 w-4" aria-label={`Select ${row.original.name}`} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48
+      }),
+
+      // Image column
+      columnHelper.display({
+        id: "image",
+        header: "Image",
+        cell: ({ row }) => (
+          <div className="flex justify-center">
+            {row.original.image ? (
+              <img src={row.original.image} alt={row.original.name} className="w-12 h-12 object-cover rounded-md border" />
+            ) : (
+              <div className="w-12 h-12 bg-gray-100 rounded-md border flex items-center justify-center">
+                <Package className="h-6 w-6 text-gray-400" />
+              </div>
+            )}
+          </div>
+        ),
+        enableSorting: false,
+        size: 80
+      }),
+
+      // Name column
+      columnHelper.accessor("name", {
+        header: "Name",
+        cell: ({ getValue }) => <div className="font-medium">{highlightText(getValue(), searchTerm)}</div>,
+        size: 200
+      }),
+
+      // Category column
+      columnHelper.accessor("category", {
+        header: "Category",
+        cell: ({ getValue }) => {
+          const category = getValue();
+          return MENU_CATEGORIES.find(c => c.value === category)?.label || category;
+        },
+        size: 128
+      }),
+
+      // Ingredients column
+      columnHelper.display({
+        id: "ingredients",
+        header: "Ingredients",
+        cell: ({ row }) => <div className="text-center font-medium">{row.original.ingredients.length}</div>,
+        enableSorting: false,
+        size: 100
+      }),
+
+      // Cost column
+      columnHelper.display({
+        id: "cost",
+        header: "Cost",
+        cell: ({ row }) => {
+          const totalCost = calculateMenuItemCost(row.original.ingredients);
+          return <div className="text-right font-medium">{formatCurrency(totalCost)}</div>;
+        },
+        size: 96
+      }),
+
+      // Price column
+      columnHelper.accessor("price", {
+        header: "Price",
+        cell: ({ getValue }) => <div className="text-right font-medium">{formatCurrency(getValue())}</div>,
+        size: 96
+      }),
+
+      // Profit column
+      columnHelper.display({
+        id: "profit",
+        header: "Profit",
+        cell: ({ row }) => {
+          const totalCost = calculateMenuItemCost(row.original.ingredients);
+          const profit = row.original.price - totalCost;
+          const profitMargin = row.original.price ? (profit / row.original.price) * 100 : 0;
+          return (
+            <div className={`text-right font-medium ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
+              <div>{formatCurrency(profit)}</div>
+              <div className="text-xs">({formatNumber(profitMargin)}%)</div>
+            </div>
+          );
+        },
+        size: 112
+      }),
+
+      // Actions column
+      columnHelper.display({
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex gap-2 justify-end">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={row.original.isPOSItem ? "default" : "outline"}
+                  className={row.original.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleTogglePOSVisibility(row.original);
+                  }}
+                  aria-label={`${row.original.isPOSItem ? "Hide from" : "Show in"} POS`}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{row.original.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleOpenPrinterDialog(row.original);
+                  }}
+                  aria-label={`Assign printer to ${row.original.name}`}
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Assign printer to {row.original.name}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={e => {
+                    e.stopPropagation();
+                    setEditingMenuItem(row.original);
+                    setShowMenuItemForm(true);
+                  }}
+                  aria-label={`Edit ${row.original.name}`}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit {row.original.name}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <AlertDialog>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="hover:bg-red-50 hover:text-red-600" aria-label={`Delete ${row.original.name}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Delete {row.original.name}</p>
+                </TooltipContent>
+              </Tooltip>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                  <AlertDialogDescription>This will permanently delete "{row.original.name}" and cannot be undone.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={() => handleDeleteMenuItem(row.original.id)}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        ),
+        enableSorting: false,
+        size: 160
+      })
+    ],
+    [searchTerm, MENU_CATEGORIES, getMaterialName, calculateMenuItemCost, handleTogglePOSVisibility, handleOpenPrinterDialog, handleDeleteMenuItem]
+  );
+
+  const filteredMenuItems = useMemo(() => {
+    return menuItems.filter(item => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
+      const matchesIngredients = item.ingredients.some(ingredient => {
+        const materialName = getMaterialName(ingredient.materialId);
+        return materialName.toLowerCase().includes(searchLower);
+      });
+      const matchesSearch = matchesNameOrDescription || matchesIngredients;
+      const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [menuItems, searchTerm, selectedCategory, getMaterialName]);
+
+  // TanStack Table instance
+  const table = useReactTable({
+    data: filteredMenuItems,
+    columns: bulkSelectionMode ? columns : columns.filter(col => col.id !== "select"),
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection: Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))
+    },
+    enableRowSelection: bulkSelectionMode,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: updater => {
+      const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))) : updater;
+
+      const newSelectedIds = new Set(
+        Object.entries(newSelection)
+          .filter(([_, selected]) => selected)
+          .map(([index]) => filteredMenuItems[parseInt(index)]?.id)
+          .filter(Boolean)
+      );
+
+      setSelectedMenuItems(newSelectedIds);
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel()
+  });
 
   const handleAddMenuItem = useCallback(
     (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
@@ -397,36 +678,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     [editingMenuItem, onUpdateMenuItem]
   );
 
-  const handleDeleteMenuItem = useCallback(
-    async (id: string) => {
-      if (!onDeleteMenuItem) {
-        console.error("❌ [MenuBuilder] onDeleteMenuItem handler not provided");
-        return;
-      }
-
-      try {
-        await onDeleteMenuItem(id);
-
-        // Show success toast
-        toast({
-          title: "Success",
-          description: "Menu item deleted successfully",
-          variant: "default"
-        });
-      } catch (error) {
-        console.error("❌ [MenuBuilder] Error deleting menu item:", error);
-
-        // Show error toast
-        toast({
-          title: "Error",
-          description: "Failed to delete menu item",
-          variant: "destructive"
-        });
-      }
-    },
-    [onDeleteMenuItem]
-  );
-
   const handleCloseModal = useCallback((open: boolean) => {
     if (!open) {
       setShowMenuItemForm(false);
@@ -441,50 +692,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   const handleRowClick = useCallback((id: string) => {
     setSelectedRowId(prevSelected => (prevSelected === id ? null : id));
-  }, []);
-
-  const handleTogglePOSVisibility = useCallback(
-    async (item: MenuItem) => {
-      try {
-        const newPOSStatus = !item.isPOSItem;
-
-        // Update the menu item's POS visibility
-        const response = await menuAPI.updateMenuItem(item.id, {
-          isPOSItem: newPOSStatus
-        });
-
-        if (!response) {
-          throw new Error("Failed to update menu item POS visibility");
-        }
-
-        toast({
-          title: "Success",
-          description: `${item.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
-          variant: "default"
-        });
-
-        // Refresh the data to show updated state
-        await fetchTabData("menu");
-
-        // Update local state by calling the update handler
-        if (onUpdateMenuItem) {
-          onUpdateMenuItem(item.id, { ...item, isPOSItem: newPOSStatus });
-        }
-      } catch (error) {
-        console.error("Error updating menu item POS visibility:", error);
-        toast({
-          title: "Error",
-          description: "Failed to update POS visibility",
-          variant: "destructive"
-        });
-      }
-    },
-    [onUpdateMenuItem, fetchTabData]
-  );
-
-  const handleOpenPrinterDialog = useCallback((menuItem: MenuItem) => {
-    setSelectedMenuItemForPrinter(menuItem);
-    setShowPrinterDialog(true);
   }, []);
 
   const handleClosePrinterDialog = useCallback(() => {
@@ -709,47 +916,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               </DialogContent>
             </Dialog>
 
-            {/* Mobile Card View - Show on small screens */}
-            <MobileVirtualizedList
-              items={filteredMenuItems}
-              searchTerm={searchTerm}
-              bulkSelectionMode={bulkSelectionMode}
-              selectedMenuItems={selectedMenuItems}
-              MENU_CATEGORIES={MENU_CATEGORIES}
-              getMaterialName={getMaterialName}
-              calculateMenuItemCost={calculateMenuItemCost}
-              formatCurrency={formatCurrency}
-              formatNumber={formatNumber}
-              handleSelectMenuItem={handleSelectMenuItem}
-              handleTogglePOSVisibility={handleTogglePOSVisibility}
-              handleOpenPrinterDialog={handleOpenPrinterDialog}
-              setEditingMenuItem={setEditingMenuItem}
-              setShowMenuItemForm={setShowMenuItemForm}
-              handleDeleteMenuItem={handleDeleteMenuItem}
-            />
-
-            {/* Desktop Table View - Show on large screens */}
-            <DesktopVirtualizedTable
-              items={filteredMenuItems}
-              searchTerm={searchTerm}
-              bulkSelectionMode={bulkSelectionMode}
-              selectedMenuItems={selectedMenuItems}
-              selectedRowId={selectedRowId}
-              MENU_CATEGORIES={MENU_CATEGORIES}
-              getMaterialName={getMaterialName}
-              calculateMenuItemCost={calculateMenuItemCost}
-              formatCurrency={formatCurrency}
-              formatNumber={formatNumber}
-              highlightText={highlightText}
-              handleSelectMenuItem={handleSelectMenuItem}
-              handleSelectAllMenuItems={handleSelectAllMenuItems}
-              handleRowClick={handleRowClick}
-              handleTogglePOSVisibility={handleTogglePOSVisibility}
-              handleOpenPrinterDialog={handleOpenPrinterDialog}
-              setEditingMenuItem={setEditingMenuItem}
-              setShowMenuItemForm={setShowMenuItemForm}
-              handleDeleteMenuItem={handleDeleteMenuItem}
-            />
+            {/* TanStack Table with Virtualization */}
+            <TanStackVirtualizedTable table={table} />
           </CardContent>
         </Card>
       </div>
@@ -897,371 +1065,50 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 };
 
-// Mobile Virtualized List Component
-interface MobileVirtualizedListProps {
-  items: MenuItem[];
-  searchTerm: string;
-  bulkSelectionMode: boolean;
-  selectedMenuItems: Set<string>;
-  MENU_CATEGORIES: { value: MenuItemCategory; label: string }[];
-  getMaterialName: (id: string | number) => string;
-  calculateMenuItemCost: (ingredients: MenuItemIngredient[]) => number;
-  formatCurrency: (amount: number) => string;
-  formatNumber: (value: number) => string;
-  handleSelectMenuItem: (id: string) => void;
-  handleTogglePOSVisibility: (item: MenuItem) => void;
-  handleOpenPrinterDialog: (item: MenuItem) => void;
-  setEditingMenuItem: (item: MenuItem) => void;
-  setShowMenuItemForm: (show: boolean) => void;
-  handleDeleteMenuItem: (id: string) => void;
+// TanStack Virtualized Table Component
+interface TanStackVirtualizedTableProps {
+  table: any; // ReactTable instance
 }
 
-const MobileVirtualizedList: React.FC<MobileVirtualizedListProps> = ({
-  items,
-  searchTerm,
-  bulkSelectionMode,
-  selectedMenuItems,
-  MENU_CATEGORIES,
-  getMaterialName,
-  calculateMenuItemCost,
-  formatCurrency,
-  formatNumber,
-  handleSelectMenuItem,
-  handleTogglePOSVisibility,
-  handleOpenPrinterDialog,
-  setEditingMenuItem,
-  setShowMenuItemForm,
-  handleDeleteMenuItem,
-}) => {
+const TanStackVirtualizedTable: React.FC<TanStackVirtualizedTableProps> = ({ table }) => {
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const rowVirtualizer = useVirtualizer({
-    count: items.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 280, // Estimated height of each card
-    overscan: 5,
-  });
-
-  if (items.length === 0) {
-    return (
-      <div className="lg:hidden flex-1 flex items-center justify-center pb-16">
-        <div className="text-center py-12">
-          <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <p className="text-lg font-medium mb-2">No menu items found</p>
-          <p className="text-sm text-muted-foreground mb-4">
-            {searchTerm ? "Try a different search term" : "Create your first menu item"}
-          </p>
-          <Button onClick={() => setShowMenuItemForm(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Menu Item
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="lg:hidden flex-1 pb-16" ref={parentRef} style={{ overflow: 'auto' }}>
-      <div
-        style={{
-          height: `${rowVirtualizer.getTotalSize()}px`,
-          width: '100%',
-          position: 'relative',
-        }}
-      >
-        {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-          const item = items[virtualItem.index];
-          const totalCost = calculateMenuItemCost(item.ingredients);
-          const profit = item.price - totalCost;
-          const isSelected = selectedMenuItems.has(item.id);
-
-          return (
-            <div
-              key={virtualItem.key}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: `${virtualItem.size}px`,
-                transform: `translateY(${virtualItem.start}px)`,
-              }}
-            >
-              <div className="px-3 py-1.5">
-                <div
-                  className={`p-4 rounded-lg border bg-white shadow-sm transition-all duration-200 ${
-                    isSelected ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
-                  }`}
-                  onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : undefined}
-                >
-                  {/* Mobile Card Header */}
-                  <div className="flex items-start gap-3 mb-3">
-                    {bulkSelectionMode && (
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleSelectMenuItem(item.id)}
-                        className="h-4 w-4 mt-1"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    )}
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-16 h-16 object-cover rounded-md border flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 bg-gray-100 rounded-md border flex items-center justify-center flex-shrink-0">
-                        <Package className="h-8 w-8 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">{item.name}</h3>
-                      {item.description && (
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {MENU_CATEGORIES.find((c) => c.value === item.category)?.label || item.category}
-                        </span>
-                        {item.isPOSItem && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            POS
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mobile Card Content */}
-                  <div className="space-y-3">
-                    {/* Ingredients */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">Ingredients</h4>
-                      <div className="text-sm text-gray-600">
-                        {item.ingredients.map((ingredient, idx) => {
-                          const materialName = getMaterialName(ingredient.materialId);
-                          return (
-                            <div key={idx} className="flex justify-between">
-                              <span>{materialName}</span>
-                              <span>
-                                {formatNumber(ingredient.quantity)} {ingredient.unit}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Financial Info */}
-                    <div className="grid grid-cols-3 gap-4 py-3 border-t border-gray-100">
-                      <div className="text-center">
-                        <div className="text-xs text-gray-500">Cost</div>
-                        <div className="font-semibold text-gray-900">{formatCurrency(totalCost)}</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-xs text-gray-500">Price</div>
-                        <div className="font-semibold text-gray-900">{formatCurrency(item.price)}</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-xs text-gray-500">Profit</div>
-                        <div className={`font-semibold ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
-                          {formatCurrency(profit)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Mobile Actions */}
-                    <div className="flex gap-2 pt-2 border-t border-gray-100">
-                      <Button
-                        size="sm"
-                        variant={item.isPOSItem ? "default" : "outline"}
-                        className={`flex-1 ${item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTogglePOSVisibility(item);
-                        }}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        {item.isPOSItem ? "Hide from POS" : "Show in POS"}
-                      </Button>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenPrinterDialog(item);
-                            }}
-                          >
-                            <Printer className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Assign printer to {item.name}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingMenuItem(item);
-                              setShowMenuItemForm(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Edit {item.name}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <AlertDialog>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Delete {item.name}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete "{item.name}" and cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// Desktop Virtualized Table Component
-interface DesktopVirtualizedTableProps {
-  items: MenuItem[];
-  searchTerm: string;
-  bulkSelectionMode: boolean;
-  selectedMenuItems: Set<string>;
-  selectedRowId: string | null;
-  MENU_CATEGORIES: { value: MenuItemCategory; label: string }[];
-  getMaterialName: (id: string | number) => string;
-  calculateMenuItemCost: (ingredients: MenuItemIngredient[]) => number;
-  formatCurrency: (amount: number) => string;
-  formatNumber: (value: number) => string;
-  highlightText: (text: string, searchTerm: string) => React.ReactNode;
-  handleSelectMenuItem: (id: string) => void;
-  handleSelectAllMenuItems: () => void;
-  handleRowClick: (id: string) => void;
-  handleTogglePOSVisibility: (item: MenuItem) => void;
-  handleOpenPrinterDialog: (item: MenuItem) => void;
-  setEditingMenuItem: (item: MenuItem) => void;
-  setShowMenuItemForm: (show: boolean) => void;
-  handleDeleteMenuItem: (id: string) => void;
-}
-
-const DesktopVirtualizedTable: React.FC<DesktopVirtualizedTableProps> = ({
-  items,
-  searchTerm,
-  bulkSelectionMode,
-  selectedMenuItems,
-  selectedRowId,
-  MENU_CATEGORIES,
-  getMaterialName,
-  calculateMenuItemCost,
-  formatCurrency,
-  formatNumber,
-  highlightText,
-  handleSelectMenuItem,
-  handleSelectAllMenuItems,
-  handleRowClick,
-  handleTogglePOSVisibility,
-  handleOpenPrinterDialog,
-  setEditingMenuItem,
-  setShowMenuItemForm,
-  handleDeleteMenuItem,
-}) => {
-  const parentRef = useRef<HTMLDivElement>(null);
+  const rows = table.getRowModel().rows;
 
   const rowVirtualizer = useVirtualizer({
-    count: items.length,
+    count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 60, // Estimated height of each table row
-    overscan: 10,
+    estimateSize: () => 60,
+    overscan: 10
   });
 
-  if (items.length === 0) {
-    return (
-      <div className="hidden lg:flex flex-1 flex-col min-h-0 border rounded-md">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center py-8">
-            <div className="flex flex-col items-center justify-center space-y-2">
-              <Package className="h-12 w-12 text-muted-foreground" />
-              <p className="text-lg font-medium">No menu items found</p>
-              <p className="text-sm text-muted-foreground">
-                {searchTerm ? "Try a different search term" : "Create your first menu item"}
-              </p>
-              <Button className="mt-4" onClick={() => setShowMenuItemForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Menu Item
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="hidden lg:flex flex-1 flex-col min-h-0 border rounded-md">
+    <div className="flex flex-1 flex-col min-h-0 border rounded-md">
       {/* Table Header */}
       <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
         <Table>
           <TableHeader>
-            <TableRow>
-              {bulkSelectionMode && (
-                <TableHead className="w-12">
-                  <input
-                    type="checkbox"
-                    checked={selectedMenuItems.size === items.length && items.length > 0}
-                    onChange={handleSelectAllMenuItems}
-                    className="h-4 w-4"
-                    aria-label="Select all menu items"
-                  />
-                </TableHead>
-              )}
-              <TableHead className="w-20">Image</TableHead>
-              <TableHead className="min-w-[200px]">Name</TableHead>
-              <TableHead className="w-32">Category</TableHead>
-              <TableHead className="min-w-[200px]">Ingredients</TableHead>
-              <TableHead className="w-24 text-right">Cost</TableHead>
-              <TableHead className="w-24 text-right">Price</TableHead>
-              <TableHead className="w-28 text-right">Profit</TableHead>
-              <TableHead className="w-40 text-right">Actions</TableHead>
-            </TableRow>
+            {table.getHeaderGroups().map((headerGroup: any) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header: any) => (
+                  <TableHead key={header.id} style={{ width: header.getSize() }} className={header.column.getCanSort() ? "cursor-pointer select-none" : ""} onClick={header.column.getToggleSortingHandler()}>
+                    {header.isPlaceholder ? null : (
+                      <div className="flex items-center gap-2">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanSort() && (
+                          <span className="text-xs">
+                            {{
+                              asc: "↑",
+                              desc: "↓"
+                            }[header.column.getIsSorted() as string] ?? "↕"}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
         </Table>
       </div>
@@ -1271,218 +1118,33 @@ const DesktopVirtualizedTable: React.FC<DesktopVirtualizedTableProps> = ({
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
+            width: "100%",
+            position: "relative"
           }}
         >
-          {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-            const item = items[virtualItem.index];
-            const totalCost = calculateMenuItemCost(item.ingredients);
-            const profit = item.price - totalCost;
-            const profitMargin = item.price ? (profit / item.price) * 100 : 0;
-            const isSelected = selectedRowId === item.id;
+          {rowVirtualizer.getVirtualItems().map(virtualItem => {
+            const row = rows[virtualItem.index];
 
             return (
               <div
                 key={virtualItem.key}
                 style={{
-                  position: 'absolute',
+                  position: "absolute",
                   top: 0,
                   left: 0,
-                  width: '100%',
+                  width: "100%",
                   height: `${virtualItem.size}px`,
-                  transform: `translateY(${virtualItem.start}px)`,
+                  transform: `translateY(${virtualItem.start}px)`
                 }}
               >
                 <Table>
                   <TableBody>
-                    <TableRow
-                      className={`cursor-pointer transition-colors ${
-                        isSelected
-                          ? "bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100"
-                          : selectedMenuItems.has(item.id)
-                          ? "bg-green-50 border-l-4 border-l-green-500 hover:bg-green-100"
-                          : "hover:bg-muted/50"
-                      }`}
-                      onClick={
-                        bulkSelectionMode
-                          ? () => handleSelectMenuItem(item.id)
-                          : () => handleRowClick(item.id)
-                      }
-                    >
-                      {bulkSelectionMode && (
-                        <TableCell className="w-12">
-                          <input
-                            type="checkbox"
-                            checked={selectedMenuItems.has(item.id)}
-                            onChange={() => handleSelectMenuItem(item.id)}
-                            className="h-4 w-4"
-                            aria-label={`Select ${item.name}`}
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                    <TableRow className={`cursor-pointer transition-colors hover:bg-muted/50 ${row.getIsSelected() ? "bg-blue-50 border-l-4 border-l-blue-500" : ""}`} onClick={() => row.toggleSelected()}>
+                      {row.getVisibleCells().map((cell: any) => (
+                        <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
-                      )}
-                      
-                      <TableCell className="w-20">
-                        <div className="flex justify-center">
-                          {item.image ? (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-12 h-12 object-cover rounded-md border"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gray-100 rounded-md border flex items-center justify-center">
-                              <Package className="h-6 w-6 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell className="min-w-[200px]">
-                        <div className="font-medium">{highlightText(item.name, searchTerm)}</div>
-                        {item.description && (
-                          <div className="text-sm text-muted-foreground">
-                            {highlightText(item.description, searchTerm)}
-                          </div>
-                        )}
-                      </TableCell>
-                      
-                      <TableCell className="w-32">
-                        {MENU_CATEGORIES.find((c) => c.value === item.category)?.label || item.category}
-                      </TableCell>
-                      
-                      <TableCell className="min-w-[200px]">
-                        <div className="space-y-1">
-                          {item.ingredients.slice(0, 2).map((ingredient, idx) => {
-                            const materialName = getMaterialName(ingredient.materialId);
-                            return (
-                              <div key={idx} className="text-sm">
-                                {formatNumber(ingredient.quantity)} {ingredient.unit}{" "}
-                                {highlightText(materialName, searchTerm)}
-                              </div>
-                            );
-                          })}
-                          {item.ingredients.length > 2 && (
-                            <div className="text-sm text-muted-foreground">
-                              +{item.ingredients.length - 2} more
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell className="w-24 text-right font-medium">
-                        {formatCurrency(totalCost)}
-                      </TableCell>
-                      
-                      <TableCell className="w-24 text-right font-medium">
-                        {formatCurrency(item.price)}
-                      </TableCell>
-                      
-                      <TableCell className={`w-28 text-right font-medium ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
-                        <div>{formatCurrency(profit)}</div>
-                        <div className="text-xs">({formatNumber(profitMargin)}%)</div>
-                      </TableCell>
-                      
-                      <TableCell className="w-40 text-right">
-                        <div className="flex gap-2 justify-end">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant={item.isPOSItem ? "default" : "outline"}
-                                className={item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTogglePOSVisibility(item);
-                                }}
-                                aria-label={`${item.isPOSItem ? "Hide from" : "Show in"} POS`}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{item.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenPrinterDialog(item);
-                                }}
-                                aria-label={`Assign printer to ${item.name}`}
-                              >
-                                <Printer className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Assign printer to {item.name}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingMenuItem(item);
-                                  setShowMenuItemForm(true);
-                                }}
-                                aria-label={`Edit ${item.name}`}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Edit {item.name}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="hover:bg-red-50 hover:text-red-600"
-                                    aria-label={`Delete ${item.name}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This will permanently delete "{item.name}" and cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className="bg-red-600 hover:bg-red-700 text-white"
-                                      onClick={() => handleDeleteMenuItem(item.id)}
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Delete {item.name}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
+                      ))}
                     </TableRow>
                   </TableBody>
                 </Table>
