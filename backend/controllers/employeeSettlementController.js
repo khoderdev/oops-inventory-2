@@ -1,34 +1,26 @@
 import { AuditLog, Employee, EmployeeSettlement, EmployeeUsage, User } from "../models/index.js";
 
-// Create settlement for employee
 export const createSettlement = async (req, res) => {
   try {
     const { employeeId, settlementMonth, settlementYear, bonusAmount = 0, penaltyAmount = 0, notes } = req.body;
-
-    // Validate required fields
     if (!employeeId || !settlementMonth || !settlementYear) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields: employeeId, settlementMonth, settlementYear"
       });
     }
-
-    // Validate month and year
     if (settlementMonth < 1 || settlementMonth > 12) {
       return res.status(400).json({
         success: false,
         message: "Invalid month. Must be between 1 and 12"
       });
     }
-
     if (settlementYear < 2020 || settlementYear > 2100) {
       return res.status(400).json({
         success: false,
         message: "Invalid year. Must be between 2020 and 2100"
       });
     }
-
-    // Check if settlement already exists for this employee and period
     const existingSettlement = await EmployeeSettlement.findOne({
       where: {
         employeeId,
@@ -43,15 +35,13 @@ export const createSettlement = async (req, res) => {
         message: "Settlement already exists for this employee and period"
       });
     }
-
-    // Get employee details
     const employee = await Employee.findByPk(employeeId, {
       include: [
         {
           model: User,
           as: "user",
           attributes: ["firstName", "lastName", "username"],
-          required: false // LEFT JOIN - include employees without users
+          required: false
         }
       ]
     });
@@ -62,11 +52,7 @@ export const createSettlement = async (req, res) => {
         message: "Employee not found"
       });
     }
-
-    // Calculate settlement using the static method
     const calculatedSettlement = await EmployeeSettlement.calculateSettlement(employeeId, settlementMonth, settlementYear);
-
-    // Get detailed usage data for settlement record
     const usages = await EmployeeUsage.getMonthlyUsage(employeeId, settlementMonth, settlementYear);
 
     const settlementData = {
@@ -437,18 +423,7 @@ export const markAsPaid = async (req, res) => {
 export const updateSettlement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      bonusAmount, 
-      penaltyAmount, 
-      notes, 
-      status, 
-      totalUsageCost, 
-      totalDiscountAmount, 
-      totalDeduction, 
-      finalSalary,
-      settlementData 
-    } = req.body;
-
+    const { bonusAmount, penaltyAmount, notes, status, totalUsageCost, totalDiscountAmount, totalDeduction, finalSalary, settlementData } = req.body;
     const settlement = await EmployeeSettlement.findByPk(id);
     if (!settlement) {
       return res.status(404).json({
@@ -456,16 +431,13 @@ export const updateSettlement = async (req, res) => {
         message: "Settlement not found"
       });
     }
-
     if (settlement.status === "paid") {
       return res.status(400).json({
         success: false,
         message: "Cannot update paid settlement"
       });
     }
-
     const oldValues = settlement.toJSON();
-
     const updateData = {};
     if (bonusAmount !== undefined) updateData.bonusAmount = parseFloat(bonusAmount);
     if (penaltyAmount !== undefined) updateData.penaltyAmount = parseFloat(penaltyAmount);
@@ -473,26 +445,35 @@ export const updateSettlement = async (req, res) => {
     if (status !== undefined && ["pending", "approved", "disputed", "cancelled"].includes(status)) {
       updateData.status = status;
     }
-    
-    // Handle settlement calculation fields
     if (totalUsageCost !== undefined) updateData.totalUsageCost = parseFloat(totalUsageCost);
     if (totalDiscountAmount !== undefined) updateData.totalDiscountAmount = parseFloat(totalDiscountAmount);
     if (totalDeduction !== undefined) updateData.totalDeduction = parseFloat(totalDeduction);
     if (finalSalary !== undefined) updateData.finalSalary = parseFloat(finalSalary);
-    
-    // Handle settlement data (usage breakdown and calculation details)
     if (settlementData !== undefined) {
       updateData.settlementData = settlementData;
-      
-      // Update usage items count if usageBreakdown is provided
       if (settlementData.usageBreakdown && Array.isArray(settlementData.usageBreakdown)) {
         updateData.usageItemsCount = settlementData.usageBreakdown.length;
       }
     }
-
+    if (totalUsageCost !== undefined || totalDiscountAmount !== undefined || settlementData !== undefined) {
+      const settlementTotals = await EmployeeUsage.calculateSettlementTotal(settlement.employeeId, settlement.id);
+      if (settlementTotals.usageCount > 0) {
+        const totalUsageCost = Number(settlementTotals.totalUsageCost) || 0;
+        const totalDiscountAmount = Number(settlementTotals.totalDiscountAmount) || 0;
+        const totalFinalCost = Number(settlementTotals.totalFinalCost) || 0;
+        const usageCount = Number(settlementTotals.usageCount) || 0;
+        updateData.totalUsageCost = totalUsageCost;
+        updateData.totalDiscountAmount = totalDiscountAmount;
+        updateData.totalDeduction = totalFinalCost;
+        updateData.usageItemsCount = usageCount;
+        const baseSalary = Number(updateData.baseSalary !== undefined ? updateData.baseSalary : settlement.baseSalary) || 0;
+        const bonusAmt = Number(updateData.bonusAmount !== undefined ? updateData.bonusAmount : settlement.bonusAmount) || 0;
+        const penaltyAmt = Number(updateData.penaltyAmount !== undefined ? updateData.penaltyAmount : settlement.penaltyAmount) || 0;
+        const calculatedFinalSalary = baseSalary - totalFinalCost + bonusAmt - penaltyAmt;
+        updateData.finalSalary = calculatedFinalSalary;
+      }
+    }
     await settlement.update(updateData);
-
-    // Fetch updated settlement with employee data
     const updatedSettlement = await EmployeeSettlement.findByPk(id, {
       include: [
         {
@@ -503,7 +484,7 @@ export const updateSettlement = async (req, res) => {
               model: User,
               as: "user",
               attributes: ["firstName", "lastName", "username"],
-              required: false // LEFT JOIN - include employees without users
+              required: false
             }
           ]
         }
@@ -511,7 +492,6 @@ export const updateSettlement = async (req, res) => {
     });
 
     await AuditLog.logUserAction(req.user.id, "update", "employee_settlement", id, oldValues, updatedSettlement.toJSON(), req);
-
     res.json({
       success: true,
       data: updatedSettlement,
@@ -528,11 +508,9 @@ export const updateSettlement = async (req, res) => {
   }
 };
 
-// Get pending settlements
 export const getPendingSettlements = async (req, res) => {
   try {
     const settlements = await EmployeeSettlement.getPendingSettlements();
-
     res.json({
       success: true,
       data: settlements,
@@ -548,24 +526,15 @@ export const getPendingSettlements = async (req, res) => {
   }
 };
 
-// Get settlement statistics
 export const getSettlementStats = async (req, res) => {
   try {
     const { year, month } = req.query;
-
     const where = {};
     if (year) where.settlementYear = parseInt(year);
     if (month) where.settlementMonth = parseInt(month);
-
     const stats = await EmployeeSettlement.findAll({
       where,
-      attributes: [
-        "status", 
-        [EmployeeSettlement.sequelize.fn("COUNT", EmployeeSettlement.sequelize.col("id")), "count"], 
-        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("base_salary")), "totalBaseSalary"], 
-        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("total_deduction")), "totalDeductions"], 
-        [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("final_salary")), "totalFinalSalary"]
-      ],
+      attributes: ["status", [EmployeeSettlement.sequelize.fn("COUNT", EmployeeSettlement.sequelize.col("id")), "count"], [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("base_salary")), "totalBaseSalary"], [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("total_deduction")), "totalDeductions"], [EmployeeSettlement.sequelize.fn("SUM", EmployeeSettlement.sequelize.col("final_salary")), "totalFinalSalary"]],
       group: ["status"],
       raw: true
     });
@@ -581,7 +550,6 @@ export const getSettlementStats = async (req, res) => {
       ],
       raw: true
     });
-
     res.json({
       success: true,
       data: {
@@ -606,7 +574,6 @@ export const getSettlementStats = async (req, res) => {
   }
 };
 
-// Calculate preview settlement (without creating)
 export const previewSettlement = async (req, res) => {
   try {
     const { employeeId, settlementMonth, settlementYear, bonusAmount = 0, penaltyAmount = 0 } = req.body;

@@ -289,4 +289,27 @@ EmployeeUsage.calculateMonthlyTotal = function(employeeId, month, year) {
   });
 };
 
+// Calculate totals for a specific settlement (including already settled usages)
+EmployeeUsage.calculateSettlementTotal = function(employeeId, settlementId) {
+  return this.findAll({
+    where: {
+      employeeId,
+      settlementId,
+      isSettled: true
+    },
+    attributes: [
+      [sequelize.fn('SUM', sequelize.col('totalCost')), 'totalUsageCost'],
+      [sequelize.fn('SUM', sequelize.col('discountAmount')), 'totalDiscountAmount'],
+      [sequelize.fn('SUM', sequelize.col('finalCost')), 'totalFinalCost'],
+      [sequelize.fn('COUNT', sequelize.col('id')), 'usageCount']
+    ],
+    raw: true
+  }).then(result => result[0] || {
+    totalUsageCost: 0,
+    totalDiscountAmount: 0,
+    totalFinalCost: 0,
+    usageCount: 0
+  });
+};
+
 export default EmployeeUsage;

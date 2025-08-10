@@ -50,7 +50,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [internalSelectedEmployeeId, setInternalSelectedEmployeeId] = useState<number | null>(selectedEmployeeId || null);
   const [newUsagesDialogOpen, setNewUsagesDialogOpen] = useState(false);
   const [newUsages, setNewUsages] = useState<any[]>([]);
+  const [selectedUsageIds, setSelectedUsageIds] = useState<number[]>([]);
   const [loadingNewUsages, setLoadingNewUsages] = useState(false);
+  const [addedUsageIds, setAddedUsageIds] = useState<Set<number>>(new Set());
   const { user } = useAuth();
   const canDeleteSettlements = user?.role === "admin" || user?.role === "manager";
   const canDeleteSettlement = (settlement: EmployeeSettlement | null) => {
@@ -96,9 +98,75 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     await fetchSettlements(updatedFilters);
   };
 
-  const handleViewDetails = (settlement: EmployeeSettlement) => {
-    setSelectedSettlement(settlement);
-    setDetailsOpen(true);
+  const handleViewDetails = async (settlement: EmployeeSettlement) => {
+    try {
+      // Fetch all settled usages for this specific settlement
+      const settledUsagesResponse = await employeeAPI.getUsageHistory({
+        employeeId: settlement.employeeId,
+        isSettled: true,
+        settlementId: settlement.id
+      });
+
+      if (settledUsagesResponse.success && settledUsagesResponse.data?.usages) {
+        const settledUsages = settledUsagesResponse.data.usages;
+        
+        // Build usage breakdown from all settled usages for this settlement
+        const usageBreakdown = settledUsages.map(usage => ({
+          id: usage.id,
+          usageType: usage.usageType,
+          itemName: usage.material?.name || usage.menuItem?.name || "Unknown Item",
+          quantity: Number(usage.quantity),
+          unit: usage.unit,
+          unitCost: Number(usage.unitCost),
+          totalCost: Number(usage.totalCost),
+          discountApplied: Number(usage.discountApplied),
+          finalCost: Number(usage.finalCost),
+          usageDate: usage.usageDate
+        }));
+
+        // Calculate totals from actual settled usages
+        const totalUsageCost = usageBreakdown.reduce((sum, item) => sum + item.totalCost, 0);
+        const totalDiscountAmount = usageBreakdown.reduce((sum, item) => sum + (item.totalCost - item.finalCost), 0);
+        const totalDeduction = totalUsageCost - totalDiscountAmount;
+
+        // Update settlement data with actual usage breakdown
+        const updatedSettlement = {
+          ...settlement,
+          settlementData: {
+            ...settlement.settlementData,
+            usageBreakdown,
+            calculationDetails: {
+              baseSalary: Number(settlement.baseSalary),
+              totalUsageCost,
+              discountPercentage: Number(settlement.employee?.discountPercentage || 0),
+              totalDiscountAmount,
+              netDeduction: totalDeduction,
+              bonusAmount: Number(settlement.bonusAmount),
+              penaltyAmount: Number(settlement.penaltyAmount)
+            }
+          },
+          totalUsageCost,
+          totalDiscountAmount,
+          totalDeduction,
+          usageItemsCount: usageBreakdown.length
+        };
+
+        setSelectedSettlement(updatedSettlement);
+      } else {
+        // If no settled usages found, use the settlement as-is
+        setSelectedSettlement(settlement);
+      }
+
+      setDetailsOpen(true);
+      // Reset added usage IDs when viewing a different settlement
+      setAddedUsageIds(new Set());
+    } catch (error) {
+      console.error("Error fetching settled usages:", error);
+      // Fallback to showing settlement without updated usage breakdown
+      setSelectedSettlement(settlement);
+      setDetailsOpen(true);
+      setAddedUsageIds(new Set());
+    }
   };
 
   const markUsageItemsAsSettled = async (settlement: EmployeeSettlement) => {
@@ -147,12 +215,31 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
       });
 
       if (usagesResponse.success && usagesResponse.data?.usages) {
-        // Filter usages that were created after the settlement
-        const newUsagesAfterSettlement = usagesResponse.data.usages.filter(usage => 
-          new Date(usage.createdAt) > settlementDate
-        );
-        setNewUsages(newUsagesAfterSettlement);
-        setNewUsagesDialogOpen(true);
+        // Get all usage IDs that should be excluded (already in settlement + locally added)
+        const excludedUsageIds = new Set(addedUsageIds);
+        
+        // Add existing usage IDs from the settlement's usage breakdown
+        if (settlement.settlementData?.usageBreakdown) {
+          settlement.settlementData.usageBreakdown.forEach(usage => {
+            excludedUsageIds.add(usage.id);
+          });
+        }
+        
+        // Filter for truly new usages only
+        const newUsagesAfterSettlement = usagesResponse.data.usages.filter(usage => {
+          const createdAfterSettlement = new Date(usage.createdAt) > settlementDate;
+          const notExcluded = !excludedUsageIds.has(usage.id);
+          
+          return createdAfterSettlement && notExcluded;
+        });
+        
+        if (newUsagesAfterSettlement.length > 0) {
+          setNewUsages(newUsagesAfterSettlement);
+          setSelectedUsageIds(newUsagesAfterSettlement.map(usage => usage.id));
+          setNewUsagesDialogOpen(true);
+        } else {
+          toast.info("No new usage records found after this settlement date");
+        }
       }
     } catch (error) {
       console.error("Error fetching new usages:", error);
@@ -284,8 +371,25 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
           
           setSelectedSettlement(updatedSelectedSettlement);
           
-          // Close the new usages dialog but keep the details dialog open to show updated data
-          setNewUsagesDialogOpen(false);
+          // Track the added usage IDs locally to prevent them from reappearing
+          setAddedUsageIds(prev => {
+            const newSet = new Set(prev);
+            usageIds.forEach(id => newSet.add(id));
+            return newSet;
+          });
+          
+          // Remove the added usages from the newUsages list
+          const remainingNewUsages = newUsages.filter(usage => !usageIds.includes(Number(usage.id)));
+          setNewUsages(remainingNewUsages);
+          
+          // Update selected usage IDs to remove the added ones
+          setSelectedUsageIds(prev => prev.filter(id => !usageIds.includes(id)));
+          
+          // If no more usages remain, close the dialog
+          if (remainingNewUsages.length === 0) {
+            setNewUsagesDialogOpen(false);
+            setSelectedUsageIds([]);
+          }
         }
       }
 
@@ -613,7 +717,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                         <div className="text-sm text-muted-foreground">{settlement.usageItemsCount} usage items</div>
                       </TableCell>
                       <TableCell className="font-mono">{formatCurrency(settlement.baseSalary)}</TableCell>
-                      <TableCell className="font-mono text-red-600">-{formatCurrency(settlement.totalDeduction || 0)}</TableCell>
+                      <TableCell className="font-mono text-red-600">-{formatCurrency(settlement.totalDeduction)}</TableCell>
                       <TableCell className="font-mono font-medium">{formatCurrency(settlement.finalSalary)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={statusColors[settlement.status]}>
@@ -857,7 +961,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
       {/* New Usages Dialog */}
       <Dialog open={newUsagesDialogOpen} onOpenChange={setNewUsagesDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent key={`new-usages-${newUsages.length}-${Date.now()}`} className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Usage to Settlement</DialogTitle>
             <DialogDescription>
@@ -874,7 +978,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
               <div className="text-sm text-muted-foreground">
                 Found {newUsages.length} usage record(s) created after this settlement. Select which ones to add:
               </div>
-              
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {newUsages.map((usage, index) => (
                   <div key={usage.id} className="flex items-center space-x-3 p-3 border rounded-lg">
@@ -882,7 +985,14 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                       type="checkbox"
                       id={`usage-${usage.id}`}
                       className="w-4 h-4"
-                      defaultChecked={true}
+                      checked={selectedUsageIds.includes(usage.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedUsageIds(prev => [...prev, usage.id]);
+                        } else {
+                          setSelectedUsageIds(prev => prev.filter(id => id !== usage.id));
+                        }
+                      }}
                     />
                     <label htmlFor={`usage-${usage.id}`} className="flex-1 cursor-pointer">
                       <div className="flex justify-between items-center">
@@ -916,13 +1026,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                   </Button>
                   <Button 
                     onClick={() => {
-                      const selectedUsageIds = newUsages
-                        .filter((_, index) => {
-                          const checkbox = document.getElementById(`usage-${newUsages[index].id}`) as HTMLInputElement;
-                          return checkbox?.checked;
-                        })
-                        .map(usage => usage.id);
-                      
                       if (selectedUsageIds.length > 0) {
                         addUsagesToCurrentSettlement(selectedUsageIds);
                       } else {

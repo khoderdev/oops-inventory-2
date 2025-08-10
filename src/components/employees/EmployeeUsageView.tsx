@@ -4,11 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, usagesAtom, usagesFiltersAtom, usagesLoadingAtom, usageStatsAtom } from "@/store/employeeAtoms";
-import type { EmployeeUsage, EmployeeUsageType } from "@/types/employee";
+import { toast } from "@/components/ui/use-toast";
+import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, usagesAtom, usagesFiltersAtom, usagesLoadingAtom, usageStatsAtom } from "@/store/employeeAtoms";
+import type { EmployeeUsage, EmployeeUsageType, EmployeeSettlement } from "@/types/employee";
 import { addDays } from "date-fns";
 import { useAtom } from "jotai";
-import { ChevronDown, ChevronRight, Download, Filter, Plus, ShoppingCart, TrendingUp } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Filter, Plus, ShoppingCart, TrendingUp, UserPlus } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
 interface EmployeeUsageViewProps {
@@ -49,9 +50,11 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
   const [filters, setFilters] = useAtom(usagesFiltersAtom);
   const [usageStats] = useAtom(usageStatsAtom);
   const [employees] = useAtom(employeesAtom);
+  const [settlements] = useAtom(settlementsAtom);
   const [, fetchUsages] = useAtom(fetchUsageAtom);
   const [, fetchStats] = useAtom(fetchUsageStatsAtom);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [addingToSettlement, setAddingToSettlement] = useState<Set<number>>(new Set());
 
   const [dateRange, setDateRange] = useState<{
     from: Date;
@@ -187,10 +190,18 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
   };
 
   const formatCurrency = (amount: number) => {
+    if (amount == null || isNaN(amount) || !isFinite(amount)) {
+      return "$0.00";
+    }
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD"
     }).format(amount);
+  };
+
+  const formatQuantity = (quantity: number) => {
+    // Remove unnecessary decimal places
+    return Number(quantity) % 1 === 0 ? Math.floor(quantity) : Number(quantity).toFixed(2);
   };
 
   const formatDate = (dateString: string) => {
@@ -219,6 +230,159 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
       return "Individual Usage";
     }
     return `Order #${transactionId}`;
+  };
+
+  // Helper function to get settlements that can accept new usages (pending or approved)
+  const getAvailableSettlements = (employeeId: number): EmployeeSettlement[] => {
+    return settlements.filter(settlement => 
+      settlement.employeeId === employeeId && 
+      (settlement.status === 'pending' || settlement.status === 'approved')
+    );
+  };
+
+  // Helper function to add usage to settlement
+  const addUsageToSettlement = async (usageId: number, settlementId: number) => {
+    setAddingToSettlement(prev => new Set(prev).add(usageId));
+    
+    try {
+      const { employeeAPI } = await import("@/api/employee.api");
+      
+      // Update the usage to mark it as settled
+      const updateResult = await employeeAPI.updateUsage(usageId, {
+        isSettled: true,
+        settlementId: settlementId
+      });
+
+      if (updateResult.success) {
+        // Trigger settlement recalculation by calling updateSettlement
+        // This will recalculate totals from all settled usages for this settlement
+        const recalculateResult = await employeeAPI.updateSettlement(settlementId, {
+          // Trigger recalculation by passing totalUsageCost (backend will recalculate from actual usages)
+          totalUsageCost: 0 // This triggers the recalculation logic in the backend
+        });
+
+        if (recalculateResult.success) {
+          toast({
+            title: "Success",
+            description: "Usage added to settlement successfully",
+          });
+          
+          // Refresh the usages to reflect the change
+          await fetchUsages(filters);
+        } else {
+          console.warn("Usage marked as settled but settlement totals may not be updated:", recalculateResult.message);
+          toast({
+            title: "Warning",
+            description: "Usage added but settlement totals may need manual refresh",
+            variant: "destructive",
+          });
+        }
+      } else {
+        throw new Error(updateResult.message || "Failed to add usage to settlement");
+      }
+    } catch (error) {
+      console.error("Error adding usage to settlement:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add usage to settlement",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingToSettlement(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(usageId);
+        return newSet;
+      });
+    }
+  };
+
+  // Helper function to add all order items to settlement
+  const addAllOrderItemsToSettlement = async (order: GroupedOrder, settlementId: number) => {
+    const unsettledItems = order.items.filter(item => !item.isSettled);
+    
+    if (unsettledItems.length === 0) {
+      toast({
+        title: "Info",
+        description: "All items in this order are already settled",
+      });
+      return;
+    }
+
+    // Mark all items as being added
+    setAddingToSettlement(prev => {
+      const newSet = new Set(prev);
+      unsettledItems.forEach(item => newSet.add(item.id));
+      return newSet;
+    });
+
+    try {
+      const { employeeAPI } = await import("@/api/employee.api");
+      let successCount = 0;
+      let failureCount = 0;
+
+      // Add each unsettled item to the settlement
+      for (const item of unsettledItems) {
+        try {
+          const updateResult = await employeeAPI.updateUsage(item.id, {
+            isSettled: true,
+            settlementId: settlementId
+          });
+
+          if (updateResult.success) {
+            successCount++;
+          } else {
+            failureCount++;
+            console.warn(`Failed to add item ${item.id} to settlement:`, updateResult.message);
+          }
+        } catch (error) {
+          failureCount++;
+          console.error(`Error adding item ${item.id} to settlement:`, error);
+        }
+      }
+
+      if (successCount > 0) {
+        // Trigger settlement recalculation
+        const recalculateResult = await employeeAPI.updateSettlement(settlementId, {
+          totalUsageCost: 0 // This triggers the recalculation logic in the backend
+        });
+
+        if (recalculateResult.success) {
+          toast({
+            title: "Success",
+            description: `${successCount} item${successCount !== 1 ? 's' : ''} added to settlement successfully${failureCount > 0 ? `. ${failureCount} item${failureCount !== 1 ? 's' : ''} failed to add.` : ''}`,
+          });
+        } else {
+          toast({
+            title: "Warning", 
+            description: `Items added but settlement totals may need manual refresh`,
+            variant: "destructive",
+          });
+        }
+
+        // Refresh the usages to reflect the changes
+        await fetchUsages(filters);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to add any items to settlement",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error adding order items to settlement:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add order items to settlement",
+        variant: "destructive",
+      });
+    } finally {
+      // Remove all items from the adding state
+      setAddingToSettlement(prev => {
+        const newSet = new Set(prev);
+        unsettledItems.forEach(item => newSet.delete(item.id));
+        return newSet;
+      });
+    }
   };
 
   return (
@@ -381,13 +545,14 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                   <TableHead>Discount</TableHead>
                   <TableHead>Final Cost</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 9 }).map((_, j) => (
+                      {Array.from({ length: 10 }).map((_, j) => (
                         <TableCell key={j}>
                           <div className="h-4 w-16 bg-muted rounded animate-pulse" />
                         </TableCell>
@@ -434,69 +599,165 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                           {order.items[0]?.order?.total && <div className="text-xs text-muted-foreground mt-1">Order: {formatCurrency(parseFloat(order.items[0].order.total.toString()))}</div>}
                         </TableCell>
                         <TableCell>
-                          {/* Show order status if available, otherwise show settlement status */}
-                          {order.items[0]?.order?.status ? (
-                            <Badge
-                              variant={order.items[0].order.status === "paid" ? "default" : "secondary"}
-                              className={`${
-                                order.items[0].order.status === "paid"
-                                  ? "bg-green-100 text-green-800"
-                                  : order.items[0].order.status === "draft"
-                                    ? "bg-gray-100 text-gray-800"
-                                    : order.items[0].order.status === "confirmed"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : order.items[0].order.status === "preparing"
-                                        ? "bg-orange-100 text-orange-800"
-                                        : order.items[0].order.status === "ready"
-                                          ? "bg-purple-100 text-purple-800"
-                                          : order.items[0].order.status === "served"
-                                            ? "bg-indigo-100 text-indigo-800"
-                                            : order.items[0].order.status === "cancelled"
-                                              ? "bg-red-100 text-red-800"
-                                              : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {order.items[0].order.status.charAt(0).toUpperCase() + order.items[0].order.status.slice(1)}
-                            </Badge>
-                          ) : (
-                            <Badge variant={order.isSettled ? "default" : "secondary"} className={order.isSettled ? "bg-green-100 text-green-800" : ""}>
-                              {order.isSettled ? "Settled" : "Pending"}
-                            </Badge>
-                          )}
+                          {(() => {
+                            // For employee orders, payment status is based on settlement payment, not order status
+                            const employeeId = order.employee.id;
+                            const orderUsages = order.items.filter(item => item.isSettled);
+                            
+                            // Check if any usage in this order belongs to a paid settlement
+                            const isPaid = orderUsages.some(usage => {
+                              const settlement = settlements.find(s => 
+                                s.employeeId === employeeId && 
+                                s.settlementData?.usageBreakdown?.some(ub => ub.id === usage.id) &&
+                                s.status === 'paid'
+                              );
+                              return settlement !== undefined;
+                            });
+                            
+                            // Determine status based on settlement payment
+                            if (isPaid) {
+                              return (
+                                <Badge variant="default" className="bg-green-100 text-green-800">
+                                  Paid
+                                </Badge>
+                              );
+                            } else if (order.isSettled) {
+                              return (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                  Settled (Unpaid)
+                                </Badge>
+                              );
+                            } else {
+                              return (
+                                <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                                  Pending Settlement
+                                </Badge>
+                              );
+                            }
+                          })()}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {(() => {
+                            const employeeId = order.employee.id;
+                            const availableSettlements = getAvailableSettlements(employeeId);
+                            const unsettledItems = order.items.filter(item => !item.isSettled);
+                            const isAddingAny = unsettledItems.some(item => addingToSettlement.has(item.id));
+                            
+                            if (unsettledItems.length === 0) {
+                              return (
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                  All Settled
+                                </Badge>
+                              );
+                            }
+                            
+                            if (availableSettlements.length === 0) {
+                              return (
+                                <div className="text-xs text-muted-foreground text-center px-2 py-1 bg-orange-50 rounded border border-orange-200">
+                                  No settlements
+                                </div>
+                              );
+                            }
+                            
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-3 text-xs"
+                                disabled={isAddingAny}
+                                onClick={() => addAllOrderItemsToSettlement(order, availableSettlements[0].id)}
+                              >
+                                {isAddingAny ? (
+                                  <>
+                                    <div className="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                    Adding...
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserPlus className="h-3 w-3 mr-1" />
+                                    Add All ({unsettledItems.length})
+                                  </>
+                                )}
+                              </Button>
+                            );
+                          })()}
                         </TableCell>
                       </TableRow>
 
                       {/* Expanded Items */}
                       {expandedOrders.has(order.posTransactionId) && (
                         <TableRow>
-                          <TableCell colSpan={9} className="p-0">
+                          <TableCell colSpan={10} className="p-0">
                             <div className="bg-muted/30 p-4">
                               <div className="text-sm font-medium mb-3 text-muted-foreground">Order Items:</div>
                               <div className="grid gap-2">
-                                {order.items.map(item => (
-                                  <div key={item.id} className="flex items-center justify-between p-3 bg-background rounded border">
-                                    <div className="flex items-center gap-3">
-                                      <Badge variant="secondary" className={usageTypeColors[item.usageType]}>
-                                        {item.usageType.replace("_", " ")}
-                                      </Badge>
-                                      <div>
-                                        <div className="font-medium">{getItemName(item)}</div>
-                                        <div className="text-sm text-muted-foreground">
-                                          {item.quantity} {item.unit} × {formatCurrency(item.unitCost)}
+                                {order.items.map(item => {
+                                  const employeeId = item.employee?.id || 0;
+                                  const availableSettlements = getAvailableSettlements(employeeId);
+                                  const isSettled = item.isSettled;
+                                  const isAddingToSettlement = addingToSettlement.has(item.id);
+                                  
+                                  return (
+                                    <div key={item.id} className="flex items-center justify-between p-3 bg-background rounded border">
+                                      <div className="flex items-center gap-3">
+                                        <Badge variant="secondary" className={usageTypeColors[item.usageType]}>
+                                          {item.usageType.replace("_", " ")}
+                                        </Badge>
+                                        <div>
+                                          <div className="font-medium">{getItemName(item)}</div>
+                                          <div className="text-sm text-muted-foreground">
+                                            {formatQuantity(item.quantity)} {item.unit} × {formatCurrency(item.unitCost)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <div className="text-right">
+                                          {item.discountAmount > 0 ? (
+                                            <>
+                                              <div className="font-mono text-sm text-muted-foreground line-through">{formatCurrency(item.totalCost)}</div>
+                                              <div className="text-sm text-green-600">
+                                                -{formatCurrency(item.discountAmount)} ({item.discountApplied}%)
+                                              </div>
+                                              <div className="font-mono font-medium">{formatCurrency(item.finalCost)}</div>
+                                            </>
+                                          ) : (
+                                            <div className="font-mono font-medium">{formatCurrency(item.finalCost)}</div>
+                                          )}
+                                        </div>
+                                        
+                                        {/* Settlement Action */}
+                                        <div className="flex flex-col gap-1">
+                                           {isSettled ? (
+                                             <Badge variant="default" className="bg-green-100 text-green-800 text-xs">
+                                               Settled
+                                             </Badge>
+                                           ) : availableSettlements.length > 0 ? (
+                                             <Button
+                                               size="sm"
+                                               variant="outline"
+                                               className="h-7 px-2 text-xs"
+                                               disabled={isAddingToSettlement}
+                                               onClick={() => addUsageToSettlement(item.id, availableSettlements[0].id)}
+                                             >
+                                               {isAddingToSettlement ? (
+                                                 "Adding..."
+                                               ) : (
+                                                 <>
+                                                   <UserPlus className="h-3 w-3 mr-1" />
+                                                   Add to Settlement
+                                                 </>
+                                               )}
+                                             </Button>
+                                           ) : (
+                                             <div className="text-xs text-muted-foreground text-center px-2 py-1 bg-orange-50 rounded border border-orange-200">
+                                               No available settlements
+                                             </div>
+                                           )}
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="text-right">
-                                      <div className="font-mono">{formatCurrency(item.totalCost)}</div>
-                                      {item.discountAmount > 0 && (
-                                        <div className="text-sm text-green-600">
-                                          -{formatCurrency(item.discountAmount)} ({item.discountApplied}%)
-                                        </div>
-                                      )}
-                                      <div className="font-mono font-medium">{formatCurrency(item.finalCost)}</div>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                               {/* Order Information Section */}
                               {order.items[0]?.order && (

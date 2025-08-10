@@ -15,7 +15,7 @@ const sequelize = new Sequelize({
   username: "postgres",
   password: "postgres",
   port: 5432,
-  logging: customLogger,
+  logging: false,
   // logging: console.log,
   benchmark: true
 });

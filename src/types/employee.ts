@@ -482,6 +482,7 @@ export interface UsageFilters {
   endDate?: string;
   usageType?: EmployeeUsageType;
   isSettled?: boolean;
+  settlementId?: number;
   page?: number;
   limit?: number;
 }

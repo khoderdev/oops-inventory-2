@@ -367,7 +367,7 @@ export const getMonthlyUsageSummary = async (req, res) => {
 export const updateUsage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { quantity, unit, unitCost, notes } = req.body;
+    const { quantity, unit, unitCost, notes, isSettled, settlementId } = req.body;
 
     const usage = await EmployeeUsage.findByPk(id);
     if (!usage) {
@@ -377,7 +377,8 @@ export const updateUsage = async (req, res) => {
       });
     }
 
-    if (usage.isSettled) {
+    // Only check if already settled when not trying to settle it
+    if (usage.isSettled && isSettled !== true) {
       return res.status(400).json({
         success: false,
         message: "Cannot update settled usage record"
@@ -397,6 +398,10 @@ export const updateUsage = async (req, res) => {
       updateData.totalCost = (quantity !== undefined ? parseFloat(quantity) : usage.quantity) * parseFloat(unitCost);
     }
     if (notes !== undefined) updateData.notes = notes;
+    
+    // Handle settlement fields
+    if (isSettled !== undefined) updateData.isSettled = Boolean(isSettled);
+    if (settlementId !== undefined) updateData.settlementId = settlementId;
 
     // Recalculate discount if total cost changed
     if (updateData.totalCost !== undefined) {
