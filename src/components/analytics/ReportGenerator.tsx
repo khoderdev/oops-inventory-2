@@ -181,14 +181,14 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
   };
 
   return (
-    <div className={cn("w-full h-full flex flex-col !z-50", className)}>
+    <div className={cn("w-full h-full flex flex-col", className)}>
       <Card className="flex flex-col h-full">
         <CardHeader className="flex-shrink-0 p-4 px-6">
           <CardTitle className="flex items-center justify-between">
-            {/* <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
               Report Generator
-            </div> */}
+            </div>
             {currentReportConfig && !isChangingReportType && hasGenerated && (
               <div className="flex items-center gap-1 text-sm text-muted-foreground bg-primary/10 px-3 py-1 rounded-full mr-4 sm:mr-10">
                 {currentReportConfig.icon}
@@ -197,7 +197,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 flex flex-col !z-50 space-y-2 min-h-0 overflow-hidden">
+        <CardContent className="flex-1 flex flex-col space-y-2 min-h-0 overflow-hidden">
           <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
               <div className="space-y-2 sm:col-span-2 lg:col-span-1">

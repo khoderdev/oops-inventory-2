@@ -24,6 +24,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 7.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Halloumi", quantity: 150, unit: "g", cost: 1.80 },
         { materialName: "Iceberg Lettuce", quantity: 50, unit: "g", cost: 0.13 },
@@ -37,6 +38,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 8.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
         { materialName: "Special Sauce", quantity: 40, unit: "ml", cost: 0.40 }
@@ -48,6 +50,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 6.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Mozzarella Cheese", quantity: 180, unit: "g", cost: 1.44 }
       ]
@@ -58,6 +61,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 8.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crispy Chicken", quantity: 5, unit: "piece", cost: 2.50 },
         { materialName: "Cocktail Sauce", quantity: 40, unit: "ml", cost: 0.32 }
@@ -69,6 +73,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 10.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Wings", quantity: 8, unit: "piece", cost: 3.20 },
         { materialName: "BBQ Sauce", quantity: 30, unit: "ml", cost: 0.18 },
@@ -82,6 +87,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 8.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Nachos", quantity: 200, unit: "g", cost: 0.90 }
       ]
@@ -92,6 +98,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 7.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Ciabatta Bread", quantity: 150, unit: "g", cost: 0.90 },
         { materialName: "Bell Pepper", quantity: 50, unit: "g", cost: 0.15 },
@@ -105,6 +112,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 12.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Shrimp", quantity: 150, unit: "g", cost: 4.20 },
         { materialName: "Special Sauce", quantity: 30, unit: "ml", cost: 0.30 }
@@ -116,6 +124,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 10.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Ciabatta Bread", quantity: 100, unit: "g", cost: 0.60 },
         { materialName: "Cream Cheese", quantity: 50, unit: "g", cost: 0.35 },
@@ -128,6 +137,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 9.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Shrimp", quantity: 120, unit: "g", cost: 3.36 },
         { materialName: "Special Sauce", quantity: 40, unit: "ml", cost: 0.40 }
@@ -139,6 +149,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 11.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 120, unit: "g", cost: 1.02 },
         { materialName: "Onion", quantity: 50, unit: "g", cost: 0.08 },
@@ -155,6 +166,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 3.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "French Fries", quantity: 200, unit: "g", cost: 0.40 },
         { materialName: "Ketchup", quantity: 30, unit: "ml", cost: 0.12 }
@@ -166,6 +178,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 5.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Wedges", quantity: 250, unit: "g", cost: 0.63 },
         { materialName: "BBQ Sauce", quantity: 30, unit: "ml", cost: 0.18 },
@@ -178,6 +191,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 8.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Curly Fries", quantity: 200, unit: "g", cost: 0.60 },
         { materialName: "BBQ Sauce", quantity: 30, unit: "ml", cost: 0.18 },
@@ -190,6 +204,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Wedges", quantity: 200, unit: "g", cost: 0.50 },
         { materialName: "Crispy Chicken", quantity: 100, unit: "g", cost: 1.50 },
@@ -206,6 +221,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crispy Chicken", quantity: 150, unit: "g", cost: 2.25 },
         { materialName: "Chicken Wings", quantity: 200, unit: "g", cost: 3.60 },
@@ -219,6 +235,7 @@ export async function seedMenuItems() {
       category: "appetizers",
       price: 18.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Shrimp", quantity: 100, unit: "g", cost: 2.80 },
         { materialName: "Calamari", quantity: 100, unit: "g", cost: 3.50 },
@@ -236,6 +253,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 10.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Penne Pasta", quantity: 120, unit: "g", cost: 0.36 },
         { materialName: "Red Sauce", quantity: 100, unit: "ml", cost: 0.50 },
@@ -248,6 +266,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 11.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Penne Pasta", quantity: 120, unit: "g", cost: 0.36 },
         { materialName: "Rose Sauce", quantity: 100, unit: "ml", cost: 0.60 },
@@ -260,6 +279,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 11.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Penne Pasta", quantity: 120, unit: "g", cost: 0.36 },
         { materialName: "Pesto Sauce", quantity: 100, unit: "ml", cost: 1.20 },
@@ -272,6 +292,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Tagliatelle Pasta", quantity: 120, unit: "g", cost: 0.48 },
         { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
@@ -286,6 +307,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Tagliatelle Pasta", quantity: 120, unit: "g", cost: 0.48 },
         { materialName: "Shrimp", quantity: 150, unit: "g", cost: 2.25 },
@@ -299,6 +321,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Linguine Pasta", quantity: 120, unit: "g", cost: 0.42 },
         { materialName: "Shrimp", quantity: 150, unit: "g", cost: 2.25 },
@@ -312,6 +335,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 10.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Fresh Noodles", quantity: 120, unit: "g", cost: 0.48 },
         { materialName: "Mixed Vegetables", quantity: 150, unit: "g", cost: 0.90 },
@@ -324,6 +348,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 12.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Fresh Noodles", quantity: 120, unit: "g", cost: 0.48 },
         { materialName: "Chicken Breast", quantity: 120, unit: "g", cost: 1.02 },
@@ -337,6 +362,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Fresh Noodles", quantity: 120, unit: "g", cost: 0.48 },
         { materialName: "Shrimp", quantity: 120, unit: "g", cost: 1.80 },
@@ -354,6 +380,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 12.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Taouk", quantity: 200, unit: "g", cost: 1.80 },
         { materialName: "French Fries", quantity: 150, unit: "g", cost: 0.30 },
@@ -368,6 +395,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crispy Chicken", quantity: 5, unit: "piece", cost: 7.50 },
         { materialName: "Coleslaw", quantity: 100, unit: "g", cost: 0.35 },
@@ -381,6 +409,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 19.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Roulade", quantity: 2, unit: "piece", cost: 6.00 },
         { materialName: "Fettuccine Pasta", quantity: 120, unit: "g", cost: 0.48 },
@@ -394,6 +423,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 18.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 200, unit: "g", cost: 1.70 },
         { materialName: "Wedges", quantity: 150, unit: "g", cost: 0.45 },
@@ -407,6 +437,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 18.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 200, unit: "g", cost: 1.70 },
         { materialName: "Wedges", quantity: 150, unit: "g", cost: 0.45 },
@@ -420,6 +451,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 19.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crispy Chicken", quantity: 2, unit: "piece", cost: 3.00 },
         { materialName: "Red Sauce", quantity: 100, unit: "ml", cost: 0.50 },
@@ -433,6 +465,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 20.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 200, unit: "g", cost: 1.70 },
         { materialName: "Halloumi Cheese", quantity: 120, unit: "g", cost: 1.44 },
@@ -446,6 +479,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 18.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 200, unit: "g", cost: 1.70 },
         { materialName: "Fresh Mushroom", quantity: 100, unit: "g", cost: 0.80 },
@@ -459,6 +493,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 18.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Beef Strips", quantity: 200, unit: "g", cost: 3.20 },
         { materialName: "Fresh Mushroom", quantity: 100, unit: "g", cost: 0.80 },
@@ -472,6 +507,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 18.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Shrimp", quantity: 200, unit: "g", cost: 3.00 },
         { materialName: "Indian Sauce", quantity: 100, unit: "ml", cost: 1.20 },
@@ -484,6 +520,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 17.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 200, unit: "g", cost: 1.70 },
         { materialName: "Indian Sauce", quantity: 100, unit: "ml", cost: 1.20 },
@@ -496,6 +533,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 23.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Beef Filet", quantity: 200, unit: "g", cost: 6.00 },
         { materialName: "Mashed Potatoes", quantity: 150, unit: "g", cost: 0.42 },
@@ -509,6 +547,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 21.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 200, unit: "g", cost: 1.70 },
         { materialName: "Cashew Nuts", quantity: 50, unit: "g", cost: 1.50 },
@@ -522,6 +561,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 21.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crispy Chicken", quantity: 200, unit: "g", cost: 3.00 },
         { materialName: "Fettuccine Pasta", quantity: 120, unit: "g", cost: 0.48 },
@@ -535,6 +575,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 24.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Salmon", quantity: 200, unit: "g", cost: 4.40 },
         { materialName: "Mashed Potatoes", quantity: 150, unit: "g", cost: 0.42 },
@@ -551,6 +592,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 10.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
@@ -563,6 +605,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
@@ -576,6 +619,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
@@ -593,6 +637,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 12.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Vodka Sauce", quantity: 80, unit: "ml", cost: 0.64 },
@@ -605,6 +650,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Alfredo Sauce", quantity: 80, unit: "ml", cost: 0.56 },
@@ -619,6 +665,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
@@ -634,6 +681,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 12.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Marinara Sauce", quantity: 30, unit: "ml", cost: 0.15 },
@@ -648,6 +696,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
@@ -665,6 +714,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
@@ -680,6 +730,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
@@ -694,6 +745,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 12.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Marinara Sauce", quantity: 80, unit: "ml", cost: 0.40 },
@@ -710,6 +762,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sourdough", quantity: 1, unit: "piece", cost: 1.33 },
         { materialName: "Pesto Sauce", quantity: 80, unit: "ml", cost: 0.96 },
@@ -730,6 +783,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Edamame", quantity: 150, unit: "g", cost: 1.28 },
         { materialName: "Rock Salt", quantity: 2, unit: "g", cost: 0.01 }
@@ -741,6 +795,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Edamame", quantity: 150, unit: "g", cost: 1.28 },
         { materialName: "Sriracha", quantity: 10, unit: "ml", cost: 0.08 },
@@ -753,6 +808,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 12.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Salmon", quantity: 60, unit: "g", cost: 1.32 },
         { materialName: "Tuna", quantity: 60, unit: "g", cost: 1.80 },
@@ -766,6 +822,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Salmon", quantity: 150, unit: "g", cost: 3.30 },
         { materialName: "Special Sauce", quantity: 30, unit: "ml", cost: 0.30 }
@@ -779,6 +836,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 9.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crab Sticks", quantity: 80, unit: "g", cost: 1.20 },
         { materialName: "Cucumber", quantity: 50, unit: "g", cost: 0.10 },
@@ -794,6 +852,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 12.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Salmon", quantity: 100, unit: "g", cost: 2.20 },
         { materialName: "Crispy Flakes", quantity: 15, unit: "g", cost: 0.30 },
@@ -806,6 +865,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Tuna", quantity: 100, unit: "g", cost: 3.00 },
         { materialName: "Crispy Flakes", quantity: 15, unit: "g", cost: 0.30 },
@@ -818,6 +878,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 120, unit: "g", cost: 0.48 },
         { materialName: "Salmon", quantity: 60, unit: "g", cost: 1.32 },
@@ -836,6 +897,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crab Sticks", quantity: 50, unit: "g", cost: 0.75 },
         { materialName: "Shrimp", quantity: 50, unit: "g", cost: 0.75 },
@@ -855,6 +917,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crab Sticks", quantity: 60, unit: "g", cost: 0.90 }
       ]
@@ -865,6 +928,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 5.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Shrimp", quantity: 60, unit: "g", cost: 0.90 }
       ]
@@ -875,6 +939,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 6.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Salmon", quantity: 60, unit: "g", cost: 1.32 }
       ]
@@ -885,6 +950,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 8.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Tuna", quantity: 60, unit: "g", cost: 1.80 }
       ]
@@ -897,6 +963,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
         { materialName: "Sushi Rice", quantity: 40, unit: "g", cost: 0.16 },
@@ -909,6 +976,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 5.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
         { materialName: "Sushi Rice", quantity: 40, unit: "g", cost: 0.16 },
@@ -921,6 +989,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 6.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
         { materialName: "Sushi Rice", quantity: 40, unit: "g", cost: 0.16 },
@@ -933,6 +1002,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 6.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
         { materialName: "Sushi Rice", quantity: 40, unit: "g", cost: 0.16 },
@@ -948,6 +1018,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -963,6 +1034,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -977,6 +1049,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 6.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -992,6 +1065,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 6.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1007,6 +1081,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 5.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1022,6 +1097,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1035,6 +1111,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1048,6 +1125,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 5.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1061,6 +1139,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 5.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1074,6 +1153,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 5.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1087,6 +1167,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 5.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1100,6 +1181,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 6.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1113,6 +1195,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 5.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1126,6 +1209,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 6.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1139,6 +1223,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 6.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 80, unit: "g", cost: 0.32 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1154,6 +1239,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1166,6 +1252,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1178,6 +1265,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1190,6 +1278,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1202,6 +1291,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 3.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1214,6 +1304,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 3.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 60, unit: "g", cost: 0.24 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1228,6 +1319,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 8.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 120, unit: "g", cost: 0.48 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1244,6 +1336,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 8.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 120, unit: "g", cost: 0.48 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1264,6 +1357,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 11.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sushi Rice", quantity: 120, unit: "g", cost: 0.48 },
         { materialName: "Nori Sheets", quantity: 1, unit: "piece", cost: 0.24 },
@@ -1288,6 +1382,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 3.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Labneh", quantity: 120, unit: "g", cost: 0.72 }
       ]
@@ -1298,6 +1393,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 3.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Eggs", quantity: 2, unit: "piece", cost: 0.58 }
       ]
@@ -1308,6 +1404,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 1.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Mixed Vegetables", quantity: 150, unit: "g", cost: 0.90 }
       ]
@@ -1318,6 +1415,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 2.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
         { materialName: "Zaatar", quantity: 20, unit: "g", cost: 0.24 }
@@ -1329,6 +1427,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 2.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
         { materialName: "Zaatar", quantity: 20, unit: "g", cost: 0.24 },
@@ -1341,6 +1440,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 2.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
         { materialName: "Labneh", quantity: 60, unit: "g", cost: 0.36 }
@@ -1352,6 +1452,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 3.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
         { materialName: "Labneh", quantity: 60, unit: "g", cost: 0.36 },
@@ -1364,6 +1465,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 3.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
         { materialName: "Cheese", quantity: 60, unit: "g", cost: 0.54 }
@@ -1375,6 +1477,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 3.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
         { materialName: "Cheese", quantity: 50, unit: "g", cost: 0.45 },
@@ -1387,6 +1490,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 4.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
         { materialName: "Meat Paste", quantity: 80, unit: "g", cost: 1.20 }
@@ -1398,6 +1502,7 @@ export async function seedMenuItems() {
       category: "plates",
       price: 5.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Sajj Bread", quantity: 1, unit: "piece", cost: 0.30 },
         { materialName: "Meat Paste", quantity: 60, unit: "g", cost: 0.90 },
@@ -1414,6 +1519,7 @@ export async function seedMenuItems() {
       category: "salads",
       price: 11.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Rocca", quantity: 100, unit: "g", cost: 0.80 },
         { materialName: "Fresh Mushroom", quantity: 80, unit: "g", cost: 0.64 },
@@ -1429,6 +1535,7 @@ export async function seedMenuItems() {
       category: "salads",
       price: 11.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Mixed Greens", quantity: 120, unit: "g", cost: 0.96 },
         { materialName: "Halloumi", quantity: 100, unit: "g", cost: 1.20 },
@@ -1444,6 +1551,7 @@ export async function seedMenuItems() {
       category: "salads",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Iceberg Lettuce", quantity: 120, unit: "g", cost: 0.31 },
         { materialName: "Crab Sticks", quantity: 100, unit: "g", cost: 2.50 },
@@ -1459,6 +1567,7 @@ export async function seedMenuItems() {
       category: "salads",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Iceberg Lettuce", quantity: 120, unit: "g", cost: 0.31 },
         { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
@@ -1474,6 +1583,7 @@ export async function seedMenuItems() {
       category: "salads",
       price: 12.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Kale", quantity: 100, unit: "g", cost: 0.90 },
         { materialName: "Rocca", quantity: 50, unit: "g", cost: 0.40 },
@@ -1491,6 +1601,7 @@ export async function seedMenuItems() {
       category: "salads",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Kale", quantity: 100, unit: "g", cost: 0.90 },
         { materialName: "Chicken Breast", quantity: 120, unit: "g", cost: 1.02 },
@@ -1507,6 +1618,7 @@ export async function seedMenuItems() {
       category: "salads",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Quinoa", quantity: 100, unit: "g", cost: 1.20 },
         { materialName: "Shrimp", quantity: 120, unit: "g", cost: 3.36 },
@@ -1523,6 +1635,7 @@ export async function seedMenuItems() {
       category: "salads",
       price: 14.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Tuna", quantity: 120, unit: "g", cost: 2.40 },
         { materialName: "Tomatoes", quantity: 100, unit: "g", cost: 0.35 },
@@ -1537,6 +1650,7 @@ export async function seedMenuItems() {
       category: "salads",
       price: 17.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crispy Chicken", quantity: 120, unit: "g", cost: 1.80 },
         { materialName: "Iceberg Lettuce", quantity: 80, unit: "g", cost: 0.21 },
@@ -1562,6 +1676,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 7.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Arabic Bread", quantity: 100, unit: "g", cost: 0.50 },
         { materialName: "Chicken Breast", quantity: 120, unit: "g", cost: 1.02 },
@@ -1577,6 +1692,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
         { materialName: "Onion", quantity: 50, unit: "g", cost: 0.08 },
@@ -1592,6 +1708,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
         { materialName: "Bell Pepper", quantity: 50, unit: "g", cost: 0.15 },
@@ -1607,6 +1724,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
         { materialName: "Corn", quantity: 60, unit: "g", cost: 0.18 },
@@ -1621,6 +1739,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crispy Chicken", quantity: 150, unit: "g", cost: 2.25 },
         { materialName: "Mozzarella Cheese", quantity: 80, unit: "g", cost: 0.64 },
@@ -1636,6 +1755,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Mozzarella Cheese", quantity: 80, unit: "g", cost: 0.64 },
         { materialName: "Ham", quantity: 100, unit: "g", cost: 1.50 },
@@ -1652,6 +1772,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Ciabatta Bread", quantity: 120, unit: "g", cost: 0.72 },
         { materialName: "Beef Filet", quantity: 150, unit: "g", cost: 3.75 },
@@ -1667,6 +1788,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
         { materialName: "Rocca", quantity: 50, unit: "g", cost: 0.40 },
@@ -1681,6 +1803,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 10.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Halloumi", quantity: 120, unit: "g", cost: 1.44 },
         { materialName: "Rocca", quantity: 50, unit: "g", cost: 0.40 },
@@ -1694,6 +1817,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 10.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crab Sticks", quantity: 100, unit: "g", cost: 2.50 },
         { materialName: "Iceberg Lettuce", quantity: 50, unit: "g", cost: 0.13 },
@@ -1707,6 +1831,7 @@ export async function seedMenuItems() {
       category: "sandwiches",
       price: 16.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Salmon", quantity: 120, unit: "g", cost: 2.64 },
         { materialName: "Rocca", quantity: 50, unit: "g", cost: 0.40 },
@@ -1724,6 +1849,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 9.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Beef Patty", quantity: 150, unit: "g", cost: 1.80 },
@@ -1736,6 +1862,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 7.50,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Crispy Chicken", quantity: 120, unit: "g", cost: 1.80 },
@@ -1750,6 +1877,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 7.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Mozzarella Cheese", quantity: 120, unit: "g", cost: 0.96 },
@@ -1764,6 +1892,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 10.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
@@ -1778,6 +1907,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Beef Patty", quantity: 300, unit: "g", cost: 3.60 },
@@ -1793,6 +1923,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 13.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Chicken Breast", quantity: 150, unit: "g", cost: 1.28 },
@@ -1808,6 +1939,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Beef Patty", quantity: 200, unit: "g", cost: 2.40 },
@@ -1825,6 +1957,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 16.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Crispy Chicken", quantity: 240, unit: "g", cost: 3.60 },
@@ -1841,6 +1974,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 16.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Beef Patty", quantity: 200, unit: "g", cost: 2.40 },
@@ -1857,6 +1991,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 17.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Beef Patty", quantity: 300, unit: "g", cost: 3.60 },
@@ -1872,6 +2007,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 20.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crunchy Bun", quantity: 1, unit: "piece", cost: 0.80 },
         { materialName: "Beef Patty", quantity: 200, unit: "g", cost: 2.40 },
@@ -1888,6 +2024,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 20.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Crunchy Bun", quantity: 1, unit: "piece", cost: 0.80 },
         { materialName: "Crispy Chicken", quantity: 180, unit: "g", cost: 2.70 },
@@ -1905,6 +2042,7 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 17.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Crispy Chicken", quantity: 180, unit: "g", cost: 2.70 },
@@ -1918,11 +2056,980 @@ export async function seedMenuItems() {
       category: "burgers",
       price: 15.00,
       isPOSItem: true,
+      printerId: 3,
       ingredients: [
         { materialName: "Burger Bun", quantity: 1, unit: "piece", cost: 0.50 },
         { materialName: "Beef Patty", quantity: 200, unit: "g", cost: 2.40 },
         { materialName: "Fresh Mushroom", quantity: 100, unit: "g", cost: 0.80 },
         { materialName: "Emental Cheese", quantity: 80, unit: "g", cost: 0.96 }
+      ]
+    },
+
+    // =============================================================================
+    // COLD DRINKS - 32 ITEMS
+    // =============================================================================
+    {
+      name: "Vanilla Shake",
+      description: "Classic vanilla shake",
+      category: "cold",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vanilla Ice Cream", quantity: 200, unit: "g", cost: 2.40 },
+        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+        { materialName: "Vanilla Extract", quantity: 5, unit: "ml", cost: 0.15 },
+        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Strawberry Shake",
+      description: "Fresh strawberry shake",
+      category: "cold",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
+        { materialName: "Strawberry", quantity: 100, unit: "g", cost: 2.00 },
+        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Oreo Shake",
+      description: "Oreo cookies shake",
+      category: "cold",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
+        { materialName: "Oreo Cookies", quantity: 60, unit: "g", cost: 1.20 },
+        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Chocolate Shake",
+      description: "Classic chocolate shake",
+      category: "cold",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Chocolate Ice Cream", quantity: 200, unit: "g", cost: 2.60 },
+        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+        { materialName: "Chocolate Syrup", quantity: 30, unit: "ml", cost: 0.36 },
+        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Lotus Shake",
+      description: "Lotus biscuit shake",
+      category: "cold",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
+        { materialName: "Lotus Biscuits", quantity: 50, unit: "g", cost: 1.25 },
+        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Bounty Shake",
+      description: "Bounty chocolate shake",
+      category: "cold",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
+        { materialName: "Bounty Bars", quantity: 60, unit: "g", cost: 1.50 },
+        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+      ]
+    },
+    {
+      name: "Minted Lemonade",
+      description: "Fresh lemonade with mint",
+      category: "cold",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Fresh Lemon Juice", quantity: 100, unit: "ml", cost: 1.20 },
+        { materialName: "Sugar Syrup", quantity: 50, unit: "ml", cost: 0.25 },
+        { materialName: "Fresh Mint", quantity: 20, unit: "g", cost: 0.40 },
+        { materialName: "Sparkling Water", quantity: 250, unit: "ml", cost: 0.50 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Lemonade",
+      description: "Fresh lemonade",
+      category: "cold",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Fresh Lemon Juice", quantity: 80, unit: "ml", cost: 0.96 },
+        { materialName: "Sugar Syrup", quantity: 40, unit: "ml", cost: 0.20 },
+        { materialName: "Water", quantity: 250, unit: "ml", cost: 0.25 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Fresh Orange Juice",
+      description: "Freshly squeezed orange juice",
+      category: "cold",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Fresh Orange Juice", quantity: 300, unit: "ml", cost: 1.80 }
+      ]
+    },
+    {
+      name: "Peach Mango Smoothie",
+      description: "Peach and mango smoothie",
+      category: "cold",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Peach", quantity: 150, unit: "g", cost: 1.80 },
+        { materialName: "Mango", quantity: 100, unit: "g", cost: 1.50 },
+        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+      ]
+    },
+    {
+      name: "Passion Strawberry Smoothie",
+      description: "Passion fruit and strawberry smoothie",
+      category: "cold",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Passion Fruit", quantity: 100, unit: "g", cost: 2.50 },
+        { materialName: "Strawberry", quantity: 150, unit: "g", cost: 3.00 },
+        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+      ]
+    },
+    {
+      name: "Peach Passion Smoothie",
+      description: "Peach and passion fruit smoothie",
+      category: "cold",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Peach", quantity: 150, unit: "g", cost: 1.80 },
+        { materialName: "Passion Fruit", quantity: 100, unit: "g", cost: 2.50 },
+        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+      ]
+    },
+    {
+      name: "Peach Smoothie",
+      description: "Fresh peach smoothie",
+      category: "cold",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Peach", quantity: 200, unit: "g", cost: 2.40 },
+        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+      ]
+    },
+    {
+      name: "Mixed Berries Smoothie",
+      description: "Mixed berries smoothie",
+      category: "cold",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Mixed Berries", quantity: 200, unit: "g", cost: 4.00 },
+        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+      ]
+    },
+    {
+      name: "Strawberry Smoothie",
+      description: "Fresh strawberry smoothie",
+      category: "cold",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Strawberry", quantity: 200, unit: "g", cost: 4.00 },
+        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+      ]
+    },
+    {
+      name: "Mango Smoothie",
+      description: "Fresh mango smoothie",
+      category: "cold",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Mango", quantity: 200, unit: "g", cost: 3.00 },
+        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+      ]
+    },
+    {
+      name: "Energy Drink",
+      description: "Energy drink",
+      category: "cold",
+      price: 4.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Energy Drink Can", quantity: 1, unit: "piece", cost: 2.00 }
+      ]
+    },
+    {
+      name: "Bzurat",
+      description: "Traditional Lebanese drink",
+      category: "cold",
+      price: 2.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Bzurat Seeds", quantity: 20, unit: "g", cost: 0.40 },
+        { materialName: "Water", quantity: 250, unit: "ml", cost: 0.25 },
+        { materialName: "Sugar", quantity: 30, unit: "g", cost: 0.15 }
+      ]
+    },
+    {
+      name: "Sparkling Water",
+      description: "Sparkling water",
+      category: "cold",
+      price: 4.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Sparkling Water Bottle", quantity: 1, unit: "piece", cost: 2.00 }
+      ]
+    },
+    {
+      name: "7up Grenadine",
+      description: "7up with grenadine",
+      category: "cold",
+      price: 3.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "7up", quantity: 250, unit: "ml", cost: 1.25 },
+        { materialName: "Grenadine Syrup", quantity: 30, unit: "ml", cost: 0.45 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Soft Drinks",
+      description: "Assorted soft drinks",
+      category: "cold",
+      price: 3.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Soft Drink Can", quantity: 1, unit: "piece", cost: 1.50 }
+      ]
+    },
+    {
+      name: "Water Large",
+      description: "Large water bottle",
+      category: "cold",
+      price: 3.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Water Bottle Large", quantity: 1, unit: "piece", cost: 1.50 }
+      ]
+    },
+    {
+      name: "Water Small",
+      description: "Small water bottle",
+      category: "cold",
+      price: 1.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Water Bottle Small", quantity: 1, unit: "piece", cost: 0.75 }
+      ]
+    },
+    {
+      name: "Red Bull",
+      description: "Red Bull energy drink",
+      category: "cold",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Red Bull Can", quantity: 1, unit: "piece", cost: 2.50 }
+      ]
+    },
+    {
+      name: "Ice Tea Passion Fruit",
+      description: "Passion fruit flavored iced tea",
+      category: "cold",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
+        { materialName: "Passion Fruit Syrup", quantity: 50, unit: "ml", cost: 1.25 },
+        { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Ice Tea Blueberry",
+      description: "Blueberry flavored iced tea",
+      category: "cold",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
+        { materialName: "Blueberry Syrup", quantity: 40, unit: "ml", cost: 0.80 },
+        { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Ice Tea Mango",
+      description: "Mango flavored iced tea",
+      category: "cold",
+      price: 4.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
+        { materialName: "Mango Syrup", quantity: 40, unit: "ml", cost: 0.60 },
+        { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Ice Tea Peach",
+      description: "Peach flavored iced tea",
+      category: "cold",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
+        { materialName: "Peach Syrup", quantity: 40, unit: "ml", cost: 0.80 },
+        { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Toffee Caramel",
+      description: "Toffee caramel drink",
+      category: "cold",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Milk", quantity: 250, unit: "ml", cost: 0.50 },
+        { materialName: "Toffee Syrup", quantity: 50, unit: "ml", cost: 1.50 },
+        { materialName: "Caramel Syrup", quantity: 30, unit: "ml", cost: 0.90 },
+        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Iced Coffee",
+      description: "Classic iced coffee",
+      category: "cold",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Coffee Beans", quantity: 20, unit: "g", cost: 0.80 },
+        { materialName: "Water", quantity: 200, unit: "ml", cost: 0.20 },
+        { materialName: "Sugar Syrup", quantity: 30, unit: "ml", cost: 0.15 },
+        { materialName: "Milk", quantity: 100, unit: "ml", cost: 0.20 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Iced Coffee Vanilla",
+      description: "Iced coffee with vanilla flavor",
+      category: "cold",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Coffee Beans", quantity: 20, unit: "g", cost: 0.80 },
+        { materialName: "Water", quantity: 200, unit: "ml", cost: 0.20 },
+        { materialName: "Vanilla Syrup", quantity: 40, unit: "ml", cost: 0.80 },
+        { materialName: "Milk", quantity: 100, unit: "ml", cost: 0.20 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+    {
+      name: "Iced Coffee Caramel",
+      description: "Iced coffee with caramel flavor",
+      category: "cold",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Coffee Beans", quantity: 20, unit: "g", cost: 0.80 },
+        { materialName: "Water", quantity: 200, unit: "ml", cost: 0.20 },
+        { materialName: "Caramel Syrup", quantity: 40, unit: "ml", cost: 1.20 },
+        { materialName: "Milk", quantity: 100, unit: "ml", cost: 0.20 },
+        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+      ]
+    },
+
+    // =============================================================================
+    // ALCOHOLIC BEVERAGES - 85 ITEMS
+    // =============================================================================
+    
+    // COCKTAILS - 18 ITEMS
+    {
+      name: "Jager Bomb",
+      description: "Jager and red bull",
+      category: "alcohol",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Jagermeister", quantity: 30, unit: "ml", cost: 2.40 },
+        { materialName: "Red Bull Can", quantity: 1, unit: "piece", cost: 2.50 }
+      ]
+    },
+    {
+      name: "Black Russian",
+      description: "Vodka and kahlua",
+      category: "alcohol",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+        { materialName: "Kahlua", quantity: 25, unit: "ml", cost: 1.50 }
+      ]
+    },
+    {
+      name: "White Russian",
+      description: "Vodka and bailey's",
+      category: "alcohol",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+        { materialName: "Baileys", quantity: 25, unit: "ml", cost: 1.75 },
+        { materialName: "Heavy Cream", quantity: 25, unit: "ml", cost: 0.35 }
+      ]
+    },
+    {
+      name: "Jamaica",
+      description: "Vodka, pineapple juice, orange juice and grenadine",
+      category: "alcohol",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 40, unit: "ml", cost: 1.60 },
+        { materialName: "Pineapple Juice", quantity: 60, unit: "ml", cost: 0.60 },
+        { materialName: "Orange Juice", quantity: 60, unit: "ml", cost: 0.36 },
+        { materialName: "Grenadine Syrup", quantity: 15, unit: "ml", cost: 0.23 }
+      ]
+    },
+    {
+      name: "Tequila Sunrise",
+      description: "White tequila, orange juice and grenadine",
+      category: "alcohol",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "White Tequila", quantity: 50, unit: "ml", cost: 2.50 },
+        { materialName: "Orange Juice", quantity: 120, unit: "ml", cost: 0.72 },
+        { materialName: "Grenadine Syrup", quantity: 15, unit: "ml", cost: 0.23 }
+      ]
+    },
+    {
+      name: "Mojito",
+      description: "Rum, simple syrup, lime juice, 7up and fresh mint",
+      category: "alcohol",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "White Rum", quantity: 50, unit: "ml", cost: 2.00 },
+        { materialName: "Sugar Syrup", quantity: 20, unit: "ml", cost: 0.10 },
+        { materialName: "Lime Juice", quantity: 30, unit: "ml", cost: 0.36 },
+        { materialName: "7up", quantity: 100, unit: "ml", cost: 0.50 },
+        { materialName: "Fresh Mint", quantity: 15, unit: "g", cost: 0.30 }
+      ]
+    },
+    {
+      name: "Espresso Martini",
+      description: "Vodka, kahlua, simple syrup and shot espresso",
+      category: "alcohol",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+        { materialName: "Kahlua", quantity: 25, unit: "ml", cost: 1.50 },
+        { materialName: "Sugar Syrup", quantity: 15, unit: "ml", cost: 0.08 },
+        { materialName: "Espresso Shot", quantity: 30, unit: "ml", cost: 0.60 }
+      ]
+    },
+    {
+      name: "Passion Fruit Martini",
+      description: "Vodka, lime juice, orange juice and passion syrup",
+      category: "alcohol",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+        { materialName: "Lime Juice", quantity: 20, unit: "ml", cost: 0.24 },
+        { materialName: "Orange Juice", quantity: 30, unit: "ml", cost: 0.18 },
+        { materialName: "Passion Fruit Syrup", quantity: 25, unit: "ml", cost: 0.63 }
+      ]
+    },
+    {
+      name: "Cosmopolitan",
+      description: "Vodka, lime juice, cranberry juice and triple sec",
+      category: "alcohol",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 45, unit: "ml", cost: 1.80 },
+        { materialName: "Lime Juice", quantity: 15, unit: "ml", cost: 0.18 },
+        { materialName: "Cranberry Juice", quantity: 30, unit: "ml", cost: 0.36 },
+        { materialName: "Triple Sec", quantity: 15, unit: "ml", cost: 0.75 }
+      ]
+    },
+    {
+      name: "Sex on the Beach",
+      description: "Vodka, archer, orange juice and cranberry juice",
+      category: "alcohol",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 30, unit: "ml", cost: 1.20 },
+        { materialName: "Peach Schnapps", quantity: 30, unit: "ml", cost: 1.50 },
+        { materialName: "Orange Juice", quantity: 60, unit: "ml", cost: 0.36 },
+        { materialName: "Cranberry Juice", quantity: 60, unit: "ml", cost: 0.72 }
+      ]
+    },
+    {
+      name: "Midori Sour",
+      description: "Vodka, midori, lime juice, orange juice and 7up",
+      category: "alcohol",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 30, unit: "ml", cost: 1.20 },
+        { materialName: "Midori Melon Liqueur", quantity: 30, unit: "ml", cost: 1.80 },
+        { materialName: "Lime Juice", quantity: 20, unit: "ml", cost: 0.24 },
+        { materialName: "Orange Juice", quantity: 30, unit: "ml", cost: 0.18 },
+        { materialName: "7up", quantity: 60, unit: "ml", cost: 0.30 }
+      ]
+    },
+    {
+      name: "London Mule",
+      description: "Gin, lime juice and ginger beer",
+      category: "alcohol",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Gin", quantity: 50, unit: "ml", cost: 2.50 },
+        { materialName: "Lime Juice", quantity: 25, unit: "ml", cost: 0.30 },
+        { materialName: "Ginger Beer", quantity: 150, unit: "ml", cost: 0.90 }
+      ]
+    },
+    {
+      name: "Moscow Mule",
+      description: "Vodka, lime juice and ginger beer",
+      category: "alcohol",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+        { materialName: "Lime Juice", quantity: 25, unit: "ml", cost: 0.30 },
+        { materialName: "Ginger Beer", quantity: 150, unit: "ml", cost: 0.90 }
+      ]
+    },
+    {
+      name: "Pina Colada",
+      description: "Rum, coconut syrup, pineapple juice, milk and malibu",
+      category: "alcohol",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "White Rum", quantity: 40, unit: "ml", cost: 1.60 },
+        { materialName: "Coconut Syrup", quantity: 30, unit: "ml", cost: 0.60 },
+        { materialName: "Pineapple Juice", quantity: 90, unit: "ml", cost: 0.90 },
+        { materialName: "Milk", quantity: 60, unit: "ml", cost: 0.12 },
+        { materialName: "Malibu Rum", quantity: 20, unit: "ml", cost: 1.00 }
+      ]
+    },
+    {
+      name: "Gin Basil",
+      description: "Gin, simple syrup, lime juice and fresh basil",
+      category: "alcohol",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Gin", quantity: 50, unit: "ml", cost: 2.50 },
+        { materialName: "Sugar Syrup", quantity: 20, unit: "ml", cost: 0.10 },
+        { materialName: "Lime Juice", quantity: 25, unit: "ml", cost: 0.30 },
+        { materialName: "Fresh Basil", quantity: 10, unit: "g", cost: 0.20 }
+      ]
+    },
+    {
+      name: "Negroni",
+      description: "Gin, campari and sweet vermouth",
+      category: "alcohol",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Gin", quantity: 30, unit: "ml", cost: 1.50 },
+        { materialName: "Campari", quantity: 30, unit: "ml", cost: 2.10 },
+        { materialName: "Sweet Vermouth", quantity: 30, unit: "ml", cost: 1.80 }
+      ]
+    },
+    {
+      name: "Old Fashioned",
+      description: "Whiskey, sugar syrup and bitters",
+      category: "alcohol",
+      price: 9.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Whiskey", quantity: 60, unit: "ml", cost: 4.20 },
+        { materialName: "Sugar Syrup", quantity: 15, unit: "ml", cost: 0.08 },
+        { materialName: "Angostura Bitters", quantity: 3, unit: "ml", cost: 0.30 }
+      ]
+    },
+
+    // SPIRITS & SHOTS - 25 ITEMS
+    {
+      name: "Vodka Shot",
+      description: "Premium vodka shot",
+      category: "alcohol",
+      price: 4.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vodka", quantity: 30, unit: "ml", cost: 1.20 }
+      ]
+    },
+    {
+      name: "Tequila Shot",
+      description: "Premium tequila shot",
+      category: "alcohol",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "White Tequila", quantity: 30, unit: "ml", cost: 1.50 }
+      ]
+    },
+    {
+      name: "Whiskey Shot",
+      description: "Premium whiskey shot",
+      category: "alcohol",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Whiskey", quantity: 30, unit: "ml", cost: 2.10 }
+      ]
+    },
+    {
+      name: "Rum Shot",
+      description: "Premium rum shot",
+      category: "alcohol",
+      price: 4.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "White Rum", quantity: 30, unit: "ml", cost: 1.20 }
+      ]
+    },
+    {
+      name: "Gin Shot",
+      description: "Premium gin shot",
+      category: "alcohol",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Gin", quantity: 30, unit: "ml", cost: 1.50 }
+      ]
+    },
+    {
+      name: "Jagermeister Shot",
+      description: "Jagermeister herbal liqueur shot",
+      category: "alcohol",
+      price: 5.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Jagermeister", quantity: 30, unit: "ml", cost: 2.40 }
+      ]
+    },
+    {
+      name: "Sambuca Shot",
+      description: "Sambuca anise liqueur shot",
+      category: "alcohol",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Sambuca", quantity: 30, unit: "ml", cost: 2.10 }
+      ]
+    },
+    {
+      name: "Baileys Shot",
+      description: "Baileys Irish cream shot",
+      category: "alcohol",
+      price: 5.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Baileys", quantity: 30, unit: "ml", cost: 2.10 }
+      ]
+    },
+    {
+      name: "Kahlua Shot",
+      description: "Kahlua coffee liqueur shot",
+      category: "alcohol",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Kahlua", quantity: 30, unit: "ml", cost: 1.80 }
+      ]
+    },
+    {
+      name: "Limoncello Shot",
+      description: "Italian lemon liqueur shot",
+      category: "alcohol",
+      price: 5.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Limoncello", quantity: 30, unit: "ml", cost: 2.40 }
+      ]
+    },
+
+    // BEERS - 15 ITEMS
+    {
+      name: "Heineken",
+      description: "Heineken beer bottle",
+      category: "alcohol",
+      price: 4.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Heineken Beer", quantity: 1, unit: "bottle", cost: 2.25 }
+      ]
+    },
+    {
+      name: "Corona",
+      description: "Corona beer bottle",
+      category: "alcohol",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Corona Beer", quantity: 1, unit: "bottle", cost: 2.50 }
+      ]
+    },
+    {
+      name: "Stella Artois",
+      description: "Stella Artois beer bottle",
+      category: "alcohol",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Stella Artois Beer", quantity: 1, unit: "bottle", cost: 2.50 }
+      ]
+    },
+    {
+      name: "Budweiser",
+      description: "Budweiser beer bottle",
+      category: "alcohol",
+      price: 4.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Budweiser Beer", quantity: 1, unit: "bottle", cost: 2.00 }
+      ]
+    },
+    {
+      name: "Carlsberg",
+      description: "Carlsberg beer bottle",
+      category: "alcohol",
+      price: 4.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Carlsberg Beer", quantity: 1, unit: "bottle", cost: 2.25 }
+      ]
+    },
+    {
+      name: "Guinness",
+      description: "Guinness stout bottle",
+      category: "alcohol",
+      price: 5.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Guinness Beer", quantity: 1, unit: "bottle", cost: 2.75 }
+      ]
+    },
+    {
+      name: "Local Draft Beer",
+      description: "Local draft beer on tap",
+      category: "alcohol",
+      price: 3.50,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Draft Beer", quantity: 500, unit: "ml", cost: 1.75 }
+      ]
+    },
+
+    // WINES - 12 ITEMS
+    {
+      name: "House Red Wine",
+      description: "House red wine glass",
+      category: "alcohol",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Red Wine", quantity: 150, unit: "ml", cost: 3.00 }
+      ]
+    },
+    {
+      name: "House White Wine",
+      description: "House white wine glass",
+      category: "alcohol",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "White Wine", quantity: 150, unit: "ml", cost: 3.00 }
+      ]
+    },
+    {
+      name: "Prosecco",
+      description: "Prosecco sparkling wine glass",
+      category: "alcohol",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Prosecco", quantity: 150, unit: "ml", cost: 4.50 }
+      ]
+    },
+    {
+      name: "Champagne",
+      description: "Premium champagne glass",
+      category: "alcohol",
+      price: 12.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Champagne", quantity: 150, unit: "ml", cost: 8.00 }
+      ]
+    },
+
+    // PREMIUM SPIRITS - 15 ITEMS
+    {
+      name: "Grey Goose Vodka",
+      description: "Premium Grey Goose vodka shot",
+      category: "alcohol",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Grey Goose Vodka", quantity: 30, unit: "ml", cost: 4.20 }
+      ]
+    },
+    {
+      name: "Johnnie Walker Black",
+      description: "Johnnie Walker Black Label whiskey",
+      category: "alcohol",
+      price: 10.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Johnnie Walker Black", quantity: 30, unit: "ml", cost: 5.40 }
+      ]
+    },
+    {
+      name: "Macallan 12",
+      description: "Macallan 12 year old single malt",
+      category: "alcohol",
+      price: 15.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Macallan 12", quantity: 30, unit: "ml", cost: 9.00 }
+      ]
+    },
+    {
+      name: "Hennessy VS",
+      description: "Hennessy VS cognac",
+      category: "alcohol",
+      price: 12.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Hennessy VS", quantity: 30, unit: "ml", cost: 7.20 }
+      ]
+    },
+    {
+      name: "Don Julio Blanco",
+      description: "Don Julio Blanco tequila",
+      category: "alcohol",
+      price: 9.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Don Julio Blanco", quantity: 30, unit: "ml", cost: 5.40 }
       ]
     }
   ];

@@ -4,6 +4,7 @@ import { seedMaterials } from "./seedMaterials.js";
 import { seedStockEntries } from "./seedStockEntries.js";
 import { seedMenuItems } from "./seedMenuItems.js";
 import { seedBeverages } from "./seedBeverages.js";
+import { seedPrinters } from "./seedPrinters.js";
 
 export async function seedDatabase() {
   try {
@@ -26,17 +27,22 @@ export async function seedDatabase() {
     const materialsResult = await seedMaterials();
     console.log(`📦 Materials: ${materialsResult.created} created, ${materialsResult.existing} existed`);
 
-    // Step 2: Create stock entries
+    // Step 2: Create printers and printer channels
+    console.log("\n🖨️ Seeding printers...");
+    await seedPrinters();
+    console.log(`🖨️ Printers: Seeded successfully`);
+
+    // Step 3: Create stock entries
     console.log("\n📋 Seeding stock entries...");
     const stockResult = await seedStockEntries();
     console.log(`📋 Stock Entries: ${stockResult.created} created, ${stockResult.skipped} skipped`);
 
-    // Step 3: Create menu items with ingredients
+    // Step 4: Create menu items with ingredients
     console.log("\n🍽️ Seeding menu items...");
     const menuResult = await seedMenuItems();
     console.log(`🍽️ Menu Items: ${menuResult.created} created, ${menuResult.skipped} skipped`);
 
-    // Step 4: Create beverages
+    // Step 5: Create beverages
     console.log("\n🍹 Seeding beverages...");
     const beveragesResult = await seedBeverages();
     console.log(`🍹 Beverages: ${beveragesResult.created} created, ${beveragesResult.skipped} skipped`);

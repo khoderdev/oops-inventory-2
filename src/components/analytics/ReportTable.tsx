@@ -209,7 +209,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                 backfaceVisibility: "hidden" // Prevent flickering
               }}
             >
-              <TableHeader className="sticky top-0 z-30 bg-white dark:bg-card shadow-sm backdrop-blur-sm">
+              <TableHeader className="sticky top-0 bg-white dark:bg-card shadow-sm backdrop-blur-sm">
                 <TableRow className="border-b-2 border-primary/20 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
                   {headers.map((header, index) => {
                     const alignment = getColumnAlignment(header);
@@ -242,7 +242,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                           {index < headers.length - 1 && (
                             <>
                               <div
-                                className={cn("absolute -right-1.5 top-0 w-3 h-full cursor-col-resize z-20", "hover:bg-transparent transition-colors", isAutoFitting === "all" && "bg-green-400/20")}
+                                className={cn("absolute -right-1.5 top-0 w-3 h-full cursor-col-resize", "hover:bg-transparent transition-colors", isAutoFitting === "all" && "bg-green-400/20")}
                                 onMouseDown={e => handleResizeStart(e, header)}
                                 onTouchStart={e => handleResizeStart(e, header)}
                                 onDoubleClick={e => {
@@ -259,7 +259,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                                 }}
                                 title={`Drag to resize • Double-click to auto-fit all columns`}
                               />
-                              <div className={cn("absolute -right-px top-0 w-0.5 h-full z-30 pointer-events-none", "group-hover/header:bg-blue-400/40 group-hover/header:w-1 transition-all duration-150", isResizing === header && "bg-blue-600/60 w-1.5 shadow-md", isAutoFitting === "all" && "bg-green-500/80 w-2 shadow-lg animate-pulse", "transform-gpu")} />
+                              <div className={cn("absolute -right-px top-0 w-0.5 h-full pointer-events-none", "group-hover/header:bg-blue-400/40 group-hover/header:w-1 transition-all duration-150", isResizing === header && "bg-blue-600/60 w-1.5 shadow-md", isAutoFitting === "all" && "bg-green-500/80 w-2 shadow-lg animate-pulse", "transform-gpu")} />
                             </>
                           )}
                         </div>
