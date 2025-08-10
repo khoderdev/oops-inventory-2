@@ -1363,9 +1363,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       if (selectedEmployee && orderType === "employees") {
         try {
-          const { recordEmployeeUsage } = await import("@/utils/employeeUsageUtils");
+          const { recordEmployeeUsageWithSettlementUpdate } = await import("@/utils/employeeUsageUtils");
           const posTransactionId = order.orderNumber || saleId;
-          await recordEmployeeUsage(selectedEmployee, cart, posTransactionId);
+          await recordEmployeeUsageWithSettlementUpdate(selectedEmployee, cart, posTransactionId);
+          console.log("✅ Employee usage recorded and settlement updated for:", {
+            employee: `${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName}`,
+            transactionId: posTransactionId,
+            itemCount: cart.length
+          });
         } catch (error) {
           console.error("⚠️ Employee usage recording error (non-critical):", error);
         }

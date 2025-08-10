@@ -133,6 +133,12 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
     const generateAutoPreview = async () => {
       if (watchedEmployeeId && watchedMonth && watchedYear) {
         try {
+          // First ensure all usage for this period is accounted for
+          const { ensureUsageInSettlement } = await import("@/utils/employeeUsageUtils");
+          const usageCheck = await ensureUsageInSettlement(watchedEmployeeId, watchedMonth, watchedYear);
+
+          console.log("📊 Usage check for settlement preview:", usageCheck);
+
           const settlementData: CreateSettlementData = {
             employeeId: watchedEmployeeId,
             settlementMonth: watchedMonth,
@@ -158,6 +164,9 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
 
   const handleSubmit = async (data: SettlementFormData) => {
     try {
+      const { ensureUsageInSettlement } = await import("@/utils/employeeUsageUtils");
+      const usageCheck = await ensureUsageInSettlement(data.employeeId, data.settlementMonth, data.settlementYear);
+      console.log("📊 Final usage check before settlement creation:", usageCheck);
       const settlementData: CreateSettlementData = {
         employeeId: data.employeeId,
         settlementMonth: data.settlementMonth,

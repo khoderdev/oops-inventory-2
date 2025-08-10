@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { approveSettlementAtom, createSettlementAtom, deleteSettlementAtom, employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom, settlementStatsLoadingAtom } from "@/store/employeeAtoms";
+import { employeeAPI } from "@/api/employee.api";
 import type { CreateSettlementData, EmployeeSettlement, SettlementStatus } from "@/types/employee";
 import { useAtom } from "jotai";
 import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus, Trash2 } from "lucide-react";
@@ -97,28 +98,84 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     setDetailsOpen(true);
   };
 
+  const markUsageItemsAsSettled = async (settlement: EmployeeSettlement) => {
+    try {
+      // Get the date range for the settlement period
+      const startDate = new Date(settlement.settlementYear, settlement.settlementMonth - 1, 1).toISOString().split("T")[0];
+      const endDate = new Date(settlement.settlementYear, settlement.settlementMonth, 0).toISOString().split("T")[0];
+
+      // Get all unsettled usage records for this employee and period
+      const unsettledUsages = await employeeAPI.getUsageHistory({
+        employeeId: settlement.employeeId,
+        startDate,
+        endDate,
+        isSettled: false
+      });
+
+      if (unsettledUsages.success && unsettledUsages.data?.usages) {
+        // Update each unsettled usage to mark it as settled
+        for (const usage of unsettledUsages.data.usages) {
+          await employeeAPI.updateUsage(usage.id, {
+            isSettled: true,
+            settlementId: settlement.id
+          });
+        }
+        console.log(`Marked ${unsettledUsages.data.usages.length} usage items as settled for settlement ${settlement.id}`);
+      }
+    } catch (error) {
+      console.error("Error marking usage items as settled:", error);
+      throw error;
+    }
+  };
+
   const handleApprove = async (settlementId: number) => {
     try {
+      // Find the settlement to get its details
+      const settlement = settlements.find(s => s.id === settlementId);
+      if (!settlement) {
+        throw new Error("Settlement not found");
+      }
+
+      // Approve the settlement
       await approveSettlement({
         id: settlementId,
         notes: "Approved via settlement management interface"
       });
+
+      // Mark all usage items as settled
+      await markUsageItemsAsSettled(settlement);
+
       await fetchSettlements(filters);
+      toast.success("Settlement approved and usage items marked as settled");
     } catch (error) {
       console.error("Error approving settlement:", error);
+      toast.error("Failed to approve settlement");
     }
   };
 
   const handleMarkAsPaid = async (settlementId: number) => {
     try {
+      // Find the settlement to get its details
+      const settlement = settlements.find(s => s.id === settlementId);
+      if (!settlement) {
+        throw new Error("Settlement not found");
+      }
+
+      // Mark the settlement as paid
       await markAsPaid({
         id: settlementId,
         paymentMethod: "bank_transfer",
         paymentReference: `PAY-${settlementId}-${Date.now()}`
       });
+
+      // Mark all usage items as settled (if not already settled from approval)
+      await markUsageItemsAsSettled(settlement);
+
       await fetchSettlements(filters);
+      toast.success("Settlement marked as paid and usage items marked as settled");
     } catch (error) {
       console.error("Error marking as paid:", error);
+      toast.error("Failed to mark settlement as paid");
     }
   };
 
@@ -435,13 +492,16 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Settlement Details</DialogTitle>
-            <DialogDescription>Detailed breakdown of the settlement calculation</DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>Settlement Details</DialogTitle>
+                <DialogDescription>Detailed breakdown of the settlement calculation</DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           {selectedSettlement && (
             <div className="space-y-6">
-              {/* Settlement Summary */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Settlement Summary</CardTitle>

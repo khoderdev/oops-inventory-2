@@ -8,11 +8,11 @@ export type PaymentMethod = "bank_transfer" | "cash" | "check" | "mobile_payment
 
 export interface Employee {
   id: number;
-  userId?: number | null; // Now optional - employees can exist without user accounts
-  firstName: string; // Employee's own first name
-  lastName: string; // Employee's own last name
-  email: string; // Employee's own email
-  phone: string; // Employee's own phone number
+  userId?: number | null;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
   employeeNumber: string;
   department: EmployeeDepartment;
   position: string;
@@ -260,6 +260,11 @@ export interface UpdateSettlementData {
   penaltyAmount?: number;
   notes?: string;
   status?: SettlementStatus;
+  totalUsageCost?: number;
+  totalDiscountAmount?: number;
+  totalDeduction?: number;
+  finalSalary?: number;
+  settlementData?: SettlementPreview;
 }
 
 export interface MarkAsPaidData {

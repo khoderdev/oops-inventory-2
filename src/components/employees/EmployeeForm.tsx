@@ -20,7 +20,7 @@ import { z } from "zod";
 const departments: EmployeeDepartment[] = ["kitchen", "service", "management", "cleaning", "security", "other"];
 
 const employeeSchema = z.object({
-  userId: z.number().optional(), // Now optional - employees can exist without user accounts
+  userId: z.number().optional(),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().optional(),
@@ -54,7 +54,7 @@ interface EmployeeFormProps {
 
 export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, employee, mode }) => {
   const [users, setUsers] = useState<User[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [, setLoadingUsers] = useState(false);
   const [loading] = useAtom(employeeFormLoadingAtom);
   const [, createEmployee] = useAtom(createEmployeeAtom);
   const [, updateEmployee] = useAtom(updateEmployeeAtom);
@@ -62,7 +62,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
     defaultValues: {
-      userId: undefined, // Optional - can be undefined for employees without user accounts
+      userId: undefined,
       firstName: "",
       lastName: "",
       email: "",
@@ -76,7 +76,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
     }
   });
 
-  // Load users on mount
   useEffect(() => {
     const loadUsers = async () => {
       try {
@@ -89,18 +88,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         setLoadingUsers(false);
       }
     };
-
     if (open && users.length === 0) {
       loadUsers();
     }
   }, [open, users.length]);
 
-  // Reset form when dialog opens or mode/employee changes
   useEffect(() => {
-    if (!open) return; // Only reset when dialog is open
-
+    if (!open) return;
     if (employee && mode === "edit") {
-      // Edit mode: populate with employee data
       form.reset({
         userId: employee.userId || undefined,
         firstName: employee.firstName || "",
@@ -125,7 +120,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         notes: employee.notes || ""
       });
     } else if (mode === "create") {
-      // Create mode: reset to clean defaults
       form.reset({
         userId: undefined,
         firstName: "",
@@ -155,7 +149,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
   const onSubmit = async (data: EmployeeFormData) => {
     try {
       const formattedData = {
-        userId: data.userId || undefined, // Optional - can be undefined for employees without user accounts
+        userId: data.userId || undefined,
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
@@ -187,14 +181,11 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
             : undefined,
         notes: data.notes
       };
-
       if (mode === "create") {
         await createEmployee(formattedData as CreateEmployeeData);
       } else if (employee) {
         await updateEmployee({ id: employee.id, data: formattedData as UpdateEmployeeData });
       }
-
-      // Reset form after successful submission
       form.reset();
       onClose();
     } catch (error) {
@@ -204,7 +195,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
 
   const availableUsers = users.filter(user => (mode === "create" ? true : user.id === employee?.userId || true));
 
-  // Handle dialog close - reset form to ensure clean state
   const handleClose = () => {
     form.reset();
     onClose();
@@ -224,7 +214,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Basic Information */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -446,7 +435,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
               </Card>
             </div>
 
-            {/* Emergency Contact */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -515,7 +503,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
               </CardContent>
             </Card>
 
-            {/* Bank Details */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -584,7 +571,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
               </CardContent>
             </Card>
 
-            {/* Notes */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Additional Notes</CardTitle>
@@ -606,7 +592,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
               </CardContent>
             </Card>
 
-            {/* Form Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t">
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
