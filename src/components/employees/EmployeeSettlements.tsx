@@ -23,28 +23,15 @@ interface EmployeeSettlementsProps {
 
 const statuses: SettlementStatus[] = ["pending", "approved", "paid", "disputed", "cancelled"];
 
-const usageTypeColors = {
-  material: "bg-blue-100 text-blue-800",
-  menu_item: "bg-green-100 text-green-800",
-  stock_entry: "bg-orange-100 text-orange-800"
-};
-
 export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmployeeSelect }) => {
-  // Data atoms
   const [settlements] = useAtom(settlementsAtom);
   const [employees] = useAtom(employeesAtom);
   const [settlementStats] = useAtom(settlementStatsAtom);
   const [selectedSettlement, setSelectedSettlement] = useAtom(selectedSettlementAtom);
-
-  // Loading states
   const [loading] = useAtom(settlementsLoadingAtom);
   const [statsLoading] = useAtom(settlementStatsLoadingAtom);
   const [formLoading] = useAtom(settlementFormLoadingAtom);
-
-  // Filters
   const [filters, setFilters] = useAtom(settlementsFiltersAtom);
-
-  // Action atoms
   const [, fetchSettlements] = useAtom(fetchSettlementsAtom);
   const [, fetchEmployees] = useAtom(fetchEmployeesAtom);
   const [, fetchStats] = useAtom(fetchSettlementStatsAtom);
@@ -52,7 +39,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [, markAsPaid] = useAtom(markSettlementAsPaidAtom);
   const [, createSettlement] = useAtom(createSettlementAtom);
   const [, deleteSettlement] = useAtom(deleteSettlementAtom);
-
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [settlementFormOpen, setSettlementFormOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -61,54 +47,40 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [settlementToDelete, setSettlementToDelete] = useState<EmployeeSettlement | null>(null);
   const [forceDelete, setForceDelete] = useState(false);
   const [internalSelectedEmployeeId, setInternalSelectedEmployeeId] = useState<number | null>(selectedEmployeeId || null);
-
-  // Get user permissions
   const { user } = useAuth();
   const canDeleteSettlements = user?.role === "admin" || user?.role === "manager";
-
-  // Check if a settlement can be deleted (business rules)
   const canDeleteSettlement = (settlement: EmployeeSettlement | null) => {
     if (!canDeleteSettlements || !settlement) return false;
-    // Only allow deletion of pending, disputed, or cancelled settlements
     return ["pending", "disputed", "cancelled"].includes(settlement.status);
   };
-
-  // Check if force delete should be available (admin only)
   const canForceDelete = user?.role === "admin";
 
-  // Initial data loading
   useEffect(() => {
     fetchEmployees();
     fetchStats();
   }, [fetchEmployees, fetchStats]);
 
-  // Load data when employee, year, or month changes
   useEffect(() => {
     const loadData = async () => {
-      // Create updated filters by merging with existing filters to preserve status filter
       setFilters(prevFilters => {
         const updatedFilters = {
-          ...prevFilters, // Preserve existing filters (like status)
+          ...prevFilters,
           employeeId: internalSelectedEmployeeId || undefined,
           year: selectedYear,
           month: selectedMonth
         };
-
-        // Fetch data with updated filters
         fetchSettlements(updatedFilters);
         fetchStats(updatedFilters);
-
         return updatedFilters;
       });
     };
-
     loadData();
   }, [internalSelectedEmployeeId, selectedYear, selectedMonth, fetchSettlements, fetchStats, setFilters]);
 
   const handleEmployeeChange = (employeeId: string) => {
     const id = employeeId === "all" ? null : parseInt(employeeId);
     setInternalSelectedEmployeeId(id);
-    onEmployeeSelect?.(id); // Still call the prop callback if provided
+    onEmployeeSelect?.(id);
   };
 
   const handleStatusFilter = async (status: string) => {
@@ -131,7 +103,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         id: settlementId,
         notes: "Approved via settlement management interface"
       });
-      // Refresh the settlements list
       await fetchSettlements(filters);
     } catch (error) {
       console.error("Error approving settlement:", error);
@@ -145,7 +116,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         paymentMethod: "bank_transfer",
         paymentReference: `PAY-${settlementId}-${Date.now()}`
       });
-      // Refresh the settlements list
       await fetchSettlements(filters);
     } catch (error) {
       console.error("Error marking as paid:", error);
@@ -157,7 +127,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
       await createSettlement(data);
       setSettlementFormOpen(false);
       toast.success("Settlement created successfully");
-      // Refresh data
       await fetchSettlements(filters);
       await fetchStats({ year: selectedYear, month: selectedMonth });
     } catch (error) {
@@ -168,26 +137,22 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
   const handleDeleteClick = (settlement: EmployeeSettlement) => {
     setSettlementToDelete(settlement);
-    setForceDelete(false); // Reset force delete flag
+    setForceDelete(false);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
     if (!settlementToDelete) return;
-
     try {
       await deleteSettlement({ id: settlementToDelete.id, force: forceDelete });
       setDeleteDialogOpen(false);
       setSettlementToDelete(null);
       setForceDelete(false);
       toast.success(forceDelete ? "Settlement force deleted successfully" : "Settlement deleted successfully");
-      // Refresh data
       await fetchSettlements(filters);
       await fetchStats({ year: selectedYear, month: selectedMonth });
     } catch (error) {
       console.error("Error deleting settlement:", error);
-
-      // Provide specific error messages based on the error
       if (error.message === "Cannot delete paid settlements") {
         toast.error("Cannot delete paid settlements. Only pending, disputed, or cancelled settlements can be deleted.");
       } else if (error.message === "Settlement not found") {
@@ -209,11 +174,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   };
 
   const formatCurrency = (amount: number) => {
-    // Handle invalid inputs (NaN, undefined, null)
     if (amount == null || isNaN(amount) || !isFinite(amount)) {
       return "$0.00";
     }
-
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD"
@@ -234,7 +197,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
   return (
     <div className="space-y-6 p-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Employee Settlements</h2>
@@ -246,7 +208,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         </Button>
       </div>
 
-      {/* Stats Cards */}
       {settlementStats && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -295,7 +256,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         </div>
       )}
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Filters</CardTitle>
@@ -373,7 +333,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         </CardContent>
       </Card>
 
-      {/* Settlements Table */}
       <Card>
         <CardHeader>
           <CardTitle>Settlement Records</CardTitle>
@@ -473,7 +432,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         </CardContent>
       </Card>
 
-      {/* Settlement Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -514,7 +472,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                 </CardContent>
               </Card>
 
-              {/* Financial Breakdown */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Financial Breakdown</CardTitle>
@@ -559,7 +516,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                 </CardContent>
               </Card>
 
-              {/* Usage Breakdown */}
               {selectedSettlement.settlementData?.usageBreakdown && (
                 <Card>
                   <CardHeader>
@@ -602,7 +558,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         </DialogContent>
       </Dialog>
 
-      {/* Settlement Form Dialog */}
       <Dialog open={settlementFormOpen} onOpenChange={setSettlementFormOpen}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -613,7 +568,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

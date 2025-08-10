@@ -17,16 +17,7 @@ import { AlertCircle, Calculator, DollarSign, Eye, FileText, Loader2, Plus, Tren
 import React, { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-
-// Form validation schema
-const settlementFormSchema = z.object({
-  employeeId: z.number().min(1, "Please select an employee"),
-  settlementMonth: z.number().min(1).max(12, "Please select a valid month"),
-  settlementYear: z.number().min(2020).max(2030, "Please select a valid year"),
-  bonusAmount: z.number().min(0, "Bonus amount must be positive").optional(),
-  penaltyAmount: z.number().min(0, "Penalty amount must be positive").optional(),
-  notes: z.string().optional()
-});
+import { settlementFormSchema } from "./settlementSchema";
 
 type SettlementFormData = z.infer<typeof settlementFormSchema>;
 
@@ -35,7 +26,6 @@ const usageTypeColors = {
   menu_item: "bg-green-100 text-green-800",
   stock_entry: "bg-orange-100 text-orange-800"
 };
-
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
@@ -105,59 +95,42 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
 
   const getUsedMonths = useCallback(() => {
     if (!watchedEmployeeId) return [];
-
     const currentYear = watchedYear || new Date().getFullYear();
     const employeeSettlements = existingSettlements.filter(settlement => settlement.employeeId === watchedEmployeeId && settlement.settlementYear === currentYear);
-
     return employeeSettlements.map(settlement => settlement.settlementMonth);
   }, [watchedEmployeeId, watchedYear, existingSettlements]);
 
-  // Check if a month is disabled (has existing settlement)
   const isMonthDisabled = useCallback(
     (monthValue: number) => {
       const usedMonths = getUsedMonths();
       const currentSettlementMonth = settlement?.settlementMonth;
-
-      // If we're editing an existing settlement, allow the current month
       if (currentSettlementMonth && monthValue === currentSettlementMonth) {
         return false;
       }
-
-      // Otherwise, disable months that already have settlements
       const isDisabled = usedMonths.includes(monthValue);
-
-      // Debug logging
       if (watchedEmployeeId === 2) {
         console.log(`Month ${monthValue} disabled:`, isDisabled, "Used months:", usedMonths);
       }
-
       return isDisabled;
     },
     [getUsedMonths, settlement, watchedEmployeeId]
   );
-
-  // Get available months count for display
   const getAvailableMonthsCount = useCallback(() => {
     const usedMonths = getUsedMonths();
     return months.length - usedMonths.length;
   }, [getUsedMonths]);
 
-  // Reset month selection if it becomes unavailable due to existing settlements
   useEffect(() => {
     if (watchedEmployeeId && watchedYear) {
       const currentMonth = form.getValues("settlementMonth");
-
-      // If current month is disabled and we're not editing an existing settlement
       if (currentMonth && isMonthDisabled(currentMonth) && !settlement) {
-        form.setValue("settlementMonth", 0); // Reset to no selection
+        form.setValue("settlementMonth", 0);
       }
     }
   }, [watchedEmployeeId, watchedYear, existingSettlements, form, settlement, isMonthDisabled]);
 
-  // Automatically generate preview when required fields are filled
   useEffect(() => {
     const generateAutoPreview = async () => {
-      // Only generate preview if all required fields are filled
       if (watchedEmployeeId && watchedMonth && watchedYear) {
         try {
           const settlementData: CreateSettlementData = {
@@ -168,10 +141,8 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
             penaltyAmount: watchedPenaltyAmount || 0,
             notes: form.getValues("notes") || ""
           };
-
           await previewSettlementAction(settlementData);
           setShowPreview(true);
-
           if (onPreview) {
             onPreview(settlementData);
           }
@@ -179,15 +150,12 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
           console.error("Failed to generate auto preview:", error);
         }
       } else {
-        // Hide preview if required fields are not filled
         setShowPreview(false);
       }
     };
-
     generateAutoPreview();
   }, [watchedEmployeeId, watchedMonth, watchedYear, watchedBonusAmount, watchedPenaltyAmount, onPreview]);
 
-  // Handle form submission
   const handleSubmit = async (data: SettlementFormData) => {
     try {
       const settlementData: CreateSettlementData = {
@@ -198,41 +166,9 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
         penaltyAmount: data.penaltyAmount || 0,
         notes: data.notes || ""
       };
-
-      // Let the parent component handle the API call to avoid duplicates
       onSubmit(settlementData);
     } catch (error) {
       console.error("Failed to submit settlement:", error);
-    }
-  };
-
-  // Handle preview generation
-  const handlePreview = async () => {
-    const data = form.getValues();
-
-    if (!data.employeeId || !data.settlementMonth || !data.settlementYear) {
-      form.trigger(["employeeId", "settlementMonth", "settlementYear"]);
-      return;
-    }
-
-    try {
-      const settlementData: CreateSettlementData = {
-        employeeId: data.employeeId,
-        settlementMonth: data.settlementMonth,
-        settlementYear: data.settlementYear,
-        bonusAmount: data.bonusAmount || 0,
-        penaltyAmount: data.penaltyAmount || 0,
-        notes: data.notes || ""
-      };
-
-      await previewSettlementAction(settlementData);
-      setShowPreview(true);
-
-      if (onPreview) {
-        onPreview(settlementData);
-      }
-    } catch (error) {
-      console.error("Failed to generate preview:", error);
     }
   };
 
@@ -260,7 +196,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
     <div className="space-y-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          {/* Error Display */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center space-x-2">
@@ -271,7 +206,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            {/* Left Column - Form Fields */}
             <div className="flex flex-col space-y-6">
               <Card>
                 <CardHeader>
@@ -282,7 +216,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                   <CardDescription>Select the employee and settlement period</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Employee Selection */}
                   <FormField
                     control={form.control}
                     name="employeeId"
@@ -316,7 +249,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                     )}
                   />
 
-                  {/* Selected Employee Info */}
                   {selectedEmployee && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <div className="flex items-center justify-between">
@@ -339,7 +271,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                     </div>
                   )}
 
-                  {/* Settlement Status Info */}
                   {selectedEmployee && watchedYear && (
                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                       <div className="flex items-center justify-between">
@@ -359,7 +290,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                     </div>
                   )}
 
-                  {/* Settlement Period */}
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -426,9 +356,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                   <CardDescription>Add bonus or penalty amounts to the settlement</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Bonus and Penalty Amounts - Side by Side */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Bonus Amount */}
                     <FormField
                       control={form.control}
                       name="bonusAmount"
@@ -447,7 +375,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                       )}
                     />
 
-                    {/* Penalty Amount */}
                     <FormField
                       control={form.control}
                       name="penaltyAmount"
@@ -467,7 +394,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                     />
                   </div>
 
-                  {/* Notes */}
                   <FormField
                     control={form.control}
                     name="notes"
@@ -486,7 +412,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
               </Card>
             </div>
 
-            {/* Right Column - Preview */}
             <div className="flex flex-col space-y-6 h-full">
               {settlementPreview && showPreview && (
                 <Card className="flex-1 flex flex-col">
@@ -498,7 +423,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                     <CardDescription>Preview of the settlement calculation</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 flex-1">
-                    {/* Employee Info */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
@@ -515,7 +439,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                       </div>
                     </div>
 
-                    {/* Calculation Summary */}
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Base Salary</span>
@@ -554,14 +477,12 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                       </div>
                     </div>
 
-                    {/* Usage Items Count */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <p className="text-sm text-blue-800">
                         <strong>{settlementPreview.calculation.usageItemsCount}</strong> usage items included in this settlement
                       </p>
                     </div>
 
-                    {/* Usage Breakdown */}
                     {settlementPreview.usages.length > 0 && (
                       <div>
                         <Label className="text-sm font-medium text-gray-700 mb-2 block">Usage Items ({settlementPreview.usages.length})</Label>
@@ -589,9 +510,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                                       </div>
                                     </div>
                                   </TableCell>
-                                  <TableCell className="py-2 text-xs">
-                                    {Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}
-                                  </TableCell>
+                                  <TableCell className="py-2 text-xs">{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
                                   <TableCell className="py-2 text-xs">{formatCurrency(usage.totalCost)}</TableCell>
                                   <TableCell className="py-2 text-xs font-medium">{formatCurrency(usage.finalCost)}</TableCell>
                                 </TableRow>
@@ -607,7 +526,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
             </div>
           </div>
 
-          {/* Form Actions */}
           <div className="flex items-center justify-end space-x-4 pt-6 border-t">
             <Button type="button" variant="outline" onClick={onCancel} disabled={formLoading}>
               Cancel
