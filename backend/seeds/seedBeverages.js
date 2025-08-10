@@ -927,7 +927,8 @@ const beverageItems = [
     description: "Cafe latte with vanilla flavor",
     price: 6.0,
     category: "hot",
-    isPOSItem: true
+    isPOSItem: true,
+    printerId: 2
   }
 ];
 

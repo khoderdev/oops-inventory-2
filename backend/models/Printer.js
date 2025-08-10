@@ -132,7 +132,7 @@ const Printer = sequelize.define(
     },
     createdBy: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
         model: "users",
         key: "id"

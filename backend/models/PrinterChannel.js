@@ -60,7 +60,7 @@ const PrinterChannel = sequelize.define(
     },
     createdBy: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       field: "createdBy", // Explicitly map to snake_case column
       references: {
         model: "users",

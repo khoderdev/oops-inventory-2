@@ -1,5 +1,6 @@
 import PrinterChannel from "../models/PrinterChannel.js";
 import Printer from "../models/Printer.js";
+import User from "../models/User.js";
 
 /**
  * Seed printer channels and printers
@@ -8,6 +9,11 @@ export async function seedPrinters() {
   console.log("🖨️ Seeding printer channels and printers...");
 
   try {
+    // Get the admin user to use as createdBy
+    const adminUser = await User.findOne({ where: { role: "admin" } });
+    if (!adminUser) {
+      throw new Error("Admin user not found. Please ensure users are seeded first.");
+    }
     // Seed Printer Channels
     const printerChannelsData = [
       {
@@ -17,7 +23,8 @@ export async function seedPrinters() {
         isActive: true,
         priority: 1,
         settings: {},
-        createdBy: 1,
+        createdBy: adminUser.id,
+
         createdAt: new Date("2025-08-10T01:23:38.227+03:00"),
         updatedAt: new Date("2025-08-10T01:23:38.227+03:00")
       },
@@ -28,7 +35,8 @@ export async function seedPrinters() {
         isActive: true,
         priority: 1,
         settings: {},
-        createdBy: 1,
+        createdBy: adminUser.id,
+
         createdAt: new Date("2025-08-10T01:23:44.285+03:00"),
         updatedAt: new Date("2025-08-10T01:23:44.285+03:00")
       },
@@ -39,7 +47,8 @@ export async function seedPrinters() {
         isActive: true,
         priority: 1,
         settings: {},
-        createdBy: 1,
+        createdBy: adminUser.id,
+
         createdAt: new Date("2025-08-10T01:23:49.624+03:00"),
         updatedAt: new Date("2025-08-10T01:23:49.624+03:00")
       },
@@ -50,9 +59,10 @@ export async function seedPrinters() {
         isActive: true,
         priority: 1,
         settings: {},
-        createdBy: 1,
-        createdAt: new Date("2025-08-10T20:46:05.716+03:00"),
-        updatedAt: new Date("2025-08-10T20:46:05.716+03:00")
+        createdBy: adminUser.id,
+
+        createdAt: new Date("2025-08-10T01:23:55.017+03:00"),
+        updatedAt: new Date("2025-08-10T01:23:55.017+03:00")
       }
     ];
 
@@ -80,7 +90,8 @@ export async function seedPrinters() {
         isActive: true,
         location: "",
         description: "",
-        createdBy: 1,
+        createdBy: adminUser.id,
+
         createdAt: new Date("2025-08-10T01:24:12.182+03:00"),
         updatedAt: new Date("2025-08-10T20:40:59.578+03:00")
       },
@@ -106,7 +117,8 @@ export async function seedPrinters() {
         isActive: true,
         location: "",
         description: "",
-        createdBy: 1,
+        createdBy: adminUser.id,
+
         createdAt: new Date("2025-08-10T01:24:24.903+03:00"),
         updatedAt: new Date("2025-08-10T20:41:04.644+03:00")
       },
@@ -132,7 +144,8 @@ export async function seedPrinters() {
         isActive: true,
         location: "",
         description: "",
-        createdBy: 1,
+        createdBy: adminUser.id,
+
         createdAt: new Date("2025-08-10T01:24:37.699+03:00"),
         updatedAt: new Date("2025-08-10T20:41:09.659+03:00")
       },
@@ -158,7 +171,8 @@ export async function seedPrinters() {
         isActive: true,
         location: "",
         description: "",
-        createdBy: 1,
+        createdBy: adminUser.id,
+
         createdAt: new Date("2025-08-10T20:46:26.865+03:00"),
         updatedAt: new Date("2025-08-10T20:46:26.865+03:00")
       }

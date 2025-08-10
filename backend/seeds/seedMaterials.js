@@ -98,7 +98,7 @@ export async function seedMaterials() {
     { name: "Crispy Flakes", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "grains" },
     { name: "Sesame Seeds", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "grains" },
 
-    // Sauces & Condiments  
+    // Sauces & Condiments
     { name: "Mayo Garlic Sauce", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
     { name: "BBQ Sauce", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
     { name: "Buffalo Sauce", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
@@ -151,7 +151,7 @@ export async function seedMaterials() {
     { name: "Cranberry", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "vegetables" },
     { name: "Eggs", baseUnit: "piece", unitType: "package", inputUnit: "pack", packageQuantity: 12, category: "dairy" },
     { name: "Lahmeh", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "meat" },
-    
+
     // Missing materials from menu items
     { name: "Tomatoes", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "vegetables" },
     { name: "Light Mayo", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "spices" },
@@ -218,7 +218,7 @@ export async function seedMaterials() {
     { name: "Passion Fruit", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
     { name: "Fresh Orange", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
     { name: "Fresh Lemon", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "fruits" },
-    { name: "Fresh Mint", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "herbs" },
+    { name: "Fresh Mint", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "other" },
     { name: "Ice Cream Vanilla", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "dairy" },
     { name: "Ice Cream Chocolate", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "dairy" },
     { name: "Ice Cream Strawberry", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "dairy" },
@@ -258,7 +258,9 @@ export async function seedMaterials() {
     { name: "Malibu", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
     { name: "Bailey's", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
     { name: "Jager", baseUnit: "ml", unitType: "volume", inputUnit: "l", category: "alcohol" },
-    { name: "Fresh Basil", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "herbs" }
+    { name: "Fresh Basil", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "other" },
+    { name: "Charcoal", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "tobacco" },
+    { name: "Tobacco M3assal", baseUnit: "g", unitType: "mass", inputUnit: "kg", category: "tobacco" }
   ];
 
   let createdCount = 0;

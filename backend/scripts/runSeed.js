@@ -17,9 +17,11 @@ async function runSeed() {
     
     console.log("\n📊 SEEDING SUMMARY:");
     console.log("==================");
+    console.log(`Users: ${result.users.created} created, ${result.users.existing} existed`);
     console.log(`Materials: ${result.materials.created} created, ${result.materials.existing} existed`);
     console.log(`Stock Entries: ${result.stockEntries.created} created, ${result.stockEntries.skipped} skipped`);
     console.log(`Menu Items: ${result.menuItems.created} created, ${result.menuItems.skipped} skipped`);
+    console.log(`Beverages: ${result.beverages.created} created, ${result.beverages.skipped} skipped`);
     console.log("\n🎉 Database seeding completed successfully!");
     
     process.exit(0);

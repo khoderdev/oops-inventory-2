@@ -3031,6 +3031,260 @@ export async function seedMenuItems() {
       ingredients: [
         { materialName: "Don Julio Blanco", quantity: 30, unit: "ml", cost: 5.40 }
       ]
+    },
+
+    // =============================================================================
+    // DESSERTS - 14 ITEMS
+    // =============================================================================
+    {
+      name: "Brookie",
+      description: "Brownie cookie hybrid dessert",
+      category: "desserts",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Flour", quantity: 80, unit: "g", cost: 0.16 },
+        { materialName: "Chocolate Chips", quantity: 60, unit: "g", cost: 1.20 },
+        { materialName: "Butter", quantity: 40, unit: "g", cost: 0.80 },
+        { materialName: "Sugar", quantity: 50, unit: "g", cost: 0.15 },
+        { materialName: "Eggs", quantity: 1, unit: "piece", cost: 0.29 },
+        { materialName: "Cocoa Powder", quantity: 20, unit: "g", cost: 0.40 }
+      ]
+    },
+    {
+      name: "Nutella Cookie",
+      description: "Soft cookie with Nutella filling",
+      category: "desserts",
+      price: 6.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Flour", quantity: 70, unit: "g", cost: 0.14 },
+        { materialName: "Nutella", quantity: 40, unit: "g", cost: 1.60 },
+        { materialName: "Butter", quantity: 30, unit: "g", cost: 0.60 },
+        { materialName: "Sugar", quantity: 35, unit: "g", cost: 0.11 },
+        { materialName: "Eggs", quantity: 1, unit: "piece", cost: 0.29 }
+      ]
+    },
+    {
+      name: "Nutella Crookie",
+      description: "Croissant cookie with Nutella",
+      category: "desserts",
+      price: 9.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Puff Pastry", quantity: 100, unit: "g", cost: 1.20 },
+        { materialName: "Nutella", quantity: 50, unit: "g", cost: 2.00 },
+        { materialName: "Butter", quantity: 40, unit: "g", cost: 0.80 },
+        { materialName: "Sugar", quantity: 30, unit: "g", cost: 0.09 },
+        { materialName: "Eggs", quantity: 1, unit: "piece", cost: 0.29 }
+      ]
+    },
+    {
+      name: "Pistachio Knafeh Cookie",
+      description: "Cookie with pistachio and knafeh flavors",
+      category: "desserts",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Flour", quantity: 75, unit: "g", cost: 0.15 },
+        { materialName: "Pistachios", quantity: 40, unit: "g", cost: 2.40 },
+        { materialName: "Phyllo Dough", quantity: 30, unit: "g", cost: 0.60 },
+        { materialName: "Butter", quantity: 35, unit: "g", cost: 0.70 },
+        { materialName: "Sugar", quantity: 40, unit: "g", cost: 0.12 },
+        { materialName: "Rose Water", quantity: 5, unit: "ml", cost: 0.15 }
+      ]
+    },
+    {
+      name: "Strawberry Cheese Cake",
+      description: "Classic cheesecake with fresh strawberries",
+      category: "desserts",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Cream Cheese", quantity: 120, unit: "g", cost: 2.40 },
+        { materialName: "Strawberry", quantity: 80, unit: "g", cost: 1.60 },
+        { materialName: "Graham Crackers", quantity: 40, unit: "g", cost: 0.60 },
+        { materialName: "Sugar", quantity: 50, unit: "g", cost: 0.15 },
+        { materialName: "Eggs", quantity: 1, unit: "piece", cost: 0.29 },
+        { materialName: "Heavy Cream", quantity: 60, unit: "ml", cost: 0.84 }
+      ]
+    },
+    {
+      name: "Tiramisu Bliss",
+      description: "Classic Italian tiramisu dessert",
+      category: "desserts",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Mascarpone Cheese", quantity: 100, unit: "g", cost: 2.50 },
+        { materialName: "Ladyfinger Cookies", quantity: 60, unit: "g", cost: 1.20 },
+        { materialName: "Espresso Shot", quantity: 60, unit: "ml", cost: 1.20 },
+        { materialName: "Heavy Cream", quantity: 80, unit: "ml", cost: 1.12 },
+        { materialName: "Sugar", quantity: 40, unit: "g", cost: 0.12 },
+        { materialName: "Cocoa Powder", quantity: 10, unit: "g", cost: 0.20 }
+      ]
+    },
+    {
+      name: "Chocolate Fondant",
+      description: "Warm chocolate cake with molten center",
+      category: "desserts",
+      price: 10.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Dark Chocolate", quantity: 80, unit: "g", cost: 2.40 },
+        { materialName: "Butter", quantity: 60, unit: "g", cost: 1.20 },
+        { materialName: "Eggs", quantity: 2, unit: "piece", cost: 0.58 },
+        { materialName: "Sugar", quantity: 50, unit: "g", cost: 0.15 },
+        { materialName: "Flour", quantity: 30, unit: "g", cost: 0.06 },
+        { materialName: "Vanilla Ice Cream", quantity: 50, unit: "g", cost: 0.60 }
+      ]
+    },
+    {
+      name: "Chocolate Brownies",
+      description: "Rich and fudgy chocolate brownies",
+      category: "desserts",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Dark Chocolate", quantity: 100, unit: "g", cost: 3.00 },
+        { materialName: "Butter", quantity: 80, unit: "g", cost: 1.60 },
+        { materialName: "Sugar", quantity: 120, unit: "g", cost: 0.36 },
+        { materialName: "Eggs", quantity: 2, unit: "piece", cost: 0.58 },
+        { materialName: "Flour", quantity: 60, unit: "g", cost: 0.12 },
+        { materialName: "Walnuts", quantity: 40, unit: "g", cost: 1.20 }
+      ]
+    },
+    {
+      name: "Biscuit Au Chocolat",
+      description: "French chocolate biscuit dessert",
+      category: "desserts",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Chocolate Biscuits", quantity: 80, unit: "g", cost: 1.60 },
+        { materialName: "Dark Chocolate", quantity: 60, unit: "g", cost: 1.80 },
+        { materialName: "Heavy Cream", quantity: 100, unit: "ml", cost: 1.40 },
+        { materialName: "Butter", quantity: 40, unit: "g", cost: 0.80 },
+        { materialName: "Sugar", quantity: 30, unit: "g", cost: 0.09 }
+      ]
+    },
+    {
+      name: "Fudge Cake",
+      description: "Decadent chocolate fudge cake",
+      category: "desserts",
+      price: 10.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Dark Chocolate", quantity: 120, unit: "g", cost: 3.60 },
+        { materialName: "Butter", quantity: 100, unit: "g", cost: 2.00 },
+        { materialName: "Sugar", quantity: 150, unit: "g", cost: 0.45 },
+        { materialName: "Eggs", quantity: 3, unit: "piece", cost: 0.87 },
+        { materialName: "Flour", quantity: 80, unit: "g", cost: 0.16 },
+        { materialName: "Heavy Cream", quantity: 80, unit: "ml", cost: 1.12 }
+      ]
+    },
+    {
+      name: "Ice Cream Scoop",
+      description: "Single scoop of premium ice cream",
+      category: "desserts",
+      price: 3.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Vanilla Ice Cream", quantity: 100, unit: "g", cost: 1.20 }
+      ]
+    },
+    {
+      name: "Triple Chocolate Cake",
+      description: "Three layers of chocolate indulgence",
+      category: "desserts",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Dark Chocolate", quantity: 90, unit: "g", cost: 2.70 },
+        { materialName: "Milk Chocolate", quantity: 60, unit: "g", cost: 1.80 },
+        { materialName: "White Chocolate", quantity: 40, unit: "g", cost: 1.60 },
+        { materialName: "Butter", quantity: 80, unit: "g", cost: 1.60 },
+        { materialName: "Sugar", quantity: 100, unit: "g", cost: 0.30 },
+        { materialName: "Eggs", quantity: 2, unit: "piece", cost: 0.58 },
+        { materialName: "Flour", quantity: 70, unit: "g", cost: 0.14 }
+      ]
+    },
+    {
+      name: "Oreo Cake",
+      description: "Chocolate cake with Oreo cookie layers",
+      category: "desserts",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 2,
+      ingredients: [
+        { materialName: "Oreo Cookies", quantity: 120, unit: "g", cost: 2.40 },
+        { materialName: "Cream Cheese", quantity: 80, unit: "g", cost: 1.60 },
+        { materialName: "Heavy Cream", quantity: 100, unit: "ml", cost: 1.40 },
+        { materialName: "Sugar", quantity: 60, unit: "g", cost: 0.18 },
+        { materialName: "Butter", quantity: 50, unit: "g", cost: 1.00 },
+        { materialName: "Eggs", quantity: 2, unit: "piece", cost: 0.58 }
+      ]
+    },
+
+    // =============================================================================
+    // SHISHA/ARGUILE - 5 ITEMS
+    // =============================================================================
+    {
+      name: "Arguileh Jabale",
+      description: "Traditional mountain-style shisha",
+      category: "shisha",
+      price: 7.00,
+      isPOSItem: true,
+      printerId: 4,
+      ingredients: []
+    },
+    {
+      name: "Arguileh Ajame",
+      description: "Persian-style shisha blend",
+      category: "shisha",
+      price: 8.00,
+      isPOSItem: true,
+      printerId: 4,
+      ingredients: []
+    },
+    {
+      name: "Rass",
+      description: "Shisha head/bowl",
+      category: "shisha",
+      price: 3.50,
+      isPOSItem: true,
+      printerId: 4,
+      ingredients: []
+    },
+    {
+      name: "Disposal Shisha Hose",
+      description: "Disposable shisha hose",
+      category: "shisha",
+      price: 1.00,
+      isPOSItem: true,
+      printerId: 4,
+      ingredients: []
+    },
+    {
+      name: "Bring Your Own Tanbak",
+      description: "Service for customer's own tobacco",
+      category: "shisha",
+      price: 5.00,
+      isPOSItem: true,
+      printerId: 4,
+      ingredients: []
     }
   ];
 
@@ -3054,7 +3308,8 @@ export async function seedMenuItems() {
           description: itemData.description,
           category: itemData.category,
           price: itemData.price,
-          isPOSItem: itemData.isPOSItem
+          isPOSItem: itemData.isPOSItem,
+          printerId: itemData.printerId
         });
 
         // Create ingredients
