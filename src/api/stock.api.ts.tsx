@@ -1,9 +1,69 @@
 import api from "@/lib/http";
-import { AddStockData, AddStockResponse, CreateStockEntryData, RecordWasteData, RecordWasteResponse, StockEntry, UpdateStockEntryData } from "@/types/inventory";
+import { AddStockData, AddStockResponse, CreateStockEntryData, RecordWasteData, RecordWasteResponse, StockEntry, UpdateStockEntryData, StockEntryWithMaterial } from "@/types/inventory";
 import { format, isValid, parse } from "date-fns";
 
+// Types for paginated responses
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    startIndex: number;
+    endIndex: number;
+  };
+  filters: Record<string, any>;
+  meta: {
+    requestTime: string;
+    totalDataSize: number;
+    negativeEntriesCount?: number;
+  };
+}
+
+interface StockEntriesQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  materialId?: string;
+  isPOSItem?: string;
+  printerId?: string;
+  purchaseDate_from?: string;
+  purchaseDate_to?: string;
+  expiryDate_from?: string;
+  expiryDate_to?: string;
+  totalCost_from?: string;
+  totalCost_to?: string;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+  fields?: string;
+  includeMaterial?: 'true' | 'false';
+}
+
 export const stockAPI = {
-  getStockEntries: () => api.get<StockEntry[]>("/stock-entries"),
+  // Get stock entries with pagination support
+  getStockEntries: async (params?: StockEntriesQueryParams): Promise<StockEntryWithMaterial[]> => {
+    const config = params ? { params } as any : undefined;
+    const response = await api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries", config);
+    return response.data.data;
+  },
+  
+  // Get paginated stock entries (returns full response with pagination info)
+  getStockEntriesPaginated: async (params?: StockEntriesQueryParams) => {
+    const config = params ? { params } as any : undefined;
+    return api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries", config);
+  },
+  
+  // Legacy method for backward compatibility - gets all stock entries without pagination
+  getAllStockEntries: async (): Promise<StockEntry[]> => {
+    const response = await api.get<PaginatedResponse<StockEntry>>("/stock-entries", { 
+      params: { limit: 1000, includeMaterial: 'false' } as any // Get a large number to simulate "all"
+    } as any);
+    return response.data.data;
+  },
+  
   getStockEntry: (id: string) => api.get<StockEntry>(`/stock-entries/${id}`),
   createStockEntry: (stockEntryData: CreateStockEntryData) => api.post<StockEntry, CreateStockEntryData>("/stock-entries", stockEntryData),
   addToStock: (addStockData: AddStockData) => api.post<AddStockResponse, AddStockData>("/stock-entries/add-stock", addStockData),
@@ -40,7 +100,17 @@ export const stockAPI = {
   deleteStockEntry: (id: string) => api.delete<null>(`/stock-entries/${id}`),
 
   // Printer assignment methods
-  getStockEntriesWithPrinters: () => api.get<StockEntry[]>("/stock-entries/with-printers"),
+  getStockEntriesWithPrinters: async (params?: StockEntriesQueryParams): Promise<StockEntryWithMaterial[]> => {
+    const config = params ? { params } as any : undefined;
+    const response = await api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries/with-printers", config);
+    return response.data.data;
+  },
+  
+  // Get paginated stock entries with printers (returns full response with pagination info)
+  getStockEntriesWithPrintersPaginated: async (params?: StockEntriesQueryParams) => {
+    const config = params ? { params } as any : undefined;
+    return api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries/with-printers", config);
+  },
   assignPrinter: (id: string | number, printerId: number | null) => api.patch<{ stockEntry: StockEntry }, { printerId: number | null }>(`/stock-entries/${id}/assign-printer`, { printerId }),
   bulkAssignPrinter: (stockEntryIds: (string | number)[], printerId: number | null) => api.patch<{ updatedCount: number; stockEntries: StockEntry[] }, { stockEntryIds: (string | number)[]; printerId: number | null }>("/stock-entries/bulk-assign-printer", { stockEntryIds, printerId }),
   async getWastageReport({ startDate, endDate }: { startDate?: string; endDate?: string }) {

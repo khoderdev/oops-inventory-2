@@ -7,6 +7,26 @@ import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
 import { materialSchema } from "@/components/materials/materialsSchema";
 
+
+// Interface for pagination metadata
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  startIndex: number;
+  endIndex: number;
+  meta?: {
+    requestTime: string;
+    totalDataSize: number;
+    negativeEntriesCount?: number;
+  };
+}
+
+
+
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco" | "hot" | "cold";
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
@@ -146,6 +166,27 @@ export interface MaterialTableProps {
   onEditMaterial: (material: MaterialWithStock) => void;
   onAddStock: (materialId: string) => void;
   onDeleteMaterial: (materialId: string) => void;
+}
+
+// Interface for cached data
+export interface CachedMaterialData {
+  materials: MaterialWithStock[];
+  pagination: PaginationInfo;
+  timestamp: number;
+  searchTerm: string;
+  categoryFilter: string;
+  sortBy: string;
+  sortOrder: string;
+}
+
+export interface CachedStockEntryData {
+  stockEntries: StockEntryWithMaterial[];
+  pagination: PaginationInfo;
+  timestamp: number;
+  searchTerm: string;
+  materialFilter: string;
+  sortBy: string;
+  sortOrder: "ASC" | "DESC";
 }
 
 //-----------------------------------------------------------------------------

@@ -2,39 +2,100 @@ import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { Material, StockEntry, Wasting, Printer } from "../models/index.js";
 import { StockEntryAuditHelperSimple } from "../decorators/stockEntryAuditDecoratorSimple.js";
+import { 
+  parsePaginationParams, 
+  buildPaginationResponse, 
+  buildFilterConditions, 
+  parseFieldSelection 
+} from "../utils/paginationHelpers.js";
 
 const stockEntriesController = {
-  // Get all stock entries
+  // Get all stock entries with pagination and filtering
   getAllStockEntries: async (req, res, next) => {
     try {
-      const rawStockEntries = await sequelize.query(
-        `
-        SELECT
-          se.*,
-          m.id as "material.id",
-          m.name as "material.name",
-          m."baseUnit" as "material.baseUnit",
-          m."unitType" as "material.unitType",
-          m."inputUnit" as "material.inputUnit",
-          m."packageQuantity" as "material.packageQuantity",
-          m.category as "material.category"
-        FROM "stockEntries" se
-        LEFT JOIN materials m ON se."materialId" = m.id
-        ORDER BY se.id ASC
-      `,
-        {
-          type: sequelize.QueryTypes.SELECT,
-          nest: true
-        }
-      );
-      if (rawStockEntries.length > 0) {
-        console.log("Sample stock entry:", rawStockEntries[0]);
-        const negativeStockEntries = rawStockEntries.filter(entry => entry.purchasedIndividualQuantity < 0 || entry.purchasedQuantity < 0);
+      const { includeMaterial = 'true', fields = '' } = req.query;
+      
+      // Parse pagination parameters
+      const paginationParams = parsePaginationParams(req.query, {
+        defaultLimit: 50,
+        maxLimit: 500,
+        allowedSortFields: ['id', 'supplier', 'purchaseDate', 'expiryDate', 'totalCost', 'createdAt', 'updatedAt']
+      });
+
+      // Build filter conditions
+      const whereClause = buildFilterConditions(req.query, {
+        searchFields: ['supplier'],
+        exactFilters: ['materialId', 'isPOSItem'],
+        rangeFilters: ['purchaseDate', 'expiryDate', 'totalCost', 'createdAt']
+      }, Op);
+
+      // Parse field selection for optimized transfer
+      const selectedFields = parseFieldSelection(fields, [
+        'id', 'materialId', 'supplier', 'purchasedQuantity', 'purchasedUnit', 
+        'purchasedIndividualQuantity', 'purchasedIndividualUnit', 'costPerPurchasedUnit', 
+        'costPerBaseUnit', 'totalCost', 'purchaseDate', 'expiryDate', 'isPOSItem', 
+        'printerId', 'notes', 'createdAt', 'updatedAt'
+      ]);
+
+      // Base query options
+      const queryOptions = {
+        where: whereClause,
+        order: [[paginationParams.sortBy, paginationParams.sortOrder]],
+        limit: paginationParams.limit,
+        offset: paginationParams.offset,
+        distinct: true,
+        attributes: selectedFields
+      };
+
+      // Conditionally include material data
+      if (includeMaterial === 'true') {
+        queryOptions.include = [{
+          model: Material,
+          as: "material",
+          attributes: ['id', 'name', 'baseUnit', 'unitType', 'inputUnit', 'packageQuantity', 'category']
+        }];
+      }
+
+      const { count, rows: stockEntries } = await StockEntry.findAndCountAll(queryOptions);
+
+      // Check for negative stock entries and log warnings
+      if (stockEntries.length > 0) {
+        const negativeStockEntries = stockEntries.filter(entry => 
+          entry.purchasedIndividualQuantity < 0 || entry.purchasedQuantity < 0
+        );
         if (negativeStockEntries.length > 0) {
-          console.warn("Negative stock entries found:", negativeStockEntries);
+          console.warn("Negative stock entries found:", negativeStockEntries.length);
         }
       }
-      res.status(200).json(rawStockEntries);
+
+      const pagination = buildPaginationResponse(count, paginationParams.page, paginationParams.limit);
+
+      res.status(200).json({
+        data: stockEntries,
+        pagination,
+        filters: {
+          search: req.query.search || '',
+          materialId: req.query.materialId || '',
+          isPOSItem: req.query.isPOSItem || '',
+          purchaseDate_from: req.query.purchaseDate_from || '',
+          purchaseDate_to: req.query.purchaseDate_to || '',
+          expiryDate_from: req.query.expiryDate_from || '',
+          expiryDate_to: req.query.expiryDate_to || '',
+          totalCost_from: req.query.totalCost_from || '',
+          totalCost_to: req.query.totalCost_to || '',
+          sortBy: paginationParams.sortBy,
+          sortOrder: paginationParams.sortOrder,
+          includeMaterial,
+          fields
+        },
+        meta: {
+          requestTime: new Date().toISOString(),
+          totalDataSize: stockEntries.length,
+          negativeEntriesCount: stockEntries.filter(entry => 
+            entry.purchasedIndividualQuantity < 0 || entry.purchasedQuantity < 0
+          ).length
+        }
+      });
     } catch (error) {
       console.error("Error fetching stock entries:", error);
       next(error);
@@ -1110,10 +1171,32 @@ const stockEntriesController = {
     }
   },
 
-  // Get stock entries with their assigned printers
+  // Get stock entries with their assigned printers (with pagination)
   getStockEntriesWithPrinters: async (req, res, next) => {
     try {
-      const stockEntries = await StockEntry.findAll({
+      const { fields = '' } = req.query;
+      
+      // Parse pagination parameters
+      const paginationParams = parsePaginationParams(req.query, {
+        defaultLimit: 50,
+        maxLimit: 500,
+        allowedSortFields: ['id', 'supplier', 'purchaseDate', 'totalCost', 'createdAt']
+      });
+
+      // Build filter conditions
+      const whereClause = buildFilterConditions(req.query, {
+        searchFields: ['supplier'],
+        exactFilters: ['materialId', 'printerId', 'isPOSItem']
+      }, Op);
+
+      // Parse field selection
+      const selectedFields = parseFieldSelection(fields, [
+        'id', 'materialId', 'supplier', 'purchasedQuantity', 'purchasedUnit',
+        'totalCost', 'purchaseDate', 'expiryDate', 'isPOSItem', 'printerId', 'createdAt'
+      ]);
+
+      const queryOptions = {
+        where: whereClause,
         include: [
           {
             model: Material,
@@ -1127,10 +1210,33 @@ const stockEntriesController = {
             required: false // LEFT JOIN to include entries without printers
           }
         ],
-        order: [["id", "ASC"]]
-      });
+        order: [[paginationParams.sortBy, paginationParams.sortOrder]],
+        limit: paginationParams.limit,
+        offset: paginationParams.offset,
+        distinct: true,
+        attributes: selectedFields
+      };
 
-      res.status(200).json(stockEntries);
+      const { count, rows: stockEntries } = await StockEntry.findAndCountAll(queryOptions);
+      const pagination = buildPaginationResponse(count, paginationParams.page, paginationParams.limit);
+
+      res.status(200).json({
+        data: stockEntries,
+        pagination,
+        filters: {
+          search: req.query.search || '',
+          materialId: req.query.materialId || '',
+          printerId: req.query.printerId || '',
+          isPOSItem: req.query.isPOSItem || '',
+          sortBy: paginationParams.sortBy,
+          sortOrder: paginationParams.sortOrder,
+          fields
+        },
+        meta: {
+          requestTime: new Date().toISOString(),
+          totalDataSize: stockEntries.length
+        }
+      });
     } catch (error) {
       console.error("Error fetching stock entries with printers:", error);
       next(error);

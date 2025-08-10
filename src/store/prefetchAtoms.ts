@@ -5,7 +5,6 @@ import { ordersAPI } from "@/api/orders.api";
 import { Material, MenuItem, StockEntry, MaterialWithStock, StockEntryWithMaterial } from "@/types/inventory";
 import { Order, OrderSummary } from "@/types/orders";
 
-// Cache configuration
 export const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 export const PREFETCH_DELAY = 100; // 100ms delay between prefetch calls
 
@@ -31,7 +30,7 @@ export const prefetchStatusAtom = atom({
 export const materialsCacheAtom = atomWithStorage<MaterialWithStock[]>("inventory-materials-cache", []);
 export const stockCacheAtom = atomWithStorage<StockEntryWithMaterial[]>("inventory-stock-cache", []);
 export const menuCacheAtom = atomWithStorage<MenuItem[]>("inventory-menu-cache", []);
-export const ordersCacheAtom = atomWithStorage<Order[]>("orders-cache", []);
+export const ordersCacheAtom = atomWithStorage<OrderSummary[]>("orders-cache", []);
 export const orderSummariesCacheAtom = atomWithStorage<OrderSummary[]>("order-summaries-cache", []);
 
 // Helper function to check if cache is valid
@@ -169,8 +168,8 @@ export const prefetchStockAction = atom(null, async (get, set, options?: { force
   }));
 
   try {
-    const response = await inventoryAPI.stock.getStockEntries();
-    const transformedData = transformStockData(response.data);
+    const stockEntries = await inventoryAPI.stock.getStockEntries();
+    const transformedData = transformStockData(stockEntries);
 
     // Update cache
     set(stockCacheAtom, transformedData);
@@ -278,16 +277,7 @@ export const prefetchOrdersAction = atom(null, async (get, set, options?: { forc
     const ordersData = response.data;
 
     // Transform and cache the data
-    const transformedData = transformOrdersData(ordersData.map(summary => ({
-      ...summary,
-      items: [],
-      employeeId: undefined,
-      customerPhone: undefined,
-      customerAddress: undefined,
-      discountType: undefined,
-      discountValue: undefined,
-      discountReason: undefined
-    } as Order)));
+    const transformedData = transformOrderSummariesData(ordersData);
 
     set(ordersCacheAtom, transformedData);
 
