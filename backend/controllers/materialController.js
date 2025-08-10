@@ -1,49 +1,178 @@
 import { Material, StockEntry } from "../models/index.js";
-import calculateStockConversion from "../utils/conversions.js";
+import conversions from "../utils/conversions.js";
+import { Op } from "sequelize";
+import { 
+  parsePaginationParams, 
+  buildPaginationResponse, 
+  buildFilterConditions, 
+  parseFieldSelection 
+} from "../utils/paginationHelpers.js";
 
 const materialController = {
-  // Get all materials with stock information
+  // Get all materials with stock information (with pagination and filtering)
   getMaterialsWithStock: async (req, res, next) => {
     try {
-      const materials = await Material.findAll({
-        include: [{ model: StockEntry, as: "stockEntries" }]
+      const { includeStockEntries = 'true', fields = '' } = req.query;
+      
+      // Parse pagination parameters
+      const paginationParams = parsePaginationParams(req.query, {
+        defaultLimit: 50,
+        maxLimit: 500,
+        allowedSortFields: ['name', 'category', 'unitType', 'createdAt', 'updatedAt', 'baseUnit']
       });
 
+      // Build filter conditions
+      const whereClause = buildFilterConditions(req.query, {
+        searchFields: ['name'],
+        exactFilters: ['category', 'unitType']
+      }, Op);
+
+      // Parse field selection for optimized transfer
+      const selectedFields = parseFieldSelection(fields, [
+        'id', 'name', 'baseUnit', 'unitType', 'inputUnit', 'packageQuantity', 'category', 'createdAt', 'updatedAt'
+      ]);
+
+      // Base query options
+      const queryOptions = {
+        where: whereClause,
+        order: [[paginationParams.sortBy, paginationParams.sortOrder]],
+        limit: paginationParams.limit,
+        offset: paginationParams.offset,
+        distinct: true,
+        attributes: selectedFields
+      };
+
+      // Conditionally include stock entries based on query parameter
+      if (includeStockEntries === 'true') {
+        queryOptions.include = [{
+          model: StockEntry,
+          as: "stockEntries",
+          required: false,
+          attributes: [
+            'id', 
+            'purchasedQuantity', 
+            'purchasedUnit', 
+            'purchasedConvertedQuantity',
+            'purchasedConvertedUnit',
+            'costPerPurchasedUnit', 
+            'costPerBaseUnit',
+            'totalCost',
+            'expiryDate', 
+            'purchaseDate',
+            'createdAt'
+          ]
+        }];
+      }
+
+      const { count, rows: materials } = await Material.findAndCountAll(queryOptions);
+
+      // Process materials with stock calculations
       const materialsWithStock = materials.map(material => {
-        const stockEntries = material.stockEntries || [];
+        const materialData = material.get();
+        const stockEntries = materialData.stockEntries || [];
         let totalQuantityInBaseUnit = 0;
         let totalValue = 0;
 
-        const conversions = stockEntries.map(entry => {
-          const conversion = calculateStockConversion(entry, material);
-          totalQuantityInBaseUnit += conversion.convertedQuantity;
-          totalValue += conversion.totalCostInBaseUnit;
-          return conversion;
-        });
+        if (stockEntries.length > 0) {
+          stockEntries.forEach(entry => {
+            const conversion = conversions.calculateStockConversion(entry, materialData);
+            totalQuantityInBaseUnit += conversion.convertedQuantity;
+            totalValue += conversion.totalCostInBaseUnit;
+          });
+        }
 
         const averageCostPerBaseUnit = totalQuantityInBaseUnit > 0 ? totalValue / totalQuantityInBaseUnit : 0;
 
-        return {
-          ...material.get(),
-          stockEntries,
+        const result = {
+          ...materialData,
           totalQuantityInBaseUnit,
           totalValue,
           averageCostPerBaseUnit,
           availableQuantity: totalQuantityInBaseUnit
         };
+
+        // Only include stock entries if requested
+        if (includeStockEntries !== 'true') {
+          delete result.stockEntries;
+        }
+
+        return result;
       });
 
-      res.json(materialsWithStock);
+      const pagination = buildPaginationResponse(count, paginationParams.page, paginationParams.limit);
+
+      res.json({
+        data: materialsWithStock,
+        pagination,
+        filters: {
+          search: req.query.search || '',
+          category: req.query.category || '',
+          unitType: req.query.unitType || '',
+          sortBy: paginationParams.sortBy,
+          sortOrder: paginationParams.sortOrder,
+          includeStockEntries,
+          fields
+        },
+        meta: {
+          requestTime: new Date().toISOString(),
+          totalDataSize: materialsWithStock.length
+        }
+      });
     } catch (err) {
       next(err);
     }
   },
 
-  // Get all materials without stock information
+  // Get all materials without stock information (with pagination and filtering)
   getAllMaterials: async (req, res, next) => {
     try {
-      const materials = await Material.findAll();
-      res.status(200).json(materials);
+      // Parse pagination parameters
+      const paginationParams = parsePaginationParams(req.query, {
+        defaultLimit: 100,
+        maxLimit: 1000,
+        allowedSortFields: ['name', 'category', 'unitType', 'baseUnit', 'createdAt', 'updatedAt']
+      });
+
+      // Build filter conditions
+      const whereClause = buildFilterConditions(req.query, {
+        searchFields: ['name'],
+        exactFilters: ['category', 'unitType'],
+        rangeFilters: ['createdAt', 'updatedAt']
+      }, Op);
+
+      // Parse field selection for optimized data transfer
+      const selectedFields = parseFieldSelection(req.query.fields, [
+        'id', 'name', 'baseUnit', 'unitType', 'inputUnit', 'packageQuantity', 'category', 'createdAt', 'updatedAt'
+      ]);
+
+      const queryOptions = {
+        where: whereClause,
+        order: [[paginationParams.sortBy, paginationParams.sortOrder]],
+        limit: paginationParams.limit,
+        offset: paginationParams.offset,
+        attributes: selectedFields
+      };
+
+      const { count, rows: materials } = await Material.findAndCountAll(queryOptions);
+
+      const pagination = buildPaginationResponse(count, paginationParams.page, paginationParams.limit);
+
+      res.status(200).json({
+        data: materials,
+        pagination,
+        filters: {
+          search: req.query.search || '',
+          category: req.query.category || '',
+          unitType: req.query.unitType || '',
+          sortBy: paginationParams.sortBy,
+          sortOrder: paginationParams.sortOrder,
+          fields: req.query.fields || ''
+        },
+        meta: {
+          requestTime: new Date().toISOString(),
+          totalDataSize: materials.length
+        }
+      });
     } catch (err) {
       next(err);
     }

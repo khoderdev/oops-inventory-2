@@ -10,8 +10,8 @@ export const fetchMaterialsAction = atom(null, async (get, set) => {
   set(tabErrorAtom, prev => ({ ...prev, material: null }));
 
   try {
-    const response = await inventoryAPI.materials.getMaterials();
-    const transformedMaterials: MaterialWithStock[] = response.data.map(material => ({
+    const materialsData = await inventoryAPI.materials.getMaterials();
+    const transformedMaterials: MaterialWithStock[] = materialsData.map(material => ({
       ...material,
       id: material.id.toString(),
       createdAt: material.createdAt ? new Date(material.createdAt) : new Date(),

@@ -118,8 +118,8 @@ export const prefetchMaterialsAction = atom(null, async (get, set, options?: { f
   }));
 
   try {
-    const response = await inventoryAPI.materials.getMaterials();
-    const transformedData = transformMaterialsData(response.data);
+    const materialsData = await inventoryAPI.materials.getMaterials();
+    const transformedData = transformMaterialsData(materialsData);
 
     // Update cache
     set(materialsCacheAtom, transformedData);

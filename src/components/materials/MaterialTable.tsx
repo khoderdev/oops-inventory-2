@@ -7,23 +7,105 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { MATERIAL_CATEGORIES, MaterialTableProps, MaterialWithStock } from "@/types/inventory";
 import { highlightText } from "@/utils/highlightText";
-import { Edit, Plus, Search, Trash2 } from "lucide-react";
+import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from '@tanstack/react-table';
+import { materialsAPI } from "@/api/matierials.api.ts.tsx";
+import { useDebounce } from "@/hooks/useDebounce";
 
-export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
+// Interface for pagination metadata
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  startIndex: number;
+  endIndex: number;
+}
+
+export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: Omit<MaterialTableProps, 'filteredMaterials'>) {
   const { setShowMaterialForm } = useInventoryStore();
+  
+  // Search and filter state
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("ASC");
+  
+  // Data state
+  const [materials, setMaterials] = useState<MaterialWithStock[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // UI state
   const [showFloatingButton, setShowFloatingButton] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // TanStack Table state
+  // TanStack Table state (for local sorting/filtering of current page)
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
+  // Fetch materials data with pagination
+  const fetchMaterials = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await materialsAPI.getMaterialsWithStockPaginated({
+        page: currentPage,
+        limit: pageSize,
+        search: debouncedSearchTerm || undefined,
+        category: categoryFilter === "all" ? undefined : categoryFilter,
+        sortBy,
+        sortOrder,
+        includeStockEntries: "true"
+      });
+      
+      setMaterials(response.data.data);
+      setPagination(response.data.pagination);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch materials");
+      console.error("Error fetching materials:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, pageSize, debouncedSearchTerm, categoryFilter, sortBy, sortOrder]);
+
+  // Fetch data when dependencies change
+  useEffect(() => {
+    fetchMaterials();
+  }, [fetchMaterials]);
+
+  // Reset to first page when search or filter changes
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearchTerm, categoryFilter]);
+
+  // Handle sorting changes
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: "ASC" | "DESC") => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+    setCurrentPage(1); // Reset to first page when sorting changes
+  }, []);
+
+  // Pagination handlers
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToPreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
+  const goToNextPage = () => setCurrentPage(prev => pagination ? Math.min(pagination.totalPages, prev + 1) : prev);
+  const goToLastPage = () => pagination && setCurrentPage(pagination.totalPages);
 
   // Handle scroll for floating button
   useEffect(() => {
@@ -53,21 +135,50 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
   // Column helper for TanStack Table
   const columnHelper = createColumnHelper<MaterialWithStock>();
 
-  // Column definitions
+  // Column definitions with server-side sorting
   const columns = useMemo<ColumnDef<MaterialWithStock>[]>(
     () => [
       // Material name column
       columnHelper.accessor("name", {
-        header: "Material Name",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "name" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("name", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Material Name
+            <span className="ml-2 text-xs">
+              {sortBy === "name" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}
+            </span>
+          </Button>
+        ),
         cell: ({ getValue }) => (
           <div className="font-medium">{highlightText(getValue(), searchTerm)}</div>
         ),
+        enableSorting: false, // Disable client-side sorting since we handle it server-side
         size: 250
       }),
 
       // Category column
       columnHelper.accessor("category", {
-        header: "Category",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "category" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("category", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Category
+            <span className="ml-2 text-xs">
+              {sortBy === "category" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}
+            </span>
+          </Button>
+        ),
         cell: ({ getValue }) => {
           const category = getValue();
           const categoryInfo = MATERIAL_CATEGORIES.find(c => c.value === category);
@@ -77,24 +188,55 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
             </Badge>
           );
         },
+        enableSorting: false,
         size: 150
       }),
 
       // Base Unit column
       columnHelper.accessor("baseUnit", {
-        header: "Base Unit",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "baseUnit" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("baseUnit", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Base Unit
+            <span className="ml-2 text-xs">
+              {sortBy === "baseUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}
+            </span>
+          </Button>
+        ),
         cell: ({ getValue }) => (
           <div className="text-gray-700 font-mono text-sm">{getValue()}</div>
         ),
+        enableSorting: false,
         size: 120
       }),
 
       // Unit Type column
       columnHelper.accessor("unitType", {
-        header: "Unit Type",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "unitType" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("unitType", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Unit Type
+            <span className="ml-2 text-xs">
+              {sortBy === "unitType" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}
+            </span>
+          </Button>
+        ),
         cell: ({ getValue }) => (
           <div className="text-gray-700 capitalize">{getValue()}</div>
         ),
+        enableSorting: false,
         size: 120
       }),
 
@@ -110,6 +252,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
             </div>
           );
         },
+        enableSorting: false,
         size: 120
       }),
 
@@ -190,33 +333,23 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
         size: 200
       })
     ],
-    [searchTerm, onEditMaterial, onAddStock, onDeleteMaterial]
+    [searchTerm, onEditMaterial, onAddStock, onDeleteMaterial, sortBy, sortOrder, handleSortChange]
   );
 
-  // Apply search and category filters
-  const searchFilteredMaterials = useMemo(() => {
-    return filteredMaterials.filter(material => {
-      const matchesSearch = !searchTerm || material.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = categoryFilter === "all" || material.category === categoryFilter;
-      return matchesSearch && matchesCategory;
-    });
-  }, [filteredMaterials, searchTerm, categoryFilter]);
-
-  // TanStack Table instance
+  // TanStack Table instance (using server-side data)
   const table = useReactTable({
-    data: searchFilteredMaterials,
+    data: materials,
     columns,
     state: {
       sorting,
-      columnFilters,
-      globalFilter: searchTerm
+      columnFilters
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    globalFilterFn: 'includesString'
+    manualSorting: true, // Disable client-side sorting since we handle it server-side
+    manualFiltering: true, // Disable client-side filtering since we handle it server-side
+    manualPagination: true // Disable client-side pagination since we handle it server-side
   });
 
   const getCategoryColor = useCallback((category: string) => {
@@ -248,21 +381,42 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
           {/* Title Section */}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 ">
             <div className="space-y-1">
-              <h1 className="text-2xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Materials</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Materials</h1>
+                {loading && <Loader2 className="h-5 w-5 animate-spin text-blue-500" />}
+              </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                <span>Total: {filteredMaterials.length} materials</span>
+                {pagination && (
+                  <>
+                    <span>Total: {pagination.totalItems} materials</span>
+                    <span>•</span>
+                    <span>
+                      Showing {pagination.startIndex}-{pagination.endIndex} of {pagination.totalItems}
+                    </span>
+                    <span>•</span>
+                    <span>Page {pagination.currentPage} of {pagination.totalPages}</span>
+                  </>
+                )}
                 {(searchTerm || categoryFilter !== "all") && (
-                  <span className="text-blue-600 font-medium">
-                    Filtered: {searchFilteredMaterials.length} results
-                    {categoryFilter !== "all" && ` (${MATERIAL_CATEGORIES.find(c => c.value === categoryFilter)?.label})`}
-                  </span>
+                  <>
+                    <span>•</span>
+                    <span className="text-blue-600 font-medium">
+                      Filtered results
+                      {categoryFilter !== "all" && ` (${MATERIAL_CATEGORIES.find(c => c.value === categoryFilter)?.label})`}
+                    </span>
+                  </>
                 )}
               </div>
+              {error && (
+                <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md border border-red-200">
+                  Error: {error}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Action Bar */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
@@ -271,12 +425,13 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
                 className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem]" 
+                disabled={loading}
               />
             </div>
 
             {/* Category Filter */}
             <div className="w-fit shrink-0">
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter} disabled={loading}>
                 <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-full">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
@@ -290,14 +445,104 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Page Size Selector */}
+            <div className="w-fit shrink-0">
+              <Select 
+                value={pageSize.toString()} 
+                onValueChange={(value) => {
+                  setPageSize(Number(value));
+                  setCurrentPage(1);
+                }} 
+                disabled={loading}
+              >
+                <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25 per page</SelectItem>
+                  <SelectItem value="50">50 per page</SelectItem>
+                  <SelectItem value="100">100 per page</SelectItem>
+                  <SelectItem value="200">200 per page</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Pagination Controls */}
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToFirstPage}
+                  disabled={!pagination.hasPreviousPage || loading}
+                  className="h-10 px-3"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousPage}
+                  disabled={!pagination.hasPreviousPage || loading}
+                  className="h-10 px-3"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="px-3 py-2 text-sm font-medium bg-gray-50 rounded border">
+                  {pagination.currentPage}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextPage}
+                  disabled={!pagination.hasNextPage || loading}
+                  className="h-10 px-3"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToLastPage}
+                  disabled={!pagination.hasNextPage || loading}
+                  className="h-10 px-3"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Content Section */}
         <div ref={scrollContainerRef} className="flex-1 overflow-hidden overflow-y-auto relative">
+          {/* Loading State */}
+          {loading && materials.length === 0 && (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
+                <p className="text-gray-600">Loading materials...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && materials.length === 0 && (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <p className="text-gray-600 mb-2">No materials found</p>
+                {(searchTerm || categoryFilter !== "all") && (
+                  <p className="text-sm text-gray-500">Try adjusting your search or filter criteria</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Mobile Card View */}
-          <div className="lg:hidden space-y-4">
-            {searchFilteredMaterials.map(material => {
+          {!loading && materials.length > 0 && (
+            <div className="lg:hidden space-y-4">
+              {materials.map(material => {
               const categoryInfo = MATERIAL_CATEGORIES.find(c => c.value === material.category);
 
               return (
@@ -407,14 +652,48 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
 
           {/* Desktop Table View - TanStack Virtualized */}
-          <div className="hidden lg:block px-4">
-            <div className="w-full h-[calc(100vh-210px)] rounded-lg border overflow-hidden bg-white mt-4">
-              <TanStackVirtualizedMaterialTable table={table} />
+          {!loading && materials.length > 0 && (
+            <div className="hidden lg:block px-4">
+              <div className="w-full h-[calc(100vh-280px)] rounded-lg border overflow-hidden bg-white mt-4">
+                <TanStackVirtualizedMaterialTable table={table} />
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Bottom Pagination Controls for Mobile */}
+          {!loading && pagination && pagination.totalPages > 1 && (
+            <div className="lg:hidden mt-6 px-4">
+              <div className="flex items-center justify-between bg-white p-4 rounded-lg border">
+                <div className="text-sm text-gray-600">
+                  Page {pagination.currentPage} of {pagination.totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToPreviousPage}
+                    disabled={!pagination.hasPreviousPage}
+                    className="h-9 px-3"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToNextPage}
+                    disabled={!pagination.hasNextPage}
+                    className="h-9 px-3"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Floating Add Button */}
