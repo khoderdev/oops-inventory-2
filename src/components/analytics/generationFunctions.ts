@@ -53,7 +53,6 @@ export async function generateInventorySummaryReport(materials: Material[], stoc
 
 export async function generateStockPurchasesReport(stockEntries: StockEntry[], materials: Material[]) {
   return stockEntries
-    .filter(entry => !entry.wasteReason)
     .map(entry => {
       const material = materials.find(m => m.id === entry.materialId);
       return {
@@ -78,11 +77,10 @@ export async function generateSalesPerformanceReport(sales: SaleRecord[], menuIt
       salesWithItems.push({
         Date: new Date(sale.saleDate),
         "Item Name": "No items recorded",
-        "Item Type": "Sale Record",
         Quantity: 1,
         "Unit Price": sale.totalAmount,
         "Total Price": sale.totalAmount,
-        Creator: sale.creator?.username || "-"
+        "Made By": sale.creator?.username || "-"
       });
       return;
     }
@@ -96,7 +94,7 @@ export async function generateSalesPerformanceReport(sales: SaleRecord[], menuIt
         Quantity: item.quantity || 0,
         "Unit Price": item.unitPrice || 0,
         "Total Price": item.totalPrice || 0,
-        Creator: sale.creator?.username || "-"
+        "Made By": sale.creator?.username || "-"
       });
     });
     
@@ -115,7 +113,7 @@ export async function generateSalesPerformanceReport(sales: SaleRecord[], menuIt
         Quantity: menuItem.quantity || 0,
         "Unit Price": menuItem.unitPrice || 0,
         "Total Price": menuItem.totalPrice || 0,
-        Creator: sale.creator?.username || "-"
+        "Made By": sale.creator?.username || "-"
       });
     });
   });

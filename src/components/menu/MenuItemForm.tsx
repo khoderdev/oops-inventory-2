@@ -26,7 +26,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
   const [, setImageFile] = useState<File | undefined>(undefined);
-  const [ingredients, setIngredients] = useState<Omit<MenuItemIngredient, "cost">[]>(menuItem?.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit })) || []);
+  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(menuItem?.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) || []);
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
@@ -219,7 +219,8 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         menuItem.ingredients.map(i => ({
           materialId: i.materialId,
           quantity: i.quantity,
-          unit: i.unit
+          unit: i.unit,
+          cost: i.cost
         })) || []
       );
     } else {
@@ -247,10 +248,14 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       return;
     }
 
-    const newIngredient: Omit<MenuItemIngredient, "cost"> = {
+    const material = materials.find(m => String(m.id) === selectedMaterialId);
+    const cost = material ? calculateIngredientCost({ materialId: selectedMaterialId, quantity, unit: ingredientUnit, cost: 0 }) : 0;
+    
+    const newIngredient: MenuItemIngredient = {
       materialId: selectedMaterialId,
       quantity,
-      unit: ingredientUnit
+      unit: ingredientUnit,
+      cost
     };
 
     setIngredients(prev => [...prev, newIngredient]);

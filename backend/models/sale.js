@@ -37,6 +37,14 @@ const Sale = sequelize.define(
         key: "id"
       }
     },
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: "users",
+        key: "id"
+      }
+    },
     items: {
       type: DataTypes.JSONB,
       allowNull: true,
