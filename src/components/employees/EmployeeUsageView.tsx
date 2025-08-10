@@ -9,7 +9,7 @@ import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, us
 import type { EmployeeUsage, EmployeeUsageType, EmployeeSettlement } from "@/types/employee";
 import { addDays } from "date-fns";
 import { useAtom } from "jotai";
-import { ChevronDown, ChevronRight, Download, Filter, Plus, ShoppingCart, TrendingUp, UserPlus } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Filter, ShoppingCart, TrendingUp, UserPlus } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
 interface EmployeeUsageViewProps {
@@ -354,59 +354,50 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Employee Usage Tracking</h2>
-          <p className="text-muted-foreground">Monitor employee usage of materials, menu items, and stock entries</p>
+          <h2 className="text-2xl font-bold tracking-tight">Employee Usages</h2>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Record Usage
-        </Button>
       </div>
 
       {/* Stats Cards */}
       {usageStats && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Usage Records</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+              <CardTitle className="text-xs font-medium">Total Usage Records</CardTitle>
+              <TrendingUp className="h-3 w-3 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{usageStats.totals.totalCount}</div>
-              <p className="text-xs text-muted-foreground">In selected period</p>
+            <CardContent className="pb-3">
+              <div className="text-lg font-bold">{usageStats.totals.totalCount}</div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+              <CardTitle className="text-xs font-medium">Total Cost</CardTitle>
+              <TrendingUp className="h-3 w-3 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(usageStats.totals.totalCost)}</div>
-              <p className="text-xs text-muted-foreground">Before discounts</p>
+            <CardContent className="pb-3">
+              <div className="text-lg font-bold">{formatCurrency(usageStats.totals.totalCost)}</div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Final Cost</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+              <CardTitle className="text-xs font-medium">Final Cost</CardTitle>
+              <TrendingUp className="h-3 w-3 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(usageStats.totals.totalFinalCost)}</div>
-              <p className="text-xs text-muted-foreground">After discounts</p>
+            <CardContent className="pb-3">
+              <div className="text-lg font-bold">{formatCurrency(usageStats.totals.totalFinalCost)}</div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Savings</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+              <CardTitle className="text-xs font-medium">Total Savings</CardTitle>
+              <TrendingUp className="h-3 w-3 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(usageStats.totals.totalDiscountAmount)}</div>
-              <p className="text-xs text-muted-foreground">Employee discounts</p>
+            <CardContent className="pb-3">
+              <div className="text-lg font-bold text-green-600">{formatCurrency(usageStats.totals.totalDiscountAmount)}</div>
             </CardContent>
           </Card>
         </div>
@@ -414,14 +405,14 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="h-4 w-4" />
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Filter className="h-3 w-3" />
             Filters
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-4">
+        <CardContent className="pt-0">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[200px]">
               <Select value={selectedEmployeeId?.toString() || "all"} onValueChange={handleEmployeeChange}>
                 <SelectTrigger>
