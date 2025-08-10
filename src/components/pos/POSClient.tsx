@@ -37,7 +37,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const {
     stock,
     menu,
-    isLoading: inventoryLoading,
+    status,
     refresh: refreshInventory
   } = usePrefetch({
     autoFetch: true,
@@ -103,7 +103,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [selectedItemForNotes, setSelectedItemForNotes] = useState<POSCartItem | null>(null);
   const [orderNotes, setOrderNotes] = useState<string>("");
   const [discountAmount, setDiscountAmount] = useState<number>(0);
-  const [appliedDiscount, setAppliedDiscount] = useState<{ type: "percentage" | "fixed"; value: number; amount: number; reason?: string; } | null>(null);
+  const [appliedDiscount, setAppliedDiscount] = useState<{ type: "percentage" | "fixed"; value: number; amount: number; reason?: string } | null>(null);
   const [showPrinterSelector, setShowPrinterSelector] = useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
@@ -180,7 +180,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       if (processedOrderRef.current === orderId) {
         return;
       }
-
       processedOrderRef.current = orderId;
       const cartItems: POSCartItem[] = selectedOrderForPOS.items
         .map((item: any, index: number) => {
@@ -349,30 +348,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         showError("Cannot apply discount to empty cart");
         return;
       }
-
       const currentSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
       let discountAmount = 0;
-
       if (discountData.type === "percentage") {
         const safePercentage = Math.min(discountData.value, 100);
         discountAmount = (currentSubtotal * safePercentage) / 100;
       } else {
         discountAmount = Math.min(discountData.value, currentSubtotal);
       }
-
-      // Apply the discount
       setAppliedDiscount({
         type: discountData.type,
         value: discountData.value,
         amount: discountAmount,
         reason: discountData.reason
       });
-
       setDiscountAmount(discountAmount);
       setShowDiscountDialog(false);
-
       const discountText = discountData.type === "percentage" ? `${discountData.value}% discount` : `$${discountData.value} discount`;
-
       showSuccess(`${discountText} applied - Saved $${discountAmount.toFixed(2)}`);
     },
     [cart, showError, showSuccess]
@@ -388,10 +380,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     (itemId: string, notes: string) => {
       setCart(prevCart => {
         const updatedCart = prevCart.map(item => (item.id === itemId ? { ...item, notes: notes.trim() || undefined } : item));
-
         return updatedCart;
       });
-
       if (notes.trim()) {
         showSuccess("Item notes saved");
       } else {
@@ -477,10 +467,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setPrinterSelectionContext("manual_print");
     setShowPrinterSelector(true);
   }, []);
-
-  const handlePrintSuccess = useCallback(() => {
-    showSuccess("Receipt printed successfully!");
-  }, [showSuccess]);
 
   const fetchIncompleteOrders = useCallback(async () => {
     try {
@@ -643,20 +629,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               price: stockEntry.costPerBaseUnit || 0,
               category: stockEntry.material.category,
               type: "stock_entry",
-              materialId: stockEntry.materialId,
-              stockEntryId: stockEntry.id,
+              materialId: Number(stockEntry.materialId),
               unit: stockEntry.material.baseUnit,
-              description: `${stockEntry.material.name} - ${stockEntry.material.baseUnit}`
+              description: `${stockEntry.material.name} - ${stockEntry.material.baseUnit}`,
+              availableQuantity: 0,
+              costPerUnit: stockEntry.costPerBaseUnit || 0,
+              createdAt: "",
+              updatedAt: ""
             });
           }
         });
-
         setPosItems(posItemsFromData);
       };
-
       convertToPOSItems();
     }
-  }, [menu, stock, inventoryLoading]);
+  }, [menu, stock, status.isLoading]);
 
   useEffect(() => {
     const fetchAdditionalData = async () => {
@@ -672,10 +659,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setIsLoading(false);
       }
     };
-    if (!inventoryLoading && menu.length > 0 && stock.length > 0) {
+    if (!status.isLoading && menu.length > 0 && stock.length > 0) {
       fetchAdditionalData();
     }
-  }, [inventoryLoading, menu.length, stock.length, showError]);
+  }, [status.isLoading, menu.length, stock.length, showError]);
 
   useEffect(() => {
     const loadSavedOrder = async () => {
@@ -703,20 +690,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             };
           })
           .filter(Boolean) as POSCartItem[];
-
         setCart(cartItems);
         setOrderType(savedOrder.orderType);
-
         if (savedOrder.tableId) {
           const table = tables.find(t => t.id === savedOrder.tableId);
           setSelectedTable(table);
         }
-
         setHasUnsavedChanges(true);
         showSuccess("Previous order restored from auto-save");
       }
     };
-
     if (optimisticAssignments.length > 0 && menuItems.length > 0) {
       loadSavedOrder();
     }
@@ -1181,7 +1164,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     try {
       setIsLoading(true);
       let savedOrder;
-
       if (currentOrder?.id) {
         const updateData = {
           items: cart.map(cartItem => {
@@ -1334,9 +1316,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       };
 
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Order completion timeout - API call took too long")), 15000));
-
       const response = (await Promise.race([ordersAPI.completeOrder(orderToComplete.id, paymentData), timeoutPromise])) as any;
-
       let order: any, saleId: string;
 
       if (response?.data) {
@@ -1350,25 +1330,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           order = response.data;
           saleId = response.data.id;
         } else {
-          order = {
-            id: orderToComplete.id,
-            items: cart,
-            subtotal: subtotal,
-            tax: tax,
-            total: total,
-            status: "completed"
-          };
+          order = { id: orderToComplete.id, items: cart, subtotal: subtotal, tax: tax, total: total, status: "completed" };
           saleId = `sale-${Date.now()}`;
         }
       } else {
-        order = {
-          id: orderToComplete.id,
-          items: cart,
-          subtotal: subtotal,
-          tax: tax,
-          total: total,
-          status: "completed"
-        };
+        order = { id: orderToComplete.id, items: cart, subtotal: subtotal, tax: tax, total: total, status: "completed" };
         saleId = `sale-${Date.now()}`;
       }
 
@@ -1376,7 +1342,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         id: saleId || `receipt-${Date.now()}`,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
-        cashier: "", // Let ReceiptPrinter handle the fallback to logged-in user
+        cashier: "",
         items: (order.items || cart).map(item => ({
           name: item.name,
           quantity: item.quantity,
@@ -1460,12 +1426,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!containerRef.current) return;
-
     const containerRect = containerRef.current.getBoundingClientRect();
     const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
     const minWidth = 20;
     const maxWidth = 60;
-
     if (newWidth >= minWidth && newWidth <= maxWidth) {
       setLeftPanelWidth(newWidth);
       const rightPanelWidth = 100 - newWidth;
@@ -1704,7 +1668,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 overflow-y-auto !bg-gray-50">
-              <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={inventoryLoading || (posItems.length === 0 && (menu.length === 0 || stock.length === 0))} />
+              <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={status.isLoading || (posItems.length === 0 && (menu.length === 0 || stock.length === 0))} />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}
