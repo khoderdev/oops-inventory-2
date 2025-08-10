@@ -15,7 +15,8 @@ import { highlightText } from "@/utils/highlightText";
 import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataValidation";
 import { Check, Edit, Eye, Package, Plus, Printer, Search, Trash2, Tag, AlertTriangle, CheckCircle, X, CheckSquare, Square } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom } from "jotai";
 import { dataValidationEnabledAtom } from "@/store/settingsStore";
 import { MenuItemForm } from "./MenuItemForm";
@@ -709,339 +710,46 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             </Dialog>
 
             {/* Mobile Card View - Show on small screens */}
-            <div className="lg:hidden flex-1 overflow-auto pb-16">
-              <div className="space-y-3">
-                {filteredMenuItems.length > 0 ? (
-                  filteredMenuItems.map(item => {
-                    const totalCost = calculateMenuItemCost(item.ingredients);
-                    const profit = item.price - totalCost;
-                    const profitMargin = item.price ? (profit / item.price) * 100 : 0;
-                    const isSelected = selectedMenuItems.has(item.id);
-
-                    return (
-                      <div key={item.id} className={`p-4 rounded-lg border bg-white shadow-sm transition-all duration-200 ${isSelected ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"}`} onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : undefined}>
-                        {/* Mobile Card Header */}
-                        <div className="flex items-start gap-3 mb-3">
-                          {bulkSelectionMode && <input type="checkbox" checked={isSelected} onChange={() => handleSelectMenuItem(item.id)} className="h-4 w-4 mt-1" onClick={e => e.stopPropagation()} />}
-                          {item.image ? (
-                            <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-md border flex-shrink-0" />
-                          ) : (
-                            <div className="w-16 h-16 bg-gray-100 rounded-md border flex items-center justify-center flex-shrink-0">
-                              <Package className="h-8 w-8 text-gray-400" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 truncate">{item.name}</h3>
-                            {item.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>}
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}</span>
-                              {item.isPOSItem && <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">POS</span>}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Mobile Card Content */}
-                        <div className="space-y-3">
-                          {/* Ingredients */}
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-700 mb-1">Ingredients</h4>
-                            <div className="text-sm text-gray-600">
-                              {item.ingredients.map((ingredient, idx) => {
-                                const materialName = getMaterialName(ingredient.materialId);
-                                return (
-                                  <div key={idx} className="flex justify-between">
-                                    <span>{materialName}</span>
-                                    <span>
-                                      {formatNumber(ingredient.quantity)} {ingredient.unit}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Financial Info */}
-                          <div className="grid grid-cols-3 gap-4 py-3 border-t border-gray-100">
-                            <div className="text-center">
-                              <div className="text-xs text-gray-500">Cost</div>
-                              <div className="font-semibold text-gray-900">{formatCurrency(totalCost)}</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-xs text-gray-500">Price</div>
-                              <div className="font-semibold text-gray-900">{formatCurrency(item.price)}</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-xs text-gray-500">Profit</div>
-                              <div className={`font-semibold ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>{formatCurrency(profit)}</div>
-                            </div>
-                          </div>
-
-                          {/* Mobile Actions */}
-                          <div className="flex gap-2 pt-2 border-t border-gray-100">
-                            <Button
-                              size="sm"
-                              variant={item.isPOSItem ? "default" : "outline"}
-                              className={`flex-1 ${item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}`}
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleTogglePOSVisibility(item);
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              {item.isPOSItem ? "Hide from POS" : "Show in POS"}
-                            </Button>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    handleOpenPrinterDialog(item);
-                                  }}
-                                >
-                                  <Printer className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Assign printer to {item.name}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setEditingMenuItem(item);
-                                    setShowMenuItemForm(true);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Edit {item.name}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            <AlertDialog>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <AlertDialogTrigger asChild>
-                                    <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Delete {item.name}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                                  <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-12">
-                    <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-lg font-medium mb-2">No menu items found</p>
-                    <p className="text-sm text-muted-foreground mb-4">{searchTerm ? "Try a different search term" : "Create your first menu item"}</p>
-                    <Button onClick={() => setShowMenuItemForm(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Menu Item
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
+            <MobileVirtualizedList
+              items={filteredMenuItems}
+              searchTerm={searchTerm}
+              bulkSelectionMode={bulkSelectionMode}
+              selectedMenuItems={selectedMenuItems}
+              MENU_CATEGORIES={MENU_CATEGORIES}
+              getMaterialName={getMaterialName}
+              calculateMenuItemCost={calculateMenuItemCost}
+              formatCurrency={formatCurrency}
+              formatNumber={formatNumber}
+              handleSelectMenuItem={handleSelectMenuItem}
+              handleTogglePOSVisibility={handleTogglePOSVisibility}
+              handleOpenPrinterDialog={handleOpenPrinterDialog}
+              setEditingMenuItem={setEditingMenuItem}
+              setShowMenuItemForm={setShowMenuItemForm}
+              handleDeleteMenuItem={handleDeleteMenuItem}
+            />
 
             {/* Desktop Table View - Show on large screens */}
-            <div className="hidden lg:flex flex-1 flex-col min-h-0 border rounded-md">
-              <div className="flex-1 overflow-auto">
-                <Table className="min-w-full">
-                  <TableHeader className="sticky top-0 bg-background border-b">
-                    <TableRow>
-                      {bulkSelectionMode && (
-                        <TableHead className="w-12">
-                          <input type="checkbox" checked={selectedMenuItems.size === filteredMenuItems.length && filteredMenuItems.length > 0} onChange={handleSelectAllMenuItems} className="h-4 w-4" aria-label="Select all menu items" />
-                        </TableHead>
-                      )}
-                      <TableHead className="min-w-[80px]">Image</TableHead>
-                      <TableHead className="min-w-[200px]">Name</TableHead>
-                      <TableHead className="min-w-[150px]">Category</TableHead>
-                      <TableHead className="min-w-[200px]">Ingredients</TableHead>
-                      <TableHead className="min-w-[120px]">Cost</TableHead>
-                      <TableHead className="min-w-[120px]">Price</TableHead>
-                      <TableHead className="min-w-[120px]">Profit</TableHead>
-                      <TableHead className="text-right min-w-[200px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMenuItems.length > 0 ? (
-                      filteredMenuItems.map(item => {
-                        const totalCost = calculateMenuItemCost(item.ingredients);
-                        const profit = item.price - totalCost;
-                        const profitMargin = item.price ? (profit / item.price) * 100 : 0;
-
-                        const isSelected = selectedRowId === item.id;
-
-                        return (
-                          <TableRow key={item.id} onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : () => handleRowClick(item.id)} className={`cursor-pointer transition-colors ${isSelected ? "bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100" : selectedMenuItems.has(item.id) ? "bg-green-50 border-l-4 border-l-green-500 hover:bg-green-100" : "hover:bg-muted/50"}`}>
-                            {bulkSelectionMode && (
-                              <TableCell className="w-12">
-                                <input type="checkbox" checked={selectedMenuItems.has(item.id)} onChange={() => handleSelectMenuItem(item.id)} className="h-4 w-4" aria-label={`Select ${item.name}`} onClick={e => e.stopPropagation()} />
-                              </TableCell>
-                            )}
-                            <TableCell className="min-w-[80px]">
-                              {item.image ? (
-                                <img src={item.image} alt={item.name} className="w-12 h-12 object-cover rounded-md border" />
-                              ) : (
-                                <div className="w-12 h-12 bg-gray-100 rounded-md border flex items-center justify-center">
-                                  <Package className="h-6 w-6 text-gray-400" />
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="font-medium min-w-[200px]">
-                              <div>{highlightText(item.name, searchTerm)}</div>
-                              {item.description && <div className="text-sm text-muted-foreground">{highlightText(item.description, searchTerm)}</div>}
-                            </TableCell>
-                            <TableCell className="min-w-[150px]">{MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}</TableCell>
-                            <TableCell className="min-w-[200px]">
-                              <div className="space-y-1">
-                                {item.ingredients.map((ingredient, idx) => {
-                                  const materialName = getMaterialName(ingredient.materialId);
-                                  return (
-                                    <div key={idx} className="text-sm">
-                                      {formatNumber(ingredient.quantity)} {ingredient.unit} {highlightText(materialName, searchTerm)}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </TableCell>
-                            <TableCell className="min-w-[120px]">{formatCurrency(totalCost)}</TableCell>
-                            <TableCell className="min-w-[120px]">{formatCurrency(item.price)}</TableCell>
-                            <TableCell className={`min-w-[120px] ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
-                              {formatCurrency(profit)} ({formatNumber(profitMargin)}%)
-                            </TableCell>
-                            <TableCell className="text-right min-w-[200px]">
-                              <div className="flex gap-2 justify-end">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant={item.isPOSItem ? "default" : "outline"}
-                                      className={item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        handleTogglePOSVisibility(item);
-                                      }}
-                                      aria-label={`${item.isPOSItem ? "Hide from" : "Show in"} POS`}
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>{item.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        handleOpenPrinterDialog(item);
-                                      }}
-                                      aria-label={`Assign printer to ${item.name}`}
-                                    >
-                                      <Printer className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Assign printer to {item.name}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => {
-                                        setEditingMenuItem(item);
-                                        setShowMenuItemForm(true);
-                                      }}
-                                      aria-label={`Edit ${item.name}`}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Edit {item.name}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
-                                          <AlertDialogDescription>This will permanently delete "{item.name}" and cannot be undone.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={() => handleDeleteMenuItem(item.id)}>
-                                            Delete
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Delete {item.name}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={bulkSelectionMode ? 9 : 8} className="text-center py-8">
-                          <div className="flex flex-col items-center justify-center space-y-2">
-                            <Package className="h-12 w-12 text-muted-foreground" />
-                            <p className="text-lg font-medium">No menu items found</p>
-                            <p className="text-sm text-muted-foreground">{searchTerm ? "Try a different search term" : "Create your first menu item"}</p>
-                            <Button className="mt-4" onClick={() => setShowMenuItemForm(true)}>
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Menu Item
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+            <DesktopVirtualizedTable
+              items={filteredMenuItems}
+              searchTerm={searchTerm}
+              bulkSelectionMode={bulkSelectionMode}
+              selectedMenuItems={selectedMenuItems}
+              selectedRowId={selectedRowId}
+              MENU_CATEGORIES={MENU_CATEGORIES}
+              getMaterialName={getMaterialName}
+              calculateMenuItemCost={calculateMenuItemCost}
+              formatCurrency={formatCurrency}
+              formatNumber={formatNumber}
+              highlightText={highlightText}
+              handleSelectMenuItem={handleSelectMenuItem}
+              handleSelectAllMenuItems={handleSelectAllMenuItems}
+              handleRowClick={handleRowClick}
+              handleTogglePOSVisibility={handleTogglePOSVisibility}
+              handleOpenPrinterDialog={handleOpenPrinterDialog}
+              setEditingMenuItem={setEditingMenuItem}
+              setShowMenuItemForm={setShowMenuItemForm}
+              handleDeleteMenuItem={handleDeleteMenuItem}
+            />
           </CardContent>
         </Card>
       </div>
@@ -1186,5 +894,603 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         </DialogContent>
       </Dialog>
     </TooltipProvider>
+  );
+};
+
+// Mobile Virtualized List Component
+interface MobileVirtualizedListProps {
+  items: MenuItem[];
+  searchTerm: string;
+  bulkSelectionMode: boolean;
+  selectedMenuItems: Set<string>;
+  MENU_CATEGORIES: { value: MenuItemCategory; label: string }[];
+  getMaterialName: (id: string | number) => string;
+  calculateMenuItemCost: (ingredients: MenuItemIngredient[]) => number;
+  formatCurrency: (amount: number) => string;
+  formatNumber: (value: number) => string;
+  handleSelectMenuItem: (id: string) => void;
+  handleTogglePOSVisibility: (item: MenuItem) => void;
+  handleOpenPrinterDialog: (item: MenuItem) => void;
+  setEditingMenuItem: (item: MenuItem) => void;
+  setShowMenuItemForm: (show: boolean) => void;
+  handleDeleteMenuItem: (id: string) => void;
+}
+
+const MobileVirtualizedList: React.FC<MobileVirtualizedListProps> = ({
+  items,
+  searchTerm,
+  bulkSelectionMode,
+  selectedMenuItems,
+  MENU_CATEGORIES,
+  getMaterialName,
+  calculateMenuItemCost,
+  formatCurrency,
+  formatNumber,
+  handleSelectMenuItem,
+  handleTogglePOSVisibility,
+  handleOpenPrinterDialog,
+  setEditingMenuItem,
+  setShowMenuItemForm,
+  handleDeleteMenuItem,
+}) => {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 280, // Estimated height of each card
+    overscan: 5,
+  });
+
+  if (items.length === 0) {
+    return (
+      <div className="lg:hidden flex-1 flex items-center justify-center pb-16">
+        <div className="text-center py-12">
+          <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">No menu items found</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            {searchTerm ? "Try a different search term" : "Create your first menu item"}
+          </p>
+          <Button onClick={() => setShowMenuItemForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Menu Item
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="lg:hidden flex-1 pb-16" ref={parentRef} style={{ overflow: 'auto' }}>
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+          const item = items[virtualItem.index];
+          const totalCost = calculateMenuItemCost(item.ingredients);
+          const profit = item.price - totalCost;
+          const isSelected = selectedMenuItems.has(item.id);
+
+          return (
+            <div
+              key={virtualItem.key}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualItem.size}px`,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+            >
+              <div className="px-3 py-1.5">
+                <div
+                  className={`p-4 rounded-lg border bg-white shadow-sm transition-all duration-200 ${
+                    isSelected ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={bulkSelectionMode ? () => handleSelectMenuItem(item.id) : undefined}
+                >
+                  {/* Mobile Card Header */}
+                  <div className="flex items-start gap-3 mb-3">
+                    {bulkSelectionMode && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleSelectMenuItem(item.id)}
+                        className="h-4 w-4 mt-1"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-16 h-16 object-cover rounded-md border flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-100 rounded-md border flex items-center justify-center flex-shrink-0">
+                        <Package className="h-8 w-8 text-gray-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 truncate">{item.name}</h3>
+                      {item.description && (
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {MENU_CATEGORIES.find((c) => c.value === item.category)?.label || item.category}
+                        </span>
+                        {item.isPOSItem && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            POS
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mobile Card Content */}
+                  <div className="space-y-3">
+                    {/* Ingredients */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">Ingredients</h4>
+                      <div className="text-sm text-gray-600">
+                        {item.ingredients.map((ingredient, idx) => {
+                          const materialName = getMaterialName(ingredient.materialId);
+                          return (
+                            <div key={idx} className="flex justify-between">
+                              <span>{materialName}</span>
+                              <span>
+                                {formatNumber(ingredient.quantity)} {ingredient.unit}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Financial Info */}
+                    <div className="grid grid-cols-3 gap-4 py-3 border-t border-gray-100">
+                      <div className="text-center">
+                        <div className="text-xs text-gray-500">Cost</div>
+                        <div className="font-semibold text-gray-900">{formatCurrency(totalCost)}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs text-gray-500">Price</div>
+                        <div className="font-semibold text-gray-900">{formatCurrency(item.price)}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs text-gray-500">Profit</div>
+                        <div className={`font-semibold ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
+                          {formatCurrency(profit)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mobile Actions */}
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                      <Button
+                        size="sm"
+                        variant={item.isPOSItem ? "default" : "outline"}
+                        className={`flex-1 ${item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTogglePOSVisibility(item);
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        {item.isPOSItem ? "Hide from POS" : "Show in POS"}
+                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenPrinterDialog(item);
+                            }}
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Assign printer to {item.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingMenuItem(item);
+                              setShowMenuItemForm(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Edit {item.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <AlertDialog>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="outline" aria-label={`Delete ${item.name}`}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Delete {item.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{item.name}" and cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteMenuItem(item.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Desktop Virtualized Table Component
+interface DesktopVirtualizedTableProps {
+  items: MenuItem[];
+  searchTerm: string;
+  bulkSelectionMode: boolean;
+  selectedMenuItems: Set<string>;
+  selectedRowId: string | null;
+  MENU_CATEGORIES: { value: MenuItemCategory; label: string }[];
+  getMaterialName: (id: string | number) => string;
+  calculateMenuItemCost: (ingredients: MenuItemIngredient[]) => number;
+  formatCurrency: (amount: number) => string;
+  formatNumber: (value: number) => string;
+  highlightText: (text: string, searchTerm: string) => React.ReactNode;
+  handleSelectMenuItem: (id: string) => void;
+  handleSelectAllMenuItems: () => void;
+  handleRowClick: (id: string) => void;
+  handleTogglePOSVisibility: (item: MenuItem) => void;
+  handleOpenPrinterDialog: (item: MenuItem) => void;
+  setEditingMenuItem: (item: MenuItem) => void;
+  setShowMenuItemForm: (show: boolean) => void;
+  handleDeleteMenuItem: (id: string) => void;
+}
+
+const DesktopVirtualizedTable: React.FC<DesktopVirtualizedTableProps> = ({
+  items,
+  searchTerm,
+  bulkSelectionMode,
+  selectedMenuItems,
+  selectedRowId,
+  MENU_CATEGORIES,
+  getMaterialName,
+  calculateMenuItemCost,
+  formatCurrency,
+  formatNumber,
+  highlightText,
+  handleSelectMenuItem,
+  handleSelectAllMenuItems,
+  handleRowClick,
+  handleTogglePOSVisibility,
+  handleOpenPrinterDialog,
+  setEditingMenuItem,
+  setShowMenuItemForm,
+  handleDeleteMenuItem,
+}) => {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 60, // Estimated height of each table row
+    overscan: 10,
+  });
+
+  if (items.length === 0) {
+    return (
+      <div className="hidden lg:flex flex-1 flex-col min-h-0 border rounded-md">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center py-8">
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <Package className="h-12 w-12 text-muted-foreground" />
+              <p className="text-lg font-medium">No menu items found</p>
+              <p className="text-sm text-muted-foreground">
+                {searchTerm ? "Try a different search term" : "Create your first menu item"}
+              </p>
+              <Button className="mt-4" onClick={() => setShowMenuItemForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Menu Item
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="hidden lg:flex flex-1 flex-col min-h-0 border rounded-md">
+      {/* Table Header */}
+      <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {bulkSelectionMode && (
+                <TableHead className="w-12">
+                  <input
+                    type="checkbox"
+                    checked={selectedMenuItems.size === items.length && items.length > 0}
+                    onChange={handleSelectAllMenuItems}
+                    className="h-4 w-4"
+                    aria-label="Select all menu items"
+                  />
+                </TableHead>
+              )}
+              <TableHead className="w-20">Image</TableHead>
+              <TableHead className="min-w-[200px]">Name</TableHead>
+              <TableHead className="w-32">Category</TableHead>
+              <TableHead className="min-w-[200px]">Ingredients</TableHead>
+              <TableHead className="w-24 text-right">Cost</TableHead>
+              <TableHead className="w-24 text-right">Price</TableHead>
+              <TableHead className="w-28 text-right">Profit</TableHead>
+              <TableHead className="w-40 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+        </Table>
+      </div>
+
+      {/* Virtualized Table Body */}
+      <div className="flex-1 overflow-auto" ref={parentRef}>
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+            const item = items[virtualItem.index];
+            const totalCost = calculateMenuItemCost(item.ingredients);
+            const profit = item.price - totalCost;
+            const profitMargin = item.price ? (profit / item.price) * 100 : 0;
+            const isSelected = selectedRowId === item.id;
+
+            return (
+              <div
+                key={virtualItem.key}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: `${virtualItem.size}px`,
+                  transform: `translateY(${virtualItem.start}px)`,
+                }}
+              >
+                <Table>
+                  <TableBody>
+                    <TableRow
+                      className={`cursor-pointer transition-colors ${
+                        isSelected
+                          ? "bg-blue-50 border-l-4 border-l-blue-500 hover:bg-blue-100"
+                          : selectedMenuItems.has(item.id)
+                          ? "bg-green-50 border-l-4 border-l-green-500 hover:bg-green-100"
+                          : "hover:bg-muted/50"
+                      }`}
+                      onClick={
+                        bulkSelectionMode
+                          ? () => handleSelectMenuItem(item.id)
+                          : () => handleRowClick(item.id)
+                      }
+                    >
+                      {bulkSelectionMode && (
+                        <TableCell className="w-12">
+                          <input
+                            type="checkbox"
+                            checked={selectedMenuItems.has(item.id)}
+                            onChange={() => handleSelectMenuItem(item.id)}
+                            className="h-4 w-4"
+                            aria-label={`Select ${item.name}`}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </TableCell>
+                      )}
+                      
+                      <TableCell className="w-20">
+                        <div className="flex justify-center">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-12 h-12 object-cover rounded-md border"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-100 rounded-md border flex items-center justify-center">
+                              <Package className="h-6 w-6 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell className="min-w-[200px]">
+                        <div className="font-medium">{highlightText(item.name, searchTerm)}</div>
+                        {item.description && (
+                          <div className="text-sm text-muted-foreground">
+                            {highlightText(item.description, searchTerm)}
+                          </div>
+                        )}
+                      </TableCell>
+                      
+                      <TableCell className="w-32">
+                        {MENU_CATEGORIES.find((c) => c.value === item.category)?.label || item.category}
+                      </TableCell>
+                      
+                      <TableCell className="min-w-[200px]">
+                        <div className="space-y-1">
+                          {item.ingredients.slice(0, 2).map((ingredient, idx) => {
+                            const materialName = getMaterialName(ingredient.materialId);
+                            return (
+                              <div key={idx} className="text-sm">
+                                {formatNumber(ingredient.quantity)} {ingredient.unit}{" "}
+                                {highlightText(materialName, searchTerm)}
+                              </div>
+                            );
+                          })}
+                          {item.ingredients.length > 2 && (
+                            <div className="text-sm text-muted-foreground">
+                              +{item.ingredients.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell className="w-24 text-right font-medium">
+                        {formatCurrency(totalCost)}
+                      </TableCell>
+                      
+                      <TableCell className="w-24 text-right font-medium">
+                        {formatCurrency(item.price)}
+                      </TableCell>
+                      
+                      <TableCell className={`w-28 text-right font-medium ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
+                        <div>{formatCurrency(profit)}</div>
+                        <div className="text-xs">({formatNumber(profitMargin)}%)</div>
+                      </TableCell>
+                      
+                      <TableCell className="w-40 text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant={item.isPOSItem ? "default" : "outline"}
+                                className={item.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTogglePOSVisibility(item);
+                                }}
+                                aria-label={`${item.isPOSItem ? "Hide from" : "Show in"} POS`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{item.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenPrinterDialog(item);
+                                }}
+                                aria-label={`Assign printer to ${item.name}`}
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Assign printer to {item.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingMenuItem(item);
+                                  setShowMenuItemForm(true);
+                                }}
+                                aria-label={`Edit ${item.name}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Edit {item.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="hover:bg-red-50 hover:text-red-600"
+                                    aria-label={`Delete ${item.name}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently delete "{item.name}" and cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 hover:bg-red-700 text-white"
+                                      onClick={() => handleDeleteMenuItem(item.id)}
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete {item.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 };

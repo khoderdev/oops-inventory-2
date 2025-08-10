@@ -4,6 +4,7 @@ import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
@@ -464,61 +465,18 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
           </p>
         )}
 
-        {ingredients.length > 0 ? (
-          <div className="mb-4 border rounded-md overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Material</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead className="text-right">Cost</TableHead>
-                  <TableHead className="text-right"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ingredients.map((ingredient, index) => {
-                  const material = materials.find(m => String(m.id) === String(ingredient.materialId));
-                  // Use stored cost if available (for existing menu items), otherwise calculate
-                  const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
-                  const ingredientCost = storedCost || calculateIngredientCost(ingredient);
-                  const costPerBaseUnit = getMaterialCostPerBaseUnit(ingredient.materialId);
-                  return (
-                    <TableRow key={index}>
-                      <TableCell>{material?.name || "Unknown"}</TableCell>
-                      <TableCell>{formatNumber(ingredient.quantity)}</TableCell>
-                      <TableCell>{ingredient.unit}</TableCell>
-                      <TableCell className="text-right">{ingredientCost > 0 ? formatCurrency(ingredientCost) : <span className="text-red-500">No cost data</span>}</TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" variant="ghost" onClick={() => handleRemoveIngredient(index)} aria-label={`Remove ${material?.name || "ingredient"}`}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            {ingredients.length > 0 && (
-              <div className="px-4 py-3 bg-muted/50 border-t">
-                <div className="flex justify-between items-center font-medium">
-                  <span>Total Ingredients Cost:</span>
-                  <span className="text-lg">{formatCurrency(totalIngredientsCost)}</span>
-                </div>
-                {parseFloat(price) > 0 && (
-                  <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
-                    <span>Profit Margin:</span>
-                    <span className={parseFloat(price) - totalIngredientsCost >= 0 ? "text-green-600" : "text-red-600"}>
-                      {formatCurrency(parseFloat(price) - totalIngredientsCost)} ({formatNumber(parseFloat(price) > 0 ? ((parseFloat(price) - totalIngredientsCost) / parseFloat(price)) * 100 : 0)}%)
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-4 text-muted-foreground">No ingredients added yet</div>
-        )}
+        <VirtualizedIngredientsTable
+          ingredients={ingredients}
+          materials={materials}
+          menuItem={menuItem}
+          calculateIngredientCost={calculateIngredientCost}
+          getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit}
+          formatNumber={formatNumber}
+          formatCurrency={formatCurrency}
+          handleRemoveIngredient={handleRemoveIngredient}
+          totalIngredientsCost={totalIngredientsCost}
+          price={price}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
           <div className="relative">
@@ -617,3 +575,157 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     </div>
   );
 }
+
+// Virtualized Ingredients Table Component
+interface VirtualizedIngredientsTableProps {
+  ingredients: MenuItemIngredient[];
+  materials: Material[];
+  menuItem?: MenuItem;
+  calculateIngredientCost: (ingredient: Omit<MenuItemIngredient, "cost">) => number;
+  getMaterialCostPerBaseUnit: (materialId: string) => number;
+  formatNumber: (value: number) => string;
+  formatCurrency: (amount: number) => string;
+  handleRemoveIngredient: (index: number) => void;
+  totalIngredientsCost: number;
+  price: string;
+}
+
+const VirtualizedIngredientsTable: React.FC<VirtualizedIngredientsTableProps> = ({
+  ingredients,
+  materials,
+  menuItem,
+  calculateIngredientCost,
+  getMaterialCostPerBaseUnit,
+  formatNumber,
+  formatCurrency,
+  handleRemoveIngredient,
+  totalIngredientsCost,
+  price,
+}) => {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: ingredients.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 52, // Estimated height of each table row
+    overscan: 5,
+  });
+
+  if (ingredients.length === 0) {
+    return <div className="text-center py-4 text-muted-foreground">No ingredients added yet</div>;
+  }
+
+  return (
+    <div className="mb-4 border rounded-md overflow-hidden">
+      {/* Fixed Table Structure with proper column widths */}
+      <div className="w-full">
+        {/* Table Header - Fixed */}
+        <div className="border-b bg-muted/30 sticky top-0 z-10">
+          <div className="grid grid-cols-12 gap-2 px-4 py-3 text-sm font-medium text-muted-foreground">
+            <div className="col-span-4">Material</div>
+            <div className="col-span-2">Quantity</div>
+            <div className="col-span-2">Unit</div>
+            <div className="col-span-3 text-right">Cost</div>
+            <div className="col-span-1 text-right"></div>
+          </div>
+        </div>
+
+        {/* Virtualized Table Body */}
+        <div 
+          ref={parentRef} 
+          className="max-h-60 overflow-auto bg-background"
+          style={{ height: Math.min(ingredients.length * 52, 240) }}
+        >
+          <div
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+              const ingredient = ingredients[virtualItem.index];
+              const material = materials.find(m => String(m.id) === String(ingredient.materialId));
+              // Use stored cost if available (for existing menu items), otherwise calculate
+              const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
+              const ingredientCost = storedCost || calculateIngredientCost(ingredient);
+
+              return (
+                <div
+                  key={virtualItem.key}
+                  className="border-b border-border hover:bg-muted/50 transition-colors"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualItem.size}px`,
+                    transform: `translateY(${virtualItem.start}px)`,
+                  }}
+                >
+                  <div className="grid grid-cols-12 gap-2 px-4 py-3 items-center text-sm">
+                    <div className="col-span-4 font-medium truncate">
+                      {material?.name || "Unknown"}
+                    </div>
+                    <div className="col-span-2">
+                      {formatNumber(ingredient.quantity)}
+                    </div>
+                    <div className="col-span-2 text-muted-foreground">
+                      {ingredient.unit}
+                    </div>
+                    <div className="col-span-3 text-right font-medium">
+                      {ingredientCost > 0 ? (
+                        <span className="text-foreground">{formatCurrency(ingredientCost)}</span>
+                      ) : (
+                        <span className="text-red-500 text-xs">No cost data</span>
+                      )}
+                    </div>
+                    <div className="col-span-1 text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                        onClick={() => handleRemoveIngredient(virtualItem.index)}
+                        aria-label={`Remove ${material?.name || "ingredient"}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer with totals */}
+      {ingredients.length > 0 && (
+        <div className="px-4 py-3 bg-muted/50 border-t">
+          <div className="flex justify-between items-center font-medium">
+            <span>Total Ingredients Cost:</span>
+            <span className="text-lg font-semibold">{formatCurrency(totalIngredientsCost)}</span>
+          </div>
+          {parseFloat(price) > 0 && (
+            <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
+              <span>Profit Margin:</span>
+              <span
+                className={
+                  parseFloat(price) - totalIngredientsCost >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"
+                }
+              >
+                {formatCurrency(parseFloat(price) - totalIngredientsCost)} (
+                {formatNumber(
+                  parseFloat(price) > 0
+                    ? ((parseFloat(price) - totalIngredientsCost) / parseFloat(price)) * 100
+                    : 0
+                )}
+                %)
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
