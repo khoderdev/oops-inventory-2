@@ -5,31 +5,25 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { MATERIAL_CATEGORIES, MaterialTableProps } from "@/types/inventory";
+import { MATERIAL_CATEGORIES, MaterialTableProps, MaterialWithStock } from "@/types/inventory";
 import { highlightText } from "@/utils/highlightText";
-import { Edit, Plus, Search, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Edit, Plus, Search, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from '@tanstack/react-table';
 
 export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
   const { setShowMaterialForm } = useInventoryStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<"name" | "baseUnit" | "createdAt">("createdAt");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [showFloatingButton, setShowFloatingButton] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Handle sorting
-  const handleSort = (field: "name" | "baseUnit" | "createdAt") => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
+  // TanStack Table state
+  const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   // Handle scroll for floating button
   useEffect(() => {
@@ -56,38 +50,176 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     }
   }, [lastScrollY]);
 
-  // Filter and sort materials
-  const searchFilteredMaterials = filteredMaterials
-    .filter(material => {
+  // Column helper for TanStack Table
+  const columnHelper = createColumnHelper<MaterialWithStock>();
+
+  // Column definitions
+  const columns = useMemo<ColumnDef<MaterialWithStock>[]>(
+    () => [
+      // Material name column
+      columnHelper.accessor("name", {
+        header: "Material Name",
+        cell: ({ getValue }) => (
+          <div className="font-medium">{highlightText(getValue(), searchTerm)}</div>
+        ),
+        size: 250
+      }),
+
+      // Category column
+      columnHelper.accessor("category", {
+        header: "Category",
+        cell: ({ getValue }) => {
+          const category = getValue();
+          const categoryInfo = MATERIAL_CATEGORIES.find(c => c.value === category);
+          return (
+            <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(category)}`}>
+              {categoryInfo?.label || category}
+            </Badge>
+          );
+        },
+        size: 150
+      }),
+
+      // Base Unit column
+      columnHelper.accessor("baseUnit", {
+        header: "Base Unit",
+        cell: ({ getValue }) => (
+          <div className="text-gray-700 font-mono text-sm">{getValue()}</div>
+        ),
+        size: 120
+      }),
+
+      // Unit Type column
+      columnHelper.accessor("unitType", {
+        header: "Unit Type",
+        cell: ({ getValue }) => (
+          <div className="text-gray-700 capitalize">{getValue()}</div>
+        ),
+        size: 120
+      }),
+
+      // Input Unit column
+      columnHelper.accessor("inputUnit", {
+        header: "Input Unit",
+        cell: ({ getValue, row }) => {
+          const inputUnit = getValue();
+          const baseUnit = row.original.baseUnit;
+          return (
+            <div className="text-gray-700 font-mono text-sm">
+              {inputUnit && inputUnit !== baseUnit ? inputUnit : "-"}
+            </div>
+          );
+        },
+        size: 120
+      }),
+
+      // Actions column
+      columnHelper.display({
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex items-center justify-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => onEditMaterial(row.original)} 
+                  className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit {row.original.name}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => onAddStock(row.original.id)} 
+                  className="h-8 w-8 p-0 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Add stock for {row.original.name}</p>
+              </TooltipContent>
+            </Tooltip>
+            <AlertDialog>
+              <Tooltip>
+                <AlertDialogTrigger asChild>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                </AlertDialogTrigger>
+                <TooltipContent>
+                  <p>Delete {row.original.name}</p>
+                </TooltipContent>
+              </Tooltip>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Material</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete "{row.original.name}"? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => onDeleteMaterial(row.original.id)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        ),
+        enableSorting: false,
+        size: 200
+      })
+    ],
+    [searchTerm, onEditMaterial, onAddStock, onDeleteMaterial]
+  );
+
+  // Apply search and category filters
+  const searchFilteredMaterials = useMemo(() => {
+    return filteredMaterials.filter(material => {
       const matchesSearch = !searchTerm || material.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === "all" || material.category === categoryFilter;
       return matchesSearch && matchesCategory;
-    })
-    .sort((a, b) => {
-      let comparison = 0;
-
-      switch (sortField) {
-        case "name": {
-          comparison = a.name.localeCompare(b.name);
-          break;
-        }
-        case "baseUnit": {
-          comparison = a.baseUnit.localeCompare(b.baseUnit);
-          break;
-        }
-        case "createdAt":
-        default: {
-          const dateA = new Date(a.createdAt || 0).getTime();
-          const dateB = new Date(b.createdAt || 0).getTime();
-          comparison = dateA - dateB;
-          break;
-        }
-      }
-
-      return sortDirection === "asc" ? comparison : -comparison;
     });
+  }, [filteredMaterials, searchTerm, categoryFilter]);
 
-  const getCategoryColor = (category: string) => {
+  // TanStack Table instance
+  const table = useReactTable({
+    data: searchFilteredMaterials,
+    columns,
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter: searchTerm
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    globalFilterFn: 'includesString'
+  });
+
+  const getCategoryColor = useCallback((category: string) => {
     switch (category) {
       case "meat":
         return "bg-red-100 text-red-800 border-red-200";
@@ -106,7 +238,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
-  };
+  }, []);
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
@@ -277,139 +409,10 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
             })}
           </div>
 
-          {/* Desktop Table View */}
+          {/* Desktop Table View - TanStack Virtualized */}
           <div className="hidden lg:block px-4">
             <div className="w-full h-[calc(100vh-210px)] rounded-lg border overflow-hidden bg-white mt-4">
-              <Table className="w-full">
-                <TableHeader className="bg-gray-100 sticky top-0">
-                  <TableRow className="border-b border-gray-200">
-                    <TableHead className="w-[25%] px-6 py-4 text-left font-semibold text-gray-900">
-                      <Button 
-                        variant="ghost" 
-                        className="h-auto p-0 font-semibold text-gray-900 hover:text-gray-700 flex items-center justify-between w-full group transition-colors duration-200 hover:bg-transparent" 
-                        onClick={() => handleSort("name")}
-                      >
-                        <span>Material Name</span>
-                        <div className="flex items-center justify-center w-5 h-5 ml-2">
-                          {sortField === "name" ? (
-                            sortDirection === "asc" ? (
-                              <ChevronUp className="h-4 w-4 text-emerald-600 transition-all duration-200" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-emerald-600 transition-all duration-200" />
-                            )
-                          ) : (
-                            <div className="flex flex-col items-center justify-center opacity-60 group-hover:opacity-80 transition-opacity duration-200">
-                              <ChevronUp className="h-2.5 w-2.5 text-gray-400 -mb-0.5" />
-                              <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                      </Button>
-                    </TableHead>
-                    <TableHead className="w-[15%] px-4 py-4 text-left font-semibold text-gray-900">Category</TableHead>
-                    <TableHead className="w-[12%] px-4 py-4 text-left font-semibold text-gray-900">
-                      <Button 
-                        variant="ghost" 
-                        className="h-auto p-0 font-semibold text-gray-900 hover:text-gray-700 flex items-center justify-between w-full group transition-colors duration-200 hover:bg-transparent" 
-                        onClick={() => handleSort("baseUnit")}
-                      >
-                        <span>Base Unit</span>
-                        <div className="flex items-center justify-center w-5 h-5 ml-2">
-                          {sortField === "baseUnit" ? (
-                            sortDirection === "asc" ? (
-                              <ChevronUp className="h-4 w-4 text-emerald-600 transition-all duration-200" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-emerald-600 transition-all duration-200" />
-                            )
-                          ) : (
-                            <div className="flex flex-col items-center justify-center opacity-60 group-hover:opacity-80 transition-opacity duration-200">
-                              <ChevronUp className="h-2.5 w-2.5 text-gray-400 -mb-0.5" />
-                              <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                      </Button>
-                    </TableHead>
-                    <TableHead className="w-[12%] px-4 py-4 text-left font-semibold text-gray-900">Unit Type</TableHead>
-                    <TableHead className="w-[12%] px-4 py-4 text-left font-semibold text-gray-900">Input Unit</TableHead>
-                    <TableHead className="w-[24%] px-6 py-4 text-center font-semibold text-gray-900">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-              </Table>
-
-              <div className="h-[calc(100%-60px)] overflow-y-auto">
-                <Table className="w-full">
-                  <TableBody>
-                    {searchFilteredMaterials.map(material => {
-                      const categoryInfo = MATERIAL_CATEGORIES.find(c => c.value === material.category);
-
-                      return (
-                        <TableRow key={material.id} className="hover:bg-gray-50/50 border-b border-gray-100 transition-colors">
-                          <TableCell className="w-[25%] px-6 py-4 font-medium text-gray-900">{highlightText(material.name, searchTerm)}</TableCell>
-                          <TableCell className="w-[15%] px-4 py-4">
-                            <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(material.category)}`}>
-                              {categoryInfo?.label || material.category}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="w-[12%] px-4 py-4 text-gray-700 font-mono text-sm">{material.baseUnit}</TableCell>
-                          <TableCell className="w-[12%] px-4 py-4 text-gray-700 capitalize">{material.unitType}</TableCell>
-                          <TableCell className="w-[12%] px-4 py-4 text-gray-700 font-mono text-sm">{material.inputUnit && material.inputUnit !== material.baseUnit ? material.inputUnit : "-"}</TableCell>
-                          <TableCell className="w-[24%] px-6 py-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="outline" size="sm" onClick={() => onEditMaterial(material)} className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700">
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Edit {material.name}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)} className="h-8 w-8 p-0 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700">
-                                    <Plus className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Add stock for {material.name}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                              <AlertDialog>
-                                <Tooltip>
-                                  <AlertDialogTrigger asChild>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="outline" size="sm" className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700">
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                  </AlertDialogTrigger>
-                                  <TooltipContent>
-                                    <p>Delete {material.name}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Material</AlertDialogTitle>
-                                    <AlertDialogDescription>Are you sure you want to delete "{material.name}"? This action cannot be undone.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onDeleteMaterial(material.id)} className="bg-red-600 hover:bg-red-700">
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <TanStackVirtualizedMaterialTable table={table} />
             </div>
           </div>
         </div>
@@ -441,3 +444,101 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     </TooltipProvider>
   );
 }
+
+// TanStack Virtualized Material Table Component
+interface TanStackVirtualizedMaterialTableProps {
+  table: any; // ReactTable instance
+}
+
+const TanStackVirtualizedMaterialTable: React.FC<TanStackVirtualizedMaterialTableProps> = ({ table }) => {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rows = table.getRowModel().rows;
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 60,
+    overscan: 10
+  });
+
+  return (
+    <div className="flex flex-1 flex-col min-h-0">
+      {/* Table Header */}
+      <div className="flex-shrink-0 border-b bg-gray-100 sticky top-0 z-10">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup: any) => (
+              <TableRow key={headerGroup.id} className="border-b border-gray-200">
+                {headerGroup.headers.map((header: any) => (
+                  <TableHead 
+                    key={header.id} 
+                    style={{ width: header.getSize() }} 
+                    className={`px-6 py-4 text-left font-semibold text-gray-900 ${header.column.getCanSort() ? "cursor-pointer select-none" : ""}`}
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <div className="flex items-center gap-2">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanSort() && (
+                          <span className="text-xs">
+                            {{
+                              asc: "↑",
+                              desc: "↓"
+                            }[header.column.getIsSorted() as string] ?? "↕"}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+        </Table>
+      </div>
+
+      {/* Virtualized Table Body */}
+      <div className="flex-1 overflow-auto" ref={parentRef}>
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative"
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map(virtualItem => {
+            const row = rows[virtualItem.index];
+
+            return (
+              <div
+                key={virtualItem.key}
+                className="hover:bg-gray-50/50 border-b border-gray-100 transition-colors"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: `${virtualItem.size}px`,
+                  transform: `translateY(${virtualItem.start}px)`
+                }}
+              >
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      {row.getVisibleCells().map((cell: any) => (
+                        <TableCell key={cell.id} style={{ width: cell.column.getSize() }} className="px-6 py-4">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};

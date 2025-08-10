@@ -19,33 +19,35 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
 import { AlertTriangle, Check, Edit, Eye, EyeOff, FileText, Plus, Printer, RefreshCw, Search, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useAtom } from "jotai";
 import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from "@/store/inventoryAtoms";
 import { StockForm } from "@/components/stock/StockForm";
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from '@tanstack/react-table';
+
+// Utility functions for stock entry checks
+const hasNegativeStock = (entry: StockEntryWithMaterial) => {
+  return (entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity < 0) || (entry.purchasedQuantity && entry.purchasedQuantity < 0);
+};
+
+const isVirtualEntry = (entry: StockEntryWithMaterial) => {
+  return entry.supplier === "-";
+};
 
 export function StockEntriesTable() {
   const { stock: stockEntries, materials: materialsWithStock, refresh } = usePrefetch();
   const materials = materialsWithStock;
 
-  // Atom states for form management
-  const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
-  const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
-  const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
-
-  // Local state for optimistic updates
-  const [optimisticStockEntries, setOptimisticStockEntries] = useState<typeof stockEntries>([]);
-
-  // Sync optimistic state with fetched data
-  useEffect(() => {
-    setOptimisticStockEntries(stockEntries);
-  }, [stockEntries]);
-
+  // Ref to track if component is mounted
+  const isMountedRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [materialFilter, setMaterialFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<"materialName" | "supplier" | "purchaseDate">("purchaseDate");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [showFloatingButton, setShowFloatingButton] = useState(true);
+  
+  // TanStack Table state
+  const [sorting, setSorting] = useState<SortingState>([{ id: "purchaseDate", desc: true }]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [lastScrollY, setLastScrollY] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [negativeStockReport, setNegativeStockReport] = useState<NegativeStockReport | null>(null);
@@ -56,7 +58,51 @@ export function StockEntriesTable() {
   const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
   const [selectedStockEntries, setSelectedStockEntries] = useState<Set<string>>(new Set());
   const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
-  const materialsMap = new Map(materials.map(m => [m.id, m]));
+  
+  // Create materials map with useMemo to ensure it updates when materials change
+  const materialsMap = useMemo(() => new Map(materials.map(m => [m.id, m])), [materials]);
+  // Atom states for form management
+  const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
+  const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
+  const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
+
+  // Use a ref to store optimistic updates and merge with fetched data
+  const optimisticUpdatesRef = useRef<Map<string | number, Partial<StockEntry>>>(new Map());
+  const [updateCounter, setUpdateCounter] = useState(0);
+
+  // Effect to mark component as mounted
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Merge optimistic updates with fetched data using useMemo
+  const optimisticStockEntries = useMemo(() => {
+    return stockEntries.map(entry => {
+      const optimisticUpdate = optimisticUpdatesRef.current.get(entry.id);
+      return optimisticUpdate ? { ...entry, ...optimisticUpdate } : entry;
+    });
+  }, [stockEntries, updateCounter]);
+
+  // Function to apply optimistic updates
+  const applyOptimisticUpdate = useCallback((entryId: string | number, updates: Partial<StockEntry>) => {
+    if (isMountedRef.current) {
+      optimisticUpdatesRef.current.set(entryId, updates);
+      setUpdateCounter(prev => prev + 1);
+    }
+  }, []);
+
+  // Function to clear optimistic updates
+  const clearOptimisticUpdate = useCallback((entryId: string | number) => {
+    if (isMountedRef.current) {
+      optimisticUpdatesRef.current.delete(entryId);
+      setUpdateCounter(prev => prev + 1);
+    }
+  }, []);
+
+
 
   // Helper function to check if material belongs to allowed POS categories
   const isAllowedPOSCategory = (material: Material | undefined) => {
@@ -65,15 +111,302 @@ export function StockEntriesTable() {
     return allowedCategories.includes(material.category.toLowerCase());
   };
 
-  // Handle sorting
-  const handleSort = (field: "materialName" | "supplier" | "purchaseDate") => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
+  // Create column helper for TanStack Table
+  const columnHelper = createColumnHelper<StockEntryWithMaterial>();
+
+  const handleTogglePOSVisibility = async (entry: StockEntry & { material?: Material }) => {
+    if (!entry.material) {
+      toast({
+        title: "Error",
+        description: "Material information not found",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newPOSStatus = !entry.isPOSItem;
+
+    // Apply optimistic update
+    applyOptimisticUpdate(entry.id, { isPOSItem: newPOSStatus });
+
+    try {
+      // Update the stock entry's POS visibility in the background
+      const response = await stockAPI.updateStockEntryPOS(entry.id.toString(), {
+        isPOSItem: newPOSStatus
+      });
+
+      if (!response) {
+        throw new Error("Failed to update stock entry POS visibility");
+      }
+
+      // Clear optimistic update since the real data will be updated
+      clearOptimisticUpdate(entry.id);
+    } catch (error) {
+      console.error("Error updating stock entry POS visibility:", error);
+      
+      // Revert the optimistic update on error
+      clearOptimisticUpdate(entry.id);
+
+      toast({
+        title: "Error",
+        description: "Failed to update POS visibility. Changes have been reverted.",
+        variant: "destructive"
+      });
     }
   };
+
+  const handleOpenPrinterDialog = (entry: StockEntryWithMaterial) => {
+    setSelectedStockEntry(entry);
+    setShowPrinterDialog(true);
+  };
+
+    // Handler functions
+    const handleEditStockEntry = (stockEntry: StockEntry) => {
+      console.log("Edit stock entry:", stockEntry);
+      setSelectedStockEntry(stockEntry);
+      // Find and set the associated material
+      const material = materialsWithStock.find(m => m.id === stockEntry.materialId);
+      if (material) {
+        setSelectedMaterial(material);
+      }
+      setShowStockForm(true);
+    };
+  
+    const handleDeleteStockEntry = async (stockEntryId: string | number) => {
+      try {
+        await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId.toString());
+        await refresh("stock");
+        await refresh("materials");
+        toast({
+          title: "Stock Entry Deleted",
+          description: "Stock entry has been successfully deleted",
+          variant: "default"
+        });
+      } catch (error) {
+        console.error("Error deleting stock entry:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete stock entry",
+          variant: "destructive"
+        });
+      }
+    };
+
+  // Column definitions for TanStack Table
+  const columns = useMemo<ColumnDef<StockEntryWithMaterial>[]>(() => [
+    // Bulk selection checkbox column
+    ...(bulkSelectionMode ? [columnHelper.display({
+      id: 'select',
+      size: 50,
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          checked={table.getIsAllRowsSelected()}
+          onChange={table.getToggleAllRowsSelectedHandler()}
+          className="h-4 w-4"
+          aria-label="Select all stock entries"
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          className="h-4 w-4"
+          aria-label={`Select ${row.original.material?.name || "stock entry"}`}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+    })] : []),
+    
+    // Material Name column
+    columnHelper.display({
+      id: 'materialName',
+      size: 200,
+      header: 'Material Name',
+      cell: ({ row }) => {
+        const entry = row.original;
+        const materialName = entry.material?.name;
+        const isNegativeStock = hasNegativeStock(entry);
+        return (
+          <div className="flex items-center gap-2">
+            {isNegativeStock && <AlertTriangle className="h-4 w-4 text-red-600" />}
+            {materialName ? highlightText(materialName, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}
+          </div>
+        );
+      },
+    }),
+    
+    // Remaining Quantity column
+    columnHelper.display({
+      id: 'remainingQty',
+      size: 120,
+      header: 'Remaining Qty',
+      cell: ({ row }) => renderQuantityDisplay(row.original),
+    }),
+    
+    // Unit column
+    columnHelper.display({
+      id: 'unit',
+      size: 100,
+      header: 'Unit',
+      cell: ({ row }) => renderUnitDisplay(row.original),
+    }),
+    
+    // Cost per Unit column
+    columnHelper.accessor('costPerPurchasedUnit', {
+      id: 'costPerUnit',
+      size: 100,
+      header: 'Cost/Unit',
+      cell: ({ row, getValue }) => {
+        const cost = getValue();
+        return (
+          <div className="space-y-1">
+            <div>{formatCurrency(cost)}</div>
+            {row.original.material?.unitType === "package" && (
+              <div className="text-xs text-muted-foreground">(per {row.original.purchasedUnit})</div>
+            )}
+          </div>
+        );
+      },
+    }),
+    
+    // Total Cost column
+    columnHelper.accessor('totalCost', {
+      id: 'totalCost',
+      size: 100,
+      header: 'Total Cost',
+      cell: ({ getValue }) => (
+        <span className="font-medium">{formatCurrency(getValue())}</span>
+      ),
+    }),
+    
+    // Purchase Date column
+    columnHelper.accessor('purchaseDate', {
+      id: 'purchaseDate',
+      size: 100,
+      header: 'Purchase Date',
+      cell: ({ getValue }) => new Date(getValue()).toLocaleDateString(),
+    }),
+    
+    // Actions column
+    columnHelper.display({
+      id: 'actions',
+      size: 130,
+      header: 'Actions',
+      cell: ({ row }) => {
+        const entry = row.original;
+        return (
+          <div className="flex items-center justify-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={entry.isPOSItem ? "default" : "outline"}
+                  size="sm"
+                  disabled={!isAllowedPOSCategory(entry.material)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTogglePOSVisibility(entry);
+                  }}
+                  className={`h-8 w-8 p-0 ${
+                    !isAllowedPOSCategory(entry.material) 
+                      ? "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400" 
+                      : entry.isPOSItem 
+                      ? "bg-teal-600 hover:bg-teal-700 text-white" 
+                      : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                  }`}
+                >
+                  {entry.isPOSItem ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {!isAllowedPOSCategory(entry.material) 
+                    ? "Only beverage items can be shown in POS" 
+                    : entry.isPOSItem 
+                    ? "Hide from POS" 
+                    : "Show in POS"
+                  }
+                </p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenPrinterDialog(entry);
+                  }}
+                  className={`h-8 w-8 p-0 ${entry.assignedPrinter ? "border-blue-500 text-blue-600" : "hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"}`}
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{entry.assignedPrinter ? `Assigned to: ${entry.assignedPrinter.name}` : "Assign printer to " + (entry.material?.name || "stock entry")}</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditStockEntry(entry as StockEntry);
+                  }}
+                  className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit {entry.material?.name || "stock entry"}</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <AlertDialog>
+              <Tooltip>
+                <AlertDialogTrigger asChild>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                </AlertDialogTrigger>
+                <TooltipContent>
+                  <p>Delete {entry.material?.name || "stock entry"}</p>
+                </TooltipContent>
+              </Tooltip>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Stock Entry</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this stock entry? This action cannot be undone.
+                    {hasNegativeStock(entry) && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-800">
+                        <strong>Warning:</strong> This entry has negative stock quantities.
+                      </div>
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDeleteStockEntry(entry.id)} className="bg-red-600 hover:bg-red-700">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        );
+      },
+    }),
+  ], [searchTerm, bulkSelectionMode, handleTogglePOSVisibility, handleOpenPrinterDialog, handleEditStockEntry, handleDeleteStockEntry, isAllowedPOSCategory]);
 
   // Handle scroll for floating button
   useEffect(() => {
@@ -99,37 +432,7 @@ export function StockEntriesTable() {
     }
   }, [lastScrollY]);
 
-  // Handler functions
-  const handleEditStockEntry = (stockEntry: StockEntry) => {
-    console.log("Edit stock entry:", stockEntry);
-    setSelectedStockEntry(stockEntry);
-    // Find and set the associated material
-    const material = materialsWithStock.find(m => m.id === stockEntry.materialId);
-    if (material) {
-      setSelectedMaterial(material);
-    }
-    setShowStockForm(true);
-  };
 
-  const handleDeleteStockEntry = async (stockEntryId: string | number) => {
-    try {
-      await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId.toString());
-      await refresh("stock");
-      await refresh("materials");
-      toast({
-        title: "Stock Entry Deleted",
-        description: "Stock entry has been successfully deleted",
-        variant: "default"
-      });
-    } catch (error) {
-      console.error("Error deleting stock entry:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete stock entry",
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleAddStock = () => {
     setSelectedStockEntry(null);
@@ -315,75 +618,66 @@ export function StockEntriesTable() {
   };
 
   // Get unique materials for filter
-  const uniqueMaterials = Array.from(
-    new Set(
-      optimisticStockEntries
-        .map(entry => {
-          const material = materialsMap.get(entry.materialId);
-          return material?.name;
-        })
-        .filter(Boolean)
-    )
-  ).sort();
+  const uniqueMaterials = useMemo(() => 
+    Array.from(
+      new Set(
+        optimisticStockEntries
+          .map(entry => {
+            const material = materialsMap.get(entry.materialId);
+            return material?.name;
+          })
+          .filter(Boolean)
+      )
+    ).sort(),
+    [optimisticStockEntries, materialsMap]
+  );
 
-  // Filter and sort stock entries using optimistic state
-  const stockEntriesWithMaterial = optimisticStockEntries
-    .map(entry => ({
-      ...entry,
-      material: materialsMap.get(entry.materialId)
-    }))
-    .filter(entry => {
-      const materialName = entry.material?.name;
-      const supplier = entry.supplier;
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = !searchTerm || materialName?.toLowerCase().includes(searchLower) || supplier?.toLowerCase().includes(searchLower);
-      const matchesMaterial = materialFilter === "all" || entry.material?.name === materialFilter;
-      return matchesSearch && matchesMaterial;
-    })
-    .sort((a, b) => {
-      let comparison = 0;
+  // Process data for TanStack Table
+  const stockEntriesWithMaterial = useMemo(() => 
+    optimisticStockEntries
+      .map(entry => ({
+        ...entry,
+        material: materialsMap.get(entry.materialId)
+      }))
+      .filter(entry => {
+        const materialName = entry.material?.name;
+        const supplier = entry.supplier;
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = !searchTerm || materialName?.toLowerCase().includes(searchLower) || supplier?.toLowerCase().includes(searchLower);
+        const matchesMaterial = materialFilter === "all" || entry.material?.name === materialFilter;
+        return matchesSearch && matchesMaterial;
+      }),
+    [optimisticStockEntries, materialsMap, searchTerm, materialFilter]
+  );
 
-      switch (sortField) {
-        case "materialName": {
-          const nameA = a.material?.name || "";
-          const nameB = b.material?.name || "";
-          comparison = nameA.localeCompare(nameB);
-          break;
-        }
-        case "supplier": {
-          const supplierA = a.supplier || "";
-          const supplierB = b.supplier || "";
-          comparison = supplierA.localeCompare(supplierB);
-          break;
-        }
-        case "purchaseDate":
-        default: {
-          const dateA = new Date(a.purchaseDate || 0).getTime();
-          const dateB = new Date(b.purchaseDate || 0).getTime();
-          comparison = dateA - dateB;
-          break;
-        }
-      }
+  // Create TanStack Table instance
+  const table = useReactTable({
+    data: stockEntriesWithMaterial,
+    columns,
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter: searchTerm,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    enableRowSelection: bulkSelectionMode,
+    getRowId: (row) => row.id.toString(),
+  });
 
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
 
-  const hasNegativeStock = (entry: (typeof stockEntriesWithMaterial)[0]) => {
-    return (entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity < 0) || (entry.purchasedQuantity && entry.purchasedQuantity < 0);
-  };
 
-  const isVirtualEntry = (entry: (typeof stockEntriesWithMaterial)[0]) => {
-    return entry.supplier === "-";
-  };
-
-  const isExpiredEntry = (entry: (typeof stockEntriesWithMaterial)[0]) => {
+  const isExpiredEntry = (entry: StockEntryWithMaterial) => {
     if (!entry.expiryDate) return false;
     const today = new Date();
     const expiryDate = new Date(entry.expiryDate);
     return expiryDate < today;
   };
 
-  const isExpiringSoonEntry = (entry: (typeof stockEntriesWithMaterial)[0]) => {
+  const isExpiringSoonEntry = (entry: StockEntryWithMaterial) => {
     if (!entry.expiryDate) return false;
     const today = new Date();
     const expiryDate = new Date(entry.expiryDate);
@@ -445,7 +739,7 @@ export function StockEntriesTable() {
     }
   };
 
-  const renderQuantityDisplay = (entry: (typeof stockEntriesWithMaterial)[0]) => {
+  const renderQuantityDisplay = (entry: StockEntryWithMaterial) => {
     const { material } = entry;
     const isNegative = hasNegativeStock(entry);
     const isVirtual = isVirtualEntry(entry);
@@ -505,7 +799,7 @@ export function StockEntriesTable() {
     );
   };
 
-  const renderUnitDisplay = (entry: (typeof stockEntriesWithMaterial)[0]) => {
+  const renderUnitDisplay = (entry: StockEntryWithMaterial) => {
     const { material } = entry;
 
     return (
@@ -542,81 +836,23 @@ export function StockEntriesTable() {
     );
   };
 
-  const negativeStockCount = stockEntriesWithMaterial.filter(hasNegativeStock).length;
+  const negativeStockCount = useMemo(() => 
+    stockEntriesWithMaterial.filter(hasNegativeStock).length,
+    [stockEntriesWithMaterial]
+  );
 
   const handleRowClick = (entryId: string) => {
     setSelectedRowId(selectedRowId === entryId ? null : entryId);
   };
 
-  const handleTogglePOSVisibility = async (entry: StockEntry & { material?: Material }) => {
-    if (!entry.material) {
-      toast({
-        title: "Error",
-        description: "Material information not found",
-        variant: "destructive"
-      });
-      return;
-    }
 
-    const newPOSStatus = !entry.isPOSItem;
 
-    // Optimistic update - instantly update the UI
-    setOptimisticStockEntries(prevEntries => 
-      prevEntries.map(stockEntry => 
-        stockEntry.id === entry.id 
-          ? { ...stockEntry, isPOSItem: newPOSStatus }
-          : stockEntry
-      )
-    );
 
-    // No toast needed - the visual icon change provides sufficient feedback
-
-    try {
-      // Update the stock entry's POS visibility in the background
-      const response = await stockAPI.updateStockEntryPOS(entry.id.toString(), {
-        isPOSItem: newPOSStatus
-      });
-
-      if (!response) {
-        throw new Error("Failed to update stock entry POS visibility");
-      }
-
-      // No need to refresh the entire table - the optimistic update already handled the UI
-    } catch (error) {
-      console.error("Error updating stock entry POS visibility:", error);
-      
-      // Revert the optimistic update on error
-      setOptimisticStockEntries(prevEntries => 
-        prevEntries.map(stockEntry => 
-          stockEntry.id === entry.id 
-            ? { ...stockEntry, isPOSItem: !newPOSStatus }
-            : stockEntry
-        )
-      );
-
-      toast({
-        title: "Error",
-        description: "Failed to update POS visibility. Changes have been reverted.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleOpenPrinterDialog = (entry: StockEntryWithMaterial) => {
-    setSelectedStockEntry(entry);
-    setShowPrinterDialog(true);
-  };
 
   const handlePrinterAssignmentChange = async (updatedEntry?: StockEntry) => {
     // If we have the updated entry data, use optimistic update instead of refreshing
     if (updatedEntry) {
-      setOptimisticStockEntries(prevEntries => 
-        prevEntries.map(stockEntry => 
-          stockEntry.id === updatedEntry.id 
-            ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter }
-            : stockEntry
-        )
-      );
+      applyOptimisticUpdate(updatedEntry.id, { assignedPrinter: updatedEntry.assignedPrinter });
     }
     // No need to refresh the entire table - optimistic update handles the UI
   };
@@ -626,43 +862,35 @@ export function StockEntriesTable() {
     setSelectedStockEntries(new Set());
   };
 
-  const handleSelectStockEntry = (entryId: string) => {
-    setSelectedStockEntries(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(entryId)) {
-        newSet.delete(entryId);
-      } else {
-        newSet.add(entryId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleSelectAllStockEntries = () => {
-    if (selectedStockEntries.size === stockEntriesWithMaterial.length) {
-      setSelectedStockEntries(new Set());
-    } else {
-      setSelectedStockEntries(new Set(stockEntriesWithMaterial.map(entry => entry.id.toString())));
+  // Update selected entries based on table selection
+  useEffect(() => {
+    if (bulkSelectionMode) {
+      const selectedRows = table.getSelectedRowModel().rows;
+      setSelectedStockEntries(new Set(selectedRows.map(row => row.id)));
     }
-  };
+  }, [table.getSelectedRowModel().rows, bulkSelectionMode]);
 
-  const handleOpenBulkPrinterDialog = () => {
+  const handleSelectStockEntry = useCallback((entryId: string) => {
+    const row = table.getRow(entryId);
+    row?.toggleSelected();
+  }, [table]);
+
+  const handleSelectAllStockEntries = useCallback(() => {
+    table.toggleAllRowsSelected();
+  }, [table]);
+
+  const handleOpenBulkPrinterDialog = useCallback(() => {
     if (selectedStockEntries.size > 0) {
       setShowBulkPrinterDialog(true);
     }
-  };
+  }, [selectedStockEntries.size]);
 
   const handleBulkPrinterAssignmentComplete = async (updatedEntries?: StockEntry[]) => {
     // If we have updated entries data, use optimistic update instead of refreshing
     if (updatedEntries && updatedEntries.length > 0) {
-      setOptimisticStockEntries(prevEntries => 
-        prevEntries.map(stockEntry => {
-          const updatedEntry = updatedEntries.find(updated => updated.id === stockEntry.id);
-          return updatedEntry 
-            ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter }
-            : stockEntry;
-        })
-      );
+      updatedEntries.forEach(updatedEntry => {
+        applyOptimisticUpdate(updatedEntry.id, { assignedPrinter: updatedEntry.assignedPrinter });
+      });
     }
     
     // Clean up selection state
@@ -934,208 +1162,66 @@ export function StockEntriesTable() {
 
           {/* Desktop Table View */}
           <div className="hidden lg:block">
-            <div className="w-full h-[calc(100vh-260px)] border rounded-lg overflow-hidden bg-white shadow-sm">
-              <Table className="w-full">
-                <TableHeader className="bg-gray-50/80 sticky top-0">
-                  <TableRow className="border-b border-gray-200">
-                    {bulkSelectionMode && (
-                      <TableHead className="w-12 px-6 py-4 text-left font-semibold text-gray-900">
-                        <input type="checkbox" checked={selectedStockEntries.size === stockEntriesWithMaterial.length && stockEntriesWithMaterial.length > 0} onChange={handleSelectAllStockEntries} className="h-4 w-4" aria-label="Select all stock entries" />
-                      </TableHead>
-                    )}
-                    <TableHead className="w-[20%] px-6 py-4 text-left font-semibold text-gray-900">
-                      <Button variant="ghost" className="h-auto p-0 font-semibold text-gray-900 hover:text-gray-700 flex items-center justify-between w-full group transition-colors duration-200 hover:bg-transparent" onClick={() => handleSort("materialName")}>
-                        <span>Material Name</span>
-                        <div className="flex items-center justify-center w-5 h-5 ml-2">
-                          {sortField === "materialName" ? (
-                            sortDirection === "asc" ? (
-                              <ChevronUp className="h-4 w-4 text-emerald-600 transition-all duration-200" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-emerald-600 transition-all duration-200" />
-                            )
-                          ) : (
-                            <div className="flex flex-col items-center justify-center opacity-60 group-hover:opacity-80 transition-opacity duration-200">
-                              <ChevronUp className="h-2.5 w-2.5 text-gray-400 -mb-0.5" />
-                              <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                      </Button>
-                    </TableHead>
-                    <TableHead className="w-[12%] px-4 py-4 text-left font-semibold text-gray-900">Remaining Qty</TableHead>
-                    <TableHead className="w-[10%] px-4 py-4 text-left font-semibold text-gray-900">Unit</TableHead>
-                    <TableHead className="w-[10%] px-4 py-4 text-left font-semibold text-gray-900">Cost/Unit</TableHead>
-                    <TableHead className="w-[10%] px-4 py-4 text-left font-semibold text-gray-900">Total Cost</TableHead>
-                    <TableHead className="w-[10%] px-4 py-4 text-left font-semibold text-gray-900">
-                      <Button variant="ghost" className="h-auto p-0 font-semibold text-gray-900 hover:text-gray-700 flex items-center justify-between w-full group transition-colors duration-200 hover:bg-transparent" onClick={() => handleSort("purchaseDate")}>
-                        <span>Purchase Date</span>
-                        <div className="flex items-center justify-center w-5 h-5 ml-2">
-                          {sortField === "purchaseDate" ? (
-                            sortDirection === "asc" ? (
-                              <ChevronUp className="h-4 w-4 text-emerald-600 transition-all duration-200" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-emerald-600 transition-all duration-200" />
-                            )
-                          ) : (
-                            <div className="flex flex-col items-center justify-center opacity-60 group-hover:opacity-80 transition-opacity duration-200">
-                              <ChevronUp className="h-2.5 w-2.5 text-gray-400 -mb-0.5" />
-                              <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                      </Button>
-                    </TableHead>
-                    <TableHead className="w-[13%] px-6 py-4 text-center font-semibold text-gray-900">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-              </Table>
-
-              <div className="h-[calc(100%-60px)] overflow-y-auto">
-                <Table className="w-full">
-                  <TableBody>
-                    {stockEntriesWithMaterial.map(entry => {
-                      const isNegative = hasNegativeStock(entry);
-                      const isVirtual = isVirtualEntry(entry);
-                      const isSelected = selectedRowId === entry.id;
-
-                      return (
-                        <TableRow
-                          key={entry.id}
-                          onClick={bulkSelectionMode ? () => handleSelectStockEntry(entry.id.toString()) : () => handleRowClick(entry.id)}
-                          className={`transition-colors ${isSelected ? "bg-blue-100 border-l-4 border-l-blue-500 hover:bg-blue-150" : selectedStockEntries.has(entry.id.toString()) ? "bg-green-50 border-l-4 border-l-green-500 hover:bg-green-100" : isNegative ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" : "hover:bg-gray-50"} ${isVirtual && !isSelected ? "border-l-red-600" : ""}`}
+            <div className="w-full h-[calc(100vh-260px)] border rounded-lg overflow-auto bg-white shadow-sm">
+              <Table>
+                <TableHeader className="sticky top-0 bg-gray-50 z-10">
+                  {table.getHeaderGroups().map((headerGroup: any) => (
+                    <TableRow key={headerGroup.id} className="border-b border-gray-200">
+                      {headerGroup.headers.map((header: any) => (
+                        <TableHead 
+                          key={header.id} 
+                          style={{ width: header.getSize() }} 
+                          className={`px-6 py-4 text-left font-semibold text-gray-900 ${header.column.getCanSort() ? "cursor-pointer select-none" : ""}`}
+                          onClick={header.column.getToggleSortingHandler()}
                         >
-                          {bulkSelectionMode && (
-                            <TableCell className="w-12 px-6 py-4">
-                              <input type="checkbox" checked={selectedStockEntries.has(entry.id.toString())} onChange={() => handleSelectStockEntry(entry.id.toString())} className="h-4 w-4" aria-label={`Select ${entry.material?.name || "stock entry"}`} onClick={e => e.stopPropagation()} />
-                            </TableCell>
-                          )}
-                          <TableCell className="w-[20%] px-6 py-4 font-medium text-gray-900">
+                          {header.isPlaceholder ? null : (
                             <div className="flex items-center gap-2">
-                              {isNegative && <AlertTriangle className="h-4 w-4 text-red-600" />}
-                              {entry.material?.name ? highlightText(entry.material.name, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              {header.column.getCanSort() && (
+                                <span className="text-xs">
+                                  {{
+                                    asc: "↑",
+                                    desc: "↓"
+                                  }[header.column.getIsSorted() as string] ?? "↕"}
+                                </span>
+                              )}
                             </div>
+                          )}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows.map((row: any) => {
+                    const entry = row.original;
+                    const isNegative = hasNegativeStock(entry);
+                    const isVirtual = isVirtualEntry(entry);
+                    const isSelected = row.getIsSelected();
+
+                    return (
+                      <TableRow
+                        key={row.id}
+                        className={`transition-colors border-b border-gray-100 ${
+                          isSelected 
+                            ? "bg-green-50 border-l-4 border-l-green-500" 
+                            : isNegative 
+                            ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" 
+                            : isVirtual 
+                            ? "border-l-4 border-l-orange-500 hover:bg-gray-50" 
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
+                        {row.getVisibleCells().map((cell: any) => (
+                          <TableCell key={cell.id} style={{ width: cell.column.getSize() }} className="px-6 py-4">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
-                          <TableCell className="w-[12%] px-4 py-4 text-gray-700">{renderQuantityDisplay(entry)}</TableCell>
-                          <TableCell className="w-[10%] px-4 py-4 text-gray-700">{renderUnitDisplay(entry)}</TableCell>
-                          <TableCell className="w-[10%] px-4 py-4 text-gray-700">
-                            <div className="space-y-1">
-                              <div>{formatCurrency(entry.costPerPurchasedUnit)}</div>
-                              {entry.material?.unitType === "package" && <div className="text-xs text-muted-foreground">(per {entry.purchasedUnit})</div>}
-                            </div>
-                          </TableCell>
-                          <TableCell className="w-[10%] px-4 py-4 text-gray-700 font-medium">{formatCurrency(entry.totalCost)}</TableCell>
-                          <TableCell className="w-[10%] px-4 py-4 text-gray-700">{new Date(entry.purchaseDate).toLocaleDateString()}</TableCell>
-                          <TableCell className="w-[13%] px-6 py-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant={entry.isPOSItem ? "default" : "outline"}
-                                    size="sm"
-                                    disabled={!isAllowedPOSCategory(entry.material)}
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      handleTogglePOSVisibility(entry);
-                                    }}
-                                    className={`h-8 w-8 p-0 ${
-                                      !isAllowedPOSCategory(entry.material) 
-                                        ? "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200 text-gray-400" 
-                                        : entry.isPOSItem 
-                                        ? "bg-teal-600 hover:bg-teal-700 text-white" 
-                                        : "hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                                    }`}
-                                  >
-                                    {entry.isPOSItem ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>
-                                    {!isAllowedPOSCategory(entry.material) 
-                                      ? "Only beverage items can be shown in POS" 
-                                      : entry.isPOSItem 
-                                      ? "Hide from POS" 
-                                      : "Show in POS"
-                                    }
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      handleOpenPrinterDialog(entry);
-                                    }}
-                                    className={`h-8 w-8 p-0 ${entry.assignedPrinter ? "border-blue-500 text-blue-600" : "hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"}`}
-                                  >
-                                    <Printer className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{entry.assignedPrinter ? `Assigned to: ${entry.assignedPrinter.name}` : "Assign printer to " + (entry.material?.name || "stock entry")}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      handleEditStockEntry(entry as StockEntry);
-                                    }}
-                                    className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Edit {entry.material?.name || "stock entry"}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                              <AlertDialog>
-                                <Tooltip>
-                                  <AlertDialogTrigger asChild>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="outline" size="sm" className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 hover:text-red-700">
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                  </AlertDialogTrigger>
-                                  <TooltipContent>
-                                    <p>Delete {entry.material?.name || "stock entry"}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Stock Entry</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete this stock entry? This action cannot be undone.
-                                      {isNegative && (
-                                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-800">
-                                          <strong>Warning:</strong> This entry has negative stock quantities.
-                                        </div>
-                                      )}
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteStockEntry(entry.id)} className="bg-red-600 hover:bg-red-700">
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+                        ))}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           </div>
         </div>
@@ -1296,3 +1382,133 @@ export function StockEntriesTable() {
     </TooltipProvider>
   );
 }
+
+// TanStack Virtualized Stock Table Component
+interface TanStackVirtualizedStockTableProps {
+  table: any; // ReactTable instance
+}
+
+const TanStackVirtualizedStockTable: React.FC<TanStackVirtualizedStockTableProps> = ({ table }) => {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [rows, setRows] = useState<any[]>([]);
+  const isMounted = useRef(false);
+
+  // Use useEffect to safely get rows without causing render-time state updates
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isMounted.current) {
+      try {
+        const tableRows = table.getRowModel().rows;
+        setRows(tableRows);
+      } catch (error) {
+        console.warn('Error getting table rows:', error);
+        setRows([]);
+      }
+    }
+  }, [table]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 60,
+    overscan: 10
+  });
+
+  return (
+    <div className="flex flex-1 flex-col min-h-0">
+      {/* Table Header */}
+      <div className="flex-shrink-0 border-b bg-gray-100 sticky top-0 z-10">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup: any) => (
+              <TableRow key={headerGroup.id} className="border-b border-gray-200">
+                {headerGroup.headers.map((header: any) => (
+                  <TableHead 
+                    key={header.id} 
+                    style={{ width: header.getSize() }} 
+                    className={`px-6 py-4 text-left font-semibold text-gray-900 ${header.column.getCanSort() ? "cursor-pointer select-none" : ""}`}
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <div className="flex items-center gap-2">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanSort() && (
+                          <span className="text-xs">
+                            {{
+                              asc: "↑",
+                              desc: "↓"
+                            }[header.column.getIsSorted() as string] ?? "↕"}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+        </Table>
+      </div>
+
+      {/* Virtualized Table Body */}
+      <div className="flex-1 overflow-auto" ref={parentRef}>
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative"
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map(virtualItem => {
+            const row = rows[virtualItem.index];
+            const entry = row.original;
+            const isNegative = hasNegativeStock(entry);
+            const isVirtual = isVirtualEntry(entry);
+            const isSelected = row.getIsSelected();
+
+            return (
+              <div
+                key={virtualItem.key}
+                className={`transition-colors border-b border-gray-100 ${
+                  isSelected 
+                    ? "bg-green-50 border-l-4 border-l-green-500" 
+                    : isNegative 
+                    ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" 
+                    : isVirtual 
+                    ? "border-l-4 border-l-orange-500 hover:bg-gray-50" 
+                    : "hover:bg-gray-50"
+                }`}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: `${virtualItem.size}px`,
+                  transform: `translateY(${virtualItem.start}px)`
+                }}
+              >
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      {row.getVisibleCells().map((cell: any) => (
+                        <TableCell key={cell.id} style={{ width: cell.column.getSize() }} className="px-6 py-4">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};

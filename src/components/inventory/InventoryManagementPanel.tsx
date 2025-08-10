@@ -493,8 +493,12 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
       )}
 
       {/* Stock Form Dialog */}
-      <Dialog open={showStockForm} onOpenChange={setShowStockForm}>
-        <DialogContent className="w-[95vw] max-w-xs sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-6xl max-h-[95vh] sm:max-h-[90vh] p-0 m-2 sm:m-4">
+      <Dialog open={showStockForm} onOpenChange={setShowStockForm} modal={true}>
+        <DialogContent 
+          className="w-[95vw] max-w-xs sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-6xl max-h-[95vh] sm:max-h-[90vh] p-0 m-2 sm:m-4"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Package className="h-4 w-4 sm:h-5 sm:w-5" />
