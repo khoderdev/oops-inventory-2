@@ -130,9 +130,9 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
         } else if (stockEntry.totalCost && stockEntry.purchasedIndividualQuantity) {
           // Fallback: calculate from total cost and individual quantity
           displayUnitPrice = stockEntry.totalCost / stockEntry.purchasedIndividualQuantity;
-        } else if (material.costPerBaseUnit) {
-          // Last resort: use material's cost per base unit if available
-          displayUnitPrice = parseFloat(String(material.costPerBaseUnit));
+        } else if (material.costPerUnit) {
+          // Last resort: use material's cost per unit if available
+          displayUnitPrice = parseFloat(String(material.costPerUnit));
         }
 
         // Ensure displayUnitPrice is a valid number
@@ -382,7 +382,6 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
             individualItems.push({
               assignmentId: originalItem.assignmentId,
               materialId: String(assignment?.materialId || ""),
-              sectionId: selectedSectionId,
               materialName: material?.name || cartItem.name,
               unit: cartItem.unit || "",
               quantity: cartItem.quantity,
@@ -402,9 +401,7 @@ export function POSPanel({ materials, sectionAssignments }: POSPanelProps) {
                 materialId: String(i.materialId),
                 quantity: i.quantity,
                 unit: i.unit
-              })) || [],
-            createdAt: new Date(),
-            updatedAt: undefined
+              })) || []
           });
         }
       });
