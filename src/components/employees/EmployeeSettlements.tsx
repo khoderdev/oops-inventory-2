@@ -213,7 +213,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     if (amount == null || isNaN(amount) || !isFinite(amount)) {
       return "$0.00";
     }
-    
+
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD"
@@ -571,7 +571,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                         <TableHeader>
                           <TableRow>
                             <TableHead>Date</TableHead>
-                            <TableHead>Type</TableHead>
                             <TableHead>Item</TableHead>
                             <TableHead>Quantity</TableHead>
                             <TableHead>Unit Cost</TableHead>
@@ -584,15 +583,8 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                           {selectedSettlement.settlementData.usageBreakdown.map(usage => (
                             <TableRow key={usage.id}>
                               <TableCell className="text-sm">{formatDate(usage.usageDate)}</TableCell>
-                              <TableCell>
-                                <Badge variant="secondary" className={usageTypeColors[usage.usageType]}>
-                                  {usage.usageType.replace("_", " ")}
-                                </Badge>
-                              </TableCell>
                               <TableCell>{usage.itemName}</TableCell>
-                              <TableCell>
-                                {usage.quantity} {usage.unit}
-                              </TableCell>
+                              <TableCell>{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
                               <TableCell className="font-mono">{formatCurrency(usage.unitCost)}</TableCell>
                               <TableCell className="font-mono">{formatCurrency(usage.totalCost)}</TableCell>
                               <TableCell className="font-mono text-green-600">-{usage.discountApplied}%</TableCell>

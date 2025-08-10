@@ -48,14 +48,10 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
   const [error] = useAtom(settlementsErrorAtom);
   const [existingSettlements] = useAtom(settlementsAtom);
   const [, fetchSettlements] = useAtom(fetchSettlementsAtom);
-
   const [, previewSettlementAction] = useAtom(previewSettlementAtom);
-
   const [showPreview, setShowPreview] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-
   const employeeList = employees.length > 0 ? employees : allEmployees;
-
   const form = useForm<SettlementFormData>({
     resolver: zodResolver(settlementFormSchema),
     defaultValues: {
@@ -67,14 +63,12 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
       notes: settlement?.notes || ""
     }
   });
-
   const watchedEmployeeId = form.watch("employeeId");
   const watchedYear = form.watch("settlementYear");
   const watchedMonth = form.watch("settlementMonth");
   const watchedBonusAmount = form.watch("bonusAmount");
   const watchedPenaltyAmount = form.watch("penaltyAmount");
 
-  // Fetch employees data on component mount
   useEffect(() => {
     const loadEmployees = async () => {
       try {
@@ -85,12 +79,9 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
         console.error("Failed to load employees:", error);
       }
     };
-
     loadEmployees();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array to prevent infinite loops
+  }, []);
 
-  // Update selected employee when form changes
   useEffect(() => {
     if (watchedEmployeeId) {
       const employee = employeeList.find(emp => emp.id === watchedEmployeeId);
@@ -98,7 +89,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
     }
   }, [watchedEmployeeId, employeeList]);
 
-  // Fetch settlements for the selected employee to check for existing settlements
   useEffect(() => {
     const loadEmployeeSettlements = async () => {
       if (watchedEmployeeId) {
@@ -113,7 +103,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
     loadEmployeeSettlements();
   }, [watchedEmployeeId, fetchSettlements]);
 
-  // Get used months for the selected employee and year
   const getUsedMonths = useCallback(() => {
     if (!watchedEmployeeId) return [];
 
@@ -271,13 +260,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
     <div className="space-y-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          <div className="flex justify-end items-center space-x-2">
-            <Button type="button" variant="outline" onClick={handlePreview} disabled={formLoading || previewLoading} className="flex items-center space-x-2">
-              {previewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-              <span>Preview</span>
-            </Button>
-          </div>
-
           {/* Error Display */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -288,9 +270,9 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* Left Column - Form Fields */}
-            <div className="space-y-6">
+            <div className="flex flex-col space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -505,9 +487,9 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
             </div>
 
             {/* Right Column - Preview */}
-            <div className="space-y-6">
+            <div className="flex flex-col space-y-6 h-full">
               {settlementPreview && showPreview && (
-                <Card>
+                <Card className="flex-1 flex flex-col">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <Eye className="w-5 h-5" />
@@ -515,7 +497,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                     </CardTitle>
                     <CardDescription>Preview of the settlement calculation</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 flex-1">
                     {/* Employee Info */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center justify-between">
@@ -608,7 +590,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                                     </div>
                                   </TableCell>
                                   <TableCell className="py-2 text-xs">
-                                    {usage.quantity} {usage.unit}
+                                    {Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}
                                   </TableCell>
                                   <TableCell className="py-2 text-xs">{formatCurrency(usage.totalCost)}</TableCell>
                                   <TableCell className="py-2 text-xs font-medium">{formatCurrency(usage.finalCost)}</TableCell>
