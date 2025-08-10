@@ -679,6 +679,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 
   const handleCloseModal = useCallback((open: boolean) => {
+    // Allow closing the dialog through the X button or explicit user actions
     if (!open) {
       setShowMenuItemForm(false);
       setEditingMenuItem(null);
@@ -907,8 +908,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             )}
           </CardHeader>
           <CardContent className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4 lg:p-6">
-            <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal}>
-              <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description">
+            <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal} modal={true}>
+              <DialogContent 
+                className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto" 
+                aria-describedby="menu-item-form-description"
+                onPointerDownOutside={(e) => e.preventDefault()}
+                onInteractOutside={(e) => e.preventDefault()}
+              >
                 <DialogHeader>
                   <DialogTitle className="text-lg sm:text-xl">{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
                 </DialogHeader>

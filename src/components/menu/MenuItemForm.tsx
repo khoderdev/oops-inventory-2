@@ -756,9 +756,9 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
 
         {/* Virtualized Table Body */}
         <div 
-          className="flex-1 overflow-auto max-h-60" 
+          className="flex-1 overflow-auto max-h-96" 
           ref={parentRef}
-          style={{ height: Math.min(rows.length * 52, 240) }}
+          style={{ height: Math.min(rows.length * 52, 384) }}
         >
           <div
             style={{
