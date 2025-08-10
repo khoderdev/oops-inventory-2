@@ -70,32 +70,57 @@ export async function generateStockPurchasesReport(stockEntries: StockEntry[], m
 }
 
 export async function generateSalesPerformanceReport(sales: SaleRecord[], menuItems: MenuItem[]) {
-  const salesByDate = sales.reduce(
-    (acc, sale) => {
-      const dateKey = new Date(sale.saleDate).toDateString();
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
+  const salesWithItems: any[] = [];
+  
+  sales.forEach(sale => {
+    // If no items in the sale, show the sale record itself
+    if (sale.items.length === 0 && sale.menuItems.length === 0) {
+      salesWithItems.push({
+        Date: new Date(sale.saleDate),
+        "Item Name": "No items recorded",
+        "Item Type": "Sale Record",
+        Quantity: 1,
+        "Unit Price": sale.totalAmount,
+        "Total Price": sale.totalAmount,
+        Creator: sale.creator?.username || "-"
+      });
+      return;
+    }
+    
+    // Add material items
+    sale.items.forEach(item => {
+      const itemName = item.materialName || `Material ID: ${item.materialId}`;
+      salesWithItems.push({
+        Date: new Date(sale.saleDate),
+        "Item Name": itemName,
+        Quantity: item.quantity || 0,
+        "Unit Price": item.unitPrice || 0,
+        "Total Price": item.totalPrice || 0,
+        Creator: sale.creator?.username || "-"
+      });
+    });
+    
+    // Add menu items
+    sale.menuItems.forEach(menuItem => {
+      // Try to find the menu item name from the menuItems array if not in the sale record
+      let itemName = menuItem.menuItemName;
+      if (!itemName) {
+        const foundMenuItem = menuItems.find(mi => mi.id === menuItem.menuItemId);
+        itemName = foundMenuItem?.name || `Menu Item ID: ${menuItem.menuItemId}`;
       }
-      acc[dateKey].push(sale);
-      return acc;
-    },
-    {} as Record<string, SaleRecord[]>
-  );
-
-  return Object.entries(salesByDate).map(([date, salesList]) => {
-    const totalRevenue = salesList.reduce((sum, sale) => sum + sale.totalAmount, 0);
-    const totalItems = salesList.reduce((sum, sale) => sum + sale.items.length + sale.menuItems.length, 0);
-
-    return {
-      Date: new Date(date),
-      Section: "All Sections",
-      "Total Sales": salesList.length,
-      "Items Sold": totalItems,
-      Revenue: totalRevenue,
-      "Top Item": "Various",
-      Performance: totalRevenue > 1000 ? "Excellent" : totalRevenue > 500 ? "Good" : "Average"
-    };
+      
+      salesWithItems.push({
+        Date: new Date(sale.saleDate),
+        "Item Name": itemName,
+        Quantity: menuItem.quantity || 0,
+        "Unit Price": menuItem.unitPrice || 0,
+        "Total Price": menuItem.totalPrice || 0,
+        Creator: sale.creator?.username || "-"
+      });
+    });
   });
+  
+  return salesWithItems;
 }
 
 export async function generateCostAnalysisReport(materials: Material[], stockEntries: StockEntry[]) {

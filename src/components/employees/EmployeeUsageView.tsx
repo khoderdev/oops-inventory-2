@@ -25,7 +25,7 @@ const usageTypeColors = {
 
 const usageTypes: EmployeeUsageType[] = ["material", "menu_item", "stock_entry"];
 
-interface GroupedOrder {
+export interface GroupedOrder {
   posTransactionId: string;
   employee: {
     id: number;
@@ -55,7 +55,6 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
   const [, fetchStats] = useAtom(fetchUsageStatsAtom);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [addingToSettlement, setAddingToSettlement] = useState<Set<number>>(new Set());
-
   const [dateRange, setDateRange] = useState<{
     from: Date;
     to: Date;
@@ -64,13 +63,10 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     to: new Date()
   });
 
-  // Group usage records by POS transaction ID
   const groupedOrders = useMemo(() => {
     const orderMap = new Map<string, GroupedOrder>();
-
     usages.forEach(usage => {
       const transactionId = usage.posTransactionId || `individual-${usage.id}`;
-
       if (!orderMap.has(transactionId)) {
         orderMap.set(transactionId, {
           posTransactionId: transactionId,
@@ -92,7 +88,6 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
       const order = orderMap.get(transactionId)!;
       order.items.push(usage);
 
-      // Convert string/number values to numbers with proper null/undefined handling
       const totalCost = (() => {
         const value = usage.totalCost;
         if (value === null || value === undefined) return 0;
@@ -113,48 +108,34 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
         const parsed = typeof value === "string" ? parseFloat(value) : Number(value);
         return isNaN(parsed) ? 0 : parsed;
       })();
-
       order.totalCost += totalCost;
       order.totalDiscountAmount += discountAmount;
       order.finalCost += finalCost;
       order.itemCount += 1;
-
-      // Order is settled only if ALL items are settled
       order.isSettled = order.isSettled && usage.isSettled;
     });
 
     return Array.from(orderMap.values()).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   }, [usages]);
 
-  // Load data when employee or date range changes
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Create updated filters
         const updatedFilters = {
           ...filters,
           employeeId: selectedEmployeeId || undefined,
           startDate: dateRange.from.toISOString().split("T")[0],
           endDate: dateRange.to.toISOString().split("T")[0]
         };
-
-        // Update filters state
         setFilters(updatedFilters);
-
-        // Fetch data with updated filters - run in parallel for better performance
-        await Promise.all([
-          fetchUsages(updatedFilters),
-          fetchStats(updatedFilters)
-        ]);
+        await Promise.all([fetchUsages(updatedFilters), fetchStats(updatedFilters)]);
       } catch (error) {
         console.error("Failed to load usage data:", error);
-        // Error handling is managed by the atoms, but we log for debugging
       }
     };
 
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEmployeeId, dateRange]); // Intentionally excluding setFilters, fetchUsages, fetchStats to prevent infinite loops
+  }, [selectedEmployeeId, dateRange]);
 
   const handleEmployeeChange = (employeeId: string) => {
     const id = employeeId === "all" ? null : parseInt(employeeId);
@@ -200,12 +181,7 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
   };
 
   const formatQuantity = (quantity: number) => {
-    // Remove unnecessary decimal places
     return Number(quantity) % 1 === 0 ? Math.floor(quantity) : Number(quantity).toFixed(2);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
   };
 
   const formatDateTime = (dateString: string) => {
@@ -232,49 +208,37 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     return `Order #${transactionId}`;
   };
 
-  // Helper function to get settlements that can accept new usages (pending or approved)
   const getAvailableSettlements = (employeeId: number): EmployeeSettlement[] => {
-    return settlements.filter(settlement => 
-      settlement.employeeId === employeeId && 
-      (settlement.status === 'pending' || settlement.status === 'approved')
-    );
+    return settlements.filter(settlement => settlement.employeeId === employeeId && (settlement.status === "pending" || settlement.status === "approved"));
   };
 
-  // Helper function to add usage to settlement
   const addUsageToSettlement = async (usageId: number, settlementId: number) => {
     setAddingToSettlement(prev => new Set(prev).add(usageId));
-    
     try {
       const { employeeAPI } = await import("@/api/employee.api");
-      
-      // Update the usage to mark it as settled
       const updateResult = await employeeAPI.updateUsage(usageId, {
         isSettled: true,
         settlementId: settlementId
       });
 
       if (updateResult.success) {
-        // Trigger settlement recalculation by calling updateSettlement
-        // This will recalculate totals from all settled usages for this settlement
         const recalculateResult = await employeeAPI.updateSettlement(settlementId, {
-          // Trigger recalculation by passing totalUsageCost (backend will recalculate from actual usages)
-          totalUsageCost: 0 // This triggers the recalculation logic in the backend
+          totalUsageCost: 0
         });
 
         if (recalculateResult.success) {
           toast({
             title: "Success",
-            description: "Usage added to settlement successfully",
+            description: "Usage added to settlement successfully"
           });
-          
-          // Refresh the usages to reflect the change
+
           await fetchUsages(filters);
         } else {
           console.warn("Usage marked as settled but settlement totals may not be updated:", recalculateResult.message);
           toast({
             title: "Warning",
             description: "Usage added but settlement totals may need manual refresh",
-            variant: "destructive",
+            variant: "destructive"
           });
         }
       } else {
@@ -285,7 +249,7 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
       toast({
         title: "Error",
         description: "Failed to add usage to settlement",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setAddingToSettlement(prev => {
@@ -299,11 +263,11 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
   // Helper function to add all order items to settlement
   const addAllOrderItemsToSettlement = async (order: GroupedOrder, settlementId: number) => {
     const unsettledItems = order.items.filter(item => !item.isSettled);
-    
+
     if (unsettledItems.length === 0) {
       toast({
         title: "Info",
-        description: "All items in this order are already settled",
+        description: "All items in this order are already settled"
       });
       return;
     }
@@ -349,13 +313,13 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
         if (recalculateResult.success) {
           toast({
             title: "Success",
-            description: `${successCount} item${successCount !== 1 ? 's' : ''} added to settlement successfully${failureCount > 0 ? `. ${failureCount} item${failureCount !== 1 ? 's' : ''} failed to add.` : ''}`,
+            description: `${successCount} item${successCount !== 1 ? "s" : ""} added to settlement successfully${failureCount > 0 ? `. ${failureCount} item${failureCount !== 1 ? "s" : ""} failed to add.` : ""}`
           });
         } else {
           toast({
-            title: "Warning", 
+            title: "Warning",
             description: `Items added but settlement totals may need manual refresh`,
-            variant: "destructive",
+            variant: "destructive"
           });
         }
 
@@ -365,7 +329,7 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
         toast({
           title: "Error",
           description: "Failed to add any items to settlement",
-          variant: "destructive",
+          variant: "destructive"
         });
       }
     } catch (error) {
@@ -373,7 +337,7 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
       toast({
         title: "Error",
         description: "Failed to add order items to settlement",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       // Remove all items from the adding state
@@ -603,17 +567,13 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                             // For employee orders, payment status is based on settlement payment, not order status
                             const employeeId = order.employee.id;
                             const orderUsages = order.items.filter(item => item.isSettled);
-                            
+
                             // Check if any usage in this order belongs to a paid settlement
                             const isPaid = orderUsages.some(usage => {
-                              const settlement = settlements.find(s => 
-                                s.employeeId === employeeId && 
-                                s.settlementData?.usageBreakdown?.some(ub => ub.id === usage.id) &&
-                                s.status === 'paid'
-                              );
+                              const settlement = settlements.find(s => s.employeeId === employeeId && s.settlementData?.usageBreakdown?.some(ub => ub.id === usage.id) && s.status === "paid");
                               return settlement !== undefined;
                             });
-                            
+
                             // Determine status based on settlement payment
                             if (isPaid) {
                               return (
@@ -636,13 +596,13 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                             }
                           })()}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell onClick={e => e.stopPropagation()}>
                           {(() => {
                             const employeeId = order.employee.id;
                             const availableSettlements = getAvailableSettlements(employeeId);
                             const unsettledItems = order.items.filter(item => !item.isSettled);
                             const isAddingAny = unsettledItems.some(item => addingToSettlement.has(item.id));
-                            
+
                             if (unsettledItems.length === 0) {
                               return (
                                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -650,23 +610,13 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                                 </Badge>
                               );
                             }
-                            
+
                             if (availableSettlements.length === 0) {
-                              return (
-                                <div className="text-xs text-muted-foreground text-center px-2 py-1 bg-orange-50 rounded border border-orange-200">
-                                  No settlements
-                                </div>
-                              );
+                              return <div className="text-xs text-muted-foreground text-center px-2 py-1 bg-orange-50 rounded border border-orange-200">No settlements</div>;
                             }
-                            
+
                             return (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 px-3 text-xs"
-                                disabled={isAddingAny}
-                                onClick={() => addAllOrderItemsToSettlement(order, availableSettlements[0].id)}
-                              >
+                              <Button size="sm" variant="outline" className="h-8 px-3 text-xs" disabled={isAddingAny} onClick={() => addAllOrderItemsToSettlement(order, availableSettlements[0].id)}>
                                 {isAddingAny ? (
                                   <>
                                     <div className="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -696,7 +646,7 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                                   const availableSettlements = getAvailableSettlements(employeeId);
                                   const isSettled = item.isSettled;
                                   const isAddingToSettlement = addingToSettlement.has(item.id);
-                                  
+
                                   return (
                                     <div key={item.id} className="flex items-center justify-between p-3 bg-background rounded border">
                                       <div className="flex items-center gap-3">
@@ -724,35 +674,27 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                                             <div className="font-mono font-medium">{formatCurrency(item.finalCost)}</div>
                                           )}
                                         </div>
-                                        
+
                                         {/* Settlement Action */}
                                         <div className="flex flex-col gap-1">
-                                           {isSettled ? (
-                                             <Badge variant="default" className="bg-green-100 text-green-800 text-xs">
-                                               Settled
-                                             </Badge>
-                                           ) : availableSettlements.length > 0 ? (
-                                             <Button
-                                               size="sm"
-                                               variant="outline"
-                                               className="h-7 px-2 text-xs"
-                                               disabled={isAddingToSettlement}
-                                               onClick={() => addUsageToSettlement(item.id, availableSettlements[0].id)}
-                                             >
-                                               {isAddingToSettlement ? (
-                                                 "Adding..."
-                                               ) : (
-                                                 <>
-                                                   <UserPlus className="h-3 w-3 mr-1" />
-                                                   Add to Settlement
-                                                 </>
-                                               )}
-                                             </Button>
-                                           ) : (
-                                             <div className="text-xs text-muted-foreground text-center px-2 py-1 bg-orange-50 rounded border border-orange-200">
-                                               No available settlements
-                                             </div>
-                                           )}
+                                          {isSettled ? (
+                                            <Badge variant="default" className="bg-green-100 text-green-800 text-xs">
+                                              Settled
+                                            </Badge>
+                                          ) : availableSettlements.length > 0 ? (
+                                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={isAddingToSettlement} onClick={() => addUsageToSettlement(item.id, availableSettlements[0].id)}>
+                                              {isAddingToSettlement ? (
+                                                "Adding..."
+                                              ) : (
+                                                <>
+                                                  <UserPlus className="h-3 w-3 mr-1" />
+                                                  Add to Settlement
+                                                </>
+                                              )}
+                                            </Button>
+                                          ) : (
+                                            <div className="text-xs text-muted-foreground text-center px-2 py-1 bg-orange-50 rounded border border-orange-200">No available settlements</div>
+                                          )}
                                         </div>
                                       </div>
                                     </div>

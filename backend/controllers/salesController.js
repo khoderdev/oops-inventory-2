@@ -569,6 +569,9 @@ const salesController = {
         }
       }
 
+      // Get the user ID from the request
+      const userId = req.user?.id;
+
       // Create the sale record
       const sale = await Sale.create(
         {
@@ -576,6 +579,7 @@ const salesController = {
           saleDate: new Date(saleDate),
           totalAmount,
           sectionId: finalSectionId,
+          userId: userId, // Add the userId to associate the sale with the creator
           items: items || [],
           menuItems: menuItems || [], // Store menuItems as JSON
           createdAt: createdAt || new Date(),
@@ -587,7 +591,6 @@ const salesController = {
       await transaction.commit();
 
       // Log successful sale creation
-      const userId = req.user?.id;
       if (userId) {
         await auditSalesOperation(userId, "CREATE", sale.toJSON(), null, req);
       }

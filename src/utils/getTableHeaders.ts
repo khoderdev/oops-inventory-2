@@ -5,7 +5,7 @@ export function getTableHeaders(reportType: ReportType): string[] {
   const headerMap: Record<ReportType, string[]> = {
     "inventory-summary": ["Material", "Category", "Available Qty", "Unit", "Avg Cost", "Total Value", "Stock Entries", "Last Purchase", "Status"],
     "stock-purchases": ["Date", "Material", "Supplier", "Quantity", "Unit", "Cost per Unit", "Total Cost"],
-    "sales-performance": ["Date", "Section", "Total Sales", "Items Sold", "Revenue", "Top Item", "Performance"],
+    "sales-performance": ["Date", "Item Name", "Quantity", "Unit Price", "Total Price", "Creator"],
     "cost-analysis": ["Material", "Current Cost", "Previous Cost", "Trend", "Variance %", "Entries", "Recommendation"],
     "supplier-performance": ["Supplier", "Total Orders", "Total Value", "Materials Count", "Avg Order Value", "Last Purchase", "Rating"],
     "expiry-alerts": ["Material", "Supplier", "Expiry Date", "Days Until Expiry", "Quantity", "Unit", "Value", "Urgency"],
