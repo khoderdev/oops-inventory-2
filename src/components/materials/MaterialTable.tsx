@@ -3,15 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TanStackTable } from "@/components/ui/TanStackTable";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { CachedMaterialData, MATERIAL_CATEGORIES, MaterialTableProps, MaterialWithStock, PaginationInfo } from "@/types/inventory";
 import { highlightText } from "@/utils/highlightText";
 import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
+import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 import { useDebounce } from "@/hooks/useDebounce";
 
@@ -660,10 +659,19 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
 
           {/* Desktop Table View - TanStack Virtualized */}
           {!loading && materials.length > 0 && (
-            <div className="hidden lg:block px-4">
-              <div className="w-full h-[calc(100vh-280px)] rounded-lg border overflow-hidden bg-white mt-4">
-                <TanStackVirtualizedMaterialTable table={table} />
-              </div>
+            <div className="hidden lg:block px-2 mt-10">
+                <TanStackTable 
+                  table={table}
+                  virtualized={true}
+                  customHeaderAlignment={{ actions: 'center' }}
+                  customCellAlignment={{ actions: 'center' }}
+                  estimatedRowSize={60}
+                  overscan={10}
+                  loading={loading}
+                  emptyMessage="No materials found"
+                  maxHeight="calc(100vh-240px)"
+                  className=""
+                />
             </div>
           )}
 
@@ -705,95 +713,4 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
   );
 }
 
-// TanStack Virtualized Material Table Component
-interface TanStackVirtualizedMaterialTableProps {
-  table: any; // ReactTable instance
-}
 
-const TanStackVirtualizedMaterialTable: React.FC<TanStackVirtualizedMaterialTableProps> = ({ table }) => {
-  const parentRef = useRef<HTMLDivElement>(null);
-
-  const rows = table.getRowModel().rows;
-
-  const rowVirtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 60,
-    overscan: 10
-  });
-
-  return (
-    <div className="flex flex-1 flex-col min-h-0">
-      {/* Table Header */}
-      <div className="flex-shrink-0 border-b bg-gray-100 sticky top-0 z-10">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup: any) => (
-              <TableRow key={headerGroup.id} className="border-b border-gray-200">
-                {headerGroup.headers.map((header: any) => (
-                  <TableHead key={header.id} style={{ width: header.getSize() }} className={`px-6 py-4 text-left font-semibold text-gray-900 ${header.column.getCanSort() ? "cursor-pointer select-none" : ""}`} onClick={header.column.getToggleSortingHandler()}>
-                    {header.isPlaceholder ? null : (
-                      <div className="flex items-center gap-2">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {header.column.getCanSort() && (
-                          <span className="text-xs">
-                            {{
-                              asc: "↑",
-                              desc: "↓"
-                            }[header.column.getIsSorted() as string] ?? "↕"}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-        </Table>
-      </div>
-
-      {/* Virtualized Table Body */}
-      <div className="flex-1 overflow-auto" ref={parentRef}>
-        <div
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            width: "100%",
-            position: "relative"
-          }}
-        >
-          {rowVirtualizer.getVirtualItems().map(virtualItem => {
-            const row = rows[virtualItem.index];
-
-            return (
-              <div
-                key={virtualItem.key}
-                className="hover:bg-gray-50/50 border-b border-gray-100 transition-colors"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: `${virtualItem.size}px`,
-                  transform: `translateY(${virtualItem.start}px)`
-                }}
-              >
-                <Table>
-                  <TableBody>
-                    <TableRow>
-                      {row.getVisibleCells().map((cell: any) => (
-                        <TableCell key={cell.id} style={{ width: cell.column.getSize() }} className="px-6 py-4">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};

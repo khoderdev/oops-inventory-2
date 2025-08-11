@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TanStackTable } from "@/components/ui/TanStackTable";
 import { toast } from "@/hooks/use-toast";
 import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
-import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial, StockFormData, AddStockData, RecordWasteData, MaterialWithStock, PaginationInfo, CachedStockEntryData } from "@/types/inventory";
+import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial, StockFormData, AddStockData, RecordWasteData, MaterialWithStock, PaginationInfo, CachedStockEntryData, MaterialCategory, UnitType } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, EyeOff, FileText, Loader2, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
@@ -21,7 +21,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useAtom } from "jotai";
 import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from "@/store/inventoryAtoms";
 import { StockForm } from "@/components/stock/StockForm";
-import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
+import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePrefetch } from "@/hooks/usePrefetch";
 
@@ -39,6 +39,8 @@ const CACHE_DURATION = 2 * 60 * 1000;
 export function StockEntriesTable() {
   const { materials: materialsWithStock, refresh } = usePrefetch();
   const materials = materialsWithStock;
+
+
 
   const initializeFromCache = () => {
     try {
@@ -99,7 +101,17 @@ export function StockEntriesTable() {
   const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([{ id: "purchaseDate", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const materialsMap = useMemo(() => new Map(materials.map(m => [m.id, m])), [materials]);
+  const [reportSorting, setReportSorting] = useState<SortingState>([]);
+  const materialsMap = useMemo(() => {
+    const map = new Map();
+    materials.forEach(m => {
+      // Store with both string and number keys to handle type mismatches
+      map.set(m.id, m);
+      map.set(m.id.toString(), m);
+      map.set(parseInt(m.id), m);
+    });
+    return map;
+  }, [materials]);
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
@@ -217,6 +229,12 @@ export function StockEntriesTable() {
     setCurrentPage(1);
   }, []);
 
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: "ASC" | "DESC") => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+    setCurrentPage(1);
+  }, []);
+
   const refreshData = useCallback(async () => {
     await fetchStockEntries(true);
     await refresh("materials");
@@ -310,7 +328,19 @@ export function StockEntriesTable() {
       columnHelper.display({
         id: "materialName",
         size: 200,
-        header: "Material Name",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "materialName" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("materialName", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Material Name
+            <span className="ml-2 text-xs">{sortBy === "materialName" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
         cell: ({ row }) => {
           const entry = row.original;
           const materialName = entry.material?.name;
@@ -321,7 +351,8 @@ export function StockEntriesTable() {
               {materialName ? highlightText(materialName, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}
             </div>
           );
-        }
+        },
+        enableSorting: false
       }),
 
       columnHelper.display({
@@ -341,7 +372,19 @@ export function StockEntriesTable() {
       columnHelper.accessor("costPerPurchasedUnit", {
         id: "costPerUnit",
         size: 50,
-        header: "Cost/Unit",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "costPerPurchasedUnit" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("costPerPurchasedUnit", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Cost/Unit
+            <span className="ml-2 text-xs">{sortBy === "costPerPurchasedUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
         cell: ({ row, getValue }) => {
           const cost = getValue();
           return (
@@ -350,30 +393,55 @@ export function StockEntriesTable() {
               {row.original.material?.unitType === "package" && <div className="text-xs text-muted-foreground">(per {row.original.purchasedUnit})</div>}
             </div>
           );
-        }
+        },
+        enableSorting: false
       }),
 
       columnHelper.accessor("totalCost", {
         id: "totalCost",
         size: 120,
-        header: "Total Cost",
-        cell: ({ getValue }) => <span className="font-medium">{formatCurrency(getValue())}</span>
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "totalCost" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("totalCost", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Total Cost
+            <span className="ml-2 text-xs">{sortBy === "totalCost" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
+        cell: ({ getValue }) => <span className="font-medium">{formatCurrency(getValue())}</span>,
+        enableSorting: false
       }),
 
       columnHelper.accessor("purchaseDate", {
         id: "purchaseDate",
         size: 150,
-        header: "Purchase Date",
-        cell: ({ getValue }) => new Date(getValue()).toLocaleDateString()
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "purchaseDate" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("purchaseDate", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Purchase Date
+            <span className="ml-2 text-xs">{sortBy === "purchaseDate" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
+        cell: ({ getValue }) => new Date(getValue()).toLocaleDateString(),
+        enableSorting: false
       }),
 
       columnHelper.display({
         id: "actions",
         size: 160,
         enableSorting: false,
-        header: ({ column }) => (
-          <div className="flex justify-center w-full">Actions</div>
-        ),
+        header: ({ column }) => <div className="flex justify-center w-full">Actions</div>,
         cell: ({ row }) => {
           const entry = row.original;
           return (
@@ -474,7 +542,7 @@ export function StockEntriesTable() {
         }
       })
     ],
-    [searchTerm, bulkSelectionMode, handleTogglePOSVisibility, handleOpenPrinterDialog, handleEditStockEntry, handleDeleteStockEntry, isAllowedPOSCategory]
+    [searchTerm, bulkSelectionMode, handleTogglePOSVisibility, handleOpenPrinterDialog, handleEditStockEntry, handleDeleteStockEntry, isAllowedPOSCategory, sortBy, sortOrder, handleSortChange]
   );
 
   // Handle scroll for floating button
@@ -667,8 +735,45 @@ export function StockEntriesTable() {
   };
 
   const uniqueMaterials = useMemo(() => materials.map(m => m.name).sort(), [materials]);
-  const stockEntriesWithMaterial = useMemo(() => optimisticStockEntries, [optimisticStockEntries]);
-  const table = useReactTable({ data: stockEntriesWithMaterial, columns, state: { sorting, columnFilters }, onSortingChange: setSorting, onColumnFiltersChange: setColumnFilters, getCoreRowModel: getCoreRowModel(), enableRowSelection: bulkSelectionMode, getRowId: row => row.id.toString(), manualSorting: true, manualFiltering: true, manualPagination: true });
+  const stockEntriesWithMaterial: StockEntryWithMaterial[] = useMemo(() => {
+    return optimisticStockEntries.map(entry => {
+      const material = materialsMap.get(entry.materialId);
+      return {
+        ...entry,
+        material: material || {
+          id: entry.materialId.toString(),
+          name: `[Deleted Material - ID: ${entry.materialId}]`,
+          category: 'other' as MaterialCategory,
+          baseUnit: 'piece',
+          unitType: 'piece' as UnitType,
+          costPerUnit: 0,
+          availableQuantity: 0,
+          totalQuantityInBaseUnit: 0,
+          totalValue: 0,
+          averageCostPerBaseUnit: 0,
+          stockEntries: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        } as MaterialWithStock
+      } as StockEntryWithMaterial;
+    });
+  }, [optimisticStockEntries, materialsMap]);
+  const table = useReactTable({
+    data: stockEntriesWithMaterial,
+    columns,
+    state: {
+      sorting,
+      columnFilters
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    enableRowSelection: bulkSelectionMode,
+    getRowId: row => row.id.toString(),
+    manualSorting: true,
+    manualFiltering: true,
+    manualPagination: true
+  });
 
   const fetchNegativeStockReport = async () => {
     setLoadingReport(true);
@@ -691,7 +796,6 @@ export function StockEntriesTable() {
   const renderQuantityDisplay = (entry: StockEntryWithMaterial) => {
     const { material } = entry;
     const isNegative = hasNegativeStock(entry);
-    const isVirtual = isVirtualEntry(entry);
 
     return (
       <div className="space-y-1">
@@ -998,18 +1102,7 @@ export function StockEntriesTable() {
             <div className="lg:hidden space-y-4">
               {stockEntriesWithMaterial.map(entry => {
                 const material = materialsMap.get(entry.materialId);
-                
-                // Debug logging for missing materials
-                if (!material) {
-                  console.warn(`Missing material for stock entry:`, {
-                    entryId: entry.id,
-                    materialId: entry.materialId,
-                    materialIdType: typeof entry.materialId,
-                    availableMaterialIds: Array.from(materialsMap.keys()),
-                    materialsMapSize: materialsMap.size
-                  });
-                }
-                
+
                 const isNegative = hasNegativeStock(entry);
                 const isVirtual = isVirtualEntry(entry);
                 const isSelected = selectedStockEntries.has(entry.id.toString());
@@ -1155,53 +1248,28 @@ export function StockEntriesTable() {
             </div>
           )}
 
+          {/* Desktop Table View - TanStack Virtualized */}
           {!loading && !error && stockEntriesWithMaterial.length > 0 && (
-            <div className="hidden lg:block">
-              <div className="w-full h-[calc(100vh-260px)] border rounded-lg overflow-auto bg-white shadow-sm">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-gray-50 z-10">
-                    {table.getHeaderGroups().map((headerGroup: any) => (
-                      <TableRow key={headerGroup.id} className="border-b border-gray-200">
-                        {headerGroup.headers.map((header: any) => (
-                           <TableHead key={header.id} style={{ width: header.getSize() }} className={`px-6 py-4 ${header.id === 'actions' ? 'text-right' : 'text-left'} font-semibold text-gray-900 ${header.column.getCanSort() ? "cursor-pointer select-none" : ""}`} onClick={header.column.getToggleSortingHandler()}>
-                            {header.isPlaceholder ? null : (
-                              <div className="flex items-center gap-2">
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                {header.column.getCanSort() && (
-                                  <span className="text-xs">
-                                    {{
-                                      asc: "↑",
-                                      desc: "↓"
-                                    }[header.column.getIsSorted() as string] ?? "↕"}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows.map((row: any) => {
-                      const entry = row.original;
-                      const isNegative = hasNegativeStock(entry);
-                      const isVirtual = isVirtualEntry(entry);
-                      const isSelected = row.getIsSelected();
-
-                      return (
-                        <TableRow key={row.id} className={`transition-colors border-b border-gray-100 ${isSelected ? "bg-green-50 border-l-4 border-l-green-500" : isNegative ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" : isVirtual ? "border-l-4 border-l-orange-500 hover:bg-gray-50" : "hover:bg-gray-50"}`}>
-                          {row.getVisibleCells().map((cell: any) => (
-                            <TableCell key={cell.id} style={{ width: cell.column.getSize() }} className={`px-6 py-4 ${cell.column.id === 'actions' ? 'text-right' : ''}`}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+            <div className="hidden lg:block px-2">
+                <TanStackTable
+                  table={table}
+                  virtualized={true}
+                  customHeaderAlignment={{ actions: "center" }}
+                  customCellAlignment={{ actions: "center" }}
+                  estimatedRowSize={60}
+                  overscan={10}
+                  loading={loading}
+                  emptyMessage="No stock entries found"
+                  maxHeight="calc(100vh-260px)"
+                  rowClassName={row => {
+                    const entry = row.original;
+                    const isNegative = hasNegativeStock(entry);
+                    const isVirtual = isVirtualEntry(entry);
+                    const isSelected = row.getIsSelected();
+                    return isSelected ? "bg-green-50 border-l-4 border-l-green-500" : isNegative ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" : isVirtual ? "border-l-4 border-l-orange-500 hover:bg-gray-50" : "";
+                  }}
+                  className=""
+                />
             </div>
           )}
         </div>
@@ -1240,24 +1308,17 @@ export function StockEntriesTable() {
                 {negativeStockReport.negativeStockItems && negativeStockReport.negativeStockItems.length > 0 && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">Negative Stock Items</h3>
-                    <div className="border rounded-lg overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-gray-50">
-                            <TableHead>Material</TableHead>
-                            <TableHead>Supplier</TableHead>
-                            <TableHead>Individual Quantity</TableHead>
-                            <TableHead>Unit</TableHead>
-                            <TableHead>Purchased Quantity</TableHead>
-                            <TableHead>Purchased Unit</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Last Updated</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {negativeStockReport.negativeStockItems.map((item, index) => (
-                            <TableRow key={index} className="border-b">
-                              <TableCell className="font-medium">
+                    <TanStackTable
+                      table={useReactTable({
+                        data: negativeStockReport.negativeStockItems,
+                        columns: [
+                          {
+                            id: "material",
+                            header: "Material",
+                            accessorKey: "materialName",
+                            cell: ({ row }) => {
+                              const item = row.original;
+                              return (
                                 <div className="flex items-center gap-2">
                                   {item.isVirtualEntry && <AlertTriangle className="h-4 w-4 text-red-600" />}
                                   {item.materialName}
@@ -1267,26 +1328,82 @@ export function StockEntriesTable() {
                                     </Badge>
                                   )}
                                 </div>
-                              </TableCell>
-                              <TableCell className={item.isVirtualEntry ? "text-red-600 font-medium" : ""}>{item.supplier}</TableCell>
-                              <TableCell className="text-red-600 font-medium flex items-center gap-2">
+                              );
+                            }
+                          },
+                          {
+                            id: "supplier",
+                            header: "Supplier",
+                            accessorKey: "supplier",
+                            cell: ({ row }) => {
+                              const item = row.original;
+                              return <span className={item.isVirtualEntry ? "text-red-600 font-medium" : ""}>{item.supplier}</span>;
+                            }
+                          },
+                          {
+                            id: "individualQuantity",
+                            header: "Individual Quantity",
+                            accessorKey: "purchasedIndividualQuantity",
+                            cell: ({ getValue }) => (
+                              <div className="text-red-600 font-medium flex items-center gap-2">
                                 <AlertTriangle className="h-4 w-4" />
-                                {formatNumber(item.purchasedIndividualQuantity)}
-                              </TableCell>
-                              <TableCell>{item.purchasedIndividualUnit}</TableCell>
-                              <TableCell className="text-red-600 font-medium">{formatNumber(item.purchasedQuantity)}</TableCell>
-                              <TableCell>{item.purchasedUnit}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-xs">
-                                  {item.category}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : "N/A"}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                                {formatNumber(getValue())}
+                              </div>
+                            )
+                          },
+                          {
+                            id: "unit",
+                            header: "Unit",
+                            accessorKey: "purchasedIndividualUnit"
+                          },
+                          {
+                            id: "purchasedQuantity",
+                            header: "Purchased Quantity",
+                            accessorKey: "purchasedQuantity",
+                            cell: ({ getValue }) => <span className="text-red-600 font-medium">{formatNumber(getValue())}</span>
+                          },
+                          {
+                            id: "purchasedUnit",
+                            header: "Purchased Unit",
+                            accessorKey: "purchasedUnit"
+                          },
+                          {
+                            id: "category",
+                            header: "Category",
+                            accessorKey: "category",
+                            cell: ({ getValue }) => (
+                              <Badge variant="outline" className="text-xs">
+                                {getValue()}
+                              </Badge>
+                            )
+                          },
+                          {
+                            id: "lastUpdated",
+                            header: "Last Updated",
+                            accessorKey: "lastUpdated",
+                            cell: ({ getValue }) => {
+                              const date = getValue();
+                              return date ? new Date(date).toLocaleDateString() : "N/A";
+                            }
+                          }
+                        ],
+                        getCoreRowModel: getCoreRowModel(),
+                        getSortedRowModel: getSortedRowModel(),
+                        enableSorting: true,
+                        enableColumnFilters: false,
+                        enableRowSelection: false,
+                        state: {
+                          sorting: reportSorting
+                        },
+                        onSortingChange: setReportSorting
+                      })}
+                      virtualized={false}
+                      loading={false}
+                      emptyMessage="No negative stock items found"
+                      maxHeight="400px"
+                      showSortIcons={true}
+                      className=""
+                    />
                   </div>
                 )}
 
