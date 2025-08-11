@@ -21,7 +21,6 @@ const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut
   const [displayDate, setDisplayDate] = useState("");
 
   useEffect(() => {
-    // Format current date if not provided
     if (currentDate) {
       setDisplayDate(currentDate);
     } else {
@@ -35,6 +34,28 @@ const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut
       setDisplayDate(now.toLocaleDateString("en-US", options));
     }
   }, [currentDate]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const handledKeys = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "Backspace", "Delete", "Enter", "Escape", "c", "C"];
+      if (handledKeys.includes(event.key)) {
+        event.preventDefault();
+      }
+      if (/^[0-9]$/.test(event.key)) {
+        handleNumberPress(event.key);
+      } else if (event.key === "Backspace" || event.key === "Delete") {
+        handleBackspace();
+      } else if (event.key === "Enter") {
+        handleSignIn();
+      } else if (event.key === "Escape" || event.key.toLowerCase() === "c") {
+        handleClear();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [pin]);
 
   const handleNumberPress = (number: string) => {
     if (pin.length < 6) {
