@@ -84,10 +84,10 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
 
   const stockEntries = stock;
 
-  // Tab loading states
+  // Tab loading states - only show loading on initial load, not on child component operations
   const tabLoading = {
-    material: status.individual.materials.loading,
-    stock: status.individual.stock.loading
+    material: status.individual.materials.loading && materials.length === 0,
+    stock: status.individual.stock.loading && stock.length === 0
   };
 
   // Handler functions

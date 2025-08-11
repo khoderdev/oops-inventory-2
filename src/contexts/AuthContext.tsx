@@ -2,6 +2,8 @@ import React, { createContext, ReactNode, useContext, useEffect, useState } from
 import { authAPI, tokenManager } from "../api/auth";
 import type { User, AuthContextType, LoginRequest, UpdateProfileRequest, ChangePasswordRequest, SessionInfo } from "../types/auth";
 import { throttle, ACTIVITY_EVENTS } from "../utils/session";
+import { sessionRenewalService } from "../services/sessionRenewalService";
+import SessionTimeoutWarning from "../components/auth/SessionTimeoutWarning";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -14,10 +16,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
-
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
+  const [sessionTimeRemaining, setSessionTimeRemaining] = useState(0);
   const isAuthenticated = !!user && !!token;
 
-  // Initialize auth state - sessions persist indefinitely until manual logout
+  const startSessionRenewalService = () => {
+    sessionRenewalService.onSessionWarning(timeRemaining => {
+      setSessionTimeRemaining(timeRemaining);
+      setShowSessionWarning(true);
+    });
+
+    sessionRenewalService.onSessionExpired(() => {
+      handleSessionExpired();
+    });
+
+    sessionRenewalService.start();
+  };
+
+  const handleSessionExpired = () => {
+    console.log("🔒 Session expired, logging out");
+    sessionRenewalService.stop();
+    setShowSessionWarning(false);
+    setUser(null);
+    setToken(null);
+    setSessionInfo(null);
+    tokenManager.clearSession();
+  };
+
+  const handleExtendSession = async (): Promise<boolean> => {
+    try {
+      const success = await sessionRenewalService.renewSession();
+      if (success) {
+        const currentSessionInfo = tokenManager.getSessionInfo();
+        setSessionInfo(currentSessionInfo);
+        setShowSessionWarning(false);
+      }
+      return success;
+    } catch (error) {
+      console.error("Failed to extend session:", error);
+      return false;
+    }
+  };
+
+  const handleCloseSessionWarning = () => {
+    setShowSessionWarning(false);
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -25,20 +69,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (storedToken) {
           setToken(storedToken);
           setSessionInfo(tokenManager.getSessionInfo());
-          
-          // Fetch user profile to validate session
           const profileResponse = await authAPI.getProfile();
           setUser(profileResponse.user);
-          
-          console.log('✅ Session restored successfully - sessions never expire automatically');
+          console.log("✅ Session restored successfully");
+          startSessionRenewalService();
         } else {
-          console.log('ℹ️ No stored session found');
+          console.log("ℹ️ No stored session found");
         }
       } catch (error) {
         console.error("Failed to restore session:", error);
-        // DISABLED: Automatic session clearing on initialization errors
-        // This prevents interrupting user workflow with automatic logouts
-        console.log('🔒 Session restore failed but keeping session active - manual logout required if needed');
+        handleSessionExpired();
       } finally {
         setIsLoading(false);
       }
@@ -47,70 +87,71 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
   }, []);
 
-  // Setup event listeners for activity tracking (no automatic session expiration)
   useEffect(() => {
     const handleAuthError = async (event: CustomEvent) => {
-      console.warn("Auth error received but session will remain active:", event.detail);
-      // DISABLED: Automatic session clearing on auth errors
-      // Users must manually logout if needed
-      // Note: This prevents interrupting user workflow with automatic logouts
+      console.warn("Auth error received:", event.detail);
+      const sessionStatus = sessionRenewalService.getSessionStatus();
+      if (!sessionStatus.isValid) {
+        handleSessionExpired();
+      }
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isAuthenticated) {
-        // Update activity timestamp for UI display purposes only
+      if (document.visibilityState === "visible" && isAuthenticated) {
         tokenManager.updateLastActivity();
         setSessionInfo(tokenManager.getSessionInfo());
-        
-        console.log('👀 Tab became visible - activity timestamp updated (session remains active)');
+        console.log("👀 Tab became visible - checking session status");
+        const sessionStatus = sessionRenewalService.getSessionStatus();
+        if (!sessionStatus.isValid) {
+          handleSessionExpired();
+        }
       }
     };
 
     const handleUserActivity = () => {
       if (isAuthenticated) {
-        // Track activity for UI purposes only - no expiration logic
         tokenManager.updateLastActivity();
         setSessionInfo(tokenManager.getSessionInfo());
       }
     };
 
-    // Add event listeners
-    window.addEventListener('authError', handleAuthError as EventListener);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Track user activity for UI display purposes (no expiration enforcement)
-    const throttledActivity = throttle(handleUserActivity, 30000); // Throttle to once per 30 seconds
-    
+    window.addEventListener("authError", handleAuthError as EventListener);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    const throttledActivity = throttle(handleUserActivity, 30000);
+
     ACTIVITY_EVENTS.forEach(event => {
       document.addEventListener(event, throttledActivity, true);
     });
 
     return () => {
-      window.removeEventListener('authError', handleAuthError as EventListener);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      
+      window.removeEventListener("authError", handleAuthError as EventListener);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
       ACTIVITY_EVENTS.forEach(event => {
         document.removeEventListener(event, throttledActivity, true);
       });
     };
   }, [isAuthenticated]);
 
-  // Periodic session info update for UI display only - NO AUTOMATIC EXPIRATION
+  useEffect(() => {
+    if (isAuthenticated) {
+      startSessionRenewalService();
+    } else {
+      sessionRenewalService.stop();
+    }
+
+    return () => {
+      sessionRenewalService.stop();
+    };
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (!isAuthenticated) return;
-
     const interval = setInterval(() => {
       const currentSessionInfo = tokenManager.getSessionInfo();
       setSessionInfo(currentSessionInfo);
-      
-      console.log('🔍 Session Info Update (UI display only - no expiration logic):', {
-        hasSessionInfo: !!currentSessionInfo,
-        lastActivity: currentSessionInfo?.lastActivity,
-        sessionId: currentSessionInfo?.sessionId,
-        note: 'Session will persist until manual logout'
-      });
-    }, 300000); // Update session info every 5 minutes for UI display only
-
+    }, 60000);
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
@@ -118,11 +159,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       const response = await authAPI.login(credentials);
-      
       setUser(response.user);
       setToken(response.token);
       tokenManager.setToken(response.token, response.refreshToken, response.expiresAt);
       setSessionInfo(tokenManager.getSessionInfo());
+      startSessionRenewalService();
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
@@ -133,6 +174,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async (): Promise<void> => {
     try {
+      sessionRenewalService.stop();
+      setShowSessionWarning(false);
       if (token) {
         await authAPI.logout();
       }
@@ -171,13 +214,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setToken(response.token);
       tokenManager.setToken(response.token, undefined, response.expiresAt);
       setSessionInfo(tokenManager.getSessionInfo());
-      
-      console.log('✅ Token refreshed successfully - session continues indefinitely');
+      console.log("✅ Token refreshed successfully");
     } catch (error) {
       console.error("Token refresh failed:", error);
-      // DISABLED: Automatic session clearing on token refresh failure
-      // This prevents interrupting user workflow with automatic logouts
-      console.log('🔒 Token refresh failed but keeping session active - manual logout required if needed');
+      handleSessionExpired();
       throw error;
     }
   };
@@ -194,42 +234,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const hasPermission = (permission: string): boolean => {
     if (!user) return false;
-
-    // Check specific user permissions first
     if (user.specificPermissions && user.specificPermissions[permission] !== undefined) {
       return user.specificPermissions[permission];
     }
-
-    // Fall back to role-based permissions
     return user.permissions[permission] || false;
   };
 
   const hasRole = (role: string | string[]): boolean => {
     if (!user) return false;
-
     const roles = Array.isArray(role) ? role : [role];
     return roles.includes(user.role);
   };
 
-
-
-  const contextValue: AuthContextType = {
-    user,
-    token,
-    isAuthenticated,
-    isLoading,
-    sessionInfo,
-    login,
-    logout,
-    updateProfile,
-    changePassword,
-    hasPermission,
-    hasRole,
-    refreshToken,
-    refreshUser
-  };
-
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, token, isAuthenticated, isLoading, sessionInfo, login, logout, updateProfile, changePassword, refreshToken, refreshUser, hasPermission, hasRole }}>
+      {children}
+      <SessionTimeoutWarning isOpen={showSessionWarning} timeRemaining={sessionTimeRemaining} onExtendSession={handleExtendSession} onLogout={logout} onClose={handleCloseSessionWarning} />
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = (): AuthContextType => {

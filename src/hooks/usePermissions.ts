@@ -4,9 +4,6 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 
-/**
- * Permission hook with caching and violation tracking
- */
 export const usePermissions = () => {
   const auth = useAuth();
   const location = useLocation();

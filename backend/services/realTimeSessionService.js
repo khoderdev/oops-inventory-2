@@ -1,6 +1,5 @@
 import { Server } from "socket.io";
 import { AuditLog, User, Session } from "../models/index.js";
-import { authenticate } from "../middleware/authMiddleware.js";
 
 class RealTimeSessionService {
   constructor() {

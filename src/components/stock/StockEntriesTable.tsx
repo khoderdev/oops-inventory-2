@@ -1,4 +1,3 @@
-import React from "react";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
@@ -10,9 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TanStackTable } from "@/components/ui/TanStackTable";
+import { Loading } from "@/components/ui/Loading";
 import { toast } from "@/hooks/use-toast";
 import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
-import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial, StockFormData, AddStockData, RecordWasteData, MaterialWithStock, PaginationInfo, CachedStockEntryData, MaterialCategory, UnitType } from "@/types/inventory";
+import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial, StockFormData, AddStockData, RecordWasteData, MaterialWithStock, PaginationInfo, CachedStockEntryData } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, EyeOff, FileText, Loader2, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
@@ -37,7 +37,7 @@ const STOCK_ENTRIES_CACHE_KEY = "stock_entries_table_cache";
 const CACHE_DURATION = 2 * 60 * 1000;
 
 export function StockEntriesTable() {
-  const { materials: materialsWithStock, refresh } = usePrefetch();
+  const { materials: materialsWithStock, refresh, status } = usePrefetch();
   const materials = materialsWithStock;
 
   const initializeFromCache = () => {
@@ -85,6 +85,7 @@ export function StockEntriesTable() {
   const [stockEntries, setStockEntries] = useState<StockEntryWithMaterial[]>(initialState.stockEntries);
   const [pagination, setPagination] = useState<PaginationInfo | null>(initialState.pagination);
   const [loading, setLoading] = useState(false);
+  const isParentLoading = status.individual.materials.loading && materials.length === 0;
   const [error, setError] = useState<string | null>(null);
   const [dataCache, setDataCache] = useState<Map<string, CachedStockEntryData>>(new Map());
   const [showFloatingButton, setShowFloatingButton] = useState(true);
@@ -103,7 +104,6 @@ export function StockEntriesTable() {
   const materialsMap = useMemo(() => {
     const map = new Map();
     materials.forEach(m => {
-      // Store with both string and number keys to handle type mismatches
       map.set(m.id, m);
       map.set(m.id.toString(), m);
       map.set(parseInt(m.id), m);
@@ -325,7 +325,7 @@ export function StockEntriesTable() {
 
       columnHelper.display({
         id: "materialName",
-        size: 200,
+        size: 220,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -333,7 +333,7 @@ export function StockEntriesTable() {
               const newOrder = sortBy === "materialName" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("materialName", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
+            className="h-auto p-0 font-semibold hover:bg-transparent justify-start w-full"
           >
             Material Name
             <span className="ml-2 text-xs">{sortBy === "materialName" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
@@ -344,9 +344,9 @@ export function StockEntriesTable() {
           const materialName = entry.material?.name;
           const isNegativeStock = hasNegativeStock(entry);
           return (
-            <div className="flex items-center gap-2">
-              {isNegativeStock && <AlertTriangle className="h-4 w-4 text-red-600" />}
-              {materialName ? highlightText(materialName, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}
+            <div className="flex items-center gap-2 w-full">
+              {isNegativeStock && <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />}
+              <span className="truncate">{materialName ? highlightText(materialName, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}</span>
             </div>
           );
         },
@@ -355,21 +355,21 @@ export function StockEntriesTable() {
 
       columnHelper.display({
         id: "remainingQty",
-        size: 140,
-        header: "Remaining Qty",
-        cell: ({ row }) => renderQuantityDisplay(row.original)
+        size: 120,
+        header: ({ column }) => <div className="text-center w-full font-semibold">Remaining Qty</div>,
+        cell: ({ row }) => <div className="text-center w-full">{renderQuantityDisplay(row.original)}</div>
       }),
 
       columnHelper.display({
         id: "unit",
-        size: 20,
-        header: "Unit",
-        cell: ({ row }) => renderUnitDisplay(row.original)
+        size: 80,
+        header: ({ column }) => <div className="text-center w-full font-semibold">Unit</div>,
+        cell: ({ row }) => <div className="text-center w-full">{renderUnitDisplay(row.original)}</div>
       }),
 
       columnHelper.accessor("costPerPurchasedUnit", {
         id: "costPerUnit",
-        size: 50,
+        size: 110,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -377,7 +377,7 @@ export function StockEntriesTable() {
               const newOrder = sortBy === "costPerPurchasedUnit" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("costPerPurchasedUnit", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
+            className="h-auto p-0 font-semibold hover:bg-transparent justify-center w-full"
           >
             Cost/Unit
             <span className="ml-2 text-xs">{sortBy === "costPerPurchasedUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
@@ -386,8 +386,8 @@ export function StockEntriesTable() {
         cell: ({ row, getValue }) => {
           const cost = getValue();
           return (
-            <div className="space-y-1">
-              <div>{formatCurrency(cost)}</div>
+            <div className="space-y-1 text-center w-full px-2">
+              <div className="font-medium">{formatCurrency(cost)}</div>
               {row.original.material?.unitType === "package" && <div className="text-xs text-muted-foreground">(per {row.original.purchasedUnit})</div>}
             </div>
           );
@@ -397,7 +397,7 @@ export function StockEntriesTable() {
 
       columnHelper.accessor("totalCost", {
         id: "totalCost",
-        size: 120,
+        size: 110,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -405,19 +405,23 @@ export function StockEntriesTable() {
               const newOrder = sortBy === "totalCost" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("totalCost", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
+            className="h-auto p-0 font-semibold hover:bg-transparent justify-center w-full"
           >
             Total Cost
             <span className="ml-2 text-xs">{sortBy === "totalCost" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
-        cell: ({ getValue }) => <span className="font-medium">{formatCurrency(getValue())}</span>,
+        cell: ({ getValue }) => (
+          <div className="text-center w-full px-2">
+            <span className="font-medium">{formatCurrency(getValue())}</span>
+          </div>
+        ),
         enableSorting: false
       }),
 
       columnHelper.accessor("purchaseDate", {
         id: "purchaseDate",
-        size: 150,
+        size: 130,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -425,21 +429,25 @@ export function StockEntriesTable() {
               const newOrder = sortBy === "purchaseDate" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("purchaseDate", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
+            className="h-auto p-0 font-semibold hover:bg-transparent justify-center w-full"
           >
             Purchase Date
             <span className="ml-2 text-xs">{sortBy === "purchaseDate" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
-        cell: ({ getValue }) => new Date(getValue()).toLocaleDateString(),
+        cell: ({ getValue }) => (
+          <div className="text-center w-full px-2">
+            <span className="font-medium">{new Date(getValue()).toLocaleDateString()}</span>
+          </div>
+        ),
         enableSorting: false
       }),
 
       columnHelper.display({
         id: "actions",
-        size: 160,
+        size: 140,
         enableSorting: false,
-        header: ({ column }) => <div className="flex justify-center w-full">Actions</div>,
+        header: ({ column }) => <div className="text-center w-full font-semibold">Actions</div>,
         cell: ({ row }) => {
           const entry = row.original;
           return (
@@ -793,11 +801,13 @@ export function StockEntriesTable() {
           if (material?.unitType === "mass" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
             return (
               <>
-                <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
-                  {isNegative && <AlertTriangle className="h-4 w-4" />}
-                  {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                <div className={`font-medium flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
+                  {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
+                  <span>
+                    {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                  </span>
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-xs text-muted-foreground text-center">
                   (from {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit})
                 </div>
               </>
@@ -805,11 +815,13 @@ export function StockEntriesTable() {
           } else if (material?.unitType === "volume" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
             return (
               <>
-                <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
-                  {isNegative && <AlertTriangle className="h-4 w-4" />}
-                  {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                <div className={`font-medium flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
+                  {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
+                  <span>
+                    {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                  </span>
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-xs text-muted-foreground text-center">
                   (from {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit})
                 </div>
               </>
@@ -817,13 +829,15 @@ export function StockEntriesTable() {
           } else if (material?.unitType === "package" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
             return (
               <>
-                <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
-                  {isNegative && <AlertTriangle className="h-4 w-4" />}
-                  {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                <div className={`font-medium flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
+                  {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
+                  <span>
+                    {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                  </span>
                 </div>
                 {/* Only show "(from X pack)" if individual quantity is positive */}
                 {entry.purchasedIndividualQuantity > 0 && material?.packageQuantity && (
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-xs text-muted-foreground text-center">
                     (from {formatNumber(Math.ceil(entry.purchasedIndividualQuantity / material.packageQuantity))} {entry.purchasedUnit})
                   </div>
                 )}
@@ -831,9 +845,11 @@ export function StockEntriesTable() {
             );
           } else {
             return (
-              <div className={`font-medium flex items-center gap-2 ${isNegative ? "text-red-600" : ""}`}>
-                {isNegative && <AlertTriangle className="h-4 w-4" />}
-                {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit}
+              <div className={`font-medium flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
+                {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
+                <span>
+                  {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit}
+                </span>
               </div>
             );
           }
@@ -844,31 +860,26 @@ export function StockEntriesTable() {
 
   const renderUnitDisplay = (entry: StockEntryWithMaterial) => {
     const { material } = entry;
+    const formatUnit = (unit: string) => {
+      if (unit === "piece") return "pc";
+      if (unit === "pieces") return "pcs";
+      return unit;
+    };
     return (
-      <div className="flex items-center gap-2">
-        <div className="space-y-1">
-          <div>{entry.purchasedUnit}</div>
+      <div className="flex items-center gap-1">
+        <div className="space-y-1 text-center">
+          <div className="font-medium">{formatUnit(entry.purchasedUnit)}</div>
           {(() => {
             if (material?.unitType === "package" && entry.purchasedIndividualUnit) {
-              return <div className="text-sm text-muted-foreground">{entry.purchasedIndividualUnit}</div>;
+              return <div className="text-xs text-muted-foreground">{formatUnit(entry.purchasedIndividualUnit)}</div>;
             } else if (entry.purchasedConvertedUnit && entry.purchasedConvertedUnit !== entry.purchasedUnit) {
-              return <div className="text-sm text-muted-foreground">{entry.purchasedConvertedUnit}</div>;
+              return <div className="text-xs text-muted-foreground">{formatUnit(entry.purchasedConvertedUnit)}</div>;
             } else if (material?.baseUnit && material.baseUnit !== entry.purchasedUnit) {
-              return <div className="text-sm text-muted-foreground">{material.baseUnit}</div>;
+              return <div className="text-xs text-muted-foreground">{formatUnit(material.baseUnit)}</div>;
             }
             return null;
           })()}
         </div>
-        {material?.unitType === "package" && (
-          <Badge variant="outline" className="text-xs">
-            Package
-          </Badge>
-        )}
-        {material?.unitType === "volume" && (
-          <Badge variant="outline" className="text-xs">
-            Volume
-          </Badge>
-        )}
       </div>
     );
   };
@@ -930,10 +941,15 @@ export function StockEntriesTable() {
             <div className="space-y-1">
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Stock Entries</h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                {loading ? (
+                {loading && !isParentLoading ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Loading stock entries...</span>
+                  </div>
+                ) : isParentLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Loading materials...</span>
                   </div>
                 ) : (
                   <>
@@ -960,11 +976,11 @@ export function StockEntriesTable() {
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-                    <Input type="search" placeholder="Search by material name or supplier..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} disabled={loading} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-64 lg:w-80" />
+                    <Input type="search" placeholder="Search by material name or supplier..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} disabled={loading || isParentLoading} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-64 lg:w-80" />
                   </div>
 
                   <div className="w-fit shrink-0">
-                    <Select value={materialFilter} onValueChange={setMaterialFilter} disabled={loading}>
+                    <Select value={materialFilter} onValueChange={setMaterialFilter} disabled={loading || isParentLoading}>
                       <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-48">
                         <SelectValue placeholder="All Materials" />
                       </SelectTrigger>
@@ -981,20 +997,20 @@ export function StockEntriesTable() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant={bulkSelectionMode ? "default" : "outline"} onClick={handleToggleBulkSelection} disabled={loading} className={`${bulkSelectionMode ? "bg-red-600 hover:bg-red-700" : "border-gray-200 hover:border-gray-300"}`}>
+                  <Button size="sm" variant={bulkSelectionMode ? "default" : "outline"} onClick={handleToggleBulkSelection} disabled={loading || isParentLoading} className={`${bulkSelectionMode ? "bg-red-600 hover:bg-red-700" : "border-gray-200 hover:border-gray-300"}`}>
                     <Check className="h-4 w-4 mr-1.5" />
                     <span className="hidden lg:inline">{bulkSelectionMode ? "Cancel" : "Bulk Select"}</span>
                     <span className="lg:hidden">{bulkSelectionMode ? "Cancel" : "Select"}</span>
                   </Button>
 
-                  <Button variant="outline" size="sm" onClick={refreshData} disabled={loading} className="border-gray-200 hover:border-gray-300">
-                    {loading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+                  <Button variant="outline" size="sm" onClick={refreshData} disabled={loading || isParentLoading} className="border-gray-200 hover:border-gray-300">
+                    {loading && !isParentLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
                     <span className="hidden lg:inline">Refresh</span>
                     <span className="lg:hidden">Refresh</span>
                   </Button>
 
                   {negativeStockCount > 0 && (
-                    <Button variant="outline" size="sm" onClick={fetchNegativeStockReport} disabled={loadingReport || loading} className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300">
+                    <Button variant="outline" size="sm" onClick={fetchNegativeStockReport} disabled={loadingReport || loading || isParentLoading} className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300">
                       {loadingReport ? <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
                       <span className="hidden lg:inline">Negative Stock Report</span>
                       <span className="lg:hidden">Report</span>
@@ -1006,7 +1022,7 @@ export function StockEntriesTable() {
                 <div className="flex items-center justify-end gap-4">
                   {/* Page Size Selector */}
                   <div className="w-fit shrink-0">
-                    <Select value={pageSize.toString()} onValueChange={value => handlePageSizeChange(parseInt(value))} disabled={loading}>
+                    <Select value={pageSize.toString()} onValueChange={value => handlePageSizeChange(parseInt(value))} disabled={loading || isParentLoading}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1021,17 +1037,17 @@ export function StockEntriesTable() {
 
                   {/* Pagination Controls */}
                   <div className="flex items-center gap-1">
-                    <Button variant="outline" size="sm" onClick={() => handlePageChange(1)} disabled={!pagination.hasPreviousPage || loading} className="h-10 px-3">
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(1)} disabled={!pagination.hasPreviousPage || loading || isParentLoading} className="h-10 px-3">
                       <ChevronsLeft className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={!pagination.hasPreviousPage || loading} className="h-10 px-3">
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={!pagination.hasPreviousPage || loading || isParentLoading} className="h-10 px-3">
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <span className="px-3 py-2 text-sm font-medium bg-gray-50 rounded border">{pagination.currentPage}</span>
-                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={!pagination.hasNextPage || loading} className="h-10 px-3">
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={!pagination.hasNextPage || loading || isParentLoading} className="h-10 px-3">
                       <ChevronRight className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.totalPages)} disabled={!pagination.hasNextPage || loading} className="h-10 px-3">
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.totalPages)} disabled={!pagination.hasNextPage || loading || isParentLoading} className="h-10 px-3">
                       <ChevronsRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1073,7 +1089,11 @@ export function StockEntriesTable() {
             </div>
           )}
 
-          {!loading && !error && stockEntriesWithMaterial.length === 0 && (
+          {loading && !isParentLoading && (
+            <Loading />
+          )}
+
+          {!loading && !isParentLoading && !error && stockEntriesWithMaterial.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="bg-gray-100 rounded-full p-3 mb-4">
                 <Search className="h-8 w-8 text-gray-400" />
@@ -1088,7 +1108,7 @@ export function StockEntriesTable() {
               )}
             </div>
           )}
-          {!loading && !error && stockEntriesWithMaterial.length > 0 && (
+          {!loading && !isParentLoading && !error && stockEntriesWithMaterial.length > 0 && (
             <div className="lg:hidden space-y-4">
               {stockEntriesWithMaterial.map(entry => {
                 const material = materialsMap.get(entry.materialId);
@@ -1245,8 +1265,24 @@ export function StockEntriesTable() {
                 <TanStackTable
                   table={table}
                   virtualized={true}
-                  customHeaderAlignment={{ actions: "center" }}
-                  customCellAlignment={{ actions: "center" }}
+                  customHeaderAlignment={{
+                    materialName: "left",
+                    remainingQty: "center",
+                    unit: "center",
+                    costPerUnit: "center",
+                    totalCost: "center",
+                    purchaseDate: "center",
+                    actions: "center"
+                  }}
+                  customCellAlignment={{
+                    materialName: "left",
+                    remainingQty: "center",
+                    unit: "center",
+                    costPerUnit: "center",
+                    totalCost: "center",
+                    purchaseDate: "center",
+                    actions: "center"
+                  }}
                   estimatedRowSize={60}
                   overscan={10}
                   loading={loading}
