@@ -16,6 +16,7 @@ router.get("/profile", authController.getProfile);
 router.put("/profile", auditAction("profile_update", "user"), authController.updateProfile);
 router.put("/change-password", auditAction("password_change", "authentication"), authController.changePassword);
 router.post("/refresh-token", auditAction("token_refresh", "authentication"), authController.refreshToken);
+router.post("/verify-pin", auditAction("pin_verification", "authentication"), authController.verifyPin);
 router.get("/sessions", authController.getSessions);
 router.delete("/sessions/:sessionId", auditAction("session_revoke", "authentication"), authController.revokeSession);
 

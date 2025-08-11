@@ -58,7 +58,12 @@ export const authAPI = {
   },
 
   revokeAllOtherSessions: async (): Promise<{ message: string; revokedSessions: number }> => {
-    const response = await api.post<{ message: string; revokedSessions: number }, Record<string, never>>("/auth/logout-all", {});
+    const response = await api.post<{ message: string; revokedSessions: number }, Record<string, never>>("/auth/logout-all-other", {});
+    return response.data;
+  },
+
+  verifyPin: async (pin: string, userId?: number): Promise<{ message: string; verified: boolean }> => {
+    const response = await api.post<{ message: string; verified: boolean }, { pin: string; userId?: number }>("/auth/verify-pin", { pin, userId });
     return response.data;
   }
 };

@@ -507,6 +507,87 @@ const authController = {
       console.error("Revoke session error:", error);
       next(error);
     }
+  },
+
+  // Verify PIN for current user (for logout confirmation, etc.)
+  verifyPin: async (req, res, next) => {
+    try {
+      const { pin, userId } = req.body;
+
+      if (!pin) {
+        return res.status(400).json({
+          error: "Validation error",
+          message: "PIN is required",
+          code: "MISSING_PIN"
+        });
+      }
+
+      // Verify PIN format (6 digits)
+      if (!/^\d{6}$/.test(pin)) {
+        return res.status(400).json({
+          error: "Validation error",
+          message: "PIN must be exactly 6 digits",
+          code: "INVALID_PIN_FORMAT"
+        });
+      }
+
+      // If userId is provided, verify it matches the authenticated user
+      if (userId && req.user.id !== userId) {
+        return res.status(403).json({
+          error: "Authorization error",
+          message: "Cannot verify PIN for another user",
+          code: "UNAUTHORIZED_PIN_VERIFICATION"
+        });
+      }
+
+      // Get the current user
+      const user = await User.findOne({
+        where: {
+          id: req.user.id,
+          isActive: true
+        }
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          error: "User not found",
+          message: "User account not found or inactive",
+          code: "USER_NOT_FOUND"
+        });
+      }
+
+      // Check if user has a PIN set
+      if (!user.pin) {
+        return res.status(400).json({
+          error: "PIN not set",
+          message: "User does not have a PIN configured",
+          code: "NO_PIN_SET"
+        });
+      }
+
+      // Verify PIN
+      const isPinValid = await user.comparePin(pin);
+      
+      if (!isPinValid) {
+        await AuditLog.logFailedAction(user.id, "pin_verification_failed", "authentication", "Invalid PIN provided for verification", req);
+        return res.status(401).json({
+          error: "Authentication failed",
+          message: "Invalid PIN",
+          code: "INVALID_PIN"
+        });
+      }
+
+      // Log successful PIN verification
+      await AuditLog.logUserAction(user.id, "pin_verification_success", "authentication", "PIN verified successfully", null, null, req);
+
+      res.status(200).json({
+        message: "PIN verified successfully",
+        verified: true
+      });
+    } catch (error) {
+      console.error("PIN verification error:", error);
+      next(error);
+    }
   }
 };
 

@@ -22,9 +22,7 @@ interface ApiErrorResponse {
 const LoginPage: React.FC = () => {
   const { loginWithPin, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
-  const [error, setError] = useState("");
-
-  // Redirect if already authenticated
+  const [, setError] = useState("");
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
   if (isAuthenticated && !isLoading) {
     return <Navigate to={from} replace />;
@@ -39,10 +37,9 @@ const LoginPage: React.FC = () => {
       });
     } catch (err) {
       const apiError = err as ApiErrorResponse;
-      // Ensure message is provided for getErrorMessage
       const errorWithMessage = {
         ...apiError,
-        message: apiError.message || 'An unexpected error occurred'
+        message: apiError.message || "An unexpected error occurred"
       };
       setError(getErrorMessage(errorWithMessage));
     }
@@ -63,15 +60,7 @@ const LoginPage: React.FC = () => {
     );
   }
 
-  return (
-    <LockScreen
-      onSignIn={handleSignIn}
-      onClear={handleClear}
-      businessName="oOps POS"
-      region="Batroun Seaside"
-      version="5.2.3.5"
-    />
-  );
+  return <LockScreen onSignIn={handleSignIn} onClear={handleClear} businessName="/oops-logo.png" region="oOps Resto-Café" version="1.0.0" />;
 };
 
 export default LoginPage;

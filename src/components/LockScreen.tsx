@@ -1,39 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Delete, Power } from "lucide-react";
+import { Delete } from "lucide-react";
 
 interface LockScreenProps {
   onSignIn?: (pin: string) => void;
   onClockIn?: (pin: string) => void;
   onClockOut?: (pin: string) => void;
   onClear?: () => void;
-  onResetMerchant?: () => void;
   businessName?: string;
-  currentDate?: string;
   region?: string;
   version?: string;
   className?: string;
 }
 
-const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut, onClear, onResetMerchant, businessName = "oOps POS", currentDate, region = "Batroun Seaside", version = "5.2.3.5", className }) => {
+const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut, onClear, businessName = "/oops-logo.png", region = "oOps Resto-Café", version = "1.0.0", className }) => {
   const [pin, setPin] = useState("");
-  const [displayDate, setDisplayDate] = useState("");
-
-  useEffect(() => {
-    if (currentDate) {
-      setDisplayDate(currentDate);
-    } else {
-      const now = new Date();
-      const options: Intl.DateTimeFormatOptions = {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      };
-      setDisplayDate(now.toLocaleDateString("en-US", options));
-    }
-  }, [currentDate]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -102,25 +84,34 @@ const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl" />
 
-      {/* Header */}
-      <div className="relative z-10 flex items-center justify-between p-4 md:p-6">
-        {/* Date Display */}
-        <div className="text-lg md:text-xl font-light text-white/80 ">{displayDate}</div>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400 hover:bg-red-500/10" onClick={onResetMerchant}>
-            <Power className="w-5 h-5" />
-          </Button>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="relative w-fit self-center z-10 flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-        <h1 className="text-white text-3xl md:text-4xl lg:text-6xl font-semibold mb-12 text-center">{businessName}</h1>
+        {/* Business Name or Logo */}
+        {businessName?.startsWith("/") || businessName?.includes(".") ? (
+          <div className="mb-12 flex items-center justify-center">
+            <img
+              src={businessName}
+              alt="Business Logo"
+              className="max-h-20 md:max-h-24 lg:max-h-24 w-auto object-contain"
+              onError={e => {
+                // Fallback to text if image fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const fallback = document.createElement("h1");
+                fallback.className = "text-white text-3xl md:text-4xl lg:text-6xl font-semibold text-center";
+                fallback.textContent = "oOps POS";
+                target.parentNode?.appendChild(fallback);
+              }}
+            />
+          </div>
+        ) : (
+          <h1 className="text-white text-3xl md:text-4xl lg:text-6xl font-semibold mb-12 text-center">{businessName}</h1>
+        )}
 
         {/* PIN Display */}
         <div className="flex items-center justify-center mb-8 gap-3 w-full">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
+            <div key={index} className="md:w-10 md:h-10 w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
               {index < pin.length && <div className="w-2 h-2 rounded-full bg-white" />}
             </div>
           ))}

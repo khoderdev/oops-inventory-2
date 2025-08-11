@@ -1,11 +1,11 @@
 import { ordersAPI } from "@/api/orders.api";
+import { authAPI } from "@/api/auth";
 import { POSClientOrders } from "@/components/pos/POSClientOrders";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import PinInput from "@/components/ui/PinInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
 import { POSLayoutProps } from "@/types/inventory";
-// Order types have complex inheritance, using any for callback parameter
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { AlertCircle, Calendar, Clock, GripVertical, List, LogOut, Maximize2, Minimize2, Power, ShoppingCart } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -15,6 +15,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [logoutPinError, setLogoutPinError] = useState("");
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showSalesHistoryDialog, setShowSalesHistoryDialog] = useState(false);
   // Use transactionCount prop instead of local state
@@ -207,7 +208,49 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     }
   };
 
-  // Handle logout
+  // Handle PIN-based logout
+  const handlePinLogout = async (pin: string) => {
+    try {
+      setLogoutPinError("");
+      
+      // Verify PIN matches current user's PIN
+      if (!user) {
+        setLogoutPinError("User not found. Please contact administrator.");
+        return;
+      }
+
+      // Make API call to verify PIN for current user
+      try {
+        const result = await authAPI.verifyPin(pin, user.id);
+        
+        if (result.verified) {
+          // PIN is correct, proceed with logout
+          if (onLogout) {
+            onLogout();
+          } else {
+            await logout();
+          }
+          setShowLogoutDialog(false);
+          setLogoutPinError("");
+        } else {
+          setLogoutPinError("Invalid PIN. Please try again.");
+        }
+      } catch (error: any) {
+        console.error("PIN verification failed:", error);
+        // Handle specific error messages from the API
+        if (error.response?.data?.message) {
+          setLogoutPinError(error.response.data.message);
+        } else {
+          setLogoutPinError("Invalid PIN. Please try again.");
+        }
+      }
+    } catch (error) {
+      console.error("Logout PIN verification error:", error);
+      setLogoutPinError("An error occurred. Please try again.");
+    }
+  };
+
+  // Handle logout (legacy - kept for backward compatibility)
   const handleLogout = async () => {
     if (onLogout) {
       onLogout();
@@ -362,27 +405,33 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       </Dialog>
 
       {/* Logout Confirmation Dialog */}
-      <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <DialogContent className="sm:max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 shadow-2xl">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-orange-500/5 rounded-lg" />
+      <Dialog open={showLogoutDialog} onOpenChange={(open) => {
+        setShowLogoutDialog(open);
+        if (!open) setLogoutPinError("");
+      }}>
+        <DialogContent className="sm:max-w-sm bg-white backdrop-blur-xl border border-primary shadow-2xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-teal-500 rounded-lg" />
           <DialogHeader className="relative z-10">
-            <DialogTitle className="flex items-center space-x-3 text-lg">
+            <DialogTitle className="flex justify-center items-center space-x-3 text-lg">
               <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full">
                 <AlertCircle className="w-5 h-5 text-white" />
               </div>
               <span className="bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent font-semibold">Confirm Logout</span>
             </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">Are you sure you want to logout from the POS system? Make sure all transactions are completed before logging out.</DialogDescription>
           </DialogHeader>
-          <DialogFooter className="relative z-10 flex space-x-3 mt-6">
-            <Button variant="outline" onClick={() => setShowLogoutDialog(false)} className="flex-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border-slate-200 dark:border-slate-700 hover:bg-white/80 dark:hover:bg-slate-800/80 transition-all duration-300">
-              Cancel
-            </Button>
-            <Button onClick={handleLogout} className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95">
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
-          </DialogFooter>
+          
+          <div className="relative z-10 py-4 pt-6">
+            <PinInput
+              onSubmit={handlePinLogout}
+              onClear={() => setLogoutPinError("")}
+              submitLabel="Logout"
+              submitButtonClassName="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+              className="w-full"
+            />
+            {logoutPinError && (
+              <p className="text-red-500 text-sm mt-2 text-center">{logoutPinError}</p>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
