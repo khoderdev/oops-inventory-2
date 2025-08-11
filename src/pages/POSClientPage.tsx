@@ -20,13 +20,10 @@ const POSClientPage: React.FC = () => {
     incompleteOrdersCount: 0
   });
 
-  // State to hold selected order that will be passed to POSClient
   const [selectedOrderForPOS, setSelectedOrderForPOS] = useState<Order | null>(null);
 
-  // Ref to store the refresh counts function from POSLayout
   const refreshCountsRef = useRef<(() => Promise<void>) | null>(null);
 
-  // Check authentication and permissions
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/login");
@@ -39,32 +36,25 @@ const POSClientPage: React.FC = () => {
     }
   }, [isAuthenticated, isLoading, hasPermission, navigate]);
 
-  // Load initial data and fetch today's sales
   useEffect(() => {
     fetchTabData("materials");
     fetchTodaysSales();
     fetchIncompleteOrders();
   }, [fetchTabData]);
 
-  // Fetch today's sales total
   const fetchTodaysSales = async () => {
     try {
       const response = await salesAPI.getSales();
       const allSales = response.data || [];
-
-      // Filter sales for today
-      const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+      const today = new Date().toISOString().split("T")[0];
       const todaysSales = allSales.filter(sale => {
         const saleDate = new Date(sale.saleDate || sale.createdAt || "").toISOString().split("T")[0];
         return saleDate === today;
       });
-
-      // Calculate total from today's sales
       const totalSales = todaysSales.reduce((sum, sale) => {
         const saleAmount = Number(sale.totalAmount) || 0;
         return sum + (isNaN(saleAmount) ? 0 : saleAmount);
       }, 0);
-
       setSessionStats(prev => ({
         ...prev,
         totalSales: isNaN(totalSales) ? 0 : totalSales,
@@ -72,62 +62,46 @@ const POSClientPage: React.FC = () => {
       }));
     } catch (error) {
       console.error("Failed to fetch today's sales:", error);
-      // Keep default values if fetch fails
     }
   };
 
-  // Fetch incomplete orders count
   const fetchIncompleteOrders = async () => {
     try {
       const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
       const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
       const allOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
-      
-      // Filter for incomplete orders from today
       const today = new Date().toISOString().split("T")[0];
       const incompleteStatuses = ['draft', 'confirmed', 'preparing', 'ready'];
-      
       const incompleteOrdersToday = allOrders.filter((order: OrderSummary) => {
-        // Check if order is from today
         const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : null;
         const isToday = orderDate === today;
-        
-        // Check if order is incomplete (include all order types: table, delivery, takeaway, bar)
         const isIncomplete = incompleteStatuses.includes(order.status);
-        
         return isToday && isIncomplete;
       });
-      
       setSessionStats(prev => ({
         ...prev,
         incompleteOrdersCount: incompleteOrdersToday.length
       }));
     } catch (error) {
       console.error("Failed to fetch incomplete orders:", error);
-      // Keep default value if fetch fails
     }
   };
 
-  // Handle sale completion
   const handleSaleComplete = (saleData: SaleResponse) => {
     const saleAmount = Number(saleData.totalAmount) || 0;
     const validSaleAmount = isNaN(saleAmount) ? 0 : saleAmount;
-
     setSessionStats(prev => ({
       totalSales: prev.totalSales + validSaleAmount,
       transactionCount: prev.transactionCount + 1,
       incompleteOrdersCount: prev.incompleteOrdersCount
     }));
-
     fetchTabData("materials");
   };
 
-  // Handle order selection from POSLayout
   const handleOrderSelect = useCallback(async (order: Order) => {
     setSelectedOrderForPOS(order);
   }, []);
 
-  // Handle refresh counts callback from POSLayout
   const handleRefreshCounts = useCallback((refreshFn: () => Promise<void>) => {
     refreshCountsRef.current = async () => {
       await refreshFn();
@@ -135,19 +109,16 @@ const POSClientPage: React.FC = () => {
     };
   }, []);
 
-  // Handle logout
   const handleLogout = async () => {
     try {
       await logout();
       navigate("/login");
     } catch (error) {
       console.error("Logout failed:", error);
-      // Force navigation even if logout fails
       navigate("/login");
     }
   };
 
-  // Show loading while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -159,7 +130,6 @@ const POSClientPage: React.FC = () => {
     );
   }
 
-  // Don't render if not authenticated (useEffect will handle redirect)
   if (!isAuthenticated || !user) {
     return null;
   }

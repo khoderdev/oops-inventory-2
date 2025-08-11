@@ -28,14 +28,13 @@ import { OrderItemsList } from "./OrderItemsList";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentDialog } from "./PaymentDialog";
 import { POSClientOrders } from "./POSClientOrders";
-import { ProductGrid } from "./ProductGrid";
+import { VirtualizedProductGrid } from "./VirtualizedProductGrid";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
   const { stock, menu, status, refresh: refreshInventory } = usePrefetch({ autoFetch: true, parallel: true, onError: error => console.error("Failed to load inventory data:", error) });
-
   const handleOrdersError = useCallback((error: Error) => {
     console.error("Failed to load orders data:", error);
   }, []);
@@ -161,7 +160,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         return;
       }
     }
-
     if (selectedOrderForPOS && selectedOrderForPOS.items) {
       const orderId = selectedOrderForPOS.id.toString();
       if (processedOrderRef.current === orderId) {
@@ -316,7 +314,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setShowReportsDialog(true);
   }, []);
 
-  // Handle discount dialog
   const handleShowDiscount = useCallback(() => {
     if (cart.length === 0) {
       showError("Cannot apply discount to empty cart");
@@ -380,7 +377,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleShowItemNotes = useCallback((item: POSCartItem) => {
     const itemCopy = { ...item };
-
     setSelectedItemForNotes(itemCopy);
     setShowItemNotesDialog(true);
   }, []);
@@ -835,11 +831,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setTimeout(() => {
           recalculateEmployeeDiscount(newCart);
         }, 0);
-
-        console.log(
-          `✅ Final cart state:`,
-          newCart.map(item => `${item.name} (ID: ${item.id}, Qty: ${item.quantity})`)
-        );
         return newCart;
       });
     },
@@ -909,7 +900,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 return cartItem;
               })
               .filter(Boolean) as POSCartItem[];
-
             setCart(cartItems);
             showSuccess(`Loaded existing order ${existingOrder.orderNumber} for Table ${table.number}`);
           }
@@ -920,7 +910,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setCart([]);
         setAppliedDiscount(null);
         setDiscountAmount(0);
-
         if (clearOrder) {
           clearOrder();
         }
@@ -943,23 +932,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     (employee: Employee) => {
       setSelectedEmployee(employee);
       setOrderType("employees");
-
-      // Automatically apply employee discount
       if (employee.discountPercentage > 0) {
         const discountValue = employee.discountPercentage;
         const currentSubtotal = (cart || []).reduce((sum, item) => sum + item.price * item.quantity, 0);
         const discountAmount = (currentSubtotal * discountValue) / 100;
-
         const employeeDiscount = {
           type: "percentage" as const,
           value: discountValue,
           amount: discountAmount,
           reason: `Employee discount - ${employee.user?.firstName} ${employee.user?.lastName} (${employee.department})`
         };
-
         setAppliedDiscount(employeeDiscount);
         setDiscountAmount(discountAmount);
-
         showSuccess(`Applied ${discountValue}% employee discount for ${employee.user?.firstName} ${employee.user?.lastName}`);
       }
     },
@@ -1010,12 +994,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       showError("No current order to void");
       return;
     }
-
     if ((!cart || cart.length === 0) && !currentOrder.items?.length) {
       showError("Cannot void an empty order");
       return;
     }
-
     setShowVoidDialog(true);
   }, [currentOrder, cart, showError]);
 
@@ -1147,7 +1129,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       showError("Cannot save empty order");
       return;
     }
-
     try {
       setIsLoading(true);
       let savedOrder;
@@ -1173,7 +1154,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           discountAmount: appliedDiscount?.amount || 0,
           discountReason: appliedDiscount?.reason
         };
-
         savedOrder = await updateOrder(updateData);
       } else {
         const createData = {
@@ -1202,7 +1182,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         };
         savedOrder = await createOrder(createData);
       }
-      showSuccess(`Order ${savedOrder.orderNumber || savedOrder.id} saved successfully!`);
+      const orderIdentifier = savedOrder?.orderNumber || savedOrder?.id || savedOrder?.order?.orderNumber || savedOrder?.order?.id || currentOrder?.orderNumber || currentOrder?.id || "New Order";
+
+      showSuccess(`Order ${orderIdentifier} saved successfully!`);
       await printItemsToAssignedPrinters(cart);
       await refreshOrderData();
       clearCartWithAnimation();
@@ -1227,15 +1209,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshOrderData, printItemsToAssignedPrinters]);
 
-  // Handle payment
   const handlePayment = useCallback(async () => {
     if (cart.length === 0) {
       showError("Cart is empty");
       return;
     }
-
     if (currentOrder && currentOrder.status === "paid") {
-      showError(`Order ${currentOrder.orderNumber || currentOrder.id} is already completed`);
+      const orderIdentifier = currentOrder?.orderNumber || currentOrder?.id || "Current Order";
+      showError(`Order ${orderIdentifier} is already completed`);
       setShowPaymentDialog(false);
       clearOrder();
       return;
@@ -1243,7 +1224,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setIsLoading(true);
     try {
       let orderToComplete = currentOrder;
-
       if (!currentOrder) {
         const orderData = {
           orderType,
@@ -1277,15 +1257,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           orderToComplete = createOrderResponse;
         }
       }
-
       if (!orderToComplete && currentOrder) {
         orderToComplete = currentOrder;
       }
-
       if (!orderToComplete) {
         throw new Error("No order available - both orderToComplete and currentOrder are null");
       }
-
       if (!orderToComplete.id) {
         const orderAny = orderToComplete as any;
         const orderId = orderToComplete.id || orderAny.orderId || orderAny.orderNumber;
@@ -1295,13 +1272,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           throw new Error(`Order created but missing ID. Order structure: ${JSON.stringify(orderToComplete)}`);
         }
       }
-
       const paymentData = {
         paymentMethod: "cash",
         paymentAmount: parseFloat(paymentAmount) || total,
         change: Math.max(0, (parseFloat(paymentAmount) || total) - total)
       };
-
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Order completion timeout - API call took too long")), 15000));
       const response = (await Promise.race([ordersAPI.completeOrder(orderToComplete.id, paymentData), timeoutPromise])) as any;
       let order: any, saleId: string;
@@ -1567,7 +1542,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 onPaymentClick={() => {
                   // Check if current order is already completed
                   if (currentOrder && currentOrder.status === "paid") {
-                    showError(`Order ${currentOrder.orderNumber || currentOrder.id} is already completed`);
+                    const orderIdentifier = currentOrder?.orderNumber || currentOrder?.id || "Current Order";
+                    showError(`Order ${orderIdentifier} is already completed`);
                     return;
                   }
                   setPaymentAmount(total.toString());
@@ -1660,7 +1636,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 overflow-y-auto !bg-gray-50">
-              <ProductGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={status.isLoading || (posItems.length === 0 && (menu.length === 0 || stock.length === 0))} />
+              <VirtualizedProductGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={status.isLoading || (posItems.length === 0 && (menu.length === 0 || stock.length === 0))} />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}
