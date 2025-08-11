@@ -13,23 +13,29 @@ export async function seedDatabase() {
     console.log("🌱 Starting comprehensive database seeding...");
     console.log("ℹ️  Note: All seed functions include duplicate prevention - existing data will be skipped");
 
-    // Check if database already has significant data
+    // CRITICAL: Users MUST be created first for proper relationships
+    console.log("\n👥 STEP 1: Creating users (REQUIRED FIRST)...");
+    const usersResult = await seedUsers();
+    console.log(`👥 Users: ${usersResult.created} created, ${usersResult.existing} existed`);
+    
+    // Verify users exist before proceeding
     const userCount = await User.count();
+    if (userCount === 0) {
+      throw new Error("❌ CRITICAL: No users found after seeding. Cannot proceed with other seeds that require user relationships.");
+    }
+    console.log(`✅ User verification passed: ${userCount} users available for relationships`);
+
+    // Check if database already has significant data (after users are confirmed)
     const materialCount = await Material.count();
     const menuItemCount = await MenuItem.count();
 
-    if (userCount > 0 || (materialCount > 100 && menuItemCount > 100)) {
+    if (materialCount > 100 && menuItemCount > 100) {
       console.log("📊 Database appears to already contain significant data:");
       console.log(`   - Users: ${userCount} users`);
       console.log(`   - Materials: ${materialCount} items`);
       console.log(`   - Menu Items: ${menuItemCount} items`);
       console.log("🔄 Proceeding with seeding (duplicates will be skipped)...");
     }
-
-    // Step 1: Create users (must be first for proper relationships)
-    console.log("\n👥 Seeding users...");
-    const usersResult = await seedUsers();
-    console.log(`👥 Users: ${usersResult.created} created, ${usersResult.existing} existed`);
 
     // Step 2: Create printers and printer channels
     console.log("\n🖨️ Seeding printers...");

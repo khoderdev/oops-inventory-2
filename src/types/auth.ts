@@ -26,8 +26,12 @@ export interface User {
 }
 
 export interface LoginRequest {
-  username: string;
-  password: string;
+  username?: string;
+  password?: string;
+  pin?: string;
+  deviceId?: string;
+  deviceName?: string;
+  deviceType?: string;
 }
 
 export interface LoginResponse {
@@ -110,6 +114,7 @@ export interface AuthContextType {
   isLoading: boolean;
   sessionInfo: SessionInfo | null;
   login: (credentials: LoginRequest) => Promise<void>;
+  loginWithPin: (pin: string, deviceInfo?: { deviceId?: string; deviceName?: string; deviceType?: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: UpdateProfileRequest) => Promise<void>;
   changePassword: (data: ChangePasswordRequest) => Promise<void>;

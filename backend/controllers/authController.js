@@ -3,11 +3,17 @@ import { AuditLog, Session, User } from "../models/index.js";
 import { getClientIP } from "../utils/ipUtils.js";
 
 const authController = {
-  // User login
+  // User login (supports both password and PIN authentication)
   login: async (req, res, next) => {
     try {
-      const { username, password, deviceId, deviceName, deviceType = "web" } = req.body;
+      const { username, password, pin, deviceId, deviceName, deviceType = "web" } = req.body;
 
+      // Handle PIN-only authentication (for lock screen/POS)
+      if (pin && !username && !password) {
+        return await authController.handlePinLogin(req, res, next);
+      }
+
+      // Handle regular username/password authentication
       if (!username || !password) {
         const missingFields = [];
         if (!username) missingFields.push("username");
@@ -129,6 +135,131 @@ const authController = {
       });
     } catch (error) {
       console.error("Login error:", error);
+      next(error);
+    }
+  },
+
+  // Helper method for PIN-based authentication
+  handlePinLogin: async (req, res, next) => {
+    try {
+      const { pin, deviceId, deviceName, deviceType = "pos" } = req.body;
+
+      if (!pin) {
+        return res.status(400).json({
+          error: "Validation error",
+          message: "Please enter your PIN.",
+          code: "MISSING_PIN",
+          field: "pin"
+        });
+      }
+
+      // Validate PIN format (6 digits)
+      if (!/^\d{6}$/.test(pin)) {
+        return res.status(400).json({
+          error: "Validation error",
+          message: "PIN must be exactly 6 digits.",
+          code: "INVALID_PIN_FORMAT",
+          field: "pin"
+        });
+      }
+
+      // Find user by PIN (we need to check all users since PIN is hashed)
+      const users = await User.findAll({
+        where: {
+          isActive: true,
+          pin: { [Op.not]: null }
+        }
+      });
+
+      let authenticatedUser = null;
+      for (const user of users) {
+        const isPinValid = await user.comparePin(pin);
+        if (isPinValid) {
+          authenticatedUser = user;
+          break;
+        }
+      }
+
+      if (!authenticatedUser) {
+        await AuditLog.logFailedAction(null, "pin_login_failed", "authentication", `PIN login attempt with invalid PIN`, req);
+        return res.status(401).json({
+          error: "Authentication failed",
+          message: "Invalid PIN. Please check your PIN and try again.",
+          code: "INVALID_PIN",
+          field: "pin"
+        });
+      }
+
+      // Check if account is locked
+      if (authenticatedUser.isLocked()) {
+        await AuditLog.logFailedAction(authenticatedUser.id, "pin_login_failed", "authentication", "Account is locked", req);
+
+        const lockTimeLeft = Math.ceil((authenticatedUser.lockUntil - Date.now()) / (1000 * 60)); // Minutes left
+
+        return res.status(423).json({
+          error: "Account locked",
+          message: `Your account has been temporarily locked due to multiple failed login attempts. Please try again in ${lockTimeLeft} minute${lockTimeLeft === 1 ? "" : "s"}.`,
+          code: "ACCOUNT_LOCKED",
+          field: "pin",
+          lockTimeLeft
+        });
+      }
+
+      // Reset login attempts on successful login
+      await User.resetLoginAttempts(authenticatedUser.id);
+
+      // Create new session with device tracking
+      const session = await Session.create({
+        userId: authenticatedUser.id,
+        deviceId: deviceId || `${getClientIP(req)}-${Date.now()}`,
+        deviceName: deviceName || `${deviceType} Device`,
+        deviceType,
+        ipAddress: getClientIP(req),
+        userAgent: req.get("User-Agent"),
+        status: "online",
+        lastHeartbeat: new Date(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      });
+
+      // Update user's last login time
+      await authenticatedUser.update({ lastLogin: new Date() });
+
+      // Log successful PIN login
+      await AuditLog.logUserAction(authenticatedUser.id, "pin_login", "authentication", null, null, { 
+        sessionId: session.id,
+        deviceId: session.deviceId,
+        deviceName: session.deviceName,
+        deviceType: session.deviceType
+      }, req);
+
+      // Return user info and token
+      res.status(200).json({
+        message: "PIN login successful",
+        user: {
+          id: authenticatedUser.id,
+          username: authenticatedUser.username,
+          firstName: authenticatedUser.firstName,
+          lastName: authenticatedUser.lastName,
+          fullName: authenticatedUser.getFullName(),
+          role: authenticatedUser.role,
+          permissions: authenticatedUser.getRolePermissions(),
+          lastLogin: new Date()
+        },
+        session: {
+          token: session.token,
+          sessionId: session.id,
+          deviceId: session.deviceId,
+          deviceName: session.deviceName,
+          deviceType: session.deviceType,
+          status: session.status,
+          expiresAt: session.expiresAt
+        },
+        // Legacy fields for backward compatibility
+        token: session.token,
+        expiresAt: session.expiresAt
+      });
+    } catch (error) {
+      console.error("PIN login error:", error);
       next(error);
     }
   },

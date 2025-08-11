@@ -202,6 +202,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const loginWithPin = async (pin: string, deviceInfo?: { deviceId?: string; deviceName?: string; deviceType?: string }): Promise<void> => {
+    try {
+      startTransition(() => {
+        setIsLoading(true);
+      });
+      const response = await authAPI.loginWithPin(pin, deviceInfo);
+      startTransition(() => {
+        setUser(response.user);
+        setToken(response.token);
+        tokenManager.setToken(response.token, response.refreshToken, response.expiresAt);
+        setSessionInfo(tokenManager.getSessionInfo());
+        startSessionRenewalService();
+      });
+    } catch (error) {
+      console.error("PIN login failed:", error);
+      throw error;
+    } finally {
+      startTransition(() => {
+        setIsLoading(false);
+      });
+    }
+  };
+
   const logout = async (): Promise<void> => {
     try {
       sessionRenewalService.stop();
@@ -289,7 +312,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, isLoading, sessionInfo, login, logout, updateProfile, changePassword, refreshToken, refreshUser, hasPermission, hasRole }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated, isLoading, sessionInfo, login, loginWithPin, logout, updateProfile, changePassword, refreshToken, refreshUser, hasPermission, hasRole }}>
       {children}
       <SessionTimeoutWarning isOpen={showSessionWarning} timeRemaining={sessionTimeRemaining} onExtendSession={handleExtendSession} onLogout={logout} onClose={handleCloseSessionWarning} />
     </AuthContext.Provider>

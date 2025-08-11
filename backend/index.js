@@ -211,6 +211,7 @@ async function initializeAdminUser() {
         firstName: "Admin",
         lastName: "User",
         password: "Admin@123", // Plain password - model will hash it automatically
+        pin: "111111",
         role: "admin",
         isActive: true,
         createdBy: null, // No creator for initial admin

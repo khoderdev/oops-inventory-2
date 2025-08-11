@@ -37,6 +37,16 @@ const User = sequelize.define(
         }
       }
     },
+    pin: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      validate: {
+        len: {
+          args: [6, 6],
+          msg: "PIN must be exactly 6 characters long"
+        }
+      }
+    },
     firstName: {
       type: DataTypes.STRING(50),
       allowNull: false,
@@ -118,11 +128,19 @@ const User = sequelize.define(
           const salt = await bcrypt.genSalt(12);
           user.password = await bcrypt.hash(user.password, salt);
         }
+        if (user.pin) {
+          const salt = await bcrypt.genSalt(12);
+          user.pin = await bcrypt.hash(user.pin, salt);
+        }
       },
       beforeUpdate: async user => {
         if (user.changed("password")) {
           const salt = await bcrypt.genSalt(12);
           user.password = await bcrypt.hash(user.password, salt);
+        }
+        if (user.changed("pin")) {
+          const salt = await bcrypt.genSalt(12);
+          user.pin = await bcrypt.hash(user.pin, salt);
         }
       }
     }
@@ -132,6 +150,13 @@ const User = sequelize.define(
 // Instance methods
 User.prototype.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
+};
+
+User.prototype.comparePin = async function (candidatePin) {
+  if (!this.pin) {
+    return false;
+  }
+  return bcrypt.compare(candidatePin, this.pin);
 };
 
 User.prototype.isLocked = function () {

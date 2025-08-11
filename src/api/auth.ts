@@ -7,6 +7,17 @@ export const authAPI = {
     return response.data;
   },
 
+  loginWithPin: async (pin: string, deviceInfo?: { deviceId?: string; deviceName?: string; deviceType?: string }): Promise<LoginResponse> => {
+    const credentials: LoginRequest = {
+      pin,
+      deviceId: deviceInfo?.deviceId,
+      deviceName: deviceInfo?.deviceName,
+      deviceType: deviceInfo?.deviceType || "pos"
+    };
+    const response = await api.post<LoginResponse, LoginRequest>("/auth/login", credentials);
+    return response.data;
+  },
+
   logout: async (): Promise<void> => {
     await api.post<void, Record<string, never>>("/auth/logout", {});
   },
