@@ -41,9 +41,13 @@ const User = sequelize.define(
       type: DataTypes.STRING(255),
       allowNull: true,
       validate: {
-        len: {
-          args: [6, 6],
-          msg: "PIN must be exactly 6 characters long"
+        isValidPin(value) {
+          if (value && !value.startsWith('$2b$')) {
+            // Only validate raw PIN (not hashed)
+            if (!/^\d{6}$/.test(value)) {
+              throw new Error('PIN must be exactly 6 digits');
+            }
+          }
         }
       }
     },

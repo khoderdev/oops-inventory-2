@@ -4,7 +4,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { getErrorMessage } from "../../utils/errorUtils";
 import LockScreen from "../LockScreen";
 
-// Type for API error responses
 interface ApiErrorResponse {
   response?: {
     data?: Record<string, unknown>;

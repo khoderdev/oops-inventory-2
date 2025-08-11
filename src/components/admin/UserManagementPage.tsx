@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import EditUserModal from "./EditUserModal";
 import PasswordResetModal from "./PasswordResetModal";
+import PinResetModal from "./PinResetModal";
 import SessionDashboard from "./SessionDashboard";
 import UserActivityModal from "./UserActivityModal";
 import UserPermissionsModal from "./UserPermissionsModal";
@@ -38,6 +39,7 @@ const UserManagementPage: React.FC = () => {
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const [showPinResetModal, setShowPinResetModal] = useState(false);
   const [showSessionsModal, setShowSessionsModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("users");
@@ -167,6 +169,12 @@ const UserManagementPage: React.FC = () => {
     setTimeout(() => setSuccessMessage(""), 3000);
   };
 
+  const handlePinResetSuccess = () => {
+    setSuccessMessage(`PIN reset successfully for "${selectedUser?.fullName}"`);
+    // Clear success message after 3 seconds
+    setTimeout(() => setSuccessMessage(""), 3000);
+  };
+
   const openEditModal = (user: User) => {
     setSelectedUser(user);
     setShowEditModal(true);
@@ -185,6 +193,11 @@ const UserManagementPage: React.FC = () => {
   const openPasswordResetModal = (user: User) => {
     setSelectedUser(user);
     setShowPasswordResetModal(true);
+  };
+
+  const openPinResetModal = (user: User) => {
+    setSelectedUser(user);
+    setShowPinResetModal(true);
   };
 
   const handleModalUpdate = () => {
@@ -394,6 +407,10 @@ const UserManagementPage: React.FC = () => {
                                       <Key className="mr-2 h-4 w-4" />
                                       Reset Password
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openPinResetModal(user)}>
+                                      <Shield className="mr-2 h-4 w-4" />
+                                      Reset PIN
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem
                                       onClick={() => {
                                         setSelectedUser(user);
@@ -565,6 +582,17 @@ const UserManagementPage: React.FC = () => {
               setSelectedUser(null);
             }}
             onSuccess={handlePasswordResetSuccess}
+          />
+
+          {/* PIN Reset Modal */}
+          <PinResetModal
+            user={selectedUser}
+            isOpen={showPinResetModal}
+            onClose={() => {
+              setShowPinResetModal(false);
+              setSelectedUser(null);
+            }}
+            onSuccess={handlePinResetSuccess}
           />
 
           {/* User Activity Modal */}

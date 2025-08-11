@@ -11,6 +11,7 @@ export interface User {
   role: "admin" | "manager" | "staff";
   permissions: Record<string, boolean>;
   specificPermissions?: Record<string, boolean>;
+  pin?: string;
   isActive: boolean;
   lastLogin: string | null;
   loginAttempts: number;

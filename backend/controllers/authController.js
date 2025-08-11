@@ -588,6 +588,152 @@ const authController = {
       console.error("PIN verification error:", error);
       next(error);
     }
+  },
+
+  // Change PIN for current user
+  changePin: async (req, res, next) => {
+    try {
+      const { currentPin, newPin, confirmPin } = req.body;
+
+      if (!newPin || !confirmPin) {
+        return res.status(400).json({
+          error: "Validation error",
+          message: "New PIN and confirmation are required",
+          code: "MISSING_PIN"
+        });
+      }
+
+      // Verify PIN format (6 digits)
+      if (!/^\d{6}$/.test(newPin)) {
+        return res.status(400).json({
+          error: "Validation error",
+          message: "PIN must be exactly 6 digits",
+          code: "INVALID_PIN_FORMAT"
+        });
+      }
+
+      if (newPin !== confirmPin) {
+        return res.status(400).json({
+          error: "Validation error",
+          message: "New PIN and confirmation do not match",
+          code: "PIN_MISMATCH"
+        });
+      }
+
+      // Get the current user
+      const user = await User.findOne({
+        where: {
+          id: req.user.id,
+          isActive: true
+        }
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          error: "User not found",
+          message: "User account not found or inactive",
+          code: "USER_NOT_FOUND"
+        });
+      }
+
+      // If user has existing PIN, verify current PIN
+      if (user.pin) {
+        if (!currentPin) {
+          return res.status(400).json({
+            error: "Validation error",
+            message: "Current PIN is required to change PIN",
+            code: "MISSING_CURRENT_PIN"
+          });
+        }
+
+        const isCurrentPinValid = await user.comparePin(currentPin);
+        if (!isCurrentPinValid) {
+          await AuditLog.logFailedAction(user.id, "pin_change_failed", "authentication", "Invalid current PIN provided", req);
+          return res.status(401).json({
+            error: "Authentication failed",
+            message: "Current PIN is incorrect",
+            code: "INVALID_CURRENT_PIN"
+          });
+        }
+      }
+
+      // Update PIN
+      user.pin = newPin; // This will be hashed by the beforeUpdate hook
+      await user.save();
+
+      // Log successful PIN change
+      await AuditLog.logUserAction(user.id, "pin_change_success", "authentication", "PIN changed successfully", null, null, req);
+
+      res.status(200).json({
+        message: "PIN changed successfully"
+      });
+    } catch (error) {
+      console.error("PIN change error:", error);
+      next(error);
+    }
+  },
+
+  // Admin reset user PIN
+  resetUserPin: async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      const { newPin } = req.body;
+      const adminUser = req.user;
+
+      // Validate admin permissions
+      if (!adminUser || adminUser.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+
+      // Validate PIN format
+      if (!newPin || !/^\d{6}$/.test(newPin)) {
+        return res.status(400).json({
+          success: false,
+          message: "PIN must be exactly 6 digits"
+        });
+      }
+
+      // Find target user
+      const targetUser = await User.findByPk(userId);
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found"
+        });
+      }
+
+      // Update user's PIN
+      targetUser.pin = newPin; // Will be hashed by the beforeUpdate hook
+      await targetUser.save();
+
+      // Log the PIN reset action
+      await AuditLog.create({
+        userId: adminUser.id,
+        action: 'PIN_RESET_BY_ADMIN',
+        resource: 'user',
+        resourceId: userId.toString(),
+        details: {
+          targetUserId: userId,
+          targetUsername: targetUser.username,
+          adminUsername: adminUser.username,
+          timestamp: new Date().toISOString()
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
+      res.json({
+        success: true,
+        message: "PIN reset successfully"
+      });
+
+    } catch (error) {
+      console.error("Admin PIN reset error:", error);
+      next(error);
+    }
   }
 };
 

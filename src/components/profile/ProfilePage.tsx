@@ -35,6 +35,13 @@ const ProfilePage: React.FC = () => {
     confirmPassword: ""
   });
 
+  // PIN form state
+  const [pinForm, setPinForm] = useState({
+    currentPin: "",
+    newPin: "",
+    confirmPin: ""
+  });
+
   useEffect(() => {
     if (user) {
       setProfileForm({
@@ -101,6 +108,45 @@ const ProfilePage: React.FC = () => {
       setSuccess("Password changed successfully!");
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to change password");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
+
+    if (pinForm.newPin !== pinForm.confirmPin) {
+      setError("New PINs do not match");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!/^\d{6}$/.test(pinForm.newPin)) {
+      setError("PIN must be exactly 6 digits");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      await authAPI.changePin({
+        currentPin: user?.pin ? pinForm.currentPin : undefined,
+        newPin: pinForm.newPin,
+        confirmPin: pinForm.confirmPin
+      });
+
+      setPinForm({
+        currentPin: "",
+        newPin: "",
+        confirmPin: ""
+      });
+      setSuccess("PIN changed successfully!");
+      await refreshUser();
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to change PIN");
     } finally {
       setIsLoading(false);
     }
@@ -255,7 +301,7 @@ const ProfilePage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="security" className="space-y-6">
+        <TabsContent value="security" className="flex flex-col sm:flex-row gap-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -340,6 +386,98 @@ const ProfilePage: React.FC = () => {
                     <>
                       <Key className="h-4 w-4" />
                       Change Password
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                {user?.pin ? "Change PIN" : "Set PIN"}
+              </CardTitle>
+              <CardDescription>
+                {user?.pin 
+                  ? "Update your 6-digit PIN for POS system access" 
+                  : "Set a 6-digit PIN for quick access to the POS system"
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePinSubmit} className="space-y-4">
+                {user?.pin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPin">Current PIN</Label>
+                    <Input
+                      id="currentPin"
+                      type="password"
+                      maxLength={6}
+                      value={pinForm.currentPin}
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setPinForm(prev => ({
+                          ...prev,
+                          currentPin: value
+                        }));
+                      }}
+                      placeholder="Enter your current 6-digit PIN"
+                      className="text-center text-lg tracking-widest"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="newPin">New PIN</Label>
+                  <Input
+                    id="newPin"
+                    type="password"
+                    maxLength={6}
+                    value={pinForm.newPin}
+                    onChange={e => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setPinForm(prev => ({
+                        ...prev,
+                        newPin: value
+                      }));
+                    }}
+                    placeholder="Enter your new 6-digit PIN"
+                    className="text-center text-lg tracking-widest"
+                  />
+                  <p className="text-xs text-gray-500">PIN must be exactly 6 digits</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPin">Confirm New PIN</Label>
+                  <Input
+                    id="confirmPin"
+                    type="password"
+                    maxLength={6}
+                    value={pinForm.confirmPin}
+                    onChange={e => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setPinForm(prev => ({
+                        ...prev,
+                        confirmPin: value
+                      }));
+                    }}
+                    placeholder="Confirm your new 6-digit PIN"
+                    className="text-center text-lg tracking-widest"
+                  />
+                </div>
+
+                <Button type="submit" disabled={isLoading} className="flex items-center gap-2">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {user?.pin ? "Changing..." : "Setting..."}
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="h-4 w-4" />
+                      {user?.pin ? "Change PIN" : "Set PIN"}
                     </>
                   )}
                 </Button>

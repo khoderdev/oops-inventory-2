@@ -65,6 +65,11 @@ export const authAPI = {
   verifyPin: async (pin: string, userId?: number): Promise<{ message: string; verified: boolean }> => {
     const response = await api.post<{ message: string; verified: boolean }, { pin: string; userId?: number }>("/auth/verify-pin", { pin, userId });
     return response.data;
+  },
+
+  changePin: async (data: { currentPin?: string; newPin: string; confirmPin: string }): Promise<{ message: string }> => {
+    const response = await api.put<{ message: string }, { currentPin?: string; newPin: string; confirmPin: string }>("/auth/change-pin", data);
+    return response.data;
   }
 };
 
@@ -99,6 +104,11 @@ export const userAPI = {
 
   resetUserPassword: async (id: number, data: ResetPasswordRequest): Promise<{ message: string }> => {
     const response = await api.put<{ message: string }, ResetPasswordRequest>(`/users/${id}/reset-password`, data);
+    return response.data;
+  },
+
+  resetUserPin: async (id: number, data: { newPin: string }): Promise<{ message: string }> => {
+    const response = await api.put<{ message: string }, { newPin: string }>(`/auth/reset-user-pin/${id}`, data);
     return response.data;
   },
 
