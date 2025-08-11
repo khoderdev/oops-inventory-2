@@ -76,7 +76,7 @@ const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut
   };
 
   return (
-    <div className={cn("flex flex-col min-h-screen w-full relative overflow-hidden", "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900", className)}>
+    <div className={cn("flex flex-col min-h-screen w-full items-center justify-center relative overflow-hidden", "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900", className)}>
       {/* Background blur overlay */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
@@ -85,14 +85,14 @@ const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl" />
 
       {/* Main Content */}
-      <div className="relative w-fit self-center z-10 flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+      <div className="relative w-fit self-center z-10 flex flex-col items-center justify-center min-h-[calc(100vh-200px)] space-y-6">
         {/* Business Name or Logo */}
         {businessName?.startsWith("/") || businessName?.includes(".") ? (
-          <div className="mb-12 flex items-center justify-center">
+          <div className="my-6 flex items-center justify-center">
             <img
               src={businessName}
               alt="Business Logo"
-              className="max-h-20 md:max-h-24 lg:max-h-24 w-auto object-contain"
+              className="w-52 object-contain"
               onError={e => {
                 // Fallback to text if image fails to load
                 const target = e.target as HTMLImageElement;

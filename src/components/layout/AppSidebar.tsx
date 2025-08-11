@@ -187,14 +187,14 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r border-sidebar-border transition-all duration-300 ease-in-out">
-      <SidebarHeader className="border-b border-sidebar-border h-16 flex items-center justify-center px-2 sm:px-4">
+      <SidebarHeader className="border-b border-sidebar-border h-12 flex items-center justify-center px-2 sm:px-4">
         <div className="flex items-center justify-center transition-all duration-300 ease-in-out w-full">
           <div className="relative flex items-center justify-center cursor-pointer" onClick={() => navigate("/")}>
             {effectiveState === "expanded" ? (
               <img 
                 src="/oops-logo.png" 
                 alt="Restaurant Management System" 
-                className="w-28 sm:w-32 lg:w-36 h-auto transition-all duration-300 crisp-edges max-w-full" 
+                className="w-28 sm:w-32 lg:w-28 h-auto transition-all duration-300 crisp-edges max-w-full" 
               />
             ) : (
               <img 

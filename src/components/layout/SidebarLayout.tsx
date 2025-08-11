@@ -31,7 +31,7 @@ export function SidebarLayout({ children, showSearch = true, showNotifications =
     <SidebarProvider defaultOpen={false}>
       <AppSidebar />
       <SidebarInset className="flex flex-col min-h-screen transition-all duration-300 ease-in-out">
-        <header className="flex h-16 shrink-0 items-center gap-2 sm:gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 safe-area-top">
+        <header className="flex h-12 shrink-0 items-center gap-2 sm:gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 safe-area-top">
           <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 w-full min-w-0">
             <SidebarTrigger className="-ml-1 btn-touch flex-shrink-0" />
             {pageTitle && <div className={`font-semibold text-foreground ${showSearch ? "hidden sm:block" : "block"} truncate min-w-0 text-sm sm:text-base`}>{pageTitle}</div>}

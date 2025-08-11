@@ -289,96 +289,96 @@ const DayOperationsPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       {/* Alerts */}
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
-          <XCircle className="h-5 w-5 text-red-500 mr-3" />
-          <span className="text-red-700">{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700">
+        <div className="mb-4 sm:mb-6 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center">
+          <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-2 sm:mr-3 mt-0.5 sm:mt-0 flex-shrink-0" />
+          <span className="text-red-700 text-sm sm:text-base flex-1">{error}</span>
+          <button onClick={() => setError(null)} className="ml-2 sm:ml-auto text-red-500 hover:text-red-700 text-lg sm:text-xl">
             ×
           </button>
         </div>
       )}
 
       {reportError && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
-          <XCircle className="h-5 w-5 text-red-500 mr-3" />
-          <span className="text-red-700">{reportError}</span>
-          <button onClick={() => setReportError(null)} className="ml-auto text-red-500 hover:text-red-700">
+        <div className="mb-4 sm:mb-6 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center">
+          <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-2 sm:mr-3 mt-0.5 sm:mt-0 flex-shrink-0" />
+          <span className="text-red-700 text-sm sm:text-base flex-1">{reportError}</span>
+          <button onClick={() => setReportError(null)} className="ml-2 sm:ml-auto text-red-500 hover:text-red-700 text-lg sm:text-xl">
             ×
           </button>
         </div>
       )}
 
       {success && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
-          <span className="text-green-700">{success}</span>
-          <button onClick={() => setSuccess(null)} className="ml-auto text-green-500 hover:text-green-700">
+        <div className="mb-4 sm:mb-6 bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center">
+          <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2 sm:mr-3 mt-0.5 sm:mt-0 flex-shrink-0" />
+          <span className="text-green-700 text-sm sm:text-base flex-1">{success}</span>
+          <button onClick={() => setSuccess(null)} className="ml-2 sm:ml-auto text-green-500 hover:text-green-700 text-lg sm:text-xl">
             ×
           </button>
         </div>
       )}
 
       {/* Current Day Status */}
-      <div className="grid grid-cols-1 gap-8 mb-12">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:gap-8 mb-8 sm:mb-10 lg:mb-12">
         <div className="lg:col-span-2">
-          <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-xl border border-gray-100 p-8">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-blue-100 rounded-xl">
-                  <Calendar className="h-8 w-8 text-blue-600" />
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl border border-gray-100 p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-blue-100 rounded-lg sm:rounded-xl">
+                  <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900">Current Day Status</h2>
-                  <p className="text-lg text-gray-600 mt-1">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Current Day Status</h2>
+                  <p className="text-sm sm:text-base lg:text-lg text-gray-600 mt-1">
                     {formatWeekday(currentTime)}, {formatDate(currentTime)}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-sm text-gray-500">Current Time</div>
-                <div className="text-lg font-bold text-gray-900">{currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}</div>
-                <div className="text-sm text-gray-500 mt-1">{formatDate(currentTime)}</div>
+              <div className="text-left sm:text-right w-full sm:w-auto">
+                <div className="text-xs sm:text-sm text-gray-500">Current Time</div>
+                <div className="text-base sm:text-lg font-bold text-gray-900">{currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}</div>
+                <div className="text-xs sm:text-sm text-gray-500 mt-1">{formatDate(currentTime)}</div>
               </div>
             </div>
 
             {currentDay ? (
               <div className="space-y-6">
                 {currentDay.status === "opened" ? (
-                  <div className="relative overflow-hidden bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-8 shadow-lg">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-green-100 rounded-full -mr-16 -mt-16 opacity-50"></div>
-                    <div className="relative lg:w-2/3 lg:mx-auto flex flex-col lg:flex-row gap-6 items-center justify-between">
-                      <div className="flex items-center space-x-6">
-                        <div className="p-4 bg-green-100 rounded-2xl shadow-md">
-                          <CheckCircle className="h-12 w-12 text-green-600" />
+                  <div className="relative overflow-hidden bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-lg">
+                    <div className="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-green-100 rounded-full -mr-10 -mt-10 sm:-mr-16 sm:-mt-16 opacity-50"></div>
+                    <div className="relative flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center justify-between">
+                      <div className="flex items-center space-x-3 sm:space-x-4 lg:space-x-6">
+                        <div className="p-2 sm:p-3 lg:p-4 bg-green-100 rounded-xl sm:rounded-2xl shadow-md">
+                          <CheckCircle className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-green-600" />
                         </div>
                         <div>
-                          <h3 className="text-2xl font-bold text-green-900 mb-2">Day is Open & Active</h3>
-                          <p className="text-lg text-green-700 mb-1">Opened at {formatDateTime(currentDay.openedAt)}</p>
-                          <p className="text-base text-green-600">
+                          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-green-900 mb-1 sm:mb-2">Day is Open & Active</h3>
+                          <p className="text-sm sm:text-base lg:text-lg text-green-700 mb-1">Opened at {formatDateTime(currentDay.openedAt)}</p>
+                          <p className="text-xs sm:text-sm lg:text-base text-green-600">
                             Managed by <span className="font-semibold">{currentDay.openedBy}</span>
                           </p>
                         </div>
                       </div>
-                      <button onClick={() => setShowCloseModal(true)} className="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-4 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-lg">
+                      <button onClick={() => setShowCloseModal(true)} className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 lg:px-8 py-2 sm:py-3 lg:py-4 rounded-lg sm:rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm sm:text-base lg:text-lg w-full sm:w-auto">
                         Close Day
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="relative overflow-hidden bg-gradient-to-r from-gray-50 to-slate-50 border-2 border-gray-200 rounded-2xl p-8 shadow-lg">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gray-100 rounded-full -mr-16 -mt-16 opacity-50"></div>
-                    <div className="relative flex items-center justify-between">
-                      <div className="flex items-center space-x-6">
-                        <div className="p-4 bg-gray-100 rounded-2xl shadow-md">
-                          <XCircle className="h-12 w-12 text-gray-600" />
+                  <div className="relative overflow-hidden bg-gradient-to-r from-gray-50 to-slate-50 border-2 border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-lg">
+                    <div className="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-gray-100 rounded-full -mr-10 -mt-10 sm:-mr-16 sm:-mt-16 opacity-50"></div>
+                    <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+                      <div className="flex items-center space-x-3 sm:space-x-4 lg:space-x-6">
+                        <div className="p-2 sm:p-3 lg:p-4 bg-gray-100 rounded-xl sm:rounded-2xl shadow-md">
+                          <XCircle className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-gray-600" />
                         </div>
                         <div>
-                          <h3 className="text-2xl font-bold text-gray-900 mb-2">Day is Closed</h3>
-                          <p className="text-lg text-gray-700 mb-1">{currentDay.closedAt ? `Closed at ${formatDateTime(currentDay.closedAt)}` : "Day was closed"}</p>
-                          <p className="text-base text-gray-600">
+                          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Day is Closed</h3>
+                          <p className="text-sm sm:text-base lg:text-lg text-gray-700 mb-1">{currentDay.closedAt ? `Closed at ${formatDateTime(currentDay.closedAt)}` : "Day was closed"}</p>
+                          <p className="text-xs sm:text-sm lg:text-base text-gray-600">
                             {currentDay.closedBy && (
                               <span>
                                 Managed by <span className="font-semibold">{currentDay.closedBy}</span>
@@ -387,13 +387,13 @@ const DayOperationsPage: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <button onClick={() => setShowOpenModal(true)} className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-4 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-lg">
+                      <button onClick={() => setShowOpenModal(true)} className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 sm:px-6 lg:px-8 py-2 sm:py-3 lg:py-4 rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm sm:text-base lg:text-lg w-full sm:w-auto">
                         Open New Day
                       </button>
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-8">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mt-6 sm:mt-8">
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 sm:p-6 rounded-2xl shadow-lg border border-blue-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
                     <div className="flex flex-col items-center text-center">
                       <div className="p-3 bg-blue-200 rounded-lg mb-3">
@@ -458,12 +458,12 @@ const DayOperationsPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-16">
-                <div className="p-6 bg-gray-100 rounded-full w-32 h-32 mx-auto mb-8 flex items-center justify-center">
-                  <XCircle className="h-16 w-16 text-gray-400" />
+              <div className="text-center py-8 sm:py-12 lg:py-16">
+                <div className="p-4 sm:p-6 bg-gray-100 rounded-full w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 mx-auto mb-6 sm:mb-8 flex items-center justify-center">
+                  <XCircle className="h-10 w-10 sm:h-12 sm:w-12 lg:h-16 lg:w-16 text-gray-400" />
                 </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">No Day Operation Active</h3>
-                <p className="text-xl text-gray-600 mb-8 max-w-md mx-auto">Start a new day to begin tracking sales and operations</p>
+                <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">No Day Operation Active</h3>
+                <p className="text-base sm:text-lg lg:text-xl text-gray-600 mb-6 sm:mb-8 max-w-md mx-auto px-4">Start a new day to begin tracking sales and operations</p>
                 <button
                   onClick={() => setShowOpenModal(true)}
                   onKeyDown={e => {
@@ -472,9 +472,9 @@ const DayOperationsPage: React.FC = () => {
                       setShowOpenModal(true);
                     }
                   }}
-                  className="bg-gradient-to-r from-[#4682b4] to-[#6ba4d3] text-white px-10 py-4 rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center mx-auto text-lg font-semibold"
+                  className="bg-gradient-to-r from-[#4682b4] to-[#6ba4d3] text-white px-6 sm:px-8 lg:px-10 py-3 sm:py-4 rounded-xl sm:rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center mx-auto text-base sm:text-lg font-semibold"
                 >
-                  <Plus className="h-6 w-6 mr-3" />
+                  <Plus className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3" />
                   Open Day
                 </button>
               </div>
@@ -485,39 +485,39 @@ const DayOperationsPage: React.FC = () => {
 
       {/* Recent Days */}
       <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Recent Day Operations</h2>
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Recent Day Operations</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transactions</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cash Variance</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Transactions</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Cash Variance</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {recentDays.map(day => (
                 <tr key={day.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                     <div>
                       <div className="font-bold">{formatWeekday(day.date)}</div>
                       <div className="text-xs text-gray-500">{formatDate(day.date)}</div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${day.status === "opened" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{day.status}</span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(day.totalSales)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{day.totalTransactions}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">{formatCurrency(day.totalSales)}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 hidden sm:table-cell">{day.totalTransactions}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm hidden md:table-cell">
                     <span className={`${day.cashVariance === 0 ? "text-gray-900" : day.cashVariance > 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(day.cashVariance)}</span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{day.autoReportGenerated && <ViewReportButton date={day.date} onClick={handleViewReport} loading={reportLoading} />}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">{day.autoReportGenerated && <ViewReportButton date={day.date} onClick={handleViewReport} loading={reportLoading} />}</td>
                 </tr>
               ))}
             </tbody>
@@ -527,9 +527,9 @@ const DayOperationsPage: React.FC = () => {
 
       {/* Open Day Modal */}
       {showOpenModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div
-            className="bg-white rounded-lg p-6 w-full max-w-md"
+            className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md"
             onKeyDown={e => {
               if (e.key === "Enter" && !actionLoading) {
                 e.preventDefault();
@@ -540,10 +540,10 @@ const DayOperationsPage: React.FC = () => {
               }
             }}
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Open New Day</h3>
-            <div className="space-y-4">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Open New Day</h3>
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Opening Cash Amount</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Opening Cash Amount</label>
                 <input
                   type="number"
                   step="0.01"
@@ -560,13 +560,13 @@ const DayOperationsPage: React.FC = () => {
                       handleOpenDay();
                     }
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   placeholder="0.00"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Opened By</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Opened By</label>
                 <input
                   type="text"
                   value={openDayForm.openedBy}
@@ -576,14 +576,14 @@ const DayOperationsPage: React.FC = () => {
                       openedBy: e.target.value
                     })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 text-sm sm:text-base"
                   placeholder="Staff name"
                   readOnly
                 />
                 <p className="text-xs text-gray-500 mt-1">Automatically detected from logged-in user</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
                 <textarea
                   value={openDayForm.notes}
                   onChange={e =>
@@ -598,14 +598,14 @@ const DayOperationsPage: React.FC = () => {
                       handleOpenDay();
                     }
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   rows={3}
                   placeholder="Any opening notes... (Ctrl+Enter to submit)"
                 />
               </div>
             </div>
-            <div className="flex justify-end space-x-3 mt-6">
-              <button onClick={() => setShowOpenModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-4 sm:mt-6">
+              <button onClick={() => setShowOpenModal(false)} className="px-3 sm:px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base">
                 Cancel
               </button>
               <button
@@ -617,7 +617,7 @@ const DayOperationsPage: React.FC = () => {
                     handleOpenDay();
                   }
                 }}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 text-sm sm:text-base"
               >
                 {actionLoading ? "Opening..." : "Open Day"}
               </button>
@@ -628,13 +628,13 @@ const DayOperationsPage: React.FC = () => {
 
       {/* Close Day Modal */}
       {showCloseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Close Current Day</h3>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Close Current Day</h3>
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Actual Closing Cash Amount *</label>
-                <div className="flex items-center gap-3">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Actual Closing Cash Amount *</label>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                   <input
                     type="number"
                     step="0.01"
@@ -645,7 +645,7 @@ const DayOperationsPage: React.FC = () => {
                         closingCash: parseFloat(e.target.value) || 0
                       })
                     }
-                    className=" border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                     placeholder="0.00"
                     required
                     autoFocus
@@ -659,7 +659,7 @@ const DayOperationsPage: React.FC = () => {
                           closingCash: currentDay.expectedCash || 0
                         });
                       }}
-                      className="w-full px-3 py-2 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium whitespace-nowrap"
+                      className="px-3 py-2 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-200 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
                       title="Click to use expected cash amount"
                     >
                       Expected: {formatCurrency(currentDay.expectedCash)}
@@ -668,7 +668,7 @@ const DayOperationsPage: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Closed By</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Closed By</label>
                 <input
                   type="text"
                   value={closeDayForm.closedBy}
@@ -678,14 +678,14 @@ const DayOperationsPage: React.FC = () => {
                       closedBy: e.target.value
                     })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 text-sm sm:text-base"
                   placeholder="Staff name"
                   readOnly
                 />
                 <p className="text-xs text-gray-500 mt-1">Automatically detected from logged-in user</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Closing Notes (Optional)</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Closing Notes (Optional)</label>
                 <textarea
                   value={closeDayForm.notes}
                   onChange={e =>
@@ -694,17 +694,17 @@ const DayOperationsPage: React.FC = () => {
                       notes: e.target.value
                     })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   rows={3}
                   placeholder="Any closing notes..."
                 />
               </div>
             </div>
-            <div className="flex justify-end space-x-3 mt-6">
-              <button onClick={() => setShowCloseModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-4 sm:mt-6">
+              <button onClick={() => setShowCloseModal(false)} className="px-3 sm:px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base">
                 Cancel
               </button>
-              <button onClick={handleCloseDay} disabled={actionLoading} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50">
+              <button onClick={handleCloseDay} disabled={actionLoading} className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 text-sm sm:text-base">
                 {actionLoading ? "Closing..." : "Close Day"}
               </button>
             </div>
@@ -714,29 +714,29 @@ const DayOperationsPage: React.FC = () => {
 
       {/* Daily Report Modal */}
       {showReportModal && selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-gray-900">Daily Report - {selectedReport.date}</h3>
-              <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-gray-600">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Daily Report - {selectedReport.date}</h3>
+              <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl">
                 ×
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {/* Sales Summary */}
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-green-900 mb-3">Sales Summary</h4>
-                <div className="space-y-2">
-                  <p className="text-sm">
+              <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+                <h4 className="font-semibold text-green-900 mb-2 sm:mb-3 text-sm sm:text-base">Sales Summary</h4>
+                <div className="space-y-1 sm:space-y-2">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-green-700">Total Sales:</span>
                     <span className="font-medium ml-2">{formatCurrency(selectedReport.sales.totalAmount)}</span>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-green-700">Transactions:</span>
                     <span className="font-medium ml-2">{selectedReport.sales.totalTransactions}</span>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-green-700">Average Ticket:</span>
                     <span className="font-medium ml-2">{formatCurrency(selectedReport.sales.averageTicket)}</span>
                   </p>
@@ -744,22 +744,22 @@ const DayOperationsPage: React.FC = () => {
               </div>
 
               {/* Cash Summary */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-3">Cash Summary</h4>
-                <div className="space-y-2">
-                  <p className="text-sm">
+              <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                <h4 className="font-semibold text-blue-900 mb-2 sm:mb-3 text-sm sm:text-base">Cash Summary</h4>
+                <div className="space-y-1 sm:space-y-2">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-blue-700">Opening:</span>
                     <span className="font-medium ml-2">{formatCurrency(selectedReport.cash.opening)}</span>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-blue-700">Expected:</span>
                     <span className="font-medium ml-2">{formatCurrency(selectedReport.cash.expected)}</span>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-blue-700">Actual:</span>
                     <span className="font-medium ml-2">{formatCurrency(selectedReport.cash.actual)}</span>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-blue-700">Variance:</span>
                     <span className={`font-medium ml-2 ${selectedReport.cash.variance >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(selectedReport.cash.variance)}</span>
                   </p>
@@ -767,22 +767,22 @@ const DayOperationsPage: React.FC = () => {
               </div>
 
               {/* Inventory Summary */}
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-orange-900 mb-3">Inventory Summary</h4>
-                <div className="space-y-2">
-                  <p className="text-sm">
+              <div className="bg-orange-50 p-3 sm:p-4 rounded-lg">
+                <h4 className="font-semibold text-orange-900 mb-2 sm:mb-3 text-sm sm:text-base">Inventory Summary</h4>
+                <div className="space-y-1 sm:space-y-2">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-orange-700">Total Variances:</span>
                     <span className="font-medium ml-2">{selectedReport.inventory.totalVariances}</span>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-orange-700">Gains:</span>
                     <span className="font-medium ml-2 text-green-600">{selectedReport.inventory.gains}</span>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-orange-700">Losses:</span>
                     <span className="font-medium ml-2 text-red-600">{selectedReport.inventory.losses}</span>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="text-orange-700">Operational Hours:</span>
                     <span className="font-medium ml-2">{selectedReport.operationalHours.toFixed(1)}h</span>
                   </p>
@@ -790,8 +790,8 @@ const DayOperationsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-6 text-center">
-              <button onClick={() => setShowReportModal(false)} className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+            <div className="mt-4 sm:mt-6 text-center">
+              <button onClick={() => setShowReportModal(false)} className="px-4 sm:px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base">
                 Close Report
               </button>
             </div>
