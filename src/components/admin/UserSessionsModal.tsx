@@ -174,7 +174,7 @@ const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOpen, onC
                   <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userSessions.sessions.length}</div>
+                  <div className="text-2xl font-bold">{userSessions.sessions?.length || 0}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -214,7 +214,7 @@ const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOpen, onC
             {/* Sessions Table */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Device Sessions</h3>
-              {userSessions.sessions.length === 0 ? (
+              {(userSessions.sessions?.length || 0) === 0 ? (
                 <div className="text-center py-8 text-gray-500">No active sessions found for this user</div>
               ) : (
                 <div className="border rounded-lg">
@@ -230,7 +230,7 @@ const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOpen, onC
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {userSessions.sessions.map(session => (
+                      {userSessions.sessions?.map(session => (
                         <TableRow key={session.id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -284,11 +284,11 @@ const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOpen, onC
             </div>
 
             {/* Session Details */}
-            {userSessions.sessions.length > 0 && (
+            {(userSessions.sessions?.length || 0) > 0 && (
               <div>
                 <h3 className="text-lg font-semibold mb-4">Session Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {userSessions.sessions.map(session => (
+                  {userSessions.sessions?.map(session => (
                     <Card key={session.id} className={session.isOnline ? "border-green-200" : "border-gray-200"}>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm flex items-center justify-between">
