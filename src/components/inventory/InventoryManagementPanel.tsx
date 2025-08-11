@@ -494,16 +494,17 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
 
       {/* Stock Form Dialog */}
       <Dialog open={showStockForm} onOpenChange={setShowStockForm} modal={true}>
-        <DialogContent className="w-[95vw] max-w-xs sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-6xl max-h-[95vh] sm:max-h-[90vh] p-0 m-2 sm:m-4" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
-          <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] sm:w-[95vw] md:w-[65vw] xl:w-[35vw] rounded-lg p-0 py-2" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
+          <DialogHeader className="px-4 sm:px-6 py">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Package className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="truncate">{selectedStockEntry ? "Edit Stock Entry" : "Add New Stock Entry"}</span>
             </DialogTitle>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[calc(95vh-100px)] sm:max-h-[calc(90vh-120px)]">
-            <div className="px-4 sm:px-6 py-3 sm:py-4 !pt-0">
+          <ScrollArea className="max-h-[calc(95vh-60px)]">
+            {/* <div className=""> */}
+            {/* <div className="px-2 sm:px-6 py-2 sm:py-4 !pt-0"> */}
               <StockForm
                 materials={materialsWithStock}
                 stockEntry={selectedStockEntry || undefined}
@@ -519,7 +520,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
                   setSelectedMaterial(null);
                 }}
               />
-            </div>
+            {/* </div> */}
           </ScrollArea>
         </DialogContent>
       </Dialog>

@@ -201,9 +201,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
 
   return (
     <div className="w-full h-full flex flex-col bg-background">
-      {/* <div className="flex-shrink-0 px-4 sm:px-6 py-4 bg-muted/30"> */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-background border shadow-sm">
+          <TabsList className="sticky top-0 z-10 grid w-full grid-cols-3 h-auto bg-background border shadow-sm">
             {stockEntry ? (
               <>
                 <TabsTrigger 

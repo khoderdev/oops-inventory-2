@@ -20,7 +20,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useAtom } from "jotai";
 import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from "@/store/inventoryAtoms";
-import { StockForm } from "@/components/stock/StockForm";
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePrefetch } from "@/hooks/usePrefetch";
@@ -1451,28 +1450,6 @@ export function StockEntriesTable() {
             )}
           </DialogContent>
         </Dialog>
-
-        {showStockForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <StockForm
-                materials={materialsWithStock}
-                stockEntry={selectedStockEntry || undefined}
-                selectedMaterialId={selectedMaterial?.id}
-                onSubmit={handleStockSubmit}
-                onAddStock={handleAddStockOperation}
-                onRecordWaste={handleRecordWasteOperation}
-                onAddToSpecificEntry={handleAddToSpecificEntryOperation}
-                onWasteFromSpecificEntry={handleWasteFromSpecificEntryOperation}
-                onCancel={() => {
-                  setShowStockForm(false);
-                  setSelectedStockEntry(null);
-                  setSelectedMaterial(null);
-                }}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       <div className={`fixed bottom-6 right-6 z-40 transition-all duration-300 ease-in-out transform ${showFloatingButton ? "translate-y-0 opacity-100 scale-100" : "translate-y-16 opacity-0 scale-95 pointer-events-none"}`}>
