@@ -181,7 +181,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (credentials: LoginRequest): Promise<void> => {
     try {
-      setIsLoading(true);
+      startTransition(() => {
+        setIsLoading(true);
+      });
       const response = await authAPI.login(credentials);
       startTransition(() => {
         setUser(response.user);

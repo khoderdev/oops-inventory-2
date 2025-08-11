@@ -9,7 +9,7 @@ import { PERMISSIONS } from "@/types/auth";
 import { InventoryManagementPanelProps } from "@/types/inventory";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Employee, EmployeeSettlements, EmployeeTable, EmployeeUsageView } from "./components/employees";
 import { POSClientOrders } from "./components/pos/POSClientOrders";
@@ -65,7 +65,8 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
           }}
         >
           <AuthProvider>
-            <Routes>
+            <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+              <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
 
@@ -340,6 +341,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

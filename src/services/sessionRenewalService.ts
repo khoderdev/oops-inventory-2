@@ -23,6 +23,9 @@ class SessionRenewalService {
   private warningCallback: SessionWarningCallback | null = null;
   private expiredCallback: SessionExpiredCallback | null = null;
   private lastWarningTime = 0;
+  private consecutiveFailures = 0;
+  private maxConsecutiveFailures = 3;
+  private circuitBreakerOpen = false;
 
   constructor(config: Partial<SessionRenewalConfig> = {}) {
     this.config = {
@@ -59,6 +62,8 @@ class SessionRenewalService {
     }
     this.renewalAttempts = 0;
     this.isRenewing = false;
+    this.consecutiveFailures = 0;
+    this.circuitBreakerOpen = false;
     console.log("⏹️ Session renewal service stopped");
   }
   onSessionWarning(callback: SessionWarningCallback): void {
@@ -72,21 +77,43 @@ class SessionRenewalService {
       console.log("⏳ Session renewal already in progress");
       return false;
     }
+    
+    if (this.circuitBreakerOpen) {
+      console.log("🚫 Circuit breaker is open - manual renewal blocked to prevent loops");
+      return false;
+    }
+    
     try {
       this.isRenewing = true;
       console.log("🔄 Manually renewing session...");
       const response = await authAPI.refreshToken();
       tokenManager.setToken(response.token, undefined, response.expiresAt);
       this.renewalAttempts = 0;
+      this.consecutiveFailures = 0; // Reset on successful manual renewal
       console.log("✅ Session renewed successfully");
       return true;
     } catch (error) {
       console.error("❌ Manual session renewal failed:", error);
       this.renewalAttempts++;
+      this.consecutiveFailures++;
+      
+      if (this.consecutiveFailures >= this.maxConsecutiveFailures) {
+        console.log("🚫 Too many consecutive failures - opening circuit breaker");
+        this.circuitBreakerOpen = true;
+      }
+      
       return false;
     } finally {
       this.isRenewing = false;
     }
+  }
+
+  // Method to reset circuit breaker (for debugging or manual recovery)
+  resetCircuitBreaker(): void {
+    this.circuitBreakerOpen = false;
+    this.consecutiveFailures = 0;
+    this.renewalAttempts = 0;
+    console.log("🔄 Circuit breaker reset - session renewal service can retry");
   }
 
   getSessionStatus(): {
@@ -125,6 +152,13 @@ class SessionRenewalService {
       console.log("🔍 No token found, skipping session check");
       return;
     }
+
+    // Check circuit breaker - stop attempting if too many consecutive failures
+    if (this.circuitBreakerOpen) {
+      console.log("🚫 Circuit breaker open - stopping session renewal attempts to prevent infinite loops");
+      this.handleSessionExpired();
+      return;
+    }
     
     const status = this.getSessionStatus();
     
@@ -133,8 +167,17 @@ class SessionRenewalService {
       console.log(`❌ Session has expired ${Math.abs(status.timeUntilExpiry)} minutes ago, attempting emergency renewal`);
       const renewalSuccess = await this.attemptEmergencyRenewal();
       if (!renewalSuccess) {
-        console.log("❌ Emergency renewal failed, session will expire");
+        this.consecutiveFailures++;
+        console.log(`❌ Emergency renewal failed (${this.consecutiveFailures}/${this.maxConsecutiveFailures})`);
+        
+        if (this.consecutiveFailures >= this.maxConsecutiveFailures) {
+          console.log("🚫 Too many consecutive failures - opening circuit breaker");
+          this.circuitBreakerOpen = true;
+        }
+        
         this.handleSessionExpired();
+      } else {
+        this.consecutiveFailures = 0; // Reset on success
       }
       return;
     }
@@ -159,6 +202,11 @@ class SessionRenewalService {
   private async attemptRenewal(): Promise<void> {
     if (this.renewalAttempts >= this.config.maxRenewalAttempts) {
       console.log("❌ Maximum renewal attempts reached, forcing logout");
+      this.consecutiveFailures++;
+      if (this.consecutiveFailures >= this.maxConsecutiveFailures) {
+        console.log("🚫 Too many consecutive failures - opening circuit breaker");
+        this.circuitBreakerOpen = true;
+      }
       this.handleSessionExpired();
       return;
     }
@@ -169,9 +217,11 @@ class SessionRenewalService {
       const response = await authAPI.refreshToken();
       tokenManager.setToken(response.token, undefined, response.expiresAt);
       this.renewalAttempts = 0;
+      this.consecutiveFailures = 0; // Reset on success
       console.log("✅ Session renewed automatically - user experience preserved");
     } catch (error) {
       console.error(`❌ Session renewal attempt ${this.renewalAttempts} failed:`, error);
+      this.consecutiveFailures++;
 
       // Add exponential backoff for failed attempts
       const backoffDelay = Math.min(1000 * Math.pow(2, this.renewalAttempts - 1), 10000);
@@ -179,6 +229,10 @@ class SessionRenewalService {
 
       if (this.renewalAttempts >= this.config.maxRenewalAttempts) {
         console.log("❌ All renewal attempts exhausted, session will expire");
+        if (this.consecutiveFailures >= this.maxConsecutiveFailures) {
+          console.log("🚫 Too many consecutive failures - opening circuit breaker");
+          this.circuitBreakerOpen = true;
+        }
         this.handleSessionExpired();
       } else {
         // Schedule retry with backoff
