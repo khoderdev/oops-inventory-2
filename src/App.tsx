@@ -19,6 +19,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
 import { RoleBasedRoute } from "./routes/RoleBasedRoute";
+import LockScreen from "./components/LockScreen";
 
 // Lazy load components for better performance
 const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
@@ -91,6 +92,16 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                       {/* <AuthenticatedLayout> */}
                       <POSClientPage />
                       {/* </AuthenticatedLayout> */}
+                    </RoleBasedRoute>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/lock"
+                element={
+                  <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
+                    <RoleBasedRoute allowedPaths={["/pos"]}>
+                      <LockScreen />
                     </RoleBasedRoute>
                   </ProtectedRoute>
                 }
