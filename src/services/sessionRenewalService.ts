@@ -26,10 +26,10 @@ class SessionRenewalService {
 
   constructor(config: Partial<SessionRenewalConfig> = {}) {
     this.config = {
-      checkInterval: 1,
-      renewalThreshold: 120,
-      warningThreshold: 30,
-      maxRenewalAttempts: 5,
+      checkInterval: 5, // Check every 5 minutes instead of 1 minute
+      renewalThreshold: 15, // Start renewal 15 minutes before expiry instead of 2 hours
+      warningThreshold: 5, // Show warning 5 minutes before expiry instead of 30 minutes
+      maxRenewalAttempts: 3, // Reduce attempts from 5 to 3
       ...config
     };
   }
@@ -106,10 +106,10 @@ class SessionRenewalService {
     }
     const expiryDate = new Date(sessionInfo.expiresAt);
     const now = new Date();
-    const timeUntilExpiry = Math.max(0, expiryDate.getTime() - now.getTime());
+    const timeUntilExpiry = expiryDate.getTime() - now.getTime();
     const minutesUntilExpiry = Math.floor(timeUntilExpiry / (1000 * 60));
-    const graceMinutes = 5;
-    const isInGracePeriod = minutesUntilExpiry <= 0 && Math.abs(minutesUntilExpiry) <= graceMinutes;
+    const graceMinutes = 2;
+    const isInGracePeriod = timeUntilExpiry <= 0 && Math.abs(timeUntilExpiry) <= (graceMinutes * 60 * 1000);
 
     return {
       isValid: timeUntilExpiry > 0 || isInGracePeriod,
@@ -125,9 +125,12 @@ class SessionRenewalService {
       console.log("🔍 No token found, skipping session check");
       return;
     }
+    
     const status = this.getSessionStatus();
-    if (!status.isValid) {
-      console.log("❌ Session has expired, attempting emergency renewal");
+    
+    // Only attempt emergency renewal if session is actually expired (not just close to expiry)
+    if (!status.isValid && status.timeUntilExpiry !== null && status.timeUntilExpiry < 0) {
+      console.log(`❌ Session has expired ${Math.abs(status.timeUntilExpiry)} minutes ago, attempting emergency renewal`);
       const renewalSuccess = await this.attemptEmergencyRenewal();
       if (!renewalSuccess) {
         console.log("❌ Emergency renewal failed, session will expire");
@@ -136,16 +139,19 @@ class SessionRenewalService {
       return;
     }
 
-    if (status.needsWarning && status.timeUntilExpiry !== null) {
+    // Show warning only if session is still valid but close to expiry
+    if (status.needsWarning && status.timeUntilExpiry !== null && status.timeUntilExpiry > 0) {
       const now = Date.now();
-      if (now - this.lastWarningTime > 60000) {
+      if (now - this.lastWarningTime > 300000) { // Show warning every 5 minutes instead of 1 minute
         this.lastWarningTime = now;
         console.log(`⚠️ Session expires in ${status.timeUntilExpiry} minutes`);
         this.warningCallback?.(status.timeUntilExpiry);
       }
     }
 
-    if (status.needsRenewal && !this.isRenewing) {
+    // Only attempt renewal if session is valid but needs renewal
+    if (status.needsRenewal && status.isValid && !this.isRenewing) {
+      console.log(`🔄 Session needs renewal (${status.timeUntilExpiry} minutes remaining)`);
       await this.attemptRenewal();
     }
   }
