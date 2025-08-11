@@ -1,5 +1,4 @@
 import { authAPI, tokenManager } from "../api/auth";
-import { isSessionCloseToExpiry } from "../utils/session";
 
 export interface SessionRenewalConfig {
   checkInterval: number;
@@ -27,10 +26,10 @@ class SessionRenewalService {
 
   constructor(config: Partial<SessionRenewalConfig> = {}) {
     this.config = {
-      checkInterval: 2,
-      renewalThreshold: 30,
-      warningThreshold: 10,
-      maxRenewalAttempts: 3,
+      checkInterval: 1,
+      renewalThreshold: 120,
+      warningThreshold: 30,
+      maxRenewalAttempts: 5,
       ...config
     };
   }
@@ -42,15 +41,16 @@ class SessionRenewalService {
     console.log("🔄 Starting session renewal service", {
       checkInterval: `${this.config.checkInterval} minutes`,
       renewalThreshold: `${this.config.renewalThreshold} minutes`,
-      warningThreshold: `${this.config.warningThreshold} minutes`
+      warningThreshold: `${this.config.warningThreshold} minutes`,
+      maxAttempts: this.config.maxRenewalAttempts
     });
+    this.checkAndRenewSession();
     this.checkInterval = setInterval(
       () => {
         this.checkAndRenewSession();
       },
       this.config.checkInterval * 60 * 1000
     );
-    this.checkAndRenewSession();
   }
   stop(): void {
     if (this.checkInterval) {
@@ -108,11 +108,14 @@ class SessionRenewalService {
     const now = new Date();
     const timeUntilExpiry = Math.max(0, expiryDate.getTime() - now.getTime());
     const minutesUntilExpiry = Math.floor(timeUntilExpiry / (1000 * 60));
+    const graceMinutes = 5;
+    const isInGracePeriod = minutesUntilExpiry <= 0 && Math.abs(minutesUntilExpiry) <= graceMinutes;
+
     return {
-      isValid: timeUntilExpiry > 0,
+      isValid: timeUntilExpiry > 0 || isInGracePeriod,
       timeUntilExpiry: minutesUntilExpiry,
       needsRenewal: minutesUntilExpiry <= this.config.renewalThreshold,
-      needsWarning: minutesUntilExpiry <= this.config.warningThreshold
+      needsWarning: minutesUntilExpiry <= this.config.warningThreshold && minutesUntilExpiry > 0
     };
   }
 
@@ -124,10 +127,15 @@ class SessionRenewalService {
     }
     const status = this.getSessionStatus();
     if (!status.isValid) {
-      console.log("❌ Session has expired");
-      this.handleSessionExpired();
+      console.log("❌ Session has expired, attempting emergency renewal");
+      const renewalSuccess = await this.attemptEmergencyRenewal();
+      if (!renewalSuccess) {
+        console.log("❌ Emergency renewal failed, session will expire");
+        this.handleSessionExpired();
+      }
       return;
     }
+
     if (status.needsWarning && status.timeUntilExpiry !== null) {
       const now = Date.now();
       if (now - this.lastWarningTime > 60000) {
@@ -136,6 +144,7 @@ class SessionRenewalService {
         this.warningCallback?.(status.timeUntilExpiry);
       }
     }
+
     if (status.needsRenewal && !this.isRenewing) {
       await this.attemptRenewal();
     }
@@ -154,13 +163,47 @@ class SessionRenewalService {
       const response = await authAPI.refreshToken();
       tokenManager.setToken(response.token, undefined, response.expiresAt);
       this.renewalAttempts = 0;
-      console.log("✅ Session renewed automatically");
+      console.log("✅ Session renewed automatically - user experience preserved");
     } catch (error) {
       console.error(`❌ Session renewal attempt ${this.renewalAttempts} failed:`, error);
+
+      // Add exponential backoff for failed attempts
+      const backoffDelay = Math.min(1000 * Math.pow(2, this.renewalAttempts - 1), 10000);
+      console.log(`⏳ Waiting ${backoffDelay}ms before next attempt...`);
+
       if (this.renewalAttempts >= this.config.maxRenewalAttempts) {
-        console.log("❌ All renewal attempts failed, session will expire");
+        console.log("❌ All renewal attempts exhausted, session will expire");
         this.handleSessionExpired();
+      } else {
+        // Schedule retry with backoff
+        setTimeout(() => {
+          if (this.renewalAttempts < this.config.maxRenewalAttempts) {
+            this.attemptRenewal();
+          }
+        }, backoffDelay);
       }
+    } finally {
+      this.isRenewing = false;
+    }
+  }
+
+  private async attemptEmergencyRenewal(): Promise<boolean> {
+    if (this.isRenewing) {
+      console.log("⏳ Emergency renewal skipped - renewal already in progress");
+      return false;
+    }
+
+    try {
+      this.isRenewing = true;
+      console.log("🚨 Attempting emergency session renewal for expired session");
+      const response = await authAPI.refreshToken();
+      tokenManager.setToken(response.token, undefined, response.expiresAt);
+      this.renewalAttempts = 0;
+      console.log("✅ Emergency session renewal successful - user session preserved");
+      return true;
+    } catch (error) {
+      console.error("❌ Emergency session renewal failed:", error);
+      return false;
     } finally {
       this.isRenewing = false;
     }
@@ -178,6 +221,50 @@ class SessionRenewalService {
 
   getConfig(): SessionRenewalConfig {
     return { ...this.config };
+  }
+
+  /**
+   * Force immediate session renewal (useful for manual extension from UI)
+   */
+  async forceRenewal(): Promise<boolean> {
+    console.log("🔄 Manual session renewal requested");
+    const success = await this.renewSession();
+    if (success) {
+      // Reset warning state after successful manual renewal
+      this.lastWarningTime = 0;
+    }
+    return success;
+  }
+
+  /**
+   * Get detailed session information for UI display
+   */
+  getDetailedSessionStatus(): {
+    isValid: boolean;
+    timeUntilExpiry: number | null;
+    timeUntilExpiryFormatted: string;
+    needsRenewal: boolean;
+    needsWarning: boolean;
+    isRenewing: boolean;
+    renewalAttempts: number;
+    maxAttempts: number;
+  } {
+    const status = this.getSessionStatus();
+    const formatTime = (minutes: number): string => {
+      if (minutes <= 0) return 'Expired';
+      if (minutes < 60) return `${minutes}m`;
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    };
+
+    return {
+      ...status,
+      timeUntilExpiryFormatted: status.timeUntilExpiry !== null ? formatTime(status.timeUntilExpiry) : 'Unknown',
+      isRenewing: this.isRenewing,
+      renewalAttempts: this.renewalAttempts,
+      maxAttempts: this.config.maxRenewalAttempts
+    };
   }
 }
 

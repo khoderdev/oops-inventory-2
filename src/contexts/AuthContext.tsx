@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import React, { createContext, ReactNode, useContext, useEffect, useState, startTransition } from "react";
 import { authAPI, tokenManager } from "../api/auth";
 import type { User, AuthContextType, LoginRequest, UpdateProfileRequest, ChangePasswordRequest, SessionInfo } from "../types/auth";
 import { throttle, ACTIVITY_EVENTS } from "../utils/session";
@@ -22,34 +22,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const startSessionRenewalService = () => {
     sessionRenewalService.onSessionWarning(timeRemaining => {
-      setSessionTimeRemaining(timeRemaining);
-      setShowSessionWarning(true);
+      startTransition(() => {
+        setSessionTimeRemaining(timeRemaining);
+        setShowSessionWarning(true);
+      });
     });
-
     sessionRenewalService.onSessionExpired(() => {
-      handleSessionExpired();
+      startTransition(() => {
+        handleSessionExpired();
+      });
     });
-
     sessionRenewalService.start();
   };
 
   const handleSessionExpired = () => {
     console.log("🔒 Session expired, logging out");
     sessionRenewalService.stop();
-    setShowSessionWarning(false);
-    setUser(null);
-    setToken(null);
-    setSessionInfo(null);
-    tokenManager.clearSession();
+    startTransition(() => {
+      setShowSessionWarning(false);
+      setTimeout(() => {
+        setUser(null);
+        setToken(null);
+        setSessionInfo(null);
+        tokenManager.clearSession();
+      }, 1000);
+    });
   };
 
   const handleExtendSession = async (): Promise<boolean> => {
     try {
       const success = await sessionRenewalService.renewSession();
       if (success) {
-        const currentSessionInfo = tokenManager.getSessionInfo();
-        setSessionInfo(currentSessionInfo);
-        setShowSessionWarning(false);
+        startTransition(() => {
+          const currentSessionInfo = tokenManager.getSessionInfo();
+          setSessionInfo(currentSessionInfo);
+          setShowSessionWarning(false);
+        });
       }
       return success;
     } catch (error) {
@@ -59,7 +67,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const handleCloseSessionWarning = () => {
-    setShowSessionWarning(false);
+    startTransition(() => {
+      setShowSessionWarning(false);
+    });
   };
 
   useEffect(() => {
@@ -67,10 +77,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const storedToken = tokenManager.getToken();
         if (storedToken) {
-          setToken(storedToken);
-          setSessionInfo(tokenManager.getSessionInfo());
+          startTransition(() => {
+            setToken(storedToken);
+            setSessionInfo(tokenManager.getSessionInfo());
+          });
           const profileResponse = await authAPI.getProfile();
-          setUser(profileResponse.user);
+          startTransition(() => {
+            setUser(profileResponse.user);
+          });
           console.log("✅ Session restored successfully");
           startSessionRenewalService();
         } else {
@@ -78,9 +92,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } catch (error) {
         console.error("Failed to restore session:", error);
-        handleSessionExpired();
+        startTransition(() => {
+          handleSessionExpired();
+        });
       } finally {
-        setIsLoading(false);
+        startTransition(() => {
+          setIsLoading(false);
+        });
       }
     };
 
@@ -92,18 +110,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.warn("Auth error received:", event.detail);
       const sessionStatus = sessionRenewalService.getSessionStatus();
       if (!sessionStatus.isValid) {
-        handleSessionExpired();
+        startTransition(() => {
+          handleSessionExpired();
+        });
       }
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && isAuthenticated) {
         tokenManager.updateLastActivity();
-        setSessionInfo(tokenManager.getSessionInfo());
+        startTransition(() => {
+          setSessionInfo(tokenManager.getSessionInfo());
+        });
         console.log("👀 Tab became visible - checking session status");
         const sessionStatus = sessionRenewalService.getSessionStatus();
         if (!sessionStatus.isValid) {
-          handleSessionExpired();
+          startTransition(() => {
+            handleSessionExpired();
+          });
         }
       }
     };
@@ -111,15 +135,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const handleUserActivity = () => {
       if (isAuthenticated) {
         tokenManager.updateLastActivity();
-        setSessionInfo(tokenManager.getSessionInfo());
+        startTransition(() => {
+          setSessionInfo(tokenManager.getSessionInfo());
+        });
       }
     };
 
     window.addEventListener("authError", handleAuthError as EventListener);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
     const throttledActivity = throttle(handleUserActivity, 30000);
-
     ACTIVITY_EVENTS.forEach(event => {
       document.addEventListener(event, throttledActivity, true);
     });
@@ -127,7 +151,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => {
       window.removeEventListener("authError", handleAuthError as EventListener);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-
       ACTIVITY_EVENTS.forEach(event => {
         document.removeEventListener(event, throttledActivity, true);
       });
@@ -140,7 +163,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } else {
       sessionRenewalService.stop();
     }
-
     return () => {
       sessionRenewalService.stop();
     };
@@ -149,8 +171,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated) return;
     const interval = setInterval(() => {
-      const currentSessionInfo = tokenManager.getSessionInfo();
-      setSessionInfo(currentSessionInfo);
+      startTransition(() => {
+        const currentSessionInfo = tokenManager.getSessionInfo();
+        setSessionInfo(currentSessionInfo);
+      });
     }, 60000);
     return () => clearInterval(interval);
   }, [isAuthenticated]);
@@ -159,40 +183,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       const response = await authAPI.login(credentials);
-      setUser(response.user);
-      setToken(response.token);
-      tokenManager.setToken(response.token, response.refreshToken, response.expiresAt);
-      setSessionInfo(tokenManager.getSessionInfo());
-      startSessionRenewalService();
+      startTransition(() => {
+        setUser(response.user);
+        setToken(response.token);
+        tokenManager.setToken(response.token, response.refreshToken, response.expiresAt);
+        setSessionInfo(tokenManager.getSessionInfo());
+        startSessionRenewalService();
+      });
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
     } finally {
-      setIsLoading(false);
+      startTransition(() => {
+        setIsLoading(false);
+      });
     }
   };
 
   const logout = async (): Promise<void> => {
     try {
       sessionRenewalService.stop();
-      setShowSessionWarning(false);
+      startTransition(() => {
+        setShowSessionWarning(false);
+      });
       if (token) {
         await authAPI.logout();
       }
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
-      setUser(null);
-      setToken(null);
-      setSessionInfo(null);
-      tokenManager.clearSession();
+      startTransition(() => {
+        setUser(null);
+        setToken(null);
+        setSessionInfo(null);
+        tokenManager.clearSession();
+      });
     }
   };
 
   const updateProfile = async (data: UpdateProfileRequest): Promise<void> => {
     try {
       const response = await authAPI.updateProfile(data);
-      setUser(response.user);
+      startTransition(() => {
+        setUser(response.user);
+      });
     } catch (error) {
       console.error("Profile update failed:", error);
       throw error;
@@ -211,13 +245,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const refreshToken = async (): Promise<void> => {
     try {
       const response = await authAPI.refreshToken();
-      setToken(response.token);
-      tokenManager.setToken(response.token, undefined, response.expiresAt);
-      setSessionInfo(tokenManager.getSessionInfo());
+      startTransition(() => {
+        setToken(response.token);
+        tokenManager.setToken(response.token, undefined, response.expiresAt);
+        setSessionInfo(tokenManager.getSessionInfo());
+      });
       console.log("✅ Token refreshed successfully");
     } catch (error) {
       console.error("Token refresh failed:", error);
-      handleSessionExpired();
+      startTransition(() => {
+        handleSessionExpired();
+      });
       throw error;
     }
   };
@@ -225,7 +263,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const refreshUser = async (): Promise<void> => {
     try {
       const profileResponse = await authAPI.getProfile();
-      setUser(profileResponse.user);
+      startTransition(() => {
+        setUser(profileResponse.user);
+      });
     } catch (error) {
       console.error("User refresh failed:", error);
       throw error;

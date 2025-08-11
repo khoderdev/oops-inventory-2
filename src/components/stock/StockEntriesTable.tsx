@@ -101,15 +101,7 @@ export function StockEntriesTable() {
   const [sorting, setSorting] = useState<SortingState>([{ id: "purchaseDate", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [reportSorting, setReportSorting] = useState<SortingState>([]);
-  const materialsMap = useMemo(() => {
-    const map = new Map();
-    materials.forEach(m => {
-      map.set(m.id, m);
-      map.set(m.id.toString(), m);
-      map.set(parseInt(m.id), m);
-    });
-    return map;
-  }, [materials]);
+  const materialsMap = useMemo(() => { const map = new Map(); materials.forEach(m => { map.set(m.id, m); map.set(m.id.toString(), m); map.set(parseInt(m.id), m); }); return map; }, [materials]);
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];

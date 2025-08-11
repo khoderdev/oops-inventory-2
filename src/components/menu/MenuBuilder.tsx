@@ -28,33 +28,24 @@ import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterA
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData } = useInventoryStore();
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
-
-  // State for validation
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
   const [lastValidationTime, setLastValidationTime] = useState<number>(0);
 
-  // Automatic validation when data changes (only if enabled)
   useEffect(() => {
     const validateData = async () => {
-      // Skip validation if disabled
       if (!dataValidationEnabled) {
         setValidationResults(null);
         return;
       }
-
       if (!materials || !stockEntries || materials.length === 0) return;
-
       const now = Date.now();
-      // Only validate if data changed or it's been more than 30 seconds
       if (now - lastValidationTime < 30000) return;
 
       try {
         const result = dataValidator.validateData(materials, stockEntries);
         setValidationResults(result);
         setLastValidationTime(now);
-
-        // Show validation results if there are issues
         if (!result.isValid || result.summary.warnings > 0) {
           dataValidator.showValidationResults(result, "Menu Builder Data Validation");
         }
@@ -68,10 +59,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
     if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
-
     const issues: ValidationIssue[] = [];
-
-    // Check unit compatibility
     const ingredientUnitType = dataValidator.getUnitTypeFromUnit(ingredient.unit);
     const materialUnitType = dataValidator.getUnitTypeFromUnit(material.baseUnit);
 
@@ -102,7 +90,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     }
   }, []);
 
-  // Manual validation trigger
   const runValidation = useCallback(() => {
     if (!dataValidationEnabled) {
       toast({
@@ -122,113 +109,95 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     setShowValidationPanel(true);
   }, [materials, stockEntries, dataValidationEnabled]);
 
-  // Helper function to calculate cost per unit for a material
-  const calculateMaterialCostPerUnit = useCallback(
-    (material: Material | undefined, materialStockEntries: StockEntry[]): number => {
-      if (!material || !materialStockEntries.length) {
-        // Silently return 0 for missing materials or stock entries
-        // This is normal when materials don't have stock entries yet
-        return 0;
-      }
+  const calculateMaterialCostPerUnit = useCallback((material: Material | undefined, materialStockEntries: StockEntry[]): number => {
+    if (!material || !materialStockEntries.length) {
+      return 0;
+    }
 
-      // Validate material and stock entries
-      const materialIssues = dataValidator.validateMaterial(material);
-      if (materialIssues.length > 0) {
-        console.group(`🔍 Material Issues for ${material.name}`);
-        materialIssues.forEach(issue => {
-          const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
-          console.log(`${icon} ${issue.message}`);
-          if (issue.suggestion) {
-            console.log(`   💡 ${issue.suggestion}`);
-          }
-        });
-        console.groupEnd();
-      }
-
-      let totalCost = 0;
-      let totalQuantity = 0;
-      let validEntries = 0;
-
-      for (const entry of materialStockEntries) {
-        // Validate stock entries for this material (we'll validate all entries for this material once)
-        if (materialStockEntries.indexOf(entry) === 0) {
-          const entryIssues = dataValidator.validateStockEntries(material, materialStockEntries);
-          if (entryIssues.length > 0) {
-            console.group(`🔍 Stock Entry Issues for ${material.name}`);
-            entryIssues.forEach(issue => {
-              const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
-              console.log(`${icon} ${issue.message}`);
-              if (issue.suggestion) {
-                console.log(`   💡 ${issue.suggestion}`);
-              }
-            });
-            console.groupEnd();
-          }
+    const materialIssues = dataValidator.validateMaterial(material);
+    if (materialIssues.length > 0) {
+      console.group(`🔍 Material Issues for ${material.name}`);
+      materialIssues.forEach(issue => {
+        const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
+        console.log(`${icon} ${issue.message}`);
+        if (issue.suggestion) {
+          console.log(`   💡 ${issue.suggestion}`);
         }
+      });
+      console.groupEnd();
+    }
 
-        let entryCost = 0;
-        let entryQuantity = 0;
+    let totalCost = 0;
+    let totalQuantity = 0;
+    let validEntries = 0;
 
-        try {
-          // Priority 1: Use costPerBaseUnit if available
-          if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
-            entryCost = entry.costPerBaseUnit;
+    for (const entry of materialStockEntries) {
+      if (materialStockEntries.indexOf(entry) === 0) {
+        const entryIssues = dataValidator.validateStockEntries(material, materialStockEntries);
+        if (entryIssues.length > 0) {
+          console.group(`🔍 Stock Entry Issues for ${material.name}`);
+          entryIssues.forEach(issue => {
+            const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
+            console.log(`${icon} ${issue.message}`);
+            if (issue.suggestion) {
+              console.log(`   💡 ${issue.suggestion}`);
+            }
+          });
+          console.groupEnd();
+        }
+      }
+
+      let entryCost = 0;
+      let entryQuantity = 0;
+
+      try {
+        if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
+          entryCost = entry.costPerBaseUnit;
+          entryQuantity = 1;
+        } else if (entry.totalCost && entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
+          entryCost = entry.totalCost / entry.purchasedIndividualQuantity;
+          entryQuantity = entry.purchasedIndividualQuantity;
+        } else if (entry.totalCost && entry.purchasedQuantity && entry.purchasedQuantity > 0) {
+          try {
+            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+            const convertedQuantity = entry.purchasedQuantity * conversionFactor;
+            if (convertedQuantity > 0) {
+              entryCost = entry.totalCost / convertedQuantity;
+              entryQuantity = convertedQuantity;
+              console.log(`💰 Calculated from totalCost/convertedQuantity: ${entryCost} for ${material.name}`);
+            }
+          } catch (conversionError) {
+            console.warn(`⚠️ Unit conversion failed for ${material.name}:`, conversionError);
+          }
+        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+          try {
+            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+            entryCost = entry.costPerPurchasedUnit / conversionFactor;
             entryQuantity = 1;
-            // console.log(`💰 Using costPerBaseUnit: ${entryCost} for ${material.name}`);
+            console.log(`💰 Converted costPerPurchasedUnit: ${entryCost} for ${material.name}`);
+          } catch (conversionError) {
+            console.warn(`⚠️ Unit conversion failed for costPerPurchasedUnit ${material.name}:`, conversionError);
           }
-          // Priority 2: Calculate from totalCost and purchasedIndividualQuantity
-          else if (entry.totalCost && entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
-            entryCost = entry.totalCost / entry.purchasedIndividualQuantity;
-            entryQuantity = entry.purchasedIndividualQuantity;
-            // console.log(`💰 Calculated from totalCost/purchasedIndividualQuantity: ${entryCost} for ${material.name}`);
-          }
-          // Priority 3: Calculate from totalCost and converted purchasedQuantity
-          else if (entry.totalCost && entry.purchasedQuantity && entry.purchasedQuantity > 0) {
-            try {
-              const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-              const convertedQuantity = entry.purchasedQuantity * conversionFactor;
-              if (convertedQuantity > 0) {
-                entryCost = entry.totalCost / convertedQuantity;
-                entryQuantity = convertedQuantity;
-                console.log(`💰 Calculated from totalCost/convertedQuantity: ${entryCost} for ${material.name}`);
-              }
-            } catch (conversionError) {
-              console.warn(`⚠️ Unit conversion failed for ${material.name}:`, conversionError);
-            }
-          }
-          // Priority 4: Convert costPerPurchasedUnit to base unit cost
-          else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-            try {
-              const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-              entryCost = entry.costPerPurchasedUnit / conversionFactor;
-              entryQuantity = 1;
-              console.log(`💰 Converted costPerPurchasedUnit: ${entryCost} for ${material.name}`);
-            } catch (conversionError) {
-              console.warn(`⚠️ Unit conversion failed for costPerPurchasedUnit ${material.name}:`, conversionError);
-            }
-          }
-
-          if (entryCost > 0 && entryQuantity > 0) {
-            totalCost += entryCost * entryQuantity;
-            totalQuantity += entryQuantity;
-            validEntries++;
-          }
-        } catch (error) {
-          console.error(`❌ Error processing stock entry for ${material.name}:`, error);
         }
-      }
 
-      if (validEntries === 0) {
-        console.warn(`⚠️ No valid cost data found for material: ${material.name}`);
-        return 0;
+        if (entryCost > 0 && entryQuantity > 0) {
+          totalCost += entryCost * entryQuantity;
+          totalQuantity += entryQuantity;
+          validEntries++;
+        }
+      } catch (error) {
+        console.error(`❌ Error processing stock entry for ${material.name}:`, error);
       }
+    }
 
-      const weightedAverageCost = totalCost / totalQuantity;
-      // console.log(`✅ Final weighted average cost for ${material.name}: ${weightedAverageCost.toFixed(8)}`);
-      return parseFloat(weightedAverageCost.toFixed(8));
-    },
-    [] // No dependencies needed since function receives materialStockEntries as parameter
-  );
+    if (validEntries === 0) {
+      console.warn(`⚠️ No valid cost data found for material: ${material.name}`);
+      return 0;
+    }
+
+    const weightedAverageCost = totalCost / totalQuantity;
+    return parseFloat(weightedAverageCost.toFixed(8));
+  }, []);
 
   const availableMaterials = useMemo(() => {
     if (materials && materials.length > 0) {
@@ -247,7 +216,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [showMenuItemForm, setShowMenuItemForm] = useState(false);
   const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [showPrinterDialog, setShowPrinterDialog] = useState(false);
   const [selectedMenuItemForPrinter, setSelectedMenuItemForPrinter] = useState<MenuItem | null>(null);
   const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
@@ -255,9 +223,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
   const [showBulkCategoryDialog, setShowBulkCategoryDialog] = useState(false);
   const [bulkCategoryValue, setBulkCategoryValue] = useState<MenuItemCategory | "">("");
-  const [fabExpanded, setFabExpanded] = useState(false);
-
-  // TanStack Table state
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -265,24 +230,17 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {
       return ingredients.reduce((sum, ingredient) => {
-        // If ingredient has stored cost, use it
         if (ingredient.cost && ingredient.cost > 0) {
           return sum + ingredient.cost;
         }
-
-        // Calculate cost using helper function
         const material = availableMaterials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
         if (!material) {
           console.warn(`Material not found for ID: ${ingredient.materialId}`);
           return sum;
         }
-
-        // Validate ingredient data
         validateIngredientData(ingredient, material);
-
         const materialStockEntries = stockEntries.filter(entry => entry.materialId === String(ingredient.materialId));
         const costPerUnit = calculateMaterialCostPerUnit(material, materialStockEntries);
-
         let conversionFactor = 1;
         try {
           conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
@@ -290,7 +248,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           console.warn(`Unit conversion error for ingredient in material "${material.name}": ${ingredient.unit} to ${material.baseUnit}`, error);
           conversionFactor = 1;
         }
-
         const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
         return sum + ingredientCost;
       }, 0);
@@ -313,11 +270,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         console.error("❌ [MenuBuilder] onDeleteMenuItem handler not provided");
         return;
       }
-
       try {
-        await onDeleteMenuItem(id);
-
-        // Show success toast
+        onDeleteMenuItem(id);
         toast({
           title: "Success",
           description: "Menu item deleted successfully",
@@ -325,8 +279,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         });
       } catch (error) {
         console.error("❌ [MenuBuilder] Error deleting menu item:", error);
-
-        // Show error toast
         toast({
           title: "Error",
           description: "Failed to delete menu item",
@@ -341,26 +293,18 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     async (item: MenuItem) => {
       try {
         const newPOSStatus = !item.isPOSItem;
-
-        // Update the menu item's POS visibility
         const response = await menuAPI.updateMenuItem(item.id, {
           isPOSItem: newPOSStatus
         });
-
         if (!response) {
           throw new Error("Failed to update menu item POS visibility");
         }
-
         toast({
           title: "Success",
           description: `${item.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
           variant: "default"
         });
-
-        // Refresh the data to show updated state
         await fetchTabData("menu");
-
-        // Update local state by calling the update handler
         if (onUpdateMenuItem) {
           onUpdateMenuItem(item.id, { ...item, isPOSItem: newPOSStatus });
         }
@@ -381,13 +325,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     setShowPrinterDialog(true);
   }, []);
 
-  // Column helper for TanStack Table
   const columnHelper = createColumnHelper<MenuItem>();
 
-  // Column definitions
   const columns = useMemo<ColumnDef<MenuItem>[]>(
     () => [
-      // Bulk selection checkbox column
       columnHelper.display({
         id: "select",
         header: ({ table }) => <input type="checkbox" checked={table.getIsAllPageRowsSelected()} onChange={table.getToggleAllPageRowsSelectedHandler()} className="h-4 w-4" aria-label="Select all menu items" />,
@@ -397,7 +338,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         size: 48
       }),
 
-      // Image column
       columnHelper.display({
         id: "image",
         header: "Image",
@@ -625,23 +565,15 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   const handleAddMenuItem = useCallback(
     (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
-      console.log("🍽️ handleAddMenuItem - Creating new menu item with data:", data);
-
-      // Use the costs already calculated by MenuItemForm
       const ingredientsWithCosts = data.ingredients;
-
       const menuItemToCreate: MenuItem = {
-        id: `menu-${Date.now()}`, // Temporary ID, server should assign real ID
+        id: `menu-${Date.now()}`,
         ...data,
         ingredients: ingredientsWithCosts,
         createdAt: new Date(),
         updatedAt: new Date()
       };
-
-      console.log("🍽️ handleAddMenuItem - Final menu item to create:", menuItemToCreate);
       onCreateMenuItem(menuItemToCreate);
-
-      // Close the form
       setShowMenuItemForm(false);
       setEditingMenuItem(null);
     },
@@ -656,16 +588,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       }
 
       try {
-        // Use the costs already calculated by MenuItemForm
         const ingredientsWithCosts = data.ingredients;
-
         const updatedMenuItem: MenuItem = {
           ...editingMenuItem,
           ...data,
           ingredients: ingredientsWithCosts,
           updatedAt: new Date()
         };
-
         onUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
@@ -679,7 +608,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 
   const handleCloseModal = useCallback((open: boolean) => {
-    // Allow closing the dialog through the X button or explicit user actions
     if (!open) {
       setShowMenuItemForm(false);
       setEditingMenuItem(null);
@@ -691,17 +619,12 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     setEditingMenuItem(null);
   }, []);
 
-  const handleRowClick = useCallback((id: string) => {
-    setSelectedRowId(prevSelected => (prevSelected === id ? null : id));
-  }, []);
-
   const handleClosePrinterDialog = useCallback(() => {
     setShowPrinterDialog(false);
     setSelectedMenuItemForPrinter(null);
   }, []);
 
   const handlePrinterAssignmentComplete = useCallback(async () => {
-    // Refresh the menu items data to show updated printer assignments
     await fetchTabData("menu");
     handleClosePrinterDialog();
   }, [fetchTabData, handleClosePrinterDialog]);
@@ -709,18 +632,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const handleToggleBulkSelection = useCallback(() => {
     setBulkSelectionMode(prev => !prev);
     setSelectedMenuItems(new Set());
-  }, []);
-
-  const handleSelectMenuItem = useCallback((menuItemId: string) => {
-    setSelectedMenuItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(menuItemId)) {
-        newSet.delete(menuItemId);
-      } else {
-        newSet.add(menuItemId);
-      }
-      return newSet;
-    });
   }, []);
 
   const handleSelectAllMenuItems = useCallback(() => {
@@ -742,7 +653,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, []);
 
   const handleBulkPrinterAssignmentComplete = useCallback(async () => {
-    // Refresh the menu items data to show updated printer assignments
     await fetchTabData("menu");
     setSelectedMenuItems(new Set());
     setBulkSelectionMode(false);
@@ -773,15 +683,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
     try {
       const selectedItemsArray = Array.from(selectedMenuItems);
-
-      // Use the bulk API method for better performance
       const response = await menuAPI.bulkUpdateCategory(selectedItemsArray, bulkCategoryValue);
-
       if (!response || !response.data) {
         throw new Error("Failed to update menu items");
       }
-
-      // Update local state for all updated items
       if (onUpdateMenuItem && response.data.menuItems) {
         response.data.menuItems.forEach(updatedItem => {
           onUpdateMenuItem(updatedItem.id, updatedItem);
@@ -795,11 +700,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         description: `Updated ${response.data.updatedCount} menu items to ${categoryLabel} category`,
         variant: "default"
       });
-
-      // Refresh the data to show updated state
       await fetchTabData("menu");
-
-      // Reset selection and close dialog
       setSelectedMenuItems(new Set());
       setBulkSelectionMode(false);
       handleCloseBulkCategoryDialog();
@@ -818,12 +719,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
         <Card className="!border-0 !shadow-none !bg-background flex flex-col h-full">
           <CardHeader className="flex-shrink-0 px-4 sm:px-6 lg:px-8">
-            {/* Desktop: Title and Controls Inline, Mobile: Stacked */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              {/* Page Title */}
               <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex-shrink-0">Menu Items</CardTitle>
 
-              {/* Search and Filter Controls */}
               <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 flex-1 lg:max-w-2xl">
                 <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -845,7 +743,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               </div>
             </div>
 
-            {/* Validation Results Panel */}
             {dataValidationEnabled && validationResults && (validationResults.summary.errors > 0 || validationResults.summary.warnings > 0) && (
               <div className={`mt-4 p-3 sm:p-4 rounded-lg border ${validationResults.summary.errors > 0 ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
@@ -888,7 +785,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               </div>
             )}
 
-            {/* Results Counter */}
             {(searchTerm || selectedCategory !== "all") && (
               <div className="mt-3 text-xs sm:text-sm text-muted-foreground px-1">
                 Showing <span className="font-medium">{filteredMenuItems.length}</span> of <span className="font-medium">{menuItems.length}</span> menu items
@@ -909,12 +805,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </CardHeader>
           <CardContent className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4 lg:p-6">
             <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal} modal={true}>
-              <DialogContent 
-                className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto" 
-                aria-describedby="menu-item-form-description"
-                onPointerDownOutside={(e) => e.preventDefault()}
-                onInteractOutside={(e) => e.preventDefault()}
-              >
+              <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-form-description" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
                 <DialogHeader>
                   <DialogTitle className="text-lg sm:text-xl">{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
                 </DialogHeader>
@@ -922,20 +813,15 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               </DialogContent>
             </Dialog>
 
-            {/* TanStack Table with Virtualization */}
             <TanStackVirtualizedTable table={table} />
           </CardContent>
         </Card>
       </div>
 
-      {/* Floating Action Buttons - All Screen Sizes */}
       <div className="fixed bottom-6 right-6 z-50">
-        {/* FAB Stack Container */}
         <div className="flex flex-col items-end gap-3">
-          {/* Bulk Actions - Show at top when in bulk mode */}
           {bulkSelectionMode && (
             <div className="flex flex-col items-end gap-2 mb-2">
-              {/* Bulk Action Pills */}
               <div className="flex flex-col gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -976,9 +862,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             </div>
           )}
 
-          {/* Secondary Actions Row */}
           <div className="flex items-center gap-3">
-            {/* Validation FAB - Only show when enabled */}
             {dataValidationEnabled && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -992,7 +876,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
               </Tooltip>
             )}
 
-            {/* Bulk Selection Toggle FAB */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${bulkSelectionMode ? "bg-red-500 hover:bg-red-600 text-white" : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"}`} onClick={handleToggleBulkSelection} aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}>
@@ -1005,7 +888,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             </Tooltip>
           </div>
 
-          {/* Primary FAB - Add Menu Item */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -1026,13 +908,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         </div>
       </div>
 
-      {/* Printer Assignment Dialog */}
       <PrinterAssignmentDialog open={showPrinterDialog} onOpenChange={setShowPrinterDialog} item={selectedMenuItemForPrinter} itemType="menu" onAssignmentChange={handlePrinterAssignmentComplete} />
 
-      {/* Bulk Printer Assignment Dialog */}
       <BulkPrinterAssignmentDialog open={showBulkPrinterDialog} onOpenChange={setShowBulkPrinterDialog} selectedItems={selectedMenuItems} itemType="menu" onAssignmentChange={handleBulkPrinterAssignmentComplete} />
 
-      {/* Bulk Category Update Dialog */}
       <Dialog open={showBulkCategoryDialog} onOpenChange={setShowBulkCategoryDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1071,16 +950,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 };
 
-// TanStack Virtualized Table Component
 interface TanStackVirtualizedTableProps {
-  table: any; // ReactTable instance
+  table: any;
 }
 
 const TanStackVirtualizedTable: React.FC<TanStackVirtualizedTableProps> = ({ table }) => {
   const parentRef = useRef<HTMLDivElement>(null);
-
   const rows = table.getRowModel().rows;
-
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
@@ -1090,7 +966,6 @@ const TanStackVirtualizedTable: React.FC<TanStackVirtualizedTableProps> = ({ tab
 
   return (
     <div className="flex flex-1 flex-col min-h-0 border rounded-md">
-      {/* Table Header */}
       <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
         <Table>
           <TableHeader>
@@ -1119,7 +994,6 @@ const TanStackVirtualizedTable: React.FC<TanStackVirtualizedTableProps> = ({ tab
         </Table>
       </div>
 
-      {/* Virtualized Table Body */}
       <div className="flex-1 overflow-auto" ref={parentRef}>
         <div
           style={{
@@ -1130,7 +1004,6 @@ const TanStackVirtualizedTable: React.FC<TanStackVirtualizedTableProps> = ({ tab
         >
           {rowVirtualizer.getVirtualItems().map(virtualItem => {
             const row = rows[virtualItem.index];
-
             return (
               <div
                 key={virtualItem.key}

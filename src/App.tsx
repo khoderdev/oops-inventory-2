@@ -58,7 +58,12 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
           <AuthProvider>
             <Routes>
               {/* Public routes */}
