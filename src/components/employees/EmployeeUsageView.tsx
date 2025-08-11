@@ -9,8 +9,9 @@ import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, us
 import type { EmployeeUsage, EmployeeUsageType, EmployeeSettlement } from "@/types/employee";
 import { addDays } from "date-fns";
 import { useAtom } from "jotai";
-import { ChevronDown, ChevronRight, Download, Filter, ShoppingCart, TrendingUp, UserPlus } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight, Download, Filter, ShoppingCart, TrendingUp, UserPlus } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface EmployeeUsageViewProps {
   selectedEmployeeId?: number | null;
@@ -45,6 +46,7 @@ export interface GroupedOrder {
 }
 
 export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEmployeeId, onEmployeeSelect }) => {
+  const navigate = useNavigate();
   const [usages] = useAtom(usagesAtom);
   const [loading] = useAtom(usagesLoadingAtom);
   const [filters, setFilters] = useAtom(usagesFiltersAtom);
@@ -479,12 +481,15 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
 
       {/* Orders Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
             Employee Orders
           </CardTitle>
-          <CardDescription>Employee orders grouped by transaction with expandable item details</CardDescription>
+          <Button onClick={() => navigate("/employees/settlements")}>
+            Settlements
+            <ArrowRight className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
