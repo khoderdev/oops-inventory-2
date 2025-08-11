@@ -16,9 +16,9 @@ import { POSClientOrders } from "./components/pos/POSClientOrders";
 import System from "./components/system";
 import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
-import { ProtectedRoute } from "./routes/ProtectedRoute";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
-import { RoleBasedRoute } from "./routes/RoleBasedRoute";
+
 import LockScreen from "./components/LockScreen";
 
 // Lazy load components for better performance
@@ -88,21 +88,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 path="/pos"
                 element={
                   <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
-                    <RoleBasedRoute allowedPaths={["/pos"]}>
-                      {/* <AuthenticatedLayout> */}
-                      <POSClientPage />
-                      {/* </AuthenticatedLayout> */}
-                    </RoleBasedRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/lock"
-                element={
-                  <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
-                    <RoleBasedRoute allowedPaths={["/pos"]}>
-                      <LockScreen />
-                    </RoleBasedRoute>
+                    <POSClientPage />
                   </ProtectedRoute>
                 }
               />

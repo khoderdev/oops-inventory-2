@@ -19,12 +19,15 @@ interface ApiErrorResponse {
 }
 
 const LoginPage: React.FC = () => {
-  const { loginWithPin, isAuthenticated, isLoading } = useAuth();
+  const { loginWithPin, isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
   const [, setError] = useState("");
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
+  
   if (isAuthenticated && !isLoading) {
-    return <Navigate to={from} replace />;
+    // Redirect staff users to /pos by default, others to their intended destination or dashboard
+    const redirectTo = from || (user?.role === "staff" ? "/pos" : "/");
+    return <Navigate to={redirectTo} replace />;
   }
 
   const handleSignIn = async (pin: string) => {

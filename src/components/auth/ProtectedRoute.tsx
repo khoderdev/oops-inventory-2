@@ -2,15 +2,17 @@ import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { Loading } from "../ui/Loading";
+import { ErrorBoundary, ErrorFallback } from "@/utils/ErrorFallback";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredPermission?: string;
   requiredRole?: string | string[];
   fallbackPath?: string;
+  pageTitle?: string;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredPermission, requiredRole, fallbackPath = "/login" }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredPermission, requiredRole, fallbackPath = "/login", pageTitle }) => {
   const { isAuthenticated, isLoading, hasPermission, hasRole, user } = useAuth();
   const location = useLocation();
 
@@ -60,7 +62,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredPermi
     );
   }
 
-  return <>{children}</>;
+  // Role-based path restrictions for staff users
+  if (user?.role === "staff") {
+    const allowedPaths = ["/pos"];
+    const currentPath = location.pathname;
+    const isAllowedPath = allowedPaths.some(path => currentPath.startsWith(path));
+    
+    if (!isAllowedPath) {
+      return <Navigate to="/pos" replace />;
+    }
+  }
+
+  return (
+    <ErrorBoundary fallback={<ErrorFallback pageTitle={pageTitle} />}>
+      {children}
+    </ErrorBoundary>
+  );
 };
 
 export default ProtectedRoute;
