@@ -367,7 +367,7 @@ export const getMonthlyUsageSummary = async (req, res) => {
 export const updateUsage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { quantity, unit, unitCost, notes, isSettled, settlementId } = req.body;
+    const { quantity, unit, unitCost, notes, isSettled, settlementId, discountApplied, finalCost } = req.body;
 
     const usage = await EmployeeUsage.findByPk(id);
     if (!usage) {
@@ -377,12 +377,20 @@ export const updateUsage = async (req, res) => {
       });
     }
 
-    // Only check if already settled when not trying to settle it
     if (usage.isSettled && isSettled !== true) {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot update settled usage record"
-      });
+      const isDiscountUpdate = discountApplied !== undefined || finalCost !== undefined;
+      const isOnlyDiscountUpdate = isDiscountUpdate && 
+        quantity === undefined && 
+        unit === undefined && 
+        unitCost === undefined && 
+        notes === undefined;
+      
+      if (!isOnlyDiscountUpdate) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot update settled usage record (only discount adjustments allowed)"
+        });
+      }
     }
 
     const oldValues = usage.toJSON();
@@ -403,8 +411,24 @@ export const updateUsage = async (req, res) => {
     if (isSettled !== undefined) updateData.isSettled = Boolean(isSettled);
     if (settlementId !== undefined) updateData.settlementId = settlementId;
 
-    // Recalculate discount if total cost changed
-    if (updateData.totalCost !== undefined) {
+    // Handle discount updates
+    if (discountApplied !== undefined) {
+      updateData.discountApplied = parseFloat(discountApplied);
+      const totalCost = updateData.totalCost || usage.totalCost;
+      updateData.discountAmount = totalCost * (parseFloat(discountApplied) / 100);
+      updateData.finalCost = totalCost - updateData.discountAmount;
+    }
+    
+    // Handle direct final cost updates
+    if (finalCost !== undefined && discountApplied === undefined) {
+      updateData.finalCost = parseFloat(finalCost);
+      const totalCost = updateData.totalCost || usage.totalCost;
+      updateData.discountAmount = totalCost - parseFloat(finalCost);
+      updateData.discountApplied = (updateData.discountAmount / totalCost) * 100;
+    }
+
+    // Recalculate discount if total cost changed (but discount wasn't explicitly set)
+    if (updateData.totalCost !== undefined && discountApplied === undefined) {
       updateData.discountAmount = updateData.totalCost * (usage.discountApplied / 100);
       updateData.finalCost = updateData.totalCost - updateData.discountAmount;
     }

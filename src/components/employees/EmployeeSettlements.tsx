@@ -53,6 +53,8 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [selectedUsageIds, setSelectedUsageIds] = useState<number[]>([]);
   const [loadingNewUsages, setLoadingNewUsages] = useState(false);
   const [addedUsageIds, setAddedUsageIds] = useState<Set<number>>(new Set());
+  const [editingDiscountId, setEditingDiscountId] = useState<number | null>(null);
+  const [editingDiscountValue, setEditingDiscountValue] = useState<string>("");
   const { user } = useAuth();
   const canDeleteSettlements = user?.role === "admin" || user?.role === "manager";
   const canDeleteSettlement = (settlement: EmployeeSettlement | null) => {
@@ -247,6 +249,128 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     } finally {
       setLoadingNewUsages(false);
     }
+  };
+
+  const handleDiscountEdit = (usageId: number, currentDiscount: number) => {
+    setEditingDiscountId(usageId);
+    setEditingDiscountValue(currentDiscount.toString());
+  };
+
+  const handleDiscountSave = async (usageId: number) => {
+    if (!selectedSettlement) return;
+
+    try {
+      const newDiscountValue = parseFloat(editingDiscountValue);
+      if (isNaN(newDiscountValue) || newDiscountValue < 0 || newDiscountValue > 100) {
+        toast.error("Please enter a valid discount percentage (0-100)");
+        return;
+      }
+
+      // Find the usage item in the breakdown
+      const usageItem = selectedSettlement.settlementData?.usageBreakdown?.find(u => u.id === usageId);
+      if (!usageItem) return;
+
+      // Calculate new final cost based on new discount
+      const discountAmount = (usageItem.totalCost * newDiscountValue) / 100;
+      const newFinalCost = usageItem.totalCost - discountAmount;
+
+      // Update the usage record in the backend
+      await employeeAPI.updateUsage(usageId, {
+        discountApplied: newDiscountValue,
+        finalCost: newFinalCost
+      });
+
+      // Update the local state
+      const updatedUsageBreakdown = selectedSettlement.settlementData.usageBreakdown.map(usage => 
+        usage.id === usageId 
+          ? { ...usage, discountApplied: newDiscountValue, finalCost: newFinalCost }
+          : usage
+      );
+
+      // Recalculate totals
+      const totalUsageCost = updatedUsageBreakdown.reduce((sum, item) => sum + Number(item.totalCost || 0), 0);
+      const totalDiscountAmount = updatedUsageBreakdown.reduce((sum, item) => sum + (Number(item.totalCost || 0) - Number(item.finalCost || 0)), 0);
+      const totalDeduction = totalUsageCost - totalDiscountAmount;
+      const baseSalary = Number(selectedSettlement.baseSalary || 0);
+      const bonusAmount = Number(selectedSettlement.bonusAmount || 0);
+      const penaltyAmount = Number(selectedSettlement.penaltyAmount || 0);
+      const finalSalary = baseSalary - totalDeduction + bonusAmount - penaltyAmount;
+
+      // Update settlement data for local state (EmployeeSettlement.settlementData format)
+      const updatedSettlementDataForState = {
+        ...selectedSettlement.settlementData,
+        usageBreakdown: updatedUsageBreakdown,
+        calculationDetails: {
+          ...selectedSettlement.settlementData.calculationDetails,
+          totalUsageCost,
+          totalDiscountAmount,
+          netDeduction: totalDeduction
+        }
+      };
+
+      // Build settlement data for API (SettlementPreview format)
+      const settlementDataForAPI = {
+        employee: {
+          id: selectedSettlement.employee.id,
+          name: `${selectedSettlement.employee.firstName} ${selectedSettlement.employee.lastName}`,
+          employeeNumber: selectedSettlement.employee.employeeNumber,
+          department: selectedSettlement.employee.department,
+          discountPercentage: Number(selectedSettlement.employee?.discountPercentage || 0)
+        },
+        period: {
+          month: selectedSettlement.settlementMonth,
+          year: selectedSettlement.settlementYear,
+          monthName: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth - 1).toLocaleString('default', { month: 'long' })
+        },
+        calculation: {
+          baseSalary: Number(selectedSettlement.baseSalary),
+          totalUsageCost,
+          totalDiscountAmount,
+          totalDeduction,
+          bonusAmount: Number(selectedSettlement.bonusAmount),
+          penaltyAmount: Number(selectedSettlement.penaltyAmount),
+          finalSalary,
+          usageItemsCount: updatedUsageBreakdown.length
+        },
+        usages: updatedUsageBreakdown,
+        usageBreakdown: updatedUsageBreakdown
+      };
+
+      // Update the settlement in the backend
+      await employeeAPI.updateSettlement(selectedSettlement.id, {
+        totalUsageCost,
+        totalDiscountAmount,
+        totalDeduction,
+        finalSalary,
+        settlementData: settlementDataForAPI
+      });
+
+      // Update local state
+      setSelectedSettlement({
+        ...selectedSettlement,
+        totalUsageCost,
+        totalDiscountAmount,
+        totalDeduction,
+        finalSalary,
+        settlementData: updatedSettlementDataForState
+      });
+
+      setEditingDiscountId(null);
+      setEditingDiscountValue("");
+      
+      // Refresh settlements list
+      await fetchSettlements(filters);
+      
+      toast.success("Discount updated successfully");
+    } catch (error) {
+      console.error("Error updating discount:", error);
+      toast.error("Failed to update discount");
+    }
+  };
+
+  const handleDiscountCancel = () => {
+    setEditingDiscountId(null);
+    setEditingDiscountValue("");
   };
 
   const addUsagesToCurrentSettlement = async (usageIds: number[]) => {
@@ -889,7 +1013,37 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                               <TableCell>{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
                               <TableCell className="font-mono">{formatCurrency(usage.unitCost)}</TableCell>
                               <TableCell className="font-mono">{formatCurrency(usage.totalCost)}</TableCell>
-                              <TableCell className="font-mono text-green-600">-{usage.discountApplied}%</TableCell>
+                              <TableCell 
+                                className="font-mono text-green-600 cursor-pointer hover:bg-muted/50"
+                                onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied)}
+                                title="Double-click to edit discount"
+                              >
+                                {editingDiscountId === usage.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={editingDiscountValue}
+                                      onChange={(e) => setEditingDiscountValue(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          handleDiscountSave(usage.id);
+                                        } else if (e.key === 'Escape') {
+                                          handleDiscountCancel();
+                                        }
+                                      }}
+                                      onBlur={() => handleDiscountSave(usage.id)}
+                                      className="w-16 px-1 py-0 text-xs border rounded"
+                                      min="0"
+                                      max="100"
+                                      step="0.1"
+                                      autoFocus
+                                    />
+                                    <span className="text-xs">%</span>
+                                  </div>
+                                ) : (
+                                  <span>-{usage.discountApplied}%</span>
+                                )}
+                              </TableCell>
                               <TableCell className="font-mono font-medium">{formatCurrency(usage.finalCost)}</TableCell>
                             </TableRow>
                           ))}
