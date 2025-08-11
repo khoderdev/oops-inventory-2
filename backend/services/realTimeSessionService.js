@@ -4,12 +4,11 @@ import { AuditLog, User, Session } from "../models/index.js";
 class RealTimeSessionService {
   constructor() {
     this.io = null;
-    this.connectedUsers = new Map(); // socketId -> userSession
-    this.userSockets = new Map(); // userId -> Set of socketIds
+    this.connectedUsers = new Map(); 
+    this.userSockets = new Map(); 
     this.heartbeatInterval = null;
     this.cleanupInterval = null;
   }
-
   initialize(server) {
     this.io = new Server(server, {
       cors: {
@@ -20,10 +19,7 @@ class RealTimeSessionService {
       pingTimeout: 60000,
       pingInterval: 25000
     });
-
     this.setupSocketHandlers();
-    
-    // Start services with error handling
     try {
       this.startHeartbeatService();
       this.startCleanupService();
@@ -37,8 +33,6 @@ class RealTimeSessionService {
   setupSocketHandlers() {
     this.io.on("connection", (socket) => {
       console.log(`🔗 New socket connection: ${socket.id}`);
-
-      // Handle authentication
       socket.on("authenticate", async (data) => {
         try {
           await this.authenticateSocket(socket, data);
@@ -49,7 +43,6 @@ class RealTimeSessionService {
         }
       });
 
-      // Handle heartbeat
       socket.on("heartbeat", async (data) => {
         try {
           await this.handleHeartbeat(socket, data);
@@ -58,7 +51,6 @@ class RealTimeSessionService {
         }
       });
 
-      // Handle status updates
       socket.on("status_update", async (data) => {
         try {
           await this.handleStatusUpdate(socket, data);
@@ -67,7 +59,6 @@ class RealTimeSessionService {
         }
       });
 
-      // Handle device info updates
       socket.on("device_info", async (data) => {
         try {
           await this.handleDeviceInfo(socket, data);
@@ -76,7 +67,6 @@ class RealTimeSessionService {
         }
       });
 
-      // Handle disconnection
       socket.on("disconnect", async (reason) => {
         try {
           await this.handleDisconnect(socket, reason);
@@ -85,7 +75,6 @@ class RealTimeSessionService {
         }
       });
 
-      // Handle manual logout
       socket.on("logout", async () => {
         try {
           await this.handleLogout(socket);

@@ -139,17 +139,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/sales/refunds"
-                element={
-                  <ProtectedRoute requiredPermission={PERMISSIONS.SALES_REFUND}>
-                    <AuthenticatedLayout>
-                      <PlaceholderPage title="Sales Refunds" description="Process and manage sales refunds" />
-                    </AuthenticatedLayout>
-                  </ProtectedRoute>
-                }
-              />
-
               {/* Orders Management */}
               <Route
                 path="/orders"

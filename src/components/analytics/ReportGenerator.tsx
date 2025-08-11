@@ -85,7 +85,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
         toDate.setHours(23, 59, 59, 999);
 
         filteredData = {
-          stockEntries: stockEntries.data.filter(entry => {
+          stockEntries: stockEntries.filter(entry => {
             const entryDate = new Date(entry.purchaseDate);
             return entryDate >= fromDate && entryDate <= toDate;
           }),
@@ -98,28 +98,28 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
       switch (selectedReportType) {
         case "inventory-summary":
-          reportResults = await generateInventorySummaryReport(materials.data, stockEntries.data);
+          reportResults = await generateInventorySummaryReport(materials, stockEntries);
           break;
         case "stock-purchases":
-          reportResults = await generateStockPurchasesReport(filteredData?.stockEntries || [], materials.data);
+          reportResults = await generateStockPurchasesReport(filteredData?.stockEntries || [], materials);
           break;
         case "sales-performance":
           reportResults = await generateSalesPerformanceReport(filteredData?.sales || [], menuItems.data);
           break;
         case "cost-analysis":
-          reportResults = await generateCostAnalysisReport(materials.data, filteredData?.stockEntries || []);
+          reportResults = await generateCostAnalysisReport(materials, filteredData?.stockEntries || []);
           break;
         case "supplier-performance":
-          reportResults = await generateSupplierPerformanceReport(filteredData?.stockEntries || [], materials.data);
+          reportResults = await generateSupplierPerformanceReport(filteredData?.stockEntries || [], materials);
           break;
         case "expiry-alerts":
-          reportResults = await generateExpiryAlertsReport(stockEntries.data, materials.data);
+          reportResults = await generateExpiryAlertsReport(stockEntries, materials);
           break;
         case "category-analysis":
-          reportResults = await generateCategoryAnalysisReport(materials.data, filteredData?.stockEntries || [], filteredData?.sales || []);
+          reportResults = await generateCategoryAnalysisReport(materials, filteredData?.stockEntries || [], filteredData?.sales || []);
           break;
         case "menu-profitability":
-          reportResults = await generateMenuProfitabilityReport(menuItems.data, materials.data, filteredData?.sales || []);
+          reportResults = await generateMenuProfitabilityReport(menuItems.data, materials, filteredData?.sales || []);
           break;
         case "section-performance":
           reportResults = await generateSectionPerformanceReport(sections.data, assignments.data, filteredData?.sales || []);
@@ -128,7 +128,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           reportResults = await generateWasteReport(dateFrom && format(dateFrom, "yyyy-MM-dd"), dateTo && format(dateTo, "yyyy-MM-dd"));
           break;
         case "variance-analysis":
-          reportResults = await generateVarianceAnalysisReport(materials.data, stockEntries.data, sales.data, dateFrom && format(dateFrom, "yyyy-MM-dd"), dateTo && format(dateTo, "yyyy-MM-dd"));
+          reportResults = await generateVarianceAnalysisReport(materials, stockEntries, sales.data, dateFrom && format(dateFrom, "yyyy-MM-dd"), dateTo && format(dateTo, "yyyy-MM-dd"));
           break;
         default:
           throw new Error("Invalid report type");

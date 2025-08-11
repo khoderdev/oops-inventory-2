@@ -39,7 +39,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     console.error("Failed to load orders data:", error);
   }, []);
   const orderDataTypes = useMemo(() => ["orderSummaries"] as ("orderSummaries" | "orders")[], []);
-  const { isLoading: ordersLoading, refresh: refreshOrders } = useOrdersPrefetch({ autoFetch: true, dataTypes: orderDataTypes, onError: handleOrdersError });
+  const { refresh: refreshOrders } = useOrdersPrefetch({ autoFetch: true, dataTypes: orderDataTypes, onError: handleOrdersError });
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -117,7 +117,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     [onOrderSelect]
   );
 
-  const { currentOrder, isLoading: orderLoading, error: orderError, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
+  const { currentOrder, isLoading: orderLoading, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
   const showError = useCallback((message: string) => {
     setError(message);
     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
@@ -386,9 +386,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setSelectedItemForNotes(null);
   }, []);
 
-  const handlePaymentWithPrinter = useCallback(async (printer: any) => {}, []);
+  const handlePaymentWithPrinter = useCallback(async (printer?: any) => {
+    // TODO: Implement payment with printer functionality
+    console.log('Payment with printer:', printer);
+  }, []);
   const handlePrintReceiptWithPrinter = useCallback(
-    async (printer: any) => {
+    async (printer?: any) => {
       let receiptData = lastSaleData;
       if (!receiptData) {
         const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
@@ -876,7 +879,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const responseData = response.data as { data?: any } | any;
           const existingOrder = responseData.data || responseData;
           if (existingOrder && existingOrder.items) {
-            const loadedOrder = await loadOrder(existingOrder.id);
             const cartItems: POSCartItem[] = existingOrder.items
               .map(item => {
                 let originalItem: StockEntryWithMaterial | MenuItem;
@@ -1076,7 +1078,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }
         });
         itemsByPrinter.forEach((items, printerId) => {
-          const printerName = items[0]?.assignedPrinter?.name || `Printer ${printerId}`;
         });
         const printPromises = Array.from(itemsByPrinter.entries()).map(async ([printerId, items]) => {
           try {
