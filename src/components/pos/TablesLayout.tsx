@@ -395,7 +395,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     <div className="h-[calc(100vh-0rem)] w-full flex flex-col overflow-hidden">
       <div className="h-full flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 mr-4">
+        <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 mr-6">
           <div>
             <h2 className={`text-2xl font-bold text-gray-800 ${isArrangeMode ? 'hidden sm:block' : ''}`}>Tables</h2>
           </div>
@@ -483,7 +483,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
             {/* Restaurant Floor Plan - Red border defines the table placement area */}
             <div
               ref={canvasRef}
-              className={`relative w-full h-full border-red-500 border${isDragMode ? "cursor-default" : isArrangeMode && selectedTool !== "select" ? "cursor-crosshair" : ""}`}
+              className={`relative w-full h-full ${isDragMode ? "cursor-default" : isArrangeMode && selectedTool !== "select" ? "cursor-crosshair" : ""}`}
               style={{
                 backgroundImage: isDragMode ? "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.1) 1px, transparent 0)" : "none",
                 backgroundSize: isDragMode ? "20px 20px" : "auto"
