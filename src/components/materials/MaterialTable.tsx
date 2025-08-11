@@ -660,18 +660,9 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
           {/* Desktop Table View - TanStack Virtualized */}
           {!loading && materials.length > 0 && (
             <div className="hidden lg:block px-2 mt-10">
-                <TanStackTable 
-                  table={table}
-                  virtualized={true}
-                  customHeaderAlignment={{ actions: 'center' }}
-                  customCellAlignment={{ actions: 'center' }}
-                  estimatedRowSize={60}
-                  overscan={10}
-                  loading={loading}
-                  emptyMessage="No materials found"
-                  maxHeight="calc(100vh-240px)"
-                  className=""
-                />
+              <div className="h-[calc(100vh-260px)] overflow-y-hidden">
+                <TanStackTable table={table} virtualized={true} customHeaderAlignment={{ actions: "center" }} customCellAlignment={{ actions: "center" }} estimatedRowSize={60} overscan={10} loading={loading} emptyMessage="No materials found" maxHeight="calc(100vh-260px)" />
+              </div>
             </div>
           )}
 
@@ -712,5 +703,3 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
     </TooltipProvider>
   );
 }
-
-

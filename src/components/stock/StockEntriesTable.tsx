@@ -40,8 +40,6 @@ export function StockEntriesTable() {
   const { materials: materialsWithStock, refresh } = usePrefetch();
   const materials = materialsWithStock;
 
-
-
   const initializeFromCache = () => {
     try {
       const cached = localStorage.getItem(STOCK_ENTRIES_CACHE_KEY);
@@ -736,27 +734,19 @@ export function StockEntriesTable() {
 
   const uniqueMaterials = useMemo(() => materials.map(m => m.name).sort(), [materials]);
   const stockEntriesWithMaterial: StockEntryWithMaterial[] = useMemo(() => {
-    return optimisticStockEntries.map(entry => {
-      const material = materialsMap.get(entry.materialId);
-      return {
-        ...entry,
-        material: material || {
-          id: entry.materialId.toString(),
-          name: `[Deleted Material - ID: ${entry.materialId}]`,
-          category: 'other' as MaterialCategory,
-          baseUnit: 'piece',
-          unitType: 'piece' as UnitType,
-          costPerUnit: 0,
-          availableQuantity: 0,
-          totalQuantityInBaseUnit: 0,
-          totalValue: 0,
-          averageCostPerBaseUnit: 0,
-          stockEntries: [],
-          createdAt: new Date(),
-          updatedAt: new Date()
-        } as MaterialWithStock
-      } as StockEntryWithMaterial;
-    });
+    return optimisticStockEntries
+      .filter(entry => {
+        // Filter out entries where the material no longer exists
+        const material = materialsMap.get(entry.materialId);
+        return material !== undefined;
+      })
+      .map(entry => {
+        const material = materialsMap.get(entry.materialId);
+        return {
+          ...entry,
+          material: material!
+        } as StockEntryWithMaterial;
+      });
   }, [optimisticStockEntries, materialsMap]);
   const table = useReactTable({
     data: stockEntriesWithMaterial,
@@ -1251,6 +1241,7 @@ export function StockEntriesTable() {
           {/* Desktop Table View - TanStack Virtualized */}
           {!loading && !error && stockEntriesWithMaterial.length > 0 && (
             <div className="hidden lg:block px-2">
+              <div className="h-[calc(100vh-260px)] overflow-y-hidden">
                 <TanStackTable
                   table={table}
                   virtualized={true}
@@ -1270,6 +1261,7 @@ export function StockEntriesTable() {
                   }}
                   className=""
                 />
+              </div>
             </div>
           )}
         </div>
