@@ -181,10 +181,15 @@ const EmployeeSettlement = sequelize.define(
             settlement.changed('totalDeduction') || 
             settlement.changed('bonusAmount') || 
             settlement.changed('penaltyAmount')) {
-          settlement.finalSalary = settlement.baseSalary 
-            - settlement.totalDeduction 
-            + settlement.bonusAmount 
-            - settlement.penaltyAmount;
+          // Only recalculate if finalSalary is not explicitly provided
+          if (!settlement.changed('finalSalary')) {
+            const baseSalary = Number(settlement.baseSalary) || 0;
+            const totalDeduction = Number(settlement.totalDeduction) || 0;
+            const bonusAmount = Number(settlement.bonusAmount) || 0;
+            const penaltyAmount = Number(settlement.penaltyAmount) || 0;
+            
+            settlement.finalSalary = baseSalary - totalDeduction + bonusAmount - penaltyAmount;
+          }
         }
         
         // Set approval timestamp

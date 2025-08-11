@@ -893,20 +893,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle>Settlement Details</DialogTitle>
-                <DialogDescription>Detailed breakdown of the settlement calculation</DialogDescription>
               </div>
-              {selectedSettlement && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fetchNewUsagesAfterSettlement(selectedSettlement)}
-                  disabled={loadingNewUsages}
-                  className="flex items-center space-x-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>{loadingNewUsages ? "Loading..." : "Add New Usage"}</span>
-                </Button>
-              )}
             </div>
           </DialogHeader>
 
@@ -1112,90 +1099,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* New Usages Dialog */}
-      <Dialog open={newUsagesDialogOpen} onOpenChange={setNewUsagesDialogOpen}>
-        <DialogContent key={`new-usages-${newUsages.length}-${Date.now()}`} className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Usage to Settlement</DialogTitle>
-            <DialogDescription>
-              Usage items created after the settlement date that can be added to the current settlement
-            </DialogDescription>
-          </DialogHeader>
-
-          {newUsages.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No new usage records found after the settlement creation date.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                Found {newUsages.length} usage record(s) created after this settlement. Select which ones to add:
-              </div>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {newUsages.map((usage, index) => (
-                  <div key={usage.id} className="flex items-center space-x-3 p-3 border rounded-lg">
-                    <input
-                      type="checkbox"
-                      id={`usage-${usage.id}`}
-                      className="w-4 h-4"
-                      checked={selectedUsageIds.includes(usage.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedUsageIds(prev => [...prev, usage.id]);
-                        } else {
-                          setSelectedUsageIds(prev => prev.filter(id => id !== usage.id));
-                        }
-                      }}
-                    />
-                    <label htmlFor={`usage-${usage.id}`} className="flex-1 cursor-pointer">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">
-                            {usage.usageType === "menu_item" ? "Menu Item" : "Material"}: {usage.material?.name || usage.menuItem?.name || "Unknown Item"}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            Quantity: {usage.quantity} {usage.unit} • Cost: ${Number(usage.finalCost || 0).toFixed(2)} • Date: {new Date(usage.usageDate).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">${Number(usage.finalCost || 0).toFixed(2)}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Created: {new Date(usage.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-between items-center pt-4 border-t">
-                <div className="text-sm text-muted-foreground">
-                  Total Cost: ${newUsages.reduce((sum, usage) => sum + Number(usage.finalCost || 0), 0).toFixed(2)}
-                </div>
-                <div className="space-x-2">
-                  <Button variant="outline" onClick={() => setNewUsagesDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      if (selectedUsageIds.length > 0) {
-                        addUsagesToCurrentSettlement(selectedUsageIds);
-                      } else {
-                        toast.error("Please select at least one usage record to add");
-                      }
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    Add Selected to Settlement
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

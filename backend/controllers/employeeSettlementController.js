@@ -448,7 +448,6 @@ export const updateSettlement = async (req, res) => {
     if (totalUsageCost !== undefined) updateData.totalUsageCost = parseFloat(totalUsageCost);
     if (totalDiscountAmount !== undefined) updateData.totalDiscountAmount = parseFloat(totalDiscountAmount);
     if (totalDeduction !== undefined) updateData.totalDeduction = parseFloat(totalDeduction);
-    if (finalSalary !== undefined) updateData.finalSalary = parseFloat(finalSalary);
     if (settlementData !== undefined) {
       updateData.settlementData = settlementData;
       if (settlementData.usageBreakdown && Array.isArray(settlementData.usageBreakdown)) {
@@ -456,23 +455,48 @@ export const updateSettlement = async (req, res) => {
       }
     }
     if (totalUsageCost !== undefined || totalDiscountAmount !== undefined || settlementData !== undefined) {
-      const settlementTotals = await EmployeeUsage.calculateSettlementTotal(settlement.employeeId, settlement.id);
-      if (settlementTotals.usageCount > 0) {
-        const totalUsageCost = Number(settlementTotals.totalUsageCost) || 0;
-        const totalDiscountAmount = Number(settlementTotals.totalDiscountAmount) || 0;
-        const totalFinalCost = Number(settlementTotals.totalFinalCost) || 0;
-        const usageCount = Number(settlementTotals.usageCount) || 0;
-        updateData.totalUsageCost = totalUsageCost;
-        updateData.totalDiscountAmount = totalDiscountAmount;
-        updateData.totalDeduction = totalFinalCost;
-        updateData.usageItemsCount = usageCount;
-        const baseSalary = Number(updateData.baseSalary !== undefined ? updateData.baseSalary : settlement.baseSalary) || 0;
-        const bonusAmt = Number(updateData.bonusAmount !== undefined ? updateData.bonusAmount : settlement.bonusAmount) || 0;
-        const penaltyAmt = Number(updateData.penaltyAmount !== undefined ? updateData.penaltyAmount : settlement.penaltyAmount) || 0;
-        const calculatedFinalSalary = baseSalary - totalFinalCost + bonusAmt - penaltyAmt;
-        updateData.finalSalary = calculatedFinalSalary;
+      let usageCost, discountAmount, netDeduction;
+      if (totalUsageCost !== undefined && totalDiscountAmount !== undefined && totalDeduction !== undefined) {
+        usageCost = Number(totalUsageCost) || 0;
+        discountAmount = Number(totalDiscountAmount) || 0;
+        netDeduction = Number(totalDeduction) || 0;
+        updateData.totalUsageCost = usageCost;
+        updateData.totalDiscountAmount = discountAmount;
+        updateData.totalDeduction = netDeduction;
+        console.log('Using frontend calculated values:', { usageCost, discountAmount, netDeduction });
+      } else {
+        const settlementTotals = await EmployeeUsage.calculateSettlementTotal(settlement.employeeId, settlement.id);
+        console.log('Settlement totals from DB:', settlementTotals);
+        if (settlementTotals.usageCount > 0) {
+          usageCost = Number(settlementTotals.totalUsageCost) || 0;
+          discountAmount = Number(settlementTotals.totalDiscountAmount) || 0;
+          netDeduction = usageCost - discountAmount;
+          const usageCount = Number(settlementTotals.usageCount) || 0;
+          updateData.totalUsageCost = usageCost;
+          updateData.totalDiscountAmount = discountAmount;
+          updateData.totalDeduction = netDeduction;
+          updateData.usageItemsCount = usageCount;
+          console.log('Using DB calculated values:', { usageCost, discountAmount, netDeduction });
+        }
       }
+      
+      const baseSalary = Number(updateData.baseSalary !== undefined ? updateData.baseSalary : settlement.baseSalary) || 0;
+      const bonusAmt = Number(updateData.bonusAmount !== undefined ? updateData.bonusAmount : settlement.bonusAmount) || 0;
+      const penaltyAmt = Number(updateData.penaltyAmount !== undefined ? updateData.penaltyAmount : settlement.penaltyAmount) || 0;
+      const calculatedFinalSalary = baseSalary - (netDeduction || 0) + bonusAmt - penaltyAmt;
+      updateData.finalSalary = calculatedFinalSalary;
+      console.log('Final salary calculation:', { baseSalary, netDeduction, bonusAmt, penaltyAmt, calculatedFinalSalary });
     }
+    
+    if (updateData.finalSalary === undefined) {
+      const baseSalary = Number(updateData.baseSalary !== undefined ? updateData.baseSalary : settlement.baseSalary) || 0;
+      const totalDeduction = Number(updateData.totalDeduction !== undefined ? updateData.totalDeduction : settlement.totalDeduction) || 0;
+      const bonusAmt = Number(updateData.bonusAmount !== undefined ? updateData.bonusAmount : settlement.bonusAmount) || 0;
+      const penaltyAmt = Number(updateData.penaltyAmount !== undefined ? updateData.penaltyAmount : settlement.penaltyAmount) || 0;
+      const calculatedFinalSalary = baseSalary - totalDeduction + bonusAmt - penaltyAmt;
+      updateData.finalSalary = calculatedFinalSalary;
+    }
+    
     await settlement.update(updateData);
     const updatedSettlement = await EmployeeSettlement.findByPk(id, {
       include: [
