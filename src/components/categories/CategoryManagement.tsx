@@ -102,7 +102,8 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       await updateCategory(id, { isActive });
       toast({
         title: "Success",
-        description: `Category ${isActive ? "activated" : "deactivated"} successfully`
+        description: `Category ${isActive ? "activated" : "deactivated"} successfully`,
+        duration: 1500
       });
       await loadCategories();
       onCategoryChange?.();
@@ -163,9 +164,19 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       {/* Categories Table */}
-      <CategoryTable categories={categories} onEdit={handleEdit} onDelete={handleDelete} onToggleActive={handleToggleActive} onUpdateSortOrder={handleUpdateSortOrder} onCreateNew={handleCreateNew} loading={loading} />
+      <CategoryTable categories={categories} onEdit={handleEdit} onDelete={handleDelete} onToggleActive={handleToggleActive} onUpdateSortOrder={handleUpdateSortOrder} loading={loading} />
+
+      {/* Floating Action Button */}
+      <Button
+        onClick={handleCreateNew}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50 md:h-16 md:w-16"
+        size="lg"
+      >
+        <Plus className="h-6 w-6 md:h-7 md:w-7" />
+        <span className="sr-only">Add Category</span>
+      </Button>
 
       {/* Form Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>

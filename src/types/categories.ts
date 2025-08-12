@@ -14,7 +14,6 @@ export interface CategoryFormData {
   name: string;
   value: string;
   type: 'materials' | 'menu_items';
-  description?: string;
   isActive?: boolean;
   sortOrder?: number;
 }
@@ -35,7 +34,6 @@ export interface CategoriesTableProps {
   onDelete: (id: number) => void;
   onToggleActive: (id: number, isActive: boolean) => void;
   onUpdateSortOrder: (categories: { id: number; sortOrder: number }[]) => void;
-  onCreateNew: () => void;
   loading?: boolean;
 }
 

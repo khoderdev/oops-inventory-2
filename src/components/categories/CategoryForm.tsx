@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+
 import { CategoryFormProps, CategoryFormData } from "@/types/categories";
 import { Loader2, Save, X } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -14,12 +14,11 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
     name: "",
     value: "",
     type: "materials",
-    description: "",
     isActive: true,
     sortOrder: 0
   });
 
-  const [errors, setErrors] = useState<Partial<CategoryFormData>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (category) {
@@ -27,28 +26,27 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
         name: category.name,
         value: category.value,
         type: category.type,
-        description: category.description || "",
         isActive: category.isActive,
         sortOrder: category.sortOrder
       });
     }
   }, [category]);
 
-  // Auto-generate value from name
   const handleNameChange = (name: string) => {
+    // Auto-generate value from name
+    const generatedValue = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "");
+    
     setFormData(prev => ({
       ...prev,
       name,
-      value: category
-        ? prev.value
-        : name
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, "_")
-            .replace(/_+/g, "_")
-            .replace(/^_|_$/g, "")
+      value: category ? prev.value : generatedValue
     }));
     if (errors.name) {
-      setErrors(prev => ({ ...prev, name: undefined }));
+      setErrors(prev => ({ ...prev, name: "" }));
     }
   };
 
@@ -69,8 +67,6 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
 
     if (!formData.value.trim()) {
       newErrors.value = "Value is required";
-    } else if (!/^[a-z0-9_-]+$/.test(formData.value)) {
-      newErrors.value = "Value must contain only lowercase letters, numbers, underscores, and hyphens";
     }
 
     if (!formData.type) {
@@ -106,13 +102,7 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
           {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
         </div>
 
-        {/* Value */}
-        <div className="space-y-2">
-          <Label htmlFor="value">Value *</Label>
-          <Input id="value" value={formData.value} onChange={e => handleValueChange(e.target.value)} placeholder="e.g., meat_poultry" className={errors.value ? "border-red-500" : ""} />
-          {errors.value && <p className="text-sm text-red-500">{errors.value}</p>}
-          <p className="text-xs text-muted-foreground">Used internally. Auto-generated from name, but can be customized.</p>
-        </div>
+
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -151,11 +141,7 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
         </div>
       </div>
 
-      {/* Description */}
-      <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea id="description" value={formData.description} onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} placeholder="Optional description for this category" rows={3} />
-      </div>
+
 
       {/* Active Status */}
       <div className="flex items-center space-x-2">

@@ -481,7 +481,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         </TabsContent>
 
         <TabsContent value="categories" className="flex-1 focus-visible:outline-none overflow-hidden">
-          <div className="h-full overflow-auto p-4">
+          <div className="h-full overflow-auto">
             <CategoryManagement 
               onCategoryChange={() => {
                 // Refresh materials and stock when categories change

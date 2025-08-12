@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
-export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, onUpdateSortOrder, onCreateNew, loading = false }: CategoriesTableProps) {
+export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, onUpdateSortOrder, loading = false }: CategoriesTableProps) {
   const [draggedCategories, setDraggedCategories] = useState(categories);
 
   // Update local state when categories prop changes
@@ -94,16 +94,8 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Categories ({draggedCategories.length})</CardTitle>
-            <CardDescription>Manage categories for materials and menu items. Drag to reorder.</CardDescription>
-          </div>
-          <Button onClick={onCreateNew}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Category
-          </Button>
-        </div>
+        <CardTitle>Categories ({draggedCategories.length})</CardTitle>
+        <CardDescription>Manage categories for materials and menu items. Drag to reorder.</CardDescription>
       </CardHeader>
       <CardContent>
         <DragDropContext onDragEnd={handleDragEnd}>
@@ -115,12 +107,10 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                     <TableRow>
                       <TableHead className="w-12"></TableHead>
                       <TableHead>Name</TableHead>
-                      <TableHead>Value</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Description</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Sort Order</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -137,15 +127,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                                 {category.name}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <code className="text-sm bg-muted px-2 py-1 rounded">{category.value}</code>
-                            </TableCell>
                             <TableCell>{getTypeBadge(category.type)}</TableCell>
-                            <TableCell className="max-w-xs">
-                              <div className="truncate" title={category.description}>
-                                {category.description || <span className="text-muted-foreground italic">No description</span>}
-                              </div>
-                            </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Switch checked={category.isActive} onCheckedChange={checked => onToggleActive(category.id, checked)} />
@@ -155,8 +137,8 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                             <TableCell>
                               <Badge variant="outline">{category.sortOrder}</Badge>
                             </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
+                            <TableCell>
+                              <div className="flex items-center gap-2">
                                 <Button variant="ghost" size="sm" onClick={() => onEdit(category)}>
                                   <Edit className="w-4 h-4" />
                                 </Button>
