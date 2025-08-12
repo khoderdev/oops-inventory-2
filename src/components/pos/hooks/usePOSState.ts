@@ -57,13 +57,13 @@ export const usePOSState = () => {
   const showError = useCallback((message: string) => {
     setError(message);
     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
-    errorTimeoutRef.current = setTimeout(() => setError(null), 5000);
+    errorTimeoutRef.current = setTimeout(() => setError(null), 1500);
   }, []);
 
   const showSuccess = useCallback((message: string) => {
     setSuccessMessage(message);
     if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
-    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 1500);
   }, []);
 
   const clearCartWithAnimation = useCallback(() => {

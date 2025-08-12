@@ -60,6 +60,7 @@ export interface POSLayoutProps {
   isOrderLoading: boolean;
   canPrintReceipt: boolean;
   canVoidOrder: boolean;
+  previewOrderNumber?: string;
 }
 
 export interface UsePOSCartProps {

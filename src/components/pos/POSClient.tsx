@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useMemo } from "react";
 import { POSClientProps, OrderSummary as OrderSummaryType } from "@/types/inventory";
 import { usePOSState } from "./hooks/usePOSState";
 import { usePOSData } from "./hooks/usePOSData";
@@ -6,6 +6,7 @@ import { usePOSHandlers } from "./hooks/usePOSHandlers";
 import { usePOSCart } from "./hooks/usePOSCart";
 import { POSLayout } from "./components/POSLayout";
 import { POSDialogs } from "./components/POSDialogs";
+import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, onOrderProcessed }) => {
   const state = usePOSState();
@@ -21,7 +22,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const tax = 0;
   const discountAmountCalculated = state.appliedDiscount ? state.appliedDiscount.amount : 0;
-  const total = Math.max(0, subtotal - discountAmountCalculated);
+  const total = subtotal + tax;
+
+  // Memoize the preview order number to avoid regenerating on every render
+  const previewOrderNumber = useMemo(() => generatePreviewOrderNumber(), []);
+
   const handlers = usePOSHandlers({
     cart: state.cart,
     setCart: state.setCart,
@@ -187,6 +192,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         isOrderLoading={handlers.orderLoading}
         canPrintReceipt={state.cart && state.cart.length > 0}
         canVoidOrder={!!handlers.currentOrder}
+        previewOrderNumber={previewOrderNumber}
       />
 
       <POSDialogs

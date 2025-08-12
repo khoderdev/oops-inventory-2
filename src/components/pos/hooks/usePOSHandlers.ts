@@ -399,8 +399,8 @@ export const usePOSHandlers = (props: UsePOSHandlersProps) => {
           totalPrice: item.price * item.quantity,
           notes: item.notes || "",
           // Include required materialId or menuItemId based on item type
-          ...(item.type === "menu_item" && item.menuItemId ? { menuItemId: item.menuItemId } : {}),
-          ...(item.type === "material" && item.materialId ? { materialId: item.materialId } : {})
+          ...(item.type === "menu_item" && item.menuItemId ? { menuItemId: String(item.menuItemId) } : {}),
+          ...(item.type === "material" && item.materialId ? { materialId: String(item.materialId) } : {})
         })),
         subtotal,
         tax: 0,
@@ -463,8 +463,8 @@ export const usePOSHandlers = (props: UsePOSHandlersProps) => {
             totalPrice: item.price * item.quantity,
             notes: item.notes || "",
             // Include required materialId or menuItemId based on item type
-            ...(item.type === "menu_item" && item.menuItemId ? { menuItemId: item.menuItemId } : {}),
-            ...(item.type === "material" && item.materialId ? { materialId: item.materialId } : {})
+            ...(item.type === "menu_item" && item.menuItemId ? { menuItemId: item.menuItemId.toString() } : {}),
+            ...(item.type === "material" && item.materialId ? { materialId: item.materialId.toString() } : {})
           })),
           subtotal,
           tax: 0,
