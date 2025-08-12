@@ -518,6 +518,8 @@ export interface POSCartItem {
     type: string;
     status: string;
   };
+  // Backend order item ID when editing an existing order
+  orderItemId?: string;
   notes?: string; // Individual item notes for kitchen/sections
 }
 

@@ -527,6 +527,74 @@ export const ordersController = {
     }
   },
 
+  // Remove specific items from an existing order
+  removeOrderItems: async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { orderId } = req.params;
+      const { itemIds } = req.body || {};
+      const userId = req.user?.id;
+
+      // Validate
+      if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
+        await transaction.rollback();
+        return res.status(400).json({ message: "itemIds array is required and cannot be empty" });
+      }
+
+      const order = await Order.findByPk(orderId, { transaction });
+      if (!order) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Delete requested items limited to this orderId
+      const deletedCount = await OrderItem.destroy({
+        where: { orderId, id: itemIds },
+        transaction
+      });
+
+      // Recalculate totals from remaining items
+      const remainingItems = await OrderItem.findAll({ where: { orderId }, transaction });
+      const subtotal = remainingItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+      const tax = 0; // configurable later
+      const discountAmountValue = parseFloat(order.discountAmount) || 0;
+      const total = Math.max(0, subtotal - discountAmountValue);
+
+      await order.update({ subtotal, tax, total, updatedBy: userId }, { transaction });
+
+      await transaction.commit();
+
+      // Return updated order with relations
+      const updatedOrder = await Order.findByPk(orderId, {
+        include: [
+          {
+            model: OrderItem,
+            as: "items",
+            include: [
+              { model: Material, as: "material" },
+              { model: MenuItem, as: "menuItem" },
+              { model: Assignment, as: "assignment" }
+            ]
+          },
+          { model: Table, as: "table" }
+        ]
+      });
+
+      if (userId) {
+        await auditOrderOperation(userId, "REMOVE_ITEMS", updatedOrder.toJSON(), null, req);
+      }
+
+      return res.json({
+        message: `Successfully removed ${deletedCount} item(s) from order`,
+        order: updatedOrder
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Remove order items error:", error);
+      return res.status(500).json({ message: "Failed to remove items from order", error: error.message });
+    }
+  },
+
   // Update order status
   updateOrderStatus: async (req, res) => {
     try {

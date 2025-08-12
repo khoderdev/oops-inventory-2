@@ -14,6 +14,7 @@ router.get("/drafts", ordersController.getDraftOrders);
 router.get("/:orderId", ordersController.getOrder);
 router.put("/:orderId", ordersController.updateOrder);
 router.post("/:orderId/items", ordersController.addOrderItems);
+router.delete("/:orderId/items", ordersController.removeOrderItems);
 router.patch("/:orderId/autosave", ordersController.autoSaveOrder);
 
 // Order status management

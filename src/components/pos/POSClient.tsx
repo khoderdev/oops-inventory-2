@@ -81,6 +81,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const processedOrderRef = useRef<string | null>(null);
+  // Prevent re-processing selectedOrderForPOS right after manual save
+  const justSavedRef = useRef<boolean>(false);
   const [leftPanelWidth, setLeftPanelWidth] = useState(33.33);
   const [rightPanelPixelWidth, setRightPanelPixelWidth] = useState(0);
   const [isResizing, setIsResizing] = useState(false);
@@ -165,6 +167,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   useEffect(() => {
     // Completely block selectedOrderForPOS when table is manually selected
+    if (justSavedRef.current) {
+      console.log("🚫 Blocking selectedOrderForPOS due to recent save");
+      return;
+    }
     if (isTableManuallySelected) {
       console.log("🚫 Completely blocking selectedOrderForPOS due to manual table selection:", { 
         selectedOrderId: selectedOrderForPOS?.id, 
@@ -217,6 +223,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               menuItemId: item.menuItem.id,
               originalItem: item.menuItem,
               stockEntryId: undefined,
+              orderItemId: item.id?.toString?.() || item.id,
               notes: item.notes || undefined
             };
           } else if (item.material) {
@@ -229,6 +236,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               materialId: item.material.id,
               originalItem: item.material,
               stockEntryId: undefined,
+              orderItemId: item.id?.toString?.() || item.id,
               notes: item.notes || undefined
             };
           }
@@ -269,6 +277,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   useEffect(() => {
     if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
+      if (justSavedRef.current) {
+        console.log("🚫 Blocking currentOrder cart reload - recent save");
+        return;
+      }
       const currentOrderId = currentOrder.id.toString();
       console.log("📋 Current order loaded:", { orderId: currentOrderId, items: currentOrder.items.length });
       
@@ -292,6 +304,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 menuItemId: item.menuItem.id,
                 originalItem: item.menuItem,
                 stockEntryId: undefined,
+                orderItemId: item.id?.toString?.() || item.id,
                 notes: item.notes || undefined
               };
             } else if (item.material) {
@@ -304,6 +317,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 materialId: item.material.id,
                 originalItem: item.material,
                 stockEntryId: undefined,
+                orderItemId: item.id?.toString?.() || item.id,
                 notes: item.notes || undefined
               };
             }
@@ -1324,56 +1338,109 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setIsLoading(true);
       let savedOrder;
       if (currentOrder?.id) {
-        // 🔧 FIX: Identify new items that need to be added to the existing order
-        const existingOrderItems = currentOrder.items || [];
-        const newItems = cart.filter(cartItem => {
-          // Check if this cart item already exists in the order
-          const existsInOrder = existingOrderItems.some(orderItem => {
-            if (cartItem.type === "menu_item" && orderItem.type === "menu_item") {
-              return String(orderItem.menuItemId) === String((cartItem.originalItem as MenuItem).id);
-            } else if (cartItem.type === "material" && orderItem.type === "material") {
-              return String(orderItem.materialId) === String((cartItem.originalItem as StockEntryWithMaterial).materialId);
-            }
-            return false;
-          });
-          return !existsInOrder;
+        // Diff items: remove deleted/changed, add new/changed
+        const existingOrderItems = (currentOrder.items || []) as any[];
+
+        const keyForOrderItem = (oi: any) => {
+          if (oi.menuItem) return `menu:${oi.menuItem.id}`;
+          if (oi.menuItemId) return `menu:${oi.menuItemId}`;
+          if (oi.material) return `mat:${oi.material.id}`;
+          if (oi.materialId) return `mat:${oi.materialId}`;
+          return `id:${oi.id}`;
+        };
+        const keyForCartItem = (ci: POSCartItem) => {
+          if (ci.type === "menu_item") return `menu:${(ci.originalItem as MenuItem).id}`;
+          return `mat:${(ci.originalItem as StockEntryWithMaterial).materialId}`;
+        };
+
+        const existingMap = new Map<string, { qty: number; ids: string[]; unitPrice: number }>();
+        existingOrderItems.forEach(oi => {
+          const key = keyForOrderItem(oi);
+          const prev = existingMap.get(key);
+          const idStr = (oi.id?.toString?.() || oi.id) as string;
+          const unitPrice = typeof oi.unitPrice === "string" ? parseFloat(oi.unitPrice) : oi.unitPrice;
+          if (prev) {
+            prev.qty += oi.quantity || 0;
+            prev.ids.push(idStr);
+            prev.unitPrice = unitPrice ?? prev.unitPrice;
+          } else {
+            existingMap.set(key, { qty: oi.quantity || 0, ids: [idStr], unitPrice: unitPrice ?? 0 });
+          }
         });
 
-        if (newItems.length > 0) {
-          // Add only the new items to the existing order
-          const itemsToAdd = newItems.map(item => ({
-            materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
-            menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
-            assignmentId: undefined,
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.price * item.quantity,
-            type: item.type as "material" | "menu_item",
-            notes: item.notes || undefined
-          }));
-          
-          console.log("📋 Adding new items to existing order:", { 
-            orderId: currentOrder.id, 
-            existingItems: existingOrderItems.length,
-            newItems: itemsToAdd.length 
-          });
-          
-          // Use addOrderItems API instead of updateOrder
-          const response = await ordersAPI.addOrderItems(currentOrder.id, itemsToAdd);
-          savedOrder = response.data;
-        } else {
-          // No new items, just update discount/notes if changed
-          const updateData = {
-            discountType: appliedDiscount?.type,
-            discountValue: appliedDiscount?.value,
-            discountAmount: appliedDiscount?.amount || 0,
-            discountReason: appliedDiscount?.reason,
-            notes: orderNotes || undefined
-          };
-          console.log("📋 Updating existing order metadata:", { orderId: currentOrder.id });
-          savedOrder = await updateOrder(updateData);
+        const desiredMap = new Map<string, { qty: number; sample: POSCartItem }>();
+        (cart || []).forEach(ci => {
+          const key = keyForCartItem(ci);
+          const prev = desiredMap.get(key);
+          if (prev) {
+            prev.qty += ci.quantity;
+          } else {
+            desiredMap.set(key, { qty: ci.quantity, sample: ci });
+          }
+        });
+
+        // Compute removals and additions
+        const itemIdsToRemove: string[] = [];
+        existingMap.forEach((val, key) => {
+          const desired = desiredMap.get(key);
+          if (!desired || desired.qty !== val.qty) {
+            // remove all existing instances for this key
+            itemIdsToRemove.push(...val.ids);
+          }
+        });
+
+        const itemsToAdd: Array<{
+          materialId?: string;
+          menuItemId?: string;
+          assignmentId?: string;
+          name: string;
+          quantity: number;
+          unitPrice: number;
+          totalPrice: number;
+          type: "material" | "menu_item";
+          notes?: string;
+        }> = [];
+        desiredMap.forEach(({ qty, sample }, key) => {
+          const existing = existingMap.get(key);
+          if (!existing || existing.qty !== qty) {
+            const isMenu = sample.type === "menu_item";
+            const unitPrice = sample.price;
+            itemsToAdd.push({
+              materialId: !isMenu ? String((sample.originalItem as StockEntryWithMaterial).materialId) : undefined,
+              menuItemId: isMenu ? String((sample.originalItem as MenuItem).id) : undefined,
+              assignmentId: undefined,
+              name: sample.name,
+              quantity: qty,
+              unitPrice,
+              totalPrice: unitPrice * qty,
+              type: sample.type,
+              notes: sample.notes || undefined
+            });
+          }
+        });
+
+        // Execute API calls
+        if (itemIdsToRemove.length > 0) {
+          console.log("🗑️ Removing order items:", { count: itemIdsToRemove.length });
+          const respRemove = await ordersAPI.removeOrderItems(currentOrder.id, itemIdsToRemove.map(String));
+          savedOrder = respRemove.data;
         }
+        if (itemsToAdd.length > 0) {
+          console.log("➕ Adding/Updating order items:", { count: itemsToAdd.length });
+          const respAdd = await ordersAPI.addOrderItems(currentOrder.id, itemsToAdd);
+          savedOrder = respAdd.data;
+        }
+
+        // Always update metadata if provided
+        const updateData = {
+          discountType: appliedDiscount?.type,
+          discountValue: appliedDiscount?.value,
+          discountAmount: appliedDiscount?.amount || 0,
+          discountReason: appliedDiscount?.reason,
+          notes: orderNotes || undefined
+        };
+        console.log("📋 Updating existing order metadata:", { orderId: currentOrder.id });
+        savedOrder = await updateOrder(updateData);
       } else {
         const createData = {
           orderType,
@@ -1406,35 +1473,28 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.log("📋 Order saved:", { orderIdentifier });
       showSuccess(`Order ${orderIdentifier} saved successfully!`);
       await printItemsToAssignedPrinters(cart);
-      
-      // Clear the selected order to prevent reload
-      if (onOrderProcessed) {
-        onOrderProcessed();
-      }
-      
-      // Set flag to prevent order reload after save
-      setIsPaymentCompleted(true);
-      
+
+      // Ask parent to clear selection to avoid re-trigger
+      if (onOrderProcessed) onOrderProcessed();
+
+      // Briefly suppress selectedOrderForPOS effect
+      justSavedRef.current = true;
+      setTimeout(() => (justSavedRef.current = false), 1500);
+
+      // Clear cart and reset summary/context to fully reset the order-cart summary
       clearCartWithAnimation();
-      
-      // Delay the refresh to allow database to update and prevent immediate reload
-      setTimeout(async () => {
-        await refreshOrderData();
-        setIsPaymentCompleted(false);
-      }, 2000);
+      setAppliedDiscount(null);
+      setDiscountAmount(0);
+      setPaymentAmount("");
+      setOrderNotes("");
+      // Keep unsaved flag true so currentOrder effect won't repopulate the cart immediately
+      setHasUnsavedChanges(true);
       setOrderType("takeaway");
       setSelectedTable(undefined);
       setSelectedEmployee(undefined);
-      setAppliedDiscount(null);
-      setDiscountAmount(0);
-      if (clearOrder) {
-        clearOrder();
-      }
       OrderPersistence.clearCurrentOrder();
-      setHasUnsavedChanges(false);
       setShowTablesLayout(false);
-      setPaymentAmount("");
-      setOrderNotes("");
+      if (clearOrder) clearOrder();
     } catch (error) {
       console.error("❌ Failed to save order:", error);
       showError("Failed to save order. Please try again.");
