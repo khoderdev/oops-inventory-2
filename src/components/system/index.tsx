@@ -13,25 +13,19 @@ export default function System() {
   const [dataValidationEnabled, setDataValidationEnabled] = useAtom(dataValidationEnabledWithPersistenceAtom);
 
   const handleDataValidationToggle = (enabled: boolean) => {
-    console.log('🔧 [System Settings] Toggling validation to:', enabled);
     setDataValidationEnabled(enabled);
-    console.log('🔧 [System Settings] localStorage after toggle:', localStorage.getItem('dataValidationEnabled'));
     toast({
       title: "Settings Updated",
       description: `Auto data validation ${enabled ? 'enabled' : 'disabled'}`,
-      variant: "default"
+      variant: "default",
+      duration: 1500
     });
   };
 
   return (
     <>
       <div className="space-y-6 p-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">System Settings</h1>
-          <p className="text-muted-foreground">
-            Configure system-wide settings and manage hardware devices
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight">System Settings</h1>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
@@ -52,12 +46,8 @@ export default function System() {
           <TabsContent value="general" className="space-y-6">
             <div className="rounded-lg border p-6">
               <h2 className="text-xl font-semibold mb-4">General Settings</h2>
-              <p className="text-muted-foreground mb-6">
-                Configure system-wide behavior and validation settings.
-              </p>
-              
               {/* Data Validation Settings */}
-              <div className="space-y-4">
+              <div className="sm:w-1/2 space-y-4">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center space-x-3">
                     <Shield className="h-5 w-5 text-blue-600" />
@@ -65,9 +55,7 @@ export default function System() {
                       <Label htmlFor="data-validation-toggle" className="text-base font-medium">
                         Auto Data Validation
                       </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Automatically validate inventory data and show warnings in Menu Builder
-                      </p>
+                      <p className="text-sm text-muted-foreground">Automatically validate inventory data and show warnings in Menu Builder</p>
                     </div>
                   </div>
                   <Switch
@@ -76,25 +64,21 @@ export default function System() {
                     onCheckedChange={handleDataValidationToggle}
                   />
                 </div>
-                
+
                 <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
-                  <strong>Note:</strong> When enabled, the system will automatically check for data inconsistencies 
-                  in materials, stock entries, and menu items. This helps identify potential issues like 
-                  unit type mismatches, missing cost data, and inventory discrepancies.
+                  <strong>Note:</strong> When enabled, the system will automatically check for data inconsistencies in materials, stock entries, and menu items. This helps identify potential issues like unit type mismatches, missing cost data, and inventory discrepancies.
                 </div>
               </div>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="currencies" className="space-y-6">
             <div className="rounded-lg border p-6">
               <h2 className="text-xl font-semibold mb-4">Currency Management</h2>
-              <p className="text-muted-foreground">
-                Configure supported currencies and exchange rates.
-              </p>
+              <p className="text-muted-foreground">Configure supported currencies and exchange rates.</p>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="printers" className="space-y-6">
             <Printers />
           </TabsContent>

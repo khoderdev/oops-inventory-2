@@ -201,7 +201,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
               <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                <Label htmlFor="report-type">Report Type</Label>
+                {/* <Label htmlFor="report-type">Report Type</Label> */}
                 <Select value={selectedReportType} onValueChange={handleReportTypeChange} disabled={isChangingReportType || isLoading}>
                   <SelectTrigger id="report-type" className={cn("h-16 w-full", isChangingReportType && "opacity-60")}>
                     <SelectValue placeholder="Select report type" />
@@ -230,12 +230,11 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
               {currentReportConfig?.requiresDateRange && (
                 <>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">From Date</Label>
                     <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
                           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{dateFrom ? format(dateFrom, "MMM d, yyyy") : "Pick a date"}</span>
+                          <span className="truncate">{dateFrom ? format(dateFrom, "MMM d, yyyy") : "From"}</span>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">
@@ -256,12 +255,11 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                     </Popover>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">To Date</Label>
                     <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
                           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{dateTo ? format(dateTo, "MMM d, yyyy") : "Pick a date"}</span>
+                          <span className="truncate">{dateTo ? format(dateTo, "MMM d, yyyy") : "To"}</span>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">

@@ -1818,7 +1818,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Success Animation Overlay */}
             {showSuccessCheckmark && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="absolute inset-0 flex items-center justify-center z-10 select-none">
                 <div className="text-center">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-scale-in" />
                   <p className="text-green-700 font-medium text-lg">Order Completed!</p>
@@ -1829,7 +1829,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Cancelled Animation Overlay */}
             {currentOrder?.status === "cancelled" && (
-              <div className="absolute inset-0 flex items-center justify-center mt-10 z-10">
+              <div className="absolute inset-0 flex items-center justify-center mt-10 z-10 select-none">
                 <div className="text-center">
                   <img src="/void.png" alt="" className="w-52 mx-auto" />
                 </div>

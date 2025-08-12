@@ -19,8 +19,9 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
     return null;
   }
 
-  // Check if order is completed (paid status or explicitly marked as completed)
-  const isCompleted = isOrderCompleted || orderStatus === 'paid' || orderStatus === 'served';
+  // Consider cancelled as voided; disable actions for paid/served/cancelled
+  const isVoided = orderStatus === 'cancelled';
+  const isCompleted = isVoided || isOrderCompleted || orderStatus === 'paid' || orderStatus === 'served';
   
   // Disable payment and save actions for completed orders
   const handlePaymentClick = () => {
@@ -101,7 +102,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
           className="flex-1" 
           id="pay" 
           icon={HandCoins} 
-          label={isCompleted ? "Order Completed" : "Pay & Close"} 
+          label={isVoided ? "Order Cancelled" : (isCompleted ? "Order Completed" : "Pay & Close")} 
           active={!isCompleted} 
           onClick={handlePaymentClick} 
           compact={false}
@@ -111,7 +112,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
           className="flex-1" 
           id="save" 
           icon={Save} 
-          label={isCompleted ? "Completed" : "Save"} 
+          label={isVoided ? "Cancelled" : (isCompleted ? "Completed" : "Save")} 
           onClick={handleSaveClick} 
           compact={false}
           disabled={isCompleted}
