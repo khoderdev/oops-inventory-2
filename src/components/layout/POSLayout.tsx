@@ -18,32 +18,23 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const [logoutPinError, setLogoutPinError] = useState("");
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showSalesHistoryDialog, setShowSalesHistoryDialog] = useState(false);
-  // Use transactionCount prop instead of local state
-
-  // Resizable panel state
-  const [leftPanelWidth, setLeftPanelWidth] = useState(280); // Default 280px - smaller
+  const [leftPanelWidth, setLeftPanelWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
-  const [showLeftPanel, setShowLeftPanel] = useState(false); // Default hidden
+  const [showLeftPanel, setShowLeftPanel] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Cached logo with preloading and fallback
   const { logoSrc, isLoaded } = useCachedLogo(LOGO_CONFIGS.MAIN_LOGO);
 
-  // Resizable panel handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!containerRef.current) return;
-
       const containerRect = containerRef.current.getBoundingClientRect();
       const newWidth = e.clientX - containerRect.left;
-
-      // Set min and max width constraints
       const minWidth = 200;
-      const maxWidth = containerRect.width * 0.35; // Max 35% of container width
+      const maxWidth = containerRect.width * 0.35;
 
       if (newWidth >= minWidth && newWidth <= maxWidth) {
         setLeftPanelWidth(newWidth);
@@ -60,42 +51,28 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     document.addEventListener("mouseup", handleMouseUp);
   }, []);
 
-  // Handle panel toggle
-  const toggleLeftPanel = useCallback(() => {
-    setShowLeftPanel(prev => !prev);
-  }, []);
 
   // Responsive behavior
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
-
       const containerWidth = containerRef.current.offsetWidth;
-
-      // Auto-hide panel on mobile and smaller screens
       if (containerWidth < 1024) {
         setShowLeftPanel(false);
       }
-
-      // Adjust panel width if it's too large for container
       const maxWidth = containerWidth * 0.35;
       if (leftPanelWidth > maxWidth) {
         setLeftPanelWidth(Math.max(200, maxWidth));
       }
     };
-
     window.addEventListener("resize", handleResize);
-    handleResize(); // Initial check
-
+    handleResize();
     return () => window.removeEventListener("resize", handleResize);
   }, [leftPanelWidth, showLeftPanel]);
 
-  // Fetch orders count
   const fetchOrdersCount = useCallback(async () => {
     try {
       const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
-
-      // Handle nested response structure
       interface OrderData {
         id: string;
         createdAt?: string;
@@ -104,72 +81,52 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       }
       const responseData = response.data as { data?: OrderData[] } | OrderData[];
       const orders = Array.isArray(responseData) ? responseData : responseData?.data || [];
-
-      // Get today's date in YYYY-MM-DD format
       const today = new Date().toISOString().split("T")[0];
-
-      // Filter for incomplete orders from today only
       const incompleteOrdersToday = orders.filter(order => {
-        // Check if order is from today
         const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : null;
         const isToday = orderDate === today;
-
-        // Check if order is incomplete (not paid, served, or completed)
         const isIncomplete = order.status && !["paid", "served", "completed"].includes(order.status);
-
         return isToday && isIncomplete;
       });
-
-      // Orders count now comes from transactionCount prop
     } catch (error) {
       console.error("Failed to fetch orders count:", error);
-      // Orders count now comes from transactionCount prop
     }
   }, []);
 
-  // Fetch sales count
   const fetchSalesCount = useCallback(async () => {
     try {
       const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
-
-      // Handle nested response structure
       const responseData = response.data as { data?: { orderType: string }[] } | { orderType: string }[];
     } catch (error) {
       console.error("Failed to fetch sales count:", error);
     }
   }, []);
 
-  // Stable callbacks to prevent POSClientOrders re-renders
   const handleCloseOrdersDialog = useCallback(() => {
     setShowOrdersDialog(false);
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleOrderSelect = useCallback((order: any) => {
     if (onOrderSelect) {
       onOrderSelect(order);
     }
     setShowOrdersDialog(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // onOrderSelect is a stable prop, no need to include in deps
+  }, []);
 
   const handleCloseSalesHistoryDialog = useCallback(() => {
     setShowSalesHistoryDialog(false);
   }, []);
 
-  // Combined refresh function for both counts
   const refreshCounts = useCallback(async () => {
     await Promise.all([fetchOrdersCount()]);
   }, [fetchOrdersCount]);
 
-  // Expose refresh function to parent component
   useEffect(() => {
     if (onRefreshCounts) {
       onRefreshCounts(refreshCounts);
     }
   }, [onRefreshCounts, refreshCounts]);
 
-  // Update time every second
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -178,22 +135,17 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch orders and sales count on component mount and periodically
   useEffect(() => {
     fetchOrdersCount();
     fetchSalesCount();
-
-    // Refresh counts every 30 seconds
     const ordersTimer = setInterval(fetchOrdersCount, 30000);
     const salesTimer = setInterval(fetchSalesCount, 30000);
-
     return () => {
       clearInterval(ordersTimer);
       clearInterval(salesTimer);
     };
   }, [fetchOrdersCount, fetchSalesCount]);
 
-  // Handle fullscreen toggle
   const toggleFullscreen = async () => {
     try {
       if (!document.fullscreenElement) {
@@ -208,23 +160,16 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     }
   };
 
-  // Handle PIN-based logout
   const handlePinLogout = async (pin: string) => {
     try {
       setLogoutPinError("");
-      
-      // Verify PIN matches current user's PIN
       if (!user) {
         setLogoutPinError("User not found. Please contact administrator.");
         return;
       }
-
-      // Make API call to verify PIN for current user
       try {
         const result = await authAPI.verifyPin(pin, user.id);
-        
         if (result.verified) {
-          // PIN is correct, proceed with logout
           if (onLogout) {
             onLogout();
           } else {
@@ -237,7 +182,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
         }
       } catch (error: any) {
         console.error("PIN verification failed:", error);
-        // Handle specific error messages from the API
         if (error.response?.data?.message) {
           setLogoutPinError(error.response.data.message);
         } else {
@@ -250,7 +194,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     }
   };
 
-  // Handle logout (legacy - kept for backward compatibility)
   const handleLogout = async () => {
     if (onLogout) {
       onLogout();
@@ -260,7 +203,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     setShowLogoutDialog(false);
   };
 
-  // Format time for display
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
       hour: "2-digit",

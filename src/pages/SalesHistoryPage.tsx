@@ -610,302 +610,302 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
 
         {/* Filters and Summary */}
         {/* <Card className="!bg-background !ring-0 !border-none !shadow-none !rounded-lg"> */}
-          <CardContent className="p-0">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <Card className="p-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-2xl font-bold">{formatCurrency(filteredTotal)}</div>
-                <p className="text-xs text-muted-foreground">From {localFilteredSales.length} item sales</p>
-              </Card>
-              <Card className="p-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Items Sold</CardTitle>
-                  <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-2xl font-bold">{localTotalQuantity}</div>
-                <p className="text-xs text-muted-foreground">Total quantity in view</p>
-              </Card>
-              <Card className="p-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Average Price</CardTitle>
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-2xl font-bold">{localTotalQuantity > 0 ? formatCurrency(filteredTotal / localTotalQuantity) : formatCurrency(0)}</div>
-                <p className="text-xs text-muted-foreground">Per item</p>
-              </Card>
-            </div>
+        <CardContent className="p-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="text-2xl font-bold">{formatCurrency(filteredTotal)}</div>
+              <p className="text-xs text-muted-foreground">From {localFilteredSales.length} item sales</p>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Items Sold</CardTitle>
+                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="text-2xl font-bold">{localTotalQuantity}</div>
+              <p className="text-xs text-muted-foreground">Total quantity in view</p>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Average Price</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="text-2xl font-bold">{localTotalQuantity > 0 ? formatCurrency(filteredTotal / localTotalQuantity) : formatCurrency(0)}</div>
+              <p className="text-xs text-muted-foreground">Per item</p>
+            </Card>
+          </div>
 
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="flex-1">
-                  <label className="text-sm font-medium">Select Item</label>
-                  <Select value={selectedItem} onValueChange={setSelectedItem}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an item to filter by..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Items</SelectItem>
-                      {uniqueItemNames.map(itemName => (
-                        <SelectItem key={itemName} value={itemName}>
-                          {itemName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <label className="text-sm font-medium">Select Section</label>
-                  <Select value={selectedSection} onValueChange={setSelectedSection}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a section to filter by..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Sections</SelectItem>
-                      {uniqueSectionNames.map(sectionName => (
-                        <SelectItem key={sectionName} value={sectionName}>
-                          {sectionName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">From Date</Label>
-                    <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Pick a date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={dateFrom}
-                          onSelect={date => {
-                            if (isValid(date)) {
-                              setDateFrom(date);
-                            }
-                            setDateFromOpen(false);
-                          }}
-                          initialFocus
-                          disabled={date => date > new Date()}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">To Date</Label>
-                    <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateTo ? format(dateTo, "MMM d, yyyy") : "Pick a date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={dateTo}
-                          onSelect={date => {
-                            if (isValid(date)) {
-                              setDateTo(date);
-                            }
-                            setDateToOpen(false);
-                          }}
-                          initialFocus
-                          disabled={date => date > new Date()}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium">Select Item</label>
+                <Select value={selectedItem} onValueChange={setSelectedItem}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an item to filter by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Items</SelectItem>
+                    {uniqueItemNames.map(itemName => (
+                      <SelectItem key={itemName} value={itemName}>
+                        {itemName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium">Select Section</label>
+                <Select value={selectedSection} onValueChange={setSelectedSection}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a section to filter by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sections</SelectItem>
+                    {uniqueSectionNames.map(sectionName => (
+                      <SelectItem key={sectionName} value={sectionName}>
+                        {sectionName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">From Date</Label>
+                  <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={date => {
+                          if (isValid(date)) {
+                            setDateFrom(date);
+                          }
+                          setDateFromOpen(false);
+                        }}
+                        initialFocus
+                        disabled={date => date > new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
-
-              {/* Filter Actions */}
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Active Filters Display */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {selectedItem !== "all" && (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-                      Item: {selectedItem}
-                      <button onClick={() => setSelectedItem("all")} className="ml-2 text-blue-600 hover:text-blue-800">
-                        ×
-                      </button>
-                    </Badge>
-                  )}
-                  {selectedSection !== "all" && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                      Section: {selectedSection}
-                      <button onClick={() => setSelectedSection("all")} className="ml-2 text-green-600 hover:text-green-800">
-                        ×
-                      </button>
-                    </Badge>
-                  )}
-                  {(dateFrom || dateTo) && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
-                      {dateFrom && dateTo
-                        ? (() => {
-                            const fromDateStr = format(dateFrom, "yyyy-MM-dd");
-                            const toDateStr = format(dateTo, "yyyy-MM-dd");
-                            const today = format(new Date(), "yyyy-MM-dd");
-
-                            if (fromDateStr === toDateStr) {
-                              return fromDateStr === today ? "Today" : format(dateFrom, "MMM d, yyyy");
-                            }
-                            return `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d, yyyy")}`;
-                          })()
-                        : dateFrom
-                          ? `From: ${format(dateFrom, "MMM d, yyyy")}`
-                          : `To: ${format(dateTo!, "MMM d, yyyy")}`}
-                      <button
-                        onClick={() => {
-                          setDateFrom(undefined);
-                          setDateTo(undefined);
-                          setDateFilter("");
+              <div className="flex-1">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">To Date</Label>
+                  <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateTo ? format(dateTo, "MMM d, yyyy") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={date => {
+                          if (isValid(date)) {
+                            setDateTo(date);
+                          }
+                          setDateToOpen(false);
                         }}
-                        className="ml-2 text-purple-600 hover:text-purple-800"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  )}
-                  {dateFilter && !dateFrom && !dateTo && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
-                      Date: {formatDate(new Date(dateFilter))}
-                      <button onClick={() => setDateFilter("")} className="ml-2 text-purple-600 hover:text-purple-800">
-                        ×
-                      </button>
-                    </Badge>
-                  )}
+                        initialFocus
+                        disabled={date => date > new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
+              </div>
+            </div>
 
-                {/* Quick Action Buttons */}
-                <div className="flex flex-wrap gap-2 ml-auto">
-                  {/* Today Button */}
-                  <Button
-                    variant={(() => {
-                      if (!dateFrom || !dateTo) return "outline";
-                      const today = new Date();
-                      const todayStart = new Date(today);
-                      todayStart.setHours(0, 0, 0, 0);
-                      const todayEnd = new Date(today);
-                      todayEnd.setHours(23, 59, 59, 999);
+            {/* Filter Actions */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Active Filters Display */}
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedItem !== "all" && (
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                    Item: {selectedItem}
+                    <button onClick={() => setSelectedItem("all")} className="ml-2 text-blue-600 hover:text-blue-800">
+                      ×
+                    </button>
+                  </Badge>
+                )}
+                {selectedSection !== "all" && (
+                  <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                    Section: {selectedSection}
+                    <button onClick={() => setSelectedSection("all")} className="ml-2 text-green-600 hover:text-green-800">
+                      ×
+                    </button>
+                  </Badge>
+                )}
+                {(dateFrom || dateTo) && (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
+                    {dateFrom && dateTo
+                      ? (() => {
+                          const fromDateStr = format(dateFrom, "yyyy-MM-dd");
+                          const toDateStr = format(dateTo, "yyyy-MM-dd");
+                          const today = format(new Date(), "yyyy-MM-dd");
 
-                      const isToday = dateFrom.getTime() === todayStart.getTime() && dateTo.getTime() === todayEnd.getTime();
-                      return isToday ? "default" : "outline";
-                    })()}
-                    size="sm"
-                    onClick={() => {
-                      const today = new Date();
-                      const todayStart = new Date(today);
-                      todayStart.setHours(0, 0, 0, 0);
-                      const todayEnd = new Date(today);
-                      todayEnd.setHours(23, 59, 59, 999);
-                      setDateFrom(todayStart);
-                      setDateTo(todayEnd);
-                      setDateFilter("");
-                    }}
-                    className="transition-all duration-200"
-                  >
-                    📅 Today
-                  </Button>
-
-                  {/* Yesterday Button */}
-                  <Button
-                    variant={(() => {
-                      if (!dateFrom || !dateTo) return "outline";
-                      const yesterday = new Date();
-                      yesterday.setDate(yesterday.getDate() - 1);
-                      const yesterdayStart = new Date(yesterday);
-                      yesterdayStart.setHours(0, 0, 0, 0);
-                      const yesterdayEnd = new Date(yesterday);
-                      yesterdayEnd.setHours(23, 59, 59, 999);
-
-                      const isYesterday = dateFrom.getTime() === yesterdayStart.getTime() && dateTo.getTime() === yesterdayEnd.getTime();
-                      return isYesterday ? "default" : "outline";
-                    })()}
-                    size="sm"
-                    onClick={() => {
-                      const yesterday = new Date();
-                      yesterday.setDate(yesterday.getDate() - 1);
-                      const yesterdayStart = new Date(yesterday);
-                      yesterdayStart.setHours(0, 0, 0, 0);
-                      const yesterdayEnd = new Date(yesterday);
-                      yesterdayEnd.setHours(23, 59, 59, 999);
-                      setDateFrom(yesterdayStart);
-                      setDateTo(yesterdayEnd);
-                      setDateFilter("");
-                    }}
-                    className="transition-all duration-200"
-                  >
-                    📅 Yesterday
-                  </Button>
-
-                  {/* This Week Button */}
-                  <Button
-                    variant={(() => {
-                      if (!dateFrom || !dateTo) return "outline";
-                      const today = new Date();
-                      const startOfWeek = new Date(today);
-                      startOfWeek.setDate(today.getDate() - today.getDay());
-                      startOfWeek.setHours(0, 0, 0, 0);
-                      const endOfWeek = new Date(startOfWeek);
-                      endOfWeek.setDate(startOfWeek.getDate() + 6);
-                      endOfWeek.setHours(23, 59, 59, 999);
-
-                      const isThisWeek = dateFrom.getTime() === startOfWeek.getTime() && dateTo.getTime() === endOfWeek.getTime();
-                      return isThisWeek ? "default" : "outline";
-                    })()}
-                    size="sm"
-                    onClick={() => {
-                      const today = new Date();
-                      const startOfWeek = new Date(today);
-                      startOfWeek.setDate(today.getDate() - today.getDay());
-                      startOfWeek.setHours(0, 0, 0, 0);
-                      const endOfWeek = new Date(startOfWeek);
-                      endOfWeek.setDate(startOfWeek.getDate() + 6);
-                      endOfWeek.setHours(23, 59, 59, 999);
-                      setDateFrom(startOfWeek);
-                      setDateTo(endOfWeek);
-                      setDateFilter("");
-                    }}
-                    className="transition-all duration-200"
-                  >
-                    📅 This Week
-                  </Button>
-
-                  {/* Clear All Filters Button */}
-                  {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
+                          if (fromDateStr === toDateStr) {
+                            return fromDateStr === today ? "Today" : format(dateFrom, "MMM d, yyyy");
+                          }
+                          return `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d, yyyy")}`;
+                        })()
+                      : dateFrom
+                        ? `From: ${format(dateFrom, "MMM d, yyyy")}`
+                        : `To: ${format(dateTo!, "MMM d, yyyy")}`}
+                    <button
                       onClick={() => {
-                        setSelectedItem("all");
-                        setSelectedSection("all");
-                        setDateFilter("");
                         setDateFrom(undefined);
                         setDateTo(undefined);
+                        setDateFilter("");
                       }}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 transition-all duration-200"
+                      className="ml-2 text-purple-600 hover:text-purple-800"
                     >
-                      🗑️ Clear All
-                    </Button>
-                  )}
-                </div>
+                      ×
+                    </button>
+                  </Badge>
+                )}
+                {dateFilter && !dateFrom && !dateTo && (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
+                    Date: {formatDate(new Date(dateFilter))}
+                    <button onClick={() => setDateFilter("")} className="ml-2 text-purple-600 hover:text-purple-800">
+                      ×
+                    </button>
+                  </Badge>
+                )}
+              </div>
+
+              {/* Quick Action Buttons */}
+              <div className="flex flex-wrap gap-2 ml-auto">
+                {/* Today Button */}
+                <Button
+                  variant={(() => {
+                    if (!dateFrom || !dateTo) return "outline";
+                    const today = new Date();
+                    const todayStart = new Date(today);
+                    todayStart.setHours(0, 0, 0, 0);
+                    const todayEnd = new Date(today);
+                    todayEnd.setHours(23, 59, 59, 999);
+
+                    const isToday = dateFrom.getTime() === todayStart.getTime() && dateTo.getTime() === todayEnd.getTime();
+                    return isToday ? "default" : "outline";
+                  })()}
+                  size="sm"
+                  onClick={() => {
+                    const today = new Date();
+                    const todayStart = new Date(today);
+                    todayStart.setHours(0, 0, 0, 0);
+                    const todayEnd = new Date(today);
+                    todayEnd.setHours(23, 59, 59, 999);
+                    setDateFrom(todayStart);
+                    setDateTo(todayEnd);
+                    setDateFilter("");
+                  }}
+                  className="transition-all duration-200"
+                >
+                  📅 Today
+                </Button>
+
+                {/* Yesterday Button */}
+                <Button
+                  variant={(() => {
+                    if (!dateFrom || !dateTo) return "outline";
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStart = new Date(yesterday);
+                    yesterdayStart.setHours(0, 0, 0, 0);
+                    const yesterdayEnd = new Date(yesterday);
+                    yesterdayEnd.setHours(23, 59, 59, 999);
+
+                    const isYesterday = dateFrom.getTime() === yesterdayStart.getTime() && dateTo.getTime() === yesterdayEnd.getTime();
+                    return isYesterday ? "default" : "outline";
+                  })()}
+                  size="sm"
+                  onClick={() => {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStart = new Date(yesterday);
+                    yesterdayStart.setHours(0, 0, 0, 0);
+                    const yesterdayEnd = new Date(yesterday);
+                    yesterdayEnd.setHours(23, 59, 59, 999);
+                    setDateFrom(yesterdayStart);
+                    setDateTo(yesterdayEnd);
+                    setDateFilter("");
+                  }}
+                  className="transition-all duration-200"
+                >
+                  📅 Yesterday
+                </Button>
+
+                {/* This Week Button */}
+                <Button
+                  variant={(() => {
+                    if (!dateFrom || !dateTo) return "outline";
+                    const today = new Date();
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - today.getDay());
+                    startOfWeek.setHours(0, 0, 0, 0);
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 6);
+                    endOfWeek.setHours(23, 59, 59, 999);
+
+                    const isThisWeek = dateFrom.getTime() === startOfWeek.getTime() && dateTo.getTime() === endOfWeek.getTime();
+                    return isThisWeek ? "default" : "outline";
+                  })()}
+                  size="sm"
+                  onClick={() => {
+                    const today = new Date();
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - today.getDay());
+                    startOfWeek.setHours(0, 0, 0, 0);
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 6);
+                    endOfWeek.setHours(23, 59, 59, 999);
+                    setDateFrom(startOfWeek);
+                    setDateTo(endOfWeek);
+                    setDateFilter("");
+                  }}
+                  className="transition-all duration-200"
+                >
+                  📅 This Week
+                </Button>
+
+                {/* Clear All Filters Button */}
+                {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedItem("all");
+                      setSelectedSection("all");
+                      setDateFilter("");
+                      setDateFrom(undefined);
+                      setDateTo(undefined);
+                    }}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 transition-all duration-200"
+                  >
+                    🗑️ Clear All
+                  </Button>
+                )}
               </div>
             </div>
-          </CardContent>
+          </div>
+        </CardContent>
         {/* </Card> */}
 
         {/* Sales Accordion */}
-        <Card className="!bg-background !ring-0 !border-none !shadow-none !rounded-lg my-4">
+        <Card className="!bg-background !ring-0 !border-none !shadow-none !rounded-lg my-4 pb-28">
           <CardHeader className="px-4 h-4">
             <div className="flex items-center justify-between">
               <div>
@@ -1039,118 +1039,123 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
 
         {/* Dialogs */}
         <Dialog open={revertDialogOpen} onOpenChange={setRevertDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Revert Sale</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to revert sale #{selectedSaleForRevert?.id}?
-                <br />
-                <br />
-                <strong>This action will:</strong>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Permanently delete the sale record</li>
-                  <li>Restore all sold items back to inventory</li>
-                  <li>Restore ingredient quantities for menu items</li>
-                  <li>Update stock levels accordingly</li>
-                </ul>
-                <br />
-                <span className="text-destructive font-medium">This action cannot be undone.</span>
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={cancelRevert} disabled={isReverting}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={confirmRevertSale} disabled={isReverting}>
-                {isReverting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Reverting...
-                  </>
-                ) : (
-                  <>
-                    <Undo2 className="mr-2 h-4 w-4" />
-                    Revert Sale
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
+          <DialogContent className="p-0 sm:max-w-xl max-h-[90vh] flex flex-col">
+            <div className="flex max-h-[90vh] flex-col">
+              <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4">
+                <DialogTitle>Revert Sale</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                <p>Are you sure you want to revert sale #{selectedSaleForRevert?.id}?</p>
+                <div>
+                  <strong>This action will:</strong>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Permanently delete the sale record</li>
+                    <li>Restore all sold items back to inventory</li>
+                    <li>Restore ingredient quantities for menu items</li>
+                    <li>Update stock levels accordingly</li>
+                  </ul>
+                </div>
+                <p className="text-destructive font-medium">This action cannot be undone.</p>
+              </div>
+              <DialogFooter className="sticky bottom-0 z-10 bg-background border-t px-6 py-4">
+                <Button variant="outline" onClick={cancelRevert} disabled={isReverting}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={confirmRevertSale} disabled={isReverting}>
+                  {isReverting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Reverting...
+                    </>
+                  ) : (
+                    <>
+                      <Undo2 className="mr-2 h-4 w-4" />
+                      Revert Sale
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
 
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Sale</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to Delete Sale #{selectedSaleForDelete?.id}?
-                <br />
-                <br />
-                <strong>This action will:</strong>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Delete the sale from the sales history view</li>
-                  <li>Preserve the sale record in the database</li>
-                  <li>Keep all stock levels unchanged</li>
-                  <li>Allow the sale to be restored later if needed</li>
-                </ul>
-                <br />
-                <span className="text-blue-600 font-medium">This is a "soft delete" - the sale data is preserved but hidden from view.</span>
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={cancelSoftDelete} disabled={isDeleting}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={confirmSoftDeleteSale} disabled={isDeleting}>
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Hiding...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Sale
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
+          <DialogContent className="p-0 sm:max-w-xl">
+            <div className="flex max-h-[80vh] flex-col">
+              <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4">
+                <DialogTitle>Delete Sale</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                <p>Are you sure you want to Delete Sale #{selectedSaleForDelete?.id}?</p>
+                <div>
+                  <strong>This action will:</strong>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Delete the sale from the sales history view</li>
+                    <li>Preserve the sale record in the database</li>
+                    <li>Keep all stock levels unchanged</li>
+                    <li>Allow the sale to be restored later if needed</li>
+                  </ul>
+                </div>
+                <p className="text-blue-600 font-medium">This is a "soft delete" - the sale data is preserved but hidden from view.</p>
+              </div>
+              <DialogFooter className="sticky bottom-0 z-10 bg-background border-t px-6 py-4">
+                <Button variant="outline" onClick={cancelSoftDelete} disabled={isDeleting}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={confirmSoftDeleteSale} disabled={isDeleting}>
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Hiding...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Sale
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
 
         <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Selected Sales</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete {selectedItemIds.size} selected item{selectedItemIds.size === 1 ? "" : "s"} from{" "}
-                {
-                  new Set(
+          <DialogContent className="p-0 sm:max-w-xl">
+            <div className="flex max-h-[80vh] flex-col">
+              <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4">
+                <DialogTitle>Delete Selected Sales</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                <p>
+                  Are you sure you want to delete {selectedItemIds.size} selected item{selectedItemIds.size === 1 ? "" : "s"} from{" "}
+                  {
+                    new Set(
+                      Array.from(selectedItemIds)
+                        .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+                        .filter(Boolean)
+                    ).size
+                  }{" "}
+                  sale
+                  {new Set(
                     Array.from(selectedItemIds)
                       .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
                       .filter(Boolean)
-                  ).size
-                }{" "}
-                sale
-                {new Set(
-                  Array.from(selectedItemIds)
-                    .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
-                    .filter(Boolean)
-                ).size === 1
-                  ? ""
-                  : "s"}
-                ?
-                <br />
-                <br />
-                <strong>This action will:</strong>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Hide the selected items from the sales history view</li>
-                  <li>Preserve all sale records in the database</li>
-                  <li>Keep all stock levels unchanged</li>
-                  <li>Allow the sales to be restored later if needed</li>
-                </ul>
-                <br />
-                <span className="text-blue-600 font-medium">This is a "soft delete" operation - the sale data is preserved but hidden from view.</span>
+                  ).size === 1
+                    ? ""
+                    : "s"}
+                  ?
+                </p>
+                <div>
+                  <strong>This action will:</strong>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Hide the selected items from the sales history view</li>
+                    <li>Preserve all sale records in the database</li>
+                    <li>Keep all stock levels unchanged</li>
+                    <li>Allow the sales to be restored later if needed</li>
+                  </ul>
+                </div>
+                <p className="text-blue-600 font-medium">This is a "soft delete" operation - the sale data is preserved but hidden from view.</p>
                 {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
                   <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
                     <p className="text-sm text-yellow-800">
@@ -1168,71 +1173,74 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                     </p>
                   </div>
                 )}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={cancelBulkDelete} disabled={isBulkDeleting}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={confirmBulkDelete} disabled={isBulkDeleting}>
-                {isBulkDeleting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting {selectedItemIds.size} Items...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete {selectedItemIds.size} Items
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
+              </div>
+              <DialogFooter className="sticky bottom-0 z-10 bg-background border-t px-6 py-4">
+                <Button variant="outline" onClick={cancelBulkDelete} disabled={isBulkDeleting}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={confirmBulkDelete} disabled={isBulkDeleting}>
+                  {isBulkDeleting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting {selectedItemIds.size} Items...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete {selectedItemIds.size} Items
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
 
         <Dialog open={bulkRevertDialogOpen} onOpenChange={setBulkRevertDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Revert Selected Sales</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to revert {selectedItemIds.size} selected item{selectedItemIds.size === 1 ? "" : "s"} from{" "}
-                {
-                  new Set(
-                    Array.from(selectedItemIds)
-                      .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
-                      .filter(Boolean)
-                  ).size
-                }{" "}
-                sale
-                {new Set(
-                  Array.from(selectedItemIds)
-                    .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
-                    .filter(Boolean)
-                ).size === 1
-                  ? ""
-                  : "s"}
-                ?
-                <br />
-                <br />
-                <strong>This action will:</strong>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>
-                    Permanently delete the affected sale record
-                    {new Set(
+          <DialogContent className="p-0 sm:max-w-xl">
+            <div className="flex max-h-[80vh] flex-col">
+              <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4">
+                <DialogTitle>Revert Selected Sales</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                <p>
+                  Are you sure you want to revert {selectedItemIds.size} selected item{selectedItemIds.size === 1 ? "" : "s"} from{" "}
+                  {
+                    new Set(
                       Array.from(selectedItemIds)
                         .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
                         .filter(Boolean)
-                    ).size === 1
-                      ? ""
-                      : "s"}
-                  </li>
-                  <li>Restore all sold items back to inventory</li>
-                  <li>Restore ingredient quantities for menu items</li>
-                  <li>Update stock levels accordingly</li>
-                </ul>
-                <br />
-                <span className="text-destructive font-medium">This action cannot be undone.</span>
+                    ).size
+                  }{" "}
+                  sale
+                  {new Set(
+                    Array.from(selectedItemIds)
+                      .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+                      .filter(Boolean)
+                  ).size === 1
+                    ? ""
+                    : "s"}
+                  ?
+                </p>
+                <div>
+                  <strong>This action will:</strong>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>
+                      Permanently delete the affected sale record
+                      {new Set(
+                        Array.from(selectedItemIds)
+                          .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+                          .filter(Boolean)
+                      ).size === 1
+                        ? ""
+                        : "s"}
+                    </li>
+                    <li>Restore all sold items back to inventory</li>
+                    <li>Restore ingredient quantities for menu items</li>
+                    <li>Update stock levels accordingly</li>
+                  </ul>
+                </div>
+                <p className="text-destructive font-medium">This action cannot be undone.</p>
                 {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
                   <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
                     <p className="text-sm text-yellow-800">
@@ -1250,26 +1258,26 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                     </p>
                   </div>
                 )}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={cancelBulkRevert} disabled={isBulkReverting}>
-                Cancel
-              </Button>
-              <Button className="text-orange-600" variant="outline" onClick={confirmBulkRevert} disabled={isBulkReverting}>
-                {isBulkReverting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Reverting {selectedItemIds.size} Items...
-                  </>
-                ) : (
-                  <>
-                    <Undo2 className="mr-2 h-4 w-4" />
-                    Revert {selectedItemIds.size} Items
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
+              </div>
+              <DialogFooter className="sticky bottom-0 z-10 bg-background border-t px-6 py-4">
+                <Button variant="outline" onClick={cancelBulkRevert} disabled={isBulkReverting}>
+                  Cancel
+                </Button>
+                <Button className="text-orange-600" variant="outline" onClick={confirmBulkRevert} disabled={isBulkReverting}>
+                  {isBulkReverting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Reverting {selectedItemIds.size} Items...
+                    </>
+                  ) : (
+                    <>
+                      <Undo2 className="mr-2 h-4 w-4" />
+                      Revert {selectedItemIds.size} Items
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
 
