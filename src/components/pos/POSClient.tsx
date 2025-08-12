@@ -16,7 +16,7 @@ import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
@@ -171,23 +171,22 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       return;
     }
     if (isTableManuallySelected) {
-      console.log("🚫 Completely blocking selectedOrderForPOS due to manual table selection:", { 
-        selectedOrderId: selectedOrderForPOS?.id, 
-        tableManuallySelected: isTableManuallySelected 
+      console.log("🚫 Completely blocking selectedOrderForPOS due to manual table selection:", {
+        selectedOrderId: selectedOrderForPOS?.id,
+        tableManuallySelected: isTableManuallySelected
       });
       return;
     }
-    
+
     // Block selectedOrderForPOS if there's already a current order being edited
-    if (currentOrder && selectedOrderForPOS && currentOrder.id && selectedOrderForPOS.id && 
-        currentOrder.id.toString() === selectedOrderForPOS.id.toString()) {
-      console.log("🚫 Blocking selectedOrderForPOS - order already loaded and being edited:", { 
-        currentOrderId: currentOrder.id, 
-        selectedOrderId: selectedOrderForPOS.id 
+    if (currentOrder && selectedOrderForPOS && currentOrder.id && selectedOrderForPOS.id && currentOrder.id.toString() === selectedOrderForPOS.id.toString()) {
+      console.log("🚫 Blocking selectedOrderForPOS - order already loaded and being edited:", {
+        currentOrderId: currentOrder.id,
+        selectedOrderId: selectedOrderForPOS.id
       });
       return;
     }
-    
+
     if (selectedOrderForPOS && !isPaymentCompleted) {
       console.log("📋 Loading selected order for POS:", { orderId: selectedOrderForPOS.id });
       if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
@@ -203,13 +202,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         return;
       }
       processedOrderRef.current = orderId;
-      
+
       // Check if this is a completed order - don't load it into cart
-      if (selectedOrderForPOS.status === 'completed' || selectedOrderForPOS.status === 'paid') {
+      if (selectedOrderForPOS.status === "completed" || selectedOrderForPOS.status === "paid") {
         console.log("📋 Skipping completed order load:", { orderId, status: selectedOrderForPOS.status });
         return;
       }
-      
+
       const cartItems: POSCartItem[] = selectedOrderForPOS.items
         .map((item: any, index: number) => {
           if (item.menuItem) {
@@ -282,13 +281,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
       const currentOrderId = currentOrder.id.toString();
       console.log("📋 Current order loaded:", { orderId: currentOrderId, items: currentOrder.items.length });
-      
+
       // Don't reload cart if user is actively editing (has unsaved changes)
       if (hasUnsavedChanges) {
         console.log("🚫 Blocking currentOrder cart reload - user has unsaved changes");
         return;
       }
-      
+
       if (selectedOrderForPOS && selectedOrderForPOS.id.toString() === currentOrderId && processedOrderRef.current !== currentOrderId) {
         processedOrderRef.current = currentOrderId;
         const cartItems: POSCartItem[] = currentOrder.items
@@ -846,8 +845,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     await Promise.all([refreshOrders(), refreshInventory(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
   }, [refreshOrders, refreshInventory, fetchTablesData, refreshCountsRef]);
 
-
-
   const availablePosItems = posItems.filter(posItem => {
     const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || posItem.category?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
@@ -984,21 +981,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handleTableSelection = useCallback(
     async (table: Table) => {
       console.log("📍 Table selected:", { tableId: table.id, tableNumber: table.number });
-      
+
       // Set flag to prevent selectedOrderForPOS from overriding this table selection
       setIsTableManuallySelected(true);
-      
+
       // Clear any existing selectedOrderForPOS to prevent override
       if (onOrderProcessed) {
         onOrderProcessed();
       }
-      
+
       // Clear current order state to prevent conflicts
       if (clearOrder) {
         clearOrder();
       }
       processedOrderRef.current = null;
-      
+
       setSelectedTable(table);
       setOrderType("table");
       setShowTablesLayout(false);
@@ -1013,19 +1010,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             const cartItems: POSCartItem[] = existingOrder.items
               .map(item => {
                 let originalItem: StockEntryWithMaterial | MenuItem;
-                
+
                 if (item.type === "material" && item.materialId) {
-                  originalItem = stockEntries.find(se => 
-                    String(se.materialId) === String(item.materialId)
-                  );
+                  originalItem = stockEntries.find(se => String(se.materialId) === String(item.materialId));
                 } else if (item.type === "menu_item" && item.menuItemId) {
-                  originalItem = menuItems.find(m => 
-                    String(m.id) === String(item.menuItemId)
-                  );
+                  originalItem = menuItems.find(m => String(m.id) === String(item.menuItemId));
                 }
-                
-                
-                
+
                 const cartItem = {
                   id: item.id,
                   name: item.name,
@@ -1040,11 +1031,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               .filter(Boolean) as POSCartItem[];
             console.log("🛒 Loaded cart from table order:", { orderId: existingOrder.orderId, items: cartItems.length });
             setCart(cartItems);
-            
+
             // 🔧 FIX: Load the existing order so that saving will update instead of creating new
             await loadOrder(existingOrder.id);
             console.log("📋 Loaded current order for table:", { orderId: existingOrder.id, orderNumber: existingOrder.orderNumber });
-            
+
             // Load existing discount information if present
             if (existingOrder.discountAmount && parseFloat(existingOrder.discountAmount.toString()) > 0) {
               setAppliedDiscount({
@@ -1054,18 +1045,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 reason: existingOrder.discountReason || undefined
               });
               setDiscountAmount(parseFloat(existingOrder.discountAmount.toString()));
-              console.log("💰 Loaded existing discount:", { 
-                type: existingOrder.discountType, 
-                amount: existingOrder.discountAmount 
+              console.log("💰 Loaded existing discount:", {
+                type: existingOrder.discountType,
+                amount: existingOrder.discountAmount
               });
             }
-            
+
             // Load existing order notes if present
             if (existingOrder.notes) {
               setOrderNotes(existingOrder.notes);
               console.log("📝 Loaded existing order notes");
             }
-            
+
             showSuccess(`Loaded existing order ${existingOrder.orderNumber} for Table ${table.number}`);
           }
         } catch (error) {
@@ -1090,13 +1081,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
 
       // await refreshOrderData();
-      
+
       // Reset the flag after a longer delay to ensure table selection is protected
       setTimeout(() => {
         setIsTableManuallySelected(false);
       }, 5000);
     },
-    [loadOrder, menuItems, stockEntries, showSuccess, showError,  clearOrder]
+    [loadOrder, menuItems, stockEntries, showSuccess, showError, clearOrder]
   );
 
   const handleCloseTablesLayout = useCallback(() => {
@@ -1646,10 +1637,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setShouldAutoPrint(hasSavedPrinter());
       setShowPaymentDialog(false);
       setPaymentAmount("");
-      
+
       // Set payment completed flag to prevent order reloading
       setIsPaymentCompleted(true);
-      
+
       // Clear all order-related state immediately
       setAppliedDiscount(null);
       setDiscountAmount(0);
@@ -1657,21 +1648,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setSelectedEmployee(null);
       setHasUnsavedChanges(false);
       processedOrderRef.current = null;
-      
+
       // Clear order persistence
       OrderPersistence.clearCurrentOrder();
-      
+
       // Clear cart with animation
       setTimeout(() => {
         clearCartWithAnimation();
       }, 100);
-      
+
       // Reset to takeaway mode
       resetToTakeaway();
-      
+
       // Refresh counts but prevent order reloading
       await refreshAllCounts();
-      
+
       // Reset payment completed flag after a delay to allow for proper cleanup
       setTimeout(() => {
         setIsPaymentCompleted(false);
@@ -1723,11 +1714,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   return (
     <>
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
-        {(cart && cart.length > 0) && !showSuccessCheckmark && (
+        {cart && cart.length > 0 && !showSuccessCheckmark && (
           <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                {(cart && cart.length > 0) && (
+                {cart && cart.length > 0 && (
                   <span className="text-sm text-blue-600 font-bold">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
@@ -1767,10 +1758,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         >
           {/* Cart Header - Fixed (Desktop Only) */}
           <div className="card-header hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
-            <div className={`flex items-center justify-between ${(cart && cart.length > 0) && !showSuccessCheckmark ? "py-2" : ""}`}>
+            <div className={`flex items-center justify-between ${cart && cart.length > 0 && !showSuccessCheckmark ? "py-2" : ""}`}>
               <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
                 {/* Order Status Indicator */}
-                {(cart && cart.length > 0) && !showSuccessCheckmark && (
+                {cart && cart.length > 0 && !showSuccessCheckmark && (
                   <span className="text-lg text-blue-600 font-bold">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
@@ -1832,6 +1823,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-scale-in" />
                   <p className="text-green-700 font-medium text-lg">Order Completed!</p>
                   <p className="text-green-600 text-sm mt-1">Cart cleared successfully</p>
+                </div>
+              </div>
+            )}
+
+            {/* Cancelled Animation Overlay */}
+            {currentOrder?.status === "cancelled" && (
+              <div className="absolute inset-0 flex items-center justify-center mt-10 z-10">
+                <div className="text-center">
+                  <img src="/void.png" alt="" className="w-52 mx-auto" />
                 </div>
               </div>
             )}
