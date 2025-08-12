@@ -166,7 +166,7 @@ export class InventoryReportGenerator {
         totalValue: data.totalValue,
         materialCount: data.materialIds.size,
         averageOrderValue: data.totalValue / data.entries.length,
-        lastPurchaseDate: new Date(Math.max(...data.entries.map(e => e.purchaseDate.getTime())))
+        lastPurchaseDate: new Date(Math.max(...data.entries.map(e => new Date(e.purchaseDate).getTime())))
       }))
       .sort((a, b) => b.totalValue - a.totalValue);
   }
@@ -178,7 +178,7 @@ export class InventoryReportGenerator {
 
     stockEntries.forEach(entry => {
       if (entry.expiryDate) {
-        const daysUntilExpiry = Math.ceil((entry.expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const daysUntilExpiry = Math.ceil((new Date(entry.expiryDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         const material = materials.find(m => m.id === entry.materialId);
 
         if (daysUntilExpiry <= 30) {

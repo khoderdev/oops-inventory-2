@@ -170,13 +170,13 @@ export async function generateExpiryAlertsReport(stockEntries: StockEntry[], mat
 export async function generateCategoryAnalysisReport(materials: Material[], stockEntries: StockEntry[], sales: SaleRecord[]) {
   const report = reportGenerator.generateInventoryReport(materials, stockEntries);
   return report.categoryBreakdown.map(category => ({
-    category: category.category,
-    materialscount: category.materialCount,
-    totalvalue: category.totalValue,
-    avgvalue: category.averageValue,
-    percentage: category.percentage,
-    purchasevolume: Math.floor(Math.random() * 1000),
-    salesvolume: Math.floor(Math.random() * 800)
+    "Category": category.category,
+    "Materials Count": category.materialCount,
+    "Total Value": category.totalValue,
+    "Avg Value": category.averageValue,
+    "Percentage": category.percentage,
+    "Purchase Volume": Math.floor(Math.random() * 1000),
+    "Sales Volume": Math.floor(Math.random() * 800)
   }));
 }
 
