@@ -397,7 +397,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
 
       {/* Sales History Dialog */}
       <Dialog open={showSalesHistoryDialog} onOpenChange={setShowSalesHistoryDialog}>
-        <DialogContent className="max-w-7xl w-[95vw] h-[90vh] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 shadow-2xl p-0 overflow-auto">
+        <DialogContent className="max-w-screen h-[100vh] shadow-2xl p-0 overflow-auto">
           <div className="h-full overflow-auto">
             <SalesHistoryPage isOpen={showSalesHistoryDialog} onClose={handleCloseSalesHistoryDialog} />
           </div>
