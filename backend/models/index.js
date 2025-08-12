@@ -2,6 +2,7 @@ import sequelize from "../config/database.js";
 import Assignment from "./Assignment.js";
 import AuditLog from "./AuditLog.js";
 import BackupSchedule from "./BackupSchedule.js";
+import Category from "./Category.js";
 import DayOperation from "./dayOperation.js";
 import Employee from "./Employee.js";
 import EmployeeSettlement from "./EmployeeSettlement.js";
@@ -643,4 +644,4 @@ Material.hasMany(SystemLogs, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Wasting };
+export { Assignment, AuditLog, BackupSchedule, Category, DayOperation, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Wasting };

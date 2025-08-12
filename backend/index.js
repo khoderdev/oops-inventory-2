@@ -8,6 +8,7 @@ import assignmentsRoutes from "./routes/assignments.js";
 import authRoutes from "./routes/auth.js";
 import backupSchedulerRoutes from "./routes/backup-scheduler.js";
 import backupRoutes from "./routes/backup.js";
+import categoriesRoutes from "./routes/categories.js";
 import dayOperationsRoutes from "./routes/dayOperations.js";
 import employeeRoutes from "./routes/employees.js";
 import logsRoutes from "./routes/logs.js";
@@ -137,6 +138,7 @@ app.use("/api/auth", authRoutes);
 // Protected routes (require authentication)
 app.use("/api/users", userRoutes);
 app.use("/api/employees", employeeRoutes);
+app.use("/api/categories", categoriesRoutes);
 app.use("/api/materials", materialRoutes);
 app.use("/api/sections", sectionRoutes);
 app.use("/api/assignments", assignmentsRoutes);
