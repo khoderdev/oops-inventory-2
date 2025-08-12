@@ -6,7 +6,10 @@ export const ordersAPI = {
   createOrder: (data: CreateOrderData) => api.post<Order, CreateOrderData>("/orders", data),
 
   // Get all orders with optional filters
-  getOrders: (params?: { status?: string; orderType?: string; tableId?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }) => api.get<OrderSummary[]>("/orders", params ? { params } as any : undefined),
+  getOrders: (params?: { status?: string; orderType?: string; tableId?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }) => api.get<OrderSummary[]>("/orders", params ? ({ params } as any) : undefined),
+
+  // Get staff/employee orders only with optional filters
+  getStaffOrders: (params?: { status?: string; tableId?: string; startDate?: string; endDate?: string; limit?: number; offset?: number; orderBy?: string; order?: "ASC" | "DESC" }) => api.get<Order[]>("/orders/staff", params ? ({ params } as any) : undefined),
 
   // Get a specific order by ID
   getOrder: (orderId: string) => api.get<Order>(`/orders/${orderId}`),
@@ -37,8 +40,7 @@ export const ordersAPI = {
   cancelOrder: (orderId: string, reason?: string) => api.patch<Order, { reason?: string }>(`/orders/${orderId}/cancel`, { reason }),
 
   // Void an order (enhanced cancellation with stock restoration)
-  voidOrder: (orderId: string, data: { reason?: string; restoreStock?: boolean }) => 
-    api.patch<{ order: Order; stockRestorations?: Array<{ materialId: string; itemName: string; quantityRestored: number; newStockLevel: number }> }, { reason?: string; restoreStock?: boolean }>(`/orders/${orderId}/void`, data),
+  voidOrder: (orderId: string, data: { reason?: string; restoreStock?: boolean }) => api.patch<{ order: Order; stockRestorations?: Array<{ materialId: string; itemName: string; quantityRestored: number; newStockLevel: number }> }, { reason?: string; restoreStock?: boolean }>(`/orders/${orderId}/void`, data),
 
   // Get active orders for a table
   getTableOrders: (tableId: string) => api.get<Order[]>(`/orders/table/${tableId}`),

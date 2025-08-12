@@ -11,6 +11,8 @@ router.use(authenticate);
 router.post("/", ordersController.createOrder);
 router.get("/", ordersController.getOrders);
 router.get("/drafts", ordersController.getDraftOrders);
+// Staff/employee orders only
+router.get("/staff", ordersController.getStaffOrders);
 router.get("/:orderId", ordersController.getOrder);
 router.put("/:orderId", ordersController.updateOrder);
 router.post("/:orderId/items", ordersController.addOrderItems);

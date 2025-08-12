@@ -110,7 +110,24 @@ export const ordersController = {
       const { status, orderType, tableId, startDate, endDate, limit = 50, offset = 0, orderBy = "createdAt", order = "DESC" } = req.query;
       const whereClause = {};
       if (status) whereClause.status = status;
-      if (orderType) whereClause.orderType = orderType;
+      // Always exclude staff/employee order types from general listing
+      const excludedTypes = ["employees", "staff"];
+      if (orderType) {
+        // If client explicitly asks for excluded types, return empty list
+        if (excludedTypes.includes(String(orderType).toLowerCase())) {
+          return res.json({ data: [] });
+        }
+        whereClause.orderType = orderType;
+      } else {
+        // Postgres enum-safe filter: cast enum to text then NOT IN
+        whereClause[Op.and] = [
+          ...(whereClause[Op.and] || []),
+          sequelize.where(
+            sequelize.cast(sequelize.col("orderType"), "text"),
+            { [Op.notIn]: excludedTypes }
+          )
+        ];
+      }
       if (tableId) whereClause.tableId = tableId;
       if (startDate || endDate) {
         whereClause.createdAt = {};
@@ -180,6 +197,10 @@ export const ordersController = {
         ]
       });
       if (!order) { return res.status(404).json({ message: "Order not found" }); }
+      // Exclude staff/employee orders from this endpoint
+      if (["employees", "staff"].includes(String(order.orderType).toLowerCase())) {
+        return res.status(404).json({ message: "Order not found" });
+      }
       res.json({ data: order });
     } catch (error) {
       console.error("Get order error:", error);
@@ -866,7 +887,13 @@ export const ordersController = {
       const orders = await Order.findAll({
         where: {
           tableId,
-          status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
+          status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] },
+          [Op.and]: [
+            sequelize.where(
+              sequelize.cast(sequelize.col("orderType"), "text"),
+              { [Op.notIn]: ["employees", "staff"] }
+            )
+          ]
         },
         include: [
           { model: OrderItem, as: "items" },
@@ -886,7 +913,15 @@ export const ordersController = {
   getDraftOrders: async (req, res) => {
     try {
       const orders = await Order.findAll({
-        where: { status: "draft" },
+        where: {
+          status: "draft",
+          [Op.and]: [
+            sequelize.where(
+              sequelize.cast(sequelize.col("orderType"), "text"),
+              { [Op.notIn]: ["employees", "staff"] }
+            )
+          ]
+        },
         include: [
           { model: OrderItem, as: "items" },
           { model: Table, as: "table" }
@@ -898,6 +933,53 @@ export const ordersController = {
     } catch (error) {
       console.error("Get draft orders error:", error);
       res.status(500).json({ message: "Failed to fetch draft orders", error: error.message });
+    }
+  },
+
+  // Get staff/employee orders only
+  getStaffOrders: async (req, res) => {
+    try {
+      const { status, tableId, startDate, endDate, limit = 50, offset = 0, orderBy = "createdAt", order = "DESC" } = req.query;
+      const whereClause = {};
+      if (status) whereClause.status = status;
+      if (tableId) whereClause.tableId = tableId;
+      if (startDate || endDate) {
+        whereClause.createdAt = {};
+        if (startDate) whereClause.createdAt[Op.gte] = new Date(startDate);
+        if (endDate) whereClause.createdAt[Op.lte] = new Date(endDate);
+      }
+      // Postgres enum-safe filter: cast enum to text then IN
+      whereClause[Op.and] = [
+        ...(whereClause[Op.and] || []),
+        sequelize.where(
+          sequelize.cast(sequelize.col("orderType"), "text"),
+          { [Op.in]: ["employees", "staff"] }
+        )
+      ];
+
+      const orders = await Order.findAll({
+        where: whereClause,
+        include: [
+          {
+            model: OrderItem,
+            as: "items",
+            include: [
+              { model: Material, as: "material" },
+              { model: MenuItem, as: "menuItem" }
+            ]
+          },
+          { model: Table, as: "table" },
+          { model: User, as: "creator", attributes: ["id", "username"] }
+        ],
+        order: [[orderBy, order.toUpperCase()]],
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      });
+
+      res.json({ data: orders });
+    } catch (error) {
+      console.error("Get staff orders error:", error);
+      res.status(500).json({ message: "Failed to fetch staff orders", error: error.message });
     }
   },
 
