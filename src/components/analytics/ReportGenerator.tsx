@@ -236,13 +236,42 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
   const exportReport = () => {
     if (!hasGenerated || reportData.length === 0) return;
 
+    // Helper function to format dates consistently as DD-MM-YYYY HH:MM:SS AM/PM for CSV
+    const formatDateForCSV = (date: Date): string => {
+      const day = date.getDate().toString().padStart(2, "0");
+      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const year = date.getFullYear();
+
+      // Convert to 12-hour format
+      let hours = date.getHours();
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12;
+      hours = hours ? hours : 12; // 0 should be 12
+      const hoursStr = hours.toString().padStart(2, "0");
+
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      const seconds = date.getSeconds().toString().padStart(2, "0");
+      return `${day}-${month}-${year} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+    };
+
     const headers = getTableHeaders(selectedReportType);
     const csvContent = [
       headers.join(","),
       ...reportData.map(row =>
         headers
           .map(header => {
-            const value = row[header] ?? row[header.toLowerCase().replace(/\s+/g, "")] ?? "-";
+            let value = row[header] ?? row[header.toLowerCase().replace(/\s+/g, "")] ?? "-";
+
+            // Format dates consistently for CSV export
+            if (header.toLowerCase().includes("date") || header.toLowerCase().includes("purchase")) {
+              if (value && value !== "-") {
+                const dateValue = value instanceof Date ? value : new Date(String(value));
+                if (!isNaN(dateValue.getTime())) {
+                  value = formatDateForCSV(dateValue);
+                }
+              }
+            }
+
             return typeof value === "string" && value.includes(",") ? `"${value}"` : value;
           })
           .join(",")
@@ -383,7 +412,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
               </div>
 
               {/* Clear and Export buttons - inline on mobile only */}
-              {((dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) || hasGenerated) && (
+              {(dateFrom || dateTo || (selectedCategory && selectedCategory !== "all") || hasGenerated) && (
                 <div className="flex flex-row md:contents gap-2">
                   {/* Clear Filters Button */}
                   {(dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) && (
@@ -396,9 +425,9 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
                   {/* Export Button */}
                   {hasGenerated && (
-                    <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 md:flex-none md:w-[140px]">
+                    <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 md:flex-none md:w-[140px] hover:!bg-green-500/25 hover:!text-green-500">
                       <Download className="h-4 w-4" />
-                      <span className="hidden sm:inline">Export CSV</span>
+                      <span className="hidden sm:inline">Export</span>
                       <span className="sm:hidden">Export</span>
                     </Button>
                   )}

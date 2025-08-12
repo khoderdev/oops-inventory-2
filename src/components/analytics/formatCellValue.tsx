@@ -2,6 +2,24 @@ import { ReportType } from "@/components/analytics/configs";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatNumber } from "../../utils/conversionLogic";
 
+// Helper function to format dates consistently as DD-MM-YYYY HH:MM:SS AM/PM
+const formatDateToDDMMYYYY = (date: Date): string => {
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  
+  // Convert to 12-hour format
+  let hours = date.getHours();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // 0 should be 12
+  const hoursStr = hours.toString().padStart(2, '0');
+  
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  return `${day}-${month}-${year} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+};
+
 export function formatCellValue(row: Record<string, unknown>, header: string, reportType: ReportType): React.ReactNode {
   // Use the header as-is to match Title Case keys with spaces
   const value = row[header];
@@ -85,7 +103,7 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
       }
       case "Waste Date": {
         const dateValue = value instanceof Date ? value : new Date(String(value));
-        return isNaN(dateValue.getTime()) ? "Never" : dateValue.toLocaleDateString();
+        return isNaN(dateValue.getTime()) ? "Never" : formatDateToDDMMYYYY(dateValue);
       }
       case "Entries Affected": {
         const entries = typeof value === "number" ? value : Number(value);
@@ -251,13 +269,13 @@ export function formatCellValue(row: Record<string, unknown>, header: string, re
 
       return (
         <div className="flex flex-col">
-          <span className="text-sm">{dateValue.toLocaleDateString()}</span>
+          <span className="text-sm">{formatDateToDDMMYYYY(dateValue)}</span>
           <span className="text-xs text-muted-foreground">{diffDays === 1 ? "1 day ago" : `${diffDays} days ago`}</span>
         </div>
       );
     }
 
-    return dateValue.toLocaleDateString();
+    return formatDateToDDMMYYYY(dateValue);
   }
 
   // Quantity formatting with visual indicators (exclude variance-analysis columns)

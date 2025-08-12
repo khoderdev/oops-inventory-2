@@ -66,47 +66,47 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
     document.body.style.userSelect = "";
   }, []);
 
-  const autoFitAllColumns = useCallback(() => {
-    if (!tableRef.current) return;
+  // const autoFitAllColumns = useCallback(() => {
+  //   if (!tableRef.current) return;
 
-    setIsAutoFitting("all");
+  //   setIsAutoFitting("all");
 
-    const calculateOptimalWidth = (columnHeader: string) => {
-      let maxWidth = getInitialWidth(columnHeader);
-      const measurer = document.createElement("div");
-      measurer.style.position = "absolute";
-      measurer.style.visibility = "hidden";
-      measurer.style.whiteSpace = "nowrap";
-      measurer.style.fontSize = "14px";
-      measurer.style.fontWeight = "bold";
-      document.body.appendChild(measurer);
-      measurer.textContent = columnHeader;
-      const headerWidth = measurer.offsetWidth + 60;
-      maxWidth = Math.max(maxWidth, headerWidth);
-      measurer.style.fontWeight = "normal";
+  //   const calculateOptimalWidth = (columnHeader: string) => {
+  //     let maxWidth = getInitialWidth(columnHeader);
+  //     const measurer = document.createElement("div");
+  //     measurer.style.position = "absolute";
+  //     measurer.style.visibility = "hidden";
+  //     measurer.style.whiteSpace = "nowrap";
+  //     measurer.style.fontSize = "14px";
+  //     measurer.style.fontWeight = "bold";
+  //     document.body.appendChild(measurer);
+  //     measurer.textContent = columnHeader;
+  //     const headerWidth = measurer.offsetWidth + 60;
+  //     maxWidth = Math.max(maxWidth, headerWidth);
+  //     measurer.style.fontWeight = "normal";
 
-      data.slice(0, Math.min(20, data.length)).forEach(row => {
-        const cellValue = formatCellValue(row, columnHeader, reportType);
-        if (cellValue && typeof cellValue === "string") {
-          measurer.textContent = cellValue;
-          const contentWidth = measurer.offsetWidth + 40;
-          maxWidth = Math.max(maxWidth, contentWidth);
-        }
-      });
-      document.body.removeChild(measurer);
-      return Math.min(Math.max(maxWidth, 80), 400);
-    };
+  //     data.slice(0, Math.min(20, data.length)).forEach(row => {
+  //       const cellValue = formatCellValue(row, columnHeader, reportType);
+  //       if (cellValue && typeof cellValue === "string") {
+  //         measurer.textContent = cellValue;
+  //         const contentWidth = measurer.offsetWidth + 40;
+  //         maxWidth = Math.max(maxWidth, contentWidth);
+  //       }
+  //     });
+  //     document.body.removeChild(measurer);
+  //     return Math.min(Math.max(maxWidth, 80), 400);
+  //   };
 
-    const newColumnWidths: Record<string, number> = {};
-    headers.forEach(header => {
-      newColumnWidths[header] = calculateOptimalWidth(header);
-    });
-    setColumnWidths(newColumnWidths);
+  //   const newColumnWidths: Record<string, number> = {};
+  //   headers.forEach(header => {
+  //     newColumnWidths[header] = calculateOptimalWidth(header);
+  //   });
+  //   setColumnWidths(newColumnWidths);
 
-    setTimeout(() => {
-      setIsAutoFitting(null);
-    }, 300);
-  }, [headers, data, reportType]);
+  //   setTimeout(() => {
+  //     setIsAutoFitting(null);
+  //   }, 300);
+  // }, [headers, data, reportType]);
 
   React.useEffect(() => {
     if (isResizing) {
@@ -318,12 +318,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                   </span>
                   <span className="text-blue-600 dark:text-blue-300 text-xs ml-2">Avg: {Number(data.summary.avgVariancePercentage).toFixed(1)}%</span>
                 </div>
-              ) : (
-                <span className="flex items-center gap-1">
-                  <span className="w-1 h-1 rounded-full bg-blue-500"></span>
-                  <span>Numeric data</span>
-                </span>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
