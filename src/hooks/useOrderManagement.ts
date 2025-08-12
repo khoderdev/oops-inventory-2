@@ -10,58 +10,6 @@ export const useOrderManagement = () => {
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedRef = useRef<string>("");
 
-  // Auto-save functionality
-  const scheduleAutoSave = useCallback((order: Order) => {
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current);
-    }
-
-    const orderString = JSON.stringify({
-      items: order.items,
-      customerName: order.customerName,
-      customerPhone: order.customerPhone,
-      notes: order.notes,
-      discountType: order.discountType,
-      discountValue: order.discountValue,
-      discountAmount: order.discountAmount,
-      discountReason: order.discountReason
-    });
-
-    // Only save if something actually changed
-    if (orderString === lastSavedRef.current) {
-      return;
-    }
-
-    autoSaveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await ordersAPI.autoSaveOrder(order.id, {
-          items: order.items.map(item => ({
-            materialId: item.materialId,
-            menuItemId: item.menuItemId,
-            assignmentId: item.assignmentId,
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            type: item.type,
-            notes: item.notes
-          })),
-          customerName: order.customerName,
-          customerPhone: order.customerPhone,
-          notes: order.notes,
-          discountType: order.discountType,
-          discountValue: order.discountValue,
-          discountAmount: order.discountAmount,
-          discountReason: order.discountReason
-        });
-        lastSavedRef.current = orderString;
-        console.log("Order auto-saved successfully");
-      } catch (error) {
-        console.error("Auto-save failed:", error);
-      }
-    }, 2000); // Auto-save after 2 seconds of inactivity
-  }, []);
-
   // Create a new order
   const createOrder = useCallback(async (data: CreateOrderData): Promise<Order> => {
     setIsLoading(true);
@@ -76,16 +24,16 @@ export const useOrderManagement = () => {
 
       console.log("Creating order - backend will generate order number");
       console.log("🚀 Making API call to ordersAPI.createOrder with:", orderData);
-      
+
       const response = await ordersAPI.createOrder(orderData);
       console.log("📦 API response received:", response);
-      
+
       const newOrder = response.data;
       console.log("🎆 New order created:", newOrder);
-      
+
       setCurrentOrder(newOrder);
       console.log("💾 Order saved to state");
-      
+
       return newOrder;
     } catch (error: unknown) {
       console.error("❌ Order creation failed with error:", error);
@@ -95,10 +43,10 @@ export const useOrderManagement = () => {
         status: (error as any)?.response?.status,
         data: (error as any)?.response?.data
       });
-      
+
       const errorMessage = (error as any)?.response?.data?.message || "Failed to create order";
       console.error("🚨 Setting error message:", errorMessage);
-      
+
       setError(errorMessage);
       toast({
         title: "Error",
@@ -115,11 +63,8 @@ export const useOrderManagement = () => {
   const loadOrder = useCallback(async (orderId: string): Promise<Order> => {
     setIsLoading(true);
     setError(null);
-
     try {
       const response = await ordersAPI.getOrder(orderId);
-      // Handle nested response structure - API sometimes returns nested data
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const responseData = response.data as { data?: any } | any;
       const order = responseData.data || responseData;
       setCurrentOrder(order);
@@ -144,34 +89,21 @@ export const useOrderManagement = () => {
       if (!currentOrder) {
         throw new Error("No current order to update");
       }
-
       setIsLoading(true);
       setError(null);
-
       try {
-        // Handle nested currentOrder structure
         console.log("🔍 updateOrder - currentOrder:", currentOrder);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const orderId = currentOrder.id || (currentOrder as any)?.data?.id;
         console.log("🔍 updateOrder - extracted orderId:", orderId);
         if (!orderId) {
           console.error("🔍 updateOrder - No valid order ID found!");
           throw new Error("No valid order ID found in currentOrder");
         }
-
         console.log("🔍 updateOrder - calling API with orderId:", orderId);
         const response = await ordersAPI.updateOrder(orderId, data);
-        // Handle nested response structure
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const responseData = response.data as { data?: any } | any;
         const updatedOrder = responseData.data || responseData;
         setCurrentOrder(updatedOrder);
-
-        // Schedule auto-save for draft orders
-        if (updatedOrder.status === "draft") {
-          scheduleAutoSave(updatedOrder);
-        }
-
         return updatedOrder;
       } catch (error: unknown) {
         const errorMessage = (error as any)?.response?.data?.message || "Failed to update order";
@@ -186,7 +118,7 @@ export const useOrderManagement = () => {
         setIsLoading(false);
       }
     },
-    [currentOrder, scheduleAutoSave]
+    [currentOrder]
   );
 
   // Update order status
@@ -195,21 +127,17 @@ export const useOrderManagement = () => {
       if (!currentOrder) {
         throw new Error("No current order to update");
       }
-
       setIsLoading(true);
       setError(null);
-
       try {
         const response = await ordersAPI.updateOrderStatus(currentOrder.id, status);
         const updatedOrder = response.data;
         setCurrentOrder(updatedOrder);
-
         toast({
           title: "Order Updated",
           description: `Order status changed to ${status}`,
           variant: "default"
         });
-
         return updatedOrder;
       } catch (error: unknown) {
         const errorMessage = (error as any)?.response?.data?.message || "Failed to update order status";
@@ -233,23 +161,18 @@ export const useOrderManagement = () => {
       if (!currentOrder) {
         throw new Error("No current order to complete");
       }
-
       setIsLoading(true);
       setError(null);
-
       try {
         const response = await ordersAPI.completeOrder(currentOrder.id, paymentData);
         const { order, saleId } = response.data;
-
         // Clear current order after completion
         setCurrentOrder(null);
-
         toast({
           title: "Order Completed",
           description: `Order completed successfully. Sale ID: ${saleId}`,
           variant: "default"
         });
-
         return { order, saleId };
       } catch (error: unknown) {
         const errorMessage = (error as any)?.response?.data?.message || "Failed to complete order";

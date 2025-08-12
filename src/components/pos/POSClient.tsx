@@ -34,9 +34,9 @@ import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
-  const { stock, menu, status, refresh: refreshInventory } = usePrefetch({ autoFetch: true, parallel: true, onError: error => console.error("Failed to load inventory data:", error) });
+  const { stock, menu, status, refresh: refreshInventory } = usePrefetch({ autoFetch: true, parallel: true, onError: error => console.error("❌ Failed to load inventory data:", error) });
   const handleOrdersError = useCallback((error: Error) => {
-    console.error("Failed to load orders data:", error);
+    console.error("❌ Failed to load orders data:", error);
   }, []);
   const orderDataTypes = useMemo(() => ["orderSummaries"] as ("orderSummaries" | "orders")[], []);
   const { refresh: refreshOrders } = useOrdersPrefetch({ autoFetch: true, dataTypes: orderDataTypes, onError: handleOrdersError });
@@ -93,9 +93,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showPrinterSelector, setShowPrinterSelector] = useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
+
+  // 🛒 Calculate subtotal and total
   const subtotal = (cart || []).filter(Boolean).reduce((sum, item) => {
     if (!item || typeof item.price !== "number" || typeof item.quantity !== "number") {
-      console.warn("Invalid cart item found:", item);
+      console.warn("⚠️ Invalid cart item found:", item);
       return sum;
     }
     return sum + item.price * item.quantity;
@@ -103,13 +105,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const tax = 0;
   const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
   const total = Math.max(0, subtotal - discountAmountCalculated);
+  // console.log("🛒 Subtotal calculated:", { subtotal, discount: discountAmountCalculated, total });
 
   const handleCloseOrdersDialog = useCallback(() => {
+    console.log("📋 Closing orders dialog");
     setShowOrdersDialog(false);
   }, []);
 
   const handleOrderSelectCallback = useCallback(
     (order: OrderSummaryType) => {
+      console.log("📋 Order selected:", { orderId: order.id, orderNumber: order.orderNumber });
       if (onOrderSelect) {
         onOrderSelect(order);
       }
@@ -118,13 +123,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   );
 
   const { currentOrder, isLoading: orderLoading, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
+
   const showError = useCallback((message: string) => {
+    console.error("❌ Error displayed:", message);
     setError(message);
     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
     errorTimeoutRef.current = setTimeout(() => setError(null), 5000);
   }, []);
 
   const showSuccess = useCallback((message: string) => {
+    console.log("✅ Success message displayed:", message);
     setSuccessMessage(message);
     if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
     successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
@@ -134,6 +142,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const handleResize = () => {
       if (!containerRef.current) return;
       const containerWidth = containerRef.current.offsetWidth;
+      console.log("🖥️ Window resized:", { containerWidth, leftPanelWidth });
       if (containerWidth < 1024) {
         setLeftPanelWidth(33.33);
       }
@@ -153,23 +162,24 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   useEffect(() => {
     if (selectedOrderForPOS) {
+      console.log("📋 Loading selected order for POS:", { orderId: selectedOrderForPOS.id });
       if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
         if (loadOrder) {
+          console.log("📋 Fetching order details:", selectedOrderForPOS.id);
           loadOrder(selectedOrderForPOS.id.toString());
         }
         return;
       }
-    }
-    if (selectedOrderForPOS && selectedOrderForPOS.items) {
       const orderId = selectedOrderForPOS.id.toString();
       if (processedOrderRef.current === orderId) {
+        console.log("📋 Order already processed, skipping:", orderId);
         return;
       }
       processedOrderRef.current = orderId;
       const cartItems: POSCartItem[] = selectedOrderForPOS.items
         .map((item: any, index: number) => {
           if (item.menuItem) {
-            const cartItem = {
+            return {
               id: `order-${selectedOrderForPOS.id}-menu-${item.menuItem.id}-${index}`,
               name: item.menuItem.name,
               price: item.menuItem.price,
@@ -180,9 +190,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               stockEntryId: undefined,
               notes: item.notes || undefined
             };
-            return cartItem;
           } else if (item.material) {
-            const cartItem = {
+            return {
               id: `order-${selectedOrderForPOS.id}-material-${item.material.id}-${index}`,
               name: item.material.name,
               price: parseFloat(item.unitPrice),
@@ -193,22 +202,25 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               stockEntryId: undefined,
               notes: item.notes || undefined
             };
-            return cartItem;
           }
           return null;
         })
         .filter(Boolean) as POSCartItem[];
+      console.log("🛒 Cart updated from selected order:", { orderId, items: cartItems.length });
       setOrderType(selectedOrderForPOS.orderType);
       if (selectedOrderForPOS.orderType === "table" && selectedOrderForPOS.tableId) {
+        console.log("📍 Setting selected table:", selectedOrderForPOS.tableId);
         setSelectedTable(tables.find(t => t.id === selectedOrderForPOS.tableId));
       }
       if (selectedOrderForPOS.discountAmount && parseFloat(selectedOrderForPOS.discountAmount.toString()) > 0) {
-        setAppliedDiscount({
+        const discount = {
           type: (selectedOrderForPOS.discountType as "percentage" | "fixed") || "fixed",
           value: parseFloat(selectedOrderForPOS.discountValue?.toString() || "0"),
           amount: parseFloat(selectedOrderForPOS.discountAmount.toString()),
           reason: selectedOrderForPOS.discountReason || undefined
-        });
+        };
+        console.log("💸 Applying discount from order:", discount);
+        setAppliedDiscount(discount);
       }
       if (loadOrder) {
         loadOrder(selectedOrderForPOS.id.toString());
@@ -221,19 +233,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }, 1000);
       setHasUnsavedChanges(true);
     } else if (!selectedOrderForPOS) {
+      console.log("📋 No selected order, resetting processed order reference");
       processedOrderRef.current = null;
     }
-  }, [selectedOrderForPOS, loadOrder]);
+  }, [selectedOrderForPOS, loadOrder, tables]);
 
   useEffect(() => {
     if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
       const currentOrderId = currentOrder.id.toString();
+      console.log("📋 Current order loaded:", { orderId: currentOrderId, items: currentOrder.items.length });
       if (selectedOrderForPOS && selectedOrderForPOS.id.toString() === currentOrderId && processedOrderRef.current !== currentOrderId) {
         processedOrderRef.current = currentOrderId;
         const cartItems: POSCartItem[] = currentOrder.items
           .map((item: any, index: number) => {
             if (item.menuItem) {
-              const cartItem = {
+              return {
                 id: `current-${currentOrder.id}-menu-${item.menuItem.id}-${index}`,
                 name: item.menuItem.name,
                 price: item.menuItem.price,
@@ -244,9 +258,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 stockEntryId: undefined,
                 notes: item.notes || undefined
               };
-              return cartItem;
             } else if (item.material) {
-              const cartItem = {
+              return {
                 id: `current-${currentOrder.id}-material-${item.material.id}-${index}`,
                 name: item.material.name,
                 price: parseFloat(item.unitPrice),
@@ -257,23 +270,26 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 stockEntryId: undefined,
                 notes: item.notes || undefined
               };
-              return cartItem;
             }
             return null;
           })
           .filter(Boolean) as POSCartItem[];
+        console.log("🛒 Cart updated from current order:", { orderId: currentOrderId, items: cartItems.length });
         setCart(cartItems);
         setOrderType(currentOrder.orderType);
         if (currentOrder.orderType === "table" && currentOrder.tableId) {
+          console.log("📍 Setting selected table for current order:", currentOrder.tableId);
           setSelectedTable(tables.find(t => t.id === currentOrder.tableId));
         }
         if (currentOrder.discountAmount && parseFloat(currentOrder.discountAmount.toString()) > 0) {
-          setAppliedDiscount({
+          const discount = {
             type: (currentOrder.discountType as "percentage" | "fixed") || "fixed",
             value: parseFloat(currentOrder.discountValue?.toString() || "0"),
             amount: parseFloat(currentOrder.discountAmount.toString()),
             reason: currentOrder.discountReason || undefined
-          });
+          };
+          console.log("💸 Applying discount from current order:", discount);
+          setAppliedDiscount(discount);
         }
         setHasUnsavedChanges(true);
         setTimeout(() => {
@@ -287,8 +303,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const clearCartWithAnimation = useCallback(() => {
     if (processedOrderRef.current) {
+      console.log("🛒 Skipping cart clear due to processed order:", processedOrderRef.current);
       return;
     }
+    console.log("🛒 Clearing cart with animation");
     setShowSuccessCheckmark(true);
     setCart([]);
     if (checkmarkTimeoutRef.current) {
@@ -300,35 +318,42 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, []);
 
   const resetToTakeaway = useCallback(() => {
+    console.log("📋 Resetting order type to takeaway");
     setOrderType("takeaway");
     setSelectedTable(undefined);
     setShowTablesLayout(false);
   }, []);
 
   const clearCart = useCallback(() => {
+    console.log("🛒 Clearing cart");
     setCart([]);
     setHasUnsavedChanges(false);
   }, []);
 
   const handleShowReports = useCallback(() => {
+    console.log("📊 Opening reports dialog");
     setShowReportsDialog(true);
   }, []);
 
   const handleShowDiscount = useCallback(() => {
     if (cart.length === 0) {
+      console.log("💸 Attempted to apply discount to empty cart");
       showError("Cannot apply discount to empty cart");
       return;
     }
+    console.log("💸 Opening discount dialog");
     setShowDiscountDialog(true);
   }, [cart.length, showError]);
 
   const handleDiscountAmountChange = useCallback((amount: number) => {
+    console.log("💸 Discount amount changed:", amount);
     setDiscountAmount(amount);
   }, []);
 
   const handleApplyDiscount = useCallback(
     (discountData: { type: "percentage" | "fixed"; value: number; reason?: string }) => {
       if (cart.length === 0) {
+        console.log("💸 Attempted to apply discount to empty cart");
         showError("Cannot apply discount to empty cart");
         return;
       }
@@ -340,6 +365,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       } else {
         discountAmount = Math.min(discountData.value, currentSubtotal);
       }
+      console.log("💸 Applying discount:", { ...discountData, amount: discountAmount });
       setAppliedDiscount({
         type: discountData.type,
         value: discountData.value,
@@ -355,6 +381,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   );
 
   const handleRemoveDiscount = useCallback(() => {
+    console.log("💸 Removing discount");
     setAppliedDiscount(null);
     setDiscountAmount(0);
     showSuccess("Discount removed");
@@ -362,6 +389,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleItemNotesChange = useCallback(
     (itemId: string, notes: string) => {
+      console.log("📝 Updating item notes:", { itemId, notes });
       setCart(prevCart => {
         const updatedCart = prevCart.map(item => (item.id === itemId ? { ...item, notes: notes.trim() || undefined } : item));
         return updatedCart;
@@ -376,27 +404,31 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   );
 
   const handleShowItemNotes = useCallback((item: POSCartItem) => {
+    console.log("📝 Opening item notes dialog for:", item.id);
     const itemCopy = { ...item };
     setSelectedItemForNotes(itemCopy);
     setShowItemNotesDialog(true);
   }, []);
 
   const handleCloseItemNotes = useCallback(() => {
+    console.log("📝 Closing item notes dialog");
     setShowItemNotesDialog(false);
     setSelectedItemForNotes(null);
   }, []);
 
   const handlePaymentWithPrinter = useCallback(async (printer?: any) => {
+    console.log("🖨️ Initiating payment with printer:", printer?.name || "No printer selected");
     // TODO: Implement payment with printer functionality
-    console.log('Payment with printer:', printer);
   }, []);
+
   const handlePrintReceiptWithPrinter = useCallback(
     async (printer?: any) => {
+      console.log("🖨️ Preparing receipt for printing:", { printer: printer?.name || "No printer" });
       let receiptData = lastSaleData;
       if (!receiptData) {
         const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
-
         if (!itemsToUse || itemsToUse.length === 0) {
+          console.log("🖨️ No items to print for receipt");
           showError("No items to print");
           return;
         }
@@ -423,6 +455,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           discountAmount: currentOrder?.discountAmount ? (typeof currentOrder.discountAmount === "string" ? parseFloat(currentOrder.discountAmount) : currentOrder.discountAmount) : appliedDiscount?.amount || null,
           discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
         };
+        console.log("🖨️ Generated receipt data:", { receiptId: receiptData.id, items: receiptData.items.length });
         setLastSaleData(receiptData);
       }
       setShowReceiptDialog(true);
@@ -432,6 +465,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handlePrinterSelect = useCallback(
     (printer: any) => {
+      console.log("🖨️ Printer selected:", { printerId: printer?.id, printerName: printer?.name });
       selectPrinter(printer);
       setShowPrinterSelector(false);
       if (printerSelectionContext === "payment") {
@@ -445,16 +479,19 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   );
 
   const handleClosePrinterSelector = useCallback(() => {
+    console.log("🖨️ Closing printer selector");
     setShowPrinterSelector(false);
     setPrinterSelectionContext(null);
   }, []);
 
   const handleShowPrinterSettings = useCallback(() => {
+    console.log("🖨️ Opening printer settings");
     setPrinterSelectionContext("manual_print");
     setShowPrinterSelector(true);
   }, []);
 
   const fetchIncompleteOrders = useCallback(async () => {
+    console.log("📋 Fetching incomplete orders");
     try {
       const response = await ordersAPI.getOrders();
       if (response?.data) {
@@ -465,6 +502,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         } else if (response.data && typeof response.data === "object" && "data" in response.data && Array.isArray((response.data as NestedResponse).data)) {
           ordersArray = (response.data as NestedResponse).data;
         } else {
+          console.log("📋 No valid orders data received");
           setIncompleteOrdersCount(0);
           setTableOrders({});
           setIncompleteTableOrdersCount(0);
@@ -475,6 +513,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
         const incompleteStatuses = ["draft", "confirmed", "preparing", "ready"];
         const incompleteOrders = ordersArray.filter(order => incompleteStatuses.includes(order.status));
+        console.log("📋 Incomplete orders fetched:", { count: incompleteOrders.length });
         setIncompleteOrdersCount(incompleteOrders.length);
         const deliveryCount = incompleteOrders.filter(order => order.orderType === "delivery").length;
         const takeawayCount = incompleteOrders.filter(order => order.orderType === "takeaway").length;
@@ -492,8 +531,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             tableOrdersMap[tableKey] = (tableOrdersMap[tableKey] || 0) + 1;
           }
         });
+        console.log("📍 Table orders updated:", tableOrdersMap);
         setTableOrders(tableOrdersMap);
       } else {
+        console.log("📋 No orders data available");
         setIncompleteOrdersCount(0);
         setTableOrders({});
         setIncompleteTableOrdersCount(0);
@@ -502,7 +543,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setIncompleteTakeawayCount(0);
       }
     } catch (error) {
-      console.error("Error fetching incomplete orders:", error);
+      console.error("❌ Error fetching incomplete orders:", error);
       setIncompleteOrdersCount(0);
       setTableOrders({});
       setIncompleteTableOrdersCount(0);
@@ -514,6 +555,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleOrderSelect = useCallback(
     async (order: any) => {
+      console.log("📋 Selecting order:", { orderId: order.id });
       try {
         setIsLoading(true);
         setError(null);
@@ -522,12 +564,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setAppliedDiscount(null);
         setDiscountAmount(0);
         if (loadOrder) {
+          console.log("📋 Loading order details:", order.id);
           await loadOrder(order.id);
         } else {
           console.error("❌ loadOrder function is not available!");
         }
         setHasUnsavedChanges(false);
       } catch (error) {
+        console.error("❌ Failed to load order:", error);
         showError("Failed to load order for editing. Please try again.");
       } finally {
         setIsLoading(false);
@@ -538,9 +582,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   useEffect(() => {
     if (selectedOrderForPOS) {
+      console.log("📋 Processing selected order for POS:", { orderId: selectedOrderForPOS.id });
       handleOrderSelect(selectedOrderForPOS)
         .then(() => {
           if (onOrderProcessed) {
+            console.log("📋 Order processed callback triggered");
             onOrderProcessed();
           }
         })
@@ -554,11 +600,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [selectedOrderForPOS, handleOrderSelect, onOrderProcessed]);
 
   useEffect(() => {
+    console.log("📍 Updating section assignments:", { count: sectionAssignments.length });
     setOptimisticAssignments(sectionAssignments);
   }, [sectionAssignments]);
 
   useEffect(() => {
     return () => {
+      console.log("🧹 Cleaning up timeouts");
       if (errorTimeoutRef.current) {
         clearTimeout(errorTimeoutRef.current);
       }
@@ -573,18 +621,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   useEffect(() => {
     if (stock && stock.length > 0) {
+      console.log("📦 Stock entries updated:", { count: stock.length });
       setStockEntries(stock);
     }
   }, [stock]);
 
   useEffect(() => {
     if (menu && menu.length > 0) {
+      console.log("🍽️ Menu items updated:", { count: menu.length });
       setMenuItems(menu);
     }
   }, [menu]);
 
   useEffect(() => {
     if (menu && stock) {
+      console.log("🛍️ Converting menu and stock to POS items");
       const convertToPOSItems = () => {
         const posItemsFromData: POSItem[] = [];
         menu.forEach(menuItem => {
@@ -625,6 +676,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             });
           }
         });
+        // console.log("🛍️ POS items generated:", { count: posItemsFromData.length });
         setPosItems(posItemsFromData);
       };
       convertToPOSItems();
@@ -633,13 +685,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   useEffect(() => {
     const fetchAdditionalData = async () => {
+      console.log("📍 Fetching additional data (tables)");
       try {
         setIsLoading(true);
         const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
         const responseData = tablesResponse.data as Table[] | { data: Table[] };
         const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
+        console.log("📍 Tables fetched:", { count: tablesData.length });
         setTables(tablesData);
       } catch (error) {
+        console.error("❌ Failed to load tables:", error);
         showError("Failed to load additional data");
       } finally {
         setIsLoading(false);
@@ -654,6 +709,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const loadSavedOrder = async () => {
       const savedOrder = OrderPersistence.loadCurrentOrder();
       if (savedOrder && savedOrder.items && savedOrder.items.length > 0) {
+        console.log("📋 Restoring saved order:", { orderType: savedOrder.orderType, itemCount: savedOrder.items.length });
         const cartItems: POSCartItem[] = savedOrder.items
           .map(item => {
             let originalItem: StockEntryWithMaterial | MenuItem;
@@ -663,6 +719,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               originalItem = menuItems.find(m => m.id === item.menuItemId);
             }
             if (!originalItem) {
+              console.warn("⚠️ Original item not found for saved order item:", item);
               return null;
             }
             return {
@@ -680,6 +737,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setOrderType(savedOrder.orderType);
         if (savedOrder.tableId) {
           const table = tables.find(t => t.id === savedOrder.tableId);
+          console.log("📍 Restoring selected table:", savedOrder.tableId);
           setSelectedTable(table);
         }
         setHasUnsavedChanges(true);
@@ -693,11 +751,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   useEffect(() => {
     if (!stockEntries.length && !menuItems.length) {
+      console.log("📦 No stock or menu items available");
       return;
     }
   }, [currentOrder, stockEntries, menuItems]);
 
   useEffect(() => {
+    console.log("🛒 Cart change detected:", { hasItems: cart.length > 0, itemCount: cart.length });
     if (cart && cart.length > 0) {
       setHasUnsavedChanges(true);
     } else {
@@ -706,11 +766,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [cart]);
 
   useEffect(() => {
+    console.log("🍽️ Fetching menu items");
     const fetchMenuItems = async () => {
       try {
         const response = await menuAPI.getMenus();
+        console.log("🍽️ Menu items fetched:", { count: response.data.length });
         setMenuItems(response.data);
       } catch (error) {
+        console.error("❌ Failed to load menu items:", error);
         showError("Failed to load menu items");
       }
     };
@@ -719,10 +782,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [showError]);
 
   const fetchTablesData = useCallback(async () => {
+    console.log("📍 Fetching tables data");
     try {
       const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
       const responseData = tablesResponse.data as Table[] | { data: Table[] };
       const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
+      console.log("📍 Tables data refreshed:", { count: tablesData.length });
       setTables(tablesData);
     } catch (error) {
       console.error("❌ Failed to refresh tables data:", error);
@@ -730,17 +795,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, []);
 
   const refreshOrderData = useCallback(async () => {
+    console.log("🔄 Refreshing order data");
     await Promise.all([refreshOrders(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
   }, [refreshOrders, fetchTablesData, refreshCountsRef]);
 
   const refreshAllCounts = useCallback(async () => {
+    console.log("🔄 Refreshing all counts (orders, inventory, tables)");
     await Promise.all([refreshOrders(), refreshInventory(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
   }, [refreshOrders, refreshInventory, fetchTablesData, refreshCountsRef]);
 
   useEffect(() => {
+    console.log("📋 Starting incomplete orders polling");
     fetchIncompleteOrders();
     const interval = setInterval(fetchIncompleteOrders, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      console.log("📋 Stopping incomplete orders polling");
+      clearInterval(interval);
+    };
   }, [fetchIncompleteOrders]);
 
   const availablePosItems = posItems.filter(posItem => {
@@ -750,6 +821,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const categories = ["all", ...Array.from(new Set(posItems.map(item => item.category).filter(Boolean)))];
   const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
+  // console.log("🛍️ Filtered POS items:", { activeCategory, count: filteredPosItems.length });
+
   const recalculateEmployeeDiscount = useCallback(
     (newCart: POSCartItem[]) => {
       if (selectedEmployee && selectedEmployee.discountPercentage > 0 && orderType === "employees") {
@@ -761,6 +834,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           amount: discountAmount,
           reason: `Employee discount - ${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName} (${selectedEmployee.department})`
         };
+        console.log("💸 Recalculating employee discount:", employeeDiscount);
         setAppliedDiscount(employeeDiscount);
         setDiscountAmount(discountAmount);
       }
@@ -770,6 +844,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const addToCart = useCallback(
     (posItem: POSItem) => {
+      console.log("🛒 Adding item to cart:", { itemId: posItem.id, name: posItem.name });
       const cartId = `pos-${posItem.id}`;
       setCart(prevCart => {
         const currentCart = prevCart || [];
@@ -777,6 +852,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         let newCart: POSCartItem[];
         if (existingItem) {
           newCart = currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
+          console.log("🛒 Updated existing item quantity:", { itemId: cartId, newQuantity: existingItem.quantity + 1 });
         } else {
           if (posItem.type === "menu_item") {
             const menuItemId = posItem.menuItemId;
@@ -786,7 +862,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               return miId === targetId;
             });
             if (!menuItem) {
-              console.warn("Menu item not found for POS item:", posItem);
+              console.warn("⚠️ Menu item not found for POS item:", posItem);
               return currentCart;
             }
             const newItem: POSCartItem = {
@@ -802,8 +878,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               printerId: menuItem?.printerId || posItem?.printerId,
               assignedPrinter: menuItem?.assignedPrinter || posItem?.assignedPrinter
             };
-            const newCart = [...currentCart, newItem];
-            return newCart;
+            newCart = [...currentCart, newItem];
+            console.log("🛒 Added new menu item to cart:", newItem);
           } else {
             const stockEntry = stockEntries.find(se => {
               const stockEntryMaterialId = String(se.materialId);
@@ -811,10 +887,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               return stockEntryMaterialId === posItemMaterialId;
             });
             if (!stockEntry) {
-              console.warn("Stock entry not found:", posItem);
+              console.warn("⚠️ Stock entry not found:", posItem);
               return currentCart;
             }
-
             const newItem: POSCartItem = {
               id: cartId,
               name: posItem.name,
@@ -829,6 +904,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               assignedPrinter: stockEntry.assignedPrinter || posItem.assignedPrinter
             };
             newCart = [...currentCart, newItem];
+            console.log("🛒 Added new material item to cart:", newItem);
           }
         }
         setTimeout(() => {
@@ -842,9 +918,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const updateCartQuantity = useCallback(
     (cartId: string, newQuantity: number) => {
+      console.log("🛒 Updating cart item quantity:", { cartId, newQuantity });
       let newCart: POSCartItem[];
       if (newQuantity <= 0) {
         newCart = cart.filter(item => item.id !== cartId);
+        console.log("🛒 Removed item from cart:", cartId);
         setCart(newCart);
       } else {
         newCart = cart.map(item => (item.id === cartId ? { ...item, quantity: newQuantity } : item));
@@ -856,25 +934,30 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   );
 
   const handleOrderTypeChange = useCallback((type: OrderType) => {
+    console.log("📋 Changing order type:", type);
     setOrderType(type);
     if (type !== "table") {
+      console.log("📍 Clearing selected table for non-table order type");
       setSelectedTable(undefined);
     }
   }, []);
 
   const handleTableSelect = useCallback(async () => {
+    console.log("📍 Opening table selection layout");
     await fetchTablesData();
     setShowTablesLayout(true);
   }, [fetchTablesData]);
 
   const handleTableSelection = useCallback(
     async (table: Table) => {
+      console.log("📍 Table selected:", { tableId: table.id, tableNumber: table.number });
       setSelectedTable(table);
       setOrderType("table");
       setShowTablesLayout(false);
 
       if (table.status === "opened" && table.currentOrder) {
         try {
+          console.log("📋 Loading existing order for table:", table.currentOrder.orderId);
           const response = await ordersAPI.getOrder(table.currentOrder.orderId);
           const responseData = response.data as { data?: any } | any;
           const existingOrder = responseData.data || responseData;
@@ -888,6 +971,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   originalItem = menuItems.find(m => m.id === item.menuItemId);
                 }
                 if (!originalItem) {
+                  console.warn("⚠️ Original item not found for table order item:", item);
                   return null;
                 }
                 const cartItem = {
@@ -902,13 +986,42 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 return cartItem;
               })
               .filter(Boolean) as POSCartItem[];
+            console.log("🛒 Loaded cart from table order:", { orderId: existingOrder.orderId, items: cartItems.length });
             setCart(cartItems);
+            
+            // 🔧 FIX: Load the existing order so that saving will update instead of creating new
+            await loadOrder(existingOrder.id);
+            console.log("📋 Loaded current order for table:", { orderId: existingOrder.id, orderNumber: existingOrder.orderNumber });
+            
+            // Load existing discount information if present
+            if (existingOrder.discountAmount && parseFloat(existingOrder.discountAmount.toString()) > 0) {
+              setAppliedDiscount({
+                type: (existingOrder.discountType as "percentage" | "fixed") || "fixed",
+                value: parseFloat(existingOrder.discountValue?.toString() || "0"),
+                amount: parseFloat(existingOrder.discountAmount.toString()),
+                reason: existingOrder.discountReason || undefined
+              });
+              setDiscountAmount(parseFloat(existingOrder.discountAmount.toString()));
+              console.log("💰 Loaded existing discount:", { 
+                type: existingOrder.discountType, 
+                amount: existingOrder.discountAmount 
+              });
+            }
+            
+            // Load existing order notes if present
+            if (existingOrder.notes) {
+              setOrderNotes(existingOrder.notes);
+              console.log("📝 Loaded existing order notes");
+            }
+            
             showSuccess(`Loaded existing order ${existingOrder.orderNumber} for Table ${table.number}`);
           }
         } catch (error) {
+          console.error("❌ Failed to load table order:", error);
           showError("Failed to load existing table order");
         }
       } else {
+        console.log("🛒 Clearing cart for new table order");
         setCart([]);
         setAppliedDiscount(null);
         setDiscountAmount(0);
@@ -927,11 +1040,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   );
 
   const handleCloseTablesLayout = useCallback(() => {
+    console.log("📍 Closing tables layout");
     setShowTablesLayout(false);
   }, []);
 
   const handleEmployeeSelection = useCallback(
     (employee: Employee) => {
+      console.log("👤 Employee selected:", { employeeId: employee.id, name: `${employee.user?.firstName} ${employee.user?.lastName}` });
       setSelectedEmployee(employee);
       setOrderType("employees");
       if (employee.discountPercentage > 0) {
@@ -944,6 +1059,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           amount: discountAmount,
           reason: `Employee discount - ${employee.user?.firstName} ${employee.user?.lastName} (${employee.department})`
         };
+        console.log("💸 Applying employee discount:", employeeDiscount);
         setAppliedDiscount(employeeDiscount);
         setDiscountAmount(discountAmount);
         showSuccess(`Applied ${discountValue}% employee discount for ${employee.user?.firstName} ${employee.user?.lastName}`);
@@ -953,8 +1069,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   );
 
   const handlePrintReceipt = useCallback(() => {
+    console.log("🖨️ Initiating receipt print");
     const itemsToUse = currentOrder?.items && currentOrder.items.length > 0 ? currentOrder.items : cart;
     if (!itemsToUse || itemsToUse.length === 0) {
+      console.log("🖨️ No items available for receipt");
       showError("No items to print");
       return;
     }
@@ -981,11 +1099,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       discountAmount: currentOrder?.discountAmount ? (typeof currentOrder.discountAmount === "string" ? parseFloat(currentOrder.discountAmount) : currentOrder.discountAmount) : appliedDiscount?.amount || null,
       discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
     };
+    console.log("🖨️ Generated receipt data:", { receiptId: receiptData.id, items: receiptData.items.length });
     setLastSaleData(receiptData);
     if (hasSavedPrinter()) {
       const savedPrinter = getSavedPrinter();
+      console.log("🖨️ Using saved printer for receipt:", savedPrinter?.name);
       handlePrintReceiptWithPrinter(savedPrinter);
     } else {
+      console.log("🖨️ No saved printer, opening printer selector");
       setPrinterSelectionContext("manual_print");
       setShowPrinterSelector(true);
     }
@@ -993,22 +1114,26 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handleVoidOrder = useCallback(() => {
     if (!currentOrder) {
+      console.log("📋 No current order to void");
       showError("No current order to void");
       return;
     }
     if ((!cart || cart.length === 0) && !currentOrder.items?.length) {
+      console.log("📋 Attempted to void empty order");
       showError("Cannot void an empty order");
       return;
     }
+    console.log("📋 Opening void order dialog");
     setShowVoidDialog(true);
   }, [currentOrder, cart, showError]);
 
-  // Confirm void order
   const handleConfirmVoid = useCallback(
     async (reason: string, restoreStock: boolean) => {
+      console.log("📋 Confirming order void:", { orderId: currentOrder?.id, reason, restoreStock });
       try {
         setShowVoidDialog(false);
         const result = await voidOrder(reason, restoreStock);
+        console.log("📋 Order voided:", { orderId: currentOrder?.id, stockRestorations: result.stockRestorations?.length || 0 });
         clearCartWithAnimation();
         setHasUnsavedChanges(false);
         OrderPersistence.clearCurrentOrder();
@@ -1023,16 +1148,19 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
         showSuccess(successMessage);
       } catch (error) {
-        // Error is already handled by the voidOrder function
+        console.error("❌ Failed to void order:", error);
       }
     },
     [voidOrder, clearCartWithAnimation, showSuccess, resetToTakeaway, clearOrder, refreshAllCounts]
   );
 
   const handleShowOrders = useCallback(() => {
+    console.log("📋 Opening orders dialog");
     setShowOrdersDialog(true);
   }, []);
+
   const handleCancelOrder = useCallback(() => {
+    console.log("📋 Canceling order");
     setCart([]);
     setOrderType("takeaway");
     setSelectedTable(undefined);
@@ -1052,6 +1180,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const formatItemsForPrinterCallback = useCallback(
     (items: POSCartItem[]): string => {
+      console.log("🖨️ Formatting items for printer:", { itemCount: items.length });
       return formatItemsForPrinter({
         items,
         currentOrder,
@@ -1066,6 +1195,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const printItemsToAssignedPrinters = useCallback(
     async (cartItems: POSCartItem[]) => {
+      console.log("🖨️ Printing items to assigned printers:", { itemCount: cartItems.length });
       try {
         const itemsByPrinter = new Map<number, POSCartItem[]>();
         cartItems.forEach(item => {
@@ -1077,8 +1207,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             itemsByPrinter.get(printerId)!.push(item);
           }
         });
-        itemsByPrinter.forEach((items, printerId) => {
-        });
+        console.log("🖨️ Items grouped by printer:", { printerCount: itemsByPrinter.size });
         const printPromises = Array.from(itemsByPrinter.entries()).map(async ([printerId, items]) => {
           try {
             const printContent = formatItemsForPrinterCallback(items);
@@ -1097,7 +1226,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 timestamp: new Date().toISOString()
               }
             };
+            console.log("🖨️ Creating print job for printer:", { printerId, itemCount: items.length });
             const result = await printerAPI.createPrintJob(printJobData);
+            console.log("🖨️ Print job created:", { printerId, jobId: result.job?.id });
             return { printerId, success: true, jobId: result.job?.id };
           } catch (error) {
             console.error(`❌ Failed to print to printer ${printerId}:`, error);
@@ -1108,12 +1239,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         const successfulPrints = results.filter(result => result.status === "fulfilled" && result.value.success).length;
         const totalPrinters = itemsByPrinter.size;
         if (successfulPrints > 0) {
+          console.log("🖨️ Print results:", { successful: successfulPrints, total: totalPrinters });
           if (successfulPrints === totalPrinters) {
             showSuccess(`✅ Items printed to ${successfulPrints} printer(s) successfully!`);
           } else {
             showSuccess(`⚠️ Items printed to ${successfulPrints}/${totalPrinters} printers. Check printer status for failed prints.`);
           }
         } else if (totalPrinters > 0) {
+          console.log("🖨️ All print jobs failed");
           showError(`❌ Failed to print items to assigned printers. Please check printer connectivity.`);
         }
       } catch (error) {
@@ -1124,38 +1257,67 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     [showSuccess, showError, formatItemsForPrinterCallback]
   );
 
-  // Handle manual save order - save and then clear state
   const handleManualSave = useCallback(async () => {
     if (cart.length === 0) {
+      console.log("📋 Attempted to save empty order");
       showError("Cannot save empty order");
       return;
     }
+    console.log("📋 Saving order manually");
     try {
       setIsLoading(true);
       let savedOrder;
       if (currentOrder?.id) {
-        const updateData = {
-          items: cart.map(cartItem => {
-            const existingItem = currentOrder.items?.find(orderItem => (cartItem.type === "menu_item" && String(orderItem.menuItemId) === String(cartItem.menuItemId)) || (cartItem.type === "material" && String(orderItem.materialId) === String((cartItem.originalItem as StockEntryWithMaterial).materialId)));
-            return {
-              id: existingItem?.id || `temp-${Date.now()}-${Math.random()}`,
-              materialId: cartItem.type === "material" ? String((cartItem.originalItem as StockEntryWithMaterial).materialId) : undefined,
-              menuItemId: cartItem.type === "menu_item" ? String((cartItem.originalItem as MenuItem).id) : undefined,
-              assignmentId: undefined,
-              name: cartItem.name,
-              quantity: cartItem.quantity,
-              unitPrice: cartItem.price,
-              totalPrice: cartItem.price * cartItem.quantity,
-              type: cartItem.type as "material" | "menu_item",
-              notes: cartItem.notes || undefined
-            };
-          }),
-          discountType: appliedDiscount?.type,
-          discountValue: appliedDiscount?.value,
-          discountAmount: appliedDiscount?.amount || 0,
-          discountReason: appliedDiscount?.reason
-        };
-        savedOrder = await updateOrder(updateData);
+        // 🔧 FIX: Identify new items that need to be added to the existing order
+        const existingOrderItems = currentOrder.items || [];
+        const newItems = cart.filter(cartItem => {
+          // Check if this cart item already exists in the order
+          const existsInOrder = existingOrderItems.some(orderItem => {
+            if (cartItem.type === "menu_item" && orderItem.type === "menu_item") {
+              return String(orderItem.menuItemId) === String((cartItem.originalItem as MenuItem).id);
+            } else if (cartItem.type === "material" && orderItem.type === "material") {
+              return String(orderItem.materialId) === String((cartItem.originalItem as StockEntryWithMaterial).materialId);
+            }
+            return false;
+          });
+          return !existsInOrder;
+        });
+
+        if (newItems.length > 0) {
+          // Add only the new items to the existing order
+          const itemsToAdd = newItems.map(item => ({
+            materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+            menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
+            assignmentId: undefined,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.price * item.quantity,
+            type: item.type as "material" | "menu_item",
+            notes: item.notes || undefined
+          }));
+          
+          console.log("📋 Adding new items to existing order:", { 
+            orderId: currentOrder.id, 
+            existingItems: existingOrderItems.length,
+            newItems: itemsToAdd.length 
+          });
+          
+          // Use addOrderItems API instead of updateOrder
+          const response = await ordersAPI.addOrderItems(currentOrder.id, itemsToAdd);
+          savedOrder = response.data;
+        } else {
+          // No new items, just update discount/notes if changed
+          const updateData = {
+            discountType: appliedDiscount?.type,
+            discountValue: appliedDiscount?.value,
+            discountAmount: appliedDiscount?.amount || 0,
+            discountReason: appliedDiscount?.reason,
+            notes: orderNotes || undefined
+          };
+          console.log("📋 Updating existing order metadata:", { orderId: currentOrder.id });
+          savedOrder = await updateOrder(updateData);
+        }
       } else {
         const createData = {
           orderType,
@@ -1181,10 +1343,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           discountAmount: appliedDiscount?.amount || 0,
           discountReason: appliedDiscount?.reason
         };
+        console.log("📋 Creating new order:", { orderType, itemCount: createData.items.length });
         savedOrder = await createOrder(createData);
       }
       const orderIdentifier = savedOrder?.orderNumber || savedOrder?.id || savedOrder?.order?.orderNumber || savedOrder?.order?.id || currentOrder?.orderNumber || currentOrder?.id || "New Order";
-
+      console.log("📋 Order saved:", { orderIdentifier });
       showSuccess(`Order ${orderIdentifier} saved successfully!`);
       await printItemsToAssignedPrinters(cart);
       await refreshOrderData();
@@ -1203,7 +1366,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setPaymentAmount("");
       setOrderNotes("");
     } catch (error) {
-      console.error("Failed to save order:", error);
+      console.error("❌ Failed to save order:", error);
       showError("Failed to save order. Please try again.");
     } finally {
       setIsLoading(false);
@@ -1212,16 +1375,19 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const handlePayment = useCallback(async () => {
     if (cart.length === 0) {
+      console.log("💳 Attempted payment with empty cart");
       showError("Cart is empty");
       return;
     }
     if (currentOrder && currentOrder.status === "paid") {
       const orderIdentifier = currentOrder?.orderNumber || currentOrder?.id || "Current Order";
+      console.log("💳 Order already paid:", orderIdentifier);
       showError(`Order ${orderIdentifier} is already completed`);
       setShowPaymentDialog(false);
       clearOrder();
       return;
     }
+    console.log("💳 Initiating payment");
     setIsLoading(true);
     try {
       let orderToComplete = currentOrder;
@@ -1251,6 +1417,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           discountAmount: appliedDiscount?.amount || 0,
           discountReason: appliedDiscount?.reason
         };
+        console.log("📋 Creating order for payment:", { orderType, itemCount: orderData.items.length });
         const createOrderResponse = await createOrder(orderData);
         if (createOrderResponse && typeof createOrderResponse === "object" && "order" in createOrderResponse) {
           orderToComplete = (createOrderResponse as any).order;
@@ -1278,6 +1445,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         paymentAmount: parseFloat(paymentAmount) || total,
         change: Math.max(0, (parseFloat(paymentAmount) || total) - total)
       };
+      console.log("💳 Processing payment:", { orderId: orderToComplete.id, paymentAmount: paymentData.paymentAmount });
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Order completion timeout - API call took too long")), 15000));
       const response = (await Promise.race([ordersAPI.completeOrder(orderToComplete.id, paymentData), timeoutPromise])) as any;
       let order: any, saleId: string;
@@ -1300,6 +1468,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         order = { id: orderToComplete.id, items: cart, subtotal: subtotal, tax: tax, total: total, status: "completed" };
         saleId = `sale-${Date.now()}`;
       }
+      console.log("💳 Payment completed:", { saleId, orderId: order.id });
 
       const receiptData = {
         id: saleId || `receipt-${Date.now()}`,
@@ -1324,13 +1493,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         discountAmount: order.discountAmount ? (typeof order.discountAmount === "string" ? parseFloat(order.discountAmount) : order.discountAmount) : appliedDiscount?.amount || null,
         discountReason: order.discountReason || appliedDiscount?.reason || null
       };
+      console.log("🖨️ Generated receipt for payment:", { receiptId: receiptData.id, items: receiptData.items.length });
 
       if (selectedTable && orderType === "table") {
         try {
+          console.log("📍 Clearing table reservation:", selectedTable.id);
           await tablesAPI.clearReservation(selectedTable.id);
           const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
           const responseData = tablesResponse.data as Table[] | { data: Table[] };
           const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
+          console.log("📍 Tables refreshed after payment:", { count: refreshedTables.length });
           setTables(refreshedTables);
         } catch (error) {
           console.error("⚠️ Table update error (non-critical):", error);
@@ -1341,12 +1513,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         try {
           const { recordEmployeeUsageWithSettlementUpdate } = await import("@/utils/employeeUsageUtils");
           const posTransactionId = order.orderNumber || saleId;
+          console.log("👤 Recording employee usage:", { employeeId: selectedEmployee.id, transactionId: posTransactionId });
           await recordEmployeeUsageWithSettlementUpdate(selectedEmployee, cart, posTransactionId);
-          console.log("✅ Employee usage recorded and settlement updated for:", {
-            employee: `${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName}`,
-            transactionId: posTransactionId,
-            itemCount: cart.length
-          });
+          console.log("✅ Employee usage recorded and settlement updated");
         } catch (error) {
           console.error("⚠️ Employee usage recording error (non-critical):", error);
         }
@@ -1374,10 +1543,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           sale: { id: saleId },
           message: "Sale completed"
         } as SaleResponse;
+        console.log("💳 Sale completion callback triggered:", { saleId });
         onSaleComplete(response);
       }
     } catch (error: unknown) {
-      console.error("❌ Payment failed with error:", error);
+      console.error("❌ Payment failed:", error);
       const errorMessage = error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object" && "data" in error.response && error.response.data && typeof error.response.data === "object" && "message" in error.response.data ? (error.response.data.message as string) : "Sale failed. Please try again.";
       showError(errorMessage);
       setShowPaymentDialog(false);
@@ -1387,6 +1557,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, orderNotes, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, printItemsToAssignedPrinters]);
 
   const handleMouseDown = () => {
+    console.log("🖱️ Starting panel resize");
     setIsResizing(true);
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
@@ -1399,6 +1570,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const minWidth = 20;
     const maxWidth = 60;
     if (newWidth >= minWidth && newWidth <= maxWidth) {
+      console.log("🖱️ Resizing panel:", { newWidth });
       setLeftPanelWidth(newWidth);
       const rightPanelWidth = 100 - newWidth;
       const calculatedRightPanelPixelWidth = (rightPanelWidth / 100) * containerRect.width;
@@ -1407,6 +1579,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   };
 
   const handleMouseUp = () => {
+    console.log("🖱️ Panel resize completed");
     setIsResizing(false);
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);

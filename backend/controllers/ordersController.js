@@ -427,6 +427,106 @@ export const ordersController = {
     }
   },
 
+  // Add items to existing order
+  addOrderItems: async (req, res) => {
+    const transaction = await sequelize.transaction();
+
+    try {
+      const { orderId } = req.params;
+      const { items } = req.body;
+      const userId = req.user?.id;
+
+      // Find the existing order
+      const order = await Order.findByPk(orderId, { transaction });
+      if (!order) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Validate that items array is provided and not empty
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        await transaction.rollback();
+        return res.status(400).json({ message: "Items array is required and cannot be empty" });
+      }
+
+      console.log(`📋 Adding ${items.length} items to order ${orderId}`);
+
+      // Create new order items
+      const newOrderItems = await Promise.all(
+        items.map(async item => {
+          return await OrderItem.create(
+            {
+              orderId: order.id,
+              materialId: item.materialId === "undefined" || item.materialId === undefined ? null : item.materialId,
+              menuItemId: item.menuItemId === "undefined" || item.menuItemId === undefined ? null : item.menuItemId,
+              assignmentId: item.assignmentId === "undefined" || item.assignmentId === undefined ? null : item.assignmentId,
+              name: item.name,
+              type: item.type,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              notes: item.notes
+            },
+            { transaction }
+          );
+        })
+      );
+
+      // Recalculate order totals
+      const allOrderItems = await OrderItem.findAll({
+        where: { orderId: order.id },
+        transaction
+      });
+
+      const subtotal = allOrderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+      const tax = 0; // No tax for now - can be configured later
+      const discountAmountValue = parseFloat(order.discountAmount) || 0;
+      const total = Math.max(0, subtotal - discountAmountValue);
+
+      await order.update({ 
+        subtotal, 
+        tax, 
+        total,
+        updatedBy: userId 
+      }, { transaction });
+
+      await transaction.commit();
+
+      // Fetch updated order with all items
+      const updatedOrder = await Order.findByPk(orderId, {
+        include: [
+          {
+            model: OrderItem,
+            as: "items",
+            include: [
+              { model: Material, as: "material" },
+              { model: MenuItem, as: "menuItem" },
+              { model: Assignment, as: "assignment" }
+            ]
+          },
+          { model: Table, as: "table" }
+        ]
+      });
+
+      console.log(`✅ Successfully added ${newOrderItems.length} items to order ${orderId}`);
+
+      // Log successful operation
+      if (userId) {
+        await auditOrderOperation(userId, "ADD_ITEMS", updatedOrder.toJSON(), null, req);
+      }
+
+      res.json({ 
+        message: `Successfully added ${newOrderItems.length} items to order`, 
+        order: updatedOrder 
+      });
+
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Add order items error:", error);
+      res.status(500).json({ message: "Failed to add items to order", error: error.message });
+    }
+  },
+
   // Update order status
   updateOrderStatus: async (req, res) => {
     try {

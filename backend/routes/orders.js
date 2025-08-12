@@ -13,6 +13,7 @@ router.get("/", ordersController.getOrders);
 router.get("/drafts", ordersController.getDraftOrders);
 router.get("/:orderId", ordersController.getOrder);
 router.put("/:orderId", ordersController.updateOrder);
+router.post("/:orderId/items", ordersController.addOrderItems);
 router.patch("/:orderId/autosave", ordersController.autoSaveOrder);
 
 // Order status management
