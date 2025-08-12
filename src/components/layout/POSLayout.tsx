@@ -11,7 +11,7 @@ import { AlertCircle, Calendar, Clock, GripVertical, List, LogOut, Maximize2, Mi
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -50,7 +50,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
   }, []);
-
 
   // Responsive behavior
   useEffect(() => {
@@ -265,16 +264,17 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
           <div className="relative flex items-center space-x-3 z-10 select-none">
             {/* Session Stats */}
             <div className="flex items-center space-x-2 select-none">
-              <button onClick={() => setShowSalesHistoryDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
-                <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
-                  <List className="w-4 h-4 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
-                  <div className="flex items-center space-x-1">
-                    <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Sales History</span>
+              {!hasRole("staff") && (
+                <button onClick={() => setShowSalesHistoryDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
+                  <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
+                    <List className="w-4 h-4 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Sales History</span>
+                    </div>
                   </div>
-                </div>
-              </button>
-
+                </button>
+              )}
               {/* Transactions Card - Clickable */}
               <button onClick={() => setShowOrdersDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
@@ -347,10 +347,13 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       </Dialog>
 
       {/* Logout Confirmation Dialog */}
-      <Dialog open={showLogoutDialog} onOpenChange={(open) => {
-        setShowLogoutDialog(open);
-        if (!open) setLogoutPinError("");
-      }}>
+      <Dialog
+        open={showLogoutDialog}
+        onOpenChange={open => {
+          setShowLogoutDialog(open);
+          if (!open) setLogoutPinError("");
+        }}
+      >
         <DialogContent className="sm:max-w-sm bg-white backdrop-blur-xl border border-primary shadow-2xl">
           <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-teal-500 rounded-lg" />
           <DialogHeader className="relative z-10">
@@ -361,18 +364,10 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
               <span className="bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent font-semibold">Confirm Logout</span>
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="relative z-10 py-4 pt-6">
-            <PinInput
-              onSubmit={handlePinLogout}
-              onClear={() => setLogoutPinError("")}
-              submitLabel="Logout"
-              submitButtonClassName="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-              className="w-full"
-            />
-            {logoutPinError && (
-              <p className="text-red-500 text-sm mt-2 text-center">{logoutPinError}</p>
-            )}
+            <PinInput onSubmit={handlePinLogout} onClear={() => setLogoutPinError("")} submitLabel="Logout" submitButtonClassName="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300" className="w-full" />
+            {logoutPinError && <p className="text-red-500 text-sm mt-2 text-center">{logoutPinError}</p>}
           </div>
         </DialogContent>
       </Dialog>

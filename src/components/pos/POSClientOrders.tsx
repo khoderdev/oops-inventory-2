@@ -20,8 +20,7 @@ import { ReceiptPrinter } from "./ReceiptPrinter";
 const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onClose, onOrderSelect, onOrderStatusChange }) => {
   const renderCount = useRef(0);
   renderCount.current += 1;
-
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
@@ -30,7 +29,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Initialize filters to show only incomplete orders
   const [filters, setFilters] = useState<OrderFilters>(() => {
     const today = new Date().toISOString().split("T")[0];
     return {
@@ -38,7 +36,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
         startDate: today,
         endDate: today
       }
-      // No status filter - we'll filter client-side for incomplete orders
     };
   });
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
@@ -84,17 +81,10 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
       let fetchedOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
 
-      // Show all incomplete orders (excluding staff/employee orders)
-      // Incomplete = orders that are still in progress, not yet completed
       const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
       fetchedOrders = fetchedOrders.filter(order => {
-        // Exclude employee orders completely
         if (order.orderType === "employees") return false;
-
-        // Only show incomplete orders (include order types: table, delivery, takeaway, bar)
         if (!incompleteStatuses.includes(order.status)) return false;
-
-        // Apply search filter
         if (filters.searchTerm) {
           const searchLower = filters.searchTerm.toLowerCase();
           return order.orderNumber.toLowerCase().includes(searchLower) || order.customerName?.toLowerCase().includes(searchLower) || String(order.id).toLowerCase().includes(searchLower);
@@ -765,18 +755,20 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
           <div className="flex-shrink-0 bg-white border-t border-gray-200 shadow-lg">
             <div className="px-6 py-4">
               <div className="flex items-center justify-center">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-500 font-semibold">
-                      {orders.length}
-                    </Badge>
-                    <span className="text-gray-700 font-medium">incomplete order{orders.length !== 1 ? "s" : ""}</span>
+                {!hasRole("staff") && (
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-500 font-semibold">
+                        {orders.length}
+                      </Badge>
+                      <span className="text-gray-700 font-medium">incomplete order{orders.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="h-4 w-px bg-gray-300" />
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg font-bold text-green-600">Total: {formatCurrency(totalIncompleteAmount)}</span>
+                    </div>
                   </div>
-                  <div className="h-4 w-px bg-gray-300" />
-                  <div className="flex items-center space-x-2">
-                    <span className="text-lg font-bold text-green-600">Total: {formatCurrency(totalIncompleteAmount)}</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

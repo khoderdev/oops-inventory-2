@@ -91,7 +91,7 @@ export const ActionButton: React.FC<ActionButtonConfig & { className?: string; c
 
 // Main ActionBar Component
 export const ActionBar: React.FC<ActionBarProps> = props => {
-  const { user, hasPermission, hasRole } = usePermissions();
+  const { hasPermission, hasRole } = usePermissions();
   let buttons: ActionButtonConfig[];
   let columns: number;
   let className: string;
