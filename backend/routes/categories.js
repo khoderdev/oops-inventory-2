@@ -1,11 +1,11 @@
 import express from "express";
 import categoryController from "../controllers/categoryController.js";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticate } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 // Apply authentication middleware to all routes
-router.use(authenticateToken);
+router.use(authenticate);
 
 // GET /api/categories - Get all categories with filtering and pagination
 router.get("/", categoryController.getAllCategories);

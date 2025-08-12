@@ -39,6 +39,13 @@ router.get("/:id",
   stockEntriesController.getStockEntryById
 );
 
+// Get material categories for stock entries
+router.get("/categories/materials", 
+  requirePermission("stock.read"), 
+  cacheMiddleware(600, () => "stock-material-categories"), // 10 min cache
+  stockEntriesController.getMaterialCategories
+);
+
 // Stock modification routes with activity logging and cache invalidation
 router.post("/", requirePermission("stock.create"), warnIfDayClosed, logStockActivity, auditAction("stock_create", "stock"), (req, res, next) => {
   // Clear stock entries cache after creation

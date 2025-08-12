@@ -7,6 +7,7 @@ import { seedStockEntries } from "./seedStockEntries.js";
 import { seedMenuItems } from "./seedMenuItems.js";
 import { seedBeverages } from "./seedBeverages.js";
 import { seedPrinters } from "./seedPrinters.js";
+import { seedCategories } from "./categorySeed.js";
 
 export async function seedDatabase() {
   try {
@@ -62,9 +63,14 @@ export async function seedDatabase() {
     const beveragesResult = await seedBeverages();
     console.log(`🍹 Beverages: ${beveragesResult.created} created, ${beveragesResult.skipped} skipped`);
 
+    // Step 7: Create categories
+    console.log("\n📁 Seeding categories...");
+    const categoriesResult = await seedCategories();
+    console.log(`📁 Categories: ${categoriesResult.created} created, ${categoriesResult.existing} existed`);
+
     // Summary
-    const totalCreated = usersResult.created + materialsResult.created + stockResult.created + menuResult.created + beveragesResult.created;
-    const totalSkipped = (usersResult.existing || 0) + (materialsResult.existing || 0) + (stockResult.skipped || 0) + (menuResult.skipped || 0) + (beveragesResult.skipped || 0);
+    const totalCreated = usersResult.created + materialsResult.created + stockResult.created + menuResult.created + beveragesResult.created + categoriesResult.created;
+    const totalSkipped = (usersResult.existing || 0) + (materialsResult.existing || 0) + (stockResult.skipped || 0) + (menuResult.skipped || 0) + (beveragesResult.skipped || 0) + (categoriesResult.existing || 0);
 
     console.log("\n✅ Database seeding completed successfully!");
     console.log(`📊 Summary: ${totalCreated} items created, ${totalSkipped} items skipped (already existed)`);
@@ -76,6 +82,7 @@ export async function seedDatabase() {
       stockEntries: stockResult,
       menuItems: menuResult,
       beverages: beveragesResult,
+      categories: categoriesResult,
       summary: {
         totalCreated,
         totalSkipped
@@ -88,4 +95,4 @@ export async function seedDatabase() {
   }
 }
 
-export { seedUsers, seedMaterials, seedStockEntries, seedMenuItems, seedBeverages };
+export { seedUsers, seedMaterials, seedStockEntries, seedMenuItems, seedBeverages, seedCategories };

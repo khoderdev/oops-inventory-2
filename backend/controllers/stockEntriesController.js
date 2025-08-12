@@ -8,6 +8,7 @@ import {
   buildFilterConditions, 
   parseFieldSelection 
 } from "../utils/paginationHelpers.js";
+import { getMaterialCategories } from "../utils/categoryHelpers.js";
 
 const stockEntriesController = {
   // Get all stock entries with pagination and filtering
@@ -1275,6 +1276,20 @@ const stockEntriesController = {
       next(error);
     }
   },
+
+  // Get available material categories for stock entries
+  getMaterialCategories: async (req, res, next) => {
+    try {
+      const categories = await getMaterialCategories();
+      res.json({
+        success: true,
+        data: categories,
+        count: categories.length
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 };
 
 export default stockEntriesController;

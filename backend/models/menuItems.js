@@ -2,6 +2,7 @@ import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 import Material from "./materials.js";
 import Printer from "./Printer.js";
+import { isValidCategory } from "../utils/categoryHelpers.js";
 
 const MenuItem = sequelize.define(
   "MenuItem",
@@ -23,8 +24,15 @@ const MenuItem = sequelize.define(
       allowNull: true
     },
     category: {
-      type: DataTypes.ENUM("appetizers", "burgers", "sandwiches", "plates", "pasta", "sushi", "pizza", "salads", "desserts", "cold", "hot", "alcohol", "breakfast", "shisha"),
-      allowNull: false
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        async isValidMenuCategory(value) {
+          if (value && !(await isValidCategory(value, 'menu_items'))) {
+            throw new Error(`Invalid menu item category: ${value}. Please use a valid category from the database.`);
+          }
+        }
+      }
     },
     price: {
       type: DataTypes.FLOAT,

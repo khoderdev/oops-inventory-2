@@ -21,6 +21,13 @@ router.get("/",
   materialController.getAllMaterials
 );
 
+// Get material categories
+router.get("/categories", 
+  requirePermission("materials.read"), 
+  cacheMiddleware(600, () => "material-categories"), // 10 min cache
+  materialController.getMaterialCategories
+);
+
 // Write operations (with cache invalidation)
 router.post("/", requirePermission("materials.create"), auditAction("material_create", "material"), (req, res, next) => {
   // Clear materials cache after creation

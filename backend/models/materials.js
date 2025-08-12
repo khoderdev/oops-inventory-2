@@ -1,6 +1,7 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
-import { MATERIAL_CATEGORIES, UNIT_OPTIONS, isValidMaterialCategory, isValidUnitType } from "../utils/conversions.js";
+import { UNIT_OPTIONS, isValidUnitType } from "../utils/conversions.js";
+import { isValidCategory } from "../utils/categoryHelpers.js";
 
 const Material = sequelize.define(
   "Material",
@@ -61,9 +62,9 @@ const Material = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
       validate: {
-        isValidCategory(value) {
-          if (!isValidMaterialCategory(value)) {
-            throw new Error(`Invalid category. Must be one of: ${MATERIAL_CATEGORIES.map(c => c.value).join(", ")}`);
+        async isValidMaterialCategory(value) {
+          if (value && !(await isValidCategory(value, 'materials'))) {
+            throw new Error(`Invalid material category: ${value}. Please use a valid category from the database.`);
           }
         }
       }

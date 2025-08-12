@@ -7,6 +7,7 @@ import {
   buildFilterConditions, 
   parseFieldSelection 
 } from "../utils/paginationHelpers.js";
+import { isValidCategory, getMaterialCategories } from "../utils/categoryHelpers.js";
 
 const materialController = {
   // Get all materials with stock information (with pagination and filtering)
@@ -193,6 +194,13 @@ const materialController = {
         return res.status(400).json({ error: "Base unit cannot be empty" });
       }
 
+      // Validate category if provided
+      if (category && !(await isValidCategory(category, 'materials'))) {
+        return res.status(400).json({ 
+          error: `Invalid material category: ${category}. Please use a valid category from the database.` 
+        });
+      }
+
       // Validate package-specific fields
       if (unitType === "package") {
         if (!packageQuantity || packageQuantity < 1) {
@@ -233,6 +241,13 @@ const materialController = {
       // Validate baseUnit if provided
       if (baseUnit !== undefined && baseUnit.trim() === "") {
         return res.status(400).json({ error: "Base unit cannot be empty" });
+      }
+
+      // Validate category if provided
+      if (category !== undefined && category && !(await isValidCategory(category, 'materials'))) {
+        return res.status(400).json({ 
+          error: `Invalid material category: ${category}. Please use a valid category from the database.` 
+        });
       }
 
       // Validate package-specific fields if unitType is being changed to package
@@ -276,6 +291,20 @@ const materialController = {
 
       await material.destroy();
       res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // Get available material categories
+  getMaterialCategories: async (req, res, next) => {
+    try {
+      const categories = await getMaterialCategories();
+      res.json({
+        success: true,
+        data: categories,
+        count: categories.length
+      });
     } catch (err) {
       next(err);
     }

@@ -1,5 +1,6 @@
 import sequelize from "../config/database.js";
 import { Material, MenuItem, MenuItemIngredient, Printer } from "../models/index.js";
+import { isValidCategory, getMenuItemCategories } from "../utils/categoryHelpers.js";
 
 const menuItemsController = {
   // Get all menu items with ingredients
@@ -107,10 +108,11 @@ const menuItemsController = {
       }
 
       // Validate category
-      const validCategories = ["appetizers", "burgers", "sandwiches", "plates", "pasta", "sushi", "pizza", "salads", "desserts", "cold", "hot", "alcohol", "breakfast", "shisha"];
-      if (!validCategories.includes(category)) {
+      if (!(await isValidCategory(category, 'menu_items'))) {
         await transaction.rollback();
-        return res.status(400).json({ error: "Invalid category" });
+        return res.status(400).json({ 
+          error: `Invalid menu item category: ${category}. Please use a valid category from the database.` 
+        });
       }
 
       // Validate ingredients (if provided)
@@ -240,10 +242,11 @@ const menuItemsController = {
       }
 
       // Validate category if provided
-      const validCategories = ["appetizers", "burgers", "sandwiches", "plates", "pasta", "sushi", "pizza", "salads", "desserts", "beverages", "alcohol", "shisha", "cold", "hot", "breakfast"];
-      if (category !== undefined && !validCategories.includes(category)) {
+      if (category !== undefined && !(await isValidCategory(category, 'menu_items'))) {
         await transaction.rollback();
-        return res.status(400).json({ error: "Invalid category" });
+        return res.status(400).json({ 
+          error: `Invalid menu item category: ${category}. Please use a valid category from the database.` 
+        });
       }
 
       // Validate ingredients if provided
@@ -512,16 +515,9 @@ const menuItemsController = {
       }
 
       // Validate category
-      const validCategories = [
-        "appetizers", "burgers", "sandwiches", "plates", "pasta", 
-        "sushi", "pizza", "salads", "desserts", "beverages", 
-        "cold", "hot", "alcohol", "breakfast", "shisha"
-      ];
-      
-      if (!validCategories.includes(category)) {
+      if (!(await isValidCategory(category, 'menu_items'))) {
         return res.status(400).json({ 
-          error: "Invalid category", 
-          validCategories 
+          error: `Invalid menu item category: ${category}. Please use a valid category from the database.`
         });
       }
 
@@ -572,6 +568,20 @@ const menuItemsController = {
       next(error);
     }
   },
+
+  // Get available menu item categories
+  getMenuItemCategories: async (req, res, next) => {
+    try {
+      const categories = await getMenuItemCategories();
+      res.json({
+        success: true,
+        data: categories,
+        count: categories.length
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 };
 
 export default menuItemsController;

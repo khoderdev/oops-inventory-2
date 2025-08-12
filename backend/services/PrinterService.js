@@ -53,7 +53,7 @@ class PrinterService extends EventEmitter {
         await this.setupPrinter(printer);
         console.log(`✅ Printer "${printer.name}" loaded successfully`);
       } catch (error) {
-        console.error(`❌ Failed to load printer "${printer.name}":`, error.message);
+        // console.error(`❌ Failed to load printer "${printer.name}":`, error.message);
         await this.updatePrinterStatus(printer.id, "error", error.message);
       }
     }
