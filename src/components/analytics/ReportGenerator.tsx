@@ -302,71 +302,12 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
               {currentReportConfig?.requiresDateRange && (
                 <>
-                  {/* Mobile: Side by Side, Desktop: Separate Columns */}
-                  <div className="grid grid-cols-2 gap-2 sm:hidden">
-                    <div className="space-y-2">
-                      <div className="space-y-2">
-                        <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
-                              <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                              <span className="truncate">{dateFrom ? format(dateFrom, "MMM d, yyyy") : "From"}</span>
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">
-                            <Calendar
-                              mode="single"
-                              selected={dateFrom}
-                              onSelect={date => {
-                                if (isValid(date)) {
-                                  setDateFrom(date);
-                                }
-                                setDateFromOpen(false);
-                              }}
-                              initialFocus
-                              className="p-3"
-                              disabled={date => date > new Date()}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="space-y-2">
-                        <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
-                              <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                              <span className="truncate">{dateTo ? format(dateTo, "MMM d, yyyy") : "To"}</span>
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">
-                            <Calendar
-                              mode="single"
-                              selected={dateTo}
-                              onSelect={date => {
-                                if (isValid(date)) {
-                                  setDateTo(date);
-                                }
-                                setDateToOpen(false);
-                              }}
-                              initialFocus
-                              className="p-3"
-                              disabled={date => date > new Date() || (dateFrom && date < dateFrom)}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Desktop: Separate Columns */}
-                  <div className="hidden sm:block space-y-2">
+                  <div className="space-y-2">
                     <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
                           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{dateFrom ? format(dateFrom, "MMM d, yyyy") : "From"}</span>
+                          <span className="truncate">{dateFrom ? format(dateFrom, "MMM d, yyyy") : "From Date"}</span>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">
@@ -386,12 +327,12 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="hidden sm:block space-y-2">
+                  <div className="space-y-2">
                     <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
                           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{dateTo ? format(dateTo, "MMM d, yyyy") : "To"}</span>
+                          <span className="truncate">{dateTo ? format(dateTo, "MMM d, yyyy") : "To Date"}</span>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">
