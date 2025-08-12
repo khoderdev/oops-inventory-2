@@ -2,13 +2,14 @@ import { MaterialForm } from "@/components/materials/MaterialForm";
 import { MaterialTable } from "@/components/materials/MaterialTable";
 import { StockEntriesTable } from "@/components/stock/StockEntriesTable";
 import { StockForm } from "@/components/stock/StockForm";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CategoryManagement } from "@/components/categories/CategoryManagement";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePrefetch } from "@/hooks/usePrefetch";
 import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
 import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, MaterialFormData, StockFormData, RecordWasteData, CreateStockEntryData } from "@/types/inventory";
-import { Package, Warehouse, Loader2 } from "lucide-react";
+import { Package, Warehouse, Loader2, Tags } from "lucide-react";
 import { useAtom } from "jotai";
 import { useState, useCallback, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -428,6 +429,9 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         case "menu":
           await refresh("menu");
           break;
+        case "categories":
+          // Categories are managed independently
+          break;
         case "sections":
           // Would refresh sections
           break;
@@ -441,10 +445,11 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   return (
     <div className="h-[calc(100vh-4rem)] w-full flex flex-col overflow-hidden">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           {[
             { value: "material", label: "Materials", icon: Package, short: "Mat", loading: tabLoading.material },
-            { value: "stock", label: "Stock Entries", icon: Warehouse, short: "Stock", loading: tabLoading.stock }
+            { value: "stock", label: "Stock Entries", icon: Warehouse, short: "Stock", loading: tabLoading.stock },
+            { value: "categories", label: "Categories", icon: Tags, short: "Cat", loading: false }
           ].map(({ value, label, icon: Icon, short, loading }) => (
             <TabsTrigger
               key={value}
@@ -473,6 +478,18 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
 
         <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden ">
           <StockEntriesTable />
+        </TabsContent>
+
+        <TabsContent value="categories" className="flex-1 focus-visible:outline-none overflow-hidden">
+          <div className="h-full overflow-auto p-4">
+            <CategoryManagement 
+              onCategoryChange={() => {
+                // Refresh materials and stock when categories change
+                refresh("materials");
+                refresh("stock");
+              }}
+            />
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -505,21 +522,21 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           <ScrollArea className="max-h-[calc(95vh-60px)]">
             {/* <div className=""> */}
             {/* <div className="px-2 sm:px-6 py-2 sm:py-4 !pt-0"> */}
-              <StockForm
-                materials={materialsWithStock}
-                stockEntry={selectedStockEntry || undefined}
-                selectedMaterialId={selectedMaterial?.id}
-                onSubmit={handleStockSubmit}
-                onAddStock={handleAddStockOperation}
-                onRecordWaste={handleRecordWasteOperation}
-                onAddToSpecificEntry={handleAddToSpecificEntryOperation}
-                onWasteFromSpecificEntry={handleWasteFromSpecificEntryOperation}
-                onCancel={() => {
-                  setShowStockForm(false);
-                  setSelectedStockEntry(null);
-                  setSelectedMaterial(null);
-                }}
-              />
+            <StockForm
+              materials={materialsWithStock}
+              stockEntry={selectedStockEntry || undefined}
+              selectedMaterialId={selectedMaterial?.id}
+              onSubmit={handleStockSubmit}
+              onAddStock={handleAddStockOperation}
+              onRecordWaste={handleRecordWasteOperation}
+              onAddToSpecificEntry={handleAddToSpecificEntryOperation}
+              onWasteFromSpecificEntry={handleWasteFromSpecificEntryOperation}
+              onCancel={() => {
+                setShowStockForm(false);
+                setSelectedStockEntry(null);
+                setSelectedMaterial(null);
+              }}
+            />
             {/* </div> */}
           </ScrollArea>
         </DialogContent>

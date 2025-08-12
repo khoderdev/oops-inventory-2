@@ -13,6 +13,9 @@ router.get("/", categoryController.getAllCategories);
 // GET /api/categories/type/:type - Get categories by type (materials or menu_items)
 router.get("/type/:type", categoryController.getCategoriesByType);
 
+// PUT /api/categories/sort-orders - Bulk update sort orders (must be before /:id route)
+router.put("/sort-orders", categoryController.updateSortOrders);
+
 // GET /api/categories/:id - Get single category by ID
 router.get("/:id", categoryController.getCategoryById);
 
@@ -24,8 +27,5 @@ router.put("/:id", categoryController.updateCategory);
 
 // DELETE /api/categories/:id - Delete category
 router.delete("/:id", categoryController.deleteCategory);
-
-// PUT /api/categories/sort-orders - Bulk update sort orders
-router.put("/sort-orders", categoryController.updateSortOrders);
 
 export default router;
