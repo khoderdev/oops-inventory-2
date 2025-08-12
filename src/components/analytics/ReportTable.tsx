@@ -207,8 +207,8 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
         <MobileCardView />
       </div>
 
-      {/* Desktop Table View - Constrained height */}
-      <div className="hidden md:flex flex-col h-[calc(100vh-400px)] min-h-[300px] max-h-[calc(100vh-200px)] overflow-hidden">
+      {/* Desktop Table View - Full available height */}
+      <div className="hidden md:flex flex-col h-[calc(100vh-250px)] min-h-[400px] overflow-hidden">
         {/* Sticky Header */}
         <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10 overflow-x-auto">
           <Table className="w-full table-auto">
