@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TanStackTable } from "@/components/ui/TanStackTable";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { CachedMaterialData, MATERIAL_CATEGORIES, MaterialTableProps, MaterialWithStock, PaginationInfo } from "@/types/inventory";
+import { CachedMaterialData, MaterialTableProps, MaterialWithStock, PaginationInfo } from "@/types/inventory";
 import { highlightText } from "@/utils/highlightText";
 import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,12 +13,17 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 import { useDebounce } from "@/hooks/useDebounce";
+import { getCategoriesByType } from "@/api/categories.api";
+import { Category } from "@/types/categories";
 
 const MATERIALS_CACHE_KEY = "materials_table_cache";
 const CACHE_DURATION = 5 * 60 * 1000;
 
 export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: Omit<MaterialTableProps, "filteredMaterials">) {
   const { setShowMaterialForm } = useInventoryStore();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  
   const initializeFromCache = () => {
     try {
       const cached = localStorage.getItem(MATERIALS_CACHE_KEY);
@@ -52,6 +57,24 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
+  // Fetch material categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await getCategoriesByType('materials', true);
+        setCategories(response.totalItems || []);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        setCategories([]);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
   const getCacheKey = useCallback((page: number, size: number, search: string, category: string, sort: string, order: string) => {
     return `${search}_${category}_${sort}_${order}_${size}`;
   }, []);
@@ -282,10 +305,10 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
         ),
         cell: ({ getValue }) => {
           const category = getValue();
-          const categoryInfo = MATERIAL_CATEGORIES.find(c => c.value === category);
+          const categoryInfo = categories.find(c => c.value === category);
           return (
             <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(category)}`}>
-              {categoryInfo?.label || category}
+              {categoryInfo?.name || category}
             </Badge>
           );
         },
@@ -469,7 +492,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
                     <span>•</span>
                     <span className="text-blue-600 font-medium">
                       Filtered results
-                      {categoryFilter !== "all" && ` (${MATERIAL_CATEGORIES.find(c => c.value === categoryFilter)?.label})`}
+                      {categoryFilter !== "all" && ` (${categories.find(c => c.value === categoryFilter)?.name})`}
                     </span>
                   </>
                 )}
@@ -494,9 +517,9 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {MATERIAL_CATEGORIES.map(category => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
+                  {categories.map(category => (
+                    <SelectItem key={category.id} value={category.value}>
+                      {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -565,7 +588,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
           {!loading && materials.length > 0 && (
             <div className="lg:hidden space-y-4">
               {materials.map(material => {
-                const categoryInfo = MATERIAL_CATEGORIES.find(c => c.value === material.category);
+                const categoryInfo = categories.find(c => c.value === material.category);
                 return (
                   <div key={material.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-3">
@@ -573,7 +596,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
                         <h3 className="font-semibold text-gray-900 text-base mb-1 truncate">{highlightText(material.name, searchTerm)}</h3>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(material.category)}`}>
-                            {categoryInfo?.label || material.category}
+                            {categoryInfo?.name || material.category}
                           </Badge>
                           {material.isPOSItem && (
                             <Badge variant="secondary" className="text-xs font-medium">

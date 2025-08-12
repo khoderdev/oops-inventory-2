@@ -74,13 +74,13 @@ export const updateSortOrders = async (categories: SortOrderUpdate[]): Promise<{
 // Get material categories (for dropdowns)
 export const getMaterialCategories = async (): Promise<{ value: string; label: string }[]> => {
   const response = await getCategoriesByType("materials", true);
-  return response.data.map(cat => ({ value: cat.value, label: cat.name }));
+  return response.totalItems.map(cat => ({ value: cat.value, label: cat.name }));
 };
 
 // Get menu item categories (for dropdowns)
 export const getMenuItemCategories = async (): Promise<{ value: string; label: string }[]> => {
   const response = await getCategoriesByType("menu_items", true);
-  return response.data.map(cat => ({ value: cat.value, label: cat.name }));
+  return response.totalItems.map(cat => ({ value: cat.value, label: cat.name }));
 };
 
 export default {
