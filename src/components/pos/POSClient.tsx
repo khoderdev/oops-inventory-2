@@ -63,6 +63,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [tables, setTables] = useState<Table[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isPaymentCompleted, setIsPaymentCompleted] = useState(false);
+  const [isTableManuallySelected, setIsTableManuallySelected] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [showSuccessCheckmark, setShowSuccessCheckmark] = useState(false);
   const [shouldAutoPrint, setShouldAutoPrint] = useState(false);
@@ -162,6 +163,24 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [leftPanelWidth]);
 
   useEffect(() => {
+    // Completely block selectedOrderForPOS when table is manually selected
+    if (isTableManuallySelected) {
+      console.log("🚫 Completely blocking selectedOrderForPOS due to manual table selection:", { 
+        selectedOrderId: selectedOrderForPOS?.id, 
+        tableManuallySelected: isTableManuallySelected 
+      });
+      return;
+    }
+    
+    // Block selectedOrderForPOS if there's already a current order being edited
+    if (currentOrder && selectedOrderForPOS && currentOrder.id.toString() === selectedOrderForPOS.id.toString()) {
+      console.log("🚫 Blocking selectedOrderForPOS - order already loaded and being edited:", { 
+        currentOrderId: currentOrder.id, 
+        selectedOrderId: selectedOrderForPOS.id 
+      });
+      return;
+    }
+    
     if (selectedOrderForPOS && !isPaymentCompleted) {
       console.log("📋 Loading selected order for POS:", { orderId: selectedOrderForPOS.id });
       if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
@@ -244,7 +263,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.log("📋 No selected order, resetting processed order reference");
       processedOrderRef.current = null;
     }
-  }, [selectedOrderForPOS, loadOrder, posItems, isPaymentCompleted]);
+  }, [selectedOrderForPOS, loadOrder, posItems, isPaymentCompleted, isTableManuallySelected]);
 
   useEffect(() => {
     if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
@@ -314,6 +333,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setCart([]);
     setHasUnsavedChanges(false);
     setIsPaymentCompleted(false);
+    setIsTableManuallySelected(false);
     processedOrderRef.current = null;
   }, []);
 
@@ -951,6 +971,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handleTableSelection = useCallback(
     async (table: Table) => {
       console.log("📍 Table selected:", { tableId: table.id, tableNumber: table.number });
+      
+      // Set flag to prevent selectedOrderForPOS from overriding this table selection
+      setIsTableManuallySelected(true);
+      
+      // Clear any existing selectedOrderForPOS to prevent override
+      if (onOrderProcessed) {
+        onOrderProcessed();
+      }
+      
+      // Clear current order state to prevent conflicts
+      if (clearOrder) {
+        clearOrder();
+      }
+      processedOrderRef.current = null;
+      
       setSelectedTable(table);
       setOrderType("table");
       setShowTablesLayout(false);
@@ -976,57 +1011,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   );
                 }
                 
-                // // 🔧 FIX: Create fallback original item if not found
-                // if (!originalItem) {
-                //   console.warn("⚠️ Original item not found, creating fallback for:", item);
-                  
-                //   if (item.type === "menu_item") {
-                //     // Create a fallback MenuItem
-                //     originalItem = {
-                //       id: item.menuItemId,
-                //       name: item.name,
-                //       description: `Fallback for ${item.name}`,
-                //       category: 'appetizers',
-                //       price: parseFloat(item.unitPrice.toString()),
-                //       unit: 'piece',
-                //       availableQuantity: 0,
-                //       costPerUnit: 0,
-                //       ingredients: [],
-                //       menuItemIngredients: false,
-                //       isPOSItem: true,
-                //       createdAt: new Date(),
-                //       updatedAt: new Date()
-                //     } as MenuItem;
-                //   } else if (item.type === "material") {
-                //     // Create a fallback StockEntryWithMaterial
-                //     originalItem = {
-                //       id: `fallback-${item.materialId}`,
-                //       materialId: item.materialId,
-                //       quantity: 0,
-                //       unitCost: parseFloat(item.unitPrice.toString()),
-                //       totalCost: 0,
-                //       expiryDate: null,
-                //       batchNumber: "",
-                //       supplierId: null,
-                //       receivedDate: new Date(),
-                //       createdAt: new Date(),
-                //       updatedAt: new Date(),
-                //       material: {
-                //         id: item.materialId,
-                //         name: item.name,
-                //         description: `Fallback for ${item.name}`,
-                //         unit: 'piece',
-                //         category: 'appetizers',
-                //         minimumStock: 0,
-                //         maximumStock: 100,
-                //         reorderPoint: 10,
-                //         isActive: true,
-                //         createdAt: new Date(),
-                //         updatedAt: new Date()
-                //       }
-                //     } as StockEntryWithMaterial;
-                //   }
-                // }
+                
                 
                 const cartItem = {
                   id: item.id,
@@ -1077,18 +1062,26 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       } else {
         console.log("🛒 Clearing cart for new table order");
         setCart([]);
+        // Clear all order-related state for new table order
         setAppliedDiscount(null);
         setDiscountAmount(0);
+        setOrderNotes("");
         if (clearOrder) {
           clearOrder();
         }
         OrderPersistence.clearCurrentOrder();
         setHasUnsavedChanges(false);
         setSelectedEmployee(undefined);
+        processedOrderRef.current = null;
         showSuccess(`Table ${table.number} selected - Ready for new order`);
       }
 
       await refreshOrderData();
+      
+      // Reset the flag after a longer delay to ensure table selection is protected
+      setTimeout(() => {
+        setIsTableManuallySelected(false);
+      }, 5000);
     },
     [loadOrder, menuItems, stockEntries, showSuccess, showError, refreshOrderData, clearOrder]
   );
