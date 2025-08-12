@@ -355,59 +355,57 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex flex-col gap-3">
-              {/* Generate Report and Categories - inline on mobile */}
-              <div className="flex flex-row gap-2 items-center">
-                <Button onClick={generateReport} disabled={isLoading || !isDateRangeValid || isChangingReportType} className="flex items-center justify-center gap-2 h-10 flex-1 min-w-0 sm:flex-none sm:min-w-[140px] md:min-w-[160px]">
-                  {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : null}
-                  <span className="truncate">{isLoading ? "Generating..." : "Generate Report"}</span>
+          <div className="gap-4">
+            <div className="flex flex-col md:flex-row gap-3 md:gap-2 md:items-center flex-wrap">
+              {/* Generate Report Button */}
+              <Button onClick={generateReport} disabled={isLoading || !isDateRangeValid || isChangingReportType} className="flex items-center justify-center gap-2 h-10 flex-1 min-w-0 md:flex-none md:min-w-[160px]">
+                {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : null}
+                <span className="truncate">{isLoading ? "Generating..." : "Generate Report"}</span>
+              </Button>
+
+              {/* Categories Selection */}
+              {selectedReportType === "sales-performance" && (
+                <Select value={selectedCategory} onValueChange={val => setSelectedCategory(val)} disabled={isChangingReportType || isLoading}>
+                  <SelectTrigger id="sales-category" className={cn("flex-1 min-w-0 md:w-auto md:min-w-[160px] h-10", (isChangingReportType || isLoading) && "opacity-60")}>
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent className="max-w-[90vw] sm:max-w-md">
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat} className="cursor-pointer">
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* Clear Filters Button */}
+              {(dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) && (
+                <Button variant="outline" onClick={clearAllFilters} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 md:flex-none hover:bg-red-500/25 hover:text-red-500">
+                  <X className="h-4 w-4" />
+                  <span className="hidden sm:inline">Clear</span>
+                  <span className="sm:hidden">Clear</span>
                 </Button>
+              )}
 
-                {selectedReportType === "sales-performance" && (
-                  <Select value={selectedCategory} onValueChange={val => setSelectedCategory(val)} disabled={isChangingReportType || isLoading}>
-                    <SelectTrigger id="sales-category" className={cn("flex-1 min-w-0 sm:w-auto sm:min-w-[160px] h-10", (isChangingReportType || isLoading) && "opacity-60")}>
-                      <SelectValue placeholder="All categories" />
-                    </SelectTrigger>
-                    <SelectContent className="max-w-[90vw] sm:max-w-md">
-                      <SelectItem value="all">All categories</SelectItem>
-                      {categories.map(cat => (
-                        <SelectItem key={cat} value={cat} className="cursor-pointer">
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
-              {/* Clear and Export buttons - inline on mobile */}
-              {((dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) || hasGenerated) && (
-                <div className="flex flex-row gap-2 items-center">
-                  {(dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) && (
-                    <Button variant="outline" onClick={clearAllFilters} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 sm:flex-none">
-                      <X className="h-4 w-4" />
-                      <span className="hidden sm:inline">Clear Filters</span>
-                      <span className="sm:hidden">Clear</span>
-                    </Button>
-                  )}
-
-                  {hasGenerated && (
-                    <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 sm:flex-none">
-                      <Download className="h-4 w-4" />
-                      <span className="hidden sm:inline">Export CSV</span>
-                      <span className="sm:hidden">Export</span>
-                    </Button>
-                  )}
-                </div>
+              {/* Export Button */}
+              {hasGenerated && (
+                <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 md:flex-none">
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                  <span className="sm:hidden">Export</span>
+                </Button>
               )}
             </div>
 
             {hasGenerated && (
-              <Badge variant="secondary" className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1 self-center whitespace-nowrap mx-auto md:mx-0">
+              <div className="flex items-center justify-end py-1 whitespace-nowrap mx-auto border">
+              <Badge variant="secondary" className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1 self-center whitespace-nowrap mx-auto ">
                 <FileText className="h-3 w-3" />
                 <span className="text-sm">{reportData.length} records</span>
               </Badge>
+              </div>
             )}
           </div>
 

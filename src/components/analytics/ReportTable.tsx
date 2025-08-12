@@ -136,7 +136,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   }, []);
 
   const MobileCardView = () => (
-    <div className="block lg:hidden h-full overflow-auto p-2 sm:p-4 space-y-2 sm:space-y-3">
+    <div className="block md:hidden h-full overflow-auto p-2 sm:p-4 space-y-2 sm:space-y-3">
       {data.map((row, index) => (
         <div key={index} className={cn(
           "bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700", 
@@ -157,7 +157,6 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
           <div className="space-y-3">
             {headers.map((header, headerIndex) => {
               const value = formatCellValue(row, header, reportType);
-              const alignment = getColumnAlignment(header);
               if (!value || value === "-") return null;
               
               return (
@@ -205,65 +204,38 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
     <div className="flex flex-col h-[50vh] sm:h-[55vh] md:h-[60vh] lg:h-[65vh] xl:h-[70vh] bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden">
       {data.length > 0 && <MobileCardView />}
 
-      <div className="hidden lg:flex flex-col h-full">
+      <div className="hidden md:flex flex-col h-full overflow-hidden">
         {/* Sticky Header */}
-        <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
-          <Table>
+        <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10 overflow-x-auto">
+          <Table className="w-full table-auto">
             <TableHeader>
               <TableRow className="border-b-2 border-primary/20 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
                 {headers.map((header, index) => {
                   const alignment = getColumnAlignment(header);
+                  const isWideColumn = header.toLowerCase().includes('name') || header.toLowerCase().includes('item');
+                  const isNarrowColumn = header.toLowerCase().includes('qty') || header.toLowerCase().includes('quantity');
+                  
                   return (
                     <TableHead
                       key={header}
                       className={cn(
-                        "font-bold text-sm ",
+                        "font-bold text-sm",
                         "text-slate-800 dark:text-slate-100",
-                        "py-2 px-2 sm:px-3 md:py-3 md:px-4",
-                        "whitespace-nowrap",
-                        index < headers.length - 1 && "border-r border-slate-200 dark:border-slate-700 last:border-r-0 min-w-0",
-                        index < headers.length - 1 && cn("hover:border-blue-400 dark:hover:border-blue-500 hover:border-r-[3px] transition-all duration-200", isResizing === header && "border-blue-500 dark:border-blue-400 border-r-4 shadow-sm", isAutoFitting === "all" && "border-green-500 dark:border-green-400 border-r-[5px] shadow-md", "hover:shadow-[2px_0_4px_rgba(59,130,246,0.1)] dark:hover:shadow-[2px_0_4px_rgba(96,165,250,0.15)]"),
-                        index === headers.length - 1 && "border-r-0",
+                        "py-2 px-2 md:px-3",
+                        "border-r border-slate-200 dark:border-slate-700 last:border-r-0",
                         "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50",
                         "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800",
-                        "relative group/header",
-                        getResponsiveColumnClasses(header),
                         alignment,
                         index === 0 && "rounded-tl-lg",
-                        index === headers.length - 1 && "rounded-tr-lg"
+                        index === headers.length - 1 && "rounded-tr-lg",
+                        // Responsive width classes
+                        isWideColumn && "w-[25%] min-w-[120px]",
+                        isNarrowColumn && "w-[10%] min-w-[60px]",
+                        !isWideColumn && !isNarrowColumn && "w-[15%] min-w-[80px]"
                       )}
-                      style={{
-                        width: `${getColumnWidth(header)}px`,
-                        minWidth: "60px",
-                        maxWidth: "250px",
-                        textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
-                      }}
                     >
-                      <div className="flex items-center gap-1 sm:gap-2 min-h-[16px] sm:min-h-[16px] relative h-full">
+                      <div className="flex items-center gap-1 sm:gap-2 min-h-[16px] sm:min-h-[16px]">
                         <span className="truncate select-none text-xs sm:text-sm">{header}</span>
-
-                        {index < headers.length - 1 && (
-                          <>
-                            <div
-                              className={cn("absolute -right-1.5 top-0 w-3 h-full cursor-col-resize", "hover:bg-transparent transition-colors", isAutoFitting === "all" && "bg-green-400/20")}
-                              onMouseDown={e => handleResizeStart(e, header)}
-                              onTouchStart={e => handleResizeStart(e, header)}
-                              onDoubleClick={e => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (doubleClickTimeoutRef.current) {
-                                  clearTimeout(doubleClickTimeoutRef.current);
-                                  doubleClickTimeoutRef.current = null;
-                                }
-                                doubleClickTimeoutRef.current = setTimeout(() => {
-                                  console.log(`🎯 Auto-fitting column: ${header}`);
-                                  setIsAutoFitting(header);
-                                  setTimeout(() => setIsAutoFitting(null), 1000);
-                                }, 200);
-                              }}
-                            />
-                          </>
-                        )}
                       </div>
                     </TableHead>
                   );
@@ -274,34 +246,42 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-auto" ref={tableRef}>
-          <div className={cn("w-full", isResizing && "select-none")}>
-            <Table className="w-full table-fixed min-w-[600px] md:min-w-[800px]" style={{ tableLayout: "fixed" }}>
-              <TableBody>
-                {data.map((row, index) => (
-                  <TableRow key={index} className={cn("border-b border-slate-200/40 dark:border-slate-700/40", "hover:bg-slate-50/50 dark:hover:bg-slate-800/30", "group transition-colors duration-200 ease-in-out", index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/30 dark:bg-slate-800/20")}>
-                    {headers.map((header, cellIndex) => {
-                      const alignment = getColumnAlignment(header);
-                      return (
-                        <TableCell
-                          key={header}
-                          className={cn("text-sm sm:text-base lg:text-sm", "py-2 px-2 sm:px-3 md:py-3 md:px-4", cellIndex < headers.length - 1 && "border-r border-slate-200/40 dark:border-slate-600/40", cellIndex === headers.length - 1 && "border-r-0", "transition-colors duration-200 ease-in-out", "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60", "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20", getResponsiveColumnClasses(header), alignment)}
-                          style={{
-                            width: `${getColumnWidth(header)}px`,
-                            minWidth: "60px",
-                            maxWidth: "250px",
-                            textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
-                          }}
-                        >
-                          <div className="flex items-center min-h-[20px] sm:min-h-[24px] overflow-hidden">{formatCellValue(row, header, reportType)}</div>
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+        <div className="flex-1 overflow-auto">
+          <Table className="w-full table-auto">
+            <TableBody>
+              {data.map((row, index) => (
+                <TableRow key={index} className={cn("border-b border-slate-200/40 dark:border-slate-700/40", "hover:bg-slate-50/50 dark:hover:bg-slate-800/30", "group transition-colors duration-200 ease-in-out", index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/30 dark:bg-slate-800/20")}>
+                  {headers.map((header, cellIndex) => {
+                    const alignment = getColumnAlignment(header);
+                    const isWideColumn = header.toLowerCase().includes('name') || header.toLowerCase().includes('item');
+                    const isNarrowColumn = header.toLowerCase().includes('qty') || header.toLowerCase().includes('quantity');
+                    
+                    return (
+                      <TableCell
+                        key={header}
+                        className={cn(
+                          "text-sm py-2 px-2 md:px-3",
+                          "border-r border-slate-200/40 dark:border-slate-600/40 last:border-r-0",
+                          "transition-colors duration-200 ease-in-out",
+                          "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60",
+                          "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20",
+                          alignment,
+                          // Responsive width classes matching header
+                          isWideColumn && "w-[25%] min-w-[120px]",
+                          isNarrowColumn && "w-[10%] min-w-[60px]",
+                          !isWideColumn && !isNarrowColumn && "w-[15%] min-w-[80px]"
+                        )}
+                      >
+                        <div className="flex items-center min-h-[20px] sm:min-h-[24px] overflow-hidden">
+                          {formatCellValue(row, header, reportType)}
+                        </div>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
 
         <div className="flex-shrink-0 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 border-t-2 border-primary/20 px-3 sm:px-4 py-2 sm:py-3 rounded-b-lg">
