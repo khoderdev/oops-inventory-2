@@ -4,23 +4,18 @@ import { Assignment, Material, MenuItem, Order, OrderItem, sequelize, Table, Use
 import salesController from "./salesController.js";
 
 export const ordersController = {
-  // Create a new order - SIMPLIFIED VERSION
   createOrder: async (req, res) => {
     const transaction = await sequelize.transaction();
-
     try {
       const { orderNumber, orderType, tableId, customerName, customerPhone, customerAddress, notes, items = [], discountType, discountValue, discountAmount, discountReason } = req.body;
       const userId = req.user?.id;
-      // Generate sequential order number if not provided
       let finalOrderNumber = orderNumber;
       if (!finalOrderNumber) {
         try {
-          // Find the last order number
           const lastOrder = await Order.findOne({
             order: [["orderNumber", "DESC"]],
             attributes: ["orderNumber"]
           });
-
           let nextSequence = 1;
           if (lastOrder && lastOrder.orderNumber) {
             const match = lastOrder.orderNumber.match(/ORD-(\d+)/);
@@ -28,15 +23,12 @@ export const ordersController = {
               nextSequence = parseInt(match[1], 10) + 1;
             }
           }
-
           finalOrderNumber = `ORD-${nextSequence.toString().padStart(4, "0")}`;
         } catch (error) {
           console.error("Error generating order number:", error);
           finalOrderNumber = `ORD-0001`; // Fallback
         }
       }
-
-      // Create order with your exact data
       const order = await Order.create(
         {
           orderNumber: finalOrderNumber,
@@ -55,16 +47,12 @@ export const ordersController = {
         },
         { transaction }
       );
-
-      // Update table status if this is a table order
       if (tableId) {
         const table = await Table.findByPk(tableId, { transaction });
         if (table && table.status === "available") {
           await table.update({ status: "opened" }, { transaction });
         }
       }
-
-      // Create order items - SIMPLIFIED
       if (items.length > 0) {
         const orderItems = await Promise.all(
           items.map(async item => {
@@ -84,19 +72,13 @@ export const ordersController = {
             return orderItem;
           })
         );
-
-        // Calculate totals
         const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
         const tax = 0; // No tax for now - can be configured later
         const discountAmountValue = parseFloat(discountAmount) || 0;
         const total = Math.max(0, subtotal - discountAmountValue);
-
         await order.update({ subtotal, tax, total }, { transaction });
       }
-
       await transaction.commit();
-
-      // Fetch complete order with items
       const completeOrder = await Order.findByPk(order.id, {
         include: [
           {
@@ -112,12 +94,9 @@ export const ordersController = {
           { model: User, as: "creator" }
         ]
       });
-
-      // Log successful order creation
       if (userId) {
         await auditOrderOperation(userId, "CREATE", completeOrder.toJSON(), null, req);
       }
-
       res.status(201).json({ message: "Order created successfully", order: completeOrder });
     } catch (error) {
       await transaction.rollback();
@@ -126,23 +105,18 @@ export const ordersController = {
     }
   },
 
-  // Get all orders with filters
   getOrders: async (req, res) => {
     try {
       const { status, orderType, tableId, startDate, endDate, limit = 50, offset = 0, orderBy = "createdAt", order = "DESC" } = req.query;
-
       const whereClause = {};
-
       if (status) whereClause.status = status;
       if (orderType) whereClause.orderType = orderType;
       if (tableId) whereClause.tableId = tableId;
-
       if (startDate || endDate) {
         whereClause.createdAt = {};
         if (startDate) whereClause.createdAt[Op.gte] = new Date(startDate);
         if (endDate) whereClause.createdAt[Op.lte] = new Date(endDate);
       }
-
       const orders = await Order.findAll({
         where: whereClause,
         include: [
@@ -156,14 +130,11 @@ export const ordersController = {
           },
           { model: Table, as: "table" },
           { model: User, as: "creator", attributes: ["id", "username"] }
-          // { model: User, as: "updater", attributes: ["id", "name"] }
         ],
         order: [[orderBy, order.toUpperCase()]],
         limit: parseInt(limit),
         offset: parseInt(offset)
       });
-
-      // Transform to summary format
       const orderSummaries = orders.map(order => ({
         id: order.id,
         orderNumber: order.orderNumber,
@@ -182,7 +153,6 @@ export const ordersController = {
         createdAt: order.createdAt,
         updatedAt: order.updatedAt
       }));
-
       res.json({ data: orderSummaries });
     } catch (error) {
       console.error("Get orders error:", error);
@@ -190,11 +160,9 @@ export const ordersController = {
     }
   },
 
-  // Get specific order by ID
   getOrder: async (req, res) => {
     try {
       const { orderId } = req.params;
-
       const order = await Order.findByPk(orderId, {
         include: [
           {
@@ -211,11 +179,7 @@ export const ordersController = {
           { model: User, as: "updater", attributes: ["id", "username"] }
         ]
       });
-
-      if (!order) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-
+      if (!order) { return res.status(404).json({ message: "Order not found" }); }
       res.json({ data: order });
     } catch (error) {
       console.error("Get order error:", error);
@@ -223,29 +187,17 @@ export const ordersController = {
     }
   },
 
-  // Update order
   updateOrder: async (req, res) => {
     const transaction = await sequelize.transaction();
-
     try {
       const { orderId } = req.params;
       const { orderType, tableId, customerName, customerPhone, customerAddress, notes, items } = req.body;
       const userId = req.user?.id;
-
       const order = await Order.findByPk(orderId, { transaction });
-      if (!order) {
-        await transaction.rollback();
-        return res.status(404).json({ message: "Order not found" });
-      }
-
-      // Store original order data for audit
+      if (!order) { await transaction.rollback(); return res.status(404).json({ message: "Order not found" }); }
       const originalOrder = order.toJSON();
-
-      // Handle table status changes
       const oldTableId = order.tableId;
       const newTableId = tableId !== undefined ? tableId : order.tableId;
-
-      // Update order details
       await order.update(
         {
           orderType: orderType || order.orderType,
@@ -258,14 +210,10 @@ export const ordersController = {
         },
         { transaction }
       );
-
-      // Update table statuses if table assignment changed
       if (oldTableId !== newTableId) {
-        // Free up old table
         if (oldTableId) {
           const oldTable = await Table.findByPk(oldTableId, { transaction });
           if (oldTable) {
-            // Check if there are other active orders for this table
             const otherActiveOrders = await Order.count({
               where: {
                 tableId: oldTableId,
@@ -274,25 +222,15 @@ export const ordersController = {
               },
               transaction
             });
-
-            if (otherActiveOrders === 0) {
-              await oldTable.update({ status: "available" }, { transaction });
-            }
+            if (otherActiveOrders === 0) { await oldTable.update({ status: "available" }, { transaction }); }
           }
         }
-
-        // Occupy new table
         if (newTableId) {
           const newTable = await Table.findByPk(newTableId, { transaction });
-          if (newTable && newTable.status === "available") {
-            await newTable.update({ status: "opened" }, { transaction });
-          }
+          if (newTable && newTable.status === "available") { await newTable.update({ status: "opened" }, { transaction }); }
         }
       }
-
-      // Update items if provided
       if (items) {
-        // Get existing items before deletion to track what was removed
         const existingItems = await OrderItem.findAll({
           where: { orderId },
           include: [
@@ -302,50 +240,34 @@ export const ordersController = {
           ],
           transaction
         });
-
-        // Track removed items for void printing
         const removedItems = [];
-        // Compare existing items with new items to find removed ones
         existingItems.forEach(existingItem => {
           const stillExists = items.some(newItem => {
-            // For menu items: match by menuItemId (convert to string for comparison)
             if (existingItem.menuItemId && newItem.menuItemId) {
               const existingMenuItemId = String(existingItem.menuItemId);
               const newMenuItemId = String(newItem.menuItemId);
               return existingMenuItemId === newMenuItemId;
             }
-
-            // For material items: match by materialId (convert to string for comparison)
             if (existingItem.materialId && newItem.materialId) {
               const existingMaterialId = String(existingItem.materialId);
               const newMaterialId = String(newItem.materialId);
               return existingMaterialId === newMaterialId;
             }
-
-            // Fallback: match by name (but only if both items are the same type)
-            if (existingItem.type === newItem.type && existingItem.name === newItem.name) {
-              return true;
-            }
-
+            if (existingItem.type === newItem.type && existingItem.name === newItem.name) { return true; }
             return false;
           });
 
           if (!stillExists) {
-            // Store the item with its related data properly serialized
             const removedItem = {
-              ...existingItem.toJSON(), // Convert Sequelize instance to plain object
+              ...existingItem.toJSON(),
               menuItem: existingItem.menuItem ? existingItem.menuItem.toJSON() : null,
               material: existingItem.material ? existingItem.material.toJSON() : null,
               assignment: existingItem.assignment ? existingItem.assignment.toJSON() : null
             };
-
             removedItems.push(removedItem);
           }
         });
-        // Remove existing items
         await OrderItem.destroy({ where: { orderId }, transaction });
-
-        // Create new items
         if (items.length > 0) {
           const orderItems = await Promise.all(
             items.map(async item => {
@@ -366,29 +288,20 @@ export const ordersController = {
               );
             })
           );
-
-          // Recalculate totals
           const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
-          const tax = 0; // No tax for now - can be configured later
+          const tax = 0;
           const discountAmountValue = parseFloat(order.discountAmount) || 0;
           const total = Math.max(0, subtotal - discountAmountValue);
-
           await order.update({ subtotal, tax, total }, { transaction });
         } else {
           await order.update({ subtotal: 0, tax: 0, total: 0 }, { transaction });
         }
-
-        // Generate void print jobs for removed items (after transaction commit)
         if (removedItems.length > 0) {
-          // Store removed items for processing after transaction
           req.removedItems = removedItems;
           req.orderForVoidPrint = order;
         }
       }
-
       await transaction.commit();
-
-      // Fetch updated order
       const updatedOrder = await Order.findByPk(orderId, {
         include: [
           {
@@ -403,22 +316,14 @@ export const ordersController = {
           { model: Table, as: "table" }
         ]
       });
-
-      // Process void print jobs for removed items (after transaction commit)
       if (req.removedItems && req.removedItems.length > 0) {
         try {
           await processVoidPrintJobs(req.removedItems, updatedOrder, userId);
         } catch (voidPrintError) {
           console.error("❌ Failed to process void print jobs:", voidPrintError);
-          // Don't fail the order update if void printing fails
         }
       }
-
-      // Log successful order update
-      if (userId) {
-        await auditOrderOperation(userId, "UPDATE", updatedOrder.toJSON(), originalOrder, req);
-      }
-
+      if (userId) { await auditOrderOperation(userId, "UPDATE", updatedOrder.toJSON(), originalOrder, req); }
       res.json({ message: "Order updated successfully", order: updatedOrder });
     } catch (error) {
       await transaction.rollback();
@@ -430,7 +335,6 @@ export const ordersController = {
   // Add items to existing order
   addOrderItems: async (req, res) => {
     const transaction = await sequelize.transaction();
-
     try {
       const { orderId } = req.params;
       const { items } = req.body;
@@ -527,7 +431,7 @@ export const ordersController = {
     }
   },
 
-  // Remove specific items from an existing order
+  // Remove/void specific items from an existing order
   removeOrderItems: async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
@@ -1274,9 +1178,7 @@ async function getCategoryPrinterAssignment(category, itemType) {
     };
 
     const printerType = categoryPrinterMap[category?.toLowerCase()];
-    
     if (printerType) {
-      // Find active printer by location/name pattern
       const printer = await Printer.findOne({
         where: {
           isActive: true,
@@ -1286,12 +1188,10 @@ async function getCategoryPrinterAssignment(category, itemType) {
             { description: { [Op.iLike]: `%${printerType}%` } }
           ]
         },
-        order: [['lastPing', 'DESC']] // Prefer recently active printers
+        order: [['lastPing', 'DESC']]
       });
-      
       return printer?.id || null;
     }
-    
     return null;
   } catch (error) {
     console.error(`❌ Error getting category printer assignment:`, error);
@@ -1299,13 +1199,11 @@ async function getCategoryPrinterAssignment(category, itemType) {
   }
 }
 
-/**
- * Get default printer by item type
- */
+
+ // Get default printer by item type
 async function getDefaultPrinterByType(itemType) {
   try {
     let searchTerms = [];
-    
     if (itemType === 'menu_item') {
       searchTerms = ['kitchen', 'food', 'main'];
     } else if (itemType === 'material') {
@@ -1313,7 +1211,6 @@ async function getDefaultPrinterByType(itemType) {
     } else {
       searchTerms = ['kitchen', 'main'];
     }
-    
     for (const term of searchTerms) {
       const printer = await Printer.findOne({
         where: {
@@ -1326,12 +1223,8 @@ async function getDefaultPrinterByType(itemType) {
         },
         order: [['lastPing', 'DESC']]
       });
-      
-      if (printer) {
-        return printer.id;
-      }
+      if (printer) { return printer.id; }
     }
-    
     return null;
   } catch (error) {
     console.error(`❌ Error getting default printer by type:`, error);
@@ -1339,16 +1232,13 @@ async function getDefaultPrinterByType(itemType) {
   }
 }
 
-/**
- * Get any active printer as ultimate fallback
- */
+// Get any active printer as ultimate fallback
 async function getAnyActivePrinter() {
   try {
     const printer = await Printer.findOne({
       where: { isActive: true },
-      order: [['lastPing', 'DESC'], ['totalJobs', 'ASC']] // Prefer recently active, less busy printers
+      order: [['lastPing', 'DESC'], ['totalJobs', 'ASC']] 
     });
-    
     return printer?.id || null;
   } catch (error) {
     console.error(`❌ Error getting any active printer:`, error);
@@ -1356,26 +1246,21 @@ async function getAnyActivePrinter() {
   }
 }
 
-/**
- * Get display name for an item
- */
+
+ // Get display name for an item
 function getItemDisplayName(item) {
   if (item.name && item.name !== 'Unknown Item') {
     return item.name;
   }
-  
   if (item.menuItem && item.menuItem.name) {
     return item.menuItem.name;
   }
-  
   if (item.material && item.material.name) {
     return item.material.name;
   }
-  
   if (item.assignment && item.assignment.name) {
     return item.assignment.name;
   }
-  
   return `Unknown Item (ID: ${item.id || 'N/A'})`;
 }
 
@@ -1386,21 +1271,16 @@ function getItemCategory(item) {
   if (item.menuItem && item.menuItem.category) {
     return item.menuItem.category;
   }
-  
   if (item.material && item.material.category) {
     return item.material.category;
   }
-  
   if (item.assignment && item.assignment.category) {
     return item.assignment.category;
   }
-  
-  // Fallback based on item type
   if (item.type === 'material') {
-    return 'beverages'; // Assume materials are typically beverages
+    return 'beverages';
   }
-  
-  return 'main_course'; // Default category
+  return 'main_course';
 }
 
 /**
@@ -1522,10 +1402,7 @@ async function formatVoidItemsForThermalPrinter(items, order, printer) {
       
       content += "\x1B\x46"; // ESC F - Bold off
     });
-
-    // Only show item count - no monetary totals for void items
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-
     content += "\n";
     content += centerText("================") + "\n";
     content += centerText(`Total Voided: ${itemCount}`) + "\n";
@@ -1535,14 +1412,10 @@ async function formatVoidItemsForThermalPrinter(items, order, printer) {
     content += "\n";
     content += "\n";
     content += "\n";
-
-    // Add thermal printer paper cut command (ESC/POS)
-    content += "\x1B\x69"; // ESC i - Full cut command
-
+    content += "\x1B\x69"; 
     return content;
   } catch (error) {
     console.error("Error formatting void items for printer:", error);
-
     // Fallback to simple text format
     let fallbackContent = "";
     fallbackContent += centerText(`${stationName} STATION`) + "\n";

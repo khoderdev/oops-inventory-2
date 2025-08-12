@@ -17,7 +17,7 @@ export const ordersAPI = {
   // Add items to an existing order
   addOrderItems: (orderId: string, items: Omit<OrderItem, "id">[]) => api.post<Order, { items: Omit<OrderItem, "id">[] }>(`/orders/${orderId}/items`, { items }),
 
-  // Remove items from an order
+  // Remove/void items from an order
   removeOrderItems: (orderId: string, itemIds: string[]) => api.delete<Order>(`/orders/${orderId}/items`, { data: { itemIds } } as any),
 
   // Update order status
@@ -38,7 +38,7 @@ export const ordersAPI = {
 
   // Void an order (enhanced cancellation with stock restoration)
   voidOrder: (orderId: string, data: { reason?: string; restoreStock?: boolean }) => 
-    api.patch<{ order: Order; stockRestorations?: Array<{ materialId: string; itemName: string; quantityRestored: number; newStockLevel: number }> }>(`/orders/${orderId}/void`, data),
+    api.patch<{ order: Order; stockRestorations?: Array<{ materialId: string; itemName: string; quantityRestored: number; newStockLevel: number }> }, { reason?: string; restoreStock?: boolean }>(`/orders/${orderId}/void`, data),
 
   // Get active orders for a table
   getTableOrders: (tableId: string) => api.get<Order[]>(`/orders/table/${tableId}`),

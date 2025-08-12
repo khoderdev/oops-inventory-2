@@ -1421,7 +1421,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         // Execute API calls
         if (itemIdsToRemove.length > 0) {
-          console.log("🗑️ Removing order items:", { count: itemIdsToRemove.length });
+          console.log("🗑️ Removing/voiding order items:", { count: itemIdsToRemove.length });
           const respRemove = await ordersAPI.removeOrderItems(currentOrder.id, itemIdsToRemove.map(String));
           savedOrder = respRemove.data;
         }
