@@ -8,9 +8,7 @@ import { getColumnAlignment, getInitialWidth, getResponsiveColumnClasses } from 
 import { formatCellValue } from "./formatCellValue";
 
 export function ReportTable({ reportType, data }: ReportTableProps) {
-  console.log("ReportTable received data:", data);
   const headers = getTableHeaders(reportType);
-  console.log("Headers:", headers);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const [isAutoFitting, setIsAutoFitting] = useState<string | null>(null);
@@ -138,7 +136,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   }, []);
 
   const MobileCardView = () => (
-    <div className="block sm:hidden space-y-4 p-4">
+    <div className="block sm:hidden h-full overflow-auto p-4 space-y-4">
       {data.map((row, index) => (
         <div key={index} className={cn("bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm", "hover:shadow-md transition-shadow duration-200")}>
           <div className="space-y-3">
@@ -181,123 +179,87 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden" style={{ contain: "layout" }}>
+    <div className="flex flex-col h-[65vh] xl:h-[73vh] bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden">
       {data.length > 0 && <MobileCardView />}
 
       <div className="hidden sm:flex flex-col h-full">
-        <div className={cn("flex-1 overflow-hidden relative", isResizing && "select-none")}>
-          <div
-            className={cn(
-              "h-full overflow-auto",
-              "scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400",
-              "dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600",
-              "scroll-smooth",
-              "scrollbar-gutter-stable" // Prevent scrollbar flickering
-            )}
-            style={{
-              height: "100%",
-              minHeight: "200px",
-              scrollbarGutter: "stable" // Reserve space for scrollbar
-            }}
-          >
-            <Table
-              ref={tableRef}
-              className="w-full table-fixed min-w-[800px] relative"
-              style={{
-                tableLayout: "fixed",
-                willChange: "auto", // Optimize for smooth scrolling
-                backfaceVisibility: "hidden" // Prevent flickering
-              }}
-            >
-              <TableHeader className="sticky top-0 bg-white dark:bg-card shadow-sm backdrop-blur-sm">
-                <TableRow className="border-b-2 border-primary/20 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
-                  {headers.map((header, index) => {
-                    const alignment = getColumnAlignment(header);
-                    return (
-                      <TableHead
-                        key={header}
-                        className={cn(
-                          "font-bold text-sm ",
-                          "text-slate-800 dark:text-slate-100",
-                          "py-4 px-3 sm:py-5 sm:px-4 lg:px-5",
-                          "whitespace-nowrap",
-                          index < headers.length - 1 && cn("border-r-2 border-slate-300 dark:border-slate-600", "hover:border-blue-400 dark:hover:border-blue-500 hover:border-r-[3px] transition-all duration-200", isResizing === header && "border-blue-500 dark:border-blue-400 border-r-4 shadow-sm", isAutoFitting === "all" && "border-green-500 dark:border-green-400 border-r-[5px] shadow-md", "hover:shadow-[2px_0_4px_rgba(59,130,246,0.1)] dark:hover:shadow-[2px_0_4px_rgba(96,165,250,0.15)]"),
-                          index === headers.length - 1 && "border-r-0",
-                          "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50",
-                          "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800",
-                          "relative group/header",
-                          getResponsiveColumnClasses(header),
-                          alignment,
-                          index === 0 && "rounded-tl-lg",
-                          index === headers.length - 1 && "rounded-tr-lg"
+        {/* Sticky Header */}
+        <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b-2 border-primary/20 hover:bg-transparent bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800">
+                {headers.map((header, index) => {
+                  const alignment = getColumnAlignment(header);
+                  return (
+                    <TableHead
+                      key={header}
+                      className={cn(
+                        "font-bold text-sm ",
+                        "text-slate-800 dark:text-slate-100",
+                        "py-2 px-3 sm:py-3 sm:px-4 lg:px-5",
+                        "whitespace-nowrap",
+                        index < headers.length - 1 && cn("border-r-2 border-slate-300 dark:border-slate-600", "hover:border-blue-400 dark:hover:border-blue-500 hover:border-r-[3px] transition-all duration-200", isResizing === header && "border-blue-500 dark:border-blue-400 border-r-4 shadow-sm", isAutoFitting === "all" && "border-green-500 dark:border-green-400 border-r-[5px] shadow-md", "hover:shadow-[2px_0_4px_rgba(59,130,246,0.1)] dark:hover:shadow-[2px_0_4px_rgba(96,165,250,0.15)]"),
+                        index === headers.length - 1 && "border-r-0",
+                        "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50",
+                        "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800",
+                        "relative group/header",
+                        getResponsiveColumnClasses(header),
+                        alignment,
+                        index === 0 && "rounded-tl-lg",
+                        index === headers.length - 1 && "rounded-tr-lg"
+                      )}
+                      style={{
+                        width: `${getColumnWidth(header)}px`,
+                        textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
+                      }}
+                    >
+                      <div className="flex items-center gap-1 sm:gap-2 min-h-[16px] sm:min-h-[16px] relative h-full">
+                        <span className="truncate font-bold leading-tight">{header}</span>
+
+                        {index < headers.length - 1 && (
+                          <>
+                            <div
+                              className={cn("absolute -right-1.5 top-0 w-3 h-full cursor-col-resize", "hover:bg-transparent transition-colors", isAutoFitting === "all" && "bg-green-400/20")}
+                              onMouseDown={e => handleResizeStart(e, header)}
+                              onTouchStart={e => handleResizeStart(e, header)}
+                              onDoubleClick={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (doubleClickTimeoutRef.current) {
+                                  clearTimeout(doubleClickTimeoutRef.current);
+                                  doubleClickTimeoutRef.current = null;
+                                }
+                                doubleClickTimeoutRef.current = setTimeout(() => {
+                                  console.log(`🎯 Auto-fitting column: ${header}`);
+                                  setIsAutoFitting(header);
+                                  setTimeout(() => setIsAutoFitting(null), 1000);
+                                }, 200);
+                              }}
+                            />
+                          </>
                         )}
-                        style={{
-                          width: `${getColumnWidth(header)}px`,
-                          textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
-                        }}
-                      >
-                        <div className="flex items-center gap-1 sm:gap-2 min-h-[16px] sm:min-h-[16px] relative h-full">
-                          <span className="truncate font-bold leading-tight">{header}</span>
+                      </div>
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            </TableHeader>
+          </Table>
+        </div>
 
-                          {index < headers.length - 1 && (
-                            <>
-                              <div
-                                className={cn("absolute -right-1.5 top-0 w-3 h-full cursor-col-resize", "hover:bg-transparent transition-colors", isAutoFitting === "all" && "bg-green-400/20")}
-                                onMouseDown={e => handleResizeStart(e, header)}
-                                onTouchStart={e => handleResizeStart(e, header)}
-                                onDoubleClick={e => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (doubleClickTimeoutRef.current) {
-                                    clearTimeout(doubleClickTimeoutRef.current);
-                                  }
-                                  doubleClickTimeoutRef.current = setTimeout(() => {
-                                    doubleClickTimeoutRef.current = null;
-                                  }, 300);
-
-                                  autoFitAllColumns();
-                                }}
-                                title={`Drag to resize • Double-click to auto-fit all columns`}
-                              />
-                              <div className={cn("absolute -right-px top-0 w-0.5 h-full pointer-events-none", "group-hover/header:bg-blue-400/40 group-hover/header:w-1 transition-all duration-150", isResizing === header && "bg-blue-600/60 w-1.5 shadow-md", isAutoFitting === "all" && "bg-green-500/80 w-2 shadow-lg animate-pulse", "transform-gpu")} />
-                            </>
-                          )}
-                        </div>
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              </TableHeader>
-
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-auto" ref={tableRef}>
+          <div className={cn("w-full", isResizing && "select-none")}>
+            <Table className="w-full table-fixed min-w-[800px]" style={{ tableLayout: "fixed" }}>
               <TableBody>
                 {data.map((row, index) => (
-                  <TableRow
-                    key={index}
-                    className={cn(
-                      "group transition-colors duration-200 ease-in-out", // Reduced transition scope
-                      "hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-indigo-50/60",
-                      "dark:hover:from-blue-900/40 dark:hover:to-indigo-900/30",
-                      "border-b border-slate-200/60 dark:border-slate-700/60",
-                      index % 2 === 0 && "bg-gradient-to-r from-slate-50/60 to-gray-50/40 dark:from-slate-800/60 dark:to-gray-800/40"
-                      // Removed hover:scale and hover:shadow-sm to prevent layout shifts
-                    )}
-                  >
+                  <TableRow key={index} className={cn("border-b border-slate-200/40 dark:border-slate-700/40", "hover:bg-slate-50/50 dark:hover:bg-slate-800/30", "group transition-colors duration-200 ease-in-out", index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/30 dark:bg-slate-800/20")}>
                     {headers.map((header, cellIndex) => {
                       const alignment = getColumnAlignment(header);
                       return (
                         <TableCell
                           key={header}
-                          className={cn(
-                            "text-sm sm:text-base lg:text-sm",
-                            "py-4 px-3 sm:py-5 sm:px-4 lg:px-5",
-                            cellIndex < headers.length - 1 && "border-r border-slate-200/40 dark:border-slate-600/40",
-                            cellIndex === headers.length - 1 && "border-r-0",
-                            "transition-colors duration-200 ease-in-out", // Reduced transition scope
-                            "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60",
-                            "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20",
-                            getResponsiveColumnClasses(header),
-                            alignment
-                          )}
+                          className={cn("text-sm sm:text-base lg:text-sm", "py-4 px-3 sm:py-5 sm:px-4 lg:px-5", cellIndex < headers.length - 1 && "border-r border-slate-200/40 dark:border-slate-600/40", cellIndex === headers.length - 1 && "border-r-0", "transition-colors duration-200 ease-in-out", "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60", "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20", getResponsiveColumnClasses(header), alignment)}
                           style={{
                             width: `${getColumnWidth(header)}px`,
                             textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"

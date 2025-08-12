@@ -13,9 +13,7 @@ export interface LogsTableProps {
 }
 
 export function LogsTable({ logType, data }: LogsTableProps) {
-  console.log("LogsTable received data:", data);
   const headers = getLogsTableHeaders(logType);
-  console.log("Headers:", headers);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const [isAutoFitting, setIsAutoFitting] = useState<string | null>(null);
@@ -143,9 +141,6 @@ export function LogsTable({ logType, data }: LogsTableProps) {
   }, []);
 
   const MobileCardView = () => {
-    console.log("MobileCardView rendering with data:", data);
-    console.log("Headers:", headers);
-
     if (!data || data.length === 0) {
       return <div className="p-4 text-center text-gray-500">No data available</div>;
     }

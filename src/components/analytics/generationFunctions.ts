@@ -70,6 +70,8 @@ export async function generateStockPurchasesReport(stockEntries: StockEntry[], m
 
 export async function generateSalesPerformanceReport(sales: SaleRecord[], menuItems: MenuItem[]) {
   const salesWithItems: any[] = [];
+  // Create a Set of menu item IDs for faster lookup
+  const menuItemIds = new Set(menuItems.map(mi => mi.id));
   
   sales.forEach(sale => {
     // If no items in the sale, show the sale record itself
@@ -85,7 +87,7 @@ export async function generateSalesPerformanceReport(sales: SaleRecord[], menuIt
       return;
     }
     
-    // Add material items
+    // Add material items (these are not filtered by category)
     sale.items.forEach(item => {
       const itemName = item.materialName || `Material ID: ${item.materialId}`;
       salesWithItems.push({
@@ -98,8 +100,13 @@ export async function generateSalesPerformanceReport(sales: SaleRecord[], menuIt
       });
     });
     
-    // Add menu items
+    // Add menu items - only include items that match the filtered menu items
     sale.menuItems.forEach(menuItem => {
+      // Check if this menu item is in our filtered list
+      if (!menuItemIds.has(menuItem.menuItemId)) {
+        return;
+      }
+      
       // Try to find the menu item name from the menuItems array if not in the sale record
       let itemName = menuItem.menuItemName;
       if (!itemName) {
@@ -269,8 +276,6 @@ export async function generateSectionPerformanceReport(sections: Section[], assi
 }
 
 export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
-  console.log("Starting generateWasteReport with dates:", { dateFrom, dateTo });
-
   // Parse and validate dates
   const parseDate = (dateStr?: string): string | null => {
     if (!dateStr) return null;
@@ -284,17 +289,14 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
 
   const formattedDateFrom = parseDate(dateFrom);
   const formattedDateTo = parseDate(dateTo);
-  console.log("Formatted dates:", { formattedDateFrom, formattedDateTo });
 
   // Call the wastage API with date range
   let response;
   try {
-    console.log("Calling stockAPI.getWastageReport...");
     response = await stockAPI.getWastageReport({
       startDate: formattedDateFrom,
       endDate: formattedDateTo || format(new Date(), "yyyy-MM-dd")
     });
-    console.log("API response:", response);
   } catch (error) {
     console.error("Error fetching wastage report:", error);
     return [];
@@ -305,8 +307,6 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     console.warn("Wastage report data is not an array:", response.data);
     return [];
   }
-
-  console.log("Raw waste records:", response.data);
 
   // Calculate total waste metrics for percentage calculations
   const totalWasteQuantity = response.data.reduce((sum, record: WasteRecord) => {
@@ -322,13 +322,10 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     return sum + Number(cost);
   }, 0);
 
-  console.log("Total waste metrics:", { totalWasteQuantity, totalWasteCost });
 
   // Aggregate waste by material
   const wasteByMaterial = response.data.reduce(
     (acc, record: WasteRecord) => {
-      console.log("Processing record:", record);
-
       // Skip invalid records
       if (!record.materialName || record.quantity === undefined || record.quantity === null || isNaN(record.quantity)) {
         console.warn("Skipping invalid waste record:", record);
@@ -337,19 +334,13 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
 
       // Extract reason from supplier if wasteReason is not available
       const reason = record.reason || "Unknown";
-      console.log("Determined reason:", reason);
-
       // Calculate total cost for waste
       const recordTotalCost = Number(record.totalCost) || 0;
       const recordCostPerUnit = Number(record.costPerBaseUnit) || 0;
       const recordQuantity = Math.abs(Number(record.quantity) || 0);
-
       const totalCost = recordTotalCost !== 0 ? recordTotalCost : recordQuantity * recordCostPerUnit;
-      console.log("Calculated totalCost:", totalCost);
-
       const existing = acc.find(item => item.material === record.materialName);
       if (existing) {
-        console.log("Found existing entry for material:", record.materialName);
         existing.wastequantity += Number(record.quantity) || 0;
         existing.totalcost += Number(totalCost) || 0;
         existing.reason.add(reason);
@@ -359,7 +350,6 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
           existing.wastedate = record.wasteDate;
         }
       } else {
-        console.log("Creating new entry for material:", record.materialName);
         acc.push({
           material: record.materialName,
           category: record.category || "unknown",
@@ -387,11 +377,7 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     }>
   );
 
-  console.log("Aggregated waste data:", wasteByMaterial);
-
-  // Format the final data for the report
   const formattedData = wasteByMaterial.map(item => {
-    // Calculate percentage of total waste
     const percentageOfTotal = totalWasteQuantity > 0 ? (item.wastequantity / totalWasteQuantity) * 100 : 0;
 
     return {
@@ -443,11 +429,6 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     topWasteCost: formattedReport.length > 0 ? formattedReport[0]["Total Cost"] : "$0.00"
   };
 
-  console.log("Final formatted report:", formattedReport);
-  console.log("Report summary:", reportSummary);
-  console.log("Expected headers:", getTableHeaders("waste-report"));
-  console.log("First row keys:", formattedReport.length > 0 ? Object.keys(formattedReport[0]) : []);
-
   // Add summary as metadata to the report array for frontend access
   const reportWithSummary = formattedReport as typeof formattedReport & { summary: typeof reportSummary };
   reportWithSummary.summary = reportSummary;
@@ -456,8 +437,6 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
 }
 
 export async function generateVarianceAnalysisReport(materials: Material[], stockEntries: StockEntry[], sales: SaleRecord[], dateFrom?: string, dateTo?: string) {
-  console.log("Starting generateVarianceAnalysisReport with dates:", { dateFrom, dateTo });
-
   // Parse and validate dates
   const parseDate = (dateStr?: string): Date | null => {
     if (!dateStr) return null;
@@ -472,8 +451,6 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
   const fromDate = parseDate(dateFrom);
   const toDate = parseDate(dateTo) || new Date();
   toDate.setHours(23, 59, 59, 999);
-
-  console.log("Parsed dates:", { fromDate, toDate });
 
   // Get waste data for the period
   let wasteData: WasteRecord[] = [];
@@ -503,13 +480,6 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
         return saleDate >= fromDate && saleDate <= toDate;
       })
     : sales;
-
-  console.log("Filtered data:", {
-    stockEntries: filteredStockEntries.length,
-    sales: filteredSales.length,
-    wasteRecords: wasteData.length
-  });
-
   // Calculate variance for each material
   const varianceAnalysis = materials.map(material => {
     // Get stock entries for this material

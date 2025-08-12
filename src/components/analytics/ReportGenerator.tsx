@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
@@ -16,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { ReportGeneratorProps, SaleRecord, StockEntry } from "@/types/inventory";
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { format, isValid } from "date-fns";
-import { CalendarIcon, Download, FileText, TrendingUp } from "lucide-react";
+import { CalendarIcon, Download, FileText, TrendingUp, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { REPORT_CONFIGS, ReportType } from "./configs";
 import { generateCategoryAnalysisReport, generateCostAnalysisReport, generateExpiryAlertsReport, generateInventorySummaryReport, generateMenuProfitabilityReport, generateSalesPerformanceReport, generateSectionPerformanceReport, generateStockPurchasesReport, generateSupplierPerformanceReport, generateVarianceAnalysisReport, generateWasteReport } from "./generationFunctions";
@@ -33,6 +32,8 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
   const [isChangingReportType, setIsChangingReportType] = useState(false);
   const [dateFromOpen, setDateFromOpen] = useState(false);
   const [dateToOpen, setDateToOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
+  const [categories, setCategories] = useState<string[]>([]);
   const currentReportConfig = REPORT_CONFIGS.find(config => config.id === selectedReportType);
 
   const handleReportTypeChange = (newReportType: ReportType) => {
@@ -43,10 +44,38 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     setIsLoading(false);
     setDateFromOpen(false);
     setDateToOpen(false);
+    setSelectedCategory("all");
+    setCategories([]);
     const newConfig = REPORT_CONFIGS.find(config => config.id === newReportType);
     if (!newConfig?.requiresDateRange) {
       setDateFrom(undefined);
       setDateTo(undefined);
+    }
+    // Preload categories for Sales Performance
+    if (newReportType === "sales-performance") {
+      menuAPI
+        .getMenus()
+        .then(res => {
+          try {
+            const raw: string[] = (res?.data || []).map((i: any) => (typeof i?.category === "string" ? i.category : "")).filter((v: string) => v.trim().length > 0);
+            // Deduplicate case-insensitively while keeping a single representative value
+            const seen = new Set<string>();
+            const dedup: string[] = [];
+            for (const c of raw) {
+              const key = c.trim().toLowerCase();
+              if (!seen.has(key)) {
+                seen.add(key);
+                dedup.push(c.trim());
+              }
+            }
+            setCategories(dedup);
+          } catch {
+            // ignore
+          }
+        })
+        .catch(() => {
+          // ignore fetch errors for categories in preloading
+        });
     }
     setTimeout(() => {
       setSelectedReportType(newReportType);
@@ -56,7 +85,9 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
   const isDateRangeValid = useMemo(() => {
     if (!currentReportConfig?.requiresDateRange) return true;
-    return dateFrom && dateTo && dateFrom <= dateTo;
+    if (!dateFrom && !dateTo) return true;
+    if (dateFrom && dateTo) return dateFrom <= dateTo;
+    return true;
   }, [dateFrom, dateTo, currentReportConfig]);
 
   const generateReport = async () => {
@@ -75,13 +106,13 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
     try {
       const [materials, stockEntries, sales, menuItems, sections, assignments] = await Promise.all([materialsAPI.getMaterials(), stockAPI.getStockEntries(), salesAPI.getSales(), menuAPI.getMenus(), sectionAPI.getSections(), assignmentsAPI.getAssignments()]);
-
       let filteredData: { stockEntries: StockEntry[]; sales: SaleRecord[] } | undefined;
       let reportResults: Record<string, unknown>[] | undefined;
 
-      if (currentReportConfig?.requiresDateRange && dateFrom && dateTo) {
-        const fromDate = new Date(dateFrom);
-        const toDate = new Date(dateTo);
+      if (currentReportConfig?.requiresDateRange && selectedReportType !== "sales-performance") {
+        const today = new Date();
+        const fromDate = new Date(dateFrom ?? today);
+        const toDate = new Date(dateTo ?? today);
         toDate.setHours(23, 59, 59, 999);
 
         filteredData = {
@@ -103,9 +134,34 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
         case "stock-purchases":
           reportResults = await generateStockPurchasesReport(filteredData?.stockEntries || [], materials);
           break;
-        case "sales-performance":
-          reportResults = await generateSalesPerformanceReport(filteredData?.sales || [], menuItems.data);
+        case "sales-performance": {
+          const normalize = (v: unknown) => (typeof v === "string" ? v.trim().toLowerCase() : "");
+          const categoryFilterActive = selectedCategory && selectedCategory !== "all";
+          const selectedKey = normalize(selectedCategory);
+          const filteredMenuItems = categoryFilterActive
+            ? (menuItems.data || []).filter((i: any) => {
+                const itemCategory = normalize(i?.category);
+                return itemCategory === selectedKey;
+              })
+            : menuItems.data;
+
+          // Apply date filtering if dates are selected
+          let salesData = sales.data;
+          if (dateFrom || dateTo) {
+            const today = new Date();
+            const fromDate = new Date(dateFrom ?? today);
+            const toDate = new Date(dateTo ?? today);
+            toDate.setHours(23, 59, 59, 999);
+
+            salesData = sales.data.filter(sale => {
+              const saleDate = new Date(sale.saleDate);
+              return saleDate >= fromDate && saleDate <= toDate;
+            });
+          }
+
+          reportResults = await generateSalesPerformanceReport(salesData, filteredMenuItems);
           break;
+        }
         case "cost-analysis":
           reportResults = await generateCostAnalysisReport(materials, filteredData?.stockEntries || []);
           break;
@@ -125,10 +181,20 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           reportResults = await generateSectionPerformanceReport(sections.data, assignments.data, filteredData?.sales || []);
           break;
         case "waste-report":
-          reportResults = await generateWasteReport(dateFrom && format(dateFrom, "yyyy-MM-dd"), dateTo && format(dateTo, "yyyy-MM-dd"));
+          {
+            const today = new Date();
+            const from = currentReportConfig?.requiresDateRange ? (dateFrom ?? today) : dateFrom;
+            const to = currentReportConfig?.requiresDateRange ? (dateTo ?? today) : dateTo;
+            reportResults = await generateWasteReport(from && format(from, "yyyy-MM-dd"), to && format(to, "yyyy-MM-dd"));
+          }
           break;
         case "variance-analysis":
-          reportResults = await generateVarianceAnalysisReport(materials, stockEntries, sales.data, dateFrom && format(dateFrom, "yyyy-MM-dd"), dateTo && format(dateTo, "yyyy-MM-dd"));
+          {
+            const today = new Date();
+            const from = currentReportConfig?.requiresDateRange ? (dateFrom ?? today) : dateFrom;
+            const to = currentReportConfig?.requiresDateRange ? (dateTo ?? today) : dateTo;
+            reportResults = await generateVarianceAnalysisReport(materials, stockEntries, sales.data, from && format(from, "yyyy-MM-dd"), to && format(to, "yyyy-MM-dd"));
+          }
           break;
         default:
           throw new Error("Invalid report type");
@@ -153,6 +219,20 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const clearAllFilters = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    setSelectedCategory("all");
+    setReportData([]);
+    setHasGenerated(false);
+
+    toast({
+      title: "Filters Cleared",
+      description: "All filters have been reset.",
+      duration: 1500
+    });
   };
 
   const exportReport = () => {
@@ -189,19 +269,12 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
               <FileText className="h-5 w-5" />
               Report Generator
             </div>
-            {currentReportConfig && !isChangingReportType && hasGenerated && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground bg-primary/10 px-3 py-1 rounded-full mr-4 sm:mr-10">
-                {currentReportConfig.icon}
-                <span>viewing: {currentReportConfig.name}</span>
-              </div>
-            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col space-y-2 min-h-0 overflow-hidden">
           <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
               <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                {/* <Label htmlFor="report-type">Report Type</Label> */}
                 <Select value={selectedReportType} onValueChange={handleReportTypeChange} disabled={isChangingReportType || isLoading}>
                   <SelectTrigger id="report-type" className={cn("h-16 w-full", isChangingReportType && "opacity-60")}>
                     <SelectValue placeholder="Select report type" />
@@ -229,7 +302,66 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
               {currentReportConfig?.requiresDateRange && (
                 <>
-                  <div className="space-y-2">
+                  {/* Mobile: Side by Side, Desktop: Separate Columns */}
+                  <div className="grid grid-cols-2 gap-2 sm:hidden">
+                    <div className="space-y-2">
+                      <div className="space-y-2">
+                        <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
+                              <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                              <span className="truncate">{dateFrom ? format(dateFrom, "MMM d, yyyy") : "From"}</span>
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">
+                            <Calendar
+                              mode="single"
+                              selected={dateFrom}
+                              onSelect={date => {
+                                if (isValid(date)) {
+                                  setDateFrom(date);
+                                }
+                                setDateFromOpen(false);
+                              }}
+                              initialFocus
+                              className="p-3"
+                              disabled={date => date > new Date()}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="space-y-2">
+                        <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
+                              <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                              <span className="truncate">{dateTo ? format(dateTo, "MMM d, yyyy") : "To"}</span>
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 max-w-[90vw]" align="start" side="bottom">
+                            <Calendar
+                              mode="single"
+                              selected={dateTo}
+                              onSelect={date => {
+                                if (isValid(date)) {
+                                  setDateTo(date);
+                                }
+                                setDateToOpen(false);
+                              }}
+                              initialFocus
+                              className="p-3"
+                              disabled={date => date > new Date() || (dateFrom && date < dateFrom)}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop: Separate Columns */}
+                  <div className="hidden sm:block space-y-2">
                     <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
@@ -254,7 +386,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="space-y-2">
+                  <div className="hidden sm:block space-y-2">
                     <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
@@ -285,11 +417,34 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 items-stretch sm:items-center">
               <Button onClick={generateReport} disabled={isLoading || !isDateRangeValid || isChangingReportType} className="flex items-center justify-center gap-2 h-10 min-w-[140px]">
                 {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <TrendingUp className="h-4 w-4" />}
                 <span className="truncate">{isLoading ? "Generating..." : "Generate Report"}</span>
               </Button>
+
+              {selectedReportType === "sales-performance" && (
+                <Select value={selectedCategory} onValueChange={val => setSelectedCategory(val)} disabled={isChangingReportType || isLoading}>
+                  <SelectTrigger id="sales-category" className={cn("w-full h-10", (isChangingReportType || isLoading) && "opacity-60")}>
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent className="max-w-[90vw] sm:max-w-md">
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat} className="cursor-pointer">
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {(dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) && (
+                <Button variant="outline" onClick={clearAllFilters} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10">
+                  <X className="h-4 w-4" />
+                  <span>Clear Filters</span>
+                </Button>
+              )}
 
               {hasGenerated && (
                 <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10">
@@ -326,7 +481,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                 </div>
               )}
 
-              <div className="flex-1 bg-card overflow-hidden min-h-0">
+              <div className="flex-1 min-h-0">
                 <ReportTable reportType={selectedReportType} data={reportData} />
               </div>
             </div>
