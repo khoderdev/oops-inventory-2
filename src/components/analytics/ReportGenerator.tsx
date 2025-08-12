@@ -357,45 +357,52 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex flex-col md:flex-row gap-3 md:gap-2 md:items-center flex-wrap">
-              {/* Generate Report Button */}
-              <Button onClick={generateReport} disabled={isLoading || !isDateRangeValid || isChangingReportType} className="flex items-center justify-center gap-2 h-10 flex-1 min-w-0 md:flex-none md:w-[160px]">
-                {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : null}
-                <span className="truncate">{isLoading ? "Generating..." : "Generate Report"}</span>
-              </Button>
-
-              {/* Categories Selection */}
-              {selectedReportType === "sales-performance" && (
-                <Select value={selectedCategory} onValueChange={val => setSelectedCategory(val)} disabled={isChangingReportType || isLoading}>
-                  <SelectTrigger id="sales-category" className={cn("flex-1 min-w-0 md:w-[160px] h-10", (isChangingReportType || isLoading) && "opacity-60")}>
-                    <SelectValue placeholder="All categories" />
-                  </SelectTrigger>
-                  <SelectContent className="max-w-[90vw] sm:max-w-md">
-                    <SelectItem value="all">All categories</SelectItem>
-                    {categories.map(cat => (
-                      <SelectItem key={cat} value={cat} className="cursor-pointer">
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {/* Clear Filters Button */}
-              {(dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) && (
-                <Button variant="outline" onClick={clearAllFilters} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 md:flex-none md:w-[120px] hover:bg-red-500/25 hover:text-red-500">
-                  <X className="h-4 w-4" />
-                  <span className="hidden sm:inline">Clear</span>
-                  <span className="sm:hidden">Clear</span>
+              {/* Generate Report and Categories - inline on mobile only */}
+              <div className="flex flex-row md:contents gap-2">
+                <Button onClick={generateReport} disabled={isLoading || !isDateRangeValid || isChangingReportType} className="flex items-center justify-center gap-2 h-10 flex-1 min-w-0 md:flex-none md:w-[160px]">
+                  {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : null}
+                  <span className="truncate">{isLoading ? "Generating..." : "Generate Report"}</span>
                 </Button>
-              )}
 
-              {/* Export Button */}
-              {hasGenerated && (
-                <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 md:flex-none md:w-[140px]">
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Export CSV</span>
-                  <span className="sm:hidden">Export</span>
-                </Button>
+                {/* Categories Selection */}
+                {selectedReportType === "sales-performance" && (
+                  <Select value={selectedCategory} onValueChange={val => setSelectedCategory(val)} disabled={isChangingReportType || isLoading}>
+                    <SelectTrigger id="sales-category" className={cn("flex-1 min-w-0 md:w-[160px] h-10", (isChangingReportType || isLoading) && "opacity-60")}>
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent className="max-w-[90vw] sm:max-w-md">
+                      <SelectItem value="all">All categories</SelectItem>
+                      {categories.map(cat => (
+                        <SelectItem key={cat} value={cat} className="cursor-pointer">
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Clear and Export buttons - inline on mobile only */}
+              {((dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) || hasGenerated) && (
+                <div className="flex flex-row md:contents gap-2">
+                  {/* Clear Filters Button */}
+                  {(dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) && (
+                    <Button variant="outline" onClick={clearAllFilters} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 md:flex-none md:w-[120px] hover:bg-red-500/25 hover:text-red-500">
+                      <X className="h-4 w-4" />
+                      <span className="hidden sm:inline">Clear</span>
+                      <span className="sm:hidden">Clear</span>
+                    </Button>
+                  )}
+
+                  {/* Export Button */}
+                  {hasGenerated && (
+                    <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 md:flex-none md:w-[140px]">
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Export CSV</span>
+                      <span className="sm:hidden">Export</span>
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 
