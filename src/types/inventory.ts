@@ -5,6 +5,9 @@ import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
+
+// Re-export types for convenience
+export type { Employee, OrderType };
 import { materialSchema } from "@/components/materials/materialsSchema";
 
 
@@ -427,7 +430,7 @@ export interface MenuItemSale {
 
 export type CartItem = {
   id: string;
-  type: "individual" | "menu_item";
+  type: "individual" | "menu_item" | "material";
   name: string;
   quantity: number;
   unitPrice: number;
@@ -435,6 +438,7 @@ export type CartItem = {
   unit?: string;
   assignmentId?: string;
   menuItemId?: number;
+  materialId?: number;
   ingredients?: { materialId: number; quantity: number; unit: string }[];
 };
 
@@ -510,6 +514,7 @@ export interface POSCartItem {
   originalItem: StockEntryWithMaterial | MenuItem;
   posItem?: POSItem;
   stockEntryId?: number;
+  materialId?: number;
   menuItemId?: number;
   printerId?: number | null;
   assignedPrinter?: {
@@ -1156,3 +1161,5 @@ export interface NavigationItem {
   badge?: string;
   badgeVariant?: "default" | "destructive" | "secondary";
 }
+
+export type { OrderSummary };
