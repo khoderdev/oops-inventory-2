@@ -147,7 +147,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const handleResize = () => {
       if (!containerRef.current) return;
       const containerWidth = containerRef.current.offsetWidth;
-      console.log("🖥️ Window resized:", { containerWidth, leftPanelWidth });
       if (containerWidth < 1024) {
         setLeftPanelWidth(33.33);
       }
@@ -837,25 +836,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, []);
 
-  const refreshOrderData = useCallback(async () => {
-    console.log("🔄 Refreshing order data");
-    await Promise.all([refreshOrders(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
-  }, [refreshOrders, fetchTablesData, refreshCountsRef]);
+  // const refreshOrderData = useCallback(async () => {
+  //   console.log("🔄 Refreshing order data");
+  //   await Promise.all([refreshOrders(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
+  // }, [refreshOrders, fetchTablesData, refreshCountsRef]);
 
   const refreshAllCounts = useCallback(async () => {
     console.log("🔄 Refreshing all counts (orders, inventory, tables)");
     await Promise.all([refreshOrders(), refreshInventory(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
   }, [refreshOrders, refreshInventory, fetchTablesData, refreshCountsRef]);
 
-  useEffect(() => {
-    console.log("📋 Starting incomplete orders polling");
-    fetchIncompleteOrders();
-    const interval = setInterval(fetchIncompleteOrders, 30000);
-    return () => {
-      console.log("📋 Stopping incomplete orders polling");
-      clearInterval(interval);
-    };
-  }, [fetchIncompleteOrders]);
+
 
   const availablePosItems = posItems.filter(posItem => {
     const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || posItem.category?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -864,7 +855,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   const categories = ["all", ...Array.from(new Set(posItems.map(item => item.category).filter(Boolean)))];
   const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
-  // console.log("🛍️ Filtered POS items:", { activeCategory, count: filteredPosItems.length });
 
   const recalculateEmployeeDiscount = useCallback(
     (newCart: POSCartItem[]) => {
@@ -1099,14 +1089,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         showSuccess(`Table ${table.number} selected - Ready for new order`);
       }
 
-      await refreshOrderData();
+      // await refreshOrderData();
       
       // Reset the flag after a longer delay to ensure table selection is protected
       setTimeout(() => {
         setIsTableManuallySelected(false);
       }, 5000);
     },
-    [loadOrder, menuItems, stockEntries, showSuccess, showError, refreshOrderData, clearOrder]
+    [loadOrder, menuItems, stockEntries, showSuccess, showError,  clearOrder]
   );
 
   const handleCloseTablesLayout = useCallback(() => {
@@ -1501,7 +1491,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, refreshOrderData, printItemsToAssignedPrinters]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, printItemsToAssignedPrinters]);
 
   const handlePayment = useCallback(async () => {
     if (cart.length === 0) {
@@ -1705,7 +1695,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, orderNotes, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, printItemsToAssignedPrinters]);
 
   const handleMouseDown = () => {
-    console.log("🖱️ Starting panel resize");
     setIsResizing(true);
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
@@ -1718,7 +1707,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const minWidth = 20;
     const maxWidth = 60;
     if (newWidth >= minWidth && newWidth <= maxWidth) {
-      console.log("🖱️ Resizing panel:", { newWidth });
       setLeftPanelWidth(newWidth);
       const rightPanelWidth = 100 - newWidth;
       const calculatedRightPanelPixelWidth = (rightPanelWidth / 100) * containerRect.width;
@@ -1727,7 +1715,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   };
 
   const handleMouseUp = () => {
-    console.log("🖱️ Panel resize completed");
     setIsResizing(false);
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
