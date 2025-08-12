@@ -15,10 +15,10 @@ import { cn } from "@/lib/utils";
 import { ReportGeneratorProps, SaleRecord, StockEntry } from "@/types/inventory";
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { format, isValid } from "date-fns";
-import { CalendarIcon, Download, FileText, X } from "lucide-react";
+import { CalendarIcon, Download, FileText, ToggleLeft, ToggleRight, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { REPORT_CONFIGS, ReportType } from "./configs";
-import { generateCategoryAnalysisReport, generateCostAnalysisReport, generateExpiryAlertsReport, generateInventorySummaryReport, generateMenuProfitabilityReport, generateSalesPerformanceReport, generateSectionPerformanceReport, generateStockPurchasesReport, generateSupplierPerformanceReport, generateVarianceAnalysisReport, generateWasteReport } from "./generationFunctions";
+import { generateCategoryAnalysisReport, generateCategorySalesAnalysisReport, generateCostAnalysisReport, generateExpiryAlertsReport, generateInventorySummaryReport, generateMenuProfitabilityReport, generateSalesPerformanceReport, generateSectionPerformanceReport, generateStockPurchasesReport, generateSupplierPerformanceReport, generateVarianceAnalysisReport, generateWasteReport } from "./generationFunctions";
 import { ReportSummary } from "./ReportSummary";
 import { ReportTable } from "./ReportTable";
 
@@ -34,6 +34,11 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
   const [dateToOpen, setDateToOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
   const [categories, setCategories] = useState<string[]>([]);
+  const [categoryAnalysisView, setCategoryAnalysisView] = useState<"materials" | "sales">("materials");
+  const [categoryAnalysisData, setCategoryAnalysisData] = useState<{
+    materials: Record<string, unknown>[];
+    sales: Record<string, unknown>[];
+  }>({ materials: [], sales: [] });
   const currentReportConfig = REPORT_CONFIGS.find(config => config.id === selectedReportType);
 
   const handleReportTypeChange = (newReportType: ReportType) => {
@@ -46,6 +51,8 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     setDateToOpen(false);
     setSelectedCategory("all");
     setCategories([]);
+    setCategoryAnalysisView("materials");
+    setCategoryAnalysisData({ materials: [], sales: [] });
     const newConfig = REPORT_CONFIGS.find(config => config.id === newReportType);
     if (!newConfig?.requiresDateRange) {
       setDateFrom(undefined);
@@ -169,9 +176,25 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
         case "expiry-alerts":
           reportResults = await generateExpiryAlertsReport(stockEntries, materials);
           break;
-        case "category-analysis":
-          reportResults = await generateCategoryAnalysisReport(materials, filteredData?.stockEntries || [], filteredData?.sales || []);
+        case "category-analysis": {
+          console.log("Category Analysis Debug:", {
+            filteredStockEntries: filteredData?.stockEntries?.length || 0,
+            filteredSales: filteredData?.sales?.length || 0,
+            allSales: sales.data?.length || 0,
+            dateFrom,
+            dateTo
+          });
+
+          // For sales analysis, use all sales data if filtered data is empty
+          const salesDataForAnalysis = (filteredData?.sales?.length || 0) > 0 ? filteredData.sales : sales.data;
+          
+          const materialsAnalysis = await generateCategoryAnalysisReport(materials, filteredData?.stockEntries || [], filteredData?.sales || []);
+          const salesAnalysis = await generateCategorySalesAnalysisReport(materials, filteredData?.stockEntries || [], salesDataForAnalysis);
+          
+          setCategoryAnalysisData({ materials: materialsAnalysis, sales: salesAnalysis });
+          reportResults = materialsAnalysis; // Default to materials view
           break;
+        }
         case "menu-profitability":
           reportResults = await generateMenuProfitabilityReport(menuItems.data, materials, filteredData?.sales || []);
           break;
@@ -225,12 +248,20 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     setSelectedCategory("all");
     setReportData([]);
     setHasGenerated(false);
+    setCategoryAnalysisView("materials");
+    setCategoryAnalysisData({ materials: [], sales: [] });
 
     toast({
       title: "Filters Cleared",
       description: "All filters have been reset.",
       duration: 1500
     });
+  };
+
+  const toggleCategoryAnalysisView = () => {
+    const newView = categoryAnalysisView === "materials" ? "sales" : "materials";
+    setCategoryAnalysisView(newView);
+    setReportData(categoryAnalysisData[newView]);
   };
 
   const exportReport = () => {
@@ -408,6 +439,26 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                       ))}
                     </SelectContent>
                   </Select>
+                )}
+
+                {/* Category Analysis Toggle Button */}
+                {selectedReportType === "category-analysis" && hasGenerated && categoryAnalysisData.materials.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={toggleCategoryAnalysisView}
+                    disabled={isChangingReportType || isLoading}
+                    className="flex items-center justify-center gap-2 h-10 min-w-[180px] bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 text-blue-700 hover:text-blue-800 transition-all duration-200"
+                  >
+                    {categoryAnalysisView === "materials" ? (
+                      <>
+                        <span className="font-medium">Show Sales</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium">Show Materials</span>
+                      </>
+                    )}
+                  </Button>
                 )}
               </div>
 

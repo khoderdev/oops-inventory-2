@@ -180,6 +180,83 @@ export async function generateCategoryAnalysisReport(materials: Material[], stoc
   }));
 }
 
+export async function generateCategorySalesAnalysisReport(materials: Material[], stockEntries: StockEntry[], sales: SaleRecord[]) {
+  console.log("Sales Analysis Debug:", {
+    salesCount: sales.length,
+    sampleSale: sales[0]
+  });
+
+  // Group sales by menu item category
+  const categoryMap = new Map<string, {
+    salesCount: number;
+    totalRevenue: number;
+    totalQuantity: number;
+    menuItems: Set<string>;
+  }>();
+
+  // Process sales data - iterate through sale records and their menu items
+  sales.forEach(sale => {
+    console.log("Processing sale:", sale.id, "menuItems:", sale.menuItems?.length || 0);
+    
+    if (sale.menuItems && sale.menuItems.length > 0) {
+      sale.menuItems.forEach(menuItemSale => {
+        // Extract category from menu item (you can customize this logic)
+        const itemName = menuItemSale.menuItemName || "Unknown";
+        let category = "Other";
+        
+        // Categorize menu items based on their names
+        if (itemName.toLowerCase().includes("shake") || itemName.toLowerCase().includes("drink")) {
+          category = "Beverages";
+        } else if (itemName.toLowerCase().includes("cake") || itemName.toLowerCase().includes("crookie") || itemName.toLowerCase().includes("sweet")) {
+          category = "Desserts";
+        } else if (itemName.toLowerCase().includes("pasta") || itemName.toLowerCase().includes("bread") || itemName.toLowerCase().includes("nachos")) {
+          category = "Main Dishes";
+        } else if (itemName.toLowerCase().includes("chicken") || itemName.toLowerCase().includes("balls") || itemName.toLowerCase().includes("sticks") || itemName.toLowerCase().includes("tenders")) {
+          category = "Appetizers";
+        } else if (itemName.toLowerCase().includes("arguileh") || itemName.toLowerCase().includes("shisha")) {
+          category = "Shisha";
+        }
+
+        if (!categoryMap.has(category)) {
+          categoryMap.set(category, {
+            salesCount: 0,
+            totalRevenue: 0,
+            totalQuantity: 0,
+            menuItems: new Set()
+          });
+        }
+
+        const categoryData = categoryMap.get(category)!;
+        categoryData.salesCount += 1;
+        categoryData.totalRevenue += menuItemSale.totalPrice || 0;
+        categoryData.totalQuantity += menuItemSale.quantity || 0;
+        categoryData.menuItems.add(itemName);
+        
+        console.log(`Menu item: ${itemName} → Category: ${category}, Price: ${menuItemSale.totalPrice}, Qty: ${menuItemSale.quantity}`);
+      });
+    }
+  });
+
+  console.log("Category map after processing:", Array.from(categoryMap.entries()));
+
+  // Calculate percentages
+  const totalRevenue = Array.from(categoryMap.values()).reduce((sum, cat) => sum + cat.totalRevenue, 0);
+  const totalSales = Array.from(categoryMap.values()).reduce((sum, cat) => sum + cat.salesCount, 0);
+
+  const result = Array.from(categoryMap.entries()).map(([category, data]) => ({
+    "Category": category,
+    "Materials Count": data.menuItems.size, // Number of unique menu items
+    "Total Value": data.totalRevenue,
+    "Avg Value": data.salesCount > 0 ? data.totalRevenue / data.salesCount : 0,
+    "Percentage": totalRevenue > 0 ? (data.totalRevenue / totalRevenue) * 100 : 0,
+    "Purchase Volume": data.totalQuantity, // Total quantity sold
+    "Sales Volume": data.salesCount // Total number of sales
+  })).filter(item => item["Sales Volume"] > 0); // Only show categories with sales
+
+  console.log("Sales analysis result:", result);
+  return result;
+}
+
 export async function generateMenuProfitabilityReport(menuItems: MenuItem[], materials: Material[], sales: SaleRecord[]) {
   return menuItems.map(item => {
     const totalCost = item.ingredients.reduce((sum, ingredient) => sum + ingredient.cost, 0);
