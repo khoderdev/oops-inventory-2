@@ -54,9 +54,17 @@ const salesController = {
 
   getAllSales: async (req, res, next) => {
     try {
+      // Exclude sales that are linked to staff/employee orders
+      const staffSaleIdSubquery = `(
+        SELECT "saleId" FROM "Orders"
+        WHERE "saleId" IS NOT NULL
+          AND CAST("orderType" AS text) IN ('employees','staff')
+      )`;
+
       const sales = await Sale.findAll({
         where: {
-          isActive: true // Only return active sales (soft delete filter)
+          isActive: true,
+          id: { [Op.notIn]: sequelize.literal(staffSaleIdSubquery) }
         },
         include: [
           {
@@ -144,6 +152,106 @@ const salesController = {
       res.status(200).json(processedSales);
     } catch (error) {
       console.error("Error fetching sales with menu item details:", error);
+      next(error);
+    }
+  },
+
+  // Staff/Employee sales only
+  getStaffSales: async (req, res, next) => {
+    try {
+      // Only sales that are linked to staff/employee orders
+      const staffSaleIdSubquery = `(
+        SELECT "saleId" FROM "Orders"
+        WHERE "saleId" IS NOT NULL
+          AND CAST("orderType" AS text) IN ('employees','staff')
+      )`;
+
+      const sales = await Sale.findAll({
+        where: {
+          isActive: true,
+          id: { [Op.in]: sequelize.literal(staffSaleIdSubquery) }
+        },
+        include: [
+          {
+            model: Section,
+            as: "section",
+            attributes: ["id", "name"]
+          },
+          {
+            model: User,
+            as: "creator",
+            attributes: ["username"]
+          }
+        ],
+        order: [["saleDate", "DESC"]]
+      });
+
+      // Process sales to include menu item names (same as getAllSales)
+      const processedSales = await Promise.all(
+        sales.map(async sale => {
+          const saleData = sale.toJSON();
+
+          if (saleData.menuItems && Array.isArray(saleData.menuItems)) {
+            const enrichedMenuItems = await Promise.all(
+              saleData.menuItems.map(async menuItemSale => {
+                try {
+                  const menuItem = await MenuItem.findByPk(menuItemSale.menuItemId, {
+                    include: [
+                      {
+                        model: MenuItemIngredient,
+                        as: "menuItemIngredients",
+                        include: [
+                          {
+                            model: Material,
+                            as: "material",
+                            attributes: ["id", "name", "baseUnit"]
+                          }
+                        ]
+                      }
+                    ]
+                  });
+                  if (menuItem) {
+                    const ingredients =
+                      menuItem.menuItemIngredients?.map(ingredient => ({
+                        materialId: ingredient.materialId,
+                        materialName: ingredient.material?.name || "Unknown Material",
+                        quantity: ingredient.quantity,
+                        unit: ingredient.unit
+                      })) || [];
+                    return {
+                      ...menuItemSale,
+                      menuItemName: menuItem.name,
+                      menuItemDescription: menuItem.description,
+                      ingredients
+                    };
+                  } else {
+                    return {
+                      ...menuItemSale,
+                      menuItemName: `Menu Item ${menuItemSale.menuItemId}`,
+                      menuItemDescription: "Item not found",
+                      ingredients: []
+                    };
+                  }
+                } catch (error) {
+                  console.error(`Error fetching menu item ${menuItemSale.menuItemId}:`, error);
+                  return {
+                    ...menuItemSale,
+                    menuItemName: `Menu Item ${menuItemSale.menuItemId}`,
+                    menuItemDescription: "Error loading item",
+                    ingredients: []
+                  };
+                }
+              })
+            );
+            saleData.menuItems = enrichedMenuItems;
+          }
+          return saleData;
+        })
+      );
+
+      res.status(200).json(processedSales);
+    } catch (error) {
+      console.error("Error fetching staff sales:", error);
       next(error);
     }
   },

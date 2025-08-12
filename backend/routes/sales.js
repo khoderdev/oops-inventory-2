@@ -18,6 +18,9 @@ router.use(checkDayOperationStatus);
 // Read operations
 router.get("/", requirePermission("sales.read"), salesController.getAllSales);
 router.get("/negative-stock-report", requirePermission("reports.read"), salesController.getNegativeStockReport);
+
+// Staff/employee sales only - place before dynamic :id
+router.get("/staff", requirePermission("sales.read"), salesController.getStaffSales);
 router.get("/:id", requirePermission("sales.read"), salesController.getSalesById);
 
 // Sales creation/modification routes with activity logging

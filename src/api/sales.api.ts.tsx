@@ -3,6 +3,7 @@ import { NegativeStockReport, RevertSaleResponse, SaleRecord, SaleResponse } fro
 
 export const salesAPI = {
   getSales: () => api.get<SaleRecord[]>("/sales"),
+  getStaffSales: () => api.get<SaleRecord[]>("/sales/staff"),
   getSale: (id: string) => api.get<SaleRecord>(`/sales/${id}`),
   createSale: (saleData: SaleRecord) => api.post<SaleResponse, SaleRecord>("/sales", saleData),
   updateSale: (id: string, saleData: SaleRecord) => api.put<SaleRecord, SaleRecord>(`/sales/${id}`, saleData),
