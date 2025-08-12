@@ -1,9 +1,7 @@
-import { Button } from "@/components/ui/button";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-
 import { employeeFormModeAtom, employeeFormOpenAtom, employeesAtom, selectedEmployeeAtom } from "@/store/employeeAtoms";
 import { PERMISSIONS } from "@/types/auth";
 import { InventoryManagementPanelProps } from "@/types/inventory";
@@ -19,7 +17,6 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
 
-import LockScreen from "./components/LockScreen";
 
 // Lazy load components for better performance
 const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
@@ -27,7 +24,6 @@ const ReportGenerator = lazy(() => import("./components/analytics/ReportGenerato
 const LoginPage = lazy(() => import("./components/auth/LoginPage"));
 const InventoryManagementPanel = lazy(() => import("./components/inventory/InventoryManagementPanel").then(m => ({ default: m.InventoryManagementPanel })));
 const MenuItemBuilder = lazy(() => import("./components/menu/MenuBuilder").then(m => ({ default: m.MenuItemBuilder })));
-const POSPanel = lazy(() => import("./components/POSPanel").then(m => ({ default: m.POSPanel })));
 const ProfilePage = lazy(() => import("./components/profile/ProfilePage"));
 const SessionManagementPage = lazy(() => import("./components/profile/SessionManagementPage"));
 const DayOperationsPage = lazy(() => import("./pages/DayOperationsPage"));
@@ -89,16 +85,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 element={
                   <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
                     <POSClientPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/backoffice-pos"
-                element={
-                  <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
-                    <AuthenticatedLayout>
-                      <POSPanel materials={materialsWithStock} sectionAssignments={sectionAssignments} />
-                    </AuthenticatedLayout>
                   </ProtectedRoute>
                 }
               />

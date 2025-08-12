@@ -95,6 +95,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showPrinterSelector, setShowPrinterSelector] = useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
+  const [isSaving, setIsSaving] = useState(false);
 
   // 🛒 Calculate subtotal and total
   const subtotal = (cart || []).filter(Boolean).reduce((sum, item) => {
