@@ -599,7 +599,9 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                           <TableCell>
                             <div className="flex items-center space-x-2">
                               {ORDER_TYPE_ICONS[order.orderType]}
-                              <span className="capitalize font-medium text-gray-700">{order.orderType}</span>
+                              <span className="capitalize font-medium text-gray-700">
+                                {order.orderType === 'table' && order.tableNumber ? `${order.orderType} (${order.tableNumber})` : order.orderType}
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -691,7 +693,9 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                             <div className="flex items-center space-x-3 mt-2">
                               <div className="flex items-center space-x-1.5">
                                 {ORDER_TYPE_ICONS[order.orderType]}
-                                <span className="text-sm text-gray-600 capitalize font-medium">{order.orderType}</span>
+                                <span className="text-sm text-gray-600 capitalize font-medium">
+                                  {order.orderType === 'table' && order.tableNumber ? `${order.orderType} (${order.tableNumber})` : order.orderType}
+                                </span>
                               </div>
                             </div>
                           </div>
