@@ -136,18 +136,41 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   }, []);
 
   const MobileCardView = () => (
-    <div className="block sm:hidden h-full overflow-auto p-4 space-y-4">
+    <div className="block lg:hidden h-full overflow-auto p-2 sm:p-4 space-y-2 sm:space-y-3">
       {data.map((row, index) => (
-        <div key={index} className={cn("bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm", "hover:shadow-md transition-shadow duration-200")}>
+        <div key={index} className={cn(
+          "bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700", 
+          "p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow duration-200",
+          "relative overflow-hidden"
+        )}>
+          {/* Card header with index/number */}
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xs font-semibold">
+                {index + 1}
+              </div>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Record {index + 1}</span>
+            </div>
+          </div>
+
+          {/* Card content */}
           <div className="space-y-3">
             {headers.map((header, headerIndex) => {
               const value = formatCellValue(row, header, reportType);
               const alignment = getColumnAlignment(header);
               if (!value || value === "-") return null;
+              
               return (
-                <div key={header} className="flex justify-between items-center py-1">
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate pr-3">{header}:</span>
-                  <div className={cn("text-sm font-semibold text-slate-900 dark:text-slate-100 flex-shrink-0", alignment === "text-right" && "text-right", alignment === "text-center" && "text-center")}>{value}</div>
+                <div key={header} className="flex flex-row justify-between items-start gap-3">
+                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400 flex-shrink-0 min-w-[80px] max-w-[120px]">
+                    {header}:
+                  </span>
+                  <div className={cn(
+                    "text-sm font-semibold text-slate-900 dark:text-slate-100 flex-1 text-right",
+                    "break-words"
+                  )}>
+                    {value}
+                  </div>
                 </div>
               );
             })}
@@ -179,10 +202,10 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   }
 
   return (
-    <div className="flex flex-col h-[65vh] xl:h-[73vh] bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden">
+    <div className="flex flex-col h-[50vh] sm:h-[55vh] md:h-[60vh] lg:h-[65vh] xl:h-[70vh] bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden">
       {data.length > 0 && <MobileCardView />}
 
-      <div className="hidden sm:flex flex-col h-full">
+      <div className="hidden lg:flex flex-col h-full">
         {/* Sticky Header */}
         <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
           <Table>
@@ -196,9 +219,10 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                       className={cn(
                         "font-bold text-sm ",
                         "text-slate-800 dark:text-slate-100",
-                        "py-2 px-3 sm:py-3 sm:px-4 lg:px-5",
+                        "py-2 px-2 sm:px-3 md:py-3 md:px-4",
                         "whitespace-nowrap",
-                        index < headers.length - 1 && cn("border-r-2 border-slate-300 dark:border-slate-600", "hover:border-blue-400 dark:hover:border-blue-500 hover:border-r-[3px] transition-all duration-200", isResizing === header && "border-blue-500 dark:border-blue-400 border-r-4 shadow-sm", isAutoFitting === "all" && "border-green-500 dark:border-green-400 border-r-[5px] shadow-md", "hover:shadow-[2px_0_4px_rgba(59,130,246,0.1)] dark:hover:shadow-[2px_0_4px_rgba(96,165,250,0.15)]"),
+                        index < headers.length - 1 && "border-r border-slate-200 dark:border-slate-700 last:border-r-0 min-w-0",
+                        index < headers.length - 1 && cn("hover:border-blue-400 dark:hover:border-blue-500 hover:border-r-[3px] transition-all duration-200", isResizing === header && "border-blue-500 dark:border-blue-400 border-r-4 shadow-sm", isAutoFitting === "all" && "border-green-500 dark:border-green-400 border-r-[5px] shadow-md", "hover:shadow-[2px_0_4px_rgba(59,130,246,0.1)] dark:hover:shadow-[2px_0_4px_rgba(96,165,250,0.15)]"),
                         index === headers.length - 1 && "border-r-0",
                         "transition-colors hover:bg-slate-100/50 dark:hover:bg-slate-700/50",
                         "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800",
@@ -210,11 +234,13 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                       )}
                       style={{
                         width: `${getColumnWidth(header)}px`,
+                        minWidth: "60px",
+                        maxWidth: "250px",
                         textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                       }}
                     >
                       <div className="flex items-center gap-1 sm:gap-2 min-h-[16px] sm:min-h-[16px] relative h-full">
-                        <span className="truncate font-bold leading-tight">{header}</span>
+                        <span className="truncate select-none text-xs sm:text-sm">{header}</span>
 
                         {index < headers.length - 1 && (
                           <>
@@ -250,7 +276,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
         {/* Scrollable Body */}
         <div className="flex-1 overflow-auto" ref={tableRef}>
           <div className={cn("w-full", isResizing && "select-none")}>
-            <Table className="w-full table-fixed min-w-[800px]" style={{ tableLayout: "fixed" }}>
+            <Table className="w-full table-fixed min-w-[600px] md:min-w-[800px]" style={{ tableLayout: "fixed" }}>
               <TableBody>
                 {data.map((row, index) => (
                   <TableRow key={index} className={cn("border-b border-slate-200/40 dark:border-slate-700/40", "hover:bg-slate-50/50 dark:hover:bg-slate-800/30", "group transition-colors duration-200 ease-in-out", index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/30 dark:bg-slate-800/20")}>
@@ -259,9 +285,11 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
                       return (
                         <TableCell
                           key={header}
-                          className={cn("text-sm sm:text-base lg:text-sm", "py-4 px-3 sm:py-5 sm:px-4 lg:px-5", cellIndex < headers.length - 1 && "border-r border-slate-200/40 dark:border-slate-600/40", cellIndex === headers.length - 1 && "border-r-0", "transition-colors duration-200 ease-in-out", "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60", "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20", getResponsiveColumnClasses(header), alignment)}
+                          className={cn("text-sm sm:text-base lg:text-sm", "py-2 px-2 sm:px-3 md:py-3 md:px-4", cellIndex < headers.length - 1 && "border-r border-slate-200/40 dark:border-slate-600/40", cellIndex === headers.length - 1 && "border-r-0", "transition-colors duration-200 ease-in-out", "group-hover:border-slate-300/60 dark:group-hover:border-slate-500/60", "group-hover:bg-white/20 dark:group-hover:bg-slate-700/20", getResponsiveColumnClasses(header), alignment)}
                           style={{
                             width: `${getColumnWidth(header)}px`,
+                            minWidth: "60px",
+                            maxWidth: "250px",
                             textAlign: alignment === "text-right" ? "right" : alignment === "text-center" ? "center" : "left"
                           }}
                         >

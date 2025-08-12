@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { ReportGeneratorProps, SaleRecord, StockEntry } from "@/types/inventory";
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { format, isValid } from "date-fns";
-import { CalendarIcon, Download, FileText, TrendingUp, X } from "lucide-react";
+import { CalendarIcon, Download, FileText, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { REPORT_CONFIGS, ReportType } from "./configs";
 import { generateCategoryAnalysisReport, generateCostAnalysisReport, generateExpiryAlertsReport, generateInventorySummaryReport, generateMenuProfitabilityReport, generateSalesPerformanceReport, generateSectionPerformanceReport, generateStockPurchasesReport, generateSupplierPerformanceReport, generateVarianceAnalysisReport, generateWasteReport } from "./generationFunctions";
@@ -51,14 +51,12 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
       setDateFrom(undefined);
       setDateTo(undefined);
     }
-    // Preload categories for Sales Performance
     if (newReportType === "sales-performance") {
       menuAPI
         .getMenus()
         .then(res => {
           try {
             const raw: string[] = (res?.data || []).map((i: any) => (typeof i?.category === "string" ? i.category : "")).filter((v: string) => v.trim().length > 0);
-            // Deduplicate case-insensitively while keeping a single representative value
             const seen = new Set<string>();
             const dedup: string[] = [];
             for (const c of raw) {
@@ -271,10 +269,10 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 flex flex-col space-y-2 min-h-0 overflow-hidden">
-          <div className="space-y-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+        <CardContent className="flex-1 flex flex-col space-y-3 min-h-0 overflow-hidden p-4 sm:p-6">
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start">
+              <div className="flex-1 md:flex-none md:w-72 lg:w-80 xl:w-96 space-y-2">
                 <Select value={selectedReportType} onValueChange={handleReportTypeChange} disabled={isChangingReportType || isLoading}>
                   <SelectTrigger id="report-type" className={cn("h-16 w-full", isChangingReportType && "opacity-60")}>
                     <SelectValue placeholder="Select report type" />
@@ -301,11 +299,11 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
               </div>
 
               {currentReportConfig?.requiresDateRange && (
-                <>
-                  <div className="space-y-2">
+                <div className="flex gap-3 md:gap-2 md:max-w-xs w-full">
+                  <div className="flex-1 space-y-2">
                     <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
+                        <Button variant="outline" className={cn("w-full h-12 sm:h-16 justify-start text-left font-normal px-3", !dateFrom && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
                           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                           <span className="truncate">{dateFrom ? format(dateFrom, "MMM d, yyyy") : "From Date"}</span>
                         </Button>
@@ -327,10 +325,10 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="space-y-2">
+                  <div className="flex-1 space-y-2">
                     <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
+                        <Button variant="outline" className={cn("w-full h-12 sm:h-16 justify-start text-left font-normal px-3", !dateTo && "text-muted-foreground", (isChangingReportType || isLoading) && "pointer-events-none opacity-50")} disabled={isChangingReportType || isLoading}>
                           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                           <span className="truncate">{dateTo ? format(dateTo, "MMM d, yyyy") : "To Date"}</span>
                         </Button>
@@ -352,51 +350,61 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                       </PopoverContent>
                     </Popover>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 items-stretch sm:items-center">
-              <Button onClick={generateReport} disabled={isLoading || !isDateRangeValid || isChangingReportType} className="flex items-center justify-center gap-2 h-10 min-w-[140px]">
-                {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <TrendingUp className="h-4 w-4" />}
-                <span className="truncate">{isLoading ? "Generating..." : "Generate Report"}</span>
-              </Button>
-
-              {selectedReportType === "sales-performance" && (
-                <Select value={selectedCategory} onValueChange={val => setSelectedCategory(val)} disabled={isChangingReportType || isLoading}>
-                  <SelectTrigger id="sales-category" className={cn("w-full h-10", (isChangingReportType || isLoading) && "opacity-60")}>
-                    <SelectValue placeholder="All categories" />
-                  </SelectTrigger>
-                  <SelectContent className="max-w-[90vw] sm:max-w-md">
-                    <SelectItem value="all">All categories</SelectItem>
-                    {categories.map(cat => (
-                      <SelectItem key={cat} value={cat} className="cursor-pointer">
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {(dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) && (
-                <Button variant="outline" onClick={clearAllFilters} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10">
-                  <X className="h-4 w-4" />
-                  <span>Clear Filters</span>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-col gap-3">
+              {/* Generate Report and Categories - inline on mobile */}
+              <div className="flex flex-row gap-2 items-center">
+                <Button onClick={generateReport} disabled={isLoading || !isDateRangeValid || isChangingReportType} className="flex items-center justify-center gap-2 h-10 flex-1 min-w-0 sm:flex-none sm:min-w-[140px] md:min-w-[160px]">
+                  {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : null}
+                  <span className="truncate">{isLoading ? "Generating..." : "Generate Report"}</span>
                 </Button>
-              )}
 
-              {hasGenerated && (
-                <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10">
-                  <Download className="h-4 w-4" />
-                  <span>Export CSV</span>
-                </Button>
+                {selectedReportType === "sales-performance" && (
+                  <Select value={selectedCategory} onValueChange={val => setSelectedCategory(val)} disabled={isChangingReportType || isLoading}>
+                    <SelectTrigger id="sales-category" className={cn("flex-1 min-w-0 sm:w-auto sm:min-w-[160px] h-10", (isChangingReportType || isLoading) && "opacity-60")}>
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent className="max-w-[90vw] sm:max-w-md">
+                      <SelectItem value="all">All categories</SelectItem>
+                      {categories.map(cat => (
+                        <SelectItem key={cat} value={cat} className="cursor-pointer">
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Clear and Export buttons - inline on mobile */}
+              {((dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) || hasGenerated) && (
+                <div className="flex flex-row gap-2 items-center">
+                  {(dateFrom || dateTo || (selectedCategory && selectedCategory !== "all")) && (
+                    <Button variant="outline" onClick={clearAllFilters} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 sm:flex-none">
+                      <X className="h-4 w-4" />
+                      <span className="hidden sm:inline">Clear Filters</span>
+                      <span className="sm:hidden">Clear</span>
+                    </Button>
+                  )}
+
+                  {hasGenerated && (
+                    <Button variant="outline" onClick={exportReport} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 flex-1 sm:flex-none">
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Export CSV</span>
+                      <span className="sm:hidden">Export</span>
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 
             {hasGenerated && (
-              <Badge variant="secondary" className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1">
+              <Badge variant="secondary" className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1 self-center whitespace-nowrap mx-auto md:mx-0">
                 <FileText className="h-3 w-3" />
                 <span className="text-sm">{reportData.length} records</span>
               </Badge>
