@@ -43,7 +43,7 @@ export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, 
       served: "Order marked as served!",
       paid: "Order marked as paid!",
       cancelled: "Order cancelled successfully!",
-      complete: "Order completed successfully!"
+      completed: "Order completed successfully!"
     };
     return messages[status];
   };

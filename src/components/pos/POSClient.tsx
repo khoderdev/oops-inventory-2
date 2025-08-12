@@ -62,6 +62,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showTablesLayout, setShowTablesLayout] = useState(false);
   const [tables, setTables] = useState<Table[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isPaymentCompleted, setIsPaymentCompleted] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [showSuccessCheckmark, setShowSuccessCheckmark] = useState(false);
   const [shouldAutoPrint, setShouldAutoPrint] = useState(false);
@@ -161,7 +162,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [leftPanelWidth]);
 
   useEffect(() => {
-    if (selectedOrderForPOS) {
+    if (selectedOrderForPOS && !isPaymentCompleted) {
       console.log("📋 Loading selected order for POS:", { orderId: selectedOrderForPOS.id });
       if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
         if (loadOrder) {
@@ -176,6 +177,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         return;
       }
       processedOrderRef.current = orderId;
+      
+      // Check if this is a completed order - don't load it into cart
+      if (selectedOrderForPOS.status === 'completed' || selectedOrderForPOS.status === 'paid') {
+        console.log("📋 Skipping completed order load:", { orderId, status: selectedOrderForPOS.status });
+        return;
+      }
+      
       const cartItems: POSCartItem[] = selectedOrderForPOS.items
         .map((item: any, index: number) => {
           if (item.menuItem) {
@@ -236,7 +244,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.log("📋 No selected order, resetting processed order reference");
       processedOrderRef.current = null;
     }
-  }, [selectedOrderForPOS, loadOrder, tables]);
+  }, [selectedOrderForPOS, loadOrder, posItems, isPaymentCompleted]);
 
   useEffect(() => {
     if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
@@ -302,19 +310,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [currentOrder, selectedOrderForPOS, tables]);
 
   const clearCartWithAnimation = useCallback(() => {
-    if (processedOrderRef.current) {
-      console.log("🛒 Skipping cart clear due to processed order:", processedOrderRef.current);
-      return;
-    }
     console.log("🛒 Clearing cart with animation");
-    setShowSuccessCheckmark(true);
     setCart([]);
-    if (checkmarkTimeoutRef.current) {
-      clearTimeout(checkmarkTimeoutRef.current);
-    }
-    checkmarkTimeoutRef.current = setTimeout(() => {
-      setShowSuccessCheckmark(false);
-    }, 1500);
+    setHasUnsavedChanges(false);
+    setIsPaymentCompleted(false);
+    processedOrderRef.current = null;
   }, []);
 
   const resetToTakeaway = useCallback(() => {
@@ -965,22 +965,76 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             const cartItems: POSCartItem[] = existingOrder.items
               .map(item => {
                 let originalItem: StockEntryWithMaterial | MenuItem;
+                
                 if (item.type === "material" && item.materialId) {
-                  originalItem = stockEntries.find(se => se.materialId === item.materialId);
+                  originalItem = stockEntries.find(se => 
+                    String(se.materialId) === String(item.materialId)
+                  );
                 } else if (item.type === "menu_item" && item.menuItemId) {
-                  originalItem = menuItems.find(m => m.id === item.menuItemId);
+                  originalItem = menuItems.find(m => 
+                    String(m.id) === String(item.menuItemId)
+                  );
                 }
-                if (!originalItem) {
-                  console.warn("⚠️ Original item not found for table order item:", item);
-                  return null;
-                }
+                
+                // // 🔧 FIX: Create fallback original item if not found
+                // if (!originalItem) {
+                //   console.warn("⚠️ Original item not found, creating fallback for:", item);
+                  
+                //   if (item.type === "menu_item") {
+                //     // Create a fallback MenuItem
+                //     originalItem = {
+                //       id: item.menuItemId,
+                //       name: item.name,
+                //       description: `Fallback for ${item.name}`,
+                //       category: 'appetizers',
+                //       price: parseFloat(item.unitPrice.toString()),
+                //       unit: 'piece',
+                //       availableQuantity: 0,
+                //       costPerUnit: 0,
+                //       ingredients: [],
+                //       menuItemIngredients: false,
+                //       isPOSItem: true,
+                //       createdAt: new Date(),
+                //       updatedAt: new Date()
+                //     } as MenuItem;
+                //   } else if (item.type === "material") {
+                //     // Create a fallback StockEntryWithMaterial
+                //     originalItem = {
+                //       id: `fallback-${item.materialId}`,
+                //       materialId: item.materialId,
+                //       quantity: 0,
+                //       unitCost: parseFloat(item.unitPrice.toString()),
+                //       totalCost: 0,
+                //       expiryDate: null,
+                //       batchNumber: "",
+                //       supplierId: null,
+                //       receivedDate: new Date(),
+                //       createdAt: new Date(),
+                //       updatedAt: new Date(),
+                //       material: {
+                //         id: item.materialId,
+                //         name: item.name,
+                //         description: `Fallback for ${item.name}`,
+                //         unit: 'piece',
+                //         category: 'appetizers',
+                //         minimumStock: 0,
+                //         maximumStock: 100,
+                //         reorderPoint: 10,
+                //         isActive: true,
+                //         createdAt: new Date(),
+                //         updatedAt: new Date()
+                //       }
+                //     } as StockEntryWithMaterial;
+                //   }
+                // }
+                
                 const cartItem = {
                   id: item.id,
                   name: item.name,
                   price: parseFloat(item.unitPrice.toString()),
                   quantity: item.quantity,
                   type: item.type as "material" | "menu_item",
-                  originalItem,
+                  originalItem: originalItem!,
                   notes: item.notes || undefined
                 };
                 return cartItem;
@@ -1526,18 +1580,36 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setShouldAutoPrint(hasSavedPrinter());
       setShowPaymentDialog(false);
       setPaymentAmount("");
-      setTimeout(() => {
-        clearCartWithAnimation();
-      }, 100);
+      
+      // Set payment completed flag to prevent order reloading
+      setIsPaymentCompleted(true);
+      
+      // Clear all order-related state immediately
       setAppliedDiscount(null);
       setDiscountAmount(0);
       setOrderNotes("");
       setSelectedEmployee(null);
-      clearOrder();
-      OrderPersistence.clearCurrentOrder();
       setHasUnsavedChanges(false);
+      processedOrderRef.current = null;
+      
+      // Clear order persistence
+      OrderPersistence.clearCurrentOrder();
+      
+      // Clear cart with animation
+      setTimeout(() => {
+        clearCartWithAnimation();
+      }, 100);
+      
+      // Reset to takeaway mode
       resetToTakeaway();
+      
+      // Refresh counts but prevent order reloading
       await refreshAllCounts();
+      
+      // Reset payment completed flag after a delay to allow for proper cleanup
+      setTimeout(() => {
+        setIsPaymentCompleted(false);
+      }, 2000);
       if (onSaleComplete) {
         const response = {
           sale: { id: saleId },
@@ -1588,18 +1660,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   return (
     <>
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
-        {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0)) && !showSuccessCheckmark && (
+        {(cart && cart.length > 0) && !showSuccessCheckmark && (
           <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees"))) && (
+                {(cart && cart.length > 0) && (
                   <span className="text-sm text-blue-600 font-bold">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
                         <span>{currentOrder.orderNumber}</span>
                         <span className={`text-xs font-medium ${currentOrder.status === "draft" ? "text-orange-600" : currentOrder.status === "paid" ? "text-green-600" : currentOrder.status === "cancelled" ? "text-red-600" : "text-gray-600"}`}>({currentOrder.status})</span>
                       </div>
-                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees") ? (
+                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees" || orderType === "table") ? (
                       <span>{generatePreviewOrderNumber()}</span>
                     ) : hasUnsavedChanges ? (
                       <span>{generatePreviewOrderNumber()}</span>
@@ -1632,17 +1704,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         >
           {/* Cart Header - Fixed (Desktop Only) */}
           <div className="card-header hidden lg:block border-b border-gray-200 px-3 flex-shrink-0">
-            <div className={`flex items-center justify-between ${(hasUnsavedChanges || currentOrder || (cart && cart.length > 0)) && !showSuccessCheckmark ? "py-2" : ""}`}>
+            <div className={`flex items-center justify-between ${(cart && cart.length > 0) && !showSuccessCheckmark ? "py-2" : ""}`}>
               <div className="flex flex-col xl:flex-row items-start xl:items-center space-y-1 xl:space-y-0 xl:space-x-2">
                 {/* Order Status Indicator */}
-                {(hasUnsavedChanges || currentOrder || (cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees"))) && !showSuccessCheckmark && (
+                {(cart && cart.length > 0) && !showSuccessCheckmark && (
                   <span className="text-lg text-blue-600 font-bold">
                     {currentOrder ? (
                       <div className="flex items-center space-x-1">
                         <span>{currentOrder.orderNumber}</span>
                         <span className={`text-xs font-medium ${currentOrder.status === "draft" ? "text-orange-600" : currentOrder.status === "paid" ? "text-green-600" : currentOrder.status === "cancelled" ? "text-red-600" : "text-gray-600"}`}>({currentOrder.status})</span>
                       </div>
-                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees") ? (
+                    ) : cart && cart.length > 0 && (orderType === "delivery" || orderType === "takeaway" || orderType === "bar" || orderType === "employees" || orderType === "table") ? (
                       <span>{generatePreviewOrderNumber()}</span>
                     ) : hasUnsavedChanges ? (
                       <span>{generatePreviewOrderNumber()}</span>
