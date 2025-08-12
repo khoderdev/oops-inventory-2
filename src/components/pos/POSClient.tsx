@@ -173,7 +173,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
     
     // Block selectedOrderForPOS if there's already a current order being edited
-    if (currentOrder && selectedOrderForPOS && currentOrder.id.toString() === selectedOrderForPOS.id.toString()) {
+    if (currentOrder && selectedOrderForPOS && currentOrder.id && selectedOrderForPOS.id && 
+        currentOrder.id.toString() === selectedOrderForPOS.id.toString()) {
       console.log("🚫 Blocking selectedOrderForPOS - order already loaded and being edited:", { 
         currentOrderId: currentOrder.id, 
         selectedOrderId: selectedOrderForPOS.id 
@@ -269,6 +270,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
       const currentOrderId = currentOrder.id.toString();
       console.log("📋 Current order loaded:", { orderId: currentOrderId, items: currentOrder.items.length });
+      
+      // Don't reload cart if user is actively editing (has unsaved changes)
+      if (hasUnsavedChanges) {
+        console.log("🚫 Blocking currentOrder cart reload - user has unsaved changes");
+        return;
+      }
+      
       if (selectedOrderForPOS && selectedOrderForPOS.id.toString() === currentOrderId && processedOrderRef.current !== currentOrderId) {
         processedOrderRef.current = currentOrderId;
         const cartItems: POSCartItem[] = currentOrder.items
@@ -1397,8 +1405,22 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.log("📋 Order saved:", { orderIdentifier });
       showSuccess(`Order ${orderIdentifier} saved successfully!`);
       await printItemsToAssignedPrinters(cart);
-      await refreshOrderData();
+      
+      // Clear the selected order to prevent reload
+      if (onOrderProcessed) {
+        onOrderProcessed();
+      }
+      
+      // Set flag to prevent order reload after save
+      setIsPaymentCompleted(true);
+      
       clearCartWithAnimation();
+      
+      // Delay the refresh to allow database to update and prevent immediate reload
+      setTimeout(async () => {
+        await refreshOrderData();
+        setIsPaymentCompleted(false);
+      }, 2000);
       setOrderType("takeaway");
       setSelectedTable(undefined);
       setSelectedEmployee(undefined);

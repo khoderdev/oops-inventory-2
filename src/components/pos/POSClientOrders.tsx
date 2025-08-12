@@ -90,7 +90,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       fetchedOrders = fetchedOrders.filter(order => {
         // Exclude employee orders completely
         if (order.orderType === "employees") return false;
-        
+
         // Only show incomplete orders (include order types: table, delivery, takeaway, bar)
         if (!incompleteStatuses.includes(order.status)) return false;
 
@@ -130,7 +130,6 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   // Handle order updates from OrderDetailsDialog
   const handleOrderUpdate = useCallback(
     (updatedOrder: Order) => {
-
       // Check if the updated order is still incomplete
       const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
       const isStillIncomplete = incompleteStatuses.includes(updatedOrder.status);
@@ -305,9 +304,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 
   // Calculate total amount of all incomplete orders (excluding employee orders)
   const totalIncompleteAmount = useMemo(() => {
-    return orders
-      .filter(order => order.orderType !== "employees")
-      .reduce((sum, order) => sum + order.total, 0);
+    return orders.filter(order => order.orderType !== "employees").reduce((sum, order) => sum + order.total, 0);
   }, [orders]);
 
   // Handle filter changes
@@ -600,7 +597,8 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                             <div className="flex items-center space-x-2">
                               {ORDER_TYPE_ICONS[order.orderType]}
                               <span className="capitalize font-medium text-gray-700">
-                                {order.orderType === 'table' && order.tableNumber ? `${order.orderType} (${order.tableNumber})` : order.orderType}
+                                {order.orderType}
+                                {order.orderType === "table" && order.tableNumber && <span className="text-green-600"> (#{order.tableNumber})</span>}
                               </span>
                             </div>
                           </TableCell>
@@ -693,9 +691,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                             <div className="flex items-center space-x-3 mt-2">
                               <div className="flex items-center space-x-1.5">
                                 {ORDER_TYPE_ICONS[order.orderType]}
-                                <span className="text-sm text-gray-600 capitalize font-medium">
-                                  {order.orderType === 'table' && order.tableNumber ? `${order.orderType} (${order.tableNumber})` : order.orderType}
-                                </span>
+                                <span className="text-sm text-gray-600 capitalize font-medium">{order.orderType === "table" && order.tableNumber ? `${order.orderType} (${order.tableNumber})` : order.orderType}</span>
                               </div>
                             </div>
                           </div>
@@ -811,9 +807,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       <OrderDetailsDialog isOpen={showOrderDetails} onClose={handleCloseOrderDetails} order={selectedOrder} isLoading={isLoadingOrderDetails} onOrderUpdate={handleOrderUpdate} />
 
       {/* Receipt Printer Dialog */}
-      {receiptData && (
-        <ReceiptPrinter isOpen={showReceiptDialog} onClose={handleCloseReceiptDialog} receiptData={receiptData} autoPrint={false} />
-      )}
+      {receiptData && <ReceiptPrinter isOpen={showReceiptDialog} onClose={handleCloseReceiptDialog} receiptData={receiptData} autoPrint={false} />}
     </>
   );
 };
