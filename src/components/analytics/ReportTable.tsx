@@ -11,7 +11,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   const headers = getTableHeaders(reportType);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [isResizing, setIsResizing] = useState<string | null>(null);
-  const [isAutoFitting, setIsAutoFitting] = useState<string | null>(null);
+  const [, setIsAutoFitting] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
@@ -136,7 +136,7 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   }, []);
 
   const MobileCardView = () => (
-    <div className="block md:hidden h-full overflow-auto p-2 sm:p-4 space-y-2 sm:space-y-3">
+    <div className="max-h-[calc(100vh-300px)] overflow-auto p-2 sm:p-4 space-y-2 sm:space-y-3">
       {data.map((row, index) => (
         <div key={index} className={cn(
           "bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700", 
@@ -201,10 +201,14 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   }
 
   return (
-    <div className="flex flex-col h-[50vh] sm:h-[55vh] md:h-[60vh] lg:h-[65vh] xl:h-[70vh] bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden">
-      {data.length > 0 && <MobileCardView />}
+    <div className="flex flex-col bg-white dark:bg-card rounded-lg border shadow-sm overflow-hidden">
+      {/* Mobile Card View - Natural height with scrolling */}
+      <div className="block md:hidden">
+        <MobileCardView />
+      </div>
 
-      <div className="hidden md:flex flex-col h-full overflow-hidden">
+      {/* Desktop Table View - Constrained height */}
+      <div className="hidden md:flex flex-col h-[calc(100vh-400px)] min-h-[300px] max-h-[calc(100vh-200px)] overflow-hidden">
         {/* Sticky Header */}
         <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10 overflow-x-auto">
           <Table className="w-full table-auto">
