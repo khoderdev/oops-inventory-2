@@ -4,12 +4,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { CategoriesTableProps } from "@/types/categories";
-import { Edit, Trash2, GripVertical, Package, UtensilsCrossed } from "lucide-react";
+import { Edit, Trash2, GripVertical, Package, UtensilsCrossed, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
-export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, onUpdateSortOrder, loading = false }: CategoriesTableProps) {
+export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, onUpdateSortOrder, onCreateNew, loading = false }: CategoriesTableProps) {
   const [draggedCategories, setDraggedCategories] = useState(categories);
 
   // Update local state when categories prop changes
@@ -94,8 +94,16 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Categories ({draggedCategories.length})</CardTitle>
-        <CardDescription>Manage categories for materials and menu items. Drag to reorder.</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Categories ({draggedCategories.length})</CardTitle>
+            <CardDescription>Manage categories for materials and menu items. Drag to reorder.</CardDescription>
+          </div>
+          <Button onClick={onCreateNew}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Category
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <DragDropContext onDragEnd={handleDragEnd}>

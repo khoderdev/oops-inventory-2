@@ -35,6 +35,7 @@ export interface CategoriesTableProps {
   onDelete: (id: number) => void;
   onToggleActive: (id: number, isActive: boolean) => void;
   onUpdateSortOrder: (categories: { id: number; sortOrder: number }[]) => void;
+  onCreateNew: () => void;
   loading?: boolean;
 }
 
