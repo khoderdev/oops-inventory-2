@@ -23,16 +23,16 @@ const MenuItem = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true
     },
-    category: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        async isValidMenuCategory(value) {
-          if (value && !(await isValidCategory(value, 'menu_items'))) {
-            throw new Error(`Invalid menu item category: ${value}. Please use a valid category from the database.`);
-          }
-        }
-      }
+    categoryId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'categories',
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL',
+      comment: 'Foreign key reference to categories table'
     },
     price: {
       type: DataTypes.FLOAT,

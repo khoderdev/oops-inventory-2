@@ -1,4 +1,4 @@
-import { Material, StockEntry } from "../models/index.js";
+import { Material, StockEntry, Category } from "../models/index.js";
 import conversions from "../utils/conversions.js";
 import { Op } from "sequelize";
 import { 
@@ -19,18 +19,18 @@ const materialController = {
       const paginationParams = parsePaginationParams(req.query, {
         defaultLimit: 50,
         maxLimit: 500,
-        allowedSortFields: ['name', 'category', 'unitType', 'createdAt', 'updatedAt', 'baseUnit']
+        allowedSortFields: ['name', 'categoryId', 'unitType', 'createdAt', 'updatedAt', 'baseUnit']
       });
 
       // Build filter conditions
       const whereClause = buildFilterConditions(req.query, {
         searchFields: ['name'],
-        exactFilters: ['category', 'unitType']
+        exactFilters: ['categoryId', 'unitType']
       }, Op);
 
       // Parse field selection for optimized transfer
       const selectedFields = parseFieldSelection(fields, [
-        'id', 'name', 'baseUnit', 'unitType', 'inputUnit', 'packageQuantity', 'category', 'createdAt', 'updatedAt'
+        'id', 'name', 'baseUnit', 'unitType', 'inputUnit', 'packageQuantity', 'categoryId', 'createdAt', 'updatedAt'
       ]);
 
       // Base query options
@@ -43,9 +43,17 @@ const materialController = {
         attributes: selectedFields
       };
 
+      // Always include category information
+      queryOptions.include = [{
+        model: Category,
+        as: "category",
+        attributes: ['id', 'name', 'value', 'type'],
+        required: false
+      }];
+
       // Conditionally include stock entries based on query parameter
       if (includeStockEntries === 'true') {
-        queryOptions.include = [{
+        queryOptions.include.push({
           model: StockEntry,
           as: "stockEntries",
           required: false,
@@ -62,7 +70,7 @@ const materialController = {
             'purchaseDate',
             'createdAt'
           ]
-        }];
+        });
       }
 
       const { count, rows: materials } = await Material.findAndCountAll(queryOptions);
@@ -89,7 +97,10 @@ const materialController = {
           totalQuantityInBaseUnit,
           totalValue,
           averageCostPerBaseUnit,
-          availableQuantity: totalQuantityInBaseUnit
+          availableQuantity: totalQuantityInBaseUnit,
+          // Flatten category data for frontend compatibility
+          category: materialData.category?.value || null,
+          categoryName: materialData.category?.name || null
         };
 
         // Only include stock entries if requested
@@ -182,7 +193,19 @@ const materialController = {
   // Create a new material
   createMaterial: async (req, res, next) => {
     try {
-      const { name, baseUnit, unitType, inputUnit, packageQuantity, category } = req.body;
+      const { name, baseUnit, unitType, inputUnit, packageQuantity, category, categoryId } = req.body;
+      
+      // Handle both category (value) and categoryId for backwards compatibility
+      let finalCategoryId = categoryId;
+      if (category && !categoryId) {
+        // If category value is provided, find the corresponding categoryId
+        const categoryRecord = await Category.findOne({ 
+          where: { value: category, type: 'materials', isActive: true } 
+        });
+        if (categoryRecord) {
+          finalCategoryId = categoryRecord.id;
+        }
+      }
 
       // Validate required fields
       if (!name || !baseUnit || !unitType) {
@@ -194,11 +217,16 @@ const materialController = {
         return res.status(400).json({ error: "Base unit cannot be empty" });
       }
 
-      // Validate category if provided
-      if (category && !(await isValidCategory(category, 'materials'))) {
-        return res.status(400).json({ 
-          error: `Invalid material category: ${category}. Please use a valid category from the database.` 
+      // Validate categoryId if provided
+      if (finalCategoryId) {
+        const categoryExists = await Category.findOne({ 
+          where: { id: finalCategoryId, type: 'materials', isActive: true } 
         });
+        if (!categoryExists) {
+          return res.status(400).json({ 
+            error: `Invalid category ID: ${finalCategoryId}. Please use a valid material category ID.` 
+          });
+        }
       }
 
       // Validate package-specific fields
@@ -217,7 +245,7 @@ const materialController = {
         unitType,
         inputUnit,
         packageQuantity: unitType === "package" ? packageQuantity : null,
-        category
+        categoryId: finalCategoryId
       };
 
       const material = await Material.create(materialData);
@@ -231,7 +259,19 @@ const materialController = {
   updateMaterial: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { name, baseUnit, unitType, inputUnit, packageQuantity, category } = req.body;
+      const { name, baseUnit, unitType, inputUnit, packageQuantity, category, categoryId } = req.body;
+      
+      // Handle both category (value) and categoryId for backwards compatibility
+      let finalCategoryId = categoryId;
+      if (category && !categoryId) {
+        // If category value is provided, find the corresponding categoryId
+        const categoryRecord = await Category.findOne({ 
+          where: { value: category, type: 'materials', isActive: true } 
+        });
+        if (categoryRecord) {
+          finalCategoryId = categoryRecord.id;
+        }
+      }
 
       const material = await Material.findByPk(id);
       if (!material) {
@@ -243,11 +283,16 @@ const materialController = {
         return res.status(400).json({ error: "Base unit cannot be empty" });
       }
 
-      // Validate category if provided
-      if (category !== undefined && category && !(await isValidCategory(category, 'materials'))) {
-        return res.status(400).json({ 
-          error: `Invalid material category: ${category}. Please use a valid category from the database.` 
+      // Validate categoryId if provided
+      if (finalCategoryId !== undefined && finalCategoryId) {
+        const categoryExists = await Category.findOne({ 
+          where: { id: finalCategoryId, type: 'materials', isActive: true } 
         });
+        if (!categoryExists) {
+          return res.status(400).json({ 
+            error: `Invalid category ID: ${finalCategoryId}. Please use a valid material category ID.` 
+          });
+        }
       }
 
       // Validate package-specific fields if unitType is being changed to package
@@ -270,7 +315,7 @@ const materialController = {
         unitType: unitType !== undefined ? unitType : material.unitType,
         inputUnit: inputUnit !== undefined ? inputUnit : material.inputUnit,
         packageQuantity: packageQuantity !== undefined ? packageQuantity : material.packageQuantity,
-        category: category !== undefined ? category : material.category
+        categoryId: finalCategoryId !== undefined ? finalCategoryId : material.categoryId
       });
 
       res.status(200).json(material);

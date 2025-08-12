@@ -68,10 +68,27 @@ const categoryController = {
         ]
       });
 
+      // Return structure consistent with CategoriesResponse interface
       res.json({
-        success: true,
-        data: categories,
-        count: categories.length
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: categories,
+        endIndex: categories.length,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        itemsPerPage: {
+          page: 1,
+          limit: categories.length,
+          offset: 0,
+          sortBy: "sortOrder",
+          sortOrder: "ASC"
+        },
+        limit: categories.length,
+        offset: 0,
+        page: 1,
+        sortBy: "sortOrder",
+        sortOrder: "ASC",
+        startIndex: 1
       });
     } catch (error) {
       next(error);

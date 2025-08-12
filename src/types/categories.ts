@@ -14,6 +14,7 @@ export interface CategoryFormData {
   name: string;
   value: string;
   type: 'materials' | 'menu_items';
+  description?: string;
   isActive?: boolean;
   sortOrder?: number;
 }
@@ -47,39 +48,6 @@ export interface CategoryFormProps {
 export interface CategoryManagementProps {
   onCategoryChange?: () => void;
 }
-
-
-
-export interface Category {
-    id: number;
-    name: string;
-    value: string;
-    type: 'materials' | 'menu_items';
-    description?: string;
-    isActive: boolean;
-    sortOrder: number;
-    createdAt: string;
-    updatedAt: string;
-  }
-  
-  export interface CategoryFormData {
-    name: string;
-    value: string;
-    type: 'materials' | 'menu_items';
-    description?: string;
-    isActive?: boolean;
-    sortOrder?: number;
-  }
-  
-  export interface CategoryFilters {
-    type?: 'materials' | 'menu_items';
-    isActive?: boolean;
-    search?: string;
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: 'ASC' | 'DESC';
-  }
   
   export interface CategoriesResponse {
     currentPage: number;

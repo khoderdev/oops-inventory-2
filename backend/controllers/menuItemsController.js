@@ -1,5 +1,5 @@
 import sequelize from "../config/database.js";
-import { Material, MenuItem, MenuItemIngredient, Printer } from "../models/index.js";
+import { Material, MenuItem, MenuItemIngredient, Printer, Category } from "../models/index.js";
 import { isValidCategory, getMenuItemCategories } from "../utils/categoryHelpers.js";
 
 const menuItemsController = {
@@ -8,6 +8,12 @@ const menuItemsController = {
     try {
       const menuItems = await MenuItem.findAll({
         include: [
+          {
+            model: Category,
+            as: "category",
+            attributes: ['id', 'name', 'value', 'type'],
+            required: false
+          },
           {
             model: MenuItemIngredient,
             as: "menuItemIngredients",
@@ -43,6 +49,12 @@ const menuItemsController = {
       const { id } = req.params;
       const menuItem = await MenuItem.findByPk(id, {
         include: [
+          {
+            model: Category,
+            as: "category",
+            attributes: ['id', 'name', 'value', 'type'],
+            required: false
+          },
           {
             model: MenuItemIngredient,
             as: "menuItemIngredients",

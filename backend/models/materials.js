@@ -1,7 +1,6 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 import { UNIT_OPTIONS, isValidUnitType } from "../utils/conversions.js";
-import { isValidCategory } from "../utils/categoryHelpers.js";
 
 const Material = sequelize.define(
   "Material",
@@ -58,16 +57,16 @@ const Material = sequelize.define(
       comment: "For package units: how many base units per package"
     },
 
-    category: {
-      type: DataTypes.STRING,
+    categoryId: {
+      type: DataTypes.INTEGER,
       allowNull: true,
-      validate: {
-        async isValidMaterialCategory(value) {
-          if (value && !(await isValidCategory(value, 'materials'))) {
-            throw new Error(`Invalid material category: ${value}. Please use a valid category from the database.`);
-          }
-        }
-      }
+      references: {
+        model: 'categories',
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL',
+      comment: 'Foreign key reference to categories table'
     }
   },
   {

@@ -127,6 +127,34 @@ MenuItemIngredient.belongsTo(MenuItem, {
   onUpdate: "CASCADE"
 });
 
+// Material ↔ Category
+Material.belongsTo(Category, {
+  foreignKey: "categoryId",
+  as: "category",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Category.hasMany(Material, {
+  foreignKey: "categoryId",
+  as: "materials",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// MenuItem ↔ Category
+MenuItem.belongsTo(Category, {
+  foreignKey: "categoryId",
+  as: "category",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Category.hasMany(MenuItem, {
+  foreignKey: "categoryId",
+  as: "menuItems",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
 // Material ↔ MenuItemIngredient
 Material.hasMany(MenuItemIngredient, {
   foreignKey: "materialId",

@@ -46,12 +46,10 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
         setCategoriesError(null);
         const response = await getCategoriesByType('materials', true);
         console.log('📦 Categories API response:', response);
-        console.log('📋 Categories data:', response.data);
         console.log('📋 Categories totalItems:', response.totalItems);
-        // Try both possible response structures
-        const categoriesData = response.totalItems || response.data || [];
-        setCategories(categoriesData);
-        console.log('✅ Categories set in state:', categoriesData);
+        // Use the correct response structure with totalItems
+        setCategories(response.totalItems);
+        console.log('✅ Categories set in state:', response.totalItems);
       } catch (error) {
         console.error('❌ Failed to fetch categories:', error);
         setCategoriesError('Failed to load categories');

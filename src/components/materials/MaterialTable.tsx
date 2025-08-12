@@ -306,6 +306,16 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
         cell: ({ getValue }) => {
           const category = getValue();
           const categoryInfo = categories.find(c => c.value === category);
+          
+          // If no category value, show a placeholder
+          if (!category) {
+            return (
+              <Badge variant="outline" className="text-xs font-medium bg-gray-100 text-gray-500 border-gray-200">
+                No Category
+              </Badge>
+            );
+          }
+          
           return (
             <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(category)}`}>
               {categoryInfo?.name || category}
@@ -422,7 +432,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
         size: 200
       })
     ],
-    [searchTerm, onEditMaterial, onAddStock, onDeleteMaterial, sortBy, sortOrder, handleSortChange]
+    [searchTerm, onEditMaterial, onAddStock, onDeleteMaterial, sortBy, sortOrder, handleSortChange, categories]
   );
 
   const table = useReactTable({
