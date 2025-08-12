@@ -138,6 +138,8 @@ export interface POSDialogsProps {
   negativeStockWarnings: NegativeStockWarning[];
   successMessage: string | null;
   error: string | null;
+  showSuccess: (message: string) => void;
+  showError: (message: string) => void;
 }
 
 export interface UsePOSHandlersProps {

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useToast } from "@/components/ui/use-toast";
+
 import { ORDER_STATUS_COLORS } from "@/constants/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReceiptData } from "@/types/inventory";
@@ -20,11 +20,12 @@ interface OrderDetailsDialogProps {
   order: Order | null;
   isLoading?: boolean;
   onOrderUpdate?: (updatedOrder: Order) => void;
+  showSuccess?: (message: string) => void;
+  showError?: (message: string) => void;
 }
 
-export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, onClose, order, isLoading = false, onOrderUpdate }) => {
+export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, onClose, order, isLoading = false, onOrderUpdate, showSuccess, showError }) => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
@@ -121,11 +122,9 @@ export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, 
       }
 
       // Show success message
-      toast({
-        title: "Success!",
-        description: getStatusSuccessMessage(newStatus),
-        variant: "default"
-      });
+      if (showSuccess) {
+        showSuccess(getStatusSuccessMessage(newStatus));
+      }
 
       // Auto-close dialog after successful update
       setTimeout(() => {
@@ -137,11 +136,9 @@ export const OrderDetailsDialog: React.FC<OrderDetailsDialogProps> = ({ isOpen, 
       console.error("Failed to update order status:", error);
       
       // Show error message
-      toast({
-        title: "Error!",
-        description: `Failed to update order status: ${error instanceof Error ? error.message : "Unknown error"}`,
-        variant: "destructive"
-      });
+      if (showError) {
+        showError(`Failed to update order status: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
     } finally {
       setIsUpdatingStatus(false);
     }

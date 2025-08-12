@@ -61,9 +61,21 @@ export const usePOSState = () => {
   }, []);
 
   const showSuccess = useCallback((message: string) => {
+    if (!message || message.trim() === "") {
+      setSuccessMessage(null);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+      return;
+    }
     setSuccessMessage(message);
     if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
-    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 1500);
+    successTimeoutRef.current = setTimeout(() => {
+      setSuccessMessage(null);
+    }, 1500);
+  }, []);
+
+  const dismissSuccess = useCallback(() => {
+    setSuccessMessage(null);
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
   }, []);
 
   const clearCartWithAnimation = useCallback(() => {
@@ -189,6 +201,7 @@ export const usePOSState = () => {
     // Handlers
     showError,
     showSuccess,
+    dismissSuccess,
     clearCartWithAnimation,
     clearCart,
   };

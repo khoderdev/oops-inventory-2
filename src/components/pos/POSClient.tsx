@@ -130,7 +130,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [fetchIncompleteOrders]);
 
   return (
-    <>
+    <div className="w-screen h-screen overflow-hidden">
       <POSLayout
         leftPanelWidth={state.leftPanelWidth}
         setLeftPanelWidth={state.setLeftPanelWidth}
@@ -261,7 +261,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         negativeStockWarnings={state.negativeStockWarnings}
         successMessage={state.successMessage}
         error={state.error}
+        showSuccess={state.showSuccess}
+        showError={state.showError}
       />
-    </>
+    </div>
   );
 };

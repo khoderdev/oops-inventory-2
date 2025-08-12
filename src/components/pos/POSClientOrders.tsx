@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { OrderDetailsDialog } from "./OrderDetailsDialog";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
-const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onClose, onOrderSelect, onOrderStatusChange }) => {
+const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onClose, onOrderSelect, onOrderStatusChange, showSuccess, showError }) => {
   const renderCount = useRef(0);
   renderCount.current += 1;
 
@@ -804,7 +804,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       )}
 
       {/* Order Details Dialog */}
-      <OrderDetailsDialog isOpen={showOrderDetails} onClose={handleCloseOrderDetails} order={selectedOrder} isLoading={isLoadingOrderDetails} onOrderUpdate={handleOrderUpdate} />
+      <OrderDetailsDialog isOpen={showOrderDetails} onClose={handleCloseOrderDetails} order={selectedOrder} isLoading={isLoadingOrderDetails} onOrderUpdate={handleOrderUpdate} showSuccess={showSuccess} showError={showError} />
 
       {/* Receipt Printer Dialog */}
       {receiptData && (

@@ -1,6 +1,5 @@
 import { ordersAPI } from "@/api/orders.api.ts";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
-import POSLayout from "@/components/layout/POSLayout";
 import { POSClient } from "@/components/pos/POSClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
@@ -135,22 +134,13 @@ const POSClientPage: React.FC = () => {
   }
 
   return (
-    <POSLayout 
-      currentTotal={sessionStats.totalSales} 
-      transactionCount={sessionStats.transactionCount}
-      incompleteOrdersCount={sessionStats.incompleteOrdersCount}
-      onLogout={handleLogout}
-      onOrderSelect={handleOrderSelect}
-      onRefreshCounts={handleRefreshCounts}
-    >
-      <POSClient 
-        sectionAssignments={sectionAssignments} 
-        onSaleComplete={handleSaleComplete}
-        selectedOrderForPOS={selectedOrderForPOS}
-        onOrderProcessed={undefined}
-        refreshCountsRef={refreshCountsRef}
-      />
-    </POSLayout>
+    <POSClient 
+      sectionAssignments={sectionAssignments} 
+      onSaleComplete={handleSaleComplete}
+      selectedOrderForPOS={selectedOrderForPOS}
+      onOrderProcessed={undefined}
+      refreshCountsRef={refreshCountsRef}
+    />
   );
 };
 

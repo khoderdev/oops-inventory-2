@@ -77,7 +77,9 @@ export const POSDialogs: React.FC<POSDialogsProps> = ({
   setShowNegativeStockDialog,
   negativeStockWarnings,
   successMessage,
-  error
+  error,
+  showSuccess,
+  showError
 }) => {
   return (
     <>
@@ -97,7 +99,15 @@ export const POSDialogs: React.FC<POSDialogsProps> = ({
       )}
 
       {/* Discount Dialog */}
-      <DiscountDialog isOpen={showDiscountDialog} onClose={() => setShowDiscountDialog(false)} discountAmount={discountAmount} onDiscountAmountChange={onDiscountAmountChange} onDiscount={() => {}} orderSubtotal={subtotal} onApplyDiscount={onApplyDiscount} />
+      <DiscountDialog 
+        isOpen={showDiscountDialog} 
+        onClose={() => setShowDiscountDialog(false)} 
+        discountAmount={discountAmount} 
+        onDiscountAmountChange={onDiscountAmountChange} 
+        onDiscount={() => {}} 
+        orderSubtotal={subtotal} 
+        onApplyDiscount={onApplyDiscount} 
+      />
 
       {/* Notes Dialog */}
       <NotesDialog isOpen={showNotesDialog} onClose={() => setShowNotesDialog(false)} notes={orderNotes} onNotesChange={setOrderNotes} />
@@ -118,7 +128,7 @@ export const POSDialogs: React.FC<POSDialogsProps> = ({
       <VoidOrderDialog isOpen={showVoidDialog} onClose={() => setShowVoidDialog(false)} onConfirm={onConfirmVoid} order={currentOrder} isLoading={orderLoading} />
 
       {/* Orders Management Dialog */}
-      <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} onOrderSelect={onOrderSelect} onOrderStatusChange={onOrderStatusChange} />
+      <POSClientOrders isOpen={showOrdersDialog} onClose={() => setShowOrdersDialog(false)} onOrderSelect={onOrderSelect} onOrderStatusChange={onOrderStatusChange} showSuccess={showSuccess} showError={showError} />
 
       {/* Tables Layout Dialog */}
       {showTablesLayout && (

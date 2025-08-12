@@ -541,7 +541,7 @@ export interface PaymentDialogProps {
   total: number;
   paymentAmount: string;
   onPaymentAmountChange: (amount: string) => void;
-  onPayment: () => void;
+  onPayment: (paymentData: { amount: number; method: string }) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -667,6 +667,8 @@ export interface POSClientOrdersProps {
   onClose?: () => void;
   onOrderSelect?: (order: OrderSummary) => void;
   onOrderStatusChange?: () => void; // Callback to refresh table badges when order status changes
+  showSuccess?: (message: string) => void;
+  showError?: (message: string) => void;
 }
 
 export interface OrderFilters {
