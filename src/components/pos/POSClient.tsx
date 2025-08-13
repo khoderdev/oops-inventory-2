@@ -85,9 +85,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const processedOrderRef = useRef<string | null>(null);
-  // Prevent re-processing selectedOrderForPOS right after manual save
   const justSavedRef = useRef<boolean>(false);
-  // Track completed orders to prevent reloading
   const completedOrdersRef = useRef<Set<string>>(new Set());
   const [leftPanelWidth, setLeftPanelWidth] = useState(33.33);
   const [rightPanelPixelWidth, setRightPanelPixelWidth] = useState(0);
@@ -105,14 +103,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
   const [isSaving, setIsSaving] = useState(false);
 
-  // 📂 Compute categories for CategoryTabs
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>();
-
-    // Add "all" as the first category
     uniqueCategories.add("all");
-
-    // Extract unique categories from posItems
     posItems.forEach(item => {
       if (item.category && typeof item.category === "string") {
         uniqueCategories.add(item.category);
@@ -316,6 +309,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Don't reload cart if user is actively editing (has unsaved changes)
       if (hasUnsavedChanges) {
         console.log("🚫 Blocking currentOrder cart reload - user has unsaved changes");
+        return;
+      }
+
+      // CRITICAL FIX: Don't reload if this order was already loaded by selectedOrderForPOS effect
+      // Only block if the cart actually has items (meaning selectedOrderForPOS effect successfully loaded it)
+      if (selectedOrderForPOS && selectedOrderForPOS.id.toString() === currentOrderId && cart.length > 0) {
+        console.log("🚫 Blocking currentOrder cart reload - order already loaded by selectedOrderForPOS effect:", {
+          currentOrderId,
+          selectedOrderId: selectedOrderForPOS.id,
+          cartItems: cart.length
+        });
         return;
       }
 
