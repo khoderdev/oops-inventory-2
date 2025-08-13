@@ -64,10 +64,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       try {
         setCategoriesLoading(true);
         const response = await getCategoriesByType("menu_items");
-        console.log("Fetched menu categories:", response);
-        console.log("Categories totalItems:", response.totalItems);
         setCategories(response.totalItems || []);
-        console.log("Set categories state:", response.totalItems || []);
       } catch (error) {
         console.error("Failed to fetch menu categories:", error);
         toast({
@@ -107,10 +104,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       console.group(`🔍 Ingredient Validation Issues for ${material.name}`);
       issues.forEach(issue => {
         const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
-        console.log(`${icon} ${issue.message}`);
-        if (issue.suggestion) {
-          console.log(`   💡 ${issue.suggestion}`);
-        }
       });
       console.groupEnd();
     }
@@ -145,10 +138,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       console.group(`🔍 Material Issues for ${material.name}`);
       materialIssues.forEach(issue => {
         const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
-        console.log(`${icon} ${issue.message}`);
-        if (issue.suggestion) {
-          console.log(`   💡 ${issue.suggestion}`);
-        }
       });
       console.groupEnd();
     }
@@ -164,10 +153,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           console.group(`🔍 Stock Entry Issues for ${material.name}`);
           entryIssues.forEach(issue => {
             const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
-            console.log(`${icon} ${issue.message}`);
-            if (issue.suggestion) {
-              console.log(`   💡 ${issue.suggestion}`);
-            }
           });
           console.groupEnd();
         }
@@ -190,7 +175,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             if (convertedQuantity > 0) {
               entryCost = entry.totalCost / convertedQuantity;
               entryQuantity = convertedQuantity;
-              console.log(`💰 Calculated from totalCost/convertedQuantity: ${entryCost} for ${material.name}`);
             }
           } catch (conversionError) {
             console.warn(`⚠️ Unit conversion failed for ${material.name}:`, conversionError);
@@ -200,7 +184,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
             entryCost = entry.costPerPurchasedUnit / conversionFactor;
             entryQuantity = 1;
-            console.log(`💰 Converted costPerPurchasedUnit: ${entryCost} for ${material.name}`);
           } catch (conversionError) {
             console.warn(`⚠️ Unit conversion failed for costPerPurchasedUnit ${material.name}:`, conversionError);
           }
@@ -552,6 +535,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 
   const filteredMenuItems = useMemo(() => {
+
+    
     return menuItems.filter(item => {
       const searchLower = searchTerm.toLowerCase();
       const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
@@ -560,10 +545,28 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         return materialName.toLowerCase().includes(searchLower);
       });
       const matchesSearch = matchesNameOrDescription || matchesIngredients;
-      const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
+      // Handle different category formats: string, object, or number
+      const matchesCategory = selectedCategory === "all" || (() => {
+        if (typeof item.category === 'string') {
+          const result = item.category === selectedCategory;
+          return result;
+        } else if (typeof item.category === 'object' && item.category !== null && 'name' in item.category) {
+          // For category objects, we need to find the matching category by name and compare values
+          const categoryObj = categories.find(c => c.name === (item.category as { name: string }).name);
+          const result = categoryObj?.value === selectedCategory;
+          return result;
+        } else if (typeof item.category === 'number') {
+          // Find category by ID and compare values
+          const categoryObj = categories.find(c => c.id === item.category);
+          const result = categoryObj?.value === selectedCategory;
+          return result;
+        }
+        return false;
+      })();
+      
       return matchesSearch && matchesCategory;
     });
-  }, [menuItems, searchTerm, selectedCategory, getMaterialName]);
+  }, [menuItems, searchTerm, selectedCategory, getMaterialName, categories]);
 
   // TanStack Table instance
   const table = useReactTable({
