@@ -181,7 +181,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </div>
 
         {/* Order Summary - Fixed height at bottom (matches ActionBar) */}
-        <div className="bg-white flex-shrink-0 h-[7.8rem]">
+        <div className="bg-white flex-shrink-0 h-[12.4rem]">
           <OrderSummary cart={cart} subtotal={subtotal} total={total} appliedDiscount={appliedDiscount} onPaymentClick={() => setShowPaymentDialog(true)} onSaveClick={clearCart} orderStatus={currentOrder?.status} isOrderCompleted={currentOrder?.status === "paid" || currentOrder?.status === "served"} onRemoveDiscount={handleRemoveDiscount} />
         </div>
       </div>
