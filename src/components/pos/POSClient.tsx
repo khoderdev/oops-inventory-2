@@ -30,11 +30,10 @@ import { OrderItemsList } from "./OrderItemsList";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentDialog } from "./PaymentDialog";
 import { POSClientOrders } from "./POSClientOrders";
-import { VirtualizedProductGrid } from "./VirtualizedProductGrid";
+import { ItemsGrid } from "./ItemsGrid";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
-import { formatCurrency } from "@/utils/conversionLogic";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
   const { stock, menu, status, refresh: refreshInventory } = usePrefetch({ autoFetch: true, parallel: true, onError: error => console.error("❌ Failed to load inventory data:", error) });
@@ -52,6 +51,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [stockEntries, setStockEntries] = useState<StockEntryWithMaterial[]>([]);
   const [posItems, setPosItems] = useState<POSItem[]>([]);
   const [categoriesMap, setCategoriesMap] = useState<Map<number, string>>(new Map());
+  const [isItemsGridStable, setIsItemsGridStable] = useState(false);
+  const [isPOSActionInProgress, setIsPOSActionInProgress] = useState(false);
+  const [isItemsGridLoading, setIsItemsGridLoading] = useState(true);
   const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
   const [negativeStockWarnings] = useState<NegativeStockWarning[]>([]);
   const [showNegativeStockDialog, setShowNegativeStockDialog] = useState(false);
@@ -746,96 +748,131 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     fetchCategories();
   }, []);
 
-  useEffect(() => {
-    if (menu && stock && categoriesMap.size > 0) {
-      console.log("🛍️ Converting menu and stock to POS items");
-      const convertToPOSItems = () => {
-        const posItemsFromData: POSItem[] = [];
-        menu.forEach(menuItem => {
-          if (menuItem.isPOSItem) {
-            // Extract category ID from category object or use the category directly if it's already an ID
-            let categoryId: number;
-            if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
-              categoryId = (menuItem.category as any).id;
-            } else if (menuItem.category && typeof menuItem.category === "number") {
-              categoryId = menuItem.category;
-            } else {
-              console.warn("⚠️ Invalid category format for menu item:", menuItem.name, menuItem.category);
-              categoryId = 0;
-            }
-            const categoryName = categoriesMap.get(categoryId);
-
-            // COMPLETELY HIDE items with deactivated categories - don't add them to POS
-            if (!categoryName) {
-              console.log(`🚫 Hiding menu item '${menuItem.name}' - category is deactivated`);
-              return; // Skip this item completely
-            }
-
-            posItemsFromData.push({
-              id: `menu-${menuItem.id}`,
-              name: menuItem.name,
-              price: menuItem.price,
-              category: categoryName,
-              type: "menu_item",
-              menuItemId: menuItem.id,
-              unit: menuItem.unit,
-              availableQuantity: menuItem.availableQuantity,
-              costPerUnit: menuItem.costPerUnit,
-              createdAt: menuItem.createdAt.toString(),
-              updatedAt: menuItem.updatedAt.toString(),
-              description: menuItem.description,
-              image: menuItem.image
-            });
-          }
-        });
-
-        stock.forEach(stockEntry => {
-          if (stockEntry.isPOSItem && stockEntry.material) {
-            // Extract category ID from category object or use the category directly if it's already an ID
-            let categoryId: number;
-            const category = stockEntry.material.category;
-
-            if (category === null || category === undefined) {
-              console.warn("⚠️ Null or undefined category for stock entry:", stockEntry.material.name);
-              categoryId = 0;
-            } else if (typeof category === "number") {
-              categoryId = category;
-            } else if (typeof category === "object" && "id" in category) {
-              categoryId = (category as any).id;
-            } else {
-              console.warn("⚠️ Invalid category type for stock entry:", stockEntry.material.name, category);
-              categoryId = 0;
-            }
-            const categoryName = categoriesMap.get(categoryId);
-
-            // COMPLETELY HIDE items with deactivated categories - don't add them to POS
-            if (!categoryName) {
-              console.log(`🚫 Hiding stock item '${stockEntry.material.name}' - category is deactivated`);
-              return; // Skip this item completely
-            }
-
-            posItemsFromData.push({
-              id: `stock-${stockEntry.id}`,
-              name: stockEntry.material.name,
-              price: stockEntry.costPerBaseUnit || 0,
-              category: categoryName,
-              type: "stock_entry",
-              materialId: Number(stockEntry.materialId),
-              unit: stockEntry.material.baseUnit,
-              description: `${stockEntry.material.name} - ${stockEntry.material.baseUnit}`,
-              availableQuantity: 0,
-              costPerUnit: stockEntry.costPerBaseUnit || 0,
-              createdAt: "",
-              updatedAt: ""
-            });
-          }
-        });
-        console.log("🛍️ POS items generated with category names:", { count: posItemsFromData.length });
-        setPosItems(posItemsFromData);
-      };
-      convertToPOSItems();
+  // Memoized POS items to prevent unnecessary re-renders during POS operations
+  const memoizedPosItems = useMemo(() => {
+    if (!menu || !stock || categoriesMap.size === 0) {
+      return [];
     }
-  }, [menu, stock, status.isLoading, categoriesMap]);
+
+    console.log("🛍️ Converting menu and stock to POS items (memoized)");
+    const posItemsFromData: POSItem[] = [];
+    
+    menu.forEach(menuItem => {
+      if (menuItem.isPOSItem) {
+        // Extract category ID from category object or use the category directly if it's already an ID
+        let categoryId: number;
+        if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
+          categoryId = (menuItem.category as any).id;
+        } else if (menuItem.category && typeof menuItem.category === "number") {
+          categoryId = menuItem.category;
+        } else {
+          console.warn("⚠️ Invalid category format for menu item:", menuItem.name, menuItem.category);
+          categoryId = 0;
+        }
+        const categoryName = categoriesMap.get(categoryId);
+
+        // COMPLETELY HIDE items with deactivated categories - don't add them to POS
+        if (!categoryName) {
+          console.log(`🚫 Hiding menu item '${menuItem.name}' - category is deactivated`);
+          return; // Skip this item completely
+        }
+
+        posItemsFromData.push({
+          id: `menu-${menuItem.id}`,
+          name: menuItem.name,
+          price: menuItem.price,
+          category: categoryName,
+          type: "menu_item",
+          menuItemId: menuItem.id,
+          unit: menuItem.unit,
+          availableQuantity: menuItem.availableQuantity,
+          costPerUnit: menuItem.costPerUnit,
+          createdAt: menuItem.createdAt.toString(),
+          updatedAt: menuItem.updatedAt.toString(),
+          description: menuItem.description,
+          image: menuItem.image
+        });
+      }
+    });
+
+    stock.forEach(stockEntry => {
+      if (stockEntry.isPOSItem && stockEntry.material) {
+        // Extract category ID from category object or use the category directly if it's already an ID
+        let categoryId: number;
+        const category = stockEntry.material.category;
+
+        if (category === null || category === undefined) {
+          console.warn("⚠️ Null or undefined category for stock entry:", stockEntry.material.name);
+          categoryId = 0;
+        } else if (typeof category === "number") {
+          categoryId = category;
+        } else if (typeof category === "object" && "id" in category) {
+          categoryId = (category as any).id;
+        } else {
+          console.warn("⚠️ Invalid category type for stock entry:", stockEntry.material.name, category);
+          categoryId = 0;
+        }
+        const categoryName = categoriesMap.get(categoryId);
+
+        // COMPLETELY HIDE items with deactivated categories - don't add them to POS
+        if (!categoryName) {
+          console.log(`🚫 Hiding stock item '${stockEntry.material.name}' - category is deactivated`);
+          return; // Skip this item completely
+        }
+
+        posItemsFromData.push({
+          id: `stock-${stockEntry.id}`,
+          name: stockEntry.material.name,
+          price: stockEntry.costPerBaseUnit || 0,
+          category: categoryName,
+          type: "stock_entry",
+          materialId: Number(stockEntry.materialId),
+          unit: stockEntry.material.baseUnit,
+          description: `${stockEntry.material.name} - ${stockEntry.material.baseUnit}`,
+          availableQuantity: 0,
+          costPerUnit: stockEntry.costPerBaseUnit || 0,
+          createdAt: "",
+          updatedAt: ""
+        });
+      }
+    });
+    
+    console.log("🛍️ POS items generated with category names:", { count: posItemsFromData.length });
+    return posItemsFromData;
+  }, [menu, stock, categoriesMap]);
+
+  // Update posItems state only when memoized items actually change and no POS action is in progress
+  useEffect(() => {
+    // Block updates during POS actions to prevent grid refresh
+    if (isPOSActionInProgress) {
+      console.log("🚫 Blocking POS items update - POS action in progress");
+      return;
+    }
+
+    if (memoizedPosItems.length > 0 && !isItemsGridStable) {
+      console.log("🛍️ Setting POS items and marking grid as stable");
+      setPosItems(memoizedPosItems);
+      setIsItemsGridStable(true);
+      setIsItemsGridLoading(false);
+    } else if (memoizedPosItems.length > 0 && isItemsGridStable) {
+      // Only update if there's a significant change (different count or different items)
+      const hasSignificantChange = 
+        memoizedPosItems.length !== posItems.length ||
+        memoizedPosItems.some((item, index) => 
+          !posItems[index] || 
+          item.id !== posItems[index].id || 
+          item.name !== posItems[index].name ||
+          item.price !== posItems[index].price
+        );
+      
+      if (hasSignificantChange) {
+        console.log("🛍️ Significant change detected, updating POS items");
+        setPosItems(memoizedPosItems);
+      } else {
+        console.log("🛍️ No significant change, keeping existing POS items to prevent grid refresh");
+      }
+    }
+  }, [memoizedPosItems, isItemsGridStable, posItems, isPOSActionInProgress]);
 
   useEffect(() => {
     const fetchAdditionalData = async () => {
@@ -982,6 +1019,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const addToCart = useCallback(
     (posItem: POSItem) => {
       console.log("🛒 Adding item to cart:", { itemId: posItem.id, name: posItem.name });
+      setIsPOSActionInProgress(true);
       const cartId = `pos-${posItem.id}`;
       setCart(prevCart => {
         const currentCart = prevCart || [];
@@ -1046,6 +1084,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
         setTimeout(() => {
           recalculateEmployeeDiscount(newCart);
+          // Reset POS action flag after cart update is complete
+          setIsPOSActionInProgress(false);
         }, 0);
         return newCart;
       });
@@ -1056,6 +1096,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const updateCartQuantity = useCallback(
     (cartId: string, newQuantity: number) => {
       console.log("🛒 Updating cart item quantity:", { cartId, newQuantity });
+      setIsPOSActionInProgress(true);
       let newCart: POSCartItem[];
       if (newQuantity <= 0) {
         newCart = cart.filter(item => item.id !== cartId);
@@ -1066,6 +1107,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setCart(newCart);
       }
       recalculateEmployeeDiscount(newCart);
+      // Reset POS action flag after cart update
+      setTimeout(() => setIsPOSActionInProgress(false), 100);
     },
     [cart, recalculateEmployeeDiscount]
   );
@@ -1088,6 +1131,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handleTableSelection = useCallback(
     async (table: Table) => {
       console.log("📍 Table selected:", { tableId: table.id, tableNumber: table.number });
+      setIsPOSActionInProgress(true);
 
       // Set flag to prevent selectedOrderForPOS from overriding this table selection
       setIsTableManuallySelected(true);
@@ -1192,6 +1236,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Reset the flag after a longer delay to ensure table selection is protected
       setTimeout(() => {
         setIsTableManuallySelected(false);
+        setIsPOSActionInProgress(false);
       }, 5000);
     },
     [loadOrder, menuItems, stockEntries, showSuccess, showError, clearOrder]
@@ -1428,6 +1473,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       return;
     }
     console.log("📋 Saving order manually");
+    setIsPOSActionInProgress(true);
     try {
       setIsLoading(true);
       let savedOrder;
@@ -1707,6 +1753,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       showError("Failed to save order. Please try again.");
     } finally {
       setIsLoading(false);
+      setIsPOSActionInProgress(false);
     }
   }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, printItemsToAssignedPrinters, refreshAllCounts]);
 
@@ -1725,6 +1772,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       return;
     }
     console.log("💳 Initiating payment");
+    setIsPOSActionInProgress(true);
     setIsLoading(true);
     try {
       let orderToComplete = currentOrder;
@@ -1927,6 +1975,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setShowPaymentDialog(false);
     } finally {
       setIsLoading(false);
+      setIsPOSActionInProgress(false);
     }
   }, [cart, total, paymentAmount, subtotal, tax, showError, clearCartWithAnimation, onSaleComplete, currentOrder, selectedTable, selectedEmployee, orderType, orderNotes, clearOrder, resetToTakeaway, createOrder, appliedDiscount, refreshAllCounts, hasSavedPrinter, printItemsToAssignedPrinters]);
 
@@ -2190,7 +2239,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 overflow-y-auto !bg-gray-50">
-              <VirtualizedProductGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={status.isLoading || (posItems.length === 0 && (menu.length === 0 || stock.length === 0))} />
+              <ItemsGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={isItemsGridLoading} />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}

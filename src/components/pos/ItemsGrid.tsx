@@ -5,7 +5,7 @@ import { Package, ShoppingCart } from "lucide-react";
 import React, { useMemo, useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-export const VirtualizedProductGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0, isLoading = false }) => {
+export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0, isLoading = false }) => {
   const parentRef = useRef<HTMLDivElement>(null);
 
   // Calculate grid configuration based on panel width
