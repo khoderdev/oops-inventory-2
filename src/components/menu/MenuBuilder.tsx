@@ -363,7 +363,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         size: 200
       }),
 
-      // Category column
       columnHelper.accessor("category", {
         header: "Category",
         cell: ({ getValue }) => {
@@ -372,7 +371,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           if (typeof category === 'object' && category !== null) {
             categoryLabel = category.name || 'Uncategorized';
           } else {
-            // If category is a string, find the matching label
             categoryLabel = MENU_CATEGORIES.find(c => c.value === category)?.label || category || 'Uncategorized';
           }
           return <span>{String(categoryLabel)}</span>;

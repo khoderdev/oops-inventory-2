@@ -23,7 +23,13 @@ interface MenuItemFormProps {
 
 export function MenuItemForm({ menuItem, materials, stockEntries, categories, onSubmit, onCancel }: MenuItemFormProps) {
   const [name, setName] = useState(menuItem?.name || "");
-  const [category, setCategory] = useState<MenuItemCategory | "">(menuItem?.category || "");
+  const [category, setCategory] = useState<MenuItemCategory | "">(() => {
+    if (!menuItem?.category) return "";
+    // Handle both object and string category formats
+    return typeof menuItem.category === 'object' && menuItem.category !== null 
+      ? menuItem.category.value || "" 
+      : menuItem.category || "";
+  });
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
@@ -214,7 +220,11 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   useEffect(() => {
     if (menuItem) {
       setName(menuItem.name || "");
-      setCategory(menuItem.category || "");
+      // Handle both object and string category formats
+      const categoryValue = typeof menuItem.category === 'object' && menuItem.category !== null 
+        ? menuItem.category.value || "" 
+        : menuItem.category || "";
+      setCategory(categoryValue);
       setPrice(menuItem.price.toString() || "");
       setIsPOSItem(menuItem.isPOSItem || false);
       setIngredients(
