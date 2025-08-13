@@ -17,6 +17,7 @@ import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
+import { useVoidPrinter } from "./VoidPrinter";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
@@ -1410,90 +1411,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     [showSuccess, showError, formatItemsForPrinterCallback]
   );
 
-  const printVoidReceiptsForRemovedItems = useCallback(
-    async (removedItems: POSCartItem[]) => {
-      if (removedItems.length === 0) return;
-
-      console.log("🗑️🖨️ Printing void receipts for removed items:", { itemCount: removedItems.length });
-      try {
-        const itemsByPrinter = new Map<number, POSCartItem[]>();
-        removedItems.forEach(item => {
-          const printerId = item.printerId || item.assignedPrinter?.id;
-          if (printerId) {
-            if (!itemsByPrinter.has(printerId)) {
-              itemsByPrinter.set(printerId, []);
-            }
-            itemsByPrinter.get(printerId)!.push(item);
-          }
-        });
-
-        console.log("🗑️🖨️ Void items grouped by printer:", { printerCount: itemsByPrinter.size });
-        const printPromises = Array.from(itemsByPrinter.entries()).map(async ([printerId, items]) => {
-          try {
-            // Format void receipt content
-            const voidContent = `
-              ========== VOID RECEIPT ==========
-              DATE: ${new Date().toLocaleString()}
-              ORDER: ${currentOrder?.orderNumber || currentOrder?.id || "N/A"}
-              TABLE: ${selectedTable?.number || "N/A"}
-
-              --- CANCELLED ITEMS ---
-              ${items.map(item => `${item.name}\nQty: ${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(item.price * item.quantity)}${item.notes ? `\nNotes: ${item.notes}` : ""}\n`).join("\n")}
-
-              *** ITEM(S) CANCELLED ***
-              *** DO NOT PREPARE ***
-              ================================\n\n`;
-
-            const printJobData = {
-              printerId: printerId,
-              jobType: "receipt" as const,
-              content: {
-                rawContent: voidContent,
-                format: "text",
-                encoding: "utf8"
-              },
-              priority: 2, // Higher priority for void receipts
-              metadata: {
-                orderType: "void_receipt",
-                itemCount: items.length,
-                orderId: currentOrder?.id,
-                orderNumber: currentOrder?.orderNumber,
-                timestamp: new Date().toISOString()
-              }
-            };
-
-            console.log("🗑️🖨️ Creating void print job for printer:", { printerId, itemCount: items.length });
-            const result = await printerAPI.createPrintJob(printJobData);
-            console.log("🗑️🖨️ Void print job created:", { printerId, jobId: result.job?.id });
-            return { printerId, success: true, jobId: result.job?.id };
-          } catch (error) {
-            console.error(`❌ Failed to print void receipt to printer ${printerId}:`, error);
-            return { printerId, success: false, error };
-          }
-        });
-
-        const results = await Promise.allSettled(printPromises);
-        const successfulPrints = results.filter(result => result.status === "fulfilled" && result.value.success).length;
-        const totalPrinters = itemsByPrinter.size;
-
-        if (successfulPrints > 0) {
-          console.log("🗑️🖨️ Void receipt print results:", { successful: successfulPrints, total: totalPrinters });
-          if (successfulPrints === totalPrinters) {
-            showSuccess(`🗑️ Void receipts printed to ${successfulPrints} station(s) successfully!`);
-          } else {
-            showSuccess(`⚠️ Void receipts printed to ${successfulPrints}/${totalPrinters} stations. Check printer status for failed prints.`);
-          }
-        } else if (totalPrinters > 0) {
-          console.log("🗑️🖨️ All void print jobs failed");
-          showError(`❌ Failed to print void receipts to assigned stations. Please notify stations manually.`);
-        }
-      } catch (error) {
-        console.error("❌ Error in printVoidReceiptsForRemovedItems:", error);
-        showError("Failed to print void receipts. Please notify stations manually about cancelled items.");
-      }
-    },
-    [showSuccess, showError, currentOrder, selectedTable]
-  );
+  // Use the VoidPrinter hook
+  const { printVoidReceiptsForRemovedItems } = useVoidPrinter({ showSuccess, showError });
 
   const handleManualSave = useCallback(async () => {
     if (cart.length === 0) {
@@ -1550,6 +1469,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         // Compute removals and additions
         const itemIdsToRemove: string[] = [];
         const removedItemsForVoidReceipt: POSCartItem[] = [];
+        
+        console.log("🗑️📋 Starting void receipt computation:", {
+          existingMapSize: existingMap.size,
+          desiredMapSize: desiredMap.size,
+          menuItemsCount: menuItems.length,
+          stockEntriesCount: stockEntries.length
+        });
 
         existingMap.forEach((val, key) => {
           const desired = desiredMap.get(key);
@@ -1577,14 +1503,39 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 printerId = originalMenuItem?.printerId;
                 assignedPrinter = originalMenuItem?.assignedPrinter;
                 
+                // Debug: Check if it's a type mismatch issue
+                const menuItemIdAsNumber = typeof menuItemId === 'string' ? parseInt(menuItemId) : menuItemId;
+                const menuItemIdAsString = String(menuItemId);
+                const foundByNumber = menuItems.find(mi => mi.id === menuItemIdAsNumber);
+                const foundByString = menuItems.find(mi => String(mi.id) === menuItemIdAsString);
+                
                 console.log("🗑️🔍 Menu item printer lookup:", {
                   menuItemId,
+                  menuItemIdType: typeof menuItemId,
+                  menuItemIdAsNumber,
+                  menuItemIdAsString,
                   foundMenuItem: !!originalMenuItem,
+                  foundByNumber: !!foundByNumber,
+                  foundByString: !!foundByString,
                   menuItemsCount: menuItems.length,
-                  originalMenuItemName: originalMenuItem?.name,
-                  printerId,
-                  hasPrinter: !!printerId
+                  firstFewMenuItemIds: menuItems.slice(0, 5).map(mi => ({ id: mi.id, type: typeof mi.id, name: mi.name })),
+                  originalMenuItemName: originalMenuItem?.name || foundByNumber?.name || foundByString?.name,
+                  printerId: printerId || foundByNumber?.printerId || foundByString?.printerId,
+                  hasPrinter: !!(printerId || foundByNumber?.printerId || foundByString?.printerId)
                 });
+                
+                // Use the correct match if type conversion found it
+                if (!originalMenuItem && (foundByNumber || foundByString)) {
+                  const correctMenuItem = foundByNumber || foundByString;
+                  printerId = correctMenuItem?.printerId;
+                  assignedPrinter = correctMenuItem?.assignedPrinter;
+                  console.log("🗑️✅ Fixed menu item lookup with type conversion:", {
+                    originalLookupFailed: !originalMenuItem,
+                    fixedWithNumber: !!foundByNumber,
+                    fixedWithString: !!foundByString,
+                    newPrinterId: printerId
+                  });
+                }
               } else if (orderItem.material || orderItem.materialId) {
                 // For materials, get printer from the original stock entry
                 const materialId = orderItem.materialId || orderItem.material?.id;
@@ -1656,8 +1607,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         // Print void receipts BEFORE removing items from the order
         if (removedItemsForVoidReceipt.length > 0) {
-          console.log("🗑️📋 Printing void receipts for removed items before API call:", { count: removedItemsForVoidReceipt.length });
-          await printVoidReceiptsForRemovedItems(removedItemsForVoidReceipt);
+          console.log("🗑️📋 Printing void receipts for removed items before API call:", { 
+            count: removedItemsForVoidReceipt.length,
+            items: removedItemsForVoidReceipt.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              printerId: item.printerId,
+              hasPrinter: !!item.printerId
+            }))
+          });
+          await printVoidReceiptsForRemovedItems(removedItemsForVoidReceipt, {
+            currentOrder,
+            selectedTable
+          });
+        } else {
+          console.log("🗑️❌ No items added to void receipt - skipping void printing");
         }
 
         // Execute API calls

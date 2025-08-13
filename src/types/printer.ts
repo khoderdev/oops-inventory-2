@@ -51,7 +51,7 @@ export interface Printer {
 export interface PrintJob {
   id: number;
   printerId: number;
-  jobType: "receipt" | "label" | "report" | "document";
+  jobType: "receipt" | "label" | "report" | "document" | "void";
   status: "pending" | "printing" | "completed" | "failed" | "cancelled";
   priority: number;
   content: string;
@@ -128,7 +128,7 @@ export interface UpdatePrinterRequest {
 
 export interface CreatePrintJobRequest {
   printerId: number;
-  jobType: "receipt" | "label" | "report" | "document";
+  jobType: "receipt" | "label" | "report" | "document" | "void";
   content: {
     template?: string | null;
     data?: Record<string, any>;
