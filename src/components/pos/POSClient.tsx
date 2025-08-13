@@ -33,6 +33,7 @@ import { VirtualizedProductGrid } from "./VirtualizedProductGrid";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
+import { formatCurrency } from "@/utils/conversionLogic";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
   const { stock, menu, status, refresh: refreshInventory } = usePrefetch({ autoFetch: true, parallel: true, onError: error => console.error("❌ Failed to load inventory data:", error) });
@@ -106,17 +107,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // 📂 Compute categories for CategoryTabs
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>();
-    
+
     // Add "all" as the first category
     uniqueCategories.add("all");
-    
+
     // Extract unique categories from posItems
     posItems.forEach(item => {
-      if (item.category && typeof item.category === 'string') {
+      if (item.category && typeof item.category === "string") {
         uniqueCategories.add(item.category);
       }
     });
-    
+
     return Array.from(uniqueCategories);
   }, [posItems]);
 
@@ -708,13 +709,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const fetchCategories = async () => {
       try {
         console.log("📂 Fetching ACTIVE categories for POS");
-        const [menuCategories, materialCategories] = await Promise.all([
-          getCategoriesByType('menu_items'),
-          getCategoriesByType('materials')
-        ]);
-        
+        const [menuCategories, materialCategories] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("materials")]);
+
         const categoryMap = new Map<number, string>();
-        
+
         // Add ONLY ACTIVE menu categories
         if (menuCategories?.totalItems) {
           menuCategories.totalItems
@@ -723,7 +721,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               categoryMap.set(category.id, category.name);
             });
         }
-        
+
         // Add ONLY ACTIVE material categories
         if (materialCategories?.totalItems) {
           materialCategories.totalItems
@@ -732,14 +730,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               categoryMap.set(category.id, category.name);
             });
         }
-        
+
         console.log("📂 ACTIVE categories map created:", { size: categoryMap.size });
         setCategoriesMap(categoryMap);
       } catch (error) {
         console.error("❌ Failed to fetch categories:", error);
       }
     };
-    
+
     fetchCategories();
   }, []);
 
@@ -752,22 +750,22 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           if (menuItem.isPOSItem) {
             // Extract category ID from category object or use the category directly if it's already an ID
             let categoryId: number;
-            if (menuItem.category && typeof menuItem.category === 'object' && 'id' in menuItem.category) {
+            if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
               categoryId = (menuItem.category as any).id;
-            } else if (menuItem.category && typeof menuItem.category === 'number') {
+            } else if (menuItem.category && typeof menuItem.category === "number") {
               categoryId = menuItem.category;
             } else {
-              console.warn('⚠️ Invalid category format for menu item:', menuItem.name, menuItem.category);
+              console.warn("⚠️ Invalid category format for menu item:", menuItem.name, menuItem.category);
               categoryId = 0;
             }
             const categoryName = categoriesMap.get(categoryId);
-            
+
             // COMPLETELY HIDE items with deactivated categories - don't add them to POS
             if (!categoryName) {
               console.log(`🚫 Hiding menu item '${menuItem.name}' - category is deactivated`);
               return; // Skip this item completely
             }
-            
+
             posItemsFromData.push({
               id: `menu-${menuItem.id}`,
               name: menuItem.name,
@@ -791,26 +789,26 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             // Extract category ID from category object or use the category directly if it's already an ID
             let categoryId: number;
             const category = stockEntry.material.category;
-            
+
             if (category === null || category === undefined) {
-              console.warn('⚠️ Null or undefined category for stock entry:', stockEntry.material.name);
+              console.warn("⚠️ Null or undefined category for stock entry:", stockEntry.material.name);
               categoryId = 0;
-            } else if (typeof category === 'number') {
+            } else if (typeof category === "number") {
               categoryId = category;
-            } else if (typeof category === 'object' && 'id' in category) {
+            } else if (typeof category === "object" && "id" in category) {
               categoryId = (category as any).id;
             } else {
-              console.warn('⚠️ Invalid category type for stock entry:', stockEntry.material.name, category);
+              console.warn("⚠️ Invalid category type for stock entry:", stockEntry.material.name, category);
               categoryId = 0;
             }
             const categoryName = categoriesMap.get(categoryId);
-            
+
             // COMPLETELY HIDE items with deactivated categories - don't add them to POS
             if (!categoryName) {
               console.log(`🚫 Hiding stock item '${stockEntry.material.name}' - category is deactivated`);
               return; // Skip this item completely
             }
-            
+
             posItemsFromData.push({
               id: `stock-${stockEntry.id}`,
               name: stockEntry.material.name,
@@ -954,7 +952,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || posItem.category?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
-
 
   const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
 
@@ -1413,6 +1410,91 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     [showSuccess, showError, formatItemsForPrinterCallback]
   );
 
+  const printVoidReceiptsForRemovedItems = useCallback(
+    async (removedItems: POSCartItem[]) => {
+      if (removedItems.length === 0) return;
+
+      console.log("🗑️🖨️ Printing void receipts for removed items:", { itemCount: removedItems.length });
+      try {
+        const itemsByPrinter = new Map<number, POSCartItem[]>();
+        removedItems.forEach(item => {
+          const printerId = item.printerId || item.assignedPrinter?.id;
+          if (printerId) {
+            if (!itemsByPrinter.has(printerId)) {
+              itemsByPrinter.set(printerId, []);
+            }
+            itemsByPrinter.get(printerId)!.push(item);
+          }
+        });
+
+        console.log("🗑️🖨️ Void items grouped by printer:", { printerCount: itemsByPrinter.size });
+        const printPromises = Array.from(itemsByPrinter.entries()).map(async ([printerId, items]) => {
+          try {
+            // Format void receipt content
+            const voidContent = `
+              ========== VOID RECEIPT ==========
+              DATE: ${new Date().toLocaleString()}
+              ORDER: ${currentOrder?.orderNumber || currentOrder?.id || "N/A"}
+              TABLE: ${selectedTable?.number || "N/A"}
+
+              --- CANCELLED ITEMS ---
+              ${items.map(item => `${item.name}\nQty: ${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(item.price * item.quantity)}${item.notes ? `\nNotes: ${item.notes}` : ""}\n`).join("\n")}
+
+              *** ITEM(S) CANCELLED ***
+              *** DO NOT PREPARE ***
+              ================================\n\n`;
+
+            const printJobData = {
+              printerId: printerId,
+              jobType: "receipt" as const,
+              content: {
+                rawContent: voidContent,
+                format: "text",
+                encoding: "utf8"
+              },
+              priority: 2, // Higher priority for void receipts
+              metadata: {
+                orderType: "void_receipt",
+                itemCount: items.length,
+                orderId: currentOrder?.id,
+                orderNumber: currentOrder?.orderNumber,
+                timestamp: new Date().toISOString()
+              }
+            };
+
+            console.log("🗑️🖨️ Creating void print job for printer:", { printerId, itemCount: items.length });
+            const result = await printerAPI.createPrintJob(printJobData);
+            console.log("🗑️🖨️ Void print job created:", { printerId, jobId: result.job?.id });
+            return { printerId, success: true, jobId: result.job?.id };
+          } catch (error) {
+            console.error(`❌ Failed to print void receipt to printer ${printerId}:`, error);
+            return { printerId, success: false, error };
+          }
+        });
+
+        const results = await Promise.allSettled(printPromises);
+        const successfulPrints = results.filter(result => result.status === "fulfilled" && result.value.success).length;
+        const totalPrinters = itemsByPrinter.size;
+
+        if (successfulPrints > 0) {
+          console.log("🗑️🖨️ Void receipt print results:", { successful: successfulPrints, total: totalPrinters });
+          if (successfulPrints === totalPrinters) {
+            showSuccess(`🗑️ Void receipts printed to ${successfulPrints} station(s) successfully!`);
+          } else {
+            showSuccess(`⚠️ Void receipts printed to ${successfulPrints}/${totalPrinters} stations. Check printer status for failed prints.`);
+          }
+        } else if (totalPrinters > 0) {
+          console.log("🗑️🖨️ All void print jobs failed");
+          showError(`❌ Failed to print void receipts to assigned stations. Please notify stations manually.`);
+        }
+      } catch (error) {
+        console.error("❌ Error in printVoidReceiptsForRemovedItems:", error);
+        showError("Failed to print void receipts. Please notify stations manually about cancelled items.");
+      }
+    },
+    [showSuccess, showError, currentOrder, selectedTable]
+  );
+
   const handleManualSave = useCallback(async () => {
     if (cart.length === 0) {
       console.log("📋 Attempted to save empty order");
@@ -1467,11 +1549,78 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         // Compute removals and additions
         const itemIdsToRemove: string[] = [];
+        const removedItemsForVoidReceipt: POSCartItem[] = [];
+
         existingMap.forEach((val, key) => {
           const desired = desiredMap.get(key);
           if (!desired || desired.qty !== val.qty) {
             // remove all existing instances for this key
             itemIdsToRemove.push(...val.ids);
+
+            // Track removed items for void receipt printing
+            // Find the corresponding order item that was removed/reduced
+            const orderItem = existingOrderItems.find(oi => keyForOrderItem(oi) === key);
+            
+            if (orderItem && (!desired || desired.qty < val.qty)) {
+              // Item was completely removed or quantity reduced
+              const removedQuantity = val.qty - (desired?.qty || 0);
+              
+              // Create a POSCartItem from the order item for void receipt
+              // Find printer assignment from original menu item or material
+              let printerId: number | undefined;
+              let assignedPrinter: any;
+              
+              if (orderItem.menuItem || orderItem.menuItemId) {
+                // For menu items, get printer from the original menu item
+                const menuItemId = orderItem.menuItemId || orderItem.menuItem?.id;
+                const originalMenuItem = menuItems.find(mi => mi.id === menuItemId);
+                printerId = originalMenuItem?.printerId;
+                assignedPrinter = originalMenuItem?.assignedPrinter;
+                
+                console.log("🗑️🔍 Menu item printer lookup:", {
+                  menuItemId,
+                  foundMenuItem: !!originalMenuItem,
+                  menuItemsCount: menuItems.length,
+                  originalMenuItemName: originalMenuItem?.name,
+                  printerId,
+                  hasPrinter: !!printerId
+                });
+              } else if (orderItem.material || orderItem.materialId) {
+                // For materials, get printer from the original stock entry
+                const materialId = orderItem.materialId || orderItem.material?.id;
+                const originalStockEntry = stockEntries.find(se => se.materialId === materialId);
+                printerId = originalStockEntry?.printerId;
+                assignedPrinter = originalStockEntry?.assignedPrinter;
+                
+                console.log("🗑️🔍 Material printer lookup:", {
+                  materialId,
+                  foundStockEntry: !!originalStockEntry,
+                  stockEntriesCount: stockEntries.length,
+                  printerId,
+                  hasPrinter: !!printerId
+                });
+              }
+              
+              const voidItem: POSCartItem = {
+                id: `void-${orderItem.id}`,
+                name: orderItem.name || orderItem.menuItem?.name || orderItem.material?.name || "Unknown Item",
+                price: typeof orderItem.unitPrice === "string" ? parseFloat(orderItem.unitPrice) : orderItem.unitPrice || 0,
+                quantity: removedQuantity,
+                type: orderItem.menuItem || orderItem.menuItemId ? "menu_item" : "material",
+                originalItem: orderItem.menuItem || orderItem.material || orderItem,
+                notes: orderItem.notes,
+                printerId: printerId,
+                assignedPrinter: assignedPrinter
+              };
+              removedItemsForVoidReceipt.push(voidItem);
+              console.log("🗑️ Added item to void receipt:", { 
+                name: voidItem.name, 
+                quantity: voidItem.quantity, 
+                printerId: printerId,
+                hasPrinter: !!printerId,
+                wasInCart: !!cart.find(ci => keyForCartItem(ci) === key)
+              });
+            }
           }
         });
 
@@ -1504,6 +1653,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             });
           }
         });
+
+        // Print void receipts BEFORE removing items from the order
+        if (removedItemsForVoidReceipt.length > 0) {
+          console.log("🗑️📋 Printing void receipts for removed items before API call:", { count: removedItemsForVoidReceipt.length });
+          await printVoidReceiptsForRemovedItems(removedItemsForVoidReceipt);
+        }
 
         // Execute API calls
         if (itemIdsToRemove.length > 0) {
@@ -1749,12 +1904,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       // Set payment completed flag to prevent order reloading
       setIsPaymentCompleted(true);
-      
+
       // Mark order as completed to prevent future reloading
       completedOrdersRef.current.add(orderToComplete.id.toString());
-      console.log("✅ Order marked as completed:", { 
-        orderId: orderToComplete.id, 
-        completedOrders: Array.from(completedOrdersRef.current) 
+      console.log("✅ Order marked as completed:", {
+        orderId: orderToComplete.id,
+        completedOrders: Array.from(completedOrdersRef.current)
       });
 
       // Clear all order-related state immediately
@@ -1764,7 +1919,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setSelectedEmployee(null);
       setHasUnsavedChanges(false);
       processedOrderRef.current = null;
-      
+
       // Clear current order state to prevent reloading
       clearOrder();
       setSelectedTable(null);
