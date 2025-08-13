@@ -149,14 +149,61 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {/* Left Panel - Cart and Order Management */}
       <div className="flex flex-col bg-white border-r border-gray-200 transition-all duration-200 h-screen" style={{ width: `${leftPanelWidth}%` }}>
         {/* Order Type/Table Selection - Fixed height at top (matches CategoryTabs) */}
-        <div className="border-b border-gray-200 bg-white flex-shrink-0 h-16">
-          {/* This space can be used for order type/table info header if needed */}
-          <div className="h-full flex items-center px-4">
-            <span className="text-sm font-medium text-gray-700">
-              {orderType === 'table' && selectedTable ? `Table ${selectedTable.number}` : 
-               orderType === 'delivery' ? 'Delivery Order' : 
-               orderType === 'takeaway' ? 'Takeaway Order' : 'Current Order'}
-            </span>
+        <div className="border-b border-gray-200 bg-white flex-shrink-0 h-[4.2rem]">
+          <div className="h-full flex items-center justify-between px-4">
+            {/* Order Info */}
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-700">
+                {currentOrder?.orderNumber ? `Order #${currentOrder.orderNumber}` :
+                 orderType === 'table' && selectedTable ? `Table ${selectedTable.number}` : 
+                 orderType === 'delivery' ? 'Delivery Order' : 
+                 orderType === 'takeaway' ? 'Takeaway Order' : 'Current Order'}
+              </span>
+              {currentOrder?.orderNumber && (
+                <span className="text-xs text-gray-500">
+                  {orderType === 'table' && selectedTable ? `Table ${selectedTable.number}` : 
+                   orderType === 'delivery' ? 'Delivery' : 
+                   orderType === 'takeaway' ? 'Takeaway' : 'Order'}
+                </span>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              {/* Notes Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowNotesDialog(true)}
+                className="p-2 hover:bg-blue-50"
+                title="Add Notes"
+              >
+                <FileText className="h-4 w-4 text-blue-600" />
+              </Button>
+
+              {/* Discount Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleShowDiscount}
+                className="p-2 hover:bg-green-50"
+                title="Apply Discount"
+              >
+                <DollarSign className="h-4 w-4 text-green-600" />
+              </Button>
+
+              {/* Clear Cart Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearCart}
+                className="p-2 hover:bg-red-50"
+                title="Clear Cart"
+                disabled={cart.length === 0}
+              >
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -233,7 +280,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         </Dialog>
       )}
 
-      {showTablesLayout && <TablesLayout isOpen={showTablesLayout} onClose={handleCloseTablesLayout} onTableSelect={handleTableSelection} tables={tables} refreshTables={fetchTablesData} />}
+      {showTablesLayout && (
+        <Dialog open={showTablesLayout} onOpenChange={handleCloseTablesLayout}>
+          <DialogContent className="max-w-[100vw] max-h-[100vh] w-full h-full p-0">
+            <TablesLayout isOpen={showTablesLayout} onClose={handleCloseTablesLayout} onTableSelect={handleTableSelection} tables={tables} refreshTables={fetchTablesData} />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {showPrinterSelector && <PrinterSelectorModal isOpen={showPrinterSelector} onClose={handleClosePrinterSelector} onPrinterSelect={handlePrinterSelect} context={printerSelectionContext} selectedPrinter={selectedPrinter} onShowSettings={handleShowPrinterSettings} />}
 
