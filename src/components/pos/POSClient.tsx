@@ -85,6 +85,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const processedOrderRef = useRef<string | null>(null);
   // Prevent re-processing selectedOrderForPOS right after manual save
   const justSavedRef = useRef<boolean>(false);
+  // Track completed orders to prevent reloading
+  const completedOrdersRef = useRef<Set<string>>(new Set());
   const [leftPanelWidth, setLeftPanelWidth] = useState(33.33);
   const [rightPanelPixelWidth, setRightPanelPixelWidth] = useState(0);
   const [isResizing, setIsResizing] = useState(false);
@@ -201,6 +203,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       console.log("🚫 Blocking selectedOrderForPOS - order already loaded and being edited:", {
         currentOrderId: currentOrder.id,
         selectedOrderId: selectedOrderForPOS.id
+      });
+      return;
+    }
+
+    // Block if order has been completed
+    if (selectedOrderForPOS && completedOrdersRef.current.has(selectedOrderForPOS.id.toString())) {
+      console.log("🚫 Blocking selectedOrderForPOS - order has been completed:", {
+        orderId: selectedOrderForPOS.id,
+        completedOrders: Array.from(completedOrdersRef.current)
       });
       return;
     }
@@ -934,11 +945,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, []);
 
-  // const refreshOrderData = useCallback(async () => {
-  //   console.log("🔄 Refreshing order data");
-  //   await Promise.all([refreshOrders(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
-  // }, [refreshOrders, fetchTablesData, refreshCountsRef]);
-
   const refreshAllCounts = useCallback(async () => {
     console.log("🔄 Refreshing all counts (orders, inventory, tables)");
     await Promise.all([refreshOrders(), refreshInventory(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
@@ -1557,6 +1563,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Ask parent to clear selection to avoid re-trigger
       if (onOrderProcessed) onOrderProcessed();
 
+      // Refresh orders count badges immediately after order creation
+      console.log("🔄 Refreshing orders count after order creation");
+      await refreshAllCounts();
+
       // Briefly suppress selectedOrderForPOS effect
       justSavedRef.current = true;
       setTimeout(() => (justSavedRef.current = false), 1500);
@@ -1581,7 +1591,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     } finally {
       setIsLoading(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, printItemsToAssignedPrinters]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, printItemsToAssignedPrinters, refreshAllCounts]);
 
   const handlePayment = useCallback(async () => {
     if (cart.length === 0) {
@@ -1739,6 +1749,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       // Set payment completed flag to prevent order reloading
       setIsPaymentCompleted(true);
+      
+      // Mark order as completed to prevent future reloading
+      completedOrdersRef.current.add(orderToComplete.id.toString());
+      console.log("✅ Order marked as completed:", { 
+        orderId: orderToComplete.id, 
+        completedOrders: Array.from(completedOrdersRef.current) 
+      });
 
       // Clear all order-related state immediately
       setAppliedDiscount(null);
@@ -1747,6 +1764,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setSelectedEmployee(null);
       setHasUnsavedChanges(false);
       processedOrderRef.current = null;
+      
+      // Clear current order state to prevent reloading
+      clearOrder();
+      setSelectedTable(null);
 
       // Clear order persistence
       OrderPersistence.clearCurrentOrder();
