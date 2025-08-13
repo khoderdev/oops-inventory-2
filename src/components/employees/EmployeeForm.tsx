@@ -12,7 +12,7 @@ import type { User } from "@/types/auth";
 import type { CreateEmployeeData, Employee, EmployeeDepartment, UpdateEmployeeData } from "@/types/employee";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
-import { CreditCard, DollarSign, Phone, User as UserIcon } from "lucide-react";
+import { DollarSign, User as UserIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -25,22 +25,12 @@ const employeeSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().optional(),
   phone: z.string().optional(),
-  employeeNumber: z.string().optional(),
   department: z.enum(["kitchen", "service", "management", "cleaning", "security", "other"]),
   position: z.string().min(1, "Position is required"),
   baseSalary: z.number().min(0, "Salary must be positive"),
   discountPercentage: z.number().min(0).max(100).optional(),
   hireDate: z.string().min(1, "Hire date is required"),
-  isActive: z.boolean().optional(),
-  emergencyContactName: z.string().optional(),
-  emergencyContactPhone: z.string().optional(),
-  emergencyContactRelationship: z.string().optional(),
-  emergencyContactAddress: z.string().optional(),
-  bankAccountNumber: z.string().optional(),
-  bankName: z.string().optional(),
-  bankRoutingNumber: z.string().optional(),
-  bankAccountHolderName: z.string().optional(),
-  notes: z.string().optional()
+  isActive: z.boolean().optional()
 });
 
 type EmployeeFormData = z.infer<typeof employeeSchema>;
@@ -102,22 +92,12 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         lastName: employee.lastName || "",
         email: employee.email || "",
         phone: employee.phone || "",
-        employeeNumber: employee.employeeNumber,
         department: employee.department,
         position: employee.position,
         baseSalary: employee.baseSalary,
         discountPercentage: employee.discountPercentage,
         hireDate: employee.hireDate.split("T")[0],
-        isActive: employee.isActive,
-        emergencyContactName: employee.emergencyContact?.name || "",
-        emergencyContactPhone: employee.emergencyContact?.phone || "",
-        emergencyContactRelationship: employee.emergencyContact?.relationship || "",
-        emergencyContactAddress: employee.emergencyContact?.address || "",
-        bankAccountNumber: employee.bankDetails?.accountNumber || "",
-        bankName: employee.bankDetails?.bankName || "",
-        bankRoutingNumber: employee.bankDetails?.routingNumber || "",
-        bankAccountHolderName: employee.bankDetails?.accountHolderName || "",
-        notes: employee.notes || ""
+        isActive: employee.isActive
       });
     } else if (mode === "create") {
       form.reset({
@@ -126,22 +106,12 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         lastName: "",
         email: "",
         phone: "",
-        employeeNumber: "",
         department: "service",
         position: "",
         baseSalary: 0,
         discountPercentage: 0,
         hireDate: new Date().toISOString().split("T")[0],
-        isActive: true,
-        emergencyContactName: "",
-        emergencyContactPhone: "",
-        emergencyContactRelationship: "",
-        emergencyContactAddress: "",
-        bankAccountNumber: "",
-        bankName: "",
-        bankRoutingNumber: "",
-        bankAccountHolderName: "",
-        notes: ""
+        isActive: true
       });
     }
   }, [open, employee, mode, form]);
@@ -154,32 +124,12 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         lastName: data.lastName,
         email: data.email,
         phone: data.phone,
-        employeeNumber: data.employeeNumber,
         department: data.department,
         position: data.position,
         baseSalary: data.baseSalary,
         discountPercentage: data.discountPercentage || 0,
         hireDate: data.hireDate,
-        isActive: data.isActive,
-        emergencyContact:
-          data.emergencyContactName || data.emergencyContactPhone
-            ? {
-                name: data.emergencyContactName || "",
-                phone: data.emergencyContactPhone || "",
-                relationship: data.emergencyContactRelationship,
-                address: data.emergencyContactAddress
-              }
-            : undefined,
-        bankDetails:
-          data.bankAccountNumber || data.bankName
-            ? {
-                accountNumber: data.bankAccountNumber || "",
-                bankName: data.bankName || "",
-                routingNumber: data.bankRoutingNumber,
-                accountHolderName: data.bankAccountHolderName
-              }
-            : undefined,
-        notes: data.notes
+        isActive: data.isActive
       };
       if (mode === "create") {
         await createEmployee(formattedData as CreateEmployeeData);
@@ -213,15 +163,10 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-muted-foreground" />
-                    Basic Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+            {/* Basic Information Section */}
+            <Card>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-2">
                   <FormField
                     control={form.control}
                     name="firstName"
@@ -229,7 +174,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                       <FormItem>
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter first name" {...field} />
+                          <Input placeholder="Enter first name" className="h-11" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -243,7 +188,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                       <FormItem>
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter last name" {...field} />
+                          <Input placeholder="Enter last name" className="h-11" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -257,7 +202,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="employee@example.com" {...field} />
+                          <Input type="email" placeholder="employee@example.com" className="h-11" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -271,7 +216,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="+1 (555) 123-4567" {...field} />
+                          <Input placeholder="+1 (555) 123-4567" className="h-11" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -280,41 +225,13 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
 
                   <FormField
                     control={form.control}
-                    name="userId"
+                    name="hireDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>User Account (Optional)</FormLabel>
-                        <Select onValueChange={value => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value ? field.value.toString() : "none"} disabled={mode === "edit"}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Link to user account (optional)" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">No user account</SelectItem>
-                            {availableUsers.map(user => (
-                              <SelectItem key={user.id} value={user.id.toString()}>
-                                {user.firstName} {user.lastName} ({user.username})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>Optional: Link this employee to a user account for system access</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="employeeNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Employee Number</FormLabel>
+                        <FormLabel>Hire Date</FormLabel>
                         <FormControl>
-                          <Input placeholder="Auto-generated if empty" {...field} />
+                          <Input type="date" className="h-11" {...field} />
                         </FormControl>
-                        <FormDescription>Leave empty to auto-generate</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -328,7 +245,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                         <FormLabel>Department</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-11">
                               <SelectValue placeholder="Select department" />
                             </SelectTrigger>
                           </FormControl>
@@ -352,56 +269,61 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                       <FormItem>
                         <FormLabel>Position</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., Head Chef, Waiter, Manager" {...field} />
+                          <Input placeholder="e.g., Head Chef, Waiter, Manager" className="h-11" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
-                    name="hireDate"
+                    name="userId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Hire Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
+                        <FormLabel>User Account (Optional)</FormLabel>
+                        <Select onValueChange={value => field.onChange(value === "none" ? undefined : parseInt(value))} value={field.value ? field.value.toString() : "none"} disabled={mode === "edit"}>
+                          <FormControl>
+                            <SelectTrigger className="h-11">
+                              <SelectValue placeholder="Link to user account (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">No user account</SelectItem>
+                            {availableUsers.map(user => (
+                              <SelectItem key={user.id} value={user.id.toString()}>
+                                {user.firstName} {user.lastName} ({user.username})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="isActive"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-center gap-4">
+                        <div>
+                          <FormLabel className="text-md">Active</FormLabel>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-                  {mode === "edit" && (
-                    <FormField
-                      control={form.control}
-                      name="isActive"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>Active Status</FormLabel>
-                            <FormDescription>Whether the employee is currently active</FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </CardContent>
-              </Card>
+                {mode === "edit" && <div className="mt-6"></div>}
+              </CardContent>
+            </Card>
 
-              {/* Salary & Benefits */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Salary & Benefits
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+            {/* Salary & Benefits Section */}
+            <Card>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
                   <FormField
                     control={form.control}
                     name="baseSalary"
@@ -409,7 +331,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                       <FormItem>
                         <FormLabel>Base Salary</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                          <Input type="number" step="0.01" placeholder="0.00" className="h-11" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
                         </FormControl>
                         <FormDescription>Monthly base salary amount</FormDescription>
                         <FormMessage />
@@ -424,175 +346,18 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                       <FormItem>
                         <FormLabel>Employee Discount (%)</FormLabel>
                         <FormControl>
-                          <Input type="number" min="0" max="100" step="1" placeholder="0" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                          <Input type="number" min="0" max="100" step="1" placeholder="0" className="h-11" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
                         </FormControl>
                         <FormDescription>Discount percentage for employee purchases</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Phone className="h-4 w-4" />
-                  Emergency Contact
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="emergencyContactName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Full name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="emergencyContactPhone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="+1 (555) 123-4567" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="emergencyContactRelationship"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Relationship</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Spouse, Parent, Sibling" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="emergencyContactAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Address</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Full address" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Bank Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="bankName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bank Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Chase Bank" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="bankAccountHolderName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Account Holder Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Full name on account" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="bankAccountNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Account Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Account number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="bankRoutingNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Routing Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="9-digit routing number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Additional Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Any additional notes about the employee..." className="min-h-[100px]" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            <div className="flex justify-end gap-3 pt-6 border-t mt-8">
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
