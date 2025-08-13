@@ -1474,19 +1474,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         const itemIdsToRemove: string[] = [];
         const removedItemsForVoidReceipt: POSCartItem[] = [];
         
-        console.log("🗑️📋 Starting void receipt computation:", {
-          existingMapSize: existingMap.size,
-          desiredMapSize: desiredMap.size,
-          menuItemsCount: menuItems.length,
-          stockEntriesCount: stockEntries.length
-        });
-
         existingMap.forEach((val, key) => {
           const desired = desiredMap.get(key);
           if (!desired || desired.qty !== val.qty) {
             // remove all existing instances for this key
             itemIdsToRemove.push(...val.ids);
-
             // Track removed items for void receipt printing
             // Find the corresponding order item that was removed/reduced
             const orderItem = existingOrderItems.find(oi => keyForOrderItem(oi) === key);
