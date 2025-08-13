@@ -1,6 +1,6 @@
 import { inventoryAPI } from "@/api/inventory.api";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
-import { AddStockData, Material, MaterialWithStock, MenuItem, RecordWasteData, Section, SectionAssignment, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
+import { AddStockData, CreateMenuItemData, Material, MaterialWithStock, MenuItem, MenuItemCategory, RecordWasteData, Section, SectionAssignment, StockEntry, StockEntryWithMaterial, UpdateMenuItemData } from "@/types/inventory";
 import { atom } from "jotai";
 import { materialsAtom, menuItemsAtom, optimisticAssignmentsAtom, optimisticMaterialsAtom, optimisticSectionsAtom, optimisticStockEntriesAtom, sectionAssignmentsAtom, sectionsAtom, stockEntriesAtom, tabErrorAtom, tabLoadingAtom } from "./inventoryAtoms";
 
@@ -39,7 +39,7 @@ export const fetchStockEntriesAction = atom(null, async (get, set) => {
 
   try {
     const response = await inventoryAPI.stock.getStockEntries();
-    const transformedStockEntries: StockEntryWithMaterial[] = response.data.map((entry: StockEntry & { material?: Material }) => ({
+    const transformedStockEntries: StockEntryWithMaterial[] = response.map((entry: StockEntry & { material?: Material }) => ({
       ...entry,
       id: entry.id.toString(),
       materialId: entry.materialId.toString(),
@@ -396,13 +396,25 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
 // Menu Item CRUD Actions
 export const createMenuItemAction = atom(null, async (get, set, data: MenuItem) => {
   try {
-    // Optimistic update - add menu item immediately
-    set(menuItemsAtom, prev => [...prev, data]);
+    // Optimistic update - add menu item immediately at the top
+    set(menuItemsAtom, prev => [data, ...prev]);
+
+    // Transform MenuItem to CreateMenuItemData format
+    const createData: CreateMenuItemData = {
+      name: data.name,
+      description: data.description,
+      category: typeof data.category === 'string' ? data.category as MenuItemCategory : 
+                typeof data.category === 'object' && data.category?.name ? data.category.name as MenuItemCategory :
+                'plates' as MenuItemCategory, // fallback category
+      price: data.price,
+      ingredients: data.ingredients,
+      isPOSItem: data.isPOSItem
+    };
 
     // Make API call
-    const response = await inventoryAPI.menu.createMenuItem(data);
+    const response = await inventoryAPI.menu.createMenuItem(createData);
 
-    // Update with server response
+    // Update with server response and keep it at the top
     const transformedMenuItem: MenuItem = {
       ...response.data,
       id: response.data.id.toString(),
@@ -410,7 +422,11 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem) 
       updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
     };
 
-    set(menuItemsAtom, prev => prev.map(item => (item.id === data.id ? transformedMenuItem : item)));
+    // Replace the optimistic item with server response and ensure it stays at the top
+    set(menuItemsAtom, prev => {
+      const filteredItems = prev.filter(item => item.id !== data.id);
+      return [transformedMenuItem, ...filteredItems];
+    });
   } catch (error) {
     // Revert optimistic update
     set(menuItemsAtom, prev => prev.filter(item => item.id !== data.id));
@@ -423,14 +439,28 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
   // Get current state before optimistic update
   const currentMenuItems = get(menuItemsAtom);
 
-  // Optimistic update
-  set(menuItemsAtom, prev => prev.map(item => (item.id === id ? { ...item, ...data, updatedAt: new Date() } : item)));
+  // Optimistic update - move updated item to top
+  const updatedItem = { ...currentMenuItems.find(item => item.id === id), ...data, updatedAt: new Date() };
+  const otherItems = currentMenuItems.filter(item => item.id !== id);
+  set(menuItemsAtom, [updatedItem, ...otherItems]);
 
   try {
-    // Make API call
-    const response = await inventoryAPI.menu.updateMenuItem(id, data);
+    // Transform MenuItem to UpdateMenuItemData format
+    const updateData: UpdateMenuItemData = {
+      name: data.name,
+      description: data.description,
+      category: typeof data.category === 'string' ? data.category as MenuItemCategory : 
+                typeof data.category === 'object' && data.category?.name ? data.category.name as MenuItemCategory :
+                undefined, // let backend handle if undefined
+      price: data.price,
+      ingredients: data.ingredients,
+      isPOSItem: data.isPOSItem
+    };
 
-    // Update with server response
+    // Make API call
+    const response = await inventoryAPI.menu.updateMenuItem(id, updateData);
+
+    // Update with server response and keep it at the top
     const transformedMenuItem: MenuItem = {
       ...response.data,
       id: response.data.id.toString(),
@@ -438,7 +468,11 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
       updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
     };
 
-    set(menuItemsAtom, prev => prev.map(item => (item.id === id ? transformedMenuItem : item)));
+    // Replace the optimistic item with server response and ensure it stays at the top
+    set(menuItemsAtom, prev => {
+      const filteredItems = prev.filter(item => item.id !== id);
+      return [transformedMenuItem, ...filteredItems];
+    });
   } catch (error) {
     // Revert optimistic update
     set(menuItemsAtom, currentMenuItems);
