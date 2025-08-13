@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
-import { Material, StockEntry, Wasting, Printer } from "../models/index.js";
+import { Material, StockEntry, Wasting, Printer, Category } from "../models/index.js";
 import { StockEntryAuditHelperSimple } from "../decorators/stockEntryAuditDecoratorSimple.js";
 import { 
   parsePaginationParams, 
@@ -53,7 +53,12 @@ const stockEntriesController = {
         queryOptions.include = [{
           model: Material,
           as: "material",
-          attributes: ['id', 'name', 'baseUnit', 'unitType', 'inputUnit', 'packageQuantity', 'category']
+          attributes: ['id', 'name', 'baseUnit', 'unitType', 'inputUnit', 'packageQuantity', 'categoryId'],
+          include: [{
+            model: Category,
+            as: "category",
+            attributes: ['id', 'name', 'value', 'type']
+          }]
         }];
       }
 

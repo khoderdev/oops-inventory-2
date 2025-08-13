@@ -38,39 +38,40 @@ export async function seedDatabase() {
       console.log("🔄 Proceeding with seeding (duplicates will be skipped)...");
     }
 
-    // Step 2: Create printers and printer channels
+    // Step 2: Create categories FIRST (materials depend on categories)
+    console.log("\n📁 Seeding categories...");
+    const categoriesResult = await seedCategories();
+    console.log(`📁 Categories: ${categoriesResult.length} categories seeded successfully`);
+
+    // Step 3: Create printers and printer channels
     console.log("\n🖨️ Seeding printers...");
     await seedPrinters();
     console.log(`🖨️ Printers: Seeded successfully`);
 
-    // Step 3: Create materials
+    // Step 4: Create materials (now that categories exist)
     console.log("\n📦 Seeding materials...");
     const materialsResult = await seedMaterials();
     console.log(`📦 Materials: ${materialsResult.created} created, ${materialsResult.existing} existed`);
 
-    // Step 4: Create stock entries
+    // Step 5: Create stock entries
     console.log("\n📋 Seeding stock entries...");
     const stockResult = await seedStockEntries();
     console.log(`📋 Stock Entries: ${stockResult.created} created, ${stockResult.skipped} skipped`);
 
-    // Step 5: Create menu items with ingredients
+    // Step 6: Create menu items with ingredients
     console.log("\n🍽️ Seeding menu items...");
     const menuResult = await seedMenuItems();
     console.log(`🍽️ Menu Items: ${menuResult.created} created, ${menuResult.skipped} skipped`);
 
-    // Step 6: Create beverages
+    // Step 7: Create beverages
     console.log("\n🍹 Seeding beverages...");
     const beveragesResult = await seedBeverages();
     console.log(`🍹 Beverages: ${beveragesResult.created} created, ${beveragesResult.skipped} skipped`);
 
-    // Step 7: Create categories
-    console.log("\n📁 Seeding categories...");
-    const categoriesResult = await seedCategories();
-    console.log(`📁 Categories: ${categoriesResult.created} created, ${categoriesResult.existing} existed`);
-
     // Summary
-    const totalCreated = usersResult.created + materialsResult.created + stockResult.created + menuResult.created + beveragesResult.created + categoriesResult.created;
-    const totalSkipped = (usersResult.existing || 0) + (materialsResult.existing || 0) + (stockResult.skipped || 0) + (menuResult.skipped || 0) + (beveragesResult.skipped || 0) + (categoriesResult.existing || 0);
+    const categoriesCreated = Array.isArray(categoriesResult) ? categoriesResult.length : (categoriesResult.created || 0);
+    const totalCreated = usersResult.created + materialsResult.created + stockResult.created + menuResult.created + beveragesResult.created + categoriesCreated;
+    const totalSkipped = (usersResult.existing || 0) + (materialsResult.existing || 0) + (stockResult.skipped || 0) + (menuResult.skipped || 0) + (beveragesResult.skipped || 0);
 
     console.log("\n✅ Database seeding completed successfully!");
     console.log(`📊 Summary: ${totalCreated} items created, ${totalSkipped} items skipped (already existed)`);

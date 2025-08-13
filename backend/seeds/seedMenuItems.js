@@ -1,5 +1,6 @@
 import Material from "../models/materials.js";
 import { MenuItem, MenuItemIngredient } from "../models/menuItems.js";
+import Category from "../models/Category.js";
 
 /**
  * Seed comprehensive menu items with all 176 items from the menu
@@ -14,7 +15,17 @@ export async function seedMenuItems() {
     materialMap[material.name] = material;
   });
 
-  const menuItems = [
+  // Get all menu item categories to map category values to IDs
+  const categories = await Category.findAll({ where: { type: 'menu_items' } });
+  const categoryMap = {};
+  categories.forEach(cat => {
+    categoryMap[cat.value] = cat.id;
+  });
+
+  console.log("📋 Available menu categories:", categoryMap);
+
+  // Define menu items with category values (will be converted to categoryIds below)
+  const menuItemsData = [
     // =============================================================================
     // APPETIZERS - 17 ITEMS
     // =============================================================================
@@ -780,7 +791,7 @@ export async function seedMenuItems() {
     {
       name: "Edamame",
       description: "Steamed soy beans, rock salt",
-      category: "plates",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       printerId: 3,
@@ -792,7 +803,7 @@ export async function seedMenuItems() {
     {
       name: "Spicy Edamame",
       description: "Steamed soy beans, sriracha, togarashi",
-      category: "plates",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       printerId: 3,
@@ -805,7 +816,7 @@ export async function seedMenuItems() {
     {
       name: "Shoyu Carpaccio",
       description: "120g thin slices of fresh salmon & tuna, sesame seeds, green onions",
-      category: "plates",
+      category: "sushi",
       price: 12.00,
       isPOSItem: true,
       printerId: 3,
@@ -819,7 +830,7 @@ export async function seedMenuItems() {
     {
       name: "Dynamite Salmon",
       description: "150g tube fresh salmon with special sauce",
-      category: "plates",
+      category: "sushi",
       price: 14.00,
       isPOSItem: true,
       printerId: 3,
@@ -833,7 +844,7 @@ export async function seedMenuItems() {
     {
       name: "Oishi Kani",
       description: "Premium crab sticks, cucumber, carrots, red cabbage, mango, crispy flakes",
-      category: "plates",
+      category: "sushi",
       price: 9.50,
       isPOSItem: true,
       printerId: 3,
@@ -849,7 +860,7 @@ export async function seedMenuItems() {
     {
       name: "Crunchy Salmon",
       description: "Fresh salmon, crispy flakes served with special sauce",
-      category: "plates",
+      category: "sushi",
       price: 12.00,
       isPOSItem: true,
       printerId: 3,
@@ -862,7 +873,7 @@ export async function seedMenuItems() {
     {
       name: "Crunchy Tuna",
       description: "Fresh tuna, crispy flakes served with special sauce",
-      category: "plates",
+      category: "sushi",
       price: 14.00,
       isPOSItem: true,
       printerId: 3,
@@ -875,7 +886,7 @@ export async function seedMenuItems() {
     {
       name: "Exotic Poke Bowl",
       description: "Sushi rice, fresh salmon, shrimps, crab, mango, avocado, red cabbage, edamame, strawberry exotic mango sauce",
-      category: "plates",
+      category: "sushi",
       price: 15.00,
       isPOSItem: true,
       printerId: 3,
@@ -894,7 +905,7 @@ export async function seedMenuItems() {
     {
       name: "Rainbow",
       description: "Premium crab sticks, shrimps, fresh salmon & tuna, mango, avocado, red cabbage, exotic mango sauce",
-      category: "plates",
+      category: "sushi",
       price: 15.00,
       isPOSItem: true,
       printerId: 3,
@@ -914,7 +925,7 @@ export async function seedMenuItems() {
     {
       name: "Crab Sashimi",
       description: "3 PC",
-      category: "plates",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       printerId: 3,
@@ -925,7 +936,7 @@ export async function seedMenuItems() {
     {
       name: "Shrimp Sashimi",
       description: "3 PC",
-      category: "plates",
+      category: "sushi",
       price: 5.50,
       isPOSItem: true,
       printerId: 3,
@@ -936,7 +947,7 @@ export async function seedMenuItems() {
     {
       name: "Salmon Sashimi",
       description: "3 PC",
-      category: "plates",
+      category: "sushi",
       price: 6.50,
       isPOSItem: true,
       printerId: 3,
@@ -947,7 +958,7 @@ export async function seedMenuItems() {
     {
       name: "Tuna Sashimi",
       description: "3 PC",
-      category: "plates",
+      category: "sushi",
       price: 8.00,
       isPOSItem: true,
       printerId: 3,
@@ -960,7 +971,7 @@ export async function seedMenuItems() {
     {
       name: "Crab Temaki",
       description: "Hand roll with crab",
-      category: "plates",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       printerId: 3,
@@ -973,7 +984,7 @@ export async function seedMenuItems() {
     {
       name: "Shrimp Temaki",
       description: "Hand roll with shrimp",
-      category: "plates",
+      category: "sushi",
       price: 5.50,
       isPOSItem: true,
       printerId: 3,
@@ -986,7 +997,7 @@ export async function seedMenuItems() {
     {
       name: "Salmon Temaki",
       description: "Hand roll with salmon",
-      category: "plates",
+      category: "sushi",
       price: 6.00,
       isPOSItem: true,
       printerId: 3,
@@ -999,7 +1010,7 @@ export async function seedMenuItems() {
     {
       name: "Shoyu Temaki",
       description: "Special hand roll",
-      category: "plates",
+      category: "sushi",
       price: 6.50,
       isPOSItem: true,
       printerId: 3,
@@ -1015,7 +1026,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy California",
       description: "Crispy wrap, Premium crab sticks, cucumber, avocado",
-      category: "plates",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       printerId: 3,
@@ -1031,7 +1042,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy Shrimps",
       description: "Crispy wrap, shrimps, avocado",
-      category: "plates",
+      category: "sushi",
       price: 4.50,
       isPOSItem: true,
       printerId: 3,
@@ -1046,7 +1057,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy Salmon",
       description: "Crispy wrap, salmon, avocado, cream cheese",
-      category: "plates",
+      category: "sushi",
       price: 6.00,
       isPOSItem: true,
       printerId: 3,
@@ -1062,7 +1073,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy Tuna",
       description: "Crispy wrap, tuna, avocado, cream cheese",
-      category: "plates",
+      category: "sushi",
       price: 6.00,
       isPOSItem: true,
       printerId: 3,
@@ -1078,7 +1089,7 @@ export async function seedMenuItems() {
     {
       name: "Crispy Crazy",
       description: "Crispy wrap, crab mix, crab mix topping",
-      category: "plates",
+      category: "sushi",
       price: 5.00,
       isPOSItem: true,
       printerId: 3,
@@ -1094,7 +1105,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Strawberry",
       description: "Ura maki with strawberry",
-      category: "plates",
+      category: "sushi",
       price: 4.50,
       isPOSItem: true,
       printerId: 3,
@@ -1108,7 +1119,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Kiwi",
       description: "Ura maki with kiwi",
-      category: "plates",
+      category: "sushi",
       price: 4.50,
       isPOSItem: true,
       printerId: 3,
@@ -1122,7 +1133,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Mango",
       description: "Ura maki with mango",
-      category: "plates",
+      category: "sushi",
       price: 5.00,
       isPOSItem: true,
       printerId: 3,
@@ -1136,7 +1147,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Avo",
       description: "Ura maki with avocado",
-      category: "plates",
+      category: "sushi",
       price: 5.00,
       isPOSItem: true,
       printerId: 3,
@@ -1150,7 +1161,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Shrimps",
       description: "Ura maki with shrimps",
-      category: "plates",
+      category: "sushi",
       price: 5.00,
       isPOSItem: true,
       printerId: 3,
@@ -1164,7 +1175,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Salmon",
       description: "Ura maki with salmon",
-      category: "plates",
+      category: "sushi",
       price: 5.50,
       isPOSItem: true,
       printerId: 3,
@@ -1178,7 +1189,7 @@ export async function seedMenuItems() {
     {
       name: "Crazy Tuna",
       description: "Ura maki with tuna",
-      category: "plates",
+      category: "sushi",
       price: 6.00,
       isPOSItem: true,
       printerId: 3,
@@ -1192,7 +1203,7 @@ export async function seedMenuItems() {
     {
       name: "Spicy Shrimps",
       description: "Spicy ura maki with shrimps",
-      category: "plates",
+      category: "sushi",
       price: 5.50,
       isPOSItem: true,
       printerId: 3,
@@ -1206,7 +1217,7 @@ export async function seedMenuItems() {
     {
       name: "Spicy Salmon",
       description: "Spicy ura maki with salmon",
-      category: "plates",
+      category: "sushi",
       price: 6.00,
       isPOSItem: true,
       printerId: 3,
@@ -1220,7 +1231,7 @@ export async function seedMenuItems() {
     {
       name: "Spicy Tuna",
       description: "Spicy ura maki with tuna",
-      category: "plates",
+      category: "sushi",
       price: 6.50,
       isPOSItem: true,
       printerId: 3,
@@ -1236,7 +1247,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Avocado",
       description: "Thin roll with avocado",
-      category: "plates",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       printerId: 3,
@@ -1249,7 +1260,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Mango",
       description: "Thin roll with mango",
-      category: "plates",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       printerId: 3,
@@ -1262,7 +1273,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Salmon",
       description: "Thin roll with salmon",
-      category: "plates",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       printerId: 3,
@@ -1275,7 +1286,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Tuna",
       description: "Thin roll with tuna",
-      category: "plates",
+      category: "sushi",
       price: 4.00,
       isPOSItem: true,
       printerId: 3,
@@ -1288,7 +1299,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Shrimp",
       description: "Thin roll with shrimp",
-      category: "plates",
+      category: "sushi",
       price: 3.50,
       isPOSItem: true,
       printerId: 3,
@@ -1301,7 +1312,7 @@ export async function seedMenuItems() {
     {
       name: "Hoso Crab Sticks",
       description: "Thin roll with crab sticks",
-      category: "plates",
+      category: "sushi",
       price: 3.50,
       isPOSItem: true,
       printerId: 3,
@@ -1316,7 +1327,7 @@ export async function seedMenuItems() {
     {
       name: "Burrito California",
       description: "Crab mix, avocado, crispy, dynamite sauce, teriyaki",
-      category: "plates",
+      category: "sushi",
       price: 8.00,
       isPOSItem: true,
       printerId: 3,
@@ -1333,7 +1344,7 @@ export async function seedMenuItems() {
     {
       name: "Burrito Lady Choice",
       description: "Shrimp mix, crab mix, avocado, mango, cream cheese, tobiko, crispy flakes, mayo, teriyaki",
-      category: "plates",
+      category: "sushi",
       price: 8.00,
       isPOSItem: true,
       printerId: 3,
@@ -1354,7 +1365,7 @@ export async function seedMenuItems() {
     {
       name: "Burrito Tokyo",
       description: "Salmon, tuna, crab mix, cream cheese, avocado, tobiko, crispy flakes, kimchi mayo, teriyaki",
-      category: "plates",
+      category: "sushi",
       price: 11.00,
       isPOSItem: true,
       printerId: 3,
@@ -3288,6 +3299,24 @@ export async function seedMenuItems() {
     }
   ];
 
+  // Convert category values to categoryIds for all menu items
+  const menuItems = menuItemsData.map(item => {
+    const categoryId = categoryMap[item.category] || null;
+    
+    if (item.category && !categoryId) {
+      console.warn(`⚠️ Category '${item.category}' not found for menu item '${item.name}'. Setting categoryId to null.`);
+    }
+    
+    // Return item with categoryId instead of category
+    const { category, ...itemWithoutCategory } = item;
+    return {
+      ...itemWithoutCategory,
+      categoryId
+    };
+  });
+
+  console.log(`🔄 Converted ${menuItems.length} menu items from category values to categoryIds`);
+
   // TODO: Continue with remaining categories:
   // - SUSHI (77 items) - PARTIALLY COMPLETE (~36 more items needed)
 
@@ -3302,11 +3331,11 @@ export async function seedMenuItems() {
       });
 
       if (!existingItem) {
-        // Create menu item
+        // Create menu item (categoryId already converted above)
         const menuItem = await MenuItem.create({
           name: itemData.name,
           description: itemData.description,
-          category: itemData.category,
+          categoryId: itemData.categoryId,
           price: itemData.price,
           isPOSItem: itemData.isPOSItem,
           printerId: itemData.printerId

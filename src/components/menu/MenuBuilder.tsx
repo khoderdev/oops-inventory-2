@@ -368,7 +368,14 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         header: "Category",
         cell: ({ getValue }) => {
           const category = getValue();
-          return MENU_CATEGORIES.find(c => c.value === category)?.label || category;
+          let categoryLabel;
+          if (typeof category === 'object' && category !== null) {
+            categoryLabel = category.name || 'Uncategorized';
+          } else {
+            // If category is a string, find the matching label
+            categoryLabel = MENU_CATEGORIES.find(c => c.value === category)?.label || category || 'Uncategorized';
+          }
+          return <span>{String(categoryLabel)}</span>;
         },
         size: 128
       }),

@@ -383,6 +383,11 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
     case "conversions":
       await set(fetchMaterialsAction); // Reuse materials for conversions
       break;
+    case "categories":
+      // Categories tab doesn't need specific data fetching as categories are managed separately
+      // Categories are fetched via getCategoriesByType API when needed
+      console.log(`Categories tab loaded - categories are fetched dynamically via API`);
+      break;
     default:
       console.error(`No specific data fetching defined for tab: ${tabValue}`);
   }

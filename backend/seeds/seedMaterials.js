@@ -1,10 +1,20 @@
 import Material from "../models/materials.js";
+import Category from "../models/Category.js";
 
 /**
  * Seed materials table with comprehensive ingredients
  */
 export async function seedMaterials() {
   console.log("📦 Seeding materials...");
+
+  // First, get all categories to map category values to IDs
+  const categories = await Category.findAll({ where: { type: 'materials' } });
+  const categoryMap = {};
+  categories.forEach(cat => {
+    categoryMap[cat.value] = cat.id;
+  });
+
+  console.log("📋 Available categories:", categoryMap);
 
   const materials = [
     // Proteins
@@ -273,8 +283,21 @@ export async function seedMaterials() {
       });
 
       if (!existingMaterial) {
-        await Material.create(materialData);
-        console.log(`✅ Created material: ${materialData.name}`);
+        // Convert category value to categoryId
+        const { category, ...materialDataWithoutCategory } = materialData;
+        const categoryId = categoryMap[category] || null;
+        
+        if (category && !categoryId) {
+          console.warn(`⚠️ Category '${category}' not found for material '${materialData.name}'. Setting categoryId to null.`);
+        }
+
+        const finalMaterialData = {
+          ...materialDataWithoutCategory,
+          categoryId
+        };
+
+        await Material.create(finalMaterialData);
+        console.log(`✅ Created material: ${materialData.name} (categoryId: ${categoryId})`);
         createdCount++;
       } else {
         existingCount++;

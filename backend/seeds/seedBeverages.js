@@ -1,4 +1,4 @@
-import { MenuItem } from "../models/index.js";
+import { MenuItem, Category } from "../models/index.js";
 
 const beverageItems = [
   // Beers & Energy Drinks
@@ -935,11 +935,34 @@ const beverageItems = [
 export const seedBeverages = async () => {
   console.log("🍹 Starting beverages seeding...");
 
+  // Get all menu item categories to map category values to IDs
+  const categories = await Category.findAll({ where: { type: 'menu_items' } });
+  const categoryMap = {};
+  categories.forEach(cat => {
+    categoryMap[cat.value] = cat.id;
+  });
+
+  console.log("📋 Available beverage categories:", categoryMap);
+
+  // Convert beverages data to use categoryIds
+  const beveragesWithCategoryIds = beverageItems.map(beverage => {
+    const categoryId = categoryMap[beverage.category];
+    if (!categoryId) {
+      console.warn(`⚠️  No category found for value '${beverage.category}' in beverage: ${beverage.name}`);
+    }
+    
+    const { category, ...beverageData } = beverage;
+    return {
+      ...beverageData,
+      categoryId: categoryId || null
+    };
+  });
+
   let createdCount = 0;
   let skippedCount = 0;
   const errors = [];
 
-  for (const beverage of beverageItems) {
+  for (const beverage of beveragesWithCategoryIds) {
     try {
       const [menuItem, created] = await MenuItem.findOrCreate({
         where: { name: beverage.name },
@@ -948,7 +971,7 @@ export const seedBeverages = async () => {
 
       if (created) {
         createdCount++;
-        console.log(`✅ Created beverage: ${beverage.name} ($${beverage.price})`);
+        console.log(`✅ Created beverage: ${beverage.name} ($${beverage.price}) - Category ID: ${beverage.categoryId}`);
       } else {
         skippedCount++;
         console.log(`⏭️  Beverage already exists: ${beverage.name}`);

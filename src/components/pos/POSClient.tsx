@@ -2,6 +2,7 @@ import { menuAPI } from "@/api/menu.api.ts.tsx";
 import { ordersAPI } from "@/api/orders.api";
 import { printerAPI } from "@/api/printer.api";
 import { tablesAPI } from "@/api/tables.api";
+import { getCategoriesByType } from "@/api/categories.api";
 import { usePrefetch } from "@/hooks/usePrefetch";
 import { useOrdersPrefetch } from "@/hooks/useOrdersPrefetch";
 import PrinterSelector from "@/components/common/PrinterSelector";
@@ -48,6 +49,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [stockEntries, setStockEntries] = useState<StockEntryWithMaterial[]>([]);
   const [posItems, setPosItems] = useState<POSItem[]>([]);
+  const [categoriesMap, setCategoriesMap] = useState<Map<number, string>>(new Map());
   const [optimisticAssignments, setOptimisticAssignments] = useState<SectionAssignment[]>(sectionAssignments);
   const [negativeStockWarnings] = useState<NegativeStockWarning[]>([]);
   const [showNegativeStockDialog, setShowNegativeStockDialog] = useState(false);
@@ -99,6 +101,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
   const [isSaving, setIsSaving] = useState(false);
 
+  // 📂 Compute categories for CategoryTabs
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set<string>();
+    
+    // Add "all" as the first category
+    uniqueCategories.add("all");
+    
+    // Extract unique categories from posItems
+    posItems.forEach(item => {
+      if (item.category && typeof item.category === 'string') {
+        uniqueCategories.add(item.category);
+      }
+    });
+    
+    return Array.from(uniqueCategories);
+  }, [posItems]);
+
   // 🛒 Calculate subtotal and total
   const subtotal = (cart || []).filter(Boolean).reduce((sum, item) => {
     if (!item || typeof item.price !== "number" || typeof item.quantity !== "number") {
@@ -110,7 +129,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const tax = 0;
   const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
   const total = Math.max(0, subtotal - discountAmountCalculated);
-  // console.log("🛒 Subtotal calculated:", { subtotal, discount: discountAmountCalculated, total });
 
   const handleCloseOrdersDialog = useCallback(() => {
     console.log("📋 Closing orders dialog");
@@ -674,18 +692,65 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [menu]);
 
+  // Fetch categories mapping
   useEffect(() => {
-    if (menu && stock) {
+    const fetchCategories = async () => {
+      try {
+        console.log("📂 Fetching categories for POS");
+        const [menuCategories, materialCategories] = await Promise.all([
+          getCategoriesByType('menu_items'),
+          getCategoriesByType('materials')
+        ]);
+        
+        const categoryMap = new Map<number, string>();
+        
+        // Add menu categories
+        if (menuCategories?.totalItems) {
+          menuCategories.totalItems.forEach(category => {
+            categoryMap.set(category.id, category.name);
+          });
+        }
+        
+        // Add material categories
+        if (materialCategories?.totalItems) {
+          materialCategories.totalItems.forEach(category => {
+            categoryMap.set(category.id, category.name);
+          });
+        }
+        
+        console.log("📂 Categories map created:", { size: categoryMap.size });
+        setCategoriesMap(categoryMap);
+      } catch (error) {
+        console.error("❌ Failed to fetch categories:", error);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (menu && stock && categoriesMap.size > 0) {
       console.log("🛍️ Converting menu and stock to POS items");
       const convertToPOSItems = () => {
         const posItemsFromData: POSItem[] = [];
         menu.forEach(menuItem => {
           if (menuItem.isPOSItem) {
+            // Extract category ID from category object or use the category directly if it's already an ID
+            let categoryId: number;
+            if (menuItem.category && typeof menuItem.category === 'object' && 'id' in menuItem.category) {
+              categoryId = (menuItem.category as any).id;
+            } else if (menuItem.category && typeof menuItem.category === 'number') {
+              categoryId = menuItem.category;
+            } else {
+              console.warn('⚠️ Invalid category format for menu item:', menuItem.name, menuItem.category);
+              categoryId = 0;
+            }
+            const categoryName = categoriesMap.get(categoryId) || 'uncategorized';
             posItemsFromData.push({
               id: `menu-${menuItem.id}`,
               name: menuItem.name,
               price: menuItem.price,
-              category: menuItem.category,
+              category: categoryName,
               type: "menu_item",
               menuItemId: menuItem.id,
               unit: menuItem.unit,
@@ -701,11 +766,27 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         stock.forEach(stockEntry => {
           if (stockEntry.isPOSItem && stockEntry.material) {
+            // Extract category ID from category object or use the category directly if it's already an ID
+            let categoryId: number;
+            const category = stockEntry.material.category;
+            
+            if (category === null || category === undefined) {
+              console.warn('⚠️ Null or undefined category for stock entry:', stockEntry.material.name);
+              categoryId = 0;
+            } else if (typeof category === 'object' && category !== null && 'id' in category) {
+              categoryId = (category as any).id;
+            } else if (typeof category === 'number') {
+              categoryId = category;
+            } else {
+              console.warn('⚠️ Invalid category type for stock entry:', stockEntry.material.name, category);
+              categoryId = 0;
+            }
+            const categoryName = categoriesMap.get(categoryId) || 'uncategorized';
             posItemsFromData.push({
               id: `stock-${stockEntry.id}`,
               name: stockEntry.material.name,
               price: stockEntry.costPerBaseUnit || 0,
-              category: stockEntry.material.category,
+              category: categoryName,
               type: "stock_entry",
               materialId: Number(stockEntry.materialId),
               unit: stockEntry.material.baseUnit,
@@ -717,12 +798,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             });
           }
         });
-        // console.log("🛍️ POS items generated:", { count: posItemsFromData.length });
+        console.log("🛍️ POS items generated with category names:", { count: posItemsFromData.length });
         setPosItems(posItemsFromData);
       };
       convertToPOSItems();
     }
-  }, [menu, stock, status.isLoading]);
+  }, [menu, stock, status.isLoading, categoriesMap]);
 
   useEffect(() => {
     const fetchAdditionalData = async () => {
@@ -850,7 +931,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     return matchesSearch;
   });
 
-  const categories = ["all", ...Array.from(new Set(posItems.map(item => item.category).filter(Boolean)))];
+
   const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
 
   const recalculateEmployeeDiscount = useCallback(

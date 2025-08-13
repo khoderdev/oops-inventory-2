@@ -9,7 +9,7 @@ export const ErrorFallback = ({ pageTitle }: { pageTitle?: string }) => (
         <AlertTriangle className="w-8 h-8 text-destructive" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold text-foreground">Something went wrong</h2>
+        <h2 className="text-lg font-semibold text-foreground">oOps! Something went wrong</h2>
         <p className="text-sm text-muted-foreground max-w-md">{pageTitle ? `There was an error loading ${pageTitle}.` : "An unexpected error occurred."} Please try refreshing the page or contact support if the problem persists.</p>
       </div>
       <Button onClick={() => window.location.reload()} variant="outline" className="btn-touch">
