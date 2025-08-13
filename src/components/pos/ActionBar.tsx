@@ -186,7 +186,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
   };
 
   return (
-    <div className={`border-t border-gray-200 bg-gray-50 ${className}`}>
+    <div className={`bg-gray-50 ${className}`}>
       <div style={actualGridStyle}>
         {visibleButtons.map((button, index) => (
           <ActionButton key={button.id || index} {...button} />

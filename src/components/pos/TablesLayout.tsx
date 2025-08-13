@@ -9,7 +9,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
 
-export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
+export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {}, isOpen, refreshTables }) => {
   const safeTablesList = useMemo(() => (Array.isArray(tables) ? tables : []), [tables]);
   const [updatedTables, setUpdatedTables] = useState<Table[]>(safeTablesList);
   const [hoveredTable, setHoveredTable] = useState<Table | null>(null);

@@ -11,22 +11,22 @@ export const VirtualizedProductGrid: React.FC<ProductGridProps> = ({ posItems, o
   // Calculate grid configuration based on panel width
   const gridConfig = useMemo(() => {
     const getColumnsCount = (width: number) => {
-      if (width <= 300) return 1;
-      if (width <= 450) return 2;
-      if (width <= 650) return 3;
-      if (width <= 850) return 4;
-      if (width <= 1100) return 5;
-      if (width <= 1400) return 6;
-      return 7;
+      if (width <= 300) return 2;
+      if (width <= 450) return 3;
+      if (width <= 650) return 4;
+      if (width <= 850) return 5;
+      if (width <= 1100) return 6;
+      if (width <= 1400) return 7;
+      return 8;
     };
 
     const columns = getColumnsCount(rightPanelPixelWidth);
-    const itemHeight = 200; // Fixed height for consistency
+    const itemHeight = 140; // Smaller height for more compact items
 
     return {
       columns,
       itemHeight,
-      gap: 16
+      gap: 12
     };
   }, [rightPanelPixelWidth]);
 
@@ -56,32 +56,32 @@ export const VirtualizedProductGrid: React.FC<ProductGridProps> = ({ posItems, o
       };
     if (rightPanelPixelWidth <= 650)
       return {
-        itemName: "text-sm",
-        price: "text-base",
+        itemName: "text-xs",
+        price: "text-sm",
         quantity: "text-xs"
       };
     if (rightPanelPixelWidth <= 850)
       return {
-        itemName: "text-base",
-        price: "text-lg",
-        quantity: "text-sm"
+        itemName: "text-sm",
+        price: "text-base",
+        quantity: "text-xs"
       };
     if (rightPanelPixelWidth <= 1100)
       return {
-        itemName: "text-lg",
-        price: "text-xl",
-        quantity: "text-sm"
+        itemName: "text-sm",
+        price: "text-lg",
+        quantity: "text-xs"
       };
     if (rightPanelPixelWidth <= 1400)
       return {
-        itemName: "text-lg",
-        price: "text-xl",
-        quantity: "text-base"
+        itemName: "text-sm",
+        price: "text-lg",
+        quantity: "text-sm"
       };
     return {
-      itemName: "text-lg",
-      price: "text-xl",
-      quantity: "text-base"
+      itemName: "text-base",
+      price: "text-lg",
+      quantity: "text-sm"
     };
   }, [rightPanelPixelWidth]);
 
@@ -137,12 +137,12 @@ export const VirtualizedProductGrid: React.FC<ProductGridProps> = ({ posItems, o
         </div>
 
         {/* Content Section */}
-        <div className="p-2 flex flex-col justify-between min-h-0">
-          <div className="space-y-1">
-            <h4 className={`${textSizes.itemName} font-medium text-gray-900 line-clamp-2 leading-tight group-hover:text-primary transition-colors duration-200`}>{item.name}</h4>
+        <div className="p-1.5 flex flex-col justify-between min-h-0">
+          <div className="space-y-0.5">
+            <h4 className={`${textSizes.itemName} font-medium text-gray-900 line-clamp-1 leading-tight group-hover:text-primary transition-colors duration-200`}>{item.name}</h4>
           </div>
 
-          <div className="mt-1 pt-1 border-t border-gray-100">
+          <div className="mt-0.5 pt-0.5 border-t border-gray-100">
             <div className="flex items-center justify-center">
               <span className={`${textSizes.price} font-bold text-primary`}>{formatCurrency(item.price)}</span>
               {item.availableQuantity && item.availableQuantity !== 999 && (
@@ -184,41 +184,51 @@ export const VirtualizedProductGrid: React.FC<ProductGridProps> = ({ posItems, o
   }
 
   return (
-    <div className="flex-1 p-1 sm:p-2 lg:p-3 overflow-y-auto safe-area-padding">
+    <div className="w-full h-full overflow-hidden">
       <div
         ref={parentRef}
-        className="h-full overflow-auto"
-        style={{
-          height: virtualizer.getTotalSize(),
-          position: "relative"
-        }}
+        className="w-full h-full overflow-auto p-2"
       >
-        {virtualizer.getVirtualItems().map(virtualRow => {
-          const rowItems = virtualRows[virtualRow.index];
-          if (!rowItems || rowItems.length === 0) return null;
+        <div
+          style={{
+            height: `${virtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {virtualizer.getVirtualItems().map(virtualRow => {
+            const rowItems = virtualRows[virtualRow.index];
+            if (!rowItems || rowItems.length === 0) return null;
 
-          return (
-            <div
-              key={virtualRow.index}
-              data-index={virtualRow.index}
-              ref={virtualizer.measureElement}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: `${virtualRow.size}px`,
-                transform: `translateY(${virtualRow.start}px)`
-              }}
-            >
-              <div className={`grid gap-2 sm:gap-4 lg:gap-4 ${gridConfig.columns === 1 ? "grid-cols-1" : gridConfig.columns === 2 ? "grid-cols-2" : gridConfig.columns === 3 ? "grid-cols-3" : gridConfig.columns === 4 ? "grid-cols-4" : gridConfig.columns === 5 ? "grid-cols-5" : gridConfig.columns === 6 ? "grid-cols-6" : "grid-cols-7"} h-full`}>
-                {rowItems.map(item => (
-                  <ProductItem key={item.id} item={item} />
-                ))}
+            return (
+              <div
+                key={virtualRow.index}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                  padding: '0 8px'
+                }}
+              >
+                <div 
+                  className="grid gap-3 h-full"
+                  style={{
+                    gridTemplateColumns: `repeat(${gridConfig.columns}, minmax(0, 1fr))`
+                  }}
+                >
+                  {rowItems.map(item => (
+                    <ProductItem key={item.id} item={item} />
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

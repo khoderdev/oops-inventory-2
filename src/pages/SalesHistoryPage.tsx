@@ -503,7 +503,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
   return (
     <>
       {/* Header */}
-      <div className="sticky top-0 flex items-center justify-between p-2 bg-gray-50">
+      <div className="sticky top-0 flex items-center justify-between px-6 py-2 bg-gray-50">
         <h1 className="text-3xl font-bold">Sales History</h1>
 
         {/* Tabs */}

@@ -491,6 +491,7 @@ export interface ReceiptPrinterProps {
   receiptData: ReceiptData | null;
   autoPrint?: boolean;
   onPrintSuccess?: () => void;
+  onPrint?: (printer?: any) => Promise<void>;
   businessInfo?: {
     name: string;
     address: string;
@@ -668,6 +669,9 @@ export interface POSClientOrdersProps {
   onClose?: () => void;
   onOrderSelect?: (order: OrderSummary) => void;
   onOrderStatusChange?: () => void; // Callback to refresh table badges when order status changes
+  activeView?: "cart" | "products";
+  onViewChange?: React.Dispatch<React.SetStateAction<"cart" | "products">>;
+  refreshTrigger?: () => Promise<void>;
 }
 
 export interface OrderFilters {
@@ -720,6 +724,8 @@ export interface TablesLayoutProps {
   onTableSelect: (table: Table) => void;
   onClose: () => void;
   tableOrders?: { [tableId: string]: number }; // For notification badges
+  isOpen?: boolean;
+  refreshTables?: () => Promise<void>;
 }
 
 export interface CategoryTabsProps {

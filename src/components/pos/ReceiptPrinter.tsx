@@ -14,6 +14,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   receiptData,
   autoPrint = false,
   onPrintSuccess,
+  onPrint,
   businessInfo = {
     name: "oOps Resto-Café",
     address: "Batroun, seaside",
@@ -248,7 +249,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   }, [validationResult]);
 
   // Enhanced print function with automatic printer communication
-  const handlePrint = useCallback(async () => {
+  const handlePrintInternal = useCallback(async () => {
     // Prevent multiple simultaneous print operations
     if (isPrinting) {
       console.warn("Print operation already in progress");
@@ -394,6 +395,17 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       setIsPrinting(false);
     }
   }, [receiptData, businessInfo, validationResult, isPrinting, onPrintSuccess, hasSavedPrinter, getSavedPrinter, generateReceiptContent, user, lastPrintTime]);
+
+  // Unified print handler that uses external onPrint prop or internal implementation
+  const handlePrint = useCallback(async () => {
+    if (onPrint) {
+      // Use external print function if provided
+      await onPrint();
+    } else {
+      // Use internal print function as fallback
+      await handlePrintInternal();
+    }
+  }, [onPrint, handlePrintInternal]);
 
   // Handle keyboard events
   useEffect(() => {
