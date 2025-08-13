@@ -692,11 +692,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [menu]);
 
-  // Fetch categories mapping
+  // Fetch categories mapping - ONLY ACTIVE CATEGORIES
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        console.log("📂 Fetching categories for POS");
+        console.log("📂 Fetching ACTIVE categories for POS");
         const [menuCategories, materialCategories] = await Promise.all([
           getCategoriesByType('menu_items'),
           getCategoriesByType('materials')
@@ -704,21 +704,25 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         
         const categoryMap = new Map<number, string>();
         
-        // Add menu categories
+        // Add ONLY ACTIVE menu categories
         if (menuCategories?.totalItems) {
-          menuCategories.totalItems.forEach(category => {
-            categoryMap.set(category.id, category.name);
-          });
+          menuCategories.totalItems
+            .filter(category => category.isActive) // Only include active categories
+            .forEach(category => {
+              categoryMap.set(category.id, category.name);
+            });
         }
         
-        // Add material categories
+        // Add ONLY ACTIVE material categories
         if (materialCategories?.totalItems) {
-          materialCategories.totalItems.forEach(category => {
-            categoryMap.set(category.id, category.name);
-          });
+          materialCategories.totalItems
+            .filter(category => category.isActive) // Only include active categories
+            .forEach(category => {
+              categoryMap.set(category.id, category.name);
+            });
         }
         
-        console.log("📂 Categories map created:", { size: categoryMap.size });
+        console.log("📂 ACTIVE categories map created:", { size: categoryMap.size });
         setCategoriesMap(categoryMap);
       } catch (error) {
         console.error("❌ Failed to fetch categories:", error);
@@ -745,7 +749,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               console.warn('⚠️ Invalid category format for menu item:', menuItem.name, menuItem.category);
               categoryId = 0;
             }
-            const categoryName = categoriesMap.get(categoryId) || 'uncategorized';
+            const categoryName = categoriesMap.get(categoryId);
+            
+            // COMPLETELY HIDE items with deactivated categories - don't add them to POS
+            if (!categoryName) {
+              console.log(`🚫 Hiding menu item '${menuItem.name}' - category is deactivated`);
+              return; // Skip this item completely
+            }
+            
             posItemsFromData.push({
               id: `menu-${menuItem.id}`,
               name: menuItem.name,
@@ -781,7 +792,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               console.warn('⚠️ Invalid category type for stock entry:', stockEntry.material.name, category);
               categoryId = 0;
             }
-            const categoryName = categoriesMap.get(categoryId) || 'uncategorized';
+            const categoryName = categoriesMap.get(categoryId);
+            
+            // COMPLETELY HIDE items with deactivated categories - don't add them to POS
+            if (!categoryName) {
+              console.log(`🚫 Hiding stock item '${stockEntry.material.name}' - category is deactivated`);
+              return; // Skip this item completely
+            }
+            
             posItemsFromData.push({
               id: `stock-${stockEntry.id}`,
               name: stockEntry.material.name,
