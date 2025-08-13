@@ -48,11 +48,6 @@ export const useOrderManagement = () => {
       console.error("🚨 Setting error message:", errorMessage);
 
       setError(errorMessage);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      });
       throw error;
     } finally {
       setIsLoading(false);
@@ -72,11 +67,6 @@ export const useOrderManagement = () => {
     } catch (error: unknown) {
       const errorMessage = (error as any)?.response?.data?.message || "Failed to load order";
       setError(errorMessage);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      });
       throw error;
     } finally {
       setIsLoading(false);
@@ -108,11 +98,6 @@ export const useOrderManagement = () => {
       } catch (error: unknown) {
         const errorMessage = (error as any)?.response?.data?.message || "Failed to update order";
         setError(errorMessage);
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive"
-        });
         throw error;
       } finally {
         setIsLoading(false);
@@ -133,20 +118,10 @@ export const useOrderManagement = () => {
         const response = await ordersAPI.updateOrderStatus(currentOrder.id, status);
         const updatedOrder = response.data;
         setCurrentOrder(updatedOrder);
-        toast({
-          title: "Order Updated",
-          description: `Order status changed to ${status}`,
-          variant: "default"
-        });
         return updatedOrder;
       } catch (error: unknown) {
         const errorMessage = (error as any)?.response?.data?.message || "Failed to update order status";
         setError(errorMessage);
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive"
-        });
         throw error;
       } finally {
         setIsLoading(false);
@@ -168,20 +143,10 @@ export const useOrderManagement = () => {
         const { order, saleId } = response.data;
         // Clear current order after completion
         setCurrentOrder(null);
-        toast({
-          title: "Order Completed",
-          description: `Order completed successfully. Sale ID: ${saleId}`,
-          variant: "default"
-        });
         return { order, saleId };
       } catch (error: unknown) {
         const errorMessage = (error as any)?.response?.data?.message || "Failed to complete order";
         setError(errorMessage);
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive"
-        });
         throw error;
       } finally {
         setIsLoading(false);
@@ -228,21 +193,10 @@ export const useOrderManagement = () => {
           successMessage += `. Stock restored for ${stockRestorations.length} item(s).`;
         }
 
-        toast({
-          title: "Order Voided",
-          description: successMessage,
-          variant: "default"
-        });
-
         return { order: voidedOrder, stockRestorations };
       } catch (error: unknown) {
         const errorMessage = (error as any)?.response?.data?.message || "Failed to void order";
         setError(errorMessage);
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive"
-        });
         throw error;
       } finally {
         setIsLoading(false);

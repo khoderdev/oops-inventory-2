@@ -18,7 +18,7 @@ import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
 import { useVoidPrinter } from "./VoidPrinter";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2, XCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
@@ -1406,11 +1406,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         const totalPrinters = itemsByPrinter.size;
         if (successfulPrints > 0) {
           console.log("🖨️ Print results:", { successful: successfulPrints, total: totalPrinters });
-          if (successfulPrints === totalPrinters) {
-            showSuccess(`✅ Items printed to ${successfulPrints} printer(s) successfully!`);
-          } else {
-            showSuccess(`⚠️ Items printed to ${successfulPrints}/${totalPrinters} printers. Check printer status for failed prints.`);
-          }
         } else if (totalPrinters > 0) {
           console.log("🖨️ All print jobs failed");
           showError(`❌ Failed to print items to assigned printers. Please check printer connectivity.`);
@@ -1680,7 +1675,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
       const orderIdentifier = savedOrder?.orderNumber || savedOrder?.id || savedOrder?.order?.orderNumber || savedOrder?.order?.id || currentOrder?.orderNumber || currentOrder?.id || "New Order";
       console.log("📋 Order saved:", { orderIdentifier });
-      showSuccess(`Order ${orderIdentifier} saved successfully!`);
       await printItemsToAssignedPrinters(cart);
 
       // Ask parent to clear selection to avoid re-trigger
