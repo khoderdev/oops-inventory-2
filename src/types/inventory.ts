@@ -825,23 +825,6 @@ export const UNIT_OPTIONS: Readonly<Record<UnitType, ReadonlyArray<string>>> = {
   package: ["box", "pack", "case", "bottle", "piece"]
 };
 
-// Menu categories
-export const MENU_CATEGORIES = [
-  { value: "appetizers", label: "Appetizers" },
-  { value: "burgers", label: "Burgers" },
-  { value: "sandwiches", label: "Sandwiches" },
-  { value: "plates", label: "Plates" },
-  { value: "pasta", label: "Pasta" },
-  { value: "sushi", label: "Sushi" },
-  { value: "pizza", label: "Pizza" },
-  { value: "salads", label: "Salads" },
-  { value: "desserts", label: "Desserts" },
-  { value: "cold", label: "Cold" },
-  { value: "hot", label: "Hot" },
-  { value: "alcohol", label: "Alcohol" },
-  { value: "breakfast", label: "Breakfast" },
-  { value: "shisha", label: "Shisha" }
-];
 
 //-----------------------------------------------------------------------------
 // Stock Operations Types

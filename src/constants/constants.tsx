@@ -12,7 +12,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   served: "bg-purple-100 text-purple-800",
   paid: "bg-emerald-100 text-emerald-800",
   cancelled: "bg-red-100 text-red-800",
-  complete: "bg-emerald-100 text-emerald-800"
+  completed: "bg-emerald-100 text-emerald-800"
 };
 
 export const ORDER_TYPE_ICONS: Record<OrderType, React.ReactNode> = {
@@ -100,18 +100,4 @@ export const statusColors = {
   cancelled: "bg-gray-100 text-gray-800"
 };
 
-export const MENU_CATEGORIES: { value: MenuItemCategory; label: string }[] = [
-  { value: "appetizers", label: "Appetizers" },
-  { value: "burgers", label: "Burgers" },
-  { value: "sandwiches", label: "Sandwiches" },
-  { value: "plates", label: "Plates" },
-  { value: "salads", label: "Salads" },
-  { value: "pasta", label: "Pasta" },
-  { value: "sushi", label: "Sushi" },
-  { value: "pizza", label: "Pizza" },
-  { value: "desserts", label: "Desserts" },
-  { value: "cold", label: "Cold" },
-  { value: "hot", label: "Hot" },
-  { value: "breakfast", label: "Breakfast" },
-  { value: "shisha", label: "Shisha" }
-];
+

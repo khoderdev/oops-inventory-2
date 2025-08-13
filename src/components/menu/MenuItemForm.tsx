@@ -1,4 +1,5 @@
 import { Material, MenuItem, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
+import { Category } from "@/types/categories";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
@@ -11,25 +12,20 @@ import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { ImageUpload } from "../ui/image-upload";
+import { toast } from "../ui/use-toast";
 
 interface MenuItemFormProps {
   menuItem?: MenuItem;
   materials: Material[];
   stockEntries: StockEntry[];
-  categories: { value: MenuItemCategory; label: string }[];
+  categories: Category[];
   onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;
   onCancel: () => void;
 }
 
 export function MenuItemForm({ menuItem, materials, stockEntries, categories, onSubmit, onCancel }: MenuItemFormProps) {
   const [name, setName] = useState(menuItem?.name || "");
-  const [category, setCategory] = useState<MenuItemCategory | "">(() => {
-    if (!menuItem?.category) return "";
-    // Handle both object and string category formats
-    return typeof menuItem.category === 'object' && menuItem.category !== null 
-      ? menuItem.category.value || "" 
-      : menuItem.category || "";
-  });
+  const [category, setCategory] = useState<MenuItemCategory | "">("");
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
@@ -48,6 +44,28 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     ingredientQuantity?: string;
   }>({});
   const materialSelectRef = useRef<HTMLInputElement>(null);
+
+  // Initialize category when menuItem or categories change
+  useEffect(() => {
+    if (!menuItem?.category || categories.length === 0) {
+      setCategory("");
+      return;
+    }
+    
+    // Handle different category formats from MenuItem
+    if (typeof menuItem.category === 'number') {
+      // If category is a number (categoryId), find the corresponding category value
+      const categoryObj = categories.find(cat => cat.id === menuItem.category);
+      setCategory((categoryObj?.value || "") as MenuItemCategory | "");
+    } else if (typeof menuItem.category === 'object' && menuItem.category !== null && 'id' in menuItem.category) {
+      // If category is an object, find the corresponding category value by ID
+      const categoryObj = categories.find(cat => cat.id === (menuItem.category as {id: number}).id);
+      setCategory((categoryObj?.value || "") as MenuItemCategory | "");
+    } else if (typeof menuItem.category === 'string') {
+      // If category is a string, return it as is
+      setCategory(menuItem.category as MenuItemCategory | "");
+    }
+  }, [menuItem?.category, categories]);
   const ingredientsInputSectionRef = useRef<HTMLDivElement>(null);
 
   const availableMaterials = useMemo(() => {
@@ -220,10 +238,19 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   useEffect(() => {
     if (menuItem) {
       setName(menuItem.name || "");
-      // Handle both object and string category formats
-      const categoryValue = typeof menuItem.category === 'object' && menuItem.category !== null 
-        ? menuItem.category.value || "" 
-        : menuItem.category || "";
+      // Handle different category formats: object, string, or number
+      let categoryValue: MenuItemCategory | "" = "";
+      if (typeof menuItem.category === "object" && menuItem.category !== null) {
+        // Category is an object with id and name
+        categoryValue = (menuItem.category.name || "") as MenuItemCategory | "";
+      } else if (typeof menuItem.category === "string") {
+        // Category is already a string
+        categoryValue = menuItem.category as MenuItemCategory | "";
+      } else if (typeof menuItem.category === "number") {
+        // Category is a number ID - find matching category from backend
+        const matchingCategory = categories.find(cat => cat.id === menuItem.category);
+        categoryValue = (matchingCategory?.name || "") as MenuItemCategory | "";
+      }
       setCategory(categoryValue);
       setPrice(menuItem.price.toString() || "");
       setIsPOSItem(menuItem.isPOSItem || false);
@@ -310,9 +337,41 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         cost: calculateIngredientCost(ingredient)
       }));
       
+      // Find the selected category to validate it exists
+      const selectedCategory = categories.find(cat => cat.value === category);
+      
+      console.log("Selected category value:", category);
+      console.log("Available categories:", categories);
+      console.log("Found selected category:", selectedCategory);
+      
+      // Validate that we found a valid category
+      if (!selectedCategory && category) {
+        console.error("Invalid category selected:", category);
+        toast({
+          title: "Error",
+          description: "Selected category is not valid. Please select a valid category.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Convert category to the expected format
+      let categoryToSubmit: number | MenuItemCategory | { id: number; name: string; } | null = null;
+      
+      if (selectedCategory) {
+        // Send category object with id and name for backend processing
+        categoryToSubmit = {
+          id: selectedCategory.id,
+          name: selectedCategory.name
+        };
+      } else if (category && category !== "") {
+        // Fallback to string value if it's a valid MenuItemCategory
+        categoryToSubmit = category as MenuItemCategory;
+      }
+
       onSubmit({
         name: name.trim(),
-        category: category as MenuItemCategory,
+        category: categoryToSubmit,
         price: parseFloat(price),
         ingredients: ingredientsWithCosts,
         isPOSItem,
@@ -420,7 +479,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
             <option value="">Select a category</option>
             {categories.map(cat => (
               <option key={cat.value} value={cat.value}>
-                {cat.label}
+                {cat.name}
               </option>
             ))}
           </select>

@@ -1,4 +1,5 @@
 import { menuAPI } from "@/api/menu.api.ts";
+import { getCategoriesByType } from "@/api/categories.api";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
-import { MENU_CATEGORIES } from "@/constants/constants";
+import { Category } from "@/types/categories";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
@@ -56,6 +57,31 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
     validateData();
   }, [materials, stockEntries, lastValidationTime, dataValidationEnabled]);
+
+  // Fetch menu categories from backend
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        const response = await getCategoriesByType("menu_items");
+        console.log("Fetched menu categories:", response);
+        console.log("Categories totalItems:", response.totalItems);
+        setCategories(response.totalItems || []);
+        console.log("Set categories state:", response.totalItems || []);
+      } catch (error) {
+        console.error("Failed to fetch menu categories:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load menu categories",
+          variant: "destructive"
+        });
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
     if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
@@ -226,6 +252,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {
@@ -371,7 +399,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           if (typeof category === 'object' && category !== null) {
             categoryLabel = category.name || 'Uncategorized';
           } else {
-            categoryLabel = MENU_CATEGORIES.find(c => c.value === category)?.label || category || 'Uncategorized';
+            categoryLabel = categories.find(c => c.value === category)?.name || category || 'Uncategorized';
           }
           return <span>{String(categoryLabel)}</span>;
         },
@@ -520,7 +548,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         size: 160
       })
     ],
-    [searchTerm, MENU_CATEGORIES, getMaterialName, calculateMenuItemCost, handleTogglePOSVisibility, handleOpenPrinterDialog, handleDeleteMenuItem]
+    [searchTerm, categories, getMaterialName, calculateMenuItemCost, handleTogglePOSVisibility, handleOpenPrinterDialog, handleDeleteMenuItem]
   );
 
   const filteredMenuItems = useMemo(() => {
@@ -698,7 +726,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         });
       }
 
-      const categoryLabel = MENU_CATEGORIES.find(c => c.value === bulkCategoryValue)?.label || bulkCategoryValue;
+      const categoryLabel = categories.find(c => c.value === bulkCategoryValue)?.name || bulkCategoryValue;
 
       toast({
         title: "Success",
@@ -717,7 +745,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         variant: "destructive"
       });
     }
-  }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, MENU_CATEGORIES, fetchTabData, handleCloseBulkCategoryDialog]);
+  }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, categories, fetchTabData, handleCloseBulkCategoryDialog]);
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
@@ -738,9 +766,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {MENU_CATEGORIES.map(category => (
+                    {categories.map(category => (
                       <SelectItem key={category.value} value={category.value}>
-                        {category.label}
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -802,7 +830,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                 {selectedCategory !== "all" && (
                   <span className="block sm:inline">
                     {" "}
-                    in <span className="font-medium">{MENU_CATEGORIES.find(c => c.value === selectedCategory)?.label}</span>
+                    in <span className="font-medium">{categories.find(c => c.value === selectedCategory)?.name}</span>
                   </span>
                 )}
               </div>
@@ -814,7 +842,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                 <DialogHeader>
                   <DialogTitle className="text-lg sm:text-xl">{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={MENU_CATEGORIES} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} stockEntries={stockEntries} />
+                <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={categories} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} stockEntries={stockEntries} />
               </DialogContent>
             </Dialog>
 
@@ -930,9 +958,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                   <SelectValue placeholder="Choose a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MENU_CATEGORIES.map(category => (
+                  {categories.map(category => (
                     <SelectItem key={category.value} value={category.value}>
-                      {category.label}
+                      {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

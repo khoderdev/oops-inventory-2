@@ -119,11 +119,49 @@ const menuItemsController = {
         return res.status(400).json({ error: "Price cannot be negative" });
       }
 
-      // Validate category
-      if (!(await isValidCategory(category, 'menu_items'))) {
+      // Extract categoryId from category object or use category directly
+      let categoryId = null;
+      let categoryValue = null;
+      
+      if (typeof category === 'object' && category !== null && category.id) {
+        // Category is an object with id and name
+        categoryId = category.id;
+        categoryValue = category.name || category.value;
+      } else if (typeof category === 'string') {
+        // Category is a string value, find the corresponding ID
+        const categoryRecord = await Category.findOne({
+          where: { value: category, type: 'menu_items', isActive: true }
+        });
+        if (categoryRecord) {
+          categoryId = categoryRecord.id;
+          categoryValue = category;
+        }
+      } else if (typeof category === 'number') {
+        // Category is already an ID
+        categoryId = category;
+        const categoryRecord = await Category.findByPk(categoryId);
+        if (categoryRecord && categoryRecord.type === 'menu_items' && categoryRecord.isActive) {
+          categoryValue = categoryRecord.value;
+        }
+      }
+
+      // Validate that we have a valid categoryId
+      if (!categoryId) {
         await transaction.rollback();
         return res.status(400).json({ 
-          error: `Invalid menu item category: ${category}. Please use a valid category from the database.` 
+          error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.` 
+        });
+      }
+
+      // Verify the category exists and is active
+      const categoryRecord = await Category.findOne({
+        where: { id: categoryId, type: 'menu_items', isActive: true }
+      });
+      
+      if (!categoryRecord) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          error: `Category with ID ${categoryId} not found or inactive.` 
         });
       }
 
@@ -163,12 +201,12 @@ const menuItemsController = {
         imageUrl = image;
       }
 
-      // Create menu item with properly converted price
+      // Create menu item with properly converted price and categoryId
       const menuItem = await MenuItem.create(
         {
           name,
           price: priceValue,
-          category,
+          categoryId,
           description,
           isPOSItem: isPOSItem !== undefined ? isPOSItem : false,
           image: imageUrl
@@ -253,12 +291,44 @@ const menuItemsController = {
         return res.status(400).json({ error: "Price cannot be negative" });
       }
 
-      // Validate category if provided
-      if (category !== undefined && !(await isValidCategory(category, 'menu_items'))) {
-        await transaction.rollback();
-        return res.status(400).json({ 
-          error: `Invalid menu item category: ${category}. Please use a valid category from the database.` 
+      // Handle category update if provided
+      let categoryId = undefined;
+      if (category !== undefined) {
+        if (typeof category === 'object' && category !== null && category.id) {
+          // Category is an object with id and name
+          categoryId = category.id;
+        } else if (typeof category === 'string') {
+          // Category is a string value, find the corresponding ID
+          const categoryRecord = await Category.findOne({
+            where: { value: category, type: 'menu_items', isActive: true }
+          });
+          if (categoryRecord) {
+            categoryId = categoryRecord.id;
+          }
+        } else if (typeof category === 'number') {
+          // Category is already an ID
+          categoryId = category;
+        }
+
+        // Validate that we have a valid categoryId
+        if (!categoryId) {
+          await transaction.rollback();
+          return res.status(400).json({ 
+            error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.` 
+          });
+        }
+
+        // Verify the category exists and is active
+        const categoryRecord = await Category.findOne({
+          where: { id: categoryId, type: 'menu_items', isActive: true }
         });
+        
+        if (!categoryRecord) {
+          await transaction.rollback();
+          return res.status(400).json({ 
+            error: `Category with ID ${categoryId} not found or inactive.` 
+          });
+        }
       }
 
       // Validate ingredients if provided
@@ -299,12 +369,12 @@ const menuItemsController = {
         imageUrl = image;
       }
 
-      // Update menu item with proper price handling
+      // Update menu item with proper price and categoryId handling
       await menuItem.update(
         {
           name: name !== undefined ? name : menuItem.name,
           price: price !== undefined ? priceValue : menuItem.price,
-          category: category !== undefined ? category : menuItem.category,
+          categoryId: categoryId !== undefined ? categoryId : menuItem.categoryId,
           description: description !== undefined ? description : menuItem.description,
           isPOSItem: isPOSItem !== undefined ? isPOSItem : menuItem.isPOSItem,
           image: imageUrl
