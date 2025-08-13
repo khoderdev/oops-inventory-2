@@ -784,10 +784,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             if (category === null || category === undefined) {
               console.warn('⚠️ Null or undefined category for stock entry:', stockEntry.material.name);
               categoryId = 0;
-            } else if (typeof category === 'object' && category !== null && 'id' in category) {
-              categoryId = (category as any).id;
             } else if (typeof category === 'number') {
               categoryId = category;
+            } else if (typeof category === 'object' && 'id' in category) {
+              categoryId = (category as any).id;
             } else {
               console.warn('⚠️ Invalid category type for stock entry:', stockEntry.material.name, category);
               categoryId = 0;
