@@ -174,7 +174,8 @@ export const formatVoidItemsForPrinter = ({ items, currentOrder, orderType, sele
     }
 
     if (selectedEmployee) {
-      content += `Staff: ${selectedEmployee.firstName} ${selectedEmployee.lastName}\n`;
+      const employeeName = `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim();
+      content += `Staff: ${employeeName}\n`;
     }
 
     content += centerText("VOIDED ITEMS") + "\n";

@@ -1238,7 +1238,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       id: currentOrder?.orderNumber || `DRAFT-${Date.now()}`,
       date: new Date().toLocaleDateString(),
       time: new Date().toLocaleTimeString(),
-      cashier: "",
+      cashier: selectedEmployee && orderType === "employees" 
+        ? `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim()
+        : "",
       items: itemsToUse.map(item => ({
         name: item.name,
         quantity: item.quantity,
@@ -1255,7 +1257,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       discountType: currentOrder?.discountType || appliedDiscount?.type || null,
       discountValue: currentOrder?.discountValue ? (typeof currentOrder.discountValue === "string" ? parseFloat(currentOrder.discountValue) : currentOrder.discountValue) : appliedDiscount?.value || null,
       discountAmount: currentOrder?.discountAmount ? (typeof currentOrder.discountAmount === "string" ? parseFloat(currentOrder.discountAmount) : currentOrder.discountAmount) : appliedDiscount?.amount || null,
-      discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null
+      discountReason: currentOrder?.discountReason || appliedDiscount?.reason || null,
+      // Add employee information for staff orders
+      employeeName: selectedEmployee && orderType === "employees" 
+        ? `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim()
+        : null,
+      orderType: orderType,
+      tableNumber: selectedTable?.number || null
     };
     console.log("🖨️ Generated receipt data:", { receiptId: receiptData.id, items: receiptData.items.length });
     setLastSaleData(receiptData);
@@ -1809,7 +1817,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         id: saleId || `receipt-${Date.now()}`,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
-        cashier: "",
+        cashier: selectedEmployee && orderType === "employees" 
+          ? `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim()
+          : "",
         items: (order.items || cart).map(item => ({
           name: item.name,
           quantity: item.quantity,
@@ -1826,7 +1836,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         discountType: order.discountType || appliedDiscount?.type || null,
         discountValue: order.discountValue ? (typeof order.discountValue === "string" ? parseFloat(order.discountValue) : order.discountValue) : appliedDiscount?.value || null,
         discountAmount: order.discountAmount ? (typeof order.discountAmount === "string" ? parseFloat(order.discountAmount) : order.discountAmount) : appliedDiscount?.amount || null,
-        discountReason: order.discountReason || appliedDiscount?.reason || null
+        discountReason: order.discountReason || appliedDiscount?.reason || null,
+        // Add employee information for staff orders
+        employeeName: selectedEmployee && orderType === "employees" 
+          ? `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim()
+          : null,
+        orderType: orderType,
+        tableNumber: selectedTable?.number || null
       };
       console.log("🖨️ Generated receipt for payment:", { receiptId: receiptData.id, items: receiptData.items.length });
 

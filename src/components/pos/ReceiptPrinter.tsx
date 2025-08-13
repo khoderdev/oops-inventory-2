@@ -69,6 +69,22 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     content += `Date: ${receiptData.date}\n`;
     content += `Time: ${receiptData.time}\n`;
     content += `Cashier: ${receiptData.cashier || currentUser?.username || "Unknown User"}\n`;
+    
+    // Add employee information for staff orders
+    if (receiptData.employeeName && receiptData.orderType === "employees") {
+      content += `Staff: ${receiptData.employeeName}\n`;
+    }
+    
+    // Add table information for table orders
+    if (receiptData.tableNumber && receiptData.orderType === "table") {
+      content += `Table: ${receiptData.tableNumber}\n`;
+    }
+    
+    // Add order type information
+    if (receiptData.orderType) {
+      content += `Order Type: ${receiptData.orderType.toUpperCase()}\n`;
+    }
+    
     content += "------------------------------------------------\n";
     content += "\n";
 

@@ -479,6 +479,10 @@ export interface ReceiptData {
   discountValue?: number | null;
   discountAmount?: number | null;
   discountReason?: string | null;
+  // Employee and order information
+  employeeName?: string | null;
+  orderType?: string;
+  tableNumber?: number | null;
 }
 
 export interface ReceiptPrinterProps {
