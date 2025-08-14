@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
 import { Order, OrderItem, Table } from "../models/index.js";
+import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 
 export const tablesController = {
   // Get all tables
@@ -498,10 +499,13 @@ export const tablesController = {
       });
 
       if (!destinationOrder && (createNewOrder || isTransferringAllItems)) {
+        // Generate sequential order number
+        const orderNumber = await generateSequentialOrderNumber();
+        
         // Create new order on destination table
         destinationOrder = await Order.create({
           tableId: toTableId,
-          orderNumber: `T${toTable.number}-${Date.now()}`,
+          orderNumber: orderNumber,
           customerName: sourceOrder.customerName || `Table ${toTable.number}`,
           orderType: sourceOrder.orderType || "dine_in",
           status: "draft",
@@ -509,6 +513,8 @@ export const tablesController = {
           tax: 0,
           total: 0
         });
+        
+        console.log(`✅ Created new order ${orderNumber} for Table ${toTable.number}`);
       } else if (!destinationOrder) {
         return res.status(400).json({ 
           message: "Destination table has no active order. Set createNewOrder=true to create a new order." 
@@ -848,6 +854,22 @@ export const tablesController = {
     } catch (error) {
       console.error("Duplicate table error:", error);
       res.status(500).json({ message: "Failed to duplicate table", error: error.message });
+    }
+  },
+
+  // Get next sequential order number
+  getNextOrderNumber: async (req, res) => {
+    try {
+      const nextOrderNumber = await generateSequentialOrderNumber();
+      
+      res.json({ 
+        orderNumber: nextOrderNumber,
+        message: `Next available order number: ${nextOrderNumber}`
+      });
+
+    } catch (error) {
+      console.error("Get next order number error:", error);
+      res.status(500).json({ message: "Failed to get next order number", error: error.message });
     }
   }
 };

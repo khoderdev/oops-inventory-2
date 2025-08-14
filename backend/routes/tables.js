@@ -31,5 +31,6 @@ router.post("/bulk-create", tablesController.bulkCreateTables);
 router.patch("/:tableId/rename", tablesController.renameTable);
 router.post("/:tableId/duplicate", tablesController.duplicateTable);
 router.get("/next-number", tablesController.getNextTableNumber);
+router.get("/next-order-number", tablesController.getNextOrderNumber);
 
 export default router;

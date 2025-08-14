@@ -1,17 +1,36 @@
 /**
- * Generates a sequential order number using ORD-MMDD format
- * For now, we'll use a simple date-based approach
+ * Generates a sequential order number using ORD-XXXX format
+ * This now uses the backend API to ensure consistency and proper sequencing
  */
 export const generateSequentialOrderNumber = async (): Promise<string> => {
-  // Simple date-based approach - use current date
-  // In a real system, this would be handled by the database with auto-increment
-  
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const orderNumber = `ORD-${month}${day}`;
-  console.log('Generated sequential order number:', orderNumber);
-  return orderNumber;
+  try {
+    // Get next order number from backend API
+    const response = await fetch('/api/tables/next-order-number', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Generated sequential order number from backend:', data.orderNumber);
+    return data.orderNumber;
+  } catch (error) {
+    console.error('Error fetching order number from backend:', error);
+    
+    // Fallback to date-based approach if backend fails
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const fallbackNumber = `ORD-${month}${day}`;
+    console.log('Using fallback order number:', fallbackNumber);
+    return fallbackNumber;
+  }
 };
 
 /**

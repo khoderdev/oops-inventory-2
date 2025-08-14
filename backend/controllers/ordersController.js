@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import { auditOrderOperation } from "../middleware/auditMiddleware.js";
 import { Assignment, Material, MenuItem, Order, OrderItem, sequelize, Table, User, PrintJob, Printer, PrinterChannel } from "../models/index.js";
 import salesController from "./salesController.js";
+import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 
 export const ordersController = {
   createOrder: async (req, res) => {
@@ -12,21 +13,12 @@ export const ordersController = {
       let finalOrderNumber = orderNumber;
       if (!finalOrderNumber) {
         try {
-          const lastOrder = await Order.findOne({
-            order: [["orderNumber", "DESC"]],
-            attributes: ["orderNumber"]
-          });
-          let nextSequence = 1;
-          if (lastOrder && lastOrder.orderNumber) {
-            const match = lastOrder.orderNumber.match(/ORD-(\d+)/);
-            if (match) {
-              nextSequence = parseInt(match[1], 10) + 1;
-            }
-          }
-          finalOrderNumber = `ORD-${nextSequence.toString().padStart(4, "0")}`;
+          finalOrderNumber = await generateSequentialOrderNumber();
         } catch (error) {
           console.error("Error generating order number:", error);
-          finalOrderNumber = `ORD-0001`; // Fallback
+          // Better fallback - use timestamp to avoid duplicates
+          const timestamp = Date.now().toString().slice(-4);
+          finalOrderNumber = `ORD-${timestamp}`;
         }
       }
       const order = await Order.create(
