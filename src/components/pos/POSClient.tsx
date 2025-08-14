@@ -1730,20 +1730,30 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       justSavedRef.current = true;
       setTimeout(() => (justSavedRef.current = false), 1500);
 
+      // Show success animation for order save
+      setShowSuccessCheckmark(true);
+      
       // Clear cart and reset summary/context to fully reset the order-cart summary
-      clearCartWithAnimation();
-      setAppliedDiscount(null);
-      setDiscountAmount(0);
-      setPaymentAmount("");
-      setOrderNotes("");
-      // Keep unsaved flag true so currentOrder effect won't repopulate the cart immediately
-      setHasUnsavedChanges(true);
-      setOrderType("takeaway");
-      setSelectedTable(undefined);
-      setSelectedEmployee(undefined);
-      OrderPersistence.clearCurrentOrder();
-      setShowTablesLayout(false);
-      if (clearOrder) clearOrder();
+      setTimeout(() => {
+        clearCartWithAnimation();
+        setAppliedDiscount(null);
+        setDiscountAmount(0);
+        setPaymentAmount("");
+        setOrderNotes("");
+        // Keep unsaved flag true so currentOrder effect won't repopulate the cart immediately
+        setHasUnsavedChanges(true);
+        setOrderType("takeaway");
+        setSelectedTable(undefined);
+        setSelectedEmployee(undefined);
+        OrderPersistence.clearCurrentOrder();
+        setShowTablesLayout(false);
+        if (clearOrder) clearOrder();
+        
+        // Hide success animation after clearing cart
+        setTimeout(() => {
+          setShowSuccessCheckmark(false);
+        }, 2000);
+      }, 100);
     } catch (error) {
       console.error("❌ Failed to save order:", error);
       showError("Failed to save order. Please try again.");
@@ -1941,9 +1951,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       // Clear order persistence
       OrderPersistence.clearCurrentOrder();
 
-      // Clear cart with animation
+      // Show success animation
+      setShowSuccessCheckmark(true);
+      
+      // Clear cart with animation after showing success
       setTimeout(() => {
         clearCartWithAnimation();
+        // Hide success animation after clearing cart
+        setTimeout(() => {
+          setShowSuccessCheckmark(false);
+        }, 2000);
       }, 100);
 
       // Reset to takeaway mode
@@ -2307,7 +2324,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           isOpen={showReceiptDialog}
           onClose={() => {
             setShowReceiptDialog(false);
-            setShouldAutoPrint(false); // Reset auto-print flag
+            setShouldAutoPrint(false);
           }}
           receiptData={lastSaleData}
           autoPrint={shouldAutoPrint}
@@ -2387,7 +2404,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 variant="outline"
                 onClick={() => {
                   setShowUnsavedDialog(false);
-                  // Continue with the action that triggered this dialog
                 }}
               >
                 Discard Changes
