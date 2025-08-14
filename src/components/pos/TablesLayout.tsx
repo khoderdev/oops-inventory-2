@@ -58,18 +58,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     setContextMenu(null);
   };
 
-  const handleDuplicateTable = async (table: Table) => {
-    try {
-      const response = await tablesAPI.duplicateTable(table.id.toString());
-      toast.success(response.data.message);
-      // Refresh tables - you might want to emit an event to parent component
-      window.location.reload(); // Temporary solution
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to duplicate table");
-    }
-    setContextMenu(null);
-  };
-
   const handleDeleteTable = async (table: Table) => {
     if (table.status === "opened") {
       toast.error("Cannot delete table with active orders");
@@ -87,12 +75,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         toast.error(error.response?.data?.message || "Failed to delete table");
       }
     }
-    setContextMenu(null);
-  };
-
-  const handleEditTable = (table: Table) => {
-    // For now, just show rename modal - can be expanded later
-    handleRenameTable(table);
     setContextMenu(null);
   };
 
@@ -621,11 +603,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
             </div>
 
             <div className="py-1">
-              <button onClick={() => handleEditTable(contextMenu.table)} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                <Edit3 className="w-4 h-4" />
-                Edit Table
-              </button>
-
               <button onClick={() => handleRenameTable(contextMenu.table)} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
                 <Edit3 className="w-4 h-4" />
                 Rename Table
@@ -637,11 +614,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                   Transfer Order
                 </button>
               )}
-
-              <button onClick={() => handleDuplicateTable(contextMenu.table)} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                <Copy className="w-4 h-4" />
-                Duplicate Table
-              </button>
 
               <div className="border-t border-gray-100 my-1"></div>
 
