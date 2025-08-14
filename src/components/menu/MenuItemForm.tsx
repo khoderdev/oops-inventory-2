@@ -375,9 +375,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         categoryToSubmit = category as MenuItemCategory;
       }
 
-      console.log('🖼️ FRONTEND DEBUG - Image state:', image);
-      console.log('📁 FRONTEND DEBUG - ImageFile state:', imageFile);
-      
       const submitData = {
         name: name.trim(),
         category: categoryToSubmit,
@@ -468,8 +465,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
   };
 
-  console.log('🎨 MenuItemForm render - Current category state:', category);
-  console.log('🎨 Available categories for select:', categories.map(c => c.value));
   
   // CRITICAL FIX: Normalize category value to match dropdown options
   const normalizedCategory = useMemo(() => {
@@ -486,7 +481,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     );
     
     if (matchByName) {
-      console.log('🔧 Category value normalized:', category, '→', matchByName.value);
       // Update the state to the correct value
       setTimeout(() => setCategory(matchByName.value as MenuItemCategory | ""), 0);
       return matchByName.value;

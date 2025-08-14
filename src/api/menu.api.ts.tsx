@@ -3,19 +3,13 @@ import { CreateMenuItemData, MenuItem, UpdateMenuItemData } from "@/types/invent
 
 // Helper function to create FormData for menu item with image
 const createFormData = (menuItemData: CreateMenuItemData | UpdateMenuItemData, imageFile?: File): FormData | CreateMenuItemData | UpdateMenuItemData => {
-  console.log('🔧 API DEBUG - createFormData called with imageFile:', imageFile ? 'PRESENT' : 'NOT_PRESENT');
-  console.log('🔧 API DEBUG - imageFile details:', imageFile);
-  console.log('🔧 API DEBUG - menuItemData keys:', Object.keys(menuItemData));
-  console.log('🔧 API DEBUG - menuItemData.image:', typeof (menuItemData as any).image, (menuItemData as any).image ? 'PRESENT' : 'NOT_PRESENT');
-  console.log('🔧 API DEBUG - menuItemData.imageBase64:', typeof (menuItemData as any).imageBase64, (menuItemData as any).imageBase64 ? 'PRESENT' : 'NOT_PRESENT');
+
   
   // Check if we have a valid imageFile (not empty object)
   const hasValidImageFile = imageFile && imageFile.size > 0 && imageFile.name;
-  console.log('🔧 API DEBUG - hasValidImageFile:', hasValidImageFile);
   
   // Check if we have base64 image data (in the 'image' field)
   const hasBase64Image = (menuItemData as any).image && typeof (menuItemData as any).image === 'string' && (menuItemData as any).image.startsWith('data:image/');
-  console.log('🔧 API DEBUG - hasBase64Image:', hasBase64Image);
   
   // Use FormData if we have either a valid file OR base64 image data
   if (hasValidImageFile || hasBase64Image) {

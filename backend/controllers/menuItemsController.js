@@ -11,7 +11,7 @@ const menuItemsController = {
           {
             model: Category,
             as: "category",
-            attributes: ['id', 'name', 'value', 'type'],
+            attributes: ["id", "name", "value", "type"],
             required: false
           },
           {
@@ -52,7 +52,7 @@ const menuItemsController = {
           {
             model: Category,
             as: "category",
-            attributes: ['id', 'name', 'value', 'type'],
+            attributes: ["id", "name", "value", "type"],
             required: false
           },
           {
@@ -122,92 +122,66 @@ const menuItemsController = {
       // Extract categoryId from category object or use category directly
       let categoryId = null;
       let categoryValue = null;
-      
-      // DEBUG: Log what we received
-      console.log('🔍 BACKEND DEBUG - Category received:', typeof category, category);
-      console.log('🔍 BACKEND DEBUG - Full request body:', req.body);
-      
-      if (typeof category === 'object' && category !== null && category.id) {
-        console.log('✅ BACKEND DEBUG - Processing as object with id');
+
+      if (typeof category === "object" && category !== null && category.id) {
         // Category is an object with id and name
         categoryId = category.id;
         categoryValue = category.name || category.value;
-        console.log('✅ BACKEND DEBUG - Extracted categoryId:', categoryId, 'categoryValue:', categoryValue);
-      } else if (typeof category === 'string') {
-        console.log('🔍 BACKEND DEBUG - Processing as string, attempting JSON parse');
+      } else if (typeof category === "string") {
         // Try to parse as JSON first (for FormData submissions)
         try {
           const parsedCategory = JSON.parse(category);
-          console.log('✅ BACKEND DEBUG - JSON parsed successfully:', parsedCategory);
-          if (parsedCategory && typeof parsedCategory === 'object' && parsedCategory.id) {
+          if (parsedCategory && typeof parsedCategory === "object" && parsedCategory.id) {
             categoryId = parsedCategory.id;
             categoryValue = parsedCategory.name || parsedCategory.value;
-            console.log('✅ BACKEND DEBUG - Extracted from JSON - categoryId:', categoryId, 'categoryValue:', categoryValue);
           } else {
-            console.log('❌ BACKEND DEBUG - Parsed JSON does not have id property');
           }
         } catch (e) {
-          console.log('❌ BACKEND DEBUG - JSON parsing failed, treating as string value:', e.message);
           // If JSON parsing fails, treat as regular string value
           // Try to find by value first, then by name
           let categoryRecord = await Category.findOne({
-            where: { value: category, type: 'menu_items', isActive: true }
+            where: { value: category, type: "menu_items", isActive: true }
           });
-          
+
           if (!categoryRecord) {
             // If not found by value, try to find by name
             categoryRecord = await Category.findOne({
-              where: { name: category, type: 'menu_items', isActive: true }
+              where: { name: category, type: "menu_items", isActive: true }
             });
-            console.log('🔍 BACKEND DEBUG - Searching by name instead of value');
           }
-          
+
           if (categoryRecord) {
             categoryId = categoryRecord.id;
             categoryValue = categoryRecord.value;
-            console.log('✅ BACKEND DEBUG - Found category by name/value - categoryId:', categoryId, 'value:', categoryValue);
-          } else {
-            console.log('❌ BACKEND DEBUG - No category found with value OR name:', category);
           }
         }
-      } else if (typeof category === 'number') {
-        console.log('🔍 BACKEND DEBUG - Processing as number');
+      } else if (typeof category === "number") {
         // Category is already an ID
         categoryId = category;
         const categoryRecord = await Category.findByPk(categoryId);
-        if (categoryRecord && categoryRecord.type === 'menu_items' && categoryRecord.isActive) {
+        if (categoryRecord && categoryRecord.type === "menu_items" && categoryRecord.isActive) {
           categoryValue = categoryRecord.value;
-          console.log('✅ BACKEND DEBUG - Found category by ID - categoryValue:', categoryValue);
         } else {
-          console.log('❌ BACKEND DEBUG - No valid category found with ID:', categoryId);
         }
-      } else {
-        console.log('❌ BACKEND DEBUG - Category type not recognized:', typeof category);
       }
 
       // Validate that we have a valid categoryId
-      console.log('🔍 BACKEND DEBUG - Final categoryId before validation:', categoryId);
-      console.log('🔍 BACKEND DEBUG - Final categoryValue before validation:', categoryValue);
-      
       if (!categoryId) {
-        console.log('❌ BACKEND DEBUG - categoryId is null/undefined, validation failed');
         await transaction.rollback();
-        return res.status(400).json({ 
-          error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.` 
+        return res.status(400).json({
+          error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.`
         });
       }
 
       // Verify the category exists and is active
-      console.log('🔍 BACKEND DEBUG - Verifying category exists with ID:', categoryId);
       const categoryRecord = await Category.findOne({
-        where: { id: categoryId, type: 'menu_items', isActive: true }
+        where: { id: categoryId, type: "menu_items", isActive: true }
       });
-      console.log('🔍 BACKEND DEBUG - Category verification result:', categoryRecord ? 'FOUND' : 'NOT FOUND');
-      
+
       if (!categoryRecord) {
         await transaction.rollback();
-        return res.status(400).json({ 
-          error: `Category with ID ${categoryId} not found or inactive.` 
+        return res.status(400).json({
+          error: `Category with ID ${categoryId} not found or inactive.`
         });
       }
 
@@ -215,17 +189,15 @@ const menuItemsController = {
       let parsedIngredients = ingredients;
       if (ingredients) {
         // Handle case where ingredients come as JSON string (from FormData)
-        if (typeof ingredients === 'string') {
+        if (typeof ingredients === "string") {
           try {
             parsedIngredients = JSON.parse(ingredients);
-            console.log('✅ BACKEND DEBUG - Parsed ingredients from JSON string:', parsedIngredients);
           } catch (e) {
-            console.log('❌ BACKEND DEBUG - Failed to parse ingredients JSON:', e.message);
             await transaction.rollback();
             return res.status(400).json({ error: "Invalid ingredients format - must be valid JSON array" });
           }
         }
-        
+
         if (!Array.isArray(parsedIngredients) || parsedIngredients.length === 0) {
           await transaction.rollback();
           return res.status(400).json({ error: "Ingredients must be a non-empty array" });
@@ -252,20 +224,17 @@ const menuItemsController = {
 
       // Handle image (either from file upload or base64)
       let imageUrl = null;
-      
+
       // Priority order: 1. File upload, 2. Base64 data, 3. Legacy image field
       if (req.file) {
         // File upload via multer (highest priority)
         imageUrl = `/uploads/menu/${req.file.filename}`;
-        console.log('🖼️ CREATE BACKEND DEBUG - Using file upload path:', imageUrl);
-      } else if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image/')) {
+      } else if (imageBase64 && typeof imageBase64 === "string" && imageBase64.startsWith("data:image/")) {
         // Base64 image data (second priority)
         imageUrl = imageBase64;
-        console.log('🖼️ CREATE BACKEND DEBUG - Using base64 image data');
       } else if (image) {
         // Legacy image field (third priority)
         imageUrl = image;
-        console.log('🖼️ CREATE BACKEND DEBUG - Using legacy image field');
       }
 
       // Create menu item with properly converted price and categoryId
@@ -361,93 +330,64 @@ const menuItemsController = {
       // Handle category update if provided
       let categoryId = undefined;
       let categoryValue = null;
-      
+
       if (category !== undefined) {
-        // DEBUG: Log what we received for UPDATE
-        console.log('🔍 UPDATE BACKEND DEBUG - Category received:', typeof category, category);
-        console.log('🔍 UPDATE BACKEND DEBUG - Full request body:', req.body);
-        
-        if (typeof category === 'object' && category !== null && category.id) {
-          console.log('✅ UPDATE BACKEND DEBUG - Processing as object with id');
-          // Category is an object with id and name
+        if (typeof category === "object" && category !== null && category.id) {
           categoryId = category.id;
           categoryValue = category.name || category.value;
-          console.log('✅ UPDATE BACKEND DEBUG - Extracted categoryId:', categoryId, 'categoryValue:', categoryValue);
-        } else if (typeof category === 'string') {
-          console.log('🔍 UPDATE BACKEND DEBUG - Processing as string, attempting JSON parse');
+        } else if (typeof category === "string") {
           // Try to parse as JSON first (for FormData submissions)
           try {
             const parsedCategory = JSON.parse(category);
-            console.log('✅ UPDATE BACKEND DEBUG - JSON parsed successfully:', parsedCategory);
-            if (parsedCategory && typeof parsedCategory === 'object' && parsedCategory.id) {
+            if (parsedCategory && typeof parsedCategory === "object" && parsedCategory.id) {
               categoryId = parsedCategory.id;
               categoryValue = parsedCategory.name || parsedCategory.value;
-              console.log('✅ UPDATE BACKEND DEBUG - Extracted from JSON - categoryId:', categoryId, 'categoryValue:', categoryValue);
             } else {
-              console.log('❌ UPDATE BACKEND DEBUG - Parsed JSON does not have id property');
             }
           } catch (e) {
-            console.log('❌ UPDATE BACKEND DEBUG - JSON parsing failed, treating as string value:', e.message);
             // If JSON parsing fails, treat as regular string value
             // Try to find by value first, then by name
             let categoryRecord = await Category.findOne({
-              where: { value: category, type: 'menu_items', isActive: true }
+              where: { value: category, type: "menu_items", isActive: true }
             });
-            
+
             if (!categoryRecord) {
               // If not found by value, try to find by name
               categoryRecord = await Category.findOne({
-                where: { name: category, type: 'menu_items', isActive: true }
+                where: { name: category, type: "menu_items", isActive: true }
               });
-              console.log('🔍 UPDATE BACKEND DEBUG - Searching by name instead of value');
             }
-            
+
             if (categoryRecord) {
               categoryId = categoryRecord.id;
               categoryValue = categoryRecord.value;
-              console.log('✅ UPDATE BACKEND DEBUG - Found category by name/value - categoryId:', categoryId, 'value:', categoryValue);
             } else {
-              console.log('❌ UPDATE BACKEND DEBUG - No category found with value OR name:', category);
             }
           }
-        } else if (typeof category === 'number') {
-          console.log('🔍 UPDATE BACKEND DEBUG - Processing as number');
+        } else if (typeof category === "number") {
           // Category is already an ID
           categoryId = category;
           const categoryRecord = await Category.findByPk(categoryId);
-          if (categoryRecord && categoryRecord.type === 'menu_items' && categoryRecord.isActive) {
+          if (categoryRecord && categoryRecord.type === "menu_items" && categoryRecord.isActive) {
             categoryValue = categoryRecord.value;
-            console.log('✅ UPDATE BACKEND DEBUG - Found category by ID - categoryValue:', categoryValue);
-          } else {
-            console.log('❌ UPDATE BACKEND DEBUG - No valid category found with ID:', categoryId);
           }
-        } else {
-          console.log('❌ UPDATE BACKEND DEBUG - Category type not recognized:', typeof category);
         }
 
-        // Validate that we have a valid categoryId
-        console.log('🔍 UPDATE BACKEND DEBUG - Final categoryId before validation:', categoryId);
-        console.log('🔍 UPDATE BACKEND DEBUG - Final categoryValue before validation:', categoryValue);
-        
         if (!categoryId) {
-          console.log('❌ UPDATE BACKEND DEBUG - categoryId is null/undefined, validation failed');
           await transaction.rollback();
-          return res.status(400).json({ 
-            error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.` 
+          return res.status(400).json({
+            error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.`
           });
         }
 
         // Verify the category exists and is active
-        console.log('🔍 UPDATE BACKEND DEBUG - Verifying category exists with ID:', categoryId);
         const categoryRecord = await Category.findOne({
-          where: { id: categoryId, type: 'menu_items', isActive: true }
+          where: { id: categoryId, type: "menu_items", isActive: true }
         });
-        console.log('🔍 UPDATE BACKEND DEBUG - Category verification result:', categoryRecord ? 'FOUND' : 'NOT FOUND');
-        
         if (!categoryRecord) {
           await transaction.rollback();
-          return res.status(400).json({ 
-            error: `Category with ID ${categoryId} not found or inactive.` 
+          return res.status(400).json({
+            error: `Category with ID ${categoryId} not found or inactive.`
           });
         }
       }
@@ -456,17 +396,15 @@ const menuItemsController = {
       let parsedIngredients = ingredients;
       if (ingredients !== undefined) {
         // Handle case where ingredients come as JSON string (from FormData)
-        if (typeof ingredients === 'string') {
+        if (typeof ingredients === "string") {
           try {
             parsedIngredients = JSON.parse(ingredients);
-            console.log('✅ UPDATE BACKEND DEBUG - Parsed ingredients from JSON string:', parsedIngredients);
           } catch (e) {
-            console.log('❌ UPDATE BACKEND DEBUG - Failed to parse ingredients JSON:', e.message);
             await transaction.rollback();
             return res.status(400).json({ error: "Invalid ingredients format - must be valid JSON array" });
           }
         }
-        
+
         if (!Array.isArray(parsedIngredients)) {
           await transaction.rollback();
           return res.status(400).json({ error: "Ingredients must be an array" });
@@ -494,55 +432,37 @@ const menuItemsController = {
       }
 
       // Handle image update (either from file upload or base64)
-      console.log('🖼️ UPDATE BACKEND DEBUG - Image received:', typeof image, Array.isArray(image) ? 'ARRAY' : 'NOT_ARRAY');
-      console.log('🖼️ UPDATE BACKEND DEBUG - Image value preview:', typeof image === 'string' ? image.substring(0, 100) + '...' : image);
-      console.log('🖼️ UPDATE BACKEND DEBUG - ImageBase64 received:', typeof imageBase64, imageBase64 ? 'PRESENT' : 'NOT_PRESENT');
-      console.log('🖼️ UPDATE BACKEND DEBUG - ImageBase64 preview:', typeof imageBase64 === 'string' ? imageBase64.substring(0, 100) + '...' : imageBase64);
-      console.log('🖼️ UPDATE BACKEND DEBUG - req.file:', req.file ? 'FILE_PRESENT' : 'NO_FILE');
-      
       let imageUrl = menuItem.image; // Keep existing image by default
-      
       // Priority order: 1. File upload, 2. Base64 data, 3. Legacy image field
       if (req.file) {
         // File upload via multer (highest priority)
         imageUrl = `/uploads/menu/${req.file.filename}`;
-        console.log('🖼️ UPDATE BACKEND DEBUG - Using file upload path:', imageUrl);
-      } else if (imageBase64 !== undefined && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image/')) {
+      } else if (imageBase64 !== undefined && typeof imageBase64 === "string" && imageBase64.startsWith("data:image/")) {
         // Base64 image data (second priority)
         imageUrl = imageBase64;
-        console.log('🖼️ UPDATE BACKEND DEBUG - Using base64 image data');
       } else if (image !== undefined) {
         // Base64 image data or null to remove image
-        console.log('🖼️ UPDATE BACKEND DEBUG - Using provided image data, type:', typeof image);
-        
-        if (typeof image === 'string') {
+
+        if (typeof image === "string") {
           // Handle case where image comes as JSON string (from FormData)
-          if (image.startsWith('[') || image.startsWith('{')) {
+          if (image.startsWith("[") || image.startsWith("{")) {
             try {
               const parsedImage = JSON.parse(image);
-              console.log('⚠️ UPDATE BACKEND DEBUG - Image was JSON string, parsed to:', typeof parsedImage);
               imageUrl = null; // Don't use parsed JSON as image
             } catch (e) {
-              console.log('✅ UPDATE BACKEND DEBUG - Image is regular string, using as-is');
               imageUrl = image;
             }
           } else {
-            console.log('✅ UPDATE BACKEND DEBUG - Image is regular string, using as-is');
             imageUrl = image;
           }
-        } else if (typeof image === 'object') {
+        } else if (typeof image === "object") {
           // Handle case where image comes as empty object from FormData
-          console.log('⚠️ UPDATE BACKEND DEBUG - Image is object (likely empty from FormData), keeping existing image');
           // Keep existing image when object is passed (don't update)
           imageUrl = menuItem.image;
         } else {
-          console.log('✅ UPDATE BACKEND DEBUG - Image is other type, using as-is');
           imageUrl = image;
         }
       }
-      
-      console.log('🖼️ UPDATE BACKEND DEBUG - Final imageUrl type:', typeof imageUrl);
-      console.log('🖼️ UPDATE BACKEND DEBUG - Final imageUrl preview:', typeof imageUrl === 'string' ? imageUrl.substring(0, 100) + '...' : imageUrl);
 
       // Update menu item with proper price and categoryId handling
       await menuItem.update(
@@ -584,7 +504,7 @@ const menuItemsController = {
           {
             model: Category,
             as: "category",
-            attributes: ['id', 'name', 'value', 'type'],
+            attributes: ["id", "name", "value", "type"],
             required: false
           },
           {
@@ -658,10 +578,7 @@ const menuItemsController = {
       }
 
       // Update menu item with printer assignment
-      const [updatedRowsCount] = await MenuItem.update(
-        { printerId: printerId || null },
-        { where: { id } }
-      );
+      const [updatedRowsCount] = await MenuItem.update({ printerId: printerId || null }, { where: { id } });
 
       if (updatedRowsCount === 0) {
         return res.status(404).json({ error: "Menu item not found" });
@@ -748,10 +665,7 @@ const menuItemsController = {
       }
 
       // Update multiple menu items
-      const [updatedRowsCount] = await MenuItem.update(
-        { printerId: printerId || null },
-        { where: { id: menuItemIds } }
-      );
+      const [updatedRowsCount] = await MenuItem.update({ printerId: printerId || null }, { where: { id: menuItemIds } });
 
       res.status(200).json({
         message: `${updatedRowsCount} menu items updated`,
@@ -773,22 +687,19 @@ const menuItemsController = {
         return res.status(400).json({ error: "Menu item IDs array is required" });
       }
 
-      if (!category || typeof category !== 'string') {
+      if (!category || typeof category !== "string") {
         return res.status(400).json({ error: "Category is required and must be a string" });
       }
 
       // Validate category
-      if (!(await isValidCategory(category, 'menu_items'))) {
-        return res.status(400).json({ 
+      if (!(await isValidCategory(category, "menu_items"))) {
+        return res.status(400).json({
           error: `Invalid menu item category: ${category}. Please use a valid category from the database.`
         });
       }
 
       // Update multiple menu items
-      const [updatedRowsCount] = await MenuItem.update(
-        { category },
-        { where: { id: menuItemIds } }
-      );
+      const [updatedRowsCount] = await MenuItem.update({ category }, { where: { id: menuItemIds } });
 
       if (updatedRowsCount === 0) {
         return res.status(404).json({ error: "No menu items found with the provided IDs" });

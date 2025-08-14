@@ -384,9 +384,6 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
       await set(fetchMaterialsAction); // Reuse materials for conversions
       break;
     case "categories":
-      // Categories tab doesn't need specific data fetching as categories are managed separately
-      // Categories are fetched via getCategoriesByType API when needed
-      console.log(`Categories tab loaded - categories are fetched dynamically via API`);
       break;
     default:
       console.error(`No specific data fetching defined for tab: ${tabValue}`);
@@ -413,7 +410,6 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
 
     // Extract imageFile from data
     const imageFile = data.imageFile;
-    console.log('🔍 STORE DEBUG - ImageFile extracted:', imageFile);
 
     // Make API call with imageFile
     const response = await inventoryAPI.menu.createMenuItem(createData, imageFile);
@@ -464,15 +460,9 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
 
     // Extract imageFile from data
     const imageFile = data.imageFile;
-    console.log('🔍 UPDATE STORE DEBUG - ImageFile extracted:', imageFile);
-
     // Make API call with imageFile
     const response = await inventoryAPI.menu.updateMenuItem(id, updateData, imageFile);
 
-    // Update with server response and keep it at the top
-    console.log('🔍 UPDATE STORE DEBUG - Server response:', response.data);
-    console.log('🔍 UPDATE STORE DEBUG - Server response category:', response.data.category);
-    
     const transformedMenuItem: MenuItem = {
       ...response.data,
       id: response.data.id.toString(),
@@ -480,8 +470,6 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
       updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
     };
     
-    console.log('🔍 UPDATE STORE DEBUG - Transformed menu item category:', transformedMenuItem.category);
-
     // Replace the optimistic item with server response and ensure it stays at the top
     set(menuItemsAtom, prev => {
       const filteredItems = prev.filter(item => item.id !== id);
@@ -496,33 +484,25 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
 });
 
 export const deleteMenuItemAction = atom(null, async (get, set, id: string) => {
-  console.log("🗑️ [DeleteAction] deleteMenuItemAction called with id:", id);
   
   // Get current state before optimistic update
   const currentMenuItems = get(menuItemsAtom);
-  console.log("🗑️ [DeleteAction] Current menuItems count:", currentMenuItems.length);
-  console.log("🗑️ [DeleteAction] Looking for item with id:", id);
   
   const itemToDelete = currentMenuItems.find(item => item.id === id);
   if (!itemToDelete) {
-    console.error("❌ [DeleteAction] Menu item not found with id:", id);
     throw new Error(`Menu item with id ${id} not found`);
   }
   
-  console.log("🗑️ [DeleteAction] Found item to delete:", itemToDelete.name);
 
   // Optimistic update - remove menu item immediately
   set(menuItemsAtom, prev => {
     const filtered = prev.filter(item => item.id !== id);
-    console.log("🗑️ [DeleteAction] Optimistic update - new count:", filtered.length);
     return filtered;
   });
 
   try {
-    console.log("🗑️ [DeleteAction] Making API call to delete item:", id);
     // Make API call
     await inventoryAPI.menu.deleteMenuItem(id);
-    console.log("✅ [DeleteAction] API call successful for id:", id);
   } catch (error) {
     console.error("❌ [DeleteAction] API call failed, reverting optimistic update:", error);
     // Revert optimistic update
