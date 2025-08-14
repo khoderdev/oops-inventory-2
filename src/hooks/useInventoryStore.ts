@@ -105,7 +105,8 @@ export function useInventoryStore() {
         await fetchTabData("stock");
         toast({
           title: selectedStockEntry ? "Stock Entry Updated" : "Stock Entry Created",
-          description: selectedStockEntry ? "Stock entry has been updated successfully" : "New stock entry has been created successfully"
+          description: selectedStockEntry ? "Stock entry has been updated successfully" : "New stock entry has been created successfully",
+          duration: 1500
         });
 
         setShowStockFormTyped(false);
@@ -164,14 +165,16 @@ export function useInventoryStore() {
         await fetchTabData("stock");
         toast({
           title: "Stock Entry Deleted",
-          description: "Stock entry has been removed successfully"
+          description: "Stock entry has been removed successfully",
+          duration: 1500
         });
       } catch (error) {
         console.error("Failed to delete stock entry:", error);
         toast({
           title: "Error",
           description: "Failed to delete stock entry",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 1500
         });
       }
     },
@@ -202,14 +205,9 @@ export function useInventoryStore() {
 
   const handleDeleteMenuItem = useCallback(
     async (id: string) => {
-      console.log("🗑️ [InventoryStore] handleDeleteMenuItem called with id:", id);
-      console.log("🗑️ [InventoryStore] Current menuItems count:", menuItems.length);
       
       try {
-        console.log("🗑️ [InventoryStore] Calling deleteMenuItem action with id:", id);
         await deleteMenuItem(id);
-        console.log("✅ [InventoryStore] Delete action completed successfully for id:", id);
-        console.log("🗑️ [InventoryStore] New menuItems count:", menuItems.length);
       } catch (error) {
         console.error("❌ [InventoryStore] Failed to delete menu item:", error);
         // Error handling is already done in the action
@@ -236,7 +234,8 @@ export function useInventoryStore() {
 
         toast({
           title: "Stock Added Successfully",
-          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to inventory`
+          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to inventory`,
+          duration: 1500
         });
 
         setShowStockFormTyped(false);
@@ -269,7 +268,8 @@ export function useInventoryStore() {
 
         toast({
           title: "Waste Recorded Successfully",
-          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from inventory`
+          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from inventory`,
+          duration: 1500
         });
 
         setShowStockFormTyped(false);
@@ -302,7 +302,8 @@ export function useInventoryStore() {
 
         toast({
           title: "Quantity Added Successfully",
-          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to stock entry`
+          description: `Added ${data.purchasedQuantity} ${data.purchasedUnit} to stock entry`,
+          duration: 1500
         });
 
         setShowStockFormTyped(false);
@@ -337,7 +338,8 @@ export function useInventoryStore() {
 
         toast({
           title: "Waste Recorded Successfully",
-          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from stock entry`
+          description: `Removed ${data.purchasedQuantity} ${data.purchasedUnit} from stock entry`,
+          duration: 1500
         });
 
         setShowStockFormTyped(false);
