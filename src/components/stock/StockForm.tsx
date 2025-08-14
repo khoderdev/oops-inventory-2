@@ -4,7 +4,7 @@ import { RecordWasteData, StockFormData, StockFormInputs, StockFormProps } from 
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Package, Plus, Trash2, TrendingUp } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { stockSchema } from "./stockSchema";
 import { AddStockTab } from "./tabs/AddStockTab";
@@ -40,6 +40,25 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   const watchedQuantity = form.watch("purchasedQuantity");
   const watchedCostPerUnit = form.watch("costPerPurchasedUnit");
 
+  // Update form when selectedMaterialId changes (when clicking "Add Stock" from MaterialTable)
+  useEffect(() => {
+    console.log('🔍 StockForm Debug:', {
+      selectedMaterialId,
+      watchedMaterialId,
+      materialsCount: materials.length,
+      materialIds: materials.map(m => ({ id: m.id, name: m.name, idType: typeof m.id }))
+    });
+    
+    if (selectedMaterialId && selectedMaterialId !== watchedMaterialId) {
+      console.log('🔄 StockForm: Updating materialId from', watchedMaterialId, 'to', selectedMaterialId);
+      form.setValue("materialId", selectedMaterialId);
+      
+      // Verify the material exists in the materials array
+      const foundMaterial = materials.find(m => m.id.toString() === selectedMaterialId);
+      console.log('🎯 Found material in array:', foundMaterial);
+    }
+  }, [selectedMaterialId, watchedMaterialId, form, materials]);
+
   // Wrapper function to handle waste from specific entry with proper data conversion
   const handleWasteFromEntry = (data: StockFormData & { stockEntryId: string }) => {
     if (onWasteFromSpecificEntry) {
@@ -48,12 +67,26 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       console.error("❌ onWasteFromSpecificEntry is not defined!");
     }
   };
-  const selectedMaterial = materials.find(m => m.id === watchedMaterialId);
+  const selectedMaterial = materials.find(m => m.id.toString() === watchedMaterialId?.toString());
+
+  // Debug: Log material selection and units calculation
+  console.log('🔍 StockForm Units Debug:', {
+    watchedMaterialId,
+    selectedMaterial: selectedMaterial ? {
+      id: selectedMaterial.id,
+      name: selectedMaterial.name,
+      unitType: selectedMaterial.unitType,
+      baseUnit: selectedMaterial.baseUnit,
+      inputUnit: selectedMaterial.inputUnit
+    } : null,
+    materialsCount: materials.length
+  });
 
   // Get available units based on the active tab and context
   const availableUnits = selectedMaterial
     ? (() => {
         const suggestedUnits = getSuggestedUnits(selectedMaterial.unitType);
+        console.log('🔍 Suggested units for', selectedMaterial.unitType, ':', suggestedUnits);
 
         // For add-to-entry and waste-from-entry tabs, only allow units compatible with the existing stock entry
         if ((activeTab === "add-to-entry" || activeTab === "waste-from-entry") && stockEntry) {
@@ -95,6 +128,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
         return suggestedUnits;
       })()
     : [];
+
+  console.log('🔍 Final availableUnits:', availableUnits);
 
   React.useEffect(() => {
     const isAddToEntry = activeTab === "add-to-entry";

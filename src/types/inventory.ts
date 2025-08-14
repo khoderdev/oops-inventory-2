@@ -113,9 +113,9 @@ export interface Material {
   category: MaterialCategory;
   baseUnit: string;
   unitType: UnitType;
-  inputUnit?: string; // Original input unit from MaterialForm (e.g., "box", "pack")
+  inputUnit?: string;
   costPerUnit: number;
-  packageQuantity?: number; // For package units: how many base units per package
+  packageQuantity?: number;
   description?: string;
   isPOSItem?: boolean;
   createdAt?: Date;
@@ -125,7 +125,7 @@ export interface Material {
 // Form data interfaces
 export interface MaterialFormData extends z.infer<typeof materialSchema> {
   name: string;
-  category: MaterialCategory;
+  category: string;
   baseUnit: string;
   unitType: UnitType;
   inputUnit: string;

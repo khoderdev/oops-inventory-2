@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Material, StockFormData, StockFormInputs } from "@/types/inventory";
+import { Material, AddStockData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { CalendarIcon, Minus, Package, Plus, TrendingUp } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
@@ -18,14 +18,20 @@ interface AddStockTabProps {
   selectedMaterial: Material | undefined;
   watchedQuantity: string;
   watchedCostPerUnit: string;
-  onAddStock: (data: StockFormData) => void;
+  onAddStock: (data: AddStockData) => void;
   onCancel: () => void;
 }
 
 export function AddStockTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, onAddStock, onCancel }: AddStockTabProps) {
   const handleSubmit = (data: StockFormInputs) => {
-    const formData = data as unknown as StockFormData;
-    onAddStock(formData);
+    const addStockData: AddStockData = {
+      materialId: data.materialId,
+      additionalQuantity: parseFloat(data.purchasedQuantity),
+      unit: data.purchasedUnit,
+      additionDate: data.purchaseDate,
+      notes: data.batchNumber || undefined
+    };
+    onAddStock(addStockData);
   };
 
   return (
@@ -167,7 +173,7 @@ export function AddStockTab({ form, materials, availableUnits, selectedMaterial,
             />
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

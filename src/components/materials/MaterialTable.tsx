@@ -42,13 +42,11 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
   const initialState = initializeFromCache();
   const [searchTerm, setSearchTerm] = useState(initialState.searchTerm);
   const [categoryFilter, setCategoryFilter] = useState<string>(initialState.categoryFilter);
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [allMaterials, setAllMaterials] = useState<MaterialWithStock[]>(initialState.materials);
   const [currentPage, setCurrentPage] = useState(initialState.currentPage);
   const [pageSize, setPageSize] = useState(initialState.pageSize);
   const [sortBy, setSortBy] = useState(initialState.sortBy);
   const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">(initialState.sortOrder);
-  const [materials, setMaterials] = useState<MaterialWithStock[]>(initialState.materials);
-  const [pagination, setPagination] = useState<PaginationInfo | null>(initialState.pagination);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dataCache, setDataCache] = useState<Map<string, CachedMaterialData>>(new Map());
@@ -58,7 +56,41 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  // Fetch material categories on component mount
+  const filteredMaterials = useMemo(() => {
+    return allMaterials.filter(material => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesName = material.name.toLowerCase().includes(searchLower);
+      const matchesSearch = searchTerm === "" || matchesName;
+      const matchesCategory = categoryFilter === "all" || material.category === categoryFilter;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [allMaterials, searchTerm, categoryFilter]);
+
+  const paginatedMaterials = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredMaterials.slice(startIndex, endIndex);
+  }, [filteredMaterials, currentPage, pageSize]);
+
+  const paginationInfo = useMemo(() => {
+    const totalItems = filteredMaterials.length;
+    const totalPages = Math.ceil(totalItems / pageSize);
+    const startIndex = (currentPage - 1) * pageSize + 1;
+    const endIndex = Math.min(currentPage * pageSize, totalItems);
+    
+    return {
+      currentPage,
+      totalPages,
+      totalItems,
+      itemsPerPage: pageSize,
+      startIndex,
+      endIndex,
+      hasPreviousPage: currentPage > 1,
+      hasNextPage: currentPage < totalPages
+    };
+  }, [filteredMaterials.length, currentPage, pageSize]);
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -85,8 +117,8 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
         materials: data,
         pagination: paginationInfo,
         timestamp: Date.now(),
-        searchTerm: debouncedSearchTerm,
-        categoryFilter,
+        searchTerm: "", // Remove search from cache since we do client-side filtering
+        categoryFilter: "all", // Remove category filter from cache
         sortBy,
         sortOrder
       };
@@ -97,7 +129,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
         console.warn("Failed to save materials cache:", error);
       }
     },
-    [debouncedSearchTerm, categoryFilter, sortBy, sortOrder]
+    [sortBy, sortOrder]
   );
 
   const getCachedData = useCallback(
@@ -113,35 +145,39 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
 
   const fetchMaterials = useCallback(
     async (forceRefresh = false) => {
-      const cacheKey = getCacheKey(currentPage, pageSize, debouncedSearchTerm, categoryFilter, sortBy, sortOrder);
+      const cacheKey = `all_materials_${sortBy}_${sortOrder}`;
       if (!forceRefresh) {
         const cachedData = getCachedData(cacheKey);
         if (cachedData) {
-          const pageData = getPageFromCache(cachedData, currentPage);
-          if (pageData) {
-            setMaterials(pageData.materials);
-            setPagination(pageData.pagination);
-            return;
-          }
+          setAllMaterials(cachedData.materials);
+          return;
         }
       }
       setLoading(true);
       setError(null);
       try {
+        // Fetch ALL materials at once for comprehensive search
         const response = await materialsAPI.getMaterialsWithStockPaginated({
-          page: currentPage,
-          limit: pageSize,
-          search: debouncedSearchTerm || undefined,
-          category: categoryFilter === "all" ? undefined : categoryFilter,
+          page: 1,
+          limit: 10000, // Large limit to get all materials
           sortBy,
           sortOrder,
           includeStockEntries: "true"
         });
-        const newMaterials = response.data.data;
-        const newPagination = response.data.pagination;
-        setMaterials(newMaterials);
-        setPagination(newPagination);
-        saveToCache(newMaterials, newPagination, cacheKey);
+        const allMaterials = response.data.data;
+        setAllMaterials(allMaterials);
+        
+        // Save to cache without pagination info since we handle pagination client-side
+        const cacheData = {
+          materials: allMaterials,
+          pagination: response.data.pagination,
+          timestamp: Date.now(),
+          searchTerm: "",
+          categoryFilter: "all",
+          sortBy,
+          sortOrder
+        };
+        setDataCache(prev => new Map(prev.set(cacheKey, cacheData)));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch materials");
         console.error("Error fetching materials:", err);
@@ -149,12 +185,12 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
         setLoading(false);
       }
     },
-    [currentPage, pageSize, debouncedSearchTerm, categoryFilter, sortBy, sortOrder, getCacheKey, getCachedData, saveToCache]
+    [sortBy, sortOrder, getCachedData]
   );
 
   const getPageFromCache = useCallback(
     (cachedData: CachedMaterialData, page: number) => {
-      if (cachedData.pagination.currentPage === page && cachedData.pagination.itemsPerPage === pageSize && cachedData.searchTerm === debouncedSearchTerm && cachedData.categoryFilter === categoryFilter && cachedData.sortBy === sortBy && cachedData.sortOrder === sortOrder) {
+      if (cachedData.pagination.currentPage === page && cachedData.pagination.itemsPerPage === pageSize && cachedData.sortBy === sortBy && cachedData.sortOrder === sortOrder) {
         return {
           materials: cachedData.materials,
           pagination: cachedData.pagination
@@ -162,37 +198,20 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
       }
       return null;
     },
-    [pageSize, debouncedSearchTerm, categoryFilter, sortBy, sortOrder]
+    [pageSize, sortBy, sortOrder]
   );
 
   useEffect(() => {
     fetchMaterials();
-  }, [debouncedSearchTerm, categoryFilter, sortBy, sortOrder]);
+  }, [sortBy, sortOrder]);
 
-  useEffect(() => {
-    const cacheKey = getCacheKey(currentPage, pageSize, debouncedSearchTerm, categoryFilter, sortBy, sortOrder);
-    const cachedData = getCachedData(cacheKey);
-
-    if (cachedData) {
-      const pageData = getPageFromCache(cachedData, currentPage);
-      if (pageData) {
-        setMaterials(pageData.materials);
-        setPagination(pageData.pagination);
-        return;
-      }
-    }
-    fetchMaterials();
-  }, [currentPage]);
+  // Remove this useEffect - pagination is now handled client-side
 
   useEffect(() => {
     fetchMaterials(true);
   }, [pageSize]);
 
-  useEffect(() => {
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    }
-  }, [debouncedSearchTerm, categoryFilter]);
+  // Remove this useEffect - no need to reset page on search/filter since it's client-side
 
   const handleSortChange = useCallback((newSortBy: string, newSortOrder: "ASC" | "DESC") => {
     setSortBy(newSortBy);
@@ -221,28 +240,26 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
   }, []);
 
   const goToNextPage = useCallback(() => {
-    setCurrentPage(prev => (pagination ? Math.min(pagination.totalPages, prev + 1) : prev));
-  }, [pagination]);
+    setCurrentPage(prev => Math.min(paginationInfo.totalPages, prev + 1));
+  }, [paginationInfo.totalPages]);
 
   const goToLastPage = useCallback(() => {
-    if (pagination) {
-      setCurrentPage(pagination.totalPages);
-    }
-  }, [pagination]);
+    setCurrentPage(paginationInfo.totalPages);
+  }, [paginationInfo.totalPages]);
 
   const handlePageSizeChange = useCallback(
     (newSize: string) => {
       const size = Number(newSize);
       setPageSize(size);
       setCurrentPage(1);
-      const currentCacheKey = getCacheKey(currentPage, pageSize, debouncedSearchTerm, categoryFilter, sortBy, sortOrder);
+      const currentCacheKey = getCacheKey(currentPage, pageSize, "", "all", sortBy, sortOrder);
       setDataCache(prev => {
         const newCache = new Map(prev);
         newCache.delete(currentCacheKey);
         return newCache;
       });
     },
-    [currentPage, pageSize, debouncedSearchTerm, categoryFilter, sortBy, sortOrder, getCacheKey]
+    [currentPage, pageSize, sortBy, sortOrder, getCacheKey]
   );
 
   useEffect(() => {
@@ -436,7 +453,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
   );
 
   const table = useReactTable({
-    data: materials,
+    data: paginatedMaterials,
     columns,
     state: {
       sorting,
@@ -484,19 +501,17 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
                 {loading && <Loader2 className="h-5 w-5 animate-spin text-blue-500" />}
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                {pagination && (
-                  <>
-                    <span>Total: {pagination.totalItems} materials</span>
-                    <span>•</span>
-                    <span>
-                      Showing {pagination.startIndex}-{pagination.endIndex} of {pagination.totalItems}
-                    </span>
-                    <span>•</span>
-                    <span>
-                      Page {pagination.currentPage} of {pagination.totalPages}
-                    </span>
-                  </>
-                )}
+                <>
+                  <span>Total: {paginationInfo.totalItems} materials</span>
+                  <span>•</span>
+                  <span>
+                    Showing {paginationInfo.startIndex}-{paginationInfo.endIndex} of {paginationInfo.totalItems}
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Page {paginationInfo.currentPage} of {paginationInfo.totalPages}
+                  </span>
+                </>
                 {(searchTerm || categoryFilter !== "all") && (
                   <>
                     <span>•</span>
@@ -516,7 +531,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
             {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-              <Input placeholder="Search by material name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem]" disabled={loading} />
+              <Input placeholder="Search by material name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem]" disabled={loading} />
             </div>
 
             {/* Category Filter */}
@@ -552,19 +567,19 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
             </div>
 
             {/* Pagination Controls */}
-            {pagination && pagination.totalPages > 1 && (
+            {paginationInfo.totalPages > 1 && (
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" onClick={goToFirstPage} disabled={!pagination.hasPreviousPage || loading} className="h-10 px-3">
+                <Button variant="outline" size="sm" onClick={goToFirstPage} disabled={!paginationInfo.hasPreviousPage || loading} className="h-10 px-3">
                   <ChevronsLeft className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={goToPreviousPage} disabled={!pagination.hasPreviousPage || loading} className="h-10 px-3">
+                <Button variant="outline" size="sm" onClick={goToPreviousPage} disabled={!paginationInfo.hasPreviousPage || loading} className="h-10 px-3">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="px-3 py-2 text-sm font-medium bg-gray-50 rounded border">{pagination.currentPage}</span>
-                <Button variant="outline" size="sm" onClick={goToNextPage} disabled={!pagination.hasNextPage || loading} className="h-10 px-3">
+                <span className="px-3 py-2 text-sm font-medium bg-gray-50 rounded border">{paginationInfo.currentPage}</span>
+                <Button variant="outline" size="sm" onClick={goToNextPage} disabled={!paginationInfo.hasNextPage || loading} className="h-10 px-3">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={goToLastPage} disabled={!pagination.hasNextPage || loading} className="h-10 px-3">
+                <Button variant="outline" size="sm" onClick={goToLastPage} disabled={!paginationInfo.hasNextPage || loading} className="h-10 px-3">
                   <ChevronsRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -575,7 +590,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
         {/* Content Section */}
         <div ref={scrollContainerRef} className="flex-1 overflow-hidden overflow-y-auto relative">
           {/* Loading State */}
-          {loading && materials.length === 0 && (
+          {loading && allMaterials.length === 0 && (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
@@ -585,7 +600,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
           )}
 
           {/* Empty State */}
-          {!loading && materials.length === 0 && (
+          {!loading && filteredMaterials.length === 0 && (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <p className="text-gray-600 mb-2">No materials found</p>
@@ -595,9 +610,9 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
           )}
 
           {/* Mobile Card View */}
-          {!loading && materials.length > 0 && (
+          {!loading && paginatedMaterials.length > 0 && (
             <div className="lg:hidden space-y-4">
-              {materials.map(material => {
+              {paginatedMaterials.map(material => {
                 const categoryInfo = categories.find(c => c.value === material.category);
                 return (
                   <div key={material.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
@@ -691,7 +706,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
           )}
 
           {/* Desktop Table View - TanStack Virtualized */}
-          {!loading && materials.length > 0 && (
+          {!loading && paginatedMaterials.length > 0 && (
             <div className="hidden lg:block px-2 mt-10">
               <div className="h-[calc(100vh-260px)] overflow-y-hidden">
                 <TanStackTable table={table} virtualized={true} customHeaderAlignment={{ actions: "center" }} customCellAlignment={{ actions: "center" }} estimatedRowSize={60} overscan={10} loading={loading} emptyMessage="No materials found" maxHeight="calc(100vh-260px)" />
@@ -700,17 +715,17 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
           )}
 
           {/* Bottom Pagination Controls for Mobile */}
-          {!loading && pagination && pagination.totalPages > 1 && (
+          {!loading && paginationInfo.totalPages > 1 && (
             <div className="lg:hidden mt-6 px-4">
               <div className="flex items-center justify-between bg-white p-4 rounded-lg border">
                 <div className="text-sm text-gray-600">
-                  Page {pagination.currentPage} of {pagination.totalPages}
+                  Page {paginationInfo.currentPage} of {paginationInfo.totalPages}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={goToPreviousPage} disabled={!pagination.hasPreviousPage} className="h-9 px-3">
+                  <Button variant="outline" size="sm" onClick={goToPreviousPage} disabled={!paginationInfo.hasPreviousPage} className="h-9 px-3">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={goToNextPage} disabled={!pagination.hasNextPage} className="h-9 px-3">
+                  <Button variant="outline" size="sm" onClick={goToNextPage} disabled={!paginationInfo.hasNextPage} className="h-9 px-3">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>

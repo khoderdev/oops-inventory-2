@@ -28,6 +28,13 @@ router.get("/categories",
   materialController.getMaterialCategories
 );
 
+// Get single material by ID
+router.get("/:id", 
+  requirePermission("materials.read"), 
+  cacheMiddleware(300, (req) => `material:${req.params.id}`), // 5 min cache
+  materialController.getMaterial
+);
+
 // Write operations (with cache invalidation)
 router.post("/", requirePermission("materials.create"), auditAction("material_create", "material"), (req, res, next) => {
   // Clear materials cache after creation

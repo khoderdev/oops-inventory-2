@@ -80,7 +80,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                       {materials.map(material => {
                         const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
                         return (
-                          <SelectItem key={material.id} value={material.id}>
+                          <SelectItem key={material.id} value={material.id.toString()}>
                             {material.name} ({displayUnit})
                           </SelectItem>
                         );
@@ -320,7 +320,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
             />
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

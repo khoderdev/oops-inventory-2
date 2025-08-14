@@ -100,85 +100,108 @@ export function StockEntriesTable() {
   const [sorting, setSorting] = useState<SortingState>([{ id: "purchaseDate", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [reportSorting, setReportSorting] = useState<SortingState>([]);
-  const materialsMap = useMemo(() => { const map = new Map(); materials.forEach(m => { map.set(m.id, m); map.set(m.id.toString(), m); map.set(parseInt(m.id), m); }); return map; }, [materials]);
+  const materialsMap = useMemo(() => {
+    const map = new Map();
+    // Add materials from the prefetch hook
+    materials.forEach(m => {
+      map.set(m.id, m);
+      map.set(m.id.toString(), m);
+      map.set(parseInt(m.id), m);
+    });
+    
+    // Also add materials that come with stock entries (for materials not in prefetch)
+    stockEntries.forEach(entry => {
+      if (entry.material && !map.has(entry.materialId)) {
+        const material = entry.material;
+        map.set(material.id, material);
+        map.set(material.id.toString(), material);
+        map.set(parseInt(material.id), material);
+      }
+    });
+    
+    return map;
+  }, [materials, stockEntries]);
 
   // Negative stock report table columns
-  const negativeStockColumns = useMemo(() => [
-    {
-      id: "material",
-      header: "Material",
-      accessorKey: "materialName",
-      cell: ({ row }: any) => {
-        const item = row.original;
-        return (
-          <div className="flex items-center gap-2">
-            {item.isVirtualEntry && <AlertTriangle className="h-4 w-4 text-red-600" />}
-            {item.materialName}
-            {item.isVirtualEntry && (
-              <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
-                VIRTUAL
-              </Badge>
-            )}
+  const negativeStockColumns = useMemo(
+    () => [
+      {
+        id: "material",
+        header: "Material",
+        accessorKey: "materialName",
+        cell: ({ row }: any) => {
+          const item = row.original;
+          return (
+            <div className="flex items-center gap-2">
+              {item.isVirtualEntry && <AlertTriangle className="h-4 w-4 text-red-600" />}
+              {item.materialName}
+              {item.isVirtualEntry && (
+                <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                  VIRTUAL
+                </Badge>
+              )}
+            </div>
+          );
+        }
+      },
+      {
+        id: "supplier",
+        header: "Supplier",
+        accessorKey: "supplier",
+        cell: ({ row }: any) => {
+          const item = row.original;
+          return <span className={item.isVirtualEntry ? "text-red-600 font-medium" : ""}>{item.supplier}</span>;
+        }
+      },
+      {
+        id: "individualQuantity",
+        header: "Individual Quantity",
+        accessorKey: "purchasedIndividualQuantity",
+        cell: ({ getValue }: any) => (
+          <div className="text-red-600 font-medium flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            {formatNumber(getValue())}
           </div>
-        );
+        )
+      },
+      {
+        id: "unit",
+        header: "Unit",
+        accessorKey: "purchasedIndividualUnit"
+      },
+      {
+        id: "purchasedQuantity",
+        header: "Purchased Quantity",
+        accessorKey: "purchasedQuantity",
+        cell: ({ getValue }: any) => <span className="text-red-600 font-medium">{formatNumber(getValue())}</span>
+      },
+      {
+        id: "purchasedUnit",
+        header: "Purchased Unit",
+        accessorKey: "purchasedUnit"
+      },
+      {
+        id: "categoryId",
+        header: "Category ID",
+        accessorKey: "categoryId",
+        cell: ({ getValue }: any) => (
+          <Badge variant="outline" className="text-xs">
+            {getValue() || "N/A"}
+          </Badge>
+        )
+      },
+      {
+        id: "lastUpdated",
+        header: "Last Updated",
+        accessorKey: "lastUpdated",
+        cell: ({ getValue }: any) => {
+          const date = getValue();
+          return date ? new Date(date).toLocaleDateString() : "N/A";
+        }
       }
-    },
-    {
-      id: "supplier",
-      header: "Supplier",
-      accessorKey: "supplier",
-      cell: ({ row }: any) => {
-        const item = row.original;
-        return <span className={item.isVirtualEntry ? "text-red-600 font-medium" : ""}>{item.supplier}</span>;
-      }
-    },
-    {
-      id: "individualQuantity",
-      header: "Individual Quantity",
-      accessorKey: "purchasedIndividualQuantity",
-      cell: ({ getValue }: any) => (
-        <div className="text-red-600 font-medium flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4" />
-          {formatNumber(getValue())}
-        </div>
-      )
-    },
-    {
-      id: "unit",
-      header: "Unit",
-      accessorKey: "purchasedIndividualUnit"
-    },
-    {
-      id: "purchasedQuantity",
-      header: "Purchased Quantity",
-      accessorKey: "purchasedQuantity",
-      cell: ({ getValue }: any) => <span className="text-red-600 font-medium">{formatNumber(getValue())}</span>
-    },
-    {
-      id: "purchasedUnit",
-      header: "Purchased Unit",
-      accessorKey: "purchasedUnit"
-    },
-    {
-      id: "categoryId",
-      header: "Category ID",
-      accessorKey: "categoryId",
-      cell: ({ getValue }: any) => (
-        <Badge variant="outline" className="text-xs">
-          {getValue() || "N/A"}
-        </Badge>
-      )
-    },
-    {
-      id: "lastUpdated",
-      header: "Last Updated",
-      accessorKey: "lastUpdated",
-      cell: ({ getValue }: any) => {
-        const date = getValue();
-        return date ? new Date(date).toLocaleDateString() : "N/A";
-      }
-    }
-  ], []);
+    ],
+    []
+  );
 
   // Negative stock report table
   const negativeStockTable = useReactTable({
@@ -187,9 +210,9 @@ export function StockEntriesTable() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     state: {
-      sorting: reportSorting,
+      sorting: reportSorting
     },
-    onSortingChange: setReportSorting,
+    onSortingChange: setReportSorting
   });
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
@@ -231,6 +254,54 @@ export function StockEntriesTable() {
     });
   }, [stockEntries, updateCounter]);
 
+
+
+  // Client-side filtering like MenuBuilder - instant search without API calls
+  const filteredStockEntries = useMemo(() => {
+    // First create stockEntriesWithMaterial structure
+    const stockEntriesWithMaterial = optimisticStockEntries
+      .filter(entry => {
+        // Filter out entries where the material no longer exists
+        const material = materialsMap.get(entry.materialId);
+        return material !== undefined;
+      })
+      .map(entry => {
+        const material = materialsMap.get(entry.materialId);
+        return {
+          ...entry,
+          material: material!
+        } as StockEntryWithMaterial;
+      });
+
+    // Then apply search and filter logic
+    return stockEntriesWithMaterial.filter(entry => {
+      const searchLower = searchTerm.toLowerCase();
+      
+      // Search in material name
+      const materialName = entry.material?.name?.toLowerCase() || '';
+      const matchesMaterialName = materialName.includes(searchLower);
+      
+      // Search in supplier
+      const supplier = entry.supplier?.toLowerCase() || '';
+      const matchesSupplier = supplier.includes(searchLower);
+      
+      // Search in batch number
+      const batchNumber = entry.batchNumber?.toLowerCase() || '';
+      const matchesBatchNumber = batchNumber.includes(searchLower);
+      
+      // Search in notes
+      const notes = entry.notes?.toLowerCase() || '';
+      const matchesNotes = notes.includes(searchLower);
+      
+      const matchesSearch = searchTerm === "" || matchesMaterialName || matchesSupplier || matchesBatchNumber || matchesNotes;
+      
+      // Material filter
+      const matchesMaterialFilter = materialFilter === "all" || entry.materialId === materialFilter;
+      
+      return matchesSearch && matchesMaterialFilter;
+    });
+  }, [optimisticStockEntries, materialsMap, searchTerm, materialFilter]);
+
   const applyOptimisticUpdate = useCallback((entryId: string | number, updates: Partial<StockEntry>) => {
     optimisticUpdatesRef.current.set(entryId, updates);
     setUpdateCounter(prev => prev + 1);
@@ -271,15 +342,15 @@ export function StockEntriesTable() {
       setLoading(true);
       setError(null);
       try {
-        const response = await stockAPI.getStockEntriesPaginated({
+        const searchParams = {
           page: currentPage,
           limit: pageSize,
-          search: debouncedSearchTerm || undefined,
           materialId: materialFilter === "all" ? undefined : materialFilter,
           sortBy,
           sortOrder,
           includeMaterial: "true"
-        });
+        };
+        const response = await stockAPI.getStockEntriesPaginated(searchParams);
         const newStockEntries = response.data.data;
         const newPagination = response.data.pagination;
         setStockEntries(newStockEntries);
@@ -292,12 +363,12 @@ export function StockEntriesTable() {
         setLoading(false);
       }
     },
-    [currentPage, pageSize, debouncedSearchTerm, materialFilter, sortBy, sortOrder, getCacheKey, getCachedData, saveToCache, getPageFromCache]
+    [getCacheKey, getCachedData, saveToCache, getPageFromCache]
   );
 
   useEffect(() => {
     fetchStockEntries();
-  }, [fetchStockEntries]);
+  }, [currentPage, pageSize, materialFilter, sortBy, sortOrder]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
@@ -317,12 +388,24 @@ export function StockEntriesTable() {
   const refreshData = useCallback(async () => {
     await fetchStockEntries(true);
     await refresh("materials");
-  }, [fetchStockEntries, refresh]);
+  }, [refresh]);
 
   const isAllowedPOSCategory = (material: Material | undefined) => {
     if (!material || !material.category) return false;
     const allowedCategories = ["beverages", "cold", "hot", "alcohol"];
-    return allowedCategories.includes(material.category.toLowerCase());
+    
+    // Handle different category formats
+    let categoryName: string;
+    if (typeof material.category === 'string') {
+      categoryName = material.category;
+    } else if (typeof material.category === 'object' && material.category !== null && 'name' in material.category) {
+      // Handle category objects from API responses
+      categoryName = (material.category as any).name;
+    } else {
+      return false;
+    }
+    
+    return allowedCategories.includes(categoryName.toLowerCase());
   };
 
   const columnHelper = createColumnHelper<StockEntryWithMaterial>();
@@ -363,7 +446,6 @@ export function StockEntriesTable() {
   };
 
   const handleEditStockEntry = (stockEntry: StockEntry) => {
-    console.log("Edit stock entry:", stockEntry);
     setSelectedStockEntry(stockEntry);
     const material = materialsWithStock.find(m => m.id === stockEntry.materialId);
     if (material) {
@@ -822,23 +904,8 @@ export function StockEntriesTable() {
   };
 
   const uniqueMaterials = useMemo(() => materials.map(m => m.name).sort(), [materials]);
-  const stockEntriesWithMaterial: StockEntryWithMaterial[] = useMemo(() => {
-    return optimisticStockEntries
-      .filter(entry => {
-        // Filter out entries where the material no longer exists
-        const material = materialsMap.get(entry.materialId);
-        return material !== undefined;
-      })
-      .map(entry => {
-        const material = materialsMap.get(entry.materialId);
-        return {
-          ...entry,
-          material: material!
-        } as StockEntryWithMaterial;
-      });
-  }, [optimisticStockEntries, materialsMap]);
   const table = useReactTable({
-    data: stockEntriesWithMaterial,
+    data: filteredStockEntries,
     columns,
     state: {
       sorting,
@@ -965,7 +1032,7 @@ export function StockEntriesTable() {
     );
   };
 
-  const negativeStockCount = useMemo(() => pagination?.meta?.negativeEntriesCount || stockEntriesWithMaterial.filter(hasNegativeStock).length, [stockEntriesWithMaterial, pagination]);
+  const negativeStockCount = useMemo(() => pagination?.meta?.negativeEntriesCount || filteredStockEntries.filter(hasNegativeStock).length, [filteredStockEntries, pagination]);
 
   const handlePrinterAssignmentChange = async (updatedEntry?: StockEntry) => {
     if (updatedEntry) {
@@ -996,6 +1063,11 @@ export function StockEntriesTable() {
   const handleSelectAllStockEntries = useCallback(() => {
     table.toggleAllRowsSelected();
   }, [table]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setSearchTerm(newValue);
+  };
 
   const handleOpenBulkPrinterDialog = useCallback(() => {
     if (selectedStockEntries.size > 0) {
@@ -1041,12 +1113,6 @@ export function StockEntriesTable() {
                         {(debouncedSearchTerm || materialFilter !== "all") && " (filtered)"}
                       </span>
                     )}
-                    {negativeStockCount > 0 && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-700 rounded-full border border-red-200">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        <span className="font-medium">{negativeStockCount} negative stock entries</span>
-                      </div>
-                    )}
                   </>
                 )}
               </div>
@@ -1057,7 +1123,15 @@ export function StockEntriesTable() {
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-                    <Input type="search" placeholder="Search by material name or supplier..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} disabled={loading || isParentLoading} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-64 lg:w-80" />
+                    <Input 
+                      key="stock-search-input"
+                      type="search" 
+                      placeholder="Search by material name or supplier..." 
+                      value={searchTerm} 
+                      onChange={handleSearchChange} 
+                      disabled={loading || isParentLoading} 
+                      className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-64 lg:w-80" 
+                    />
                   </div>
 
                   <div className="w-fit shrink-0">
@@ -1140,10 +1214,10 @@ export function StockEntriesTable() {
           {bulkSelectionMode && (
             <div className="flex items-center gap-3">
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                <Button size="sm" variant="outline" onClick={handleSelectAllStockEntries} disabled={stockEntriesWithMaterial.length === 0 || loading} className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0">
+                <Button size="sm" variant="outline" onClick={handleSelectAllStockEntries} disabled={filteredStockEntries.length === 0 || loading} className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0">
                   <Check className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                  <span className="hidden sm:inline">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect All" : "Select All"}</span>
-                  <span className="sm:hidden truncate">{selectedStockEntries.size === stockEntriesWithMaterial.length ? "Deselect" : "Select"}</span>
+                  <span className="hidden sm:inline">{selectedStockEntries.size === filteredStockEntries.length ? "Deselect All" : "Select All"}</span>
+                  <span className="sm:hidden truncate">{selectedStockEntries.size === filteredStockEntries.length ? "Deselect" : "Select"}</span>
                 </Button>
                 <Button size="sm" variant="outline" onClick={handleOpenBulkPrinterDialog} disabled={selectedStockEntries.size === 0 || loading} className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0">
                   <Printer className="h-4 w-4 mr-1.5 flex-shrink-0" />
@@ -1170,18 +1244,16 @@ export function StockEntriesTable() {
             </div>
           )}
 
-          {loading && !isParentLoading && (
-            <Loading />
-          )}
+          {loading && !isParentLoading && <Loading />}
 
-          {!loading && !isParentLoading && !error && stockEntriesWithMaterial.length === 0 && (
+          {!loading && !isParentLoading && !error && filteredStockEntries.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="bg-gray-100 rounded-full p-3 mb-4">
                 <Search className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">{debouncedSearchTerm || materialFilter !== "all" ? "No matching stock entries" : "No stock entries found"}</h3>
-              <p className="text-gray-500 mb-4">{debouncedSearchTerm || materialFilter !== "all" ? "Try adjusting your search or filter criteria" : "Get started by adding your first stock entry"}</p>
-              {!debouncedSearchTerm && materialFilter === "all" && (
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{searchTerm || materialFilter !== "all" ? "No matching stock entries" : "No stock entries found"}</h3>
+              <p className="text-gray-500 mb-4">{searchTerm || materialFilter !== "all" ? "Try adjusting your search or filter criteria" : "Get started by adding your first stock entry"}</p>
+              {!searchTerm && materialFilter === "all" && (
                 <Button onClick={handleAddStock} className="bg-primary hover:bg-primary/80">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Stock Entry
@@ -1189,9 +1261,9 @@ export function StockEntriesTable() {
               )}
             </div>
           )}
-          {!loading && !isParentLoading && !error && stockEntriesWithMaterial.length > 0 && (
+          {!loading && !isParentLoading && !error && filteredStockEntries.length > 0 && (
             <div className="lg:hidden space-y-4">
-              {stockEntriesWithMaterial.map(entry => {
+              {filteredStockEntries.map(entry => {
                 const material = materialsMap.get(entry.materialId);
 
                 const isNegative = hasNegativeStock(entry);
@@ -1340,7 +1412,7 @@ export function StockEntriesTable() {
           )}
 
           {/* Desktop Table View - TanStack Virtualized */}
-          {!loading && !error && stockEntriesWithMaterial.length > 0 && (
+          {!loading && !error && filteredStockEntries.length > 0 && (
             <div className="hidden lg:block px-2">
               <div className="h-[calc(100vh-260px)] overflow-y-hidden">
                 <TanStackTable
@@ -1417,15 +1489,7 @@ export function StockEntriesTable() {
                 {negativeStockReport.negativeStockItems && negativeStockReport.negativeStockItems.length > 0 && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">Negative Stock Items</h3>
-                    <TanStackTable
-                      table={negativeStockTable}
-                      virtualized={false}
-                      loading={false}
-                      emptyMessage="No negative stock items found"
-                      maxHeight="400px"
-                      showSortIcons={true}
-                      className=""
-                    />
+                    <TanStackTable table={negativeStockTable} virtualized={false} loading={false} emptyMessage="No negative stock items found" maxHeight="400px" showSortIcons={true} className="" />
                   </div>
                 )}
 

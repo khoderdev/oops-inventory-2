@@ -5,6 +5,17 @@ import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Calculator, DollarSign, Package } from "lucide-react";
 import { Badge } from "../ui/badge";
 
+// Helper function to format currency cleanly
+const formatCurrency = (value: number): string => {
+  if (value % 1 === 0) {
+    // Whole number - no decimals
+    return `$${value}`;
+  } else {
+    // Has decimals - show with appropriate decimal places
+    return `$${value.toFixed(2)}`;
+  }
+};
+
 export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costPerPurchasedUnit }: { selectedMaterial: Material | null; quantity: string; purchasedUnit: string; costPerPurchasedUnit: string }) => {
   const numQuantity = parseFloat(quantity) || 0;
   const numCostPerUnit = parseFloat(costPerPurchasedUnit) || 0;
@@ -105,7 +116,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
             <DollarSign className="h-4 w-4 text-green-600" />
             <span className="text-sm font-medium text-gray-600">Cost per {purchasedUnit}</span>
           </div>
-          <p className="text-xl font-bold text-gray-800">${numCostPerUnit.toFixed(4)}</p>
+          <p className="text-xl font-bold text-gray-800">{formatCurrency(numCostPerUnit)}</p>
         </div>
 
         <div className="bg-white rounded-lg p-3 border border-blue-100">
@@ -123,7 +134,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
             <DollarSign className="h-4 w-4 text-purple-600" />
             <span className="text-sm font-medium text-gray-600">Total Cost</span>
           </div>
-          <p className="text-xl font-bold text-gray-800">${(numQuantity * numCostPerUnit).toFixed(2)}</p>
+          <p className="text-xl font-bold text-gray-800">{formatCurrency(numQuantity * numCostPerUnit)}</p>
         </div>
 
         {costPerBaseUnit > 0 && purchasedUnit !== selectedMaterial?.baseUnit && selectedMaterial?.baseUnit && (
@@ -132,7 +143,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
               <DollarSign className="h-4 w-4 text-orange-600" />
               <span className="text-sm font-medium text-gray-600">Cost per {selectedMaterial.baseUnit}</span>
             </div>
-            <p className="text-xl font-bold text-gray-800">${costPerBaseUnit.toFixed(4)}</p>
+            <p className="text-xl font-bold text-gray-800">{formatCurrency(costPerBaseUnit)}</p>
           </div>
         )}
       </div>
@@ -148,10 +159,10 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
           </div>
           <div className="mt-2 text-xs text-gray-500">
             <p>
-              Current material cost: ${(existingCostPerBaseUnit || 0).toFixed(4)} per {selectedMaterial?.baseUnit || "unit"}
+              Current material cost: {formatCurrency(existingCostPerBaseUnit || 0)} per {selectedMaterial?.baseUnit || "unit"}
             </p>
             <p>
-              New entry cost: ${(costPerBaseUnit || 0).toFixed(4)} per {selectedMaterial?.baseUnit || "unit"}
+              New entry cost: {formatCurrency(costPerBaseUnit || 0)} per {selectedMaterial?.baseUnit || "unit"}
             </p>
           </div>
         </div>

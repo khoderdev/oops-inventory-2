@@ -190,6 +190,45 @@ const materialController = {
     }
   },
 
+  // Get a single material by ID
+  getMaterial: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      
+      const material = await Material.findByPk(id, {
+        include: [{
+          model: Category,
+          as: "category",
+          attributes: ['id', 'name', 'value', 'type']
+        }]
+      });
+
+      if (!material) {
+        return res.status(404).json({ error: "Material not found" });
+      }
+
+      // Format response to match frontend expectations
+      const materialData = {
+        id: material.id,
+        name: material.name,
+        baseUnit: material.baseUnit,
+        unitType: material.unitType,
+        inputUnit: material.inputUnit,
+        packageQuantity: material.packageQuantity,
+        categoryId: material.categoryId,
+        createdAt: material.createdAt,
+        updatedAt: material.updatedAt,
+        // Include category information
+        category: material.category?.value || null,
+        categoryName: material.category?.name || null
+      };
+
+      res.status(200).json(materialData);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   // Create a new material
   createMaterial: async (req, res, next) => {
     try {

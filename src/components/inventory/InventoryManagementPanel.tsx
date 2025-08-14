@@ -8,7 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePrefetch } from "@/hooks/usePrefetch";
 import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
-import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, MaterialFormData, StockFormData, RecordWasteData, CreateStockEntryData } from "@/types/inventory";
+import { materialsAPI } from "@/api/matierials.api.ts.tsx";
+import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, MaterialFormData, StockFormData, RecordWasteData, CreateStockEntryData, MaterialCategory } from "@/types/inventory";
 import { Package, Warehouse, Loader2, Tags } from "lucide-react";
 import { useAtom } from "jotai";
 import { useState, useCallback, useMemo } from "react";
@@ -16,8 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { activeTabAtom, searchTermAtom, categoryFilterAtom, lowStockFilterAtom, showMaterialFormAtom, showStockFormAtom, selectedMaterialAtom, selectedStockEntryAtom } from "@/store/inventoryAtoms";
 
 export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManagementPanelProps = {}) {
-  // Use prefetch system for data
-  const { materials, stock, menu, status, refresh, isCacheValid } = usePrefetch({
+  const { materials, stock, status, refresh, isCacheValid } = usePrefetch({
     autoFetch: true,
     parallel: true,
     onError: error => {
@@ -30,7 +30,6 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
     }
   });
 
-  // Local UI state
   const [activeTab, setActiveTab] = useAtom(activeTabAtom);
   const [searchTerm] = useAtom(searchTermAtom);
   const [categoryFilter] = useAtom(categoryFilterAtom);
@@ -39,16 +38,12 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
-
-  // Loading states for individual operations
   const [, setOperationLoading] = useState<Record<string, boolean>>({});
 
-  // Transform materials to include stock information (similar to materialsWithStock)
   const materialsWithStock = useMemo(() => {
-    return materials.map(material => {
+    const baseMaterials = materials.map(material => {
       const materialStockEntries = stock.filter(entry => entry.materialId === material.id);
 
-      // Calculate totals
       const totalQuantityInBaseUnit = materialStockEntries.reduce((sum, entry) => {
         return sum + (entry.purchasedConvertedQuantity || entry.purchasedQuantity);
       }, 0);
@@ -68,9 +63,14 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         availableQuantity: totalQuantityInBaseUnit
       } as MaterialWithStock;
     });
-  }, [materials, stock]);
 
-  // Filter materials based on search and filters
+    if (selectedMaterial && !baseMaterials.find(m => m.id.toString() === selectedMaterial.id.toString())) {
+      baseMaterials.push(selectedMaterial);
+    }
+
+    return baseMaterials;
+  }, [materials, stock, selectedMaterial]);
+
   const filteredMaterials = useMemo(() => {
     return materialsWithStock.filter(material => {
       const matchesSearch = searchTerm === "" || material.name.toLowerCase().includes(searchTerm.toLowerCase()) || material.category.toLowerCase().includes(searchTerm.toLowerCase());
@@ -85,18 +85,13 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
 
   const stockEntries = stock;
 
-  // Tab loading states - only show loading on initial load, not on child component operations
   const tabLoading = {
     material: status.individual.materials.loading && materials.length === 0,
     stock: status.individual.stock.loading && stock.length === 0
   };
-
-  // Handler functions
   const handleTabChange = useCallback(
     async (value: string) => {
       setActiveTab(value);
-
-      // Refresh data if cache is stale
       switch (value) {
         case "material":
           if (!isCacheValid("materials")) {
@@ -118,9 +113,9 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
       setOperationLoading(prev => ({ ...prev, material: true }));
       try {
         if (selectedMaterial) {
-          // Update existing material
           await inventoryAPIWithPrefetch.materials.updateMaterialWithCache(selectedMaterial.id, {
             ...data,
+            category: selectedMaterial.category,
             isPOSItem: selectedMaterial.isPOSItem
           });
           toast({
@@ -129,9 +124,9 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
             duration: 1500
           });
         } else {
-          // Create new material
           await inventoryAPIWithPrefetch.materials.createMaterialWithCache({
             ...data,
+            category: data.category as MaterialCategory,
             isPOSItem: false
           });
           toast({
@@ -141,7 +136,6 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           });
         }
 
-        // Force immediate refresh to ensure UI updates
         await refresh("materials");
 
         setShowMaterialForm(false);
@@ -213,14 +207,96 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   );
 
   const handleAddStock = useCallback(
-    (materialId: string) => {
-      const material = materialsWithStock.find(m => m.id === materialId);
-      if (material) {
-        setSelectedMaterial(material);
+    async (materialId: string | number) => {
+      // Handle both string and number IDs by converting to string for comparison
+      const idToFind = materialId.toString();
+      let material = materialsWithStock.find(m => m.id.toString() === idToFind);
+      
+      // If material not found in current data, try to fetch it directly from MaterialTable API
+      if (!material) {
+        console.log('🔄 Material not in current data, fetching directly from MaterialTable API...', materialId);
+        try {
+          // First try refreshing our current data
+          await refresh("materials");
+          material = materialsWithStock.find(m => m.id.toString() === idToFind);
+          
+          // If still not found, fetch directly from the MaterialTable API
+          if (!material) {
+            console.log('🔍 Fetching material directly from materialsAPI...', materialId);
+            const materialResponse = await materialsAPI.getMaterial(idToFind);
+            
+            if (materialResponse && materialResponse.data) {
+              const fetchedMaterial = materialResponse.data;
+              // Convert to MaterialWithStock format
+              material = {
+                ...fetchedMaterial,
+                stockEntries: [],
+                totalQuantityInBaseUnit: 0,
+                totalValue: 0,
+                averageCostPerBaseUnit: 0,
+                availableQuantity: 0
+              };
+              console.log('✅ Successfully fetched material from API:', material.name);
+              
+              // CRITICAL: Add the fetched material to the materials cache so it's available in StockForm
+              // This ensures the dropdown includes the newly fetched material
+              console.log('🔄 Adding fetched material to cache for StockForm availability...');
+              await refresh("materials");
+            }
+          }
+        } catch (error) {
+          console.error('❌ Failed to fetch material from API:', error);
+          
+          // If it's a 404 error, this material doesn't exist in the database
+          if (error.status === 404) {
+            console.warn('🗑️ Material ID', materialId, 'does not exist in database. This is a data inconsistency issue.');
+            
+            // Show specific error message for non-existent materials
+            toast({
+              title: "Material Not Found",
+              description: `Material ID ${materialId} does not exist in the database. Please refresh the materials list.`,
+              variant: "destructive",
+              duration: 5000
+            });
+            
+            // Force refresh materials to sync with backend
+            console.log('🔄 Forcing materials refresh to sync with backend...');
+            await refresh("materials");
+            return; // Exit early since material doesn't exist
+          }
+        }
       }
-      setShowStockForm(true);
+      
+      if (material) {
+        console.log('🎯 Loading material for stock entry:', material.name, 'ID:', materialId);
+        setSelectedMaterial(material);
+        setSelectedStockEntry(null); // Clear any existing stock entry selection
+        setShowStockForm(true);
+        
+        // Switch to stock tab to show the form
+        setActiveTab("stock");
+        
+        toast({
+          title: "Material Selected",
+          description: `Ready to add stock for ${material.name}`,
+          duration: 1500
+        });
+      } else {
+        console.error('❌ Material not found with ID:', materialId, 'Even after direct API fetch. This material may not exist.');
+        
+        // Force a complete data refresh to sync MaterialTable with backend
+        console.log('🔄 Forcing complete data refresh due to material not found...');
+        await refresh("materials");
+        
+        toast({
+          title: "Material Not Found",
+          description: `Material ID ${materialId} could not be found. The materials list has been refreshed to sync with the database.`,
+          variant: "destructive",
+          duration: 1500
+        });
+      }
     },
-    [materialsWithStock, setSelectedMaterial, setShowStockForm]
+    [materialsWithStock, materials, stock, setSelectedMaterial, setSelectedStockEntry, setShowStockForm, setActiveTab, refresh]
   );
 
   const handleDeleteMaterial = useCallback(
@@ -359,7 +435,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           title: "Error",
           description: "Failed to add stock",
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       }
     },
@@ -409,7 +485,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           title: "Error",
           description: "Failed to record waste",
           variant: "destructive",
-          duration: 2000
+          duration: 1500
         });
       }
     },
@@ -511,7 +587,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
 
       {/* Stock Form Dialog */}
       <Dialog open={showStockForm} onOpenChange={setShowStockForm} modal={true}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] sm:w-[95vw] md:w-[65vw] xl:w-[35vw] rounded-lg p-0 py-2" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] sm:w-[95vw] md:w-[65vw] xl:w-[40vw] rounded-lg p-0 py-2" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
           <DialogHeader className="px-4 sm:px-6 py">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Package className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -520,12 +596,10 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           </DialogHeader>
 
           <ScrollArea className="max-h-[calc(95vh-60px)]">
-            {/* <div className=""> */}
-            {/* <div className="px-2 sm:px-6 py-2 sm:py-4 !pt-0"> */}
             <StockForm
               materials={materialsWithStock}
               stockEntry={selectedStockEntry || undefined}
-              selectedMaterialId={selectedMaterial?.id}
+              selectedMaterialId={selectedMaterial?.id?.toString()}
               onSubmit={handleStockSubmit}
               onAddStock={handleAddStockOperation}
               onRecordWaste={handleRecordWasteOperation}
@@ -537,7 +611,6 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
                 setSelectedMaterial(null);
               }}
             />
-            {/* </div> */}
           </ScrollArea>
         </DialogContent>
       </Dialog>
