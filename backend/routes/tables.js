@@ -21,4 +21,15 @@ router.patch("/:tableId/clear-reservation", tablesController.clearReservation);
 router.patch("/:tableId/cleaning", tablesController.markForCleaning);
 router.patch("/:tableId/clean", tablesController.markAsClean);
 
+// Table transfer operations
+router.post("/transfer-order", tablesController.transferOrder);
+router.post("/transfer-items", tablesController.transferItems);
+
+// Enhanced table management
+router.post("/quick-create", tablesController.quickCreateTable);
+router.post("/bulk-create", tablesController.bulkCreateTables);
+router.patch("/:tableId/rename", tablesController.renameTable);
+router.post("/:tableId/duplicate", tablesController.duplicateTable);
+router.get("/next-number", tablesController.getNextTableNumber);
+
 export default router;
