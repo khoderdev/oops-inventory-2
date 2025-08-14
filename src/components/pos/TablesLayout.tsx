@@ -37,6 +37,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const [selectedTableForAction, setSelectedTableForAction] = useState<Table | null>(null);
   const [selectedOrderForTransfer, setSelectedOrderForTransfer] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<{ table: Table; x: number; y: number } | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     setUpdatedTables(safeTablesList);
@@ -46,26 +47,50 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     dragStateRef.current = dragState;
   }, [dragState]);
 
+  // Refresh table data to get latest order information
+  const refreshTableData = useCallback(async () => {
+    if (isRefreshing) return;
+    
+    try {
+      setIsRefreshing(true);
+      const response = await tablesAPI.getTables({ includeOrders: true });
+      const updatedTablesData = response.data.data;
+      setUpdatedTables(updatedTablesData);
+      
+      // Update hovered table if it's currently being hovered
+      if (hoveredTable) {
+        const updatedHoveredTable = updatedTablesData.find(t => t.id === hoveredTable.id);
+        if (updatedHoveredTable) {
+          setHoveredTable(updatedHoveredTable);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh table data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [hoveredTable, isRefreshing]);
+
   // Table Management Handlers
 
-  const refreshTableData = useCallback(async () => {
+  // Enhanced refresh function that updates both tables and hovered table
+  const refreshTablesAfterTransfer = useCallback(async () => {
     try {
-      // Re-fetch table data to get updated order information
-      const response = await tablesAPI.getTables();
-      const freshTables = response.data;
+      const response = await tablesAPI.getTables({ includeOrders: true });
+      const freshTablesData = response.data.data;
+      setUpdatedTables(freshTablesData);
       
-      // Ensure we have a valid array
-      const tablesArray = Array.isArray(freshTables) ? freshTables : 
-                         Array.isArray((freshTables as any)?.data) ? (freshTables as any).data : [];
-      
-      setUpdatedTables(tablesArray);
-      toast.success("Tables updated successfully");
+      // Update hovered table with fresh data if currently hovering
+      if (hoveredTable) {
+        const updatedHoveredTable = freshTablesData.find(t => t.id === hoveredTable.id);
+        if (updatedHoveredTable) {
+          setHoveredTable(updatedHoveredTable);
+        }
+      }
     } catch (error) {
-      console.error("Failed to refresh table data:", error);
-      toast.error("Failed to refresh table data");
-      // Keep the current tables if refresh fails
+      console.error("Failed to refresh table data after transfer:", error);
     }
-  }, []);
+  }, [hoveredTable]);
 
   const handleRenameTable = (table: Table) => {
     setSelectedTableForAction(table);
@@ -117,8 +142,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     setContextMenu(null);
   };
 
-  // Handle table hover
-  const handleTableHover = (table: Table, event: React.MouseEvent) => {
+  // Handle table hover with real-time data refresh
+  const handleTableHover = useCallback(async (table: Table, event: React.MouseEvent) => {
     if (table.status === "opened" && table.currentOrder) {
       const rect = event.currentTarget.getBoundingClientRect();
       setHoveredTable(table);
@@ -126,8 +151,19 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         x: rect.left + rect.width / 2,
         y: rect.bottom + 12
       });
+      setTimeout(async () => {
+        try {
+          const response = await tablesAPI.getTables({ includeOrders: true });
+          const freshTableData = response.data.data.find(t => t.id === table.id);
+          if (freshTableData && freshTableData.currentOrder) {
+            setHoveredTable(freshTableData);
+          }
+        } catch (error) {
+          console.error('Failed to fetch fresh table data on hover:', error);
+        }
+      }, 100); // Small delay to show initial state first, then update
     }
-  };
+  }, []);
 
   const handleTableLeave = () => {
     setHoveredTable(null);
@@ -617,7 +653,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           setShowTransferModal(false);
           setSelectedTableForAction(null);
           setSelectedOrderForTransfer(null);
-          await refreshTableData();
+          
+          // Add small delay to ensure backend has processed the transfer
+          setTimeout(async () => {
+            await refreshTablesAfterTransfer();
+          }, 500);
         }}
       />
 
