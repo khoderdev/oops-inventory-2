@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { tablesAPI } from "@/api/tables.api";
-import { Move, ArrowRight, Package, AlertTriangle, CheckCircle } from "lucide-react";
+import { Move, ArrowRight, Package, AlertTriangle, CheckCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { OrderItem, TransferTableModalProps } from "@/types/orders";
 
@@ -18,6 +19,7 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
   const [destinationTableId, setDestinationTableId] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [createNewOrder, setCreateNewOrder] = useState(true);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const availableDestinations = tables.filter(table => {
     if (!sourceTable || table.id === sourceTable.id) return false;
@@ -29,9 +31,8 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
   const destinationHasOrder = destinationTable?.status === "opened";
 
   useEffect(() => {
-    if (sourceOrder?.items) {
-      setSelectedItems(sourceOrder.items.map((item: OrderItem) => String(item.id)));
-    }
+    // Start with no items selected by default
+    setSelectedItems([]);
   }, [sourceOrder]);
 
   const handleItemSelection = (itemId: string, checked: boolean) => {
@@ -140,18 +141,18 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
         <div className="space-y-6">
           {/* Source Table Info */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                From: Table {sourceTable.number}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-2">
-                <span>{sourceTable.name}</span>
-                <Badge variant="secondary">{totalItems} items</Badge>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-gray-600" />
+                  <span className="font-medium">From: Table {sourceTable.number}</span>
+                  {sourceTable.name && (
+                    <span className="text-sm text-muted-foreground">({sourceTable.name})</span>
+                  )}
+                </div>
+                <Badge variant="secondary" className="text-xs">{totalItems} items</Badge>
               </div>
-              <div className="text-sm text-muted-foreground">Order Total: ${sourceOrder.total || "0.00"}</div>
+              <div className="text-sm font-medium text-green-600">Order Total: ${sourceOrder.total || "0.00"}</div>
             </CardContent>
           </Card>
 
@@ -181,20 +182,33 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">
-                {sourceOrder.items.map((item: OrderItem) => (
-                  <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-3">
-                      <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={checked => handleItemSelection(item.id, checked as boolean)} />
-                      <div>
-                        <div className="font-medium">{item.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Qty: {item.quantity} × ${item.unitPrice || item.price}
+                {sourceOrder.items.map((item: OrderItem) => {
+                  const isSelected = selectedItems.includes(String(item.id));
+                  return (
+                    <div 
+                      key={item.id} 
+                      className={`flex items-center justify-between p-3 border rounded cursor-pointer transition-colors hover:bg-gray-50 ${
+                        isSelected ? 'bg-blue-50 border-blue-200' : 'border-gray-200'
+                      }`}
+                      onClick={() => handleItemSelection(String(item.id), !isSelected)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Checkbox 
+                          checked={isSelected} 
+                          onCheckedChange={checked => handleItemSelection(String(item.id), checked as boolean)}
+                          onClick={(e) => e.stopPropagation()} // Prevent double-click when clicking checkbox directly
+                        />
+                        <div>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Qty: {item.quantity} × ${item.unitPrice || item.price}
+                          </div>
                         </div>
                       </div>
+                      <div className="font-medium">${item.totalPrice || item.total}</div>
                     </div>
-                    <div className="font-medium">${item.totalPrice || item.total}</div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {selectedItemsCount > 0 && (
                   <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
@@ -236,16 +250,35 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
 
           {/* Destination Options */}
           {destinationHasOrder && transferType === "partial" && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
+            <Alert variant="warning">
+              <AlertTriangle className="h-4 w-4 !text-orange-500" />
               <AlertDescription>
                 <div className="space-y-2">
-                  <p>Destination table has an active order. Choose how to handle the transfer:</p>
+                  <div className="flex items-center gap-2">
+                    <p>Destination table has an active order. Choose how to handle the transfer:</p>
+                    <TooltipProvider>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 hover:bg-blue-100"
+                            onClick={() => setShowInfoModal(true)}
+                          >
+                            <Info className="h-4 w-4 text-blue-600" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click for detailed explanation</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox checked={createNewOrder} onCheckedChange={(checked) => setCreateNewOrder(checked === true)} />
                     <Label className="text-sm">Create new order (recommended for separate billing)</Label>
                   </div>
-                  {!createNewOrder && <p className="text-sm text-orange-600">Items will be merged into the existing order</p>}
+                  {!createNewOrder && <p className="text-sm font-bold text-orange-600">Items will be merged into the existing order</p>}
                 </div>
               </AlertDescription>
             </Alert>
@@ -300,6 +333,70 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Info Modal */}
+      <Dialog open={showInfoModal} onOpenChange={setShowInfoModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="w-5 h-5 text-blue-600" />
+              Transfer Options Explained
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              When transferring items to a table that already has an active order, you have two options:
+            </p>
+            
+            <div className="space-y-4">
+              <div className="border rounded-lg p-3 bg-green-50 border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="font-medium text-green-800">Create New Order (Recommended)</span>
+                </div>
+                <ul className="text-sm text-gray-700 space-y-1 ml-6">
+                  <li>• Creates a completely separate order for transferred items</li>
+                  <li>• Each order gets its own bill and receipt</li>
+                  <li>• Perfect for different customer groups</li>
+                  <li>• Easier to manage and track individual orders</li>
+                </ul>
+                <div className="mt-2 text-xs text-green-700 bg-green-100 p-2 rounded">
+                  <strong>Example:</strong> Table 4 will have Order #1 ($15.00) and Order #2 ($20.90) = 2 separate bills
+                </div>
+              </div>
+              
+              <div className="border rounded-lg p-3 bg-orange-50 border-orange-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-600" />
+                  <span className="font-medium text-orange-800">Merge with Existing Order</span>
+                </div>
+                <ul className="text-sm text-gray-700 space-y-1 ml-6">
+                  <li>• Adds transferred items to the existing order</li>
+                  <li>• Everything goes on one combined bill</li>
+                  <li>• Use when it's the same customer group</li>
+                  <li>• All items will be billed together</li>
+                </ul>
+                <div className="mt-2 text-xs text-orange-700 bg-orange-100 p-2 rounded">
+                  <strong>Example:</strong> Table 4 will have 1 combined order ($35.90) = 1 total bill
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                <strong>💡 Tip:</strong> Choose "Create New Order" when in doubt - it's safer and gives you more flexibility for billing and order management.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button onClick={() => setShowInfoModal(false)} className="w-full">
+              Got it!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
