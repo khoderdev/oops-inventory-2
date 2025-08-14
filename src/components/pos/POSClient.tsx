@@ -773,7 +773,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         // COMPLETELY HIDE items with deactivated categories - don't add them to POS
         if (!categoryName) {
-          console.log(`🚫 Hiding menu item '${menuItem.name}' - category is deactivated`);
           return; // Skip this item completely
         }
 

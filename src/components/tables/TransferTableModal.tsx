@@ -30,7 +30,7 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
 
   useEffect(() => {
     if (sourceOrder?.items) {
-      setSelectedItems(sourceOrder.items.map((item: OrderItem) => item.id));
+      setSelectedItems(sourceOrder.items.map((item: OrderItem) => String(item.id)));
     }
   }, [sourceOrder]);
 
@@ -40,7 +40,7 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
 
   const handleSelectAll = (checked: boolean) => {
     if (sourceOrder?.items) {
-      setSelectedItems(checked ? sourceOrder.items.map((item: OrderItem) => item.id) : []);
+      setSelectedItems(checked ? sourceOrder.items.map((item: OrderItem) => String(item.id)) : []);
     }
   };
 
@@ -125,7 +125,7 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
 
   const selectedItemsCount = selectedItems.length;
   const totalItems = sourceOrder.items?.length || 0;
-  const selectedTotal = sourceOrder.items?.filter((item: OrderItem) => selectedItems.includes(item.id))?.reduce((sum: number, item: OrderItem) => sum + parseFloat(item.totalPrice || item.total || "0"), 0) || 0;
+  const selectedTotal = sourceOrder.items?.filter((item: OrderItem) => selectedItems.includes(String(item.id)))?.reduce((sum: number, item: OrderItem) => sum + parseFloat(String(item.totalPrice) || "0"), 0) || 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -242,7 +242,7 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
                 <div className="space-y-2">
                   <p>Destination table has an active order. Choose how to handle the transfer:</p>
                   <div className="flex items-center space-x-2">
-                    <Checkbox checked={createNewOrder} onCheckedChange={setCreateNewOrder} />
+                    <Checkbox checked={createNewOrder} onCheckedChange={(checked) => setCreateNewOrder(checked === true)} />
                     <Label className="text-sm">Create new order (recommended for separate billing)</Label>
                   </div>
                   {!createNewOrder && <p className="text-sm text-orange-600">Items will be merged into the existing order</p>}

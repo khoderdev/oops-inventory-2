@@ -47,42 +47,13 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     dragStateRef.current = dragState;
   }, [dragState]);
 
-  // Refresh table data to get latest order information
-  const refreshTableData = useCallback(async () => {
-    if (isRefreshing) return;
-    
-    try {
-      setIsRefreshing(true);
-      const response = await tablesAPI.getTables({ includeOrders: true });
-      const responseData = response.data as Table[] | { data: Table[] };
-      const updatedTablesData = Array.isArray(responseData) ? responseData : responseData.data;
-      setUpdatedTables(updatedTablesData);
-      
-      // Update hovered table if it's currently being hovered
-      if (hoveredTable) {
-        const updatedHoveredTable = updatedTablesData.find(t => t.id === hoveredTable.id);
-        if (updatedHoveredTable) {
-          setHoveredTable(updatedHoveredTable);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to refresh table data:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [hoveredTable, isRefreshing]);
 
-  // Table Management Handlers
-
-  // Enhanced refresh function that updates both tables and hovered table
   const refreshTablesAfterTransfer = useCallback(async () => {
     try {
       const response = await tablesAPI.getTables({ includeOrders: true });
       const responseData = response.data as Table[] | { data: Table[] };
       const freshTablesData = Array.isArray(responseData) ? responseData : responseData.data;
       setUpdatedTables(freshTablesData);
-      
-      // Update hovered table with fresh data if currently hovering
       if (hoveredTable) {
         const updatedHoveredTable = freshTablesData.find(t => t.id === hoveredTable.id);
         if (updatedHoveredTable) {
@@ -108,13 +79,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         toast.error("No order found for this table");
         return;
       }
-
       // Fetch complete order details with items
       const orderResponse = await ordersAPI.getOrder(table.currentOrder.orderId);
       const fullOrderData = orderResponse.data;
-
-
-
       setSelectedTableForAction(table);
       setSelectedOrderForTransfer(fullOrderData.data); // Pass the actual order data, not the wrapper
       setShowTransferModal(true);
@@ -249,7 +216,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           position: finalPosition
         });
         setUpdatedTables(prev => prev.map(table => (table.id === currentDragState.tableId ? { ...table, position: finalPosition } : table)));
-        toast.success("Table position updated successfully");
         setTempPositions(prev => {
           const newPositions = { ...prev };
           delete newPositions[currentDragState.tableId];
@@ -500,9 +466,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                         >
                           <div className="text-center">
                             <div className="font-bold text-lg text-gray-800">{table.number}</div>
-                            <div className="text-xs text-gray-600 flex items-center justify-center">
-                              <Users className="w-3 h-3 mr-1" />
-                              {table.seats}
+                            <div className="text-xs text-gray-600 text-center">
+                              {table.name}
                             </div>
                           </div>
 
