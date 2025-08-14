@@ -92,7 +92,7 @@ const menuItemsController = {
   createMenuItem: async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
-      const { name, price, category, description, ingredients, isPOSItem, image } = req.body;
+      const { name, price, category, description, ingredients, isPOSItem, image, imageBase64 } = req.body;
 
       // Validate and convert price
       const priceValue = typeof price === "string" ? parseFloat(price) : price;
@@ -211,13 +211,26 @@ const menuItemsController = {
         });
       }
 
-      // Validate ingredients (if provided)
+      // Parse and validate ingredients (if provided)
+      let parsedIngredients = ingredients;
       if (ingredients) {
-        if (!Array.isArray(ingredients) || ingredients.length === 0) {
+        // Handle case where ingredients come as JSON string (from FormData)
+        if (typeof ingredients === 'string') {
+          try {
+            parsedIngredients = JSON.parse(ingredients);
+            console.log('✅ BACKEND DEBUG - Parsed ingredients from JSON string:', parsedIngredients);
+          } catch (e) {
+            console.log('❌ BACKEND DEBUG - Failed to parse ingredients JSON:', e.message);
+            await transaction.rollback();
+            return res.status(400).json({ error: "Invalid ingredients format - must be valid JSON array" });
+          }
+        }
+        
+        if (!Array.isArray(parsedIngredients) || parsedIngredients.length === 0) {
           await transaction.rollback();
           return res.status(400).json({ error: "Ingredients must be a non-empty array" });
         }
-        for (const ingredient of ingredients) {
+        for (const ingredient of parsedIngredients) {
           if (!ingredient.materialId || ingredient.quantity === undefined || !ingredient.unit || ingredient.cost === undefined) {
             await transaction.rollback();
             return res.status(400).json({ error: "All ingredient fields are required" });
@@ -239,12 +252,20 @@ const menuItemsController = {
 
       // Handle image (either from file upload or base64)
       let imageUrl = null;
+      
+      // Priority order: 1. File upload, 2. Base64 data, 3. Legacy image field
       if (req.file) {
-        // File upload via multer
+        // File upload via multer (highest priority)
         imageUrl = `/uploads/menu/${req.file.filename}`;
+        console.log('🖼️ CREATE BACKEND DEBUG - Using file upload path:', imageUrl);
+      } else if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image/')) {
+        // Base64 image data (second priority)
+        imageUrl = imageBase64;
+        console.log('🖼️ CREATE BACKEND DEBUG - Using base64 image data');
       } else if (image) {
-        // Base64 image data
+        // Legacy image field (third priority)
         imageUrl = image;
+        console.log('🖼️ CREATE BACKEND DEBUG - Using legacy image field');
       }
 
       // Create menu item with properly converted price and categoryId
@@ -261,8 +282,8 @@ const menuItemsController = {
       );
 
       // Create ingredients if provided
-      if (ingredients && ingredients.length > 0) {
-        const ingredientData = ingredients.map(ingredient => ({
+      if (parsedIngredients && parsedIngredients.length > 0) {
+        const ingredientData = parsedIngredients.map(ingredient => ({
           menuItemId: menuItem.id,
           materialId: ingredient.materialId,
           quantity: ingredient.quantity,
@@ -307,7 +328,7 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
-      const { name, price, category, description, ingredients, isPOSItem, image } = req.body;
+      const { name, price, category, description, ingredients, isPOSItem, image, imageBase64 } = req.body;
 
       const menuItem = await MenuItem.findByPk(id, { transaction });
       if (!menuItem) {
@@ -431,14 +452,27 @@ const menuItemsController = {
         }
       }
 
-      // Validate ingredients if provided
+      // Parse and validate ingredients if provided
+      let parsedIngredients = ingredients;
       if (ingredients !== undefined) {
-        if (!Array.isArray(ingredients)) {
+        // Handle case where ingredients come as JSON string (from FormData)
+        if (typeof ingredients === 'string') {
+          try {
+            parsedIngredients = JSON.parse(ingredients);
+            console.log('✅ UPDATE BACKEND DEBUG - Parsed ingredients from JSON string:', parsedIngredients);
+          } catch (e) {
+            console.log('❌ UPDATE BACKEND DEBUG - Failed to parse ingredients JSON:', e.message);
+            await transaction.rollback();
+            return res.status(400).json({ error: "Invalid ingredients format - must be valid JSON array" });
+          }
+        }
+        
+        if (!Array.isArray(parsedIngredients)) {
           await transaction.rollback();
           return res.status(400).json({ error: "Ingredients must be an array" });
         }
-        if (ingredients.length > 0) {
-          for (const ingredient of ingredients) {
+        if (parsedIngredients.length > 0) {
+          for (const ingredient of parsedIngredients) {
             if (!ingredient.materialId || ingredient.quantity === undefined || !ingredient.unit || ingredient.cost === undefined) {
               await transaction.rollback();
               return res.status(400).json({ error: "All ingredient fields are required" });
@@ -460,14 +494,55 @@ const menuItemsController = {
       }
 
       // Handle image update (either from file upload or base64)
+      console.log('🖼️ UPDATE BACKEND DEBUG - Image received:', typeof image, Array.isArray(image) ? 'ARRAY' : 'NOT_ARRAY');
+      console.log('🖼️ UPDATE BACKEND DEBUG - Image value preview:', typeof image === 'string' ? image.substring(0, 100) + '...' : image);
+      console.log('🖼️ UPDATE BACKEND DEBUG - ImageBase64 received:', typeof imageBase64, imageBase64 ? 'PRESENT' : 'NOT_PRESENT');
+      console.log('🖼️ UPDATE BACKEND DEBUG - ImageBase64 preview:', typeof imageBase64 === 'string' ? imageBase64.substring(0, 100) + '...' : imageBase64);
+      console.log('🖼️ UPDATE BACKEND DEBUG - req.file:', req.file ? 'FILE_PRESENT' : 'NO_FILE');
+      
       let imageUrl = menuItem.image; // Keep existing image by default
+      
+      // Priority order: 1. File upload, 2. Base64 data, 3. Legacy image field
       if (req.file) {
-        // File upload via multer
+        // File upload via multer (highest priority)
         imageUrl = `/uploads/menu/${req.file.filename}`;
+        console.log('🖼️ UPDATE BACKEND DEBUG - Using file upload path:', imageUrl);
+      } else if (imageBase64 !== undefined && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image/')) {
+        // Base64 image data (second priority)
+        imageUrl = imageBase64;
+        console.log('🖼️ UPDATE BACKEND DEBUG - Using base64 image data');
       } else if (image !== undefined) {
         // Base64 image data or null to remove image
-        imageUrl = image;
+        console.log('🖼️ UPDATE BACKEND DEBUG - Using provided image data, type:', typeof image);
+        
+        if (typeof image === 'string') {
+          // Handle case where image comes as JSON string (from FormData)
+          if (image.startsWith('[') || image.startsWith('{')) {
+            try {
+              const parsedImage = JSON.parse(image);
+              console.log('⚠️ UPDATE BACKEND DEBUG - Image was JSON string, parsed to:', typeof parsedImage);
+              imageUrl = null; // Don't use parsed JSON as image
+            } catch (e) {
+              console.log('✅ UPDATE BACKEND DEBUG - Image is regular string, using as-is');
+              imageUrl = image;
+            }
+          } else {
+            console.log('✅ UPDATE BACKEND DEBUG - Image is regular string, using as-is');
+            imageUrl = image;
+          }
+        } else if (typeof image === 'object') {
+          // Handle case where image comes as empty object from FormData
+          console.log('⚠️ UPDATE BACKEND DEBUG - Image is object (likely empty from FormData), keeping existing image');
+          // Keep existing image when object is passed (don't update)
+          imageUrl = menuItem.image;
+        } else {
+          console.log('✅ UPDATE BACKEND DEBUG - Image is other type, using as-is');
+          imageUrl = image;
+        }
       }
+      
+      console.log('🖼️ UPDATE BACKEND DEBUG - Final imageUrl type:', typeof imageUrl);
+      console.log('🖼️ UPDATE BACKEND DEBUG - Final imageUrl preview:', typeof imageUrl === 'string' ? imageUrl.substring(0, 100) + '...' : imageUrl);
 
       // Update menu item with proper price and categoryId handling
       await menuItem.update(
@@ -491,8 +566,8 @@ const menuItemsController = {
         });
 
         // Create new ingredients if any
-        if (ingredients.length > 0) {
-          const ingredientData = ingredients.map(ingredient => ({
+        if (parsedIngredients.length > 0) {
+          const ingredientData = parsedIngredients.map(ingredient => ({
             menuItemId: id,
             materialId: ingredient.materialId,
             quantity: ingredient.quantity,

@@ -458,7 +458,8 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
                 undefined, // let backend handle if undefined
       price: data.price,
       ingredients: data.ingredients,
-      isPOSItem: data.isPOSItem
+      isPOSItem: data.isPOSItem,
+      image: data.image // Include the base64 image data
     };
 
     // Extract imageFile from data

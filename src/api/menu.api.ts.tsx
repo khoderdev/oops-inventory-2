@@ -3,7 +3,22 @@ import { CreateMenuItemData, MenuItem, UpdateMenuItemData } from "@/types/invent
 
 // Helper function to create FormData for menu item with image
 const createFormData = (menuItemData: CreateMenuItemData | UpdateMenuItemData, imageFile?: File): FormData | CreateMenuItemData | UpdateMenuItemData => {
-  if (imageFile) {
+  console.log('🔧 API DEBUG - createFormData called with imageFile:', imageFile ? 'PRESENT' : 'NOT_PRESENT');
+  console.log('🔧 API DEBUG - imageFile details:', imageFile);
+  console.log('🔧 API DEBUG - menuItemData keys:', Object.keys(menuItemData));
+  console.log('🔧 API DEBUG - menuItemData.image:', typeof (menuItemData as any).image, (menuItemData as any).image ? 'PRESENT' : 'NOT_PRESENT');
+  console.log('🔧 API DEBUG - menuItemData.imageBase64:', typeof (menuItemData as any).imageBase64, (menuItemData as any).imageBase64 ? 'PRESENT' : 'NOT_PRESENT');
+  
+  // Check if we have a valid imageFile (not empty object)
+  const hasValidImageFile = imageFile && imageFile.size > 0 && imageFile.name;
+  console.log('🔧 API DEBUG - hasValidImageFile:', hasValidImageFile);
+  
+  // Check if we have base64 image data (in the 'image' field)
+  const hasBase64Image = (menuItemData as any).image && typeof (menuItemData as any).image === 'string' && (menuItemData as any).image.startsWith('data:image/');
+  console.log('🔧 API DEBUG - hasBase64Image:', hasBase64Image);
+  
+  // Use FormData if we have either a valid file OR base64 image data
+  if (hasValidImageFile || hasBase64Image) {
     const formData = new FormData();
     
     // Add all menu item fields to FormData
@@ -13,13 +28,18 @@ const createFormData = (menuItemData: CreateMenuItemData | UpdateMenuItemData, i
       } else if (key === 'category' && typeof value === 'object' && value !== null) {
         // Handle category object by sending it as JSON string
         formData.append(key, JSON.stringify(value));
-      } else if (value !== undefined && value !== null) {
+      } else if (key === 'image' && typeof value === 'string' && value.startsWith('data:image/')) {
+        // Handle base64 image data - send it as imageBase64 to backend
+        formData.append('imageBase64', value);
+      } else if (value !== undefined && value !== null && key !== 'imageFile') {
         formData.append(key, value.toString());
       }
     });
     
-    // Add the image file
-    formData.append('image', imageFile);
+    // Add the image file with a different field name (only if we have a valid file)
+    if (hasValidImageFile) {
+      formData.append('imageFile', imageFile);
+    }
     
     return formData;
   }

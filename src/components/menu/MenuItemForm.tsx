@@ -47,19 +47,12 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   // Initialize category when menuItem or categories change
   useEffect(() => {
-    console.log('🔄 MenuItemForm: Category initialization effect triggered');
-    console.log('📊 Categories available:', categories.length);
-    console.log('📝 MenuItem category:', menuItem?.category, typeof menuItem?.category);
-    console.log('🏷️ Categories array:', categories.map(c => ({ id: c.id, name: c.name, value: c.value })));
-    
     if (categories.length === 0) {
-      console.log('⚠️ No categories available, setting empty category');
       setCategory("");
       return;
     }
 
     if (!menuItem?.category) {
-      console.log('⚠️ No menuItem category, setting empty category');
       setCategory("");
       return;
     }
@@ -68,32 +61,21 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     if (typeof menuItem.category === 'number') {
       // If category is a number (categoryId), find the corresponding category value
       const categoryObj = categories.find(cat => cat.id === menuItem.category);
-      console.log('🔢 Category is number:', menuItem.category, '→ Found:', categoryObj?.value);
       setCategory((categoryObj?.value || "") as MenuItemCategory | "");
     } else if (typeof menuItem.category === 'object' && menuItem.category !== null && 'id' in menuItem.category) {
       // If category is an object, find the corresponding category value by ID
       const categoryId = (menuItem.category as {id: number}).id;
       const categoryObj = categories.find(cat => cat.id === categoryId);
-      console.log('🏷️ Category is object:', categoryId, '→ Found:', categoryObj?.value);
-      const categoryValue = (categoryObj?.value || "").toLowerCase() as MenuItemCategory | "";
-      console.log('✅ Setting category state to:', categoryValue);
-      setCategory(categoryValue);
+      setCategory((categoryObj?.value || "") as MenuItemCategory | "");
     } else if (typeof menuItem.category === 'string') {
       // If category is a string, use it directly
-      console.log('📝 Category is string:', menuItem.category);
       setCategory(menuItem.category as MenuItemCategory | "");
     } else {
       // Fallback for any other format
-      console.log('❌ Unknown category format, setting empty category');
       setCategory("");
     }
   }, [menuItem?.category, categories]);
   const ingredientsInputSectionRef = useRef<HTMLDivElement>(null);
-
- 
-  // Stock entries are available for ingredient selection
-
-  // Categories are available for selection
 
   const availableMaterials = useMemo(() => {
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
@@ -368,10 +350,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       // Find the selected category to validate it exists
       const selectedCategory = categories.find(cat => cat.value === category);
       
-      console.log("Selected category value:", category);
-      console.log("Available categories:", categories);
-      console.log("Found selected category:", selectedCategory);
-      
       // Validate that we found a valid category
       if (!selectedCategory && category) {
         console.error("Invalid category selected:", category);
@@ -397,6 +375,9 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         categoryToSubmit = category as MenuItemCategory;
       }
 
+      console.log('🖼️ FRONTEND DEBUG - Image state:', image);
+      console.log('📁 FRONTEND DEBUG - ImageFile state:', imageFile);
+      
       const submitData = {
         name: name.trim(),
         category: categoryToSubmit,
