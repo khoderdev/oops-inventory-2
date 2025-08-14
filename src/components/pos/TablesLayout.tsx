@@ -8,13 +8,7 @@ import { Clock, Users, Move, Circle, Square, RectangleHorizontal, Trash2, Plus, 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
-import { 
-  CreateTableModal, 
-  RenameTableModal, 
-  BulkTableModal, 
-  TransferTableModal,
-  TableActionsMenu 
-} from "@/components/tables";
+import { RenameTableModal, TransferTableModal } from "@/components/tables";
 
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
   const safeTablesList = useMemo(() => (Array.isArray(tables) ? tables : []), [tables]);
@@ -35,67 +29,22 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const dragStateRef = useRef(dragState);
   const [tempPositions, setTempPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [isUpdatingPosition, setIsUpdatingPosition] = useState<string | null>(null);
-  
+
   // Table Management Modal States
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
-  const [showBulkModal, setShowBulkModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [selectedTableForAction, setSelectedTableForAction] = useState<Table | null>(null);
-  const [sections, setSections] = useState<string[]>([]);
-  const [sectionsLoading, setSectionsLoading] = useState(false);
-  const [showManagementMode, setShowManagementMode] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ table: Table; x: number; y: number } | null>(null);
 
   useEffect(() => {
     setUpdatedTables(safeTablesList);
   }, [safeTablesList]);
 
-  // Fetch table sections on component mount
-  useEffect(() => {
-    const fetchSections = async () => {
-      try {
-        setSectionsLoading(true);
-        const response = await tablesAPI.getTableSections();
-        setSections(response.data || []);
-      } catch (error) {
-        console.error('Failed to fetch table sections:', error);
-        // Set default sections if API fails
-        setSections(['main', 'patio', 'private', 'bar']);
-      } finally {
-        setSectionsLoading(false);
-      }
-    };
-
-    fetchSections();
-  }, []);
-
   useEffect(() => {
     dragStateRef.current = dragState;
   }, [dragState]);
 
-  // Load sections for table management
-  useEffect(() => {
-    loadSections();
-  }, []);
-
-  const loadSections = async () => {
-    try {
-      const response = await tablesAPI.getTableSections();
-      setSections(response.data || []);
-    } catch (error) {
-      console.error('Failed to load sections:', error);
-    }
-  };
-
   // Table Management Handlers
-  const handleCreateTable = () => {
-    setShowCreateModal(true);
-  };
-
-  const handleBulkCreate = () => {
-    setShowBulkModal(true);
-  };
 
   const handleRenameTable = (table: Table) => {
     setSelectedTableForAction(table);
@@ -116,14 +65,14 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       // Refresh tables - you might want to emit an event to parent component
       window.location.reload(); // Temporary solution
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to duplicate table');
+      toast.error(error.response?.data?.message || "Failed to duplicate table");
     }
     setContextMenu(null);
   };
 
   const handleDeleteTable = async (table: Table) => {
-    if (table.status === 'opened') {
-      toast.error('Cannot delete table with active orders');
+    if (table.status === "opened") {
+      toast.error("Cannot delete table with active orders");
       setContextMenu(null);
       return;
     }
@@ -131,11 +80,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     if (confirm(`Are you sure you want to delete Table ${table.number}?`)) {
       try {
         await tablesAPI.deleteTable(table.id.toString());
-        toast.success('Table deleted successfully');
+        toast.success("Table deleted successfully");
         // Refresh tables - you might want to emit an event to parent component
         window.location.reload(); // Temporary solution
       } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Failed to delete table');
+        toast.error(error.response?.data?.message || "Failed to delete table");
       }
     }
     setContextMenu(null);
@@ -292,10 +241,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     (e: React.MouseEvent, table: Table) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       // Don't show context menu in drag mode or arrange mode
       if (isDragMode || isArrangeMode) return;
-      
+
       setContextMenu({
         table,
         x: e.clientX,
@@ -310,7 +259,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     async (e: React.MouseEvent) => {
       // Close context menu
       setContextMenu(null);
-      
+
       if (selectedTool === "select" || isDragMode || !isArrangeMode || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
@@ -353,15 +302,12 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     [selectedTool, isDragMode, isArrangeMode, constrainPosition, updatedTables]
   );
 
-
-
   return (
     <div className="h-[calc(100vh-0rem)] w-full flex flex-col overflow-hidden">
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 mr-6">
           <div className="flex items-center gap-4">
             <h2 className={`text-2xl font-bold text-gray-800 ${isArrangeMode ? "hidden sm:block" : ""}`}>Tables</h2>
-
           </div>
           {isArrangeMode ? (
             <div className="flex items-center gap-2">
@@ -486,7 +432,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                             transition-all duration-200
                           `}
                           onClick={() => handleTableClick(table)}
-                          onContextMenu={(e) => handleTableRightClick(e, table)}
+                          onContextMenu={e => handleTableRightClick(e, table)}
                           onMouseDown={e => handleMouseDown(e, table)}
                           onMouseEnter={e => !isDragMode && !isArrangeMode && handleTableHover(table, e)}
                           onMouseLeave={handleTableLeave}
@@ -498,20 +444,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                               {table.seats}
                             </div>
                           </div>
-
-                          {/* Management Actions Menu */}
-                          {showManagementMode && !isDragMode && !isArrangeMode && (
-                            <div className="absolute -top-2 -right-2 z-20" onClick={(e) => e.stopPropagation()}>
-                              <TableActionsMenu
-                                table={table}
-                                onEdit={handleEditTable}
-                                onRename={handleRenameTable}
-                                onTransfer={handleTransferOrder}
-                                onDuplicate={handleDuplicateTable}
-                                onDelete={handleDeleteTable}
-                              />
-                            </div>
-                          )}
 
                           {isDragMode && (
                             <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
@@ -635,16 +567,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       )}
 
       {/* Table Management Modals */}
-      <CreateTableModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        sections={sections}
-        onTableCreated={() => {
-          setShowCreateModal(false);
-          window.location.reload(); // Temporary solution
-        }}
-      />
-
       <RenameTableModal
         isOpen={showRenameModal}
         onClose={() => {
@@ -654,25 +576,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         table={selectedTableForAction}
         onTableRenamed={(updatedTable: Table) => {
           // Update the table in the local state with the fresh data from API
-          setUpdatedTables(prev => 
-            prev.map(t => 
-              t.id === updatedTable.id 
-                ? updatedTable 
-                : t
-            )
-          );
+          setUpdatedTables(prev => prev.map(t => (t.id === updatedTable.id ? updatedTable : t)));
           setShowRenameModal(false);
           setSelectedTableForAction(null);
-        }}
-      />
-
-      <BulkTableModal
-        isOpen={showBulkModal}
-        onClose={() => setShowBulkModal(false)}
-        sections={sections}
-        onTablesCreated={() => {
-          setShowBulkModal(false);
-          window.location.reload(); // Temporary solution
         }}
       />
 
@@ -692,76 +598,54 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         }}
       />
 
-
       {/* Right-click Context Menu */}
       {contextMenu && (
         <>
           {/* Backdrop to close context menu */}
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setContextMenu(null)}
-          />
-          
+          <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
+
           {/* Context Menu */}
           <div
             className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-[180px]"
             style={{
               left: contextMenu.x,
               top: contextMenu.y,
-              transform: 'translate(-50%, 0)'
+              transform: "translate(-50%, 0)"
             }}
           >
             <div className="px-3 py-2 border-b border-gray-100">
               <div className="font-medium text-gray-900">Table {contextMenu.table.number}</div>
-              <div className="text-sm text-gray-500">{contextMenu.table.seats} seats • {contextMenu.table.status}</div>
+              <div className="text-sm text-gray-500">
+                {contextMenu.table.seats} seats • {contextMenu.table.status}
+              </div>
             </div>
-            
+
             <div className="py-1">
-              <button
-                onClick={() => handleEditTable(contextMenu.table)}
-                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-              >
+              <button onClick={() => handleEditTable(contextMenu.table)} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
                 <Edit3 className="w-4 h-4" />
                 Edit Table
               </button>
-              
-              <button
-                onClick={() => handleRenameTable(contextMenu.table)}
-                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-              >
+
+              <button onClick={() => handleRenameTable(contextMenu.table)} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
                 <Edit3 className="w-4 h-4" />
                 Rename Table
               </button>
-              
-              {(contextMenu.table.status === 'opened' || contextMenu.table.currentOrder || tableOrders[contextMenu.table.number?.toString()]) && (
-                <button
-                  onClick={() => handleTransferOrder(contextMenu.table)}
-                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                >
+
+              {(contextMenu.table.status === "opened" || contextMenu.table.currentOrder || tableOrders[contextMenu.table.number?.toString()]) && (
+                <button onClick={() => handleTransferOrder(contextMenu.table)} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
                   <Move className="w-4 h-4" />
                   Transfer Order
                 </button>
               )}
-              
-              <button
-                onClick={() => handleDuplicateTable(contextMenu.table)}
-                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-              >
+
+              <button onClick={() => handleDuplicateTable(contextMenu.table)} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
                 <Copy className="w-4 h-4" />
                 Duplicate Table
               </button>
-              
+
               <div className="border-t border-gray-100 my-1"></div>
-              
-              <button
-                onClick={() => handleDeleteTable(contextMenu.table)}
-                disabled={contextMenu.table.status === 'opened'}
-                className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
-                  contextMenu.table.status === 'opened'
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-red-600 hover:bg-red-50'
-                }`}
-              >
+
+              <button onClick={() => handleDeleteTable(contextMenu.table)} disabled={contextMenu.table.status === "opened"} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${contextMenu.table.status === "opened" ? "text-gray-400 cursor-not-allowed" : "text-red-600 hover:bg-red-50"}`}>
                 <Trash2 className="w-4 h-4" />
                 Delete Table
               </button>
