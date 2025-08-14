@@ -109,7 +109,8 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
       seats: 4,
       shape: 'square',
       section: '',
-      notes: ''
+      notes: '',
+      position: { x: 0, y: 0 }
     });
   };
 

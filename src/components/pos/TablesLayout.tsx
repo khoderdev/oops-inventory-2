@@ -45,6 +45,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const [sections, setSections] = useState<string[]>([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
   const [showManagementMode, setShowManagementMode] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ table: Table; x: number; y: number } | null>(null);
 
   useEffect(() => {
     setUpdatedTables(safeTablesList);
@@ -99,11 +100,13 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const handleRenameTable = (table: Table) => {
     setSelectedTableForAction(table);
     setShowRenameModal(true);
+    setContextMenu(null);
   };
 
   const handleTransferOrder = (table: Table) => {
     setSelectedTableForAction(table);
     setShowTransferModal(true);
+    setContextMenu(null);
   };
 
   const handleDuplicateTable = async (table: Table) => {
@@ -115,11 +118,13 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to duplicate table');
     }
+    setContextMenu(null);
   };
 
   const handleDeleteTable = async (table: Table) => {
     if (table.status === 'opened') {
       toast.error('Cannot delete table with active orders');
+      setContextMenu(null);
       return;
     }
 
@@ -133,11 +138,13 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         toast.error(error.response?.data?.message || 'Failed to delete table');
       }
     }
+    setContextMenu(null);
   };
 
   const handleEditTable = (table: Table) => {
     // For now, just show rename modal - can be expanded later
     handleRenameTable(table);
+    setContextMenu(null);
   };
 
   // Handle table hover
@@ -281,8 +288,29 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     [isDragMode, isArrangeMode, onTableSelect]
   );
 
+  const handleTableRightClick = useCallback(
+    (e: React.MouseEvent, table: Table) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Don't show context menu in drag mode or arrange mode
+      if (isDragMode || isArrangeMode) return;
+      
+      setContextMenu({
+        table,
+        x: e.clientX,
+        y: e.clientY
+      });
+    },
+    [isDragMode, isArrangeMode]
+  );
+
+  // Close context menu when clicking elsewhere
   const handleCanvasClick = useCallback(
     async (e: React.MouseEvent) => {
+      // Close context menu
+      setContextMenu(null);
+      
       if (selectedTool === "select" || isDragMode || !isArrangeMode || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
@@ -324,6 +352,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     },
     [selectedTool, isDragMode, isArrangeMode, constrainPosition, updatedTables]
   );
+
 
 
   return (
@@ -491,6 +520,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                             transition-all duration-200
                           `}
                           onClick={() => handleTableClick(table)}
+                          onContextMenu={(e) => handleTableRightClick(e, table)}
                           onMouseDown={e => handleMouseDown(e, table)}
                           onMouseEnter={e => !isDragMode && !isArrangeMode && handleTableHover(table, e)}
                           onMouseLeave={handleTableLeave}
@@ -694,6 +724,83 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           window.location.reload(); // Temporary solution
         }}
       />
+
+      {/* Right-click Context Menu */}
+      {contextMenu && (
+        <>
+          {/* Backdrop to close context menu */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setContextMenu(null)}
+          />
+          
+          {/* Context Menu */}
+          <div
+            className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-[180px]"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+              transform: 'translate(-50%, 0)'
+            }}
+          >
+            <div className="px-3 py-2 border-b border-gray-100">
+              <div className="font-medium text-gray-900">Table {contextMenu.table.number}</div>
+              <div className="text-sm text-gray-500">{contextMenu.table.seats} seats • {contextMenu.table.status}</div>
+            </div>
+            
+            <div className="py-1">
+              <button
+                onClick={() => handleEditTable(contextMenu.table)}
+                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+              >
+                <Edit3 className="w-4 h-4" />
+                Edit Table
+              </button>
+              
+              <button
+                onClick={() => handleRenameTable(contextMenu.table)}
+                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+              >
+                <Edit3 className="w-4 h-4" />
+                Rename Table
+              </button>
+              
+              {contextMenu.table.status === 'opened' && (
+                <button
+                  onClick={() => handleTransferOrder(contextMenu.table)}
+                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <Move className="w-4 h-4" />
+                  Transfer Order
+                </button>
+              )}
+              
+              <button
+                onClick={() => handleDuplicateTable(contextMenu.table)}
+                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+              >
+                <Copy className="w-4 h-4" />
+                Duplicate Table
+              </button>
+              
+              <div className="border-t border-gray-100 my-1"></div>
+              
+              <button
+                onClick={() => handleDeleteTable(contextMenu.table)}
+                disabled={contextMenu.table.status === 'opened'}
+                className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
+                  contextMenu.table.status === 'opened'
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-red-600 hover:bg-red-50'
+                }`}
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Table
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
