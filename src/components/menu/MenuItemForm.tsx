@@ -236,7 +236,15 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     if (!name.trim()) newErrors.name = "required";
     if (!category) newErrors.category = "required";
     if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) newErrors.price = "required";
-    if (ingredients.length === 0) newErrors.ingredients = "At least one ingredient is required";
+    
+    // Check if ingredients are required for this category
+    const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+    const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
+    
+    if (requiresIngredients && ingredients.length === 0) {
+      newErrors.ingredients = "At least one ingredient is required";
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [name, category, price, ingredients]);
@@ -454,9 +462,11 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         const hasName = !!(name && name.trim());
         const hasCategory = !!category;
         const hasValidPrice = !!(price && !isNaN(parseFloat(price)) && parseFloat(price) > 0);
+        const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+        const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
         const hasIngredients = ingredients.length > 0;
         const hasNoErrors = Object.keys(errors).length === 0;
-        const isFormValid = hasNoErrors && hasName && hasCategory && hasValidPrice && hasIngredients;
+        const isFormValid = hasNoErrors && hasName && hasCategory && hasValidPrice && (hasIngredients || !requiresIngredients);
 
         if (isFormValid) {
           handleSubmit();
@@ -561,14 +571,28 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       </div>
 
       <div className="border-t pt-4">
-        <h3 className="text-lg font-medium mb-4">
-          Ingredients <span className="text-red-500">*</span>
-        </h3>
-        {errors.ingredients && (
-          <p id="ingredients-error" className="text-sm text-red-500 mb-2">
-            {errors.ingredients}
-          </p>
-        )}
+        {(() => {
+          const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+          const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
+          
+          return (
+            <>
+              <h3 className="text-lg font-medium mb-4">
+                Ingredients {requiresIngredients && <span className="text-red-500">*</span>}
+                {!requiresIngredients && (
+                  <span className="text-sm text-muted-foreground font-normal ml-2">
+                    (Optional for {category} items)
+                  </span>
+                )}
+              </h3>
+              {errors.ingredients && (
+                <p id="ingredients-error" className="text-sm text-red-500 mb-2">
+                  {errors.ingredients}
+                </p>
+              )}
+            </>
+          );
+        })()}
 
         <TanStackVirtualizedIngredientsTable
           ingredients={ingredients}
@@ -673,7 +697,23 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         <Button variant="outline" onClick={handleCancel} aria-label="Cancel form">
           Cancel
         </Button>
-        <Button onClick={handleSubmit} disabled={!!Object.keys(errors).length || !name.trim() || !category || !price || parseFloat(price) <= 0 || ingredients.length === 0} aria-label={menuItem ? "Update menu item" : "Create menu item"}>
+        <Button 
+          onClick={handleSubmit} 
+          disabled={(() => {
+            const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+            const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
+            
+            return (
+              !!Object.keys(errors).length || 
+              !name.trim() || 
+              !category || 
+              !price || 
+              parseFloat(price) <= 0 || 
+              (requiresIngredients && ingredients.length === 0)
+            );
+          })()} 
+          aria-label={menuItem ? "Update menu item" : "Create menu item"}
+        >
           {menuItem ? "Update" : "Create"} Menu Item
         </Button>
       </div>

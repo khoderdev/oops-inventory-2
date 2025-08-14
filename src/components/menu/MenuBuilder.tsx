@@ -27,7 +27,10 @@ import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmen
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
-  const { fetchTabData } = useInventoryStore();
+  const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
+  
+  // Use store menu items if available, fallback to props
+  const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems;
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
@@ -70,7 +73,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         toast({
           title: "Error",
           description: "Failed to load menu categories",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 1500
         });
       } finally {
         setCategoriesLoading(false);
@@ -114,7 +118,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       toast({
         title: "Validation Disabled",
         description: "Data validation is disabled. Enable it in System Settings to run validation.",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 1500
       });
       return;
     }
@@ -277,27 +282,32 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   // Define handler functions before they are used in columns
   const handleDeleteMenuItem = useCallback(
     async (id: string) => {
-      if (!onDeleteMenuItem) {
-        console.error("❌ [MenuBuilder] onDeleteMenuItem handler not provided");
-        return;
-      }
       try {
-        onDeleteMenuItem(id);
+        // Call the parent handler if provided
+        if (onDeleteMenuItem) {
+          onDeleteMenuItem(id);
+        }
+        
+        // Refresh store data for instant rendering
+        await fetchTabData("menu");
+        
         toast({
           title: "Success",
           description: "Menu item deleted successfully",
-          variant: "default"
+          variant: "default",
+          duration: 1500
         });
       } catch (error) {
         console.error("❌ [MenuBuilder] Error deleting menu item:", error);
         toast({
           title: "Error",
           description: "Failed to delete menu item",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 1500
         });
       }
     },
-    [onDeleteMenuItem]
+    [onDeleteMenuItem, fetchTabData]
   );
 
   const handleTogglePOSVisibility = useCallback(
@@ -379,11 +389,23 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         cell: ({ getValue, row }) => {
           const category = getValue();
           let categoryLabel;
+          
           if (typeof category === 'object' && category !== null) {
-            categoryLabel = category.name || 'Uncategorized';
+            // Category is an object with name/value
+            categoryLabel = category.name || category.value || 'Uncategorized';
+          } else if (typeof category === 'string') {
+            // Category is a string - try to find matching category by value first, then by name
+            const matchingCategory = categories.find(c => c.value === category) || 
+                                   categories.find(c => c.name?.toLowerCase() === category.toLowerCase());
+            categoryLabel = matchingCategory?.name || category || 'Uncategorized';
+          } else if (typeof category === 'number') {
+            // Category is an ID - find by ID
+            const matchingCategory = categories.find(c => c.id === category);
+            categoryLabel = matchingCategory?.name || 'Uncategorized';
           } else {
-            categoryLabel = categories.find(c => c.value === category)?.name || category || 'Uncategorized';
+            categoryLabel = 'Uncategorized';
           }
+          
           return <span>{String(categoryLabel)}</span>;
         },
         size: 128
@@ -535,9 +557,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   );
 
   const filteredMenuItems = useMemo(() => {
-
-    
-    return menuItems.filter(item => {
+    return currentMenuItems.filter(item => {
       const searchLower = searchTerm.toLowerCase();
       const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
       const matchesIngredients = item.ingredients.some(ingredient => {
@@ -566,7 +586,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       
       return matchesSearch && matchesCategory;
     });
-  }, [menuItems, searchTerm, selectedCategory, getMaterialName, categories]);
+  }, [currentMenuItems, searchTerm, selectedCategory, getMaterialName, categories]);
 
   // TanStack Table instance
   const table = useReactTable({
@@ -600,26 +620,51 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   });
 
   const handleAddMenuItem = useCallback(
-    (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
-      const ingredientsWithCosts = data.ingredients;
-      const menuItemToCreate: MenuItem = {
-        id: `menu-${Date.now()}`,
-        ...data,
-        ingredients: ingredientsWithCosts,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      onCreateMenuItem(menuItemToCreate);
-      setShowMenuItemForm(false);
-      setEditingMenuItem(null);
+    async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
+      try {
+        const ingredientsWithCosts = data.ingredients;
+        const menuItemToCreate: MenuItem = {
+          id: `menu-${Date.now()}`,
+          ...data,
+          ingredients: ingredientsWithCosts,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        // Call the parent handler
+        if (onCreateMenuItem) {
+          onCreateMenuItem(menuItemToCreate);
+        }
+        
+        // Refresh store data for instant rendering
+        await fetchTabData("menu");
+        
+        setShowMenuItemForm(false);
+        setEditingMenuItem(null);
+        
+        toast({
+          title: "Success",
+          description: "Menu item created successfully",
+          variant: "default",
+          duration: 1500
+        });
+      } catch (error) {
+        console.error("Error creating menu item:", error);
+        toast({
+          title: "Error",
+          description: "Failed to create menu item",
+          variant: "destructive",
+          duration: 1500
+        });
+      }
     },
-    [onCreateMenuItem]
+    [onCreateMenuItem, fetchTabData]
   );
 
   const handleUpdateMenuItem = useCallback(
-    (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
-      if (!editingMenuItem || !onUpdateMenuItem) {
-        console.error("editingMenuItem or onUpdateMenuItem handler not provided");
+    async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
+      if (!editingMenuItem) {
+        console.error("editingMenuItem not provided");
         return;
       }
 
@@ -631,16 +676,38 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           ingredients: ingredientsWithCosts,
           updatedAt: new Date()
         };
-        onUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
+        
+        // Call the parent handler if provided
+        if (onUpdateMenuItem) {
+          onUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
+        }
+        
+        // Refresh store data for instant rendering
+        await fetchTabData("menu");
+        
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
+        
+        toast({
+          title: "Success",
+          description: "Menu item updated successfully",
+          variant: "default",
+          duration: 1500
+        });
       } catch (error) {
         console.error("Error updating menu item:", error);
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
+        
+        toast({
+          title: "Error",
+          description: "Failed to update menu item",
+          variant: "destructive",
+          duration: 1500
+        });
       }
     },
-    [editingMenuItem, onUpdateMenuItem]
+    [editingMenuItem, onUpdateMenuItem, fetchTabData]
   );
 
   const handleCloseModal = useCallback((open: boolean) => {
@@ -712,7 +779,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       toast({
         title: "Error",
         description: "Please select a category",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 1500
       });
       return;
     }
@@ -734,7 +802,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       toast({
         title: "Success",
         description: `Updated ${response.data.updatedCount} menu items to ${categoryLabel} category`,
-        variant: "default"
+        variant: "default",
+        duration: 1500
       });
       await fetchTabData("menu");
       setSelectedMenuItems(new Set());
@@ -745,7 +814,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       toast({
         title: "Error",
         description: "Failed to update menu item categories",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 1500
       });
     }
   }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, categories, fetchTabData, handleCloseBulkCategoryDialog]);
@@ -823,7 +893,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
             {(searchTerm || selectedCategory !== "all") && (
               <div className="mt-3 text-xs sm:text-sm text-muted-foreground px-1">
-                Showing <span className="font-medium">{filteredMenuItems.length}</span> of <span className="font-medium">{menuItems.length}</span> menu items
+                Showing <span className="font-medium">{filteredMenuItems.length}</span> of <span className="font-medium">{currentMenuItems.length}</span> menu items
                 {searchTerm && (
                   <span className="block sm:inline">
                     {" "}

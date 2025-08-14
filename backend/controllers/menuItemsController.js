@@ -187,6 +187,11 @@ const menuItemsController = {
 
       // Parse and validate ingredients (if provided)
       let parsedIngredients = ingredients;
+      
+      // Check if ingredients are required for this category
+      const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+      const requiresIngredients = !noIngredientsCategories.includes(categoryValue?.toLowerCase());
+      
       if (ingredients) {
         // Handle case where ingredients come as JSON string (from FormData)
         if (typeof ingredients === "string") {
@@ -198,28 +203,42 @@ const menuItemsController = {
           }
         }
 
-        if (!Array.isArray(parsedIngredients) || parsedIngredients.length === 0) {
+        if (!Array.isArray(parsedIngredients)) {
           await transaction.rollback();
-          return res.status(400).json({ error: "Ingredients must be a non-empty array" });
+          return res.status(400).json({ error: "Ingredients must be an array" });
         }
-        for (const ingredient of parsedIngredients) {
-          if (!ingredient.materialId || ingredient.quantity === undefined || !ingredient.unit || ingredient.cost === undefined) {
-            await transaction.rollback();
-            return res.status(400).json({ error: "All ingredient fields are required" });
-          }
-          if (ingredient.quantity <= 0) {
-            await transaction.rollback();
-            return res.status(400).json({ error: "Ingredient quantity must be positive" });
-          }
-          if (ingredient.unit.trim() === "") {
-            await transaction.rollback();
-            return res.status(400).json({ error: "Ingredient unit cannot be empty" });
-          }
-          if (ingredient.cost < 0) {
-            await transaction.rollback();
-            return res.status(400).json({ error: "Ingredient cost cannot be negative" });
+
+        // Validate ingredients if any are provided
+        if (parsedIngredients.length > 0) {
+          for (const ingredient of parsedIngredients) {
+            if (!ingredient.materialId || ingredient.quantity === undefined || !ingredient.unit || ingredient.cost === undefined) {
+              await transaction.rollback();
+              return res.status(400).json({ error: "All ingredient fields are required" });
+            }
+            if (ingredient.quantity <= 0) {
+              await transaction.rollback();
+              return res.status(400).json({ error: "Ingredient quantity must be positive" });
+            }
+            if (ingredient.unit.trim() === "") {
+              await transaction.rollback();
+              return res.status(400).json({ error: "Ingredient unit cannot be empty" });
+            }
+            if (ingredient.cost < 0) {
+              await transaction.rollback();
+              return res.status(400).json({ error: "Ingredient cost cannot be negative" });
+            }
           }
         }
+      } else {
+        // No ingredients provided - check if they're required for this category
+        if (requiresIngredients) {
+          await transaction.rollback();
+          return res.status(400).json({ 
+            error: `Ingredients are required for ${categoryValue} items. Please add at least one ingredient.` 
+          });
+        }
+        // Set empty array for categories that don't require ingredients
+        parsedIngredients = [];
       }
 
       // Handle image (either from file upload or base64)
@@ -262,9 +281,15 @@ const menuItemsController = {
         await MenuItemIngredient.bulkCreate(ingredientData, { transaction });
       }
 
-      // Fetch the created menu item with ingredients
+      // Fetch the created menu item with ingredients and category
       const createdMenuItem = await MenuItem.findByPk(menuItem.id, {
         include: [
+          {
+            model: Category,
+            as: "category",
+            attributes: ["id", "name", "value", "type"],
+            required: false
+          },
           {
             model: MenuItemIngredient,
             as: "menuItemIngredients",
