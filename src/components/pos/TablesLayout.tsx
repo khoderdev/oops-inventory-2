@@ -5,11 +5,12 @@ import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { tablesAPI } from "@/api/tables.api";
 import { ordersAPI } from "@/api/orders.api";
-import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Edit3 } from "lucide-react";
+import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Edit3, EyeOff, RefreshCw, Settings } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
-import { RenameTableModal, TransferTableModal } from "@/components/tables";
+import { RenameTableModal, TransferTableModal, InactiveTablesModal, DeleteTableModal } from "@/components/tables";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
   const safeTablesList = useMemo(() => (Array.isArray(tables) ? tables : []), [tables]);
@@ -34,19 +35,88 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   // Table Management Modal States
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showInactiveTablesModal, setShowInactiveTablesModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [selectedTableForAction, setSelectedTableForAction] = useState<Table | null>(null);
   const [selectedOrderForTransfer, setSelectedOrderForTransfer] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<{ table: Table; x: number; y: number } | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [inactiveTablesCount, setInactiveTablesCount] = useState(0);
+  const [isDeletingTable, setIsDeletingTable] = useState(false);
 
   useEffect(() => {
     setUpdatedTables(safeTablesList);
+    // Simulate fetching inactive tables count
+    fetchInactiveTablesCount();
   }, [safeTablesList]);
+
+  const fetchInactiveTablesCount = async () => {
+    try {
+      // Fetch all tables and count inactive ones
+      const response = await tablesAPI.getTables();
+      console.log("All tables count API response:", response);
+
+      // Handle the response structure - backend returns { data: tables }
+      let allTables = [];
+      if (response.data && Array.isArray(response.data.data)) {
+        allTables = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        allTables = response.data;
+      } else {
+        console.error("Unexpected API response structure:", response);
+        setInactiveTablesCount(0);
+        return;
+      }
+
+      // Count inactive tables (isActive === false)
+      const inactiveCount = allTables.filter(table => table.isActive === false).length;
+      setInactiveTablesCount(inactiveCount);
+    } catch (error) {
+      console.error("Failed to fetch inactive tables count:", error);
+      setInactiveTablesCount(0);
+    }
+  };
+
+  const refreshTablesData = async () => {
+    try {
+      console.log("🔄 Refreshing tables data after transfer...");
+      
+      // Fetch fresh tables data with orders
+      const response = await tablesAPI.getTables({ includeOrders: true });
+      console.log("Fresh tables API response:", response);
+
+      // Handle the response structure consistently
+      let freshTables = [];
+      if (response.data && Array.isArray(response.data.data)) {
+        freshTables = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        freshTables = response.data;
+      } else {
+        console.error("Unexpected API response structure:", response);
+        return;
+      }
+
+      // Filter only active tables for the main view
+      const activeTables = freshTables.filter(table => table.isActive !== false);
+      
+      console.log(`📊 Tables refresh result: ${activeTables.length} active tables, ${freshTables.length - activeTables.length} inactive tables`);
+      console.log("Active tables with orders:", activeTables.filter(t => t.currentOrder).map(t => `Table ${t.number}: Order ${t.currentOrder?.orderId}`));
+      
+      // Force state update with fresh data
+      setUpdatedTables([...activeTables]); // Use spread to ensure new reference
+
+      // Also refresh the inactive count
+      await fetchInactiveTablesCount();
+
+      console.log("✅ Tables data refreshed successfully");
+    } catch (error) {
+      console.error("❌ Failed to refresh tables data:", error);
+    }
+  };
 
   useEffect(() => {
     dragStateRef.current = dragState;
   }, [dragState]);
-
 
   const refreshTablesAfterTransfer = useCallback(async () => {
     try {
@@ -74,7 +144,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const handleTransferOrder = async (table: Table) => {
     try {
       setContextMenu(null);
-      
+
       if (!table.currentOrder?.orderId) {
         toast.error("No order found for this table");
         return;
@@ -92,55 +162,41 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     }
   };
 
-  const handleDeleteTable = async (table: Table) => {
+  const handleDeleteTable = (table: Table) => {
     if (table.status === "opened") {
       toast.error("Cannot delete table with active orders");
       setContextMenu(null);
       return;
     }
 
-    if (confirm(`Are you sure you want to delete Table ${table.number}?`)) {
-      try {
-        await tablesAPI.deleteTable(table.id.toString());
-        toast.success("Table deleted successfully");
-        // Refresh tables - you might want to emit an event to parent component
-        window.location.reload(); // Temporary solution
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || "Failed to delete table");
-      }
-    }
+    // Show confirmation dialog instead of browser alert
+    setSelectedTableForAction(table);
+    setShowDeleteConfirmModal(true);
     setContextMenu(null);
   };
 
-  // Handle table hover with real-time data refresh
-  // const handleTableHover = useCallback(async (table: Table, event: React.MouseEvent) => {
-  //   if (table.status === "opened" && table.currentOrder) {
-  //     const rect = event.currentTarget.getBoundingClientRect();
-  //     setHoveredTable(table);
-  //     setPopupPosition({
-  //       x: rect.left + rect.width / 2,
-  //       y: rect.bottom + 12
-  //     });
-  //     setTimeout(async () => {
-  //       try {
-  //         const response = await tablesAPI.getTables({ includeOrders: true });
-  //         const responseData = response.data as Table[] | { data: Table[] };
-  //         const freshTablesData = Array.isArray(responseData) ? responseData : responseData.data;
-  //         const freshTableData = freshTablesData.find(t => t.id === table.id);
-  //         if (freshTableData && freshTableData.currentOrder) {
-  //           setHoveredTable(freshTableData);
-  //         }
-  //       } catch (error) {
-  //         console.error('Failed to fetch fresh table data on hover:', error);
-  //       }
-  //     }, 100); // Small delay to show initial state first, then update
-  //   }
-  // }, []);
+  const confirmDeleteTable = async () => {
+    if (!selectedTableForAction) return;
 
-  // const handleTableLeave = () => {
-  //   setHoveredTable(null);
-  //   setPopupPosition(null);
-  // };
+    setIsDeletingTable(true);
+    try {
+      await tablesAPI.deleteTable(selectedTableForAction.id.toString());
+      toast.success(`Table ${selectedTableForAction.number} deleted`);
+
+      // Refresh tables data instead of page reload
+      await refreshTablesData();
+
+      // Close modal and reset state
+      setShowDeleteConfirmModal(false);
+      setSelectedTableForAction(null);
+    } catch (error: any) {
+      console.error("Delete table error:", error);
+      toast.error(error.response?.data?.message || "Failed to delete table");
+    } finally {
+      setIsDeletingTable(false);
+    }
+  };
+
 
   const constrainPosition = useCallback((x: number, y: number) => {
     const constrainedX = Math.max(8, Math.min(x, 92));
@@ -286,7 +342,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const handleTableHover = useCallback(
     (table: Table, e: React.MouseEvent) => {
       if (isDragMode || isArrangeMode) return;
-      
+
       // Only show popup for tables with orders
       if (table.status === "opened" && table.currentOrder) {
         setHoveredTable(table);
@@ -397,8 +453,15 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 }}
                 className={isDragMode ? "bg-red-500/10 border border-red-500" : ""}
               >
-                <Move className="w-4 h-4 mr-1" />
+                <Move className="w-4 h-4" />
                 {isDragMode ? "Exit Dragging" : "Drag"}
+              </Button>
+
+              <Separator orientation="vertical" className="h-6" />
+
+              <Button variant="outline" size="sm" onClick={() => setShowInactiveTablesModal(true)} className="relative">
+                Manage Tables
+                {inactiveTablesCount > 0 && <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{inactiveTablesCount}</span>}
               </Button>
 
               <Separator orientation="vertical" className="h-6" />
@@ -413,21 +476,23 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 }}
                 className="text-red-600 hover:bg-red-50"
               >
-                Exit Management
+                Exit Settings
               </Button>
             </div>
           ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsArrangeMode(true);
-                setSelectedTool("select");
-              }}
-            >
-              <Move className="w-4 h-4 mr-2" />
-              Manage Tables
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsArrangeMode(true);
+                  setSelectedTool("select");
+                }}
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </Button>
+            </div>
           )}
         </div>
 
@@ -490,9 +555,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                         >
                           <div className="text-center">
                             <div className="font-bold text-lg text-gray-800">{table.number}</div>
-                            <div className="text-xs text-gray-600 text-center">
-                              {table.name}
-                            </div>
+                            <div className="text-xs text-gray-600 text-center">{table.name}</div>
                           </div>
 
                           {isDragMode && (
@@ -626,28 +689,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         }}
       />
 
-      <TransferTableModal
-        isOpen={showTransferModal}
-        onClose={() => {
-          setShowTransferModal(false);
-          setSelectedTableForAction(null);
-          setSelectedOrderForTransfer(null);
-        }}
-        sourceTable={selectedTableForAction}
-        sourceOrder={selectedOrderForTransfer}
-        tables={updatedTables}
-        onTransferComplete={async () => {
-          setShowTransferModal(false);
-          setSelectedTableForAction(null);
-          setSelectedOrderForTransfer(null);
-          
-          // Add small delay to ensure backend has processed the transfer
-          setTimeout(async () => {
-            await refreshTablesAfterTransfer();
-          }, 500);
-        }}
-      />
-
       {/* Right-click Context Menu */}
       {contextMenu && (
         <>
@@ -693,6 +734,65 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           </div>
         </>
       )}
+
+      {/* Modals */}
+      <RenameTableModal
+        isOpen={showRenameModal}
+        onClose={() => {
+          setShowRenameModal(false);
+          setSelectedTableForAction(null);
+        }}
+        table={selectedTableForAction}
+        onTableRenamed={(updatedTable) => {
+          setUpdatedTables(prev => 
+            prev.map(table => table.id === updatedTable.id ? updatedTable : table)
+          );
+          setShowRenameModal(false);
+          setSelectedTableForAction(null);
+          toast.success("Table renamed successfully");
+        }}
+      />
+
+      <TransferTableModal
+        isOpen={showTransferModal}
+        onClose={() => {
+          setShowTransferModal(false);
+          setSelectedTableForAction(null);
+          setSelectedOrderForTransfer(null);
+        }}
+        tables={updatedTables}
+        sourceTable={selectedTableForAction}
+        sourceOrder={selectedOrderForTransfer}
+        onTransferComplete={async () => {
+          setShowTransferModal(false);
+          setSelectedTableForAction(null);
+          setSelectedOrderForTransfer(null);
+          
+          // Force immediate refresh with fresh data
+          await refreshTablesData();
+          
+          toast.success("Transfer completed successfully");
+        }}
+      />
+
+      <InactiveTablesModal
+        isOpen={showInactiveTablesModal}
+        onClose={() => setShowInactiveTablesModal(false)}
+        onTableActivated={() => {
+          refreshTablesData();
+        }}
+      />
+
+      <DeleteTableModal
+        isOpen={showDeleteConfirmModal}
+        onClose={() => {
+          setShowDeleteConfirmModal(false);
+          setSelectedTableForAction(null);
+        }}
+        onConfirmDelete={confirmDeleteTable}
+        table={selectedTableForAction}
+        isDeleting={isDeletingTable}
+      />
     </div>
   );
 };
