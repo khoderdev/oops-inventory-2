@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { tablesAPI } from "@/api/tables.api";
+import { ordersAPI } from "@/api/orders.api";
 import { Clock, Users, Move, Circle, Square, RectangleHorizontal, Trash2, Plus, Settings, Edit3, Copy } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [selectedTableForAction, setSelectedTableForAction] = useState<Table | null>(null);
+  const [selectedOrderForTransfer, setSelectedOrderForTransfer] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<{ table: Table; x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -52,10 +54,30 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     setContextMenu(null);
   };
 
-  const handleTransferOrder = (table: Table) => {
-    setSelectedTableForAction(table);
-    setShowTransferModal(true);
-    setContextMenu(null);
+  const handleTransferOrder = async (table: Table) => {
+    try {
+      setContextMenu(null);
+      
+      if (!table.currentOrder?.orderId) {
+        toast.error("No order found for this table");
+        return;
+      }
+
+      // Fetch complete order details with items
+      const orderResponse = await ordersAPI.getOrder(table.currentOrder.orderId);
+      const fullOrderData = orderResponse.data;
+
+      console.log("TablesLayout - Fetched order data:", fullOrderData);
+      console.log("TablesLayout - Order items:", fullOrderData.data.items);
+      console.log("TablesLayout - Items count:", fullOrderData.data.items?.length);
+
+      setSelectedTableForAction(table);
+      setSelectedOrderForTransfer(fullOrderData.data); // Pass the actual order object, not the response wrapper
+      setShowTransferModal(true);
+    } catch (error: any) {
+      console.error("Failed to fetch order details:", error);
+      toast.error("Failed to load order details");
+    }
   };
 
   const handleDeleteTable = async (table: Table) => {
@@ -569,13 +591,15 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         onClose={() => {
           setShowTransferModal(false);
           setSelectedTableForAction(null);
+          setSelectedOrderForTransfer(null);
         }}
         sourceTable={selectedTableForAction}
-        sourceOrder={selectedTableForAction?.currentOrder}
+        sourceOrder={selectedOrderForTransfer}
         tables={updatedTables}
         onTransferComplete={() => {
           setShowTransferModal(false);
           setSelectedTableForAction(null);
+          setSelectedOrderForTransfer(null);
           window.location.reload(); // Temporary solution
         }}
       />

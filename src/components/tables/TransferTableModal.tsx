@@ -126,7 +126,7 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({
   const totalItems = sourceOrder.items?.length || 0;
   const selectedTotal = sourceOrder.items
     ?.filter((item: OrderItem) => selectedItems.includes(item.id))
-    ?.reduce((sum: number, item: OrderItem) => sum + parseFloat(item.total), 0) || 0;
+    ?.reduce((sum: number, item: OrderItem) => sum + parseFloat(item.totalPrice || item.total || '0'), 0) || 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -205,11 +205,11 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({
                       <div>
                         <div className="font-medium">{item.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          Qty: {item.quantity} × ${item.price}
+                          Qty: {item.quantity} × ${item.unitPrice || item.price}
                         </div>
                       </div>
                     </div>
-                    <div className="font-medium">${item.total}</div>
+                    <div className="font-medium">${item.totalPrice || item.total}</div>
                   </div>
                 ))}
                 
