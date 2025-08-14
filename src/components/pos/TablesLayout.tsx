@@ -81,9 +81,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       }
       // Fetch complete order details with items
       const orderResponse = await ordersAPI.getOrder(table.currentOrder.orderId);
-      const fullOrderData = orderResponse.data;
+      const responseData = orderResponse.data as { data?: any } | any;
+      const fullOrderData = responseData.data || responseData; // Handle nested response structure
       setSelectedTableForAction(table);
-      setSelectedOrderForTransfer(fullOrderData.data); // Pass the actual order data, not the wrapper
+      setSelectedOrderForTransfer(fullOrderData); // Pass the actual order data
       setShowTransferModal(true);
     } catch (error: any) {
       console.error("Failed to fetch order details:", error);
