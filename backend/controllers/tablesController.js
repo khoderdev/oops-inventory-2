@@ -525,16 +525,16 @@ export const tablesController = {
           id: item.id,
           name: item.name,
           quantity: item.quantity,
-          price: item.price,
-          total: item.total
+          price: item.unitPrice,
+          total: item.totalPrice
         });
-        transferredTotal += parseFloat(item.total || 0);
+        transferredTotal += parseFloat(item.totalPrice || 0);
       }
 
       // Update order totals
       await Promise.all([
-        this.recalculateOrderTotal(sourceOrder.id),
-        this.recalculateOrderTotal(destinationOrder.id)
+        tablesController.recalculateOrderTotal(sourceOrder.id),
+        tablesController.recalculateOrderTotal(destinationOrder.id)
       ]);
 
       // Update table statuses
