@@ -57,13 +57,16 @@ let server = null;
 let httpServer = null;
 
 // Enhanced middleware with error handling
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "*",
-    credentials: true,
-    optionsSuccessStatus: 200
-  })
-);
+app.use(cors({
+  origin: [
+    "http://localhost",
+    "http://192.168.88.85",
+    "http://127.0.0.1"
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
 app.use(
   express.json({
@@ -83,13 +86,13 @@ app.use(
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Serve static files for uploaded images
-app.use('/uploads', express.static('uploads'));
+app.use("/uploads", express.static("uploads"));
 
 // Trust proxy to get real IP addresses
 app.set("trust proxy", true);
 
 // Health check endpoint
-app.get("/health", async (req, res) => {
+app.get("/", async (req, res) => {
   try {
     // Check database connection
     await sequelize.authenticate();
@@ -250,7 +253,7 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
         await sequelize.sync({
           force: false,
           alter: {
-            drop: false  // Don't drop existing columns/constraints
+            drop: false // Don't drop existing columns/constraints
           },
           logging: sql => {
             // Only log non-SELECT queries to reduce noise

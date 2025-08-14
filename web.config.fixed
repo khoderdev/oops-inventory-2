@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <!-- Explicitly remove iisnode handler -->
+    <handlers>
+      <remove name="iisnode" />
+    </handlers>
+    
+    <!-- Default document -->
+    <defaultDocument>
+      <files>
+        <clear />
+        <add value="index.html" />
+      </files>
+    </defaultDocument>
+    
+    <!-- Static content settings -->
+    <staticContent>
+      <remove fileExtension=".js" />
+      <remove fileExtension=".css" />
+      <mimeMap fileExtension=".js" mimeType="application/javascript" />
+      <mimeMap fileExtension=".css" mimeType="text/css" />
+    </staticContent>
+  </system.webServer>
+</configuration>

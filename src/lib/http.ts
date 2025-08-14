@@ -38,7 +38,8 @@ class ApiClient {
       headers: {
         "Content-Type": "application/json",
         ...config.headers
-      }
+      },
+      withCredentials: true
     });
 
     // Setup request interceptor
@@ -65,7 +66,7 @@ class ApiClient {
       (error: AxiosError<ApiError>) => {
         // Extract error data from response
         const errorData = error.response?.data;
-        
+
         // Handle common error cases with enhanced error extraction
         const errorResponse: ApiError = {
           message: errorData?.message || error.message || "An error occurred",
@@ -210,7 +211,7 @@ class ApiClient {
 
 // Create API instance
 const api = new ApiClient({
-  baseURL: "http://localhost:3000/api",
+  baseURL: "http://192.168.88.85:3000/api",
   timeout: 15000
 });
 

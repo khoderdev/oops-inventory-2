@@ -1,11 +1,16 @@
 export const getClientIP = req => {
-  const ip = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || (req.connection?.socket ? req.connection.socket.remoteAddress : null) || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.headers["x-real-ip"] || req.headers["x-client-ip"] || req.headers["cf-connecting-ip"] || req.headers["x-forwarded"] || req.headers["forwarded-for"] || req.headers["forwarded"] || "Unknown";
+  const ip = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || (req.connection?.socket ? req.connection.socket.remoteAddress : null) || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.headers["x-real-ip"] || req.headers["x-client-ip"] || req.headers["cf-connecting-ip"] || req.headers["x-forwarded"] || req.headers["forwarded-for"] || req.headers["forwarded"] || "127.0.0.1";
 
   if (ip === "::1") {
     return "127.0.0.1";
   }
   if (ip && ip.includes("::ffff:")) {
     return ip.replace("::ffff:", "");
+  }
+  
+  // If still "Unknown" or invalid, return localhost
+  if (ip === "Unknown" || !ip || ip.trim() === "") {
+    return "127.0.0.1";
   }
 
   return ip;
