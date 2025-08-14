@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ProductGridProps, POSItem } from "@/types/inventory";
-import { formatCurrency } from "@/utils/conversionLogic";
+import { formatPOSPrice } from "@/utils/conversionLogic";
 import { Package, ShoppingCart } from "lucide-react";
 import React, { useMemo, useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -21,7 +21,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
     };
 
     const columns = getColumnsCount(rightPanelPixelWidth);
-    const itemHeight = 160; // Reduced height for smaller grids
+    const itemHeight = 160;
 
     return {
       columns,
@@ -134,13 +134,12 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
 
           {/* Hover Overlay */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
-          
+
           {/* Price Overlay - Centered on Image */}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-    
             <div className="bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-white/20">
               <div className="flex items-center justify-center">
-                <span className={`${textSizes.price} font-bold text-primary`}>{formatCurrency(item.price)}</span>
+                <span className={`${textSizes.price} font-bold text-primary`}>{formatPOSPrice(item.price)}</span>
               </div>
             </div>
           </div>

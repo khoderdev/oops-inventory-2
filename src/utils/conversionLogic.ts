@@ -156,20 +156,12 @@ export function calculateIngredientCost(material: Material, quantity: number, un
   return normalizedQuantity * material.costPerUnit;
 }
 
-// export function formatCurrency(amount: number): string {
-//   return new Intl.NumberFormat("en-US", {
-//     style: "currency",
-//     currency: "USD",
-//     minimumFractionDigits: 2,
-//     maximumFractionDigits: 6
-//   }).format(amount);
-// }
 export function formatCurrency(amount: number): string {
   // Handle invalid inputs (NaN, undefined, null)
   if (amount == null || isNaN(amount) || !isFinite(amount)) {
     return "$0.00";
   }
-  
+
   // For very small amounts, use more decimal places and adjust minimum digits
   if (amount < 0.01 && amount > 0) {
     return new Intl.NumberFormat("en-US", {
@@ -179,7 +171,7 @@ export function formatCurrency(amount: number): string {
       maximumFractionDigits: 6
     }).format(amount);
   }
-  
+
   // For normal amounts, use standard formatting
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -348,3 +340,23 @@ export function performConversion(input: ConversionInput): CalculationBreakdown 
     steps
   };
 }
+
+// Custom price formatter for POS items
+export const formatPOSPrice = (amount: number): string => {
+  if (amount == null || isNaN(amount) || !isFinite(amount)) {
+    return "$0";
+  }
+
+  // Check if the number is a whole number (no decimal part)
+  if (amount % 1 === 0) {
+    return `$${amount}`;
+  } else {
+    // Has decimal places, format normally with decimals
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  }
+};
