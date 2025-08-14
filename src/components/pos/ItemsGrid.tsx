@@ -115,7 +115,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
   // Product item component with optimized rendering
   const ProductItem: React.FC<{ item: POSItem }> = React.memo(({ item }) => (
     <Card
-      className="group relative items-card cursor-pointer select-none transition-all duration-200 hover:shadow-md hover:shadow-primary/10 hover:-translate-y-0.5 border border-gray-200/50 hover:border-primary/30 rounded-md bg-white/95 backdrop-blur-sm overflow-hidden btn-touch"
+      className="group relative items-card cursor-pointer select-none transition-all duration-200 hover:shadow-md hover:shadow-primary/10 hover:-translate-y-0.5 border border-gray-200 hover:border-primary/30 rounded-md bg-white/95 backdrop-blur-sm overflow-hidden btn-touch"
       onClick={() => onAddToCart(item)}
       style={{
         height: gridConfig.itemHeight
@@ -137,6 +137,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
           
           {/* Price Overlay - Centered on Image */}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+    
             <div className="bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-white/20">
               <div className="flex items-center justify-center">
                 <span className={`${textSizes.price} font-bold text-primary`}>{formatCurrency(item.price)}</span>
