@@ -117,7 +117,8 @@ export const prefetchMaterialsAction = atom(null, async (get, set, options?: { f
   }));
 
   try {
-    const materialsData = await inventoryAPI.materials.getMaterials();
+    // Fetch ALL materials by setting a high limit to ensure we get materials with high IDs like 216
+    const materialsData = await inventoryAPI.materials.getMaterials({ limit: 10000 });
     const transformedData = transformMaterialsData(materialsData);
 
     // Update cache
@@ -168,7 +169,8 @@ export const prefetchStockAction = atom(null, async (get, set, options?: { force
   }));
 
   try {
-    const stockEntries = await inventoryAPI.stock.getStockEntries();
+    // Fetch ALL stock entries by setting a high limit to ensure we get entries for materials with high IDs like 216
+    const stockEntries = await inventoryAPI.stock.getStockEntries({ limit: 10000 });
     const transformedData = transformStockData(stockEntries);
 
     // Update cache
@@ -405,7 +407,7 @@ export const prefetchAllInventoryAction = atom(null, async (get, set, options?: 
 });
 
 // Cache invalidation actions
-export const invalidateCacheAction = atom(null, (get, set, cacheType?: "materials" | "stock" | "menu" | "orders" | "orderSummaries" | "all") => {
+export const invalidateCacheAction = atom(null, (get, set, cacheType?: 'materials' | 'stock' | 'menu' | 'orders' | 'orderSummaries' | 'all') => {
   const currentMetadata = get(cacheMetadataAtom);
 
   if (cacheType === "all" || !cacheType) {
@@ -482,6 +484,19 @@ export const cachedStockAtom = atom(get => get(stockCacheAtom));
 export const cachedMenuAtom = atom(get => get(menuCacheAtom));
 export const cachedOrdersAtom = atom(get => get(ordersCacheAtom));
 export const cachedOrderSummariesAtom = atom(get => get(orderSummariesCacheAtom));
+
+// TEMPORARY: Clear cache function for debugging - run in browser console
+if (typeof window !== 'undefined') {
+  (window as any).clearInventoryCache = () => {
+    console.log('🧹 Clearing inventory cache...');
+    localStorage.removeItem('inventory-materials-cache');
+    localStorage.removeItem('inventory-stock-cache'); 
+    localStorage.removeItem('inventory-menu-cache');
+    localStorage.removeItem('inventory-cache-metadata');
+    console.log('✅ Cache cleared! Refresh the page to load all materials.');
+    window.location.reload();
+  };
+}
 
 // Combined status atom
 export const overallPrefetchStatusAtom = atom(get => {

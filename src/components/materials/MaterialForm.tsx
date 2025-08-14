@@ -71,6 +71,23 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     }
   }, [categories, form, material]);
 
+  // Convert categoryId to category value when editing existing material (one-time only)
+  useEffect(() => {
+    if (categories.length > 0 && material && (material as any).categoryId && !form.formState.isDirty) {
+      const categoryId = (material as any).categoryId;
+      console.log('🔍 Looking for categoryId:', categoryId, 'in categories:', categories.map(c => `${c.id}:${c.name}`));
+      const matchingCategory = categories.find(cat => cat.id === categoryId);
+      if (matchingCategory) {
+        console.log('✅ Found matching category:', matchingCategory.name, 'value:', matchingCategory.value);
+        form.setValue('category', matchingCategory.value);
+      } else {
+        // Fallback: categoryId doesn't match any materials category - just leave it empty for user to select
+        console.warn('⚠️ Material categoryId', categoryId, 'not found in materials categories. User needs to select manually.');
+        form.setValue('category', '');
+      }
+    }
+  }, [categories, material, form]);
+
   // Get base unit for the selected unit type
   const getBaseUnitForType = (unitType: string): string => {
     switch (unitType) {
@@ -219,46 +236,54 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
               <FormField
                 control={form.control}
                 name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loadingCategories}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={loadingCategories ? "Loading categories..." : "Select category"} />
-                          {loadingCategories && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categoriesError ? (
-                          <SelectItem value="" disabled>
-                            {categoriesError}
-                          </SelectItem>
-                        ) : (
-                          <>
-                            {console.log('🎨 Rendering categories dropdown, categories length:', categories.length)}
-                            {console.log('🎨 Categories data:', categories)}
-                            {categories.length === 0 && !loadingCategories ? (
-                              <SelectItem value="no-categories" disabled>
-                                No categories available
-                              </SelectItem>
-                            ) : (
-                              categories.map(category => {
-                                console.log('🎯 Rendering category:', category);
-                                return (
-                                  <SelectItem key={category.id} value={category.value}>
-                                    {category.name}
-                                  </SelectItem>
-                                );
-                              })
-                            )}
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  console.log('🎯 CATEGORY FIELD RENDER - field.value:', field.value);
+                  console.log('🎯 CATEGORY FIELD RENDER - form.getValues("category"):', form.getValues("category"));
+                  return (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          console.log('🔄 Category changed to:', value);
+                          field.onChange(value);
+                        }} 
+                        value={field.value} 
+                        disabled={loadingCategories}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={loadingCategories ? "Loading categories..." : "Select category"} />
+                            {loadingCategories && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {categoriesError ? (
+                            <SelectItem value="" disabled>
+                              {categoriesError}
+                            </SelectItem>
+                          ) : (
+                            <>
+                              {categories.length === 0 && !loadingCategories ? (
+                                <SelectItem value="no-categories" disabled>
+                                  No categories available
+                                </SelectItem>
+                              ) : (
+                                categories.map(category => {
+                                  return (
+                                    <SelectItem key={category.id} value={category.value}>
+                                      {category.name}
+                                    </SelectItem>
+                                  );
+                                })
+                              )}
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
@@ -321,7 +346,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                         <Input type="number" step="1" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 1)} />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
+                   </FormItem>
                   )}
                 />
               )}

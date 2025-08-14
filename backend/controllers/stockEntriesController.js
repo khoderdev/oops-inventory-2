@@ -18,8 +18,8 @@ const stockEntriesController = {
       
       // Parse pagination parameters
       const paginationParams = parsePaginationParams(req.query, {
-        defaultLimit: 50,
-        maxLimit: 500,
+        defaultLimit: 10000, // Increased default to load all stock entries
+        maxLimit: 50000,     // Increased max limit to handle large datasets
         allowedSortFields: ['id', 'supplier', 'purchaseDate', 'expiryDate', 'totalCost', 'createdAt', 'updatedAt']
       });
 

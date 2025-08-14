@@ -376,7 +376,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
       columnHelper.accessor("category", {
         header: "Category",
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const category = getValue();
           let categoryLabel;
           if (typeof category === 'object' && category !== null) {

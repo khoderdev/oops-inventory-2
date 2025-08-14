@@ -123,30 +123,74 @@ const menuItemsController = {
       let categoryId = null;
       let categoryValue = null;
       
+      // DEBUG: Log what we received
+      console.log('🔍 BACKEND DEBUG - Category received:', typeof category, category);
+      console.log('🔍 BACKEND DEBUG - Full request body:', req.body);
+      
       if (typeof category === 'object' && category !== null && category.id) {
+        console.log('✅ BACKEND DEBUG - Processing as object with id');
         // Category is an object with id and name
         categoryId = category.id;
         categoryValue = category.name || category.value;
+        console.log('✅ BACKEND DEBUG - Extracted categoryId:', categoryId, 'categoryValue:', categoryValue);
       } else if (typeof category === 'string') {
-        // Category is a string value, find the corresponding ID
-        const categoryRecord = await Category.findOne({
-          where: { value: category, type: 'menu_items', isActive: true }
-        });
-        if (categoryRecord) {
-          categoryId = categoryRecord.id;
-          categoryValue = category;
+        console.log('🔍 BACKEND DEBUG - Processing as string, attempting JSON parse');
+        // Try to parse as JSON first (for FormData submissions)
+        try {
+          const parsedCategory = JSON.parse(category);
+          console.log('✅ BACKEND DEBUG - JSON parsed successfully:', parsedCategory);
+          if (parsedCategory && typeof parsedCategory === 'object' && parsedCategory.id) {
+            categoryId = parsedCategory.id;
+            categoryValue = parsedCategory.name || parsedCategory.value;
+            console.log('✅ BACKEND DEBUG - Extracted from JSON - categoryId:', categoryId, 'categoryValue:', categoryValue);
+          } else {
+            console.log('❌ BACKEND DEBUG - Parsed JSON does not have id property');
+          }
+        } catch (e) {
+          console.log('❌ BACKEND DEBUG - JSON parsing failed, treating as string value:', e.message);
+          // If JSON parsing fails, treat as regular string value
+          // Try to find by value first, then by name
+          let categoryRecord = await Category.findOne({
+            where: { value: category, type: 'menu_items', isActive: true }
+          });
+          
+          if (!categoryRecord) {
+            // If not found by value, try to find by name
+            categoryRecord = await Category.findOne({
+              where: { name: category, type: 'menu_items', isActive: true }
+            });
+            console.log('🔍 BACKEND DEBUG - Searching by name instead of value');
+          }
+          
+          if (categoryRecord) {
+            categoryId = categoryRecord.id;
+            categoryValue = categoryRecord.value;
+            console.log('✅ BACKEND DEBUG - Found category by name/value - categoryId:', categoryId, 'value:', categoryValue);
+          } else {
+            console.log('❌ BACKEND DEBUG - No category found with value OR name:', category);
+          }
         }
       } else if (typeof category === 'number') {
+        console.log('🔍 BACKEND DEBUG - Processing as number');
         // Category is already an ID
         categoryId = category;
         const categoryRecord = await Category.findByPk(categoryId);
         if (categoryRecord && categoryRecord.type === 'menu_items' && categoryRecord.isActive) {
           categoryValue = categoryRecord.value;
+          console.log('✅ BACKEND DEBUG - Found category by ID - categoryValue:', categoryValue);
+        } else {
+          console.log('❌ BACKEND DEBUG - No valid category found with ID:', categoryId);
         }
+      } else {
+        console.log('❌ BACKEND DEBUG - Category type not recognized:', typeof category);
       }
 
       // Validate that we have a valid categoryId
+      console.log('🔍 BACKEND DEBUG - Final categoryId before validation:', categoryId);
+      console.log('🔍 BACKEND DEBUG - Final categoryValue before validation:', categoryValue);
+      
       if (!categoryId) {
+        console.log('❌ BACKEND DEBUG - categoryId is null/undefined, validation failed');
         await transaction.rollback();
         return res.status(400).json({ 
           error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.` 
@@ -154,9 +198,11 @@ const menuItemsController = {
       }
 
       // Verify the category exists and is active
+      console.log('🔍 BACKEND DEBUG - Verifying category exists with ID:', categoryId);
       const categoryRecord = await Category.findOne({
         where: { id: categoryId, type: 'menu_items', isActive: true }
       });
+      console.log('🔍 BACKEND DEBUG - Category verification result:', categoryRecord ? 'FOUND' : 'NOT FOUND');
       
       if (!categoryRecord) {
         await transaction.rollback();
@@ -293,25 +339,77 @@ const menuItemsController = {
 
       // Handle category update if provided
       let categoryId = undefined;
+      let categoryValue = null;
+      
       if (category !== undefined) {
+        // DEBUG: Log what we received for UPDATE
+        console.log('🔍 UPDATE BACKEND DEBUG - Category received:', typeof category, category);
+        console.log('🔍 UPDATE BACKEND DEBUG - Full request body:', req.body);
+        
         if (typeof category === 'object' && category !== null && category.id) {
+          console.log('✅ UPDATE BACKEND DEBUG - Processing as object with id');
           // Category is an object with id and name
           categoryId = category.id;
+          categoryValue = category.name || category.value;
+          console.log('✅ UPDATE BACKEND DEBUG - Extracted categoryId:', categoryId, 'categoryValue:', categoryValue);
         } else if (typeof category === 'string') {
-          // Category is a string value, find the corresponding ID
-          const categoryRecord = await Category.findOne({
-            where: { value: category, type: 'menu_items', isActive: true }
-          });
-          if (categoryRecord) {
-            categoryId = categoryRecord.id;
+          console.log('🔍 UPDATE BACKEND DEBUG - Processing as string, attempting JSON parse');
+          // Try to parse as JSON first (for FormData submissions)
+          try {
+            const parsedCategory = JSON.parse(category);
+            console.log('✅ UPDATE BACKEND DEBUG - JSON parsed successfully:', parsedCategory);
+            if (parsedCategory && typeof parsedCategory === 'object' && parsedCategory.id) {
+              categoryId = parsedCategory.id;
+              categoryValue = parsedCategory.name || parsedCategory.value;
+              console.log('✅ UPDATE BACKEND DEBUG - Extracted from JSON - categoryId:', categoryId, 'categoryValue:', categoryValue);
+            } else {
+              console.log('❌ UPDATE BACKEND DEBUG - Parsed JSON does not have id property');
+            }
+          } catch (e) {
+            console.log('❌ UPDATE BACKEND DEBUG - JSON parsing failed, treating as string value:', e.message);
+            // If JSON parsing fails, treat as regular string value
+            // Try to find by value first, then by name
+            let categoryRecord = await Category.findOne({
+              where: { value: category, type: 'menu_items', isActive: true }
+            });
+            
+            if (!categoryRecord) {
+              // If not found by value, try to find by name
+              categoryRecord = await Category.findOne({
+                where: { name: category, type: 'menu_items', isActive: true }
+              });
+              console.log('🔍 UPDATE BACKEND DEBUG - Searching by name instead of value');
+            }
+            
+            if (categoryRecord) {
+              categoryId = categoryRecord.id;
+              categoryValue = categoryRecord.value;
+              console.log('✅ UPDATE BACKEND DEBUG - Found category by name/value - categoryId:', categoryId, 'value:', categoryValue);
+            } else {
+              console.log('❌ UPDATE BACKEND DEBUG - No category found with value OR name:', category);
+            }
           }
         } else if (typeof category === 'number') {
+          console.log('🔍 UPDATE BACKEND DEBUG - Processing as number');
           // Category is already an ID
           categoryId = category;
+          const categoryRecord = await Category.findByPk(categoryId);
+          if (categoryRecord && categoryRecord.type === 'menu_items' && categoryRecord.isActive) {
+            categoryValue = categoryRecord.value;
+            console.log('✅ UPDATE BACKEND DEBUG - Found category by ID - categoryValue:', categoryValue);
+          } else {
+            console.log('❌ UPDATE BACKEND DEBUG - No valid category found with ID:', categoryId);
+          }
+        } else {
+          console.log('❌ UPDATE BACKEND DEBUG - Category type not recognized:', typeof category);
         }
 
         // Validate that we have a valid categoryId
+        console.log('🔍 UPDATE BACKEND DEBUG - Final categoryId before validation:', categoryId);
+        console.log('🔍 UPDATE BACKEND DEBUG - Final categoryValue before validation:', categoryValue);
+        
         if (!categoryId) {
+          console.log('❌ UPDATE BACKEND DEBUG - categoryId is null/undefined, validation failed');
           await transaction.rollback();
           return res.status(400).json({ 
             error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.` 
@@ -319,9 +417,11 @@ const menuItemsController = {
         }
 
         // Verify the category exists and is active
+        console.log('🔍 UPDATE BACKEND DEBUG - Verifying category exists with ID:', categoryId);
         const categoryRecord = await Category.findOne({
           where: { id: categoryId, type: 'menu_items', isActive: true }
         });
+        console.log('🔍 UPDATE BACKEND DEBUG - Category verification result:', categoryRecord ? 'FOUND' : 'NOT FOUND');
         
         if (!categoryRecord) {
           await transaction.rollback();
@@ -403,9 +503,15 @@ const menuItemsController = {
         }
       }
 
-      // Fetch the updated menu item with ingredients
+      // Fetch the updated menu item with ingredients and category
       const updatedMenuItem = await MenuItem.findByPk(id, {
         include: [
+          {
+            model: Category,
+            as: "category",
+            attributes: ['id', 'name', 'value', 'type'],
+            required: false
+          },
           {
             model: MenuItemIngredient,
             as: "menuItemIngredients",

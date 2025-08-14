@@ -394,7 +394,7 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
 });
 
 // Menu Item CRUD Actions
-export const createMenuItemAction = atom(null, async (get, set, data: MenuItem) => {
+export const createMenuItemAction = atom(null, async (get, set, data: MenuItem & { imageFile?: File }) => {
   try {
     // Optimistic update - add menu item immediately at the top
     set(menuItemsAtom, prev => [data, ...prev]);
@@ -411,8 +411,12 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem) 
       isPOSItem: data.isPOSItem
     };
 
-    // Make API call
-    const response = await inventoryAPI.menu.createMenuItem(createData);
+    // Extract imageFile from data
+    const imageFile = data.imageFile;
+    console.log('🔍 STORE DEBUG - ImageFile extracted:', imageFile);
+
+    // Make API call with imageFile
+    const response = await inventoryAPI.menu.createMenuItem(createData, imageFile);
 
     // Update with server response and keep it at the top
     const transformedMenuItem: MenuItem = {
@@ -435,7 +439,7 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem) 
   }
 });
 
-export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { id: string; data: MenuItem }) => {
+export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { id: string; data: MenuItem & { imageFile?: File } }) => {
   // Get current state before optimistic update
   const currentMenuItems = get(menuItemsAtom);
 
@@ -457,16 +461,25 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
       isPOSItem: data.isPOSItem
     };
 
-    // Make API call
-    const response = await inventoryAPI.menu.updateMenuItem(id, updateData);
+    // Extract imageFile from data
+    const imageFile = data.imageFile;
+    console.log('🔍 UPDATE STORE DEBUG - ImageFile extracted:', imageFile);
+
+    // Make API call with imageFile
+    const response = await inventoryAPI.menu.updateMenuItem(id, updateData, imageFile);
 
     // Update with server response and keep it at the top
+    console.log('🔍 UPDATE STORE DEBUG - Server response:', response.data);
+    console.log('🔍 UPDATE STORE DEBUG - Server response category:', response.data.category);
+    
     const transformedMenuItem: MenuItem = {
       ...response.data,
       id: response.data.id.toString(),
       createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
       updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
     };
+    
+    console.log('🔍 UPDATE STORE DEBUG - Transformed menu item category:', transformedMenuItem.category);
 
     // Replace the optimistic item with server response and ensure it stays at the top
     set(menuItemsAtom, prev => {

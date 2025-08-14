@@ -2,7 +2,7 @@ import { activeTabAtom, categoryFilterAtom, filteredMaterialsAtom, lowStockFilte
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 import { addToSpecificEntryAction, addToStockAction, createMaterialAction, createMenuItemAction, createStockEntryAction, deleteMaterialAction, deleteMenuItemAction, deleteStockEntryAction, fetchTabDataAction, recordWasteAction, updateMaterialAction, updateMenuItemAction, updateStockEntryAction, wasteFromSpecificEntryAction } from "@/store/inventoryActions";
-import { AddStockData, MaterialFormData, MaterialWithStock, MenuItem, RecordWasteData, Section, StockEntry, StockFormData } from "@/types/inventory";
+import { AddStockData, MaterialCategory, MaterialFormData, MaterialWithStock, MenuItem, RecordWasteData, Section, StockEntry, StockFormData } from "@/types/inventory";
 import { toast } from "./use-toast";
 
 export function useInventoryStore() {
@@ -64,7 +64,7 @@ export function useInventoryStore() {
         const materialData: MaterialWithStock = {
           id: selectedMaterial?.id || "",
           name: data.name,
-          category: data.category,
+          category: data.category as MaterialCategory,
           baseUnit: data.baseUnit,
           unitType: data.unitType,
           inputUnit: data.inputUnit,
@@ -179,7 +179,7 @@ export function useInventoryStore() {
   );
 
   const handleCreateMenuItem = useCallback(
-    async (data: MenuItem) => {
+    async (data: MenuItem & { imageFile?: File }) => {
       try {
         await createMenuItem(data);
       } catch (error) {
@@ -190,7 +190,7 @@ export function useInventoryStore() {
   );
 
   const handleUpdateMenuItem = useCallback(
-    async (id: string, data: MenuItem) => {
+    async (id: string, data: MenuItem & { imageFile?: File }) => {
       try {
         await updateMenuItem({ id, data });
       } catch (error) {

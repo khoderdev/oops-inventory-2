@@ -17,8 +17,8 @@ const materialController = {
       
       // Parse pagination parameters
       const paginationParams = parsePaginationParams(req.query, {
-        defaultLimit: 50,
-        maxLimit: 500,
+        defaultLimit: 10000, // Increased default to load all materials
+        maxLimit: 50000,     // Increased max limit to handle large datasets
         allowedSortFields: ['name', 'categoryId', 'unitType', 'createdAt', 'updatedAt', 'baseUnit']
       });
 
@@ -140,8 +140,8 @@ const materialController = {
     try {
       // Parse pagination parameters
       const paginationParams = parsePaginationParams(req.query, {
-        defaultLimit: 100,
-        maxLimit: 1000,
+        defaultLimit: 10000, // Increased default to load all materials
+        maxLimit: 50000,     // Increased max limit to handle large datasets
         allowedSortFields: ['name', 'category', 'unitType', 'baseUnit', 'createdAt', 'updatedAt']
       });
 

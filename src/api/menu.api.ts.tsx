@@ -10,6 +10,9 @@ const createFormData = (menuItemData: CreateMenuItemData | UpdateMenuItemData, i
     Object.entries(menuItemData).forEach(([key, value]) => {
       if (key === 'ingredients') {
         formData.append(key, JSON.stringify(value));
+      } else if (key === 'category' && typeof value === 'object' && value !== null) {
+        // Handle category object by sending it as JSON string
+        formData.append(key, JSON.stringify(value));
       } else if (value !== undefined && value !== null) {
         formData.append(key, value.toString());
       }
@@ -21,7 +24,14 @@ const createFormData = (menuItemData: CreateMenuItemData | UpdateMenuItemData, i
     return formData;
   }
   
-  return menuItemData;
+  // Even without image, ensure category object is handled properly
+  const processedData = { ...menuItemData };
+  if (processedData.category && typeof processedData.category === 'object') {
+    // Keep the category object as-is for JSON requests
+    // The backend will handle it properly as an object
+  }
+  
+  return processedData;
 };
 
 export const menuAPI = {
