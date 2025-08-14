@@ -361,41 +361,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 mr-6">
           <div className="flex items-center gap-4">
             <h2 className={`text-2xl font-bold text-gray-800 ${isArrangeMode ? "hidden sm:block" : ""}`}>Tables</h2>
-            {!isArrangeMode && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowManagementMode(!showManagementMode)}
-                  className="flex items-center gap-2"
-                >
-                  <Settings className="w-4 h-4" />
-                  {showManagementMode ? 'Hide Management' : 'Manage Tables'}
-                </Button>
-                {showManagementMode && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCreateTable}
-                      className="flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Create
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleBulkCreate}
-                      className="flex items-center gap-2"
-                    >
-                      <Copy className="w-4 h-4" />
-                      Bulk Create
-                    </Button>
-                  </>
-                )}
-              </div>
-            )}
+
           </div>
           {isArrangeMode ? (
             <div className="flex items-center gap-2">
