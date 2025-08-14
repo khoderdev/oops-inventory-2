@@ -44,7 +44,6 @@ export const InactiveTablesModal: React.FC<TablesManagementModalProps> = ({
     try {
       // Fetch all tables
       const response = await tablesAPI.getTables();
-      console.log("All tables API response:", response);
       
       // Handle the response structure - backend returns { data: tables }
       let tables = [];
@@ -57,15 +56,6 @@ export const InactiveTablesModal: React.FC<TablesManagementModalProps> = ({
         throw new Error("Invalid API response structure");
       }
       
-      console.log("All tables extracted:", tables);
-      console.log("Sample table with isActive field:", tables[0]);
-      
-      // Show all tables with their current isActive status
-      tables.forEach(table => {
-        console.log(`Table ${table.number}: isActive = ${table.isActive}`);
-      });
-      
-      console.log(`Loaded ${tables.length} total tables`);
       
       setAllTables(tables);
     } catch (error) {
@@ -82,7 +72,6 @@ export const InactiveTablesModal: React.FC<TablesManagementModalProps> = ({
     try {
       const newStatus = !currentStatus;
       const response = await tablesAPI.updateTable(tableId, { isActive: newStatus });
-      console.log("Table status update response:", response);
       
       // Update the table in the local state
       setAllTables(prev => prev.map(table => 

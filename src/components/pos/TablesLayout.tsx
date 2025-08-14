@@ -54,7 +54,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     try {
       // Fetch all tables and count inactive ones
       const response = await tablesAPI.getTables();
-      console.log("All tables count API response:", response);
 
       // Handle the response structure - backend returns { data: tables }
       let allTables = [];
@@ -79,12 +78,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
   const refreshTablesData = async () => {
     try {
-      console.log("🔄 Refreshing tables data after transfer...");
-      
       // Fetch fresh tables data with orders
       const response = await tablesAPI.getTables({ includeOrders: true });
-      console.log("Fresh tables API response:", response);
-
       // Handle the response structure consistently
       let freshTables = [];
       if (response.data && Array.isArray(response.data.data)) {
@@ -98,17 +93,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
       // Filter only active tables for the main view
       const activeTables = freshTables.filter(table => table.isActive !== false);
-      
-      console.log(`📊 Tables refresh result: ${activeTables.length} active tables, ${freshTables.length - activeTables.length} inactive tables`);
-      console.log("Active tables with orders:", activeTables.filter(t => t.currentOrder).map(t => `Table ${t.number}: Order ${t.currentOrder?.orderId}`));
-      
       // Force state update with fresh data
       setUpdatedTables([...activeTables]); // Use spread to ensure new reference
-
       // Also refresh the inactive count
       await fetchInactiveTablesCount();
-
-      console.log("✅ Tables data refreshed successfully");
     } catch (error) {
       console.error("❌ Failed to refresh tables data:", error);
     }

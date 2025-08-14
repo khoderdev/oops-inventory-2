@@ -295,7 +295,7 @@ export function StockEntriesTable() {
       
       const matchesSearch = searchTerm === "" || matchesMaterialName || matchesSupplier || matchesBatchNumber || matchesNotes;
       
-      // Material filter
+      // Material filter - now using material IDs correctly
       const matchesMaterialFilter = materialFilter === "all" || entry.materialId === materialFilter;
       
       return matchesSearch && matchesMaterialFilter;
@@ -903,7 +903,20 @@ export function StockEntriesTable() {
     }
   };
 
-  const uniqueMaterials = useMemo(() => materials.map(m => m.name).sort(), [materials]);
+  // Create a map of material IDs to material objects for lookup
+const materialsById = useMemo(() => {
+  const map = new Map<string, Material>();
+  materials.forEach(m => map.set(m.id, m));
+  return map;
+}, [materials]);
+
+// Create a sorted array of material objects for the dropdown
+const uniqueMaterials = useMemo(() => 
+  materials
+    .map(m => ({ id: m.id, name: m.name }))
+    .sort((a, b) => a.name.localeCompare(b.name)), 
+  [materials]
+);
   const table = useReactTable({
     data: filteredStockEntries,
     columns,
@@ -1111,6 +1124,7 @@ export function StockEntriesTable() {
                       <span className="text-blue-600 font-medium">
                         Showing {pagination.startIndex}-{pagination.endIndex} of {pagination.totalItems}
                         {(debouncedSearchTerm || materialFilter !== "all") && " (filtered)"}
+                        {materialFilter !== "all" && materialsById.get(materialFilter) && ` by ${materialsById.get(materialFilter)?.name}`}
                       </span>
                     )}
                   </>
@@ -1137,13 +1151,15 @@ export function StockEntriesTable() {
                   <div className="w-fit shrink-0">
                     <Select value={materialFilter} onValueChange={setMaterialFilter} disabled={loading || isParentLoading}>
                       <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-48">
-                        <SelectValue placeholder="All Materials" />
+                        <SelectValue placeholder="All Materials">
+                          {materialFilter === "all" ? "All Materials" : materialsById.get(materialFilter)?.name || "All Materials"}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Materials</SelectItem>
                         {uniqueMaterials.map(material => (
-                          <SelectItem key={material} value={material}>
-                            {material}
+                          <SelectItem key={material.id} value={material.id}>
+                            {material.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

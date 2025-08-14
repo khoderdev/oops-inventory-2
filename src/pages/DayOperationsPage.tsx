@@ -1,10 +1,14 @@
 import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Plus, ToggleLeft, ToggleRight, TrendingUp, XCircle } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { closeDay, getCurrentDayActivities, getCurrentDayOperation, getDayOperations, openDay } from "../api/dayOperations.api";
+import { dayOperationsAPI } from "../api/dayOperations.api";
+
+// Destructure API methods for cleaner usage
+const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay } = dayOperationsAPI;
+import { useAuth } from "../contexts/AuthContext";
+import { DayOperationsModal, DayOperationsFormData } from "../components/DayOperationsModal/DayOperationsModal";
 import DailyReports from "../components/analytics/DailyReports";
 import ViewReportButton from "../components/ui/ViewReportButton";
-import { useAuth } from "../contexts/AuthContext";
 import { useDailyReports } from "../hooks/useDailyReports";
 import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
 
@@ -191,6 +195,39 @@ const DayOperationsPage: React.FC = () => {
       setError(err instanceof Error ? err.message : "Failed to close day");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Convert form data for the reusable modal component
+  const convertToModalFormData = (type: "open" | "close"): DayOperationsFormData => {
+    if (type === "open") {
+      return {
+        openingCash: openDayForm.openingCash,
+        openedBy: openDayForm.openedBy,
+        notes: openDayForm.notes
+      };
+    } else {
+      return {
+        closingCash: closeDayForm.closingCash,
+        closedBy: closeDayForm.closedBy,
+        notes: closeDayForm.notes
+      };
+    }
+  };
+
+  const handleModalFormChange = (type: "open" | "close", data: DayOperationsFormData) => {
+    if (type === "open") {
+      setOpenDayForm({
+        openingCash: data.openingCash || 0,
+        openedBy: data.openedBy || "",
+        notes: data.notes || ""
+      });
+    } else {
+      setCloseDayForm({
+        closingCash: data.closingCash || 0,
+        closedBy: data.closedBy || "",
+        notes: data.notes || ""
+      });
     }
   };
 
@@ -526,191 +563,29 @@ const DayOperationsPage: React.FC = () => {
       </div>
 
       {/* Open Day Modal */}
-      {showOpenModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div
-            className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md"
-            onKeyDown={e => {
-              if (e.key === "Enter" && !actionLoading) {
-                e.preventDefault();
-                handleOpenDay();
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                setShowOpenModal(false);
-              }
-            }}
-          >
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Open New Day</h3>
-            <div className="space-y-3 sm:space-y-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Opening Cash Amount</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={openDayForm.openingCash}
-                  onChange={e =>
-                    setOpenDayForm({
-                      ...openDayForm,
-                      openingCash: parseFloat(e.target.value) || 0
-                    })
-                  }
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && !actionLoading) {
-                      e.preventDefault();
-                      handleOpenDay();
-                    }
-                  }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                  placeholder="0.00"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Opened By</label>
-                <input
-                  type="text"
-                  value={openDayForm.openedBy}
-                  onChange={e =>
-                    setOpenDayForm({
-                      ...openDayForm,
-                      openedBy: e.target.value
-                    })
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 text-sm sm:text-base"
-                  placeholder="Staff name"
-                  readOnly
-                />
-                <p className="text-xs text-gray-500 mt-1">Automatically detected from logged-in user</p>
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-                <textarea
-                  value={openDayForm.notes}
-                  onChange={e =>
-                    setOpenDayForm({
-                      ...openDayForm,
-                      notes: e.target.value
-                    })
-                  }
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && e.ctrlKey && !actionLoading) {
-                      e.preventDefault();
-                      handleOpenDay();
-                    }
-                  }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                  rows={3}
-                  placeholder="Any opening notes... (Ctrl+Enter to submit)"
-                />
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-4 sm:mt-6">
-              <button onClick={() => setShowOpenModal(false)} className="px-3 sm:px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base">
-                Cancel
-              </button>
-              <button
-                onClick={handleOpenDay}
-                disabled={actionLoading}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && !actionLoading) {
-                    e.preventDefault();
-                    handleOpenDay();
-                  }
-                }}
-                className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 text-sm sm:text-base"
-              >
-                {actionLoading ? "Opening..." : "Open Day"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DayOperationsModal 
+        open={showOpenModal} 
+        onOpenChange={setShowOpenModal} 
+        onSubmit={handleOpenDay} 
+        type="open" 
+        formData={convertToModalFormData("open")} 
+        onFormChange={data => handleModalFormChange("open", data)} 
+        isLoading={actionLoading} 
+        formatCurrency={formatCurrency} 
+      />
 
       {/* Close Day Modal */}
-      {showCloseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Close Current Day</h3>
-            <div className="space-y-3 sm:space-y-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Actual Closing Cash Amount *</label>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={closeDayForm.closingCash}
-                    onChange={e =>
-                      setCloseDayForm({
-                        ...closeDayForm,
-                        closingCash: parseFloat(e.target.value) || 0
-                      })
-                    }
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                    placeholder="0.00"
-                    required
-                    autoFocus
-                  />
-                  {currentDay && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCloseDayForm({
-                          ...closeDayForm,
-                          closingCash: currentDay.expectedCash || 0
-                        });
-                      }}
-                      className="px-3 py-2 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-200 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
-                      title="Click to use expected cash amount"
-                    >
-                      Expected: {formatCurrency(currentDay.expectedCash)}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Closed By</label>
-                <input
-                  type="text"
-                  value={closeDayForm.closedBy}
-                  onChange={e =>
-                    setCloseDayForm({
-                      ...closeDayForm,
-                      closedBy: e.target.value
-                    })
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 text-sm sm:text-base"
-                  placeholder="Staff name"
-                  readOnly
-                />
-                <p className="text-xs text-gray-500 mt-1">Automatically detected from logged-in user</p>
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Closing Notes (Optional)</label>
-                <textarea
-                  value={closeDayForm.notes}
-                  onChange={e =>
-                    setCloseDayForm({
-                      ...closeDayForm,
-                      notes: e.target.value
-                    })
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                  rows={3}
-                  placeholder="Any closing notes..."
-                />
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-4 sm:mt-6">
-              <button onClick={() => setShowCloseModal(false)} className="px-3 sm:px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base">
-                Cancel
-              </button>
-              <button onClick={handleCloseDay} disabled={actionLoading} className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 text-sm sm:text-base">
-                {actionLoading ? "Closing..." : "Close Day"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DayOperationsModal 
+        open={showCloseModal} 
+        onOpenChange={setShowCloseModal} 
+        onSubmit={handleCloseDay} 
+        type="close" 
+        formData={convertToModalFormData("close")} 
+        onFormChange={data => handleModalFormChange("close", data)} 
+        isLoading={actionLoading} 
+        currentDay={currentDay} 
+        formatCurrency={formatCurrency} 
+      />
 
       {/* Daily Report Modal */}
       {showReportModal && selectedReport && (

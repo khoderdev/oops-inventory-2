@@ -191,7 +191,7 @@ const dayOperationsController = {
           {
             model: Material,
             as: "material",
-            attributes: ["id", "name", "baseUnit", "category"]
+            attributes: ["id", "name", "baseUnit", "categoryId"]
           }
         ],
         transaction
@@ -201,7 +201,7 @@ const dayOperationsController = {
         stockEntryId: entry.id,
         materialId: entry.materialId,
         materialName: entry.material?.name || "Unknown",
-        materialCategory: entry.material?.category || "other",
+        materialCategory: entry.material?.categoryId || "other",
         quantity: entry.purchasedIndividualQuantity || 0,
         unit: entry.material?.baseUnit || "unit",
         supplier: entry.supplier,
@@ -333,7 +333,7 @@ const dayOperationsController = {
           {
             model: Material,
             as: "material",
-            attributes: ["id", "name", "baseUnit", "category"]
+            attributes: ["id", "name", "baseUnit", "categoryId"]
           }
         ],
         transaction
@@ -343,7 +343,7 @@ const dayOperationsController = {
         stockEntryId: entry.id,
         materialId: entry.materialId,
         materialName: entry.material?.name || "Unknown",
-        materialCategory: entry.material?.category || "other",
+        materialCategory: entry.material?.categoryId || "other",
         quantity: entry.purchasedIndividualQuantity || 0,
         unit: entry.material?.baseUnit || "unit",
         supplier: entry.supplier,
