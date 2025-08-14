@@ -531,6 +531,7 @@ const DayOperationsPage: React.FC = () => {
               <tr>
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Users</th>
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales</th>
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Transactions</th>
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Cash Variance</th>
@@ -548,6 +549,25 @@ const DayOperationsPage: React.FC = () => {
                   </td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${day.status === "opened" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{day.status}</span>
+                  </td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 hidden sm:table-cell">
+                    <div className="flex flex-col space-y-1">
+                      {day.openedBy && (
+                        <div className="flex items-center">
+                          <span className="text-xs font-medium text-gray-600">Opened:</span>
+                          <span className="ml-1 text-xs">{day.openedBy}</span>
+                        </div>
+                      )}
+                      {day.closedBy && (
+                        <div className="flex items-center">
+                          <span className="text-xs font-medium text-gray-600">Closed:</span>
+                          <span className="ml-1 text-xs">{day.closedBy}</span>
+                        </div>
+                      )}
+                      {!day.openedBy && !day.closedBy && (
+                        <span className="text-xs italic">No user data</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">{formatCurrency(day.totalSales)}</td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 hidden sm:table-cell">{day.totalTransactions}</td>

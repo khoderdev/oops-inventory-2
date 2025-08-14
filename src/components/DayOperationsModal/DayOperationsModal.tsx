@@ -47,7 +47,11 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
   isLoading = false, 
   currentDay, 
   expectedCash,
-  formatCurrency = amount => `$${amount.toFixed(2)}` 
+  formatCurrency = amount => {
+    // Handle undefined, null, or non-numeric values
+    const numAmount = typeof amount === 'number' ? amount : 0;
+    return `$${numAmount.toFixed(2)}`;
+  }
 }) => {
   // Handle both naming patterns
   const isModalOpen = open ?? isOpen ?? false;

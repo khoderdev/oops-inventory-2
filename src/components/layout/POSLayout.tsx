@@ -1,18 +1,18 @@
 import { ordersAPI } from "@/api/orders.api";
 import { authAPI } from "@/api/auth";
-import { dayOperationsAPI } from "@/api/day-operations.api";
+import { dayOperationsAPI } from "@/api/dayOperations.api";
 import { POSClientOrders } from "@/components/pos/POSClientOrders";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DayOperationsModal, { DayOperationsFormData } from "@/components/DayOperationsModal/DayOperationsModal";
 import PinInput from "@/components/ui/PinInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
-import { POSLayoutProps } from "@/types/inventory";
+import { POSLayoutProps, OpenDayRequest, CloseDayRequest } from "@/types/inventory";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
-import { AlertCircle, Banknote, Calendar, Clock, GripVertical, List, LogOut, Maximize2, Minimize2, Power, ShoppingCart } from "lucide-react";
+import { AlertCircle, Banknote, Calendar, Clock, GripVertical, List, Maximize2, Minimize2, Power, ShoppingCart } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
-const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, transactionCount = 0, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
+const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
   const { user, logout, hasRole } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -30,17 +30,19 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
   const [isLoadingDayOperation, setIsLoadingDayOperation] = useState(false);
   const [currentDay, setCurrentDay] = useState<{ expectedCash?: number } | null>(null);
   
-  // Fetch current day status when component mounts
   useEffect(() => {
     const fetchDayStatus = async () => {
       try {
-        const response = await dayOperationsAPI.getCurrentDayStatus();
-        const { isOpen, expectedCash } = response.data;
+        const { currentDay } = await dayOperationsAPI.getCurrentDayOperation();
+        const isOpen = currentDay && !currentDay.closedAt;
         setIsDayOpen(isOpen);
-        setCurrentDay({ expectedCash });
+        if (currentDay) {
+          setCurrentDay({ 
+            expectedCash: currentDay.expectedCash || currentDay.openingCash || 0 
+          });
+        }
       } catch (error) {
         console.error("Failed to fetch day status:", error);
-        // Default to closed if we can't fetch the status
         setIsDayOpen(false);
       }
     };
@@ -78,7 +80,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     document.addEventListener("mouseup", handleMouseUp);
   }, []);
 
-  // Responsive behavior
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
@@ -114,6 +115,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
         const isIncomplete = order.status && !["paid", "served", "completed"].includes(order.status);
         return isToday && isIncomplete;
       });
+      incompleteOrdersCount = incompleteOrdersToday.length;
+      console.log("incompleteOrdersCount Today",incompleteOrdersCount);
     } catch (error) {
       console.error("Failed to fetch orders count:", error);
     }
@@ -251,9 +254,21 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
     try {
       // Call the appropriate API based on operation type
       if (dayOperationType === "open") {
-        await dayOperationsAPI.openDay(dayFormData);
+        // Convert form data to OpenDayRequest
+        const openDayRequest: OpenDayRequest = {
+          openingCash: dayFormData.openingCash,
+          openedBy: dayFormData.openedBy,
+          notes: dayFormData.notes
+        };
+        await dayOperationsAPI.openDay(openDayRequest);
       } else {
-        await dayOperationsAPI.closeDay(dayFormData);
+        // Convert form data to CloseDayRequest
+        const closeDayRequest: CloseDayRequest = {
+          closingCash: dayFormData.closingCash || 0,
+          closedBy: dayFormData.closedBy,
+          notes: dayFormData.notes
+        };
+        await dayOperationsAPI.closeDay(closeDayRequest);
       }
       
       // Update UI state
@@ -261,7 +276,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
       
       // Show success message using toast if available
       const message = `Day ${dayOperationType === "open" ? "opened" : "closed"} successfully`;
-      // Use toast from UI library if available
       try {
         const { toast } = await import("@/components/ui/use-toast");
         toast({
@@ -288,13 +302,14 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, currentTotal = 0, trans
           duration: 1500
         });
       } catch (e) {
+        // Fallback if toast is not available
         alert(`Failed to ${dayOperationType} day. Please try again.`);
-      } finally {
-        setIsLoadingDayOperation(false);
       }
+    } finally {
+      setIsLoadingDayOperation(false);
     }
   };
-
+  
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
