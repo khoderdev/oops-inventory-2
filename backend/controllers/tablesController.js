@@ -581,7 +581,7 @@ export const tablesController = {
         where: { orderId }
       });
 
-      const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+      const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice || 0), 0);
       const tax = subtotal * 0.1; // Assuming 10% tax rate
       const total = subtotal + tax;
 
