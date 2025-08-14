@@ -531,7 +531,7 @@ export function MaterialTable({ onEditMaterial, onAddStock, onDeleteMaterial }: 
             {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-              <Input placeholder="Search by material name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem]" disabled={loading} />
+              <Input type="search" placeholder="Search by material name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem]" disabled={loading} />
             </div>
 
             {/* Category Filter */}
