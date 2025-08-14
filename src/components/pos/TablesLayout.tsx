@@ -398,7 +398,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 className={isDragMode ? "bg-red-500/10 border border-red-500" : ""}
               >
                 <Move className="w-4 h-4 mr-1" />
-                {isDragMode ? "Exit Drag Mode" : "Drag Mode"}
+                {isDragMode ? "Exit Dragging" : "Drag"}
               </Button>
 
               <Separator orientation="vertical" className="h-6" />
@@ -413,7 +413,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 }}
                 className="text-red-600 hover:bg-red-50"
               >
-                Exit Arrange
+                Exit Management
               </Button>
             </div>
           ) : (
@@ -426,7 +426,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
               }}
             >
               <Move className="w-4 h-4 mr-2" />
-              Arrange Tables
+              Manage Tables
             </Button>
           )}
         </div>
@@ -498,12 +498,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                           {isDragMode && (
                             <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
                               <Move className="w-2 h-2" />
-                            </div>
-                          )}
-
-                          {isArrangeMode && !isDragMode && (
-                            <div className="absolute -top-1 -left-1 bg-orange-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
-                              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                             </div>
                           )}
 
