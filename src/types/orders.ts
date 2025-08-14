@@ -1,3 +1,5 @@
+import { Table } from "./inventory";
+
 export type OrderStatus = "draft" | "confirmed" | "preparing" | "ready" | "served" | "paid" | "cancelled" | "completed";
 export type OrderType = "delivery" | "takeaway" | "table" | "employees" | "bar";
 export type TableStatus = "available" | "opened" | "reserved" | "cleaning";
@@ -134,4 +136,34 @@ export interface DiscountData {
 export interface ExtendedDiscountDialogProps extends DiscountDialogProps {
   orderSubtotal: number;
   onApplyDiscount: (discount: DiscountData) => void;
+}
+
+
+//___________________________________________________________________________
+
+
+
+
+export interface RenameTableModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onTableRenamed: (updatedTable: Table) => void;
+  table: Table | null;
+}
+
+export interface TransferTableModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onTransferComplete: () => void;
+  tables: Table[];
+  sourceTable: Table | null;
+  sourceOrder?: any; // Order details if available
+}
+
+export interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: string;
+  total: string;
 }

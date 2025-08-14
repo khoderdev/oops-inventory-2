@@ -9,14 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { tablesAPI } from '@/api/tables.api';
 import { Edit3, AlertTriangle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { Table } from '@/types/inventory';
+import { RenameTableModalProps } from '@/types/orders';
 
-interface RenameTableModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onTableRenamed: (updatedTable: Table) => void;
-  table: Table | null;
-}
 
 export const RenameTableModal: React.FC<RenameTableModalProps> = ({
   isOpen,

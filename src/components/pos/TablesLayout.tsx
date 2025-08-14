@@ -54,7 +54,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     try {
       setIsRefreshing(true);
       const response = await tablesAPI.getTables({ includeOrders: true });
-      const updatedTablesData = response.data.data;
+      const responseData = response.data as Table[] | { data: Table[] };
+      const updatedTablesData = Array.isArray(responseData) ? responseData : responseData.data;
       setUpdatedTables(updatedTablesData);
       
       // Update hovered table if it's currently being hovered
@@ -77,7 +78,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const refreshTablesAfterTransfer = useCallback(async () => {
     try {
       const response = await tablesAPI.getTables({ includeOrders: true });
-      const freshTablesData = response.data.data;
+      const responseData = response.data as Table[] | { data: Table[] };
+      const freshTablesData = Array.isArray(responseData) ? responseData : responseData.data;
       setUpdatedTables(freshTablesData);
       
       // Update hovered table with fresh data if currently hovering
@@ -114,7 +116,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
 
       setSelectedTableForAction(table);
-      setSelectedOrderForTransfer(fullOrderData.data); // Pass the actual order object, not the response wrapper
+      setSelectedOrderForTransfer(fullOrderData.data); // Pass the actual order data, not the wrapper
       setShowTransferModal(true);
     } catch (error: any) {
       console.error("Failed to fetch order details:", error);
@@ -154,7 +156,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       setTimeout(async () => {
         try {
           const response = await tablesAPI.getTables({ includeOrders: true });
-          const freshTableData = response.data.data.find(t => t.id === table.id);
+          const responseData = response.data as Table[] | { data: Table[] };
+          const freshTablesData = Array.isArray(responseData) ? responseData : responseData.data;
+          const freshTableData = freshTablesData.find(t => t.id === table.id);
           if (freshTableData && freshTableData.currentOrder) {
             setHoveredTable(freshTableData);
           }
