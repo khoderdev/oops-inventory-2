@@ -323,7 +323,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         toast({
           title: "Success",
           description: `${item.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
-          variant: "default"
+          variant: "default",
+          duration: 1500
         });
         await fetchTabData("menu");
         if (onUpdateMenuItem) {
@@ -334,7 +335,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         toast({
           title: "Error",
           description: "Failed to update POS visibility",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 1500
         });
       }
     },
