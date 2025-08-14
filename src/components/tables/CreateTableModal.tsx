@@ -44,7 +44,8 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
     seats: 4,
     shape: 'square' as 'round' | 'square' | 'rectangle',
     section: '',
-    notes: ''
+    notes: '',
+    position: { x: 0, y: 0 }
   });
 
   // Fetch next available number on open
