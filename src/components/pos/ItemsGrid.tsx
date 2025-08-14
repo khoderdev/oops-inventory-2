@@ -21,12 +21,12 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
     };
 
     const columns = getColumnsCount(rightPanelPixelWidth);
-    const itemHeight = 200; // Fixed height for consistency
+    const itemHeight = 160; // Reduced height for smaller grids
 
     return {
       columns,
       itemHeight,
-      gap: 16
+      gap: 12
     };
   }, [rightPanelPixelWidth]);
 
@@ -133,24 +133,22 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
           )}
 
           {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
+          
+          {/* Price Overlay - Centered on Image */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div className="bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-white/20">
+              <div className="flex items-center justify-center">
+                <span className={`${textSizes.price} font-bold text-primary`}>{formatCurrency(item.price)}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Content Section */}
-        <div className="p-2 flex flex-col justify-between min-h-0">
-          <div className="space-y-1">
-            <h4 className={`${textSizes.itemName} font-medium text-gray-900 line-clamp-2 leading-tight group-hover:text-primary transition-colors duration-200`}>{item.name}</h4>
-          </div>
-
-          <div className="mt-1 pt-1 border-t border-gray-100">
-            <div className="flex items-center justify-center">
-              <span className={`${textSizes.price} font-bold text-primary`}>{formatCurrency(item.price)}</span>
-              {item.availableQuantity && item.availableQuantity !== 999 && (
-                <span className={`${textSizes.quantity} text-gray-500 bg-gray-50 px-1 py-0.5 rounded-full ml-1 text-xs`}>
-                  {item.availableQuantity} {item.unit}
-                </span>
-              )}
-            </div>
+        <div className="p-2 flex flex-col justify-center min-h-0">
+          <div className="h-8 flex items-center justify-center">
+            <h4 className={`${textSizes.itemName} font-medium text-gray-900 line-clamp-2 leading-tight group-hover:text-primary transition-colors duration-200 text-center`}>{item.name}</h4>
           </div>
         </div>
       </CardContent>
