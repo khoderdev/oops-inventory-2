@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { Banknote, Calendar } from "lucide-react";
 
 export interface DayOperationsFormData {
   openingCash?: number;
@@ -15,20 +16,53 @@ export interface DayOperationsFormData {
 }
 
 export interface DayOperationsModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  // Support both naming patterns
+  open?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
   onSubmit: () => void;
   type: "open" | "close";
   formData: DayOperationsFormData;
-  onFormChange: (data: DayOperationsFormData) => void;
+  onFormChange?: (data: DayOperationsFormData) => void;
+  onChange?: (data: DayOperationsFormData) => void;
   isLoading?: boolean;
   currentDay?: {
     expectedCash?: number;
   } | null;
+  expectedCash?: number;
   formatCurrency?: (amount: number) => string;
 }
 
-const DayOperationsModal = ({ open, onOpenChange, onSubmit, type, formData, onFormChange, isLoading = false, currentDay, formatCurrency = amount => `$${amount.toFixed(2)}` }: DayOperationsModalProps) => {
+const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ 
+  open, 
+  isOpen, 
+  onOpenChange, 
+  onClose, 
+  onSubmit, 
+  type, 
+  formData, 
+  onFormChange, 
+  onChange,
+  isLoading = false, 
+  currentDay, 
+  expectedCash,
+  formatCurrency = amount => `$${amount.toFixed(2)}` 
+}) => {
+  // Handle both naming patterns
+  const isModalOpen = open ?? isOpen ?? false;
+  const handleOpenChange = (state: boolean) => {
+    if (onOpenChange) onOpenChange(state);
+    if (!state && onClose) onClose();
+  };
+  
+  const handleFormChange = (data: DayOperationsFormData) => {
+    if (onFormChange) onFormChange(data);
+    if (onChange) onChange(data);
+  };
+  
+  // Use expectedCash if currentDay is not provided
+  const effectiveCurrentDay = currentDay ?? (expectedCash !== undefined ? { expectedCash } : null);
   const isOpenType = type === "open";
   const title = isOpenType ? "Open New Day" : "Close Current Day";
   const submitText = isOpenType ? "Open Day" : "Close Day";
@@ -41,29 +75,29 @@ const DayOperationsModal = ({ open, onOpenChange, onSubmit, type, formData, onFo
       onSubmit();
     } else if (e.key === "Escape") {
       e.preventDefault();
-      onOpenChange(false);
+      handleOpenChange(false);
     }
   };
 
   const handleCashChange = (value: string) => {
     const numValue = parseFloat(value) || 0;
     if (isOpenType) {
-      onFormChange({ ...formData, openingCash: numValue });
+      handleFormChange({ ...formData, openingCash: numValue });
     } else {
-      onFormChange({ ...formData, closingCash: numValue });
+      handleFormChange({ ...formData, closingCash: numValue });
     }
   };
 
   const handleStaffChange = (value: string) => {
     if (isOpenType) {
-      onFormChange({ ...formData, openedBy: value });
+      handleFormChange({ ...formData, openedBy: value });
     } else {
-      onFormChange({ ...formData, closedBy: value });
+      handleFormChange({ ...formData, closedBy: value });
     }
   };
 
   const handleNotesChange = (value: string) => {
-    onFormChange({ ...formData, notes: value });
+    handleFormChange({ ...formData, notes: value });
   };
 
   const handleNotesKeyDown = (e: React.KeyboardEvent) => {
@@ -74,8 +108,8 @@ const DayOperationsModal = ({ open, onOpenChange, onSubmit, type, formData, onFo
   };
 
   const handleUseExpectedCash = () => {
-    if (currentDay?.expectedCash !== undefined) {
-      onFormChange({ ...formData, closingCash: currentDay.expectedCash });
+    if (effectiveCurrentDay?.expectedCash !== undefined) {
+      handleFormChange({ ...formData, closingCash: effectiveCurrentDay.expectedCash });
     }
   };
 
@@ -84,7 +118,7 @@ const DayOperationsModal = ({ open, onOpenChange, onSubmit, type, formData, onFo
   const staffValue = isOpenType ? formData.openedBy || "" : formData.closedBy || "";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -95,7 +129,7 @@ const DayOperationsModal = ({ open, onOpenChange, onSubmit, type, formData, onFo
           <div className="space-y-2">
             <Label htmlFor="cash-amount">{isOpenType ? "Opening Cash Amount" : "Actual Closing Cash Amount *"}</Label>
 
-            {!isOpenType && currentDay ? (
+            {!isOpenType && effectiveCurrentDay ? (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <Input
                   id="cash-amount"
@@ -115,7 +149,7 @@ const DayOperationsModal = ({ open, onOpenChange, onSubmit, type, formData, onFo
                   className="flex-1"
                 />
                 <Button type="button" variant="outline" onClick={handleUseExpectedCash} className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 whitespace-nowrap" title="Click to use expected cash amount">
-                  Expected: {formatCurrency(currentDay.expectedCash || 0)}
+                  Expected: {formatCurrency(effectiveCurrentDay.expectedCash || 0)}
                 </Button>
               </div>
             ) : (
@@ -152,7 +186,7 @@ const DayOperationsModal = ({ open, onOpenChange, onSubmit, type, formData, onFo
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={onSubmit} disabled={isLoading} variant={isOpenType ? "default" : "destructive"}>
