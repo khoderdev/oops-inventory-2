@@ -48,6 +48,25 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
   // Table Management Handlers
 
+  const refreshTableData = useCallback(async () => {
+    try {
+      // Re-fetch table data to get updated order information
+      const response = await tablesAPI.getTables();
+      const freshTables = response.data;
+      
+      // Ensure we have a valid array
+      const tablesArray = Array.isArray(freshTables) ? freshTables : 
+                         Array.isArray((freshTables as any)?.data) ? (freshTables as any).data : [];
+      
+      setUpdatedTables(tablesArray);
+      toast.success("Tables updated successfully");
+    } catch (error) {
+      console.error("Failed to refresh table data:", error);
+      toast.error("Failed to refresh table data");
+      // Keep the current tables if refresh fails
+    }
+  }, []);
+
   const handleRenameTable = (table: Table) => {
     setSelectedTableForAction(table);
     setShowRenameModal(true);
@@ -67,9 +86,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       const orderResponse = await ordersAPI.getOrder(table.currentOrder.orderId);
       const fullOrderData = orderResponse.data;
 
-      console.log("TablesLayout - Fetched order data:", fullOrderData);
-      console.log("TablesLayout - Order items:", fullOrderData.data.items);
-      console.log("TablesLayout - Items count:", fullOrderData.data.items?.length);
+
 
       setSelectedTableForAction(table);
       setSelectedOrderForTransfer(fullOrderData.data); // Pass the actual order object, not the response wrapper
@@ -596,11 +613,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         sourceTable={selectedTableForAction}
         sourceOrder={selectedOrderForTransfer}
         tables={updatedTables}
-        onTransferComplete={() => {
+        onTransferComplete={async () => {
           setShowTransferModal(false);
           setSelectedTableForAction(null);
           setSelectedOrderForTransfer(null);
-          window.location.reload(); // Temporary solution
+          await refreshTableData();
         }}
       />
 
