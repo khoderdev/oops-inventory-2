@@ -6,6 +6,8 @@ import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, Stoc
 const salesController = {
   getNegativeStockReport: async (req, res, next) => {
     try {
+      console.log("🔍 Starting negative stock report generation...");
+      
       const negativeStockEntries = await StockEntry.findAll({
         where: {
           [Op.or]: [{ purchasedIndividualQuantity: { [Op.lt]: 0 } }, { purchasedQuantity: { [Op.lt]: 0 } }]
@@ -14,18 +16,20 @@ const salesController = {
           {
             model: Material,
             as: "material",
-            attributes: ["id", "name", "baseUnit", "unitType", "category"]
+            attributes: ["id", "name", "baseUnit", "unitType", "categoryId"]
           }
         ],
         order: [["updatedAt", "DESC"]]
       });
+      
+      console.log(`📊 Found ${negativeStockEntries.length} negative stock entries`);
       const report = {
         totalNegativeEntries: negativeStockEntries.length,
         negativeStockItems: negativeStockEntries.map(entry => ({
           stockEntryId: entry.id,
           materialId: entry.materialId,
           materialName: entry.material?.name || "Unknown",
-          category: entry.material?.category || "unknown",
+          categoryId: entry.material?.categoryId || null,
           supplier: entry.supplier,
           purchasedQuantity: entry.purchasedQuantity,
           purchasedUnit: entry.purchasedUnit,
@@ -37,18 +41,30 @@ const salesController = {
         summary: {
           totalVirtualEntries: negativeStockEntries.filter(e => e.supplier === "VIRTUAL - Negative Stock").length,
           categorySummary: negativeStockEntries.reduce((acc, entry) => {
-            const category = entry.material?.category || "unknown";
-            acc[category] = (acc[category] || 0) + 1;
+            const categoryId = entry.material?.categoryId || "uncategorized";
+            acc[categoryId] = (acc[categoryId] || 0) + 1;
             return acc;
           }, {})
         },
         generatedAt: new Date(),
         message: negativeStockEntries.length > 0 ? `Found ${negativeStockEntries.length} stock entries with negative quantities requiring reconciliation` : "No negative stock entries found - all inventory is positive"
       };
+      console.log("✅ Successfully generated negative stock report");
       res.status(200).json(report);
     } catch (error) {
-      console.error("Error generating negative stock report:", error);
-      next(error);
+      console.error("❌ Error generating negative stock report:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // Send detailed error response for debugging
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to generate negative stock report",
+        details: error.message
+      });
     }
   },
 

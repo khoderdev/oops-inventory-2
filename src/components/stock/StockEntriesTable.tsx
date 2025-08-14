@@ -101,6 +101,96 @@ export function StockEntriesTable() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [reportSorting, setReportSorting] = useState<SortingState>([]);
   const materialsMap = useMemo(() => { const map = new Map(); materials.forEach(m => { map.set(m.id, m); map.set(m.id.toString(), m); map.set(parseInt(m.id), m); }); return map; }, [materials]);
+
+  // Negative stock report table columns
+  const negativeStockColumns = useMemo(() => [
+    {
+      id: "material",
+      header: "Material",
+      accessorKey: "materialName",
+      cell: ({ row }: any) => {
+        const item = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            {item.isVirtualEntry && <AlertTriangle className="h-4 w-4 text-red-600" />}
+            {item.materialName}
+            {item.isVirtualEntry && (
+              <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                VIRTUAL
+              </Badge>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      id: "supplier",
+      header: "Supplier",
+      accessorKey: "supplier",
+      cell: ({ row }: any) => {
+        const item = row.original;
+        return <span className={item.isVirtualEntry ? "text-red-600 font-medium" : ""}>{item.supplier}</span>;
+      }
+    },
+    {
+      id: "individualQuantity",
+      header: "Individual Quantity",
+      accessorKey: "purchasedIndividualQuantity",
+      cell: ({ getValue }: any) => (
+        <div className="text-red-600 font-medium flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" />
+          {formatNumber(getValue())}
+        </div>
+      )
+    },
+    {
+      id: "unit",
+      header: "Unit",
+      accessorKey: "purchasedIndividualUnit"
+    },
+    {
+      id: "purchasedQuantity",
+      header: "Purchased Quantity",
+      accessorKey: "purchasedQuantity",
+      cell: ({ getValue }: any) => <span className="text-red-600 font-medium">{formatNumber(getValue())}</span>
+    },
+    {
+      id: "purchasedUnit",
+      header: "Purchased Unit",
+      accessorKey: "purchasedUnit"
+    },
+    {
+      id: "categoryId",
+      header: "Category ID",
+      accessorKey: "categoryId",
+      cell: ({ getValue }: any) => (
+        <Badge variant="outline" className="text-xs">
+          {getValue() || "N/A"}
+        </Badge>
+      )
+    },
+    {
+      id: "lastUpdated",
+      header: "Last Updated",
+      accessorKey: "lastUpdated",
+      cell: ({ getValue }: any) => {
+        const date = getValue();
+        return date ? new Date(date).toLocaleDateString() : "N/A";
+      }
+    }
+  ], []);
+
+  // Negative stock report table
+  const negativeStockTable = useReactTable({
+    data: negativeStockReport?.negativeStockItems || [],
+    columns: negativeStockColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    state: {
+      sorting: reportSorting,
+    },
+    onSortingChange: setReportSorting,
+  });
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
@@ -1298,7 +1388,7 @@ export function StockEntriesTable() {
         <BulkPrinterAssignmentDialog open={showBulkPrinterDialog} onOpenChange={setShowBulkPrinterDialog} selectedItems={selectedStockEntries} itemType="stock" onAssignmentChange={handleBulkPrinterAssignmentComplete} />
 
         <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
-          <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-red-600" />
@@ -1328,94 +1418,7 @@ export function StockEntriesTable() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">Negative Stock Items</h3>
                     <TanStackTable
-                      table={useReactTable({
-                        data: negativeStockReport.negativeStockItems,
-                        columns: [
-                          {
-                            id: "material",
-                            header: "Material",
-                            accessorKey: "materialName",
-                            cell: ({ row }) => {
-                              const item = row.original;
-                              return (
-                                <div className="flex items-center gap-2">
-                                  {item.isVirtualEntry && <AlertTriangle className="h-4 w-4 text-red-600" />}
-                                  {item.materialName}
-                                  {item.isVirtualEntry && (
-                                    <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
-                                      VIRTUAL
-                                    </Badge>
-                                  )}
-                                </div>
-                              );
-                            }
-                          },
-                          {
-                            id: "supplier",
-                            header: "Supplier",
-                            accessorKey: "supplier",
-                            cell: ({ row }) => {
-                              const item = row.original;
-                              return <span className={item.isVirtualEntry ? "text-red-600 font-medium" : ""}>{item.supplier}</span>;
-                            }
-                          },
-                          {
-                            id: "individualQuantity",
-                            header: "Individual Quantity",
-                            accessorKey: "purchasedIndividualQuantity",
-                            cell: ({ getValue }) => (
-                              <div className="text-red-600 font-medium flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4" />
-                                {formatNumber(getValue())}
-                              </div>
-                            )
-                          },
-                          {
-                            id: "unit",
-                            header: "Unit",
-                            accessorKey: "purchasedIndividualUnit"
-                          },
-                          {
-                            id: "purchasedQuantity",
-                            header: "Purchased Quantity",
-                            accessorKey: "purchasedQuantity",
-                            cell: ({ getValue }) => <span className="text-red-600 font-medium">{formatNumber(getValue())}</span>
-                          },
-                          {
-                            id: "purchasedUnit",
-                            header: "Purchased Unit",
-                            accessorKey: "purchasedUnit"
-                          },
-                          {
-                            id: "category",
-                            header: "Category",
-                            accessorKey: "category",
-                            cell: ({ getValue }) => (
-                              <Badge variant="outline" className="text-xs">
-                                {getValue()}
-                              </Badge>
-                            )
-                          },
-                          {
-                            id: "lastUpdated",
-                            header: "Last Updated",
-                            accessorKey: "lastUpdated",
-                            cell: ({ getValue }) => {
-                              const date = getValue();
-                              return date ? new Date(date).toLocaleDateString() : "N/A";
-                            }
-                          }
-                        ],
-                        getCoreRowModel: getCoreRowModel(),
-                        getSortedRowModel: getSortedRowModel(),
-                        enableSorting: true,
-                        enableColumnFilters: false,
-                        enableRowSelection: false,
-                        state: {
-                          sorting: reportSorting
-                        },
-                        onSortingChange: setReportSorting
-                      })}
+                      table={negativeStockTable}
                       virtualized={false}
                       loading={false}
                       emptyMessage="No negative stock items found"
@@ -1430,20 +1433,6 @@ export function StockEntriesTable() {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h3 className="text-lg font-semibold text-blue-900 mb-2">Report Summary</h3>
                     <p className="text-blue-800">{negativeStockReport.message}</p>
-                  </div>
-                )}
-
-                {negativeStockReport.summary?.categorySummary && Object.keys(negativeStockReport.summary.categorySummary).length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Negative Stock by Category</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {Object.entries(negativeStockReport.summary.categorySummary).map(([category, count]) => (
-                        <div key={category} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                          <div className="text-lg font-bold text-gray-900">{count}</div>
-                          <div className="text-sm text-gray-600 capitalize">{category}</div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 )}
               </div>

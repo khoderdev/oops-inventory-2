@@ -41,12 +41,7 @@ class SessionRenewalService {
     if (this.checkInterval) {
       this.stop();
     }
-    console.log("🔄 Starting session renewal service", {
-      checkInterval: `${this.config.checkInterval} minutes`,
-      renewalThreshold: `${this.config.renewalThreshold} minutes`,
-      warningThreshold: `${this.config.warningThreshold} minutes`,
-      maxAttempts: this.config.maxRenewalAttempts
-    });
+
     this.checkAndRenewSession();
     this.checkInterval = setInterval(
       () => {
