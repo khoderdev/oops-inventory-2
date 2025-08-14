@@ -5,7 +5,7 @@ import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { tablesAPI } from "@/api/tables.api";
 import { ordersAPI } from "@/api/orders.api";
-import { Clock, Users, Move, Circle, Square, RectangleHorizontal, Trash2, Plus, Settings, Edit3, Copy } from "lucide-react";
+import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Edit3 } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
@@ -113,34 +113,34 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   };
 
   // Handle table hover with real-time data refresh
-  const handleTableHover = useCallback(async (table: Table, event: React.MouseEvent) => {
-    if (table.status === "opened" && table.currentOrder) {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setHoveredTable(table);
-      setPopupPosition({
-        x: rect.left + rect.width / 2,
-        y: rect.bottom + 12
-      });
-      setTimeout(async () => {
-        try {
-          const response = await tablesAPI.getTables({ includeOrders: true });
-          const responseData = response.data as Table[] | { data: Table[] };
-          const freshTablesData = Array.isArray(responseData) ? responseData : responseData.data;
-          const freshTableData = freshTablesData.find(t => t.id === table.id);
-          if (freshTableData && freshTableData.currentOrder) {
-            setHoveredTable(freshTableData);
-          }
-        } catch (error) {
-          console.error('Failed to fetch fresh table data on hover:', error);
-        }
-      }, 100); // Small delay to show initial state first, then update
-    }
-  }, []);
+  // const handleTableHover = useCallback(async (table: Table, event: React.MouseEvent) => {
+  //   if (table.status === "opened" && table.currentOrder) {
+  //     const rect = event.currentTarget.getBoundingClientRect();
+  //     setHoveredTable(table);
+  //     setPopupPosition({
+  //       x: rect.left + rect.width / 2,
+  //       y: rect.bottom + 12
+  //     });
+  //     setTimeout(async () => {
+  //       try {
+  //         const response = await tablesAPI.getTables({ includeOrders: true });
+  //         const responseData = response.data as Table[] | { data: Table[] };
+  //         const freshTablesData = Array.isArray(responseData) ? responseData : responseData.data;
+  //         const freshTableData = freshTablesData.find(t => t.id === table.id);
+  //         if (freshTableData && freshTableData.currentOrder) {
+  //           setHoveredTable(freshTableData);
+  //         }
+  //       } catch (error) {
+  //         console.error('Failed to fetch fresh table data on hover:', error);
+  //       }
+  //     }, 100); // Small delay to show initial state first, then update
+  //   }
+  // }, []);
 
-  const handleTableLeave = () => {
-    setHoveredTable(null);
-    setPopupPosition(null);
-  };
+  // const handleTableLeave = () => {
+  //   setHoveredTable(null);
+  //   setPopupPosition(null);
+  // };
 
   const constrainPosition = useCallback((x: number, y: number) => {
     const constrainedX = Math.max(8, Math.min(x, 92));
@@ -281,6 +281,29 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     },
     [isDragMode, isArrangeMode]
   );
+
+  // Handle table hover - show popup without API calls
+  const handleTableHover = useCallback(
+    (table: Table, e: React.MouseEvent) => {
+      if (isDragMode || isArrangeMode) return;
+      
+      // Only show popup for tables with orders
+      if (table.status === "opened" && table.currentOrder) {
+        setHoveredTable(table);
+        setPopupPosition({
+          x: e.clientX,
+          y: e.clientY - 10
+        });
+      }
+    },
+    [isDragMode, isArrangeMode]
+  );
+
+  // Handle table leave - hide popup
+  const handleTableLeave = useCallback(() => {
+    setHoveredTable(null);
+    setPopupPosition(null);
+  }, []);
 
   // Close context menu when clicking elsewhere
   const handleCanvasClick = useCallback(
