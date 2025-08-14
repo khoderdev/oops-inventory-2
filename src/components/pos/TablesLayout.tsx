@@ -717,13 +717,15 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           setSelectedTableForAction(null);
         }}
         sourceTable={selectedTableForAction}
+        sourceOrder={selectedTableForAction?.currentOrder}
         tables={updatedTables}
-        onSuccess={() => {
+        onTransferComplete={() => {
           setShowTransferModal(false);
           setSelectedTableForAction(null);
           window.location.reload(); // Temporary solution
         }}
       />
+
 
       {/* Right-click Context Menu */}
       {contextMenu && (
@@ -765,7 +767,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 Rename Table
               </button>
               
-              {contextMenu.table.status === 'opened' && (
+              {(contextMenu.table.status === 'opened' || contextMenu.table.currentOrder || tableOrders[contextMenu.table.number?.toString()]) && (
                 <button
                   onClick={() => handleTransferOrder(contextMenu.table)}
                   className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"

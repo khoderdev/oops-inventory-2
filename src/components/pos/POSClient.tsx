@@ -1226,7 +1226,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setHasUnsavedChanges(false);
         setSelectedEmployee(undefined);
         processedOrderRef.current = null;
-        showSuccess(`Table ${table.number} selected - Ready for new order`);
       }
 
       // await refreshOrderData();
