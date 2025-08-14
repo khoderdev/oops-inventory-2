@@ -1,8 +1,120 @@
 import { Op } from "sequelize";
 import { auditOrderOperation } from "../middleware/auditMiddleware.js";
-import { Assignment, Material, MenuItem, Order, OrderItem, sequelize, Table, User, PrintJob, Printer, PrinterChannel } from "../models/index.js";
+import { Assignment, Material, MenuItem, MenuItemIngredient, Order, OrderItem, sequelize, StockEntry, Table, User, PrintJob, Printer, PrinterChannel } from "../models/index.js";
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
+
+// Helper function to deduct ingredient stock when menu items are sold
+const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => {
+  try {
+    console.log(`🔍 Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
+    
+    // Get menu item with its ingredients
+    const menuItem = await MenuItem.findByPk(menuItemId, {
+      include: [{
+        model: MenuItemIngredient,
+        as: "menuItemIngredients",
+        include: [{
+          model: Material,
+          as: "material"
+        }]
+      }],
+      transaction
+    });
+
+    if (!menuItem || !menuItem.menuItemIngredients) {
+      console.log(`⚠️ No ingredients found for menu item ID: ${menuItemId}`);
+      return;
+    }
+
+    console.log(`📋 Found ${menuItem.menuItemIngredients.length} ingredients for "${menuItem.name}"`);
+
+    // Process each ingredient
+    for (const ingredient of menuItem.menuItemIngredients) {
+      const materialId = ingredient.materialId;
+      const requiredQuantity = ingredient.quantity * orderQuantity;
+      const unit = ingredient.unit;
+
+      console.log(`🥄 Processing ingredient: ${ingredient.material?.name || 'Unknown'} - Required: ${requiredQuantity} ${unit}`);
+      console.log(`📊 Ingredient details: materialId=${materialId}, quantity=${ingredient.quantity}, unit=${ingredient.unit}, orderQuantity=${orderQuantity}`);
+
+      // Find available stock entries for this material (FIFO - oldest first)
+      const stockEntries = await StockEntry.findAll({
+        where: {
+          materialId: materialId,
+          [Op.or]: [
+            {
+              purchasedIndividualQuantity: {
+                [Op.gt]: 0 // Only positive individual quantities
+              }
+            },
+            {
+              purchasedIndividualQuantity: null,
+              purchasedQuantity: {
+                [Op.gt]: 0 // Only positive purchased quantities when individual is null
+              }
+            }
+          ]
+        },
+        order: [['purchaseDate', 'ASC']], // FIFO ordering
+        transaction
+      });
+
+      if (stockEntries.length === 0) {
+        console.log(`⚠️ No stock available for material ID: ${materialId} (${ingredient.material?.name})`);
+        continue;
+      }
+
+      let remainingToDeduct = requiredQuantity;
+      console.log(`📦 Found ${stockEntries.length} stock entries for material ID: ${materialId}`);
+
+      // Deduct from stock entries using FIFO
+      for (const stockEntry of stockEntries) {
+        if (remainingToDeduct <= 0) break;
+
+        const availableQuantity = stockEntry.purchasedIndividualQuantity || stockEntry.purchasedQuantity || 0;
+        const deductAmount = Math.min(remainingToDeduct, availableQuantity);
+
+        console.log(`📊 Stock Entry Details: ID=${stockEntry.id}, purchasedQuantity=${stockEntry.purchasedQuantity}, purchasedUnit=${stockEntry.purchasedUnit}, purchasedIndividualQuantity=${stockEntry.purchasedIndividualQuantity}, purchasedIndividualUnit=${stockEntry.purchasedIndividualUnit}`);
+
+        if (deductAmount <= 0) {
+          console.log(`⚠️ No quantity to deduct from stock entry ID: ${stockEntry.id}`);
+          continue;
+        }
+
+        console.log(`📉 Deducting ${deductAmount} ${unit} from stock entry ID: ${stockEntry.id} (Available: ${availableQuantity})`);
+
+        // Update stock entry quantity
+        const newQuantity = Math.max(0, availableQuantity - deductAmount); // Ensure non-negative
+        
+        if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
+          await stockEntry.update({
+            purchasedIndividualQuantity: newQuantity
+          }, { transaction });
+        } else {
+          await stockEntry.update({
+            purchasedQuantity: newQuantity
+          }, { transaction });
+        }
+
+        remainingToDeduct -= deductAmount;
+        console.log(`✅ Updated stock entry ID: ${stockEntry.id} - New quantity: ${newQuantity}, Remaining to deduct: ${remainingToDeduct}`);
+      }
+
+      if (remainingToDeduct > 0) {
+        console.log(`⚠️ Insufficient stock for ${ingredient.material?.name}. Short by: ${remainingToDeduct} ${unit}`);
+        // Note: We continue processing rather than throwing an error to allow partial fulfillment
+      } else {
+        console.log(`✅ Successfully deducted all required stock for ${ingredient.material?.name}`);
+      }
+    }
+
+    console.log(`🎉 Stock deduction completed for menu item: ${menuItem.name}`);
+  } catch (error) {
+    console.error(`❌ Error deducting ingredient stock for menu item ID ${menuItemId}:`, error);
+    throw error;
+  }
+};
 
 export const ordersController = {
   createOrder: async (req, res) => {
@@ -61,6 +173,13 @@ export const ordersController = {
               notes: item.notes
             };
             const orderItem = await OrderItem.create(orderItemData, { transaction });
+            
+            // Deduct ingredient stock for menu items
+            if (item.type === 'menu_item' && item.menuItemId) {
+              console.log(`🍽️ Processing menu item for stock deduction: ${item.name} (ID: ${item.menuItemId}), Quantity: ${item.quantity}`);
+              await deductIngredientStock(item.menuItemId, item.quantity, transaction);
+            }
+            
             return orderItem;
           })
         );
