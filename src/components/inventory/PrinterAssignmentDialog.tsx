@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { MenuItem, Printer, StockEntryWithMaterial } from "@/types/inventory";
+import { MenuItem, StockEntryWithMaterial } from "@/types/inventory";
+import { Printer } from "@/types/printer";
 import { Loader2, Printer as PrinterIcon, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -32,7 +33,7 @@ export const PrinterAssignmentDialog: React.FC<PrinterAssignmentDialogProps> = (
         setIsLoading(true);
         const response = await printersAPI.getPrinters();
         // Handle the API response format: { success: true, printers: [...] }
-        const printersData = response.data.printers || [];
+        const printersData = response.printers || [];
         // Ensure we always have an array
         setPrinters(Array.isArray(printersData) ? printersData : []);
       } catch (error) {

@@ -1157,7 +1157,7 @@ const stockEntriesController = {
           {
             model: Material,
             as: "material",
-            attributes: ["id", "name", "baseUnit", "unitType", "category"]
+            attributes: ["id", "name", "baseUnit", "unitType", "categoryId"]
           },
           {
             model: Printer,
