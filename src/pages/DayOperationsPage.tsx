@@ -6,7 +6,7 @@ import { dayOperationsAPI } from "../api/dayOperations.api";
 // Destructure API methods for cleaner usage
 const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay } = dayOperationsAPI;
 import { useAuth } from "../contexts/AuthContext";
-import { DayOperationsModal, DayOperationsFormData } from "../components/DayOperationsModal/DayOperationsModal";
+import DayOperationsModal, { DayOperationsFormData } from "../components/DayOperationsModal/DayOperationsModal";
 import DailyReports from "../components/analytics/DailyReports";
 import ViewReportButton from "../components/ui/ViewReportButton";
 import { useDailyReports } from "../hooks/useDailyReports";
