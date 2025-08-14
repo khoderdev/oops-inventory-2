@@ -700,10 +700,12 @@ export interface Table {
   table: Table;
   id: string;
   number: number;
+  name?: string;
   seats: number;
   status: "available" | "opened" | "reserved" | "cleaning";
   position: { x: number; y: number };
   shape: "round" | "square" | "rectangle";
+  section?: string;
   currentOrder?: {
     orderId: string;
     orderNumber?: string;

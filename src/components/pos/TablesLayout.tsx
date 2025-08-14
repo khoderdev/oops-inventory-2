@@ -4,10 +4,17 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { tablesAPI } from "@/api/tables.api";
-import { Clock, Users, Move, Circle, Square, RectangleHorizontal, Trash2, Plus } from "lucide-react";
+import { Clock, Users, Move, Circle, Square, RectangleHorizontal, Trash2, Plus, Settings, Edit3, Copy } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
+import { 
+  CreateTableModal, 
+  RenameTableModal, 
+  BulkTableModal, 
+  TransferTableModal,
+  TableActionsMenu 
+} from "@/components/tables";
 
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
   const safeTablesList = useMemo(() => (Array.isArray(tables) ? tables : []), [tables]);
@@ -28,14 +35,110 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const dragStateRef = useRef(dragState);
   const [tempPositions, setTempPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [isUpdatingPosition, setIsUpdatingPosition] = useState<string | null>(null);
+  
+  // Table Management Modal States
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedTableForAction, setSelectedTableForAction] = useState<Table | null>(null);
+  const [sections, setSections] = useState<string[]>([]);
+  const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [showManagementMode, setShowManagementMode] = useState(false);
 
   useEffect(() => {
     setUpdatedTables(safeTablesList);
   }, [safeTablesList]);
 
+  // Fetch table sections on component mount
+  useEffect(() => {
+    const fetchSections = async () => {
+      try {
+        setSectionsLoading(true);
+        const response = await tablesAPI.getTableSections();
+        setSections(response.data || []);
+      } catch (error) {
+        console.error('Failed to fetch table sections:', error);
+        // Set default sections if API fails
+        setSections(['main', 'patio', 'private', 'bar']);
+      } finally {
+        setSectionsLoading(false);
+      }
+    };
+
+    fetchSections();
+  }, []);
+
   useEffect(() => {
     dragStateRef.current = dragState;
   }, [dragState]);
+
+  // Load sections for table management
+  useEffect(() => {
+    loadSections();
+  }, []);
+
+  const loadSections = async () => {
+    try {
+      const response = await tablesAPI.getTableSections();
+      setSections(response.data || []);
+    } catch (error) {
+      console.error('Failed to load sections:', error);
+    }
+  };
+
+  // Table Management Handlers
+  const handleCreateTable = () => {
+    setShowCreateModal(true);
+  };
+
+  const handleBulkCreate = () => {
+    setShowBulkModal(true);
+  };
+
+  const handleRenameTable = (table: Table) => {
+    setSelectedTableForAction(table);
+    setShowRenameModal(true);
+  };
+
+  const handleTransferOrder = (table: Table) => {
+    setSelectedTableForAction(table);
+    setShowTransferModal(true);
+  };
+
+  const handleDuplicateTable = async (table: Table) => {
+    try {
+      const response = await tablesAPI.duplicateTable(table.id.toString());
+      toast.success(response.data.message);
+      // Refresh tables - you might want to emit an event to parent component
+      window.location.reload(); // Temporary solution
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to duplicate table');
+    }
+  };
+
+  const handleDeleteTable = async (table: Table) => {
+    if (table.status === 'opened') {
+      toast.error('Cannot delete table with active orders');
+      return;
+    }
+
+    if (confirm(`Are you sure you want to delete Table ${table.number}?`)) {
+      try {
+        await tablesAPI.deleteTable(table.id.toString());
+        toast.success('Table deleted successfully');
+        // Refresh tables - you might want to emit an event to parent component
+        window.location.reload(); // Temporary solution
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Failed to delete table');
+      }
+    }
+  };
+
+  const handleEditTable = (table: Table) => {
+    // For now, just show rename modal - can be expanded later
+    handleRenameTable(table);
+  };
 
   // Handle table hover
   const handleTableHover = (table: Table, event: React.MouseEvent) => {
@@ -222,37 +325,48 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     [selectedTool, isDragMode, isArrangeMode, constrainPosition, updatedTables]
   );
 
-  const handleDeleteTable = useCallback(
-    async (table: Table) => {
-      if (!selectedTable || selectedTable.id !== table.id) {
-        toast.error("Please select a table first");
-        return;
-      }
-      if (table.status === "opened") {
-        toast.error("Cannot delete a table with an active order");
-        return;
-      }
-      try {
-        await tablesAPI.deleteTable(table.id);
-        setUpdatedTables(prev => prev.filter(t => t.id !== table.id));
-        if (selectedTable?.id === table.id) {
-          onTableSelect(updatedTables[0] || null);
-        }
-        toast.success(`Table ${table.number} deleted successfully`);
-      } catch (error) {
-        console.error("Failed to delete table:", error);
-        toast.error("Failed to delete table");
-      }
-    },
-    [selectedTable, onTableSelect, updatedTables]
-  );
 
   return (
     <div className="h-[calc(100vh-0rem)] w-full flex flex-col overflow-hidden">
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 mr-6">
-          <div>
+          <div className="flex items-center gap-4">
             <h2 className={`text-2xl font-bold text-gray-800 ${isArrangeMode ? "hidden sm:block" : ""}`}>Tables</h2>
+            {!isArrangeMode && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowManagementMode(!showManagementMode)}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  {showManagementMode ? 'Hide Management' : 'Manage Tables'}
+                </Button>
+                {showManagementMode && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCreateTable}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkCreate}
+                      className="flex items-center gap-2"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Bulk Create
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           {isArrangeMode ? (
             <div className="flex items-center gap-2">
@@ -389,6 +503,20 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                             </div>
                           </div>
 
+                          {/* Management Actions Menu */}
+                          {showManagementMode && !isDragMode && !isArrangeMode && (
+                            <div className="absolute -top-2 -right-2 z-20" onClick={(e) => e.stopPropagation()}>
+                              <TableActionsMenu
+                                table={table}
+                                onEdit={handleEditTable}
+                                onRename={handleRenameTable}
+                                onTransfer={handleTransferOrder}
+                                onDuplicate={handleDuplicateTable}
+                                onDelete={handleDeleteTable}
+                              />
+                            </div>
+                          )}
+
                           {isDragMode && (
                             <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
                               <Move className="w-2 h-2" />
@@ -509,6 +637,63 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           </div>
         </div>
       )}
+
+      {/* Table Management Modals */}
+      <CreateTableModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        sections={sections}
+        onTableCreated={() => {
+          setShowCreateModal(false);
+          window.location.reload(); // Temporary solution
+        }}
+      />
+
+      <RenameTableModal
+        isOpen={showRenameModal}
+        onClose={() => {
+          setShowRenameModal(false);
+          setSelectedTableForAction(null);
+        }}
+        table={selectedTableForAction}
+        onTableRenamed={(updatedTable: Table) => {
+          // Update the table in the local state with the fresh data from API
+          setUpdatedTables(prev => 
+            prev.map(t => 
+              t.id === updatedTable.id 
+                ? updatedTable 
+                : t
+            )
+          );
+          setShowRenameModal(false);
+          setSelectedTableForAction(null);
+        }}
+      />
+
+      <BulkTableModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        sections={sections}
+        onTablesCreated={() => {
+          setShowBulkModal(false);
+          window.location.reload(); // Temporary solution
+        }}
+      />
+
+      <TransferTableModal
+        isOpen={showTransferModal}
+        onClose={() => {
+          setShowTransferModal(false);
+          setSelectedTableForAction(null);
+        }}
+        sourceTable={selectedTableForAction}
+        tables={updatedTables}
+        onSuccess={() => {
+          setShowTransferModal(false);
+          setSelectedTableForAction(null);
+          window.location.reload(); // Temporary solution
+        }}
+      />
     </div>
   );
 };

@@ -1207,8 +1207,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               setOrderNotes(existingOrder.notes);
               console.log("📝 Loaded existing order notes");
             }
-
-            showSuccess(`Loaded existing order ${existingOrder.orderNumber} for Table ${table.number}`);
           }
         } catch (error) {
           console.error("❌ Failed to load table order:", error);
