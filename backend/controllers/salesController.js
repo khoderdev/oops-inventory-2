@@ -22,7 +22,6 @@ const salesController = {
         order: [["updatedAt", "DESC"]]
       });
       
-      console.log(`📊 Found ${negativeStockEntries.length} negative stock entries`);
       const report = {
         totalNegativeEntries: negativeStockEntries.length,
         negativeStockItems: negativeStockEntries.map(entry => ({
