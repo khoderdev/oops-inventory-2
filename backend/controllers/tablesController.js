@@ -6,10 +6,11 @@ export const tablesController = {
   // Get all tables
   getTables: async (req, res) => {
     try {
-      const { section, status, includeOrders } = req.query;
-
-      const whereClause = { isActive: true };
-
+      const { section, status, includeOrders, isActive } = req.query;
+      const whereClause = {};
+      if (isActive !== undefined) {
+        whereClause.isActive = isActive === 'true';
+      }
       if (section) whereClause.section = section;
       if (status) whereClause.status = status;
 
@@ -140,7 +141,7 @@ export const tablesController = {
   updateTable: async (req, res) => {
     try {
       const { tableId } = req.params;
-      const { number, name, seats, shape, position, section, notes, status } = req.body;
+      const { number, name, seats, shape, position, section, notes, status, isActive } = req.body;
 
       const table = await Table.findByPk(tableId);
       if (!table) {
@@ -168,7 +169,8 @@ export const tablesController = {
         position: position !== undefined ? position : table.position,
         section: section !== undefined ? section : table.section,
         notes: notes !== undefined ? notes : table.notes,
-        status: status !== undefined ? status : table.status
+        status: status !== undefined ? status : table.status,
+        isActive: isActive !== undefined ? isActive : table.isActive
       });
 
       res.json({ message: "Table updated successfully", table });
@@ -202,10 +204,10 @@ export const tablesController = {
         });
       }
 
-      // Soft delete by setting isActive to false
-      await table.update({ isActive: false });
+      // Hard delete - permanently remove from database
+      await table.destroy();
 
-      res.json({ message: "Table deleted successfully" });
+      res.json({ message: "Table permanently deleted from database" });
     } catch (error) {
       console.error("Delete table error:", error);
       res.status(500).json({ message: "Failed to delete table", error: error.message });
