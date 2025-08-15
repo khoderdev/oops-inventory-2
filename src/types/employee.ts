@@ -99,6 +99,7 @@ export interface EmployeeUsage {
     purchaseDate?: string;
   };
   recorder?: {
+    id: number;
     firstName: string;
     lastName: string;
     username: string;

@@ -101,7 +101,13 @@ export const recordUsage = async (req, res) => {
         },
         { model: Material, as: "material", attributes: ["id", "name", "categoryId"] },
         { model: MenuItem, as: "menuItem", attributes: ["id", "name", "categoryId"] },
-        { model: StockEntry, as: "stockEntry", attributes: ["id", "supplier"] }
+        { model: StockEntry, as: "stockEntry", attributes: ["id", "supplier"] },
+        {
+          model: User,
+          as: "recorder",
+          attributes: ["id", "firstName", "lastName", "username"],
+          required: false // LEFT JOIN - user who recorded the usage
+        }
       ]
     });
 
@@ -169,7 +175,7 @@ export const getUsageHistory = async (req, res) => {
         {
           model: User,
           as: "recorder",
-          attributes: ["firstName", "lastName", "username"],
+          attributes: ["id", "firstName", "lastName", "username"],
           required: false // LEFT JOIN - user who recorded might not exist
         }
       ],

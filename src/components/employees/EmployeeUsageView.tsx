@@ -36,6 +36,12 @@ export interface GroupedOrder {
       lastName: string;
     };
   };
+  creator?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    username: string;
+  };
   orderDate: string;
   items: EmployeeUsage[];
   totalCost: number;
@@ -77,6 +83,12 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
             employeeNumber: usage.employee?.employeeNumber || "",
             user: usage.employee?.user
           },
+          creator: usage.recorder ? {
+            id: usage.recorder.id,
+            firstName: usage.recorder.firstName,
+            lastName: usage.recorder.lastName,
+            username: usage.recorder.username
+          } : undefined,
           orderDate: usage.usageDate,
           items: [],
           totalCost: 0,
@@ -207,7 +219,7 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     if (transactionId.startsWith("individual-")) {
       return "Individual Usage";
     }
-    return `Order #${transactionId}`;
+    return `${transactionId}`;
   };
 
   const getAvailableSettlements = (employeeId: number): EmployeeSettlement[] => {
@@ -499,6 +511,7 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                   <TableHead className="w-12"></TableHead>
                   <TableHead>Order</TableHead>
                   <TableHead>Employee</TableHead>
+                  <TableHead>Created By</TableHead>
                   <TableHead>Date & Time</TableHead>
                   <TableHead>Items</TableHead>
                   <TableHead>Total Cost</TableHead>
@@ -544,6 +557,14 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                             {order.employee.user?.firstName} {order.employee.user?.lastName}
                           </div>
                           <div className="text-sm text-muted-foreground">#{order.employee.employeeNumber}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">
+                            {order.creator ? `${order.creator.firstName} ${order.creator.lastName}` : "Unknown"}
+                          </div>
+                          {order.creator && (
+                            <div className="text-sm text-muted-foreground">{order.creator.username}</div>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm">{formatDateTime(order.orderDate)}</TableCell>
                         <TableCell>
