@@ -39,18 +39,15 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
-      <DialogContent className="w-full h-full max-w-none max-h-none m-0 p-0 bg-gray-50 overflow-hidden border-0 rounded-none sm:w-[95vw] sm:h-[95vh] sm:max-w-4xl sm:max-h-[95vh] sm:rounded-lg md:w-[90vw] md:h-[90vh] md:max-h-[90vh] lg:w-[85vw] lg:h-[85vh] lg:max-h-[85vh] xl:w-[80vw] xl:h-[80vh] xl:max-h-[80vh] 2xl:w-[75vw] 2xl:h-[75vh] 2xl:max-h-[75vh]">
+      <DialogContent className="w-full h-full  max-h-none m-0 p-0 bg-gray-50 overflow-hidden border-0 rounded-none max-w-lg">
         <div className="w-full h-full flex flex-col overflow-hidden">
           <DialogTitle className="flex items-center justify-center space-x-2 text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-primary to-primary/90 text-white py-3 sm:py-4 shadow-lg">
             <HandCoins className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" />
             <span className="tracking-wide">Complete Payment</span>
           </DialogTitle>
-          <DialogDescription className="sr-only">
-            Enter payment amount and complete the transaction for the current order
-          </DialogDescription>
 
           <div className="flex-1 items-center overflow-y-auto min-h-0">
-            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+            <div className="px-3  space-y-3 sm:space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4">
                 <div className="relative bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-200 p-6 rounded-2xl shadow-lg">
                   <div className="text-center">

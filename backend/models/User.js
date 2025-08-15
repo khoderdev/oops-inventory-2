@@ -596,16 +596,16 @@ User.prototype.getRolePermissions = function () {
       "sales.discount": false,
       "sales.void": false,
 
-      // === ORDERS MANAGEMENT (Basic) ===
+      // === ORDERS MANAGEMENT (Full) ===
       "orders.create": true,
       "orders.read": true,
       "orders.update": true,
-      "orders.delete": false,
-      "orders.void": false,
-      "orders.complete": false,
-      "orders.cancel": false,
-      "orders.viewAll": false,
-      "orders.manageQueue": false,
+      "orders.delete": true,
+      "orders.void": true,
+      "orders.complete": true,
+      "orders.cancel": true,
+      "orders.viewAll": true,
+      "orders.manageQueue": true,
 
       // === POS SYSTEM (Basic Access) ===
       "pos.access": true,
@@ -666,13 +666,13 @@ User.prototype.getRolePermissions = function () {
 
       // === EMPLOYEE MANAGEMENT ===
       "employee.create": false,
-      "employee.read": false,
+      "employee.read": true,
       "employee.update": false,
       "employee.delete": false,
       "employee.viewSalary": false,
       "employee.manageSalary": false,
-      "employee.usageRecord": false,
-      "employee.usageView": false,
+      "employee.usageRecord": true,
+      "employee.usageView": true,
       "employee.settlementCreate": false,
       "employee.settlementApprove": false,
       "employee.settlementProcess": false,

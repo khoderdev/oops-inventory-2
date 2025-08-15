@@ -298,7 +298,7 @@ export const auditSalesOperation = async (userId, action, saleData, oldData = nu
     };
 
     if (req) {
-      auditData.ipAddress = req.ip || req.connection.remoteAddress;
+      auditData.ipAddress = req.ip || (req.connection ? req.connection.remoteAddress : null);
     }
 
     await AuditLog.create(auditData);
@@ -330,7 +330,7 @@ export const auditOrderOperation = async (userId, action, orderData, oldData = n
     };
 
     if (req) {
-      auditData.ipAddress = req.ip || req.connection.remoteAddress;
+      auditData.ipAddress = req.ip || (req.connection ? req.connection.remoteAddress : null);
     }
 
     await AuditLog.create(auditData);
@@ -361,7 +361,7 @@ export const auditStockOperation = async (userId, action, stockData, oldData = n
     };
 
     if (req) {
-      auditData.ipAddress = req.ip || req.connection.remoteAddress;
+      auditData.ipAddress = req.ip || (req.connection ? req.connection.remoteAddress : null);
     }
 
     await AuditLog.create(auditData);
@@ -389,7 +389,7 @@ export const auditUserOperation = async (userId, action, userData, oldData = nul
     };
 
     if (req) {
-      auditData.ipAddress = req.ip || req.connection.remoteAddress;
+      auditData.ipAddress = req.ip || (req.connection ? req.connection.remoteAddress : null);
     }
 
     await AuditLog.create(auditData);
@@ -415,7 +415,7 @@ export const auditSecurityEvent = async (userId, event, details, req = null) => 
     };
 
     if (req) {
-      auditData.ipAddress = req.ip || req.connection.remoteAddress;
+      auditData.ipAddress = req.ip || (req.connection ? req.connection.remoteAddress : null);
     }
 
     await AuditLog.create(auditData);

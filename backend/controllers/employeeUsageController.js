@@ -99,8 +99,8 @@ export const recordUsage = async (req, res) => {
             }
           ]
         },
-        { model: Material, as: "material", attributes: ["id", "name", "category"] },
-        { model: MenuItem, as: "menuItem", attributes: ["id", "name", "category"] },
+        { model: Material, as: "material", attributes: ["id", "name", "categoryId"] },
+        { model: MenuItem, as: "menuItem", attributes: ["id", "name", "categoryId"] },
         { model: StockEntry, as: "stockEntry", attributes: ["id", "supplier"] }
       ]
     });
@@ -163,8 +163,8 @@ export const getUsageHistory = async (req, res) => {
             }
           ]
         },
-        { model: Material, as: "material", attributes: ["id", "name", "category", "baseUnit"] },
-        { model: MenuItem, as: "menuItem", attributes: ["id", "name", "category", "description"] },
+        { model: Material, as: "material", attributes: ["id", "name", "categoryId", "baseUnit"] },
+        { model: MenuItem, as: "menuItem", attributes: ["id", "name", "categoryId", "description"] },
         { model: StockEntry, as: "stockEntry", attributes: ["id", "supplier", "purchaseDate"] },
         {
           model: User,
@@ -450,8 +450,8 @@ export const updateUsage = async (req, res) => {
             }
           ]
         },
-        { model: Material, as: "material", attributes: ["id", "name", "category"] },
-        { model: MenuItem, as: "menuItem", attributes: ["id", "name", "category"] }
+        { model: Material, as: "material", attributes: ["id", "name", "categoryId"] },
+        { model: MenuItem, as: "menuItem", attributes: ["id", "name", "categoryId"] }
       ]
     });
 
