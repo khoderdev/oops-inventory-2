@@ -1,33 +1,34 @@
 import express from "express";
 import dayOperationsController from "../controllers/dayOperationsController.js";
+import { authenticate } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 // Get all day operations with pagination
-router.get("/", dayOperationsController.getAllDayOperations);
+router.get("/", authenticate, dayOperationsController.getAllDayOperations);
 
 // Get current day operation
-router.get("/current", dayOperationsController.getCurrentDayOperation);
+router.get("/current", authenticate, dayOperationsController.getCurrentDayOperation);
 
 // Get activity logs for current day
-router.get("/current/activities", dayOperationsController.getCurrentDayActivities);
+router.get("/current/activities", authenticate, dayOperationsController.getCurrentDayActivities);
 
 // Get user order statistics for current day
-router.get("/current/user-order-stats", dayOperationsController.getCurrentDayUserOrderStats);
+router.get("/current/user-order-stats", authenticate, dayOperationsController.getCurrentDayUserOrderStats);
 
 // Open a new day
-router.post("/open", dayOperationsController.openDay);
+router.post("/open", authenticate, dayOperationsController.openDay);
 
 // Close current day
-router.post("/close", dayOperationsController.closeDay);
+router.post("/close", authenticate, dayOperationsController.closeDay);
 
 // Get daily report for a specific date
-router.get("/report/:date", dayOperationsController.getDailyReport);
+router.get("/report/:date", authenticate, dayOperationsController.getDailyReport);
 
 // Get day operation by ID
-router.get("/:id", dayOperationsController.getDayOperationById);
+router.get("/:id", authenticate, dayOperationsController.getDayOperationById);
 
 // Update day operation
-router.put("/:id", dayOperationsController.updateDayOperation);
+router.put("/:id", authenticate, dayOperationsController.updateDayOperation);
 
 export default router;

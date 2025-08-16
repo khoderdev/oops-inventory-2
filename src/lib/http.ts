@@ -76,7 +76,8 @@ class ApiClient {
 
         // Handle common error cases with enhanced error extraction
         const errorResponse: ApiError = {
-          message: errorData?.message || error.message || "An error occurred",
+          // Prefer backend-provided message, then backend `error` field, then axios message
+          message: errorData?.message || (errorData as any)?.error || error.message || "An error occurred",
           code: errorData?.code || error.code || "ERR_BAD_RESPONSE",
           status: error.response?.status,
           field: errorData?.field,
@@ -84,7 +85,7 @@ class ApiClient {
           attemptsLeft: errorData?.attemptsLeft,
           lockTimeLeft: errorData?.lockTimeLeft,
           details: {
-            message: errorData?.message || error.message,
+            message: errorData?.message || (errorData as any)?.error || error.message,
             code: errorData?.code || error.code,
             status: error.response?.status,
             error: errorData?.error || error.message // Include backend error details
@@ -183,7 +184,8 @@ class ApiClient {
       const errorData = error.response?.data;
 
       return {
-        message: errorData?.message || "Request failed",
+        // Prefer backend-provided message, then backend `error` field
+        message: (errorData as any)?.message || (errorData as any)?.error || "Request failed",
         code: errorData?.code || error.code,
         status: error.response?.status,
         field: errorData?.field,

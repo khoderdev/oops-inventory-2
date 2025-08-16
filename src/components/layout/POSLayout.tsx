@@ -32,53 +32,112 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [isLoadingDayOperation, setIsLoadingDayOperation] = useState(false);
   const [currentDay, setCurrentDay] = useState<{ expectedCash?: number } | null>(null);
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
-  
+  const [showLockOverlay, setShowLockOverlay] = useState(false);
+  const [isCheckingDayStatus, setIsCheckingDayStatus] = useState(true);
+  const isLocked = isCheckingDayStatus ? false : (hasRole("staff") ? !userDayOpen : !isDayOpen);
+
+  // Helper to refresh day status and user stats without triggering modals
+  const refreshDayAndStats = useCallback(async () => {
+    try {
+      const { currentDay } = await dayOperationsAPI.getCurrentDayOperation();
+      const isOpen = currentDay?.status === "opened";
+      setIsDayOpen(!!isOpen);
+
+      if (currentDay) {
+        setCurrentDay({
+          expectedCash: currentDay.expectedCash || currentDay.openingCash || 0
+        });
+
+        try {
+          const { userOrderStats: stats } = await dayOperationsAPI.getUserOrderStats();
+          setUserOrderStats(stats);
+
+          if (user && stats) {
+            const currentUserStats = stats.find(stat => stat.userId === user.id);
+            const computedIsUserDayOpen = Boolean(currentUserStats?.openingTime && !currentUserStats?.closingTime);
+            setUserDayOpen(computedIsUserDayOpen);
+          } else {
+            setUserDayOpen(false);
+          }
+        } catch (error) {
+          console.error("User stats refresh error:", error);
+          setUserDayOpen(false);
+        }
+      } else {
+        setCurrentDay(null);
+        setUserDayOpen(false);
+      }
+    } catch (error) {
+      console.error("Day status refresh error:", error);
+      setIsDayOpen(false);
+      setUserDayOpen(false);
+    }
+  }, [user]);
+
   useEffect(() => {
+    let modalTimer: number | undefined;
     const fetchDayStatus = async () => {
+      setIsCheckingDayStatus(true);
       try {
-        // Get current day operation status
         const { currentDay } = await dayOperationsAPI.getCurrentDayOperation();
-        const isOpen = currentDay && !currentDay.closedAt;
+        const isOpen = currentDay?.status === "opened"; // Make sure this matches your backend enum
         setIsDayOpen(isOpen);
+
+        let computedIsUserDayOpen = false;
+
         if (currentDay) {
-          setCurrentDay({ 
-            expectedCash: currentDay.expectedCash || currentDay.openingCash || 0 
+          setCurrentDay({
+            expectedCash: currentDay.expectedCash || currentDay.openingCash || 0
           });
-          // Get user-specific order stats
+
           try {
             const { userOrderStats: stats } = await dayOperationsAPI.getUserOrderStats();
             setUserOrderStats(stats);
-            // Check if current user has opened their day
+
             if (user && stats) {
               const currentUserStats = stats.find(stat => stat.userId === user.id);
-              // User day is open if they have stats and openingTime exists but no closingTime
-              const isUserDayOpen = Boolean(currentUserStats?.openingTime && !currentUserStats?.closingTime);
-              console.log(`User day status for ${user.username}: ${isUserDayOpen ? 'Open' : 'Closed'}`);
-              setUserDayOpen(isUserDayOpen);
-            } else {
-              // If no user stats found, user day is closed
-              setUserDayOpen(false);
+              // Make sure we're checking both openingTime and closingTime
+              computedIsUserDayOpen = Boolean(currentUserStats?.openingTime && !currentUserStats?.closingTime);
+              setUserDayOpen(computedIsUserDayOpen);
             }
-          } catch (statsError) {
-            console.error("Failed to fetch user order stats:", statsError);
-            setUserOrderStats([]);
+          } catch (error) {
+            console.error("User stats error:", error);
             setUserDayOpen(false);
+            computedIsUserDayOpen = false;
           }
-        } else {
-          // No day operation exists, reset user stats
-          setUserOrderStats([]);
-          setUserDayOpen(false);
+        }
+
+        // Debug logging
+        console.log("Day status:", {
+          globalDayOpen: isOpen,
+          userDayOpen: computedIsUserDayOpen,
+          currentDayStatus: currentDay?.status
+        });
+
+
+        const shouldForceOpen = hasRole("staff") ? (user ? !computedIsUserDayOpen : false) : !isOpen;
+
+        if (shouldForceOpen) {
+          modalTimer = window.setTimeout(() => {
+            setDayOperationType("open");
+            setShowDayOperationsModal(true);
+          }, 600);
         }
       } catch (error) {
-        console.error("Failed to fetch day status:", error);
+        console.error("Day status error:", error);
         setIsDayOpen(false);
         setUserDayOpen(false);
-        setUserOrderStats([]);
+      } finally {
+        setIsCheckingDayStatus(false);
       }
     };
+
     fetchDayStatus();
     const intervalId = setInterval(fetchDayStatus, 5 * 60 * 1000);
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      if (modalTimer) window.clearTimeout(modalTimer);
+    };
   }, [user]);
 
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -144,7 +203,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         return isToday && isIncomplete;
       });
       incompleteOrdersCount = incompleteOrdersToday.length;
-      console.log("incompleteOrdersCount Today",incompleteOrdersCount);
+      console.log("incompleteOrdersCount Today", incompleteOrdersCount);
     } catch (error) {
       console.error("Failed to fetch orders count:", error);
     }
@@ -251,37 +310,32 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   };
 
-
   // Day Operations handlers
   const handleOpenDayOperationsModal = () => {
-    // For staff users, we're tracking their individual day status
-    const isUserDay = hasRole("staff");
-    const shouldClose = isUserDay ? userDayOpen : isDayOpen;
-    setDayOperationType(shouldClose ? "close" : "open");
-    // Find user's current stats if available
-    let userExpectedCash = 0;
-    let userOpeningCash = 0;
-    let userCashSales = 0;
-    let userCardSales = 0;
+    const isStaff = hasRole("staff");
+    if (isStaff) {
+      setDayOperationType(userDayOpen ? "close" : "open");
+    } else {
+      setDayOperationType(isDayOpen ? "close" : "open");
+    }
+    let openingCash = 0;
+    let closingCash = 0;
     if (user && userOrderStats.length > 0) {
-      const currentUserStats = userOrderStats.find(stat => stat.userId === user.id);
-      if (currentUserStats) {
-        userOpeningCash = currentUserStats.openingCash || 0;
-        userCashSales = currentUserStats.cashSales || 0;
-        userCardSales = currentUserStats.cardSales || 0;
-        userExpectedCash = userOpeningCash + userCashSales;
+      const userStats = userOrderStats.find(s => s.userId === user.id);
+      if (userStats) {
+        openingCash = userStats.openingCash || 0;
+        closingCash = (userStats.openingCash || 0) + (userStats.cashSales || 0);
       }
     }
-    
     setDayFormData({
-      openingCash: userOpeningCash || 0,
-      closingCash: shouldClose ? userExpectedCash : 0,
+      openingCash: dayOperationType === "open" ? openingCash : 0,
+      closingCash: dayOperationType === "close" ? closingCash : 0,
       openedBy: user?.username || "",
       closedBy: user?.username || "",
       notes: "",
-      userId: user?.id
+      userId: isStaff ? user?.id : undefined
     });
-    
+
     setShowDayOperationsModal(true);
   };
 
@@ -289,72 +343,99 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     setDayFormData(data);
   };
 
+  const showToast = async (message: string, variant: "success" | "error" | "info") => {
+    try {
+      const { toast } = await import("@/components/ui/use-toast");
+      toast({
+        title: variant === "success" ? "Success" : variant === "error" ? "Error" : "Info",
+        description: message,
+        variant: variant === "success" ? "default" : "destructive",
+        duration: 1500
+      });
+    } catch (e) {
+      console.log(message);
+      alert(message);
+    }
+  };
+
   const handleDayOperationSubmit = async () => {
     setIsLoadingDayOperation(true);
     try {
-      // Call the appropriate API based on operation type
+      const isStaff = hasRole("staff");
       if (dayOperationType === "open") {
-        // Convert form data to OpenDayRequest
         const openDayRequest: OpenDayRequest = {
-          openingCash: dayFormData.openingCash,
-          openedBy: dayFormData.openedBy,
-          notes: dayFormData.notes,
-          userId: user?.id
+          openingCash: Number(dayFormData.openingCash) || 0,
+          openedBy: user?.username || "System",
+          notes: dayFormData.notes || "",
+          ...(isStaff ? { userId: user?.id } : {})
         };
         await dayOperationsAPI.openDay(openDayRequest);
+        setUserDayOpen(true);
+        if (!isStaff) setIsDayOpen(true);
       } else {
-        // Convert form data to CloseDayRequest
         const closeDayRequest: CloseDayRequest = {
-          closingCash: dayFormData.closingCash || 0,
-          closedBy: dayFormData.closedBy,
-          notes: dayFormData.notes,
-          userId: user?.id
+          closingCash: Number(dayFormData.closingCash) || 0,
+          closedBy: user?.username || "System",
+          notes: dayFormData.notes || "",
+          ...(isStaff ? { userId: user?.id } : {})
         };
         await dayOperationsAPI.closeDay(closeDayRequest);
+        setUserDayOpen(false);
+        if (!isStaff) setIsDayOpen(false);
       }
-      
-      // Update UI state based on user role
-      if (hasRole("staff")) {
-        setUserDayOpen(dayOperationType === "open");
-      } else {
-        setIsDayOpen(dayOperationType === "open");
-      }
-      
-      // Show success message using toast if available
-      const message = `Day ${dayOperationType === "open" ? "opened" : "closed"} successfully`;
-      try {
-        const { toast } = await import("@/components/ui/use-toast");
-        toast({
-          title: dayOperationType === "open" ? "Day Opened" : "Day Closed",
-          description: message,
-          variant: "default",
-          duration: 1500
-        });
-      } catch (e) {
-        console.log(message);
-      }
-      
+      // Keep UI data fresh
+      await refreshDayAndStats();
+      showToast(`Operation successful`, "success");
       setShowDayOperationsModal(false);
     } catch (error) {
-      // Handle error and show error message
-      console.error(`Failed to ${dayOperationType} day:`, error);
-      try {
-        const { toast } = await import("@/components/ui/use-toast");
-        toast({
-          title: `Operation Failed`,
-          description: `Could not ${dayOperationType} day. Please try again.`,
-          variant: "destructive",
-          duration: 1500
-        });
-      } catch (e) {
-        // Fallback if toast is not available
-        alert(`Failed to ${dayOperationType} day. Please try again.`);
+      console.error("Day operation failed:", error);
+      let errorMessage = error.message;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.status === 400) {
+        errorMessage = "Invalid request data. Please check your inputs.";
       }
+      showToast(`Operation failed: ${errorMessage}`, "error");
     } finally {
       setIsLoadingDayOperation(false);
     }
   };
-  
+
+  {
+    {
+      isLocked && showLockOverlay && (
+        <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
+            <div className="mb-3 text-slate-900 dark:text-slate-100 font-semibold">{hasRole("staff") ? "Your shift is not open" : "Day is not open"}</div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">{hasRole("staff") ? "Please open your shift to start taking orders" : "Please open the day to start operations"}</p>
+            <button onClick={handleOpenDayOperationsModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+              {hasRole("staff") ? "Open Shift" : "Open Day"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Delay showing the lock overlay slightly for better UX, but don't show during initial status check
+  useEffect(() => {
+    let overlayTimer: number | undefined;
+    if (isCheckingDayStatus) {
+      setShowLockOverlay(false);
+      return () => {
+        if (overlayTimer) window.clearTimeout(overlayTimer);
+      };
+    }
+    if (isLocked) {
+      overlayTimer = window.setTimeout(() => setShowLockOverlay(true), 1500);
+    } else {
+      setShowLockOverlay(false);
+    }
+    return () => {
+      if (overlayTimer) window.clearTimeout(overlayTimer);
+    };
+  }, [isLocked, isCheckingDayStatus]);
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -380,7 +461,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/10 to-cyan-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
       </div>
-
       {/* POS Header - Enhanced Responsive */}
       <header className="relative bg-gradient-to-r from-slate-800 via-slate-900 to-slate-900 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 border-b border-slate-200/20 dark:border-slate-600/30 shadow-xl backdrop-blur-sm safe-area-top flex items-center justify-between shrink-0 z-40">
         {/* Responsive padding */}
@@ -417,20 +497,11 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           <div className="relative flex items-center space-x-3 z-10 select-none">
             {/* Day Operations Button - Only for staff users */}
             {hasRole("staff") && (
-              <button 
-                onClick={() => handleOpenDayOperationsModal()}
-                className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95"
-              >
+              <button onClick={handleOpenDayOperationsModal} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
                 <div className={`absolute inset-0 ${userDayOpen ? "bg-gradient-to-r from-red-500/20 to-orange-500/20" : "bg-gradient-to-r from-green-500/20 to-emerald-500/20"} rounded-xl blur-sm group-hover:blur-none transition-all duration-300`} />
                 <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
-                  {userDayOpen ? (
-                    <Banknote className="w-4 h-4 text-red-300 group-hover:text-red-200 transition-colors" />
-                  ) : (
-                    <Calendar className="w-4 h-4 text-green-300 group-hover:text-green-200 transition-colors" />
-                  )}
-                  <span className="text-xs font-medium text-white/90 group-hover:text-white transition-colors">
-                    {userDayOpen ? "Close My Day" : "Open My Day"}
-                  </span>
+                  {userDayOpen ? <Banknote className="w-4 h-4 text-red-300 group-hover:text-red-200 transition-colors" /> : <Calendar className="w-4 h-4 text-green-300 group-hover:text-green-200 transition-colors" />}
+                  <span className="text-xs font-medium text-white/90 group-hover:text-white transition-colors">{userDayOpen ? "Close Shift" : "Open Shift"}</span>
                 </div>
               </button>
             )}
@@ -448,7 +519,13 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
                 </button>
               )}
               {/* Transactions Card - Clickable */}
-              <button onClick={() => setShowOrdersDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
+              <button
+                onClick={() => {
+                  if (!isLocked) setShowOrdersDialog(true);
+                }}
+                className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50"
+                disabled={isLocked}
+              >
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
                 <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
                   <ShoppingCart className="w-4 h-4 text-blue-300 group-hover:text-blue-200 transition-colors" />
@@ -483,7 +560,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           </div>
         </div>
       </header>
-
       {/* Main POS Content - Resizable Layout */}
       <main className="relative flex-1 overflow-hidden z-10" ref={containerRef}>
         <div className="h-full w-full flex bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
@@ -501,14 +577,23 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
           {/* Right Panel - Main Content */}
           <div className="flex-1 relative overflow-hidden">
-            <div className="h-full w-full">{children}</div>
+            <div className="h-full w-full pointer-events-auto">{children}</div>
+            {isLocked && showLockOverlay && (
+              <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="mb-3 text-slate-900 dark:text-slate-100 font-semibold">Day is not open</div>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">Please open the day to start taking orders.</p>
+                  <button onClick={handleOpenDayOperationsModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                    Open Day
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
-
       {/* Orders Dialog */}
       <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelect} />
-
       {/* Sales History Dialog */}
       <Dialog open={showSalesHistoryDialog} onOpenChange={setShowSalesHistoryDialog}>
         <DialogContent className="max-w-screen h-[100vh] shadow-2xl p-0 overflow-auto">
@@ -517,19 +602,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Day Operations Modal */}
-      <DayOperationsModal
-        open={showDayOperationsModal}
-        onOpenChange={setShowDayOperationsModal}
-        type={dayOperationType}
-        formData={dayFormData}
-        onFormChange={handleDayFormChange}
-        onSubmit={handleDayOperationSubmit}
-        isLoading={isLoadingDayOperation}
-        currentDay={currentDay}
-      />
-
+      <DayOperationsModal open={showDayOperationsModal} onOpenChange={setShowDayOperationsModal} type={dayOperationType} formData={dayFormData} onFormChange={handleDayFormChange} onSubmit={handleDayOperationSubmit} isLoading={isLoadingDayOperation} currentDay={currentDay} />
       {/* Logout Confirmation Dialog */}
       <Dialog
         open={showLogoutDialog}
