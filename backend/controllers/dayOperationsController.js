@@ -213,7 +213,7 @@ const dayOperationsController = {
         try {
           const user = await User.findByPk(userId, { transaction });
           const userName = user ? `${user.firstName} ${user.lastName}`.trim() : `User ${userId}`;
-          const reportData = (activeDay.reportData || {});
+          const reportData = activeDay.reportData || {};
           const userOrderStats = reportData.userOrderStats || [];
           const idx = userOrderStats.findIndex(u => u.userId === userId);
           const now = new Date();
@@ -336,8 +336,10 @@ const dayOperationsController = {
   closeDay: async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
-      const { closingCash, closedBy = "System", notes, userId } = req.body;
-      console.log("[DayOps][closeDay] Incoming payload:", { closingCash, closedBy, notes, userId });
+      const { closingCash, closedBy = "System", notes, userId, finalizeDay, closeDay, onlyUser } = req.body;
+      // Default behavior: if userId is provided, finalize the day unless explicitly told not to via onlyUser: true
+      const shouldFinalize = Boolean(closeDay) || Boolean(finalizeDay) || (userId !== undefined && onlyUser !== true);
+      console.log("[DayOps][closeDay] Incoming payload:", { closingCash, closedBy, notes, userId, finalizeDay, closeDay, onlyUser, shouldFinalize });
       const today = new Date().toISOString().split("T")[0];
       const dayOperation = await DayOperation.findOne({
         where: { date: today },
@@ -349,7 +351,7 @@ const dayOperationsController = {
         return res.status(404).json({ error: "No day operation found for today" });
       }
       const isUserSpecificOperation = userId !== undefined;
-      console.log("[DayOps][closeDay] isUserSpecificOperation:", isUserSpecificOperation);
+      console.log("[DayOps][closeDay] isUserSpecificOperation:", isUserSpecificOperation, "shouldFinalize:", shouldFinalize);
       if (isUserSpecificOperation) {
         try {
           const dayStart = new Date(dayOperation.openedAt);
@@ -365,8 +367,9 @@ const dayOperationsController = {
           const userCashSales = salesData.filter(s => s.paymentMethod === "cash").reduce((sum, s) => sum + parseFloat(s.totalAmount), 0);
           const userCardSales = salesData.filter(s => s.paymentMethod === "card").reduce((sum, s) => sum + parseFloat(s.totalAmount), 0);
           console.log("[DayOps][closeDay][user] totals:", { userTotalSales, userCashSales, userCardSales, closingCash: parseFloat(closingCash ?? 0) });
-          const reportData = dayOperation.reportData || {};
-          const userOrderStats = reportData.userOrderStats || [];
+          // IMPORTANT: avoid mutating instance JSON references; deep-clone first so Sequelize detects changes
+          const baseReportData = JSON.parse(JSON.stringify(dayOperation.reportData || {}));
+          const userOrderStats = Array.isArray(baseReportData.userOrderStats) ? [...baseReportData.userOrderStats] : [];
           const idx = userOrderStats.findIndex(u => u.userId === userId);
           const now = new Date();
           console.log("[DayOps][closeDay][user] Updating user stats", { hasExisting: idx >= 0, listLen: userOrderStats.length });
@@ -400,20 +403,39 @@ const dayOperationsController = {
           }
           console.log("[DayOps][closeDay][user] Persisting user stats (len):", userOrderStats.length);
           const updatedReportData = {
-            ...dayOperation.reportData,
+            ...baseReportData,
             userOrderStats: [...userOrderStats]
           };
           console.log("[DayOps][closeDay][user] Updating reportData:", JSON.stringify(updatedReportData, null, 2));
-          await dayOperation.update({ reportData: updatedReportData }, { transaction, logging: console.log });
-          console.log("[DEBUG] After update - reloaded reportData:", JSON.stringify(dayOperation.reportData, null, 2));
+          // User-specific close should NOT change global day status/financials.
+          // Only update per-user stats inside reportData and lastActivity.
+          // Use Model.update with where clause to ensure UPDATE is issued even if instance references were previously mutated
+          await DayOperation.update(
+            { reportData: updatedReportData, lastActivity: now.toISOString() },
+            { where: { id: dayOperation.id }, transaction, logging: console.log }
+          );
           await dayOperation.reload({ transaction });
-          await transaction.commit();
-          console.log("[DayOps][closeDay][user] Commit successful for user-specific close", { dayId: dayOperation.id, userId });
-          return res.status(200).json({
-            message: "User day closed",
-            dayOperation,
-            userStats: userOrderStats.find(u => u.userId === userId)
-          });
+
+          if (!shouldFinalize) {
+            await transaction.commit();
+            const freshDayOperation = await DayOperation.findByPk(dayOperation.id); // ✅ confirm persisted
+            console.log("[DayOps][closeDay][user] Commit successful for user-specific close", { dayId: dayOperation.id, userId });
+            return res.status(200).json({
+              message: "User shift closed successfully",
+              dayOperation: freshDayOperation,
+              dailyReport: updatedReportData,
+              summary: {
+                userId,
+                userName,
+                orderCount: salesData.length,
+                totalAmount: userTotalSales,
+                cashSales: userCashSales,
+                cardSales: userCardSales,
+                closingCash: parseFloat(closingCash ?? 0)
+              }
+            });
+          }
+          // If shouldFinalize is true, fall through to the global close path below without committing/returning here
         } catch (e) {
           await transaction.rollback();
           console.error("Error updating user-specific close:", e);
@@ -437,6 +459,7 @@ const dayOperationsController = {
       const totalTransactions = salesData.length;
       const averageTicket = totalTransactions > 0 ? totalSales / totalTransactions : 0;
       console.log("[DayOps][closeDay] totals:", { totalSales, totalTransactions, averageTicket });
+      // Compute expected/actual cash for the global close path
       const expectedCash = parseFloat(dayOperation.openingCash) + totalSales;
       const actualClosingCash = parseFloat(closingCash || 0);
       const cashVariance = actualClosingCash - expectedCash;
