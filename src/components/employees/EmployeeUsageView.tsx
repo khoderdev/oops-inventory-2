@@ -7,10 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast";
 import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, usagesAtom, usagesFiltersAtom, usagesLoadingAtom, usageStatsAtom } from "@/store/employeeAtoms";
 import type { EmployeeUsage, EmployeeUsageType, EmployeeSettlement } from "@/types/employee";
-import { addDays } from "date-fns";
-import { useAtom } from "jotai";
 import { ArrowRight, ChevronDown, ChevronRight, Download, Filter, ShoppingCart, TrendingUp, UserPlus } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useAtom, useAtomValue } from "jotai";
+import { format, addDays } from "date-fns";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useNavigate } from "react-router-dom";
 
 interface EmployeeUsageViewProps {

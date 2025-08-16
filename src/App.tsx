@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Employee, EmployeeSettlements, EmployeeTable, EmployeeUsageView } from "./components/employees";
+import { Employee, EmployeeSettlements, EmployeeTable, EmployeeUsagePrefetch } from "./components/employees";
 import { POSClientOrders } from "./components/pos/POSClientOrders";
 import System from "./components/system";
 import { DatabaseBackupManager } from "./components/system/settings";
@@ -228,7 +228,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 element={
                   <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_USAGE_VIEW}>
                     <AuthenticatedLayout>
-                      <EmployeeUsageView />
+                      <EmployeeUsagePrefetch />
                     </AuthenticatedLayout>
                   </ProtectedRoute>
                 }
