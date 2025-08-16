@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import { format, addDays } from "date-fns";
-import { useNavigate } from "react-router-dom";
-import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, getExpandedRowModel } from "@tanstack/react-table";
+import { addDays } from "date-fns";
+import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, getExpandedRowModel, ExpandedState } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 // UI Components
@@ -13,13 +12,9 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
-
-// Icons
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-
-// Atoms and Types
-import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, usagesAtom, usagesFiltersAtom, usagesLoadingAtom, usageStatsAtom } from "@/store/employeeAtoms";
-import type { EmployeeUsage, EmployeeUsageType, EmployeeSettlement } from "@/types/employee";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, usagesAtom, usagesFiltersAtom, usageStatsAtom } from "@/store/employeeAtoms";
+import type { EmployeeUsage, EmployeeUsageType, GroupedOrder, SettlementStatus } from "@/types/employee";
 
 // Utility functions defined inline
 const formatCurrency = (amount: number) => {
@@ -40,34 +35,8 @@ const formatDateTime = (dateString: string) => {
   return new Date(dateString).toLocaleString();
 };
 
-// Define GroupedOrder type based on the existing implementation
-type GroupedOrder = {
-  posTransactionId: string;
-  employee: {
-    id: number;
-    employeeNumber: string;
-    user?: {
-      firstName?: string;
-      lastName?: string;
-    };
-  };
-  creator?: {
-    id: number;
-    firstName: string;
-    lastName: string;
-    username: string;
-  };
-  orderDate: string;
-  items: EmployeeUsage[];
-  totalCost: number;
-  totalDiscountAmount: number;
-  finalCost: number;
-  itemCount: number;
-  isSettled: boolean;
-};
 
 export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = null, isLoading = false }: { prefetchedUsages?: EmployeeUsage[] | null; prefetchedStats?: any | null; isLoading?: boolean }) => {
-  // Atoms
   const [usages, setUsages] = useAtom(usagesAtom);
   const [filters, setFilters] = useAtom(usagesFiltersAtom);
   const [, fetchUsages] = useAtom(fetchUsageAtom);
@@ -75,14 +44,10 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
   const employees = useAtomValue(employeesAtom);
   const stats = useAtomValue(usageStatsAtom);
   const settlements = useAtomValue(settlementsAtom);
-
-  // Store all usages for client-side filtering
   const [allUsages, setAllUsages] = useState<EmployeeUsage[]>(Array.isArray(prefetchedUsages) ? prefetchedUsages : []);
   const [allStats, setAllStats] = useState<any>(prefetchedStats || {});
   const [, setStats] = useAtom(usageStatsAtom);
   const initialLoadComplete = useRef(false);
-
-  // Local state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [selectedUsageType, setSelectedUsageType] = useState<EmployeeUsageType | "all">("all");
   const [selectedSettlementStatus, setSelectedSettlementStatus] = useState<"all" | "settled" | "unsettled">("all");
@@ -93,36 +58,27 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     from: addDays(new Date(), -30),
     to: new Date()
   });
-  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [expandedRows, setExpandedRows] = useState<ExpandedState>({});
+  const [rowSelection, setRowSelection] = React.useState({});
+  // This state is not used anymore, we're using expandedRows instead
+  // const [expanded, setExpanded] = React.useState<ExpandedState>({});
 
-  // Apply client-side filtering to usages
   const filteredUsages = useMemo(() => {
-    // Ensure allUsages is an array before filtering
     const usagesArray = Array.isArray(allUsages) ? allUsages : [];
-    
     return usagesArray.filter(usage => {
-      // Skip null/undefined items
-      if (!usage || typeof usage !== 'object') return false;
-      
-      // Filter by employee
+      if (!usage || typeof usage !== "object") return false;
       if (selectedEmployeeId && usage.employee?.id?.toString() !== selectedEmployeeId) {
         return false;
       }
-
-      // Filter by usage type
       if (selectedUsageType !== "all" && usage.usageType !== selectedUsageType) {
         return false;
       }
-
-      // Filter by settlement status
       if (selectedSettlementStatus === "settled" && !usage.isSettled) {
         return false;
       }
       if (selectedSettlementStatus === "unsettled" && usage.isSettled) {
         return false;
       }
-
-      // Filter by date range
       if (dateRange.from && dateRange.to) {
         const usageDate = new Date(usage.usageDate);
         const startDate = new Date(dateRange.from);
@@ -139,7 +95,6 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     });
   }, [allUsages, selectedEmployeeId, selectedUsageType, selectedSettlementStatus, dateRange]);
 
-  // Group orders by transaction ID
   const groupedOrders = useMemo(() => {
     const orderMap = new Map<string, GroupedOrder>();
     filteredUsages.forEach(usage => {
@@ -204,11 +159,23 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     return Array.from(orderMap.values()).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   }, [filteredUsages]);
 
-  // Load all data on component mount once
+  useEffect(() => {
+    console.log('EmployeeUsageView - prefetchedUsages received:', prefetchedUsages);
+    console.log('EmployeeUsageView - prefetchedStats received:', prefetchedStats);
+    
+    if (prefetchedUsages) {
+      setAllUsages(prefetchedUsages);
+      console.log('EmployeeUsageView - allUsages set to:', prefetchedUsages);
+    }
+    if (prefetchedStats) {
+      setAllStats(prefetchedStats);
+      console.log('EmployeeUsageView - allStats set to:', prefetchedStats);
+    }
+  }, [prefetchedUsages, prefetchedStats]);
+
   useEffect(() => {
     const loadAllData = async () => {
       if (prefetchedUsages && prefetchedStats) {
-        // Use prefetched data if available, ensuring it's an array
         setAllUsages(Array.isArray(prefetchedUsages) ? prefetchedUsages : []);
         setAllStats(prefetchedStats || {});
         initialLoadComplete.current = true;
@@ -216,16 +183,15 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
       }
 
       try {
-        // Fetch all data without filters for client-side filtering
         const baseFilters = {
-          startDate: addDays(new Date(), -90).toISOString().split("T")[0], // Get 90 days of data
+          startDate: addDays(new Date(), -90).toISOString().split("T")[0],
           endDate: new Date().toISOString().split("T")[0]
         };
 
         const [usagesData, statsData] = await Promise.all([fetchUsages(baseFilters), fetchStats(baseFilters)]);
-
-        // Store all data for client-side filtering
-        setAllUsages(Array.isArray(usagesData) ? usagesData : []);
+        // Correctly access the data structure returned by the fetch atoms
+        // fetchUsageAtom returns { usages: EmployeeUsage[], pagination: {...} }
+        setAllUsages(Array.isArray(usagesData?.usages) ? usagesData.usages : []);
         setAllStats(statsData || {});
         initialLoadComplete.current = true;
       } catch (error) {
@@ -238,8 +204,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     }
   }, [prefetchedUsages, prefetchedStats, fetchUsages, fetchStats]);
 
-  // Update filters in the atom for other components that might need it
-  useEffect(() => {
+    useEffect(() => {
     if (initialLoadComplete.current) {
       const updatedFilters = {
         ...filters,
@@ -251,50 +216,44 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     }
   }, [selectedEmployeeId, dateRange, filters, setFilters]);
 
-  // Update usages atom with filtered results for other components that might need it
   useEffect(() => {
     if (initialLoadComplete.current) {
-      setUsages(filteredUsages);
-      setStats(allStats); // Update the stats atom with the current stats
+      // Ensure we're passing the correct type to setUsages
+      setUsages(Array.isArray(filteredUsages) ? filteredUsages : []);
+      setStats(allStats);
     }
   }, [filteredUsages, allStats, setUsages, setStats]);
 
-  // Handle adding items to settlement with memoized callback
   const addToSettlement = useCallback(
     async (usageIds: number[], settlementId: number) => {
       try {
         const { addUsagesToSettlement } = await import("@/api/employee.api");
         await addUsagesToSettlement(settlementId, usageIds);
-
-        // Refresh all data to maintain consistency
         const baseFilters = {
           startDate: addDays(new Date(), -90).toISOString().split("T")[0],
           endDate: new Date().toISOString().split("T")[0]
         };
-
         const [usagesData, statsData] = await Promise.all([fetchUsages(baseFilters), fetchStats(baseFilters)]);
-
-        // Update all data for client-side filtering
         setAllUsages(usagesData || []);
         setAllStats(statsData || {});
-
         toast({
           title: "Success",
-          description: "Items added to settlement successfully"
+          description: "Items added to settlement successfully",
+          duration: 1500,
         });
       } catch (error) {
         console.error("Failed to add items to settlement:", error);
         toast({
           title: "Error",
           description: "Failed to add items to settlement",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 1500,
         });
       }
     },
     [fetchUsages, fetchStats, toast]
   );
 
-  // Handle adding all order items to settlement with memoized callback
   const addOrderToSettlement = useCallback(
     async (order: GroupedOrder, settlementId: number) => {
       const usageIds = order.items.filter(item => !item.isSettled).map(item => item.id);
@@ -310,7 +269,6 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     [addToSettlement, toast]
   );
 
-  // Handle adding a single usage item to settlement with memoized callback
   const addItemToSettlement = useCallback(
     async (usage: EmployeeUsage, settlementId: number) => {
       if (usage.isSettled) {
@@ -325,7 +283,6 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     [addToSettlement, toast]
   );
 
-  // Toggle row expansion with memoized callback
   const toggleOrderExpansion = useCallback((orderId: string) => {
     setExpandedRows(prev => ({
       ...prev,
@@ -333,10 +290,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     }));
   }, []);
 
-  // Define TanStack Table columns with memoization
   const columnHelper = createColumnHelper<GroupedOrder>();
-
-  // Memoize the columns definition to prevent unnecessary re-renders
   const columns = useMemo(
     () => [
       columnHelper.display({
@@ -423,7 +377,8 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
         cell: ({ row }) => {
           const order = row.original;
           const hasUnsettledItems = order.items.some(item => !item.isSettled);
-          const employeeSettlements = settlements.filter(s => s.employeeId === order.employee.id && s.status !== "closed");
+          // Filter settlements that are open (using the correct status type)
+          const employeeSettlements = settlements.filter(s => s.employeeId === order.employee?.id && s.status === "pending");
 
           return (
             <div className="flex space-x-2">
@@ -463,15 +418,25 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     getExpandedRowModel: getExpandedRowModel(),
     getRowCanExpand: () => true,
     state: {
-      expanded: Object.fromEntries(Object.entries(expandedRows).map(([key, value]) => [key, value]))
+      expanded: expandedRows,
+      rowSelection
     },
     onExpandedChange: updater => {
       if (typeof updater === "function") {
-        setExpandedRows(updater(expandedRows));
+        setExpandedRows(prev => {
+          // Handle the case where updater returns a boolean (toggle all)
+          const result = updater(prev);
+          return typeof result === 'boolean' ? (result ? prev : {}) : result;
+        });
+      } else if (typeof updater === 'boolean') {
+        // Handle boolean toggle all case
+        setExpandedRows(updater ? expandedRows : {});
       } else {
+        // Handle direct object assignment
         setExpandedRows(updater);
       }
-    }
+    },
+    onRowSelectionChange: setRowSelection
   });
 
   // Set up virtualization with optimized settings
@@ -490,6 +455,15 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
         ? element => element?.getBoundingClientRect().height
         : undefined
   });
+
+  // Handle expand/collapse all rows
+  const handleExpandAll = () => {
+    table.toggleAllRowsExpanded(true);
+  };
+
+  const handleCollapseAll = () => {
+    table.toggleAllRowsExpanded(false);
+  };
 
   return (
     <div className="space-y-4">
@@ -531,7 +505,11 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
           </SelectContent>
         </Select>
 
-        <DatePickerWithRange className="w-full sm:w-auto" value={dateRange} onValueChange={setDateRange} />
+        <DatePickerWithRange
+          className="w-full md:w-auto"
+          date={dateRange}
+          setDate={setDateRange}
+        />
       </div>
 
       {/* Stats Cards */}
@@ -603,9 +581,11 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
                     </TableRow>
                   ))}
                 </TableHeader>
-                <TableBody>
-                  {isLoading || !initialLoadComplete.current ? (
-                    Array.from({ length: 5 }).map((_, i) => (
+                
+                {isLoading || !initialLoadComplete.current ? (
+                  // Loading state
+                  <TableBody>
+                    {Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={`loading-${i}`}>
                         {Array.from({ length: columns.length }).map((_, j) => (
                           <TableCell key={`loading-cell-${i}-${j}`} className="py-2">
@@ -613,57 +593,64 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
                           </TableCell>
                         ))}
                       </TableRow>
-                    ))
-                  ) : groupedOrders.length === 0 ? (
+                    ))}
+                  </TableBody>
+                ) : groupedOrders.length === 0 ? (
+                  // Empty state
+                  <TableBody>
                     <TableRow>
                       <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
                         No orders found
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    <div
-                      style={{
-                        height: `${rowVirtualizer.getTotalSize()}px`,
-                        width: "100%",
-                        position: "relative"
-                      }}
-                    >
-                      {rowVirtualizer.getVirtualItems().map(virtualRow => {
-                        const row = rows[virtualRow.index];
-                        return (
-                          <div
-                            key={row.id}
-                            data-index={virtualRow.index}
-                            ref={rowVirtualizer.measureElement} // Add measurement ref for dynamic row heights
-                            style={{
-                              position: "absolute",
-                              top: 0,
-                              left: 0,
-                              width: "100%",
-                              transform: `translateY(${virtualRow.start}px)`,
-                              willChange: "transform" // Optimize for animations
-                            }}
-                          >
-                            <TableRow
-                              className="hover:bg-muted/50 cursor-pointer"
-                              onClick={() => {
-                                row.toggleExpanded();
-                              }}
-                            >
-                              {row.getVisibleCells().map(cell => (
-                                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                              ))}
-                            </TableRow>
-                            {row.getIsExpanded() && (
-                              <TableRow>
-                                <TableCell colSpan={columns.length} className="p-0">
-                                  <div className="bg-muted/50 p-4">
+                  </TableBody>
+                ) : (
+                  // Virtualized rows
+                  <TableBody>
+                    <tr style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+                      <td colSpan={columns.length} style={{ padding: 0 }}>
+                        <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+                          {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                            const row = rows[virtualRow.index];
+                            const isExpanded = row.getIsExpanded();
+                            
+                            return (
+                              <React.Fragment key={row.id}>
+                                {/* Main row */}
+                                <TableRow 
+                                  data-index={virtualRow.index}
+                                  ref={node => {
+                                    if (node) rowVirtualizer.measureElement(node);
+                                  }}
+                                  className="hover:bg-muted/50 cursor-pointer absolute w-full"
+                                  onClick={() => row.toggleExpanded()}
+                                  style={{
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                    height: virtualRow.size
+                                  }}
+                                >
+                                  {row.getVisibleCells().map(cell => (
+                                    <TableCell key={cell.id}>
+                                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                    </TableCell>
+                                  ))}
+                                </TableRow>
+                                
+                                {/* Expanded content - rendered outside the table for proper DOM nesting */}
+                                {isExpanded && (
+                                  <div 
+                                    className="absolute w-full bg-muted/50 p-4 rounded-md"
+                                    style={{
+                                      transform: `translateY(${virtualRow.start + virtualRow.size}px)`,
+                                      zIndex: 10
+                                    }}
+                                  >
                                     <div className="text-lg font-semibold mb-2">Order Details</div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                                      {row.original.items.map((usage, index) => (
+                                      {row.original.items.map((usage) => (
                                         <div key={usage.id} className="bg-card rounded-lg p-3 border">
                                           <div className="flex justify-between items-start mb-2">
-                                            <div className="font-medium">{usage.item.name}</div>
+                                            <div className="font-medium">{usage.item?.name || 'Unknown Item'}</div>
                                             <Badge variant={usage.isSettled ? "default" : "outline"} className={usage.isSettled ? "bg-green-100 text-green-800" : ""}>
                                               {usage.isSettled ? "Settled" : "Unsettled"}
                                             </Badge>
@@ -700,7 +687,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                   {settlements
-                                                    .filter(s => s.employeeId === row.original.employee.id && s.status !== "closed")
+                                                    .filter(s => s.employeeId === row.original.employee?.id && s.status === "pending")
                                                     .map(settlement => (
                                                       <SelectItem key={settlement.id} value={settlement.id.toString()}>
                                                         {settlement.name}
@@ -747,15 +734,15 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
                                       </div>
                                     )}
                                   </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </TableBody>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    </tr>
+                  </TableBody>
+                )}
               </Table>
             </div>
           </div>

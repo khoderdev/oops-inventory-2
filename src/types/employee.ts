@@ -55,6 +55,8 @@ export interface Employee {
 
 // Employee Usage Interface
 export interface EmployeeUsage {
+  item: any;
+  unitPrice: any;
   id: number;
   employeeId: number;
   usageType: EmployeeUsageType;
@@ -116,6 +118,7 @@ export interface EmployeeUsage {
 
 // Employee Settlement Interface
 export interface EmployeeSettlement {
+  name: string;
   id: number;
   employeeId: number;
   settlementMonth: number;
@@ -378,6 +381,9 @@ export interface EmployeeStats {
 }
 
 export interface UsageStats {
+  totalRecords: number;
+  totalCost: number;
+  finalCost: number;
   byType: Array<{
     usageType: EmployeeUsageType;
     count: number;
@@ -585,3 +591,29 @@ export interface POSEmployeeUsageData {
   posTransactionId: string;
   notes?: string;
 }
+
+
+export type GroupedOrder = {
+  posTransactionId: string;
+  employee: {
+    id: number;
+    employeeNumber: string;
+    user?: {
+      firstName?: string;
+      lastName?: string;
+    };
+  };
+  creator?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    username: string;
+  };
+  orderDate: string;
+  items: EmployeeUsage[];
+  totalCost: number;
+  totalDiscountAmount: number;
+  finalCost: number;
+  itemCount: number;
+  isSettled: boolean;
+};

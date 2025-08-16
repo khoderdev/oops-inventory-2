@@ -966,12 +966,10 @@ export interface ReportTableProps {
   reportType: ReportType;
   data: Record<string, unknown>[] & {
     summary?: {
-      // Waste report summary
       totalWasteQuantity?: number;
       totalWasteCost?: number;
       totalMaterials?: number;
       totalEntriesAffected?: number;
-      // Variance analysis summary
       totalCostVariance?: number;
       avgVariancePercentage?: number;
       highestVariance?: {

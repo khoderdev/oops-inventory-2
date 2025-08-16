@@ -3,7 +3,7 @@ import { useAtom } from "jotai";
 import { addDays } from "date-fns";
 import { EmployeeUsageView } from "./EmployeeUsageViewRefactored";
 import { fetchUsageAtom, fetchUsageStatsAtom } from "@/store/employeeAtoms";
-import type { EmployeeUsage } from "@/types/employee";
+import type { EmployeeUsage, EmployeeUsagesResponse, UsageStats } from "@/types/employee";
 
 /**
  * Parent component that prefetches employee usage data and passes it to the EmployeeUsageView
@@ -17,7 +17,7 @@ export const EmployeeUsagePrefetch: React.FC = () => {
   
   // State for prefetched data
   const [prefetchedUsages, setPrefetchedUsages] = useState<EmployeeUsage[] | null>(null);
-  const [prefetchedStats, setPrefetchedStats] = useState<any | null>(null);
+  const [prefetchedStats, setPrefetchedStats] = useState<UsageStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Prefetch data on component mount
@@ -33,15 +33,20 @@ export const EmployeeUsagePrefetch: React.FC = () => {
         };
         
         // Fetch both usages and stats in parallel
-        const [usagesData, statsData] = await Promise.all([
+        const [usagesResponse, statsResponse] = await Promise.all([
           fetchUsages(baseFilters),
           fetchStats(baseFilters)
         ]);
         
-        // Store the prefetched data
-        // The API returns { usages: EmployeeUsage[], pagination: {...} }
-        setPrefetchedUsages(usagesData?.usages || []);
-        setPrefetchedStats(statsData || {});
+
+        console.log('EmployeeUsagePrefetch - usagesResponse:', usagesResponse);
+        console.log('EmployeeUsagePrefetch - statsResponse:', statsResponse);
+        
+        setPrefetchedUsages(usagesResponse?.usages || []);
+        setPrefetchedStats(statsResponse as UsageStats);
+        
+        console.log('EmployeeUsagePrefetch - prefetchedUsages set to:', usagesResponse?.usages || []);
+        console.log('EmployeeUsagePrefetch - prefetchedStats set to:', statsResponse);
       } catch (error) {
         console.error("Failed to prefetch employee usage data:", error);
       } finally {
