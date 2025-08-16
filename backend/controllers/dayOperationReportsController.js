@@ -234,7 +234,10 @@ const dayOperationReportsController = {
       const { generatedBy = "System" } = req.body;
       
       // Find the day operation
-      const dayOperation = await DayOperation.findByPk(dayOperationId, { transaction });
+      const dayOperation = await DayOperation.findByPk(dayOperationId, {
+        include: [{ model: User, as: 'users' }],
+        transaction
+      });
       
       if (!dayOperation) {
         await transaction.rollback();
@@ -267,11 +270,43 @@ const dayOperationReportsController = {
         });
       }
       
+      // Generate user-specific reports
+      const userReports = [];
+      
+      // If userOrderStats exists in reportData, use it to generate user reports
+      if (dayOperation.reportData?.userOrderStats && Array.isArray(dayOperation.reportData.userOrderStats)) {
+        for (const userStat of dayOperation.reportData.userOrderStats) {
+          // Calculate expected closing cash for this user based on their sales
+          const openingCash = userStat.openingCash || 0;
+          const totalCashSales = userStat.cashSales || 0;
+          const expectedClosingCash = openingCash + totalCashSales;
+          const actualClosingCash = userStat.closingCash || 0;
+          const variance = actualClosingCash - expectedClosingCash;
+          const variancePercentage = expectedClosingCash > 0 ? (variance / expectedClosingCash) * 100 : 0;
+          
+          userReports.push({
+            userId: userStat.userId,
+            userName: userStat.userName,
+            openingTime: userStat.openingTime,
+            closingTime: userStat.closingTime,
+            openingCash: openingCash,
+            closingCash: actualClosingCash,
+            expectedClosingCash: expectedClosingCash,
+            variance: variance,
+            variancePercentage: variancePercentage,
+            orderCount: userStat.orderCount || 0,
+            totalAmount: userStat.totalAmount || 0,
+            notes: userStat.notes
+          });
+        }
+      }
+      
       // Use the reportData from dayOperation to create the report
       const report = await DayOperationReport.create({
         dayOperationId,
         reportDate: dayOperation.date,
         reportType: "daily",
+        userReports: userReports,
         salesSummary: dayOperation.reportData?.sales || {},
         cashSummary: dayOperation.reportData?.cash || {},
         inventorySummary: dayOperation.reportData?.inventory || {},

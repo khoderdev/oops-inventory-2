@@ -94,6 +94,68 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               </div>
             </div>
 
+            {/* User-specific Reports */}
+            {selectedReport.userReports && selectedReport.userReports.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-semibold text-gray-900 mb-3">Individual User Reports</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="py-2 px-3 text-left text-sm font-medium text-gray-700">Staff</th>
+                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Opening Cash</th>
+                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Expected Closing</th>
+                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Actual Closing</th>
+                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Variance</th>
+                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Orders</th>
+                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Sales</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedReport.userReports.map((userReport, index) => (
+                        <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                          <td className="py-2 px-3 text-sm font-medium text-gray-900">{userReport.userName}</td>
+                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{formatCurrency(userReport.openingCash)}</td>
+                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{formatCurrency(userReport.expectedClosingCash)}</td>
+                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{formatCurrency(userReport.closingCash)}</td>
+                          <td className="py-2 px-3 text-sm text-right">
+                            <span className={`font-medium ${userReport.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                              {formatCurrency(userReport.variance)}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{userReport.orderCount}</td>
+                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{formatCurrency(userReport.totalAmount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-100">
+                      <tr>
+                        <td className="py-2 px-3 text-sm font-medium text-gray-900">Total</td>
+                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
+                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.openingCash, 0))}
+                        </td>
+                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
+                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.expectedClosingCash, 0))}
+                        </td>
+                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
+                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.closingCash, 0))}
+                        </td>
+                        <td className="py-2 px-3 text-sm font-medium text-right">
+                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.variance, 0))}
+                        </td>
+                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
+                          {selectedReport.userReports.reduce((sum, user) => sum + user.orderCount, 0)}
+                        </td>
+                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
+                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.totalAmount, 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Sales by Section */}
             {selectedReport.salesBySection && Object.keys(selectedReport.salesBySection).length > 0 && (
               <div className="mt-6">

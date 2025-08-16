@@ -1134,12 +1134,28 @@ export interface DayActivitiesResponse {
 //-----------------------------------------------------------------------------
 // Day Operation Reports Types
 
+export interface UserDayReport {
+  userId: number;
+  userName: string;
+  openingTime?: Date;
+  closingTime?: Date;
+  openingCash: number;
+  closingCash: number;
+  expectedClosingCash: number;
+  variance: number;
+  variancePercentage: number;
+  orderCount: number;
+  totalAmount: number;
+  notes?: string;
+}
+
 export interface DayOperationReport {
   date: string;
   id: number;
   dayOperationId: number;
   reportDate: string;
   reportType: "daily" | "weekly" | "monthly" | "custom";
+  userReports?: UserDayReport[];
   salesSummary: {
     totalAmount: number;
     totalTransactions: number;
