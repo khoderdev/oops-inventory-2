@@ -25,8 +25,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [isResizing, setIsResizing] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [showDayOperationsModal, setShowDayOperationsModal] = useState(false);
-  const [isDayOpen, setIsDayOpen] = useState(false); // Default to closed
-  const [userDayOpen, setUserDayOpen] = useState(false); // Track current user's day status
+  const [isDayOpen, setIsDayOpen] = useState(false);
+  const [userDayOpen, setUserDayOpen] = useState(false);
   const [dayOperationType, setDayOperationType] = useState<"open" | "close">("open");
   const [dayFormData, setDayFormData] = useState<DayOperationsFormData>({});
   const [isLoadingDayOperation, setIsLoadingDayOperation] = useState(false);
@@ -40,17 +40,14 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         const { currentDay } = await dayOperationsAPI.getCurrentDayOperation();
         const isOpen = currentDay && !currentDay.closedAt;
         setIsDayOpen(isOpen);
-        
         if (currentDay) {
           setCurrentDay({ 
             expectedCash: currentDay.expectedCash || currentDay.openingCash || 0 
           });
-          
           // Get user-specific order stats
           try {
             const { userOrderStats: stats } = await dayOperationsAPI.getUserOrderStats();
             setUserOrderStats(stats);
-            
             // Check if current user has opened their day
             if (user && stats) {
               const currentUserStats = stats.find(stat => stat.userId === user.id);
@@ -79,14 +76,10 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         setUserOrderStats([]);
       }
     };
-    
     fetchDayStatus();
-    
-    // Set up interval to refresh day status every 5 minutes
     const intervalId = setInterval(fetchDayStatus, 5 * 60 * 1000);
-    
     return () => clearInterval(intervalId);
-  }, [user]);  // Re-run when user changes
+  }, [user]);
 
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -102,18 +95,15 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       const newWidth = e.clientX - containerRect.left;
       const minWidth = 200;
       const maxWidth = containerRect.width * 0.35;
-
       if (newWidth >= minWidth && newWidth <= maxWidth) {
         setLeftPanelWidth(newWidth);
       }
     };
-
     const handleMouseUp = () => {
       setIsResizing(false);
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
   }, []);
@@ -137,7 +127,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   const fetchOrdersCount = useCallback(async () => {
     try {
-      const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
+      const response = await ordersAPI.getOrders({ limit: 1000, offset: 0 });
       interface OrderData {
         id: string;
         createdAt?: string;
@@ -261,29 +251,18 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   };
 
-  const handleLogout = async () => {
-    if (onLogout) {
-      onLogout();
-    } else {
-      await logout();
-    }
-    setShowLogoutDialog(false);
-  };
 
   // Day Operations handlers
   const handleOpenDayOperationsModal = () => {
     // For staff users, we're tracking their individual day status
     const isUserDay = hasRole("staff");
     const shouldClose = isUserDay ? userDayOpen : isDayOpen;
-    
     setDayOperationType(shouldClose ? "close" : "open");
-    
     // Find user's current stats if available
     let userExpectedCash = 0;
     let userOpeningCash = 0;
     let userCashSales = 0;
     let userCardSales = 0;
-    
     if (user && userOrderStats.length > 0) {
       const currentUserStats = userOrderStats.find(stat => stat.userId === user.id);
       if (currentUserStats) {
@@ -291,13 +270,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         userCashSales = currentUserStats.cashSales || 0;
         userCardSales = currentUserStats.cardSales || 0;
         userExpectedCash = userOpeningCash + userCashSales;
-        
-        console.log(`User stats for ${user.username}:`, {
-          openingCash: userOpeningCash,
-          cashSales: userCashSales,
-          cardSales: userCardSales,
-          expectedCash: userExpectedCash
-        });
       }
     }
     
@@ -307,7 +279,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       openedBy: user?.username || "",
       closedBy: user?.username || "",
       notes: "",
-      // Include additional stats for reference
       userId: user?.id
     });
     
@@ -327,7 +298,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         const openDayRequest: OpenDayRequest = {
           openingCash: dayFormData.openingCash,
           openedBy: dayFormData.openedBy,
-          notes: dayFormData.notes
+          notes: dayFormData.notes,
+          userId: user?.id
         };
         await dayOperationsAPI.openDay(openDayRequest);
       } else {
@@ -335,7 +307,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         const closeDayRequest: CloseDayRequest = {
           closingCash: dayFormData.closingCash || 0,
           closedBy: dayFormData.closedBy,
-          notes: dayFormData.notes
+          notes: dayFormData.notes,
+          userId: user?.id
         };
         await dayOperationsAPI.closeDay(closeDayRequest);
       }
@@ -365,7 +338,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     } catch (error) {
       // Handle error and show error message
       console.error(`Failed to ${dayOperationType} day:`, error);
-      
       try {
         const { toast } = await import("@/components/ui/use-toast");
         toast({

@@ -1,5 +1,6 @@
 import api from "@/lib/http";
-import { CloseDayRequest, DailyReportData, DayActivitiesResponse, DayOperation, DayOperationResponse, DayOperationsListResponse, OpenDayRequest, UserOrderStats } from "../types/inventory";
+import { CloseDayRequest, DailyReportData, DayActivitiesResponse, DayOperation, DayOperationResponse, DayOperationsListResponse, OpenDayRequest } from "../types/inventory";
+import { UserOrderStats } from "../types/dayOperations";
 
 export const dayOperationsAPI = {
   // Get all day operations with pagination

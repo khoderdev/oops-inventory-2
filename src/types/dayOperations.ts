@@ -6,6 +6,7 @@ export interface DayOperationsFormData {
   openedBy?: string;
   closedBy?: string;
   notes?: string;
+  userId?: number;
 }
 
 export interface UserOrderStats {
