@@ -1003,6 +1003,7 @@ export interface StockSnapshot {
 }
 
 export interface StockVariance {
+  cost: number;
   stockEntryId: number;
   materialId: number;
   materialName: string;
