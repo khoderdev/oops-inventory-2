@@ -1,23 +1,24 @@
 import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Plus, ToggleLeft, ToggleRight, TrendingUp, XCircle } from "lucide-react";
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { dayOperationsAPI } from "../api/dayOperations.api";
-
-// Destructure API methods for cleaner usage
-const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
 import { useAuth } from "../contexts/AuthContext";
-import DayOperationsModal, { DayOperationsFormData } from "../components/DayOperationsModal/DayOperationsModal";
+import DayOperationsModal from "../components/DayOperationsModal/DayOperationsModal";
 import DailyReports from "../components/analytics/DailyReports";
 import ViewReportButton from "../components/ui/ViewReportButton";
 import { useDailyReports } from "../hooks/useDailyReports";
-import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest, UserOrderStats } from "../types/inventory";
+import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
+import type { UserOrderStats } from "@/types/dayOperations";
+import { DayOperationsFormData } from "@/types/dayOperations";
+import { formatCurrency, formatDate, formatDateTime, formatWeekday } from "@/utils/dayOperationsFormattings";
+
+// Destructure API methods for cleaner usage
+const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
 
 const DayOperationsPage: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
   const [recentDays, setRecentDays] = useState<DayOperation[]>([]);
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [, setActivities] = useState<ActivityLog[]>([]);
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -25,20 +26,8 @@ const DayOperationsPage: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [showTotalSales, setShowTotalSales] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Form states - automatically populate user information
-  const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({
-    openingCash: 0,
-    openedBy: user?.fullName || "",
-    notes: ""
-  });
-  const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({
-    closingCash: 0,
-    closedBy: user?.fullName || "",
-    notes: ""
-  });
-
-  // Modal states
+  const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
+  const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "" });
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
 
@@ -50,7 +39,6 @@ const DayOperationsPage: React.FC = () => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000); // Update every second
-
     return () => clearInterval(timer);
   }, []);
 
@@ -91,28 +79,23 @@ const DayOperationsPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-
       // Load current day
       const currentResponse = await getCurrentDayOperation();
       setCurrentDay(currentResponse.currentDay);
-
       // Load recent days
       const recentResponse = await getDayOperations(1, 10);
-
       // Debug: Log the date values to understand the format
       console.log(
         "🔍 Debug - Recent days data:",
         recentResponse.dayOperations.map(day => {
           const dateStr = day.date;
           let localDate: Date;
-
           if (typeof dateStr === "string" && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
             const [year, month, dayNum] = dateStr.split("-").map(Number);
             localDate = new Date(year, month - 1, dayNum);
           } else {
             localDate = new Date(dateStr);
           }
-
           return {
             id: day.id,
             date: dateStr,
@@ -126,15 +109,12 @@ const DayOperationsPage: React.FC = () => {
           };
         })
       );
-
       setRecentDays(recentResponse.dayOperations);
-
       // Load current day activities if day is open
       if (currentResponse.currentDay && currentResponse.currentDay.status === "opened") {
         try {
           const activitiesResponse = await getCurrentDayActivities();
           setActivities(activitiesResponse.activities);
-          
           // Load user order statistics
           try {
             const statsResponse = await getUserOrderStats();
@@ -158,18 +138,14 @@ const DayOperationsPage: React.FC = () => {
     try {
       setActionLoading(true);
       setError(null);
-
       const response = await openDay(openDayForm);
-
       // Immediately update the current day state with the response
       if (response.dayOperation) {
         setCurrentDay(response.dayOperation);
       }
-
       setSuccess(`Day opened successfully! ${response.stockItemsCaptured} stock items captured.`);
       setShowOpenModal(false);
       setOpenDayForm({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
-
       // Add a small delay then refresh to ensure backend consistency
       setTimeout(async () => {
         await loadData();
@@ -185,18 +161,14 @@ const DayOperationsPage: React.FC = () => {
     try {
       setActionLoading(true);
       setError(null);
-
       const response = await closeDay(closeDayForm);
-
       // Immediately update the current day state with the response
       if (response.dayOperation) {
         setCurrentDay(response.dayOperation);
       }
-
       setSuccess(`Day closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
       setShowCloseModal(false);
       setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "" });
-
       // Add a small delay then refresh to ensure backend consistency
       setTimeout(async () => {
         await loadData();
@@ -238,89 +210,6 @@ const DayOperationsPage: React.FC = () => {
         closedBy: data.closedBy || "",
         notes: data.notes || ""
       });
-    }
-  };
-
-  const formatCurrency = (amount: number | null | undefined) => {
-    const numAmount = Number(amount) || 0;
-    return `$${numAmount.toFixed(2)}`;
-  };
-
-  // Enhanced date/time formatting functions for consistent display
-  const formatDateTime = (date: Date | string | null | undefined) => {
-    if (!date) return "N/A";
-    try {
-      const dateObj = new Date(date);
-      if (isNaN(dateObj.getTime())) return "Invalid Date";
-      return dateObj.toLocaleString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true
-      });
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return "Invalid Date";
-    }
-  };
-
-  const formatDate = (date: Date | string | null | undefined) => {
-    if (!date) return "N/A";
-    try {
-      let dateObj: Date;
-
-      // Handle date string parsing to avoid timezone issues
-      if (typeof date === "string") {
-        // If it's a date-only string like "2025-08-01", parse it as local date
-        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = date.split("-").map(Number);
-          dateObj = new Date(year, month - 1, day); // month is 0-indexed
-        } else {
-          dateObj = new Date(date);
-        }
-      } else {
-        dateObj = new Date(date);
-      }
-
-      if (isNaN(dateObj.getTime())) return "Invalid Date";
-      return dateObj.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric"
-      });
-    } catch (error) {
-      console.error("Error formatting date:", error, "Input:", date);
-      return "Invalid Date";
-    }
-  };
-
-  const formatWeekday = (date: Date | string | null | undefined) => {
-    if (!date) return "N/A";
-    try {
-      let dateObj: Date;
-
-      // Handle date string parsing to avoid timezone issues
-      if (typeof date === "string") {
-        // If it's a date-only string like "2025-08-01", parse it as local date
-        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = date.split("-").map(Number);
-          dateObj = new Date(year, month - 1, day); // month is 0-indexed
-        } else {
-          dateObj = new Date(date);
-        }
-      } else {
-        dateObj = new Date(date);
-      }
-
-      if (isNaN(dateObj.getTime())) return "Invalid Date";
-      return dateObj.toLocaleDateString("en-US", {
-        weekday: "long"
-      });
-    } catch (error) {
-      console.error("Error formatting weekday:", error, "Input:", date);
-      return "Invalid Date";
     }
   };
 
@@ -574,9 +463,7 @@ const DayOperationsPage: React.FC = () => {
                           <span className="ml-1 text-xs">{day.closedBy}</span>
                         </div>
                       )}
-                      {!day.openedBy && !day.closedBy && (
-                        <span className="text-xs italic">No user data</span>
-                      )}
+                      {!day.openedBy && !day.closedBy && <span className="text-xs italic">No user data</span>}
                     </div>
                   </td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">{formatCurrency(day.totalSales)}</td>
@@ -593,34 +480,25 @@ const DayOperationsPage: React.FC = () => {
       </div>
 
       {/* Open Day Modal */}
-      <DayOperationsModal 
-        open={showOpenModal} 
-        onOpenChange={setShowOpenModal} 
-        onSubmit={handleOpenDay} 
-        type="open" 
-        formData={convertToModalFormData("open")} 
-        onFormChange={data => handleModalFormChange("open", data)} 
-        isLoading={actionLoading} 
-        formatCurrency={formatCurrency} 
-      />
+      <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} isLoading={actionLoading} formatCurrency={formatCurrency} />
 
       {/* Close Day Modal */}
-      <DayOperationsModal 
-        open={showCloseModal} 
-        onOpenChange={setShowCloseModal} 
-        onSubmit={handleCloseDay} 
-        type="close" 
-        formData={convertToModalFormData("close")} 
-        onFormChange={data => handleModalFormChange("close", data)} 
-        isLoading={actionLoading} 
-        currentDay={{
-          ...currentDay,
-          userOrderStats: userOrderStats
-        } as any} 
-        formatCurrency={formatCurrency} 
+      <DayOperationsModal
+        open={showCloseModal}
+        onOpenChange={setShowCloseModal}
+        onSubmit={handleCloseDay}
+        type="close"
+        formData={convertToModalFormData("close")}
+        onFormChange={data => handleModalFormChange("close", data)}
+        isLoading={actionLoading}
+        currentDay={
+          {
+            ...currentDay,
+            userOrderStats: userOrderStats
+          } as any
+        }
+        formatCurrency={formatCurrency}
       />
-
-      {/* No inline modal here - using DailyReports component instead */}
 
       {/* Daily Reports Modal */}
       <DailyReports showReportModal={showReportModal} setShowReportModal={setShowReportModal} selectedReport={selectedReport} error={reportError} setError={setReportError} />

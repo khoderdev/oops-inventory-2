@@ -313,11 +313,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   // Day Operations handlers
   const handleOpenDayOperationsModal = () => {
     const isStaff = hasRole("staff");
-    if (isStaff) {
-      setDayOperationType(userDayOpen ? "close" : "open");
-    } else {
-      setDayOperationType(isDayOpen ? "close" : "open");
-    }
+    const nextType: "open" | "close" = isStaff ? (userDayOpen ? "close" : "open") : (isDayOpen ? "close" : "open");
+    setDayOperationType(nextType);
     let openingCash = 0;
     let closingCash = 0;
     if (user && userOrderStats.length > 0) {
@@ -328,8 +325,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       }
     }
     setDayFormData({
-      openingCash: dayOperationType === "open" ? openingCash : 0,
-      closingCash: dayOperationType === "close" ? closingCash : 0,
+      openingCash: nextType === "open" ? openingCash : 0,
+      closingCash: nextType === "close" ? closingCash : 0,
       openedBy: user?.username || "",
       closedBy: user?.username || "",
       notes: "",
@@ -384,6 +381,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         if (!isStaff) setIsDayOpen(false);
       }
       // Keep UI data fresh
+      // Small delay to avoid racing DB commit/caches
+      await new Promise(resolve => setTimeout(resolve, 250));
       await refreshDayAndStats();
       showToast(`Operation successful`, "success");
       setShowDayOperationsModal(false);

@@ -637,13 +637,13 @@ User.prototype.getRolePermissions = function () {
       "assignments.update": false,
       "assignments.delete": false,
 
-      // === DAILY OPERATIONS (Basic) ===
-      "dayOperations.create": false,
+      // === DAILY OPERATIONS (Full) ===
+      "dayOperations.create": true,
       "dayOperations.read": true,
-      "dayOperations.update": false,
-      "dayOperations.delete": false,
-      "dayOperations.close": false,
-      "dayOperations.cashCount": false,
+      "dayOperations.update": true,
+      "dayOperations.delete": true,
+      "dayOperations.close": true,
+      "dayOperations.cashCount": true,
 
       // === REPORTS & ANALYTICS (Limited) ===
       "reports.sales": false,

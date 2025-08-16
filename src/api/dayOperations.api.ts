@@ -20,13 +20,16 @@ export const dayOperationsAPI = {
 
   // Get current day operation
   getCurrentDayOperation: async (): Promise<{ currentDay: DayOperation | null; message?: string }> => {
-    const response = await api.get<{ currentDay: DayOperation | null; message?: string }>("/day-operations/current");
+    // Add cache-busting param to avoid stale 304 responses from proxies/browsers
+    const ts = Date.now();
+    const response = await api.get<{ currentDay: DayOperation | null; message?: string }>(`/day-operations/current?ts=${ts}`);
     return response.data;
   },
 
   // Get current day activities
   getCurrentDayActivities: async (): Promise<DayActivitiesResponse> => {
-    const response = await api.get<DayActivitiesResponse>("/day-operations/current/activities");
+    const ts = Date.now();
+    const response = await api.get<DayActivitiesResponse>(`/day-operations/current/activities?ts=${ts}`);
     return response.data;
   },
 
@@ -69,23 +72,15 @@ export const dayOperationsAPI = {
     const response = await api.put<{ message: string; dayOperation: DayOperation }, Partial<DayOperation> & { allowClosedDayUpdate?: boolean }>(`/day-operations/${id}`, updates);
     return response.data;
   },
-  
+
   // Get user order statistics for current day
   getUserOrderStats: async (): Promise<{ userOrderStats: UserOrderStats[] }> => {
-    const response = await api.get<{ userOrderStats: UserOrderStats[] }>('/day-operations/current/user-order-stats');
+    // Add cache-busting param to ensure we always get fresh user stats after open/close
+    const ts = Date.now();
+    const response = await api.get<{ userOrderStats: UserOrderStats[] }>(`/day-operations/current/user-order-stats?ts=${ts}`);
     return response.data;
   }
 };
 
 // Export individual functions for backward compatibility
-export const {
-  getDayOperations,
-  getCurrentDayOperation,
-  getCurrentDayActivities,
-  openDay,
-  closeDay,
-  getDayOperationById,
-  getDailyReport,
-  updateDayOperation,
-  getUserOrderStats
-} = dayOperationsAPI;
+export const { getDayOperations, getCurrentDayOperation, getCurrentDayActivities, openDay, closeDay, getDayOperationById, getDailyReport, updateDayOperation, getUserOrderStats } = dayOperationsAPI;
