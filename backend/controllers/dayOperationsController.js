@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
-import { DayOperation, Material, Sale, Section, StockEntry, User } from "../models/index.js";
+import { DayOperation, DayOperationReport, Material, Sale, Section, StockEntry, User } from "../models/index.js";
 
 /**
  * DAY OPERATIONS CONTROLLER
@@ -425,10 +425,31 @@ const dayOperationsController = {
           stockVariances,
           autoReportGenerated: true,
           reportData,
-          notes: notes ? `${currentDay.notes || ""}\n[CLOSING] ${notes}` : currentDay.notes
+          notes: notes ? (currentDay.notes ? `${currentDay.notes}\n[CLOSED] ${notes}` : notes) : currentDay.notes
         },
         { transaction }
       );
+
+      // Create a DayOperationReport record automatically
+      const report = await DayOperationReport.create({
+        dayOperationId: currentDay.id,
+        reportDate: today,
+        reportType: "daily",
+        salesSummary: reportData.sales || {},
+        cashSummary: reportData.cash || {},
+        inventorySummary: reportData.inventory || {},
+        topSellingItems: [],
+        salesByCategory: {},
+        salesBySection: reportData.sales?.salesBySection || {},
+        salesByHour: [],
+        paymentMethodBreakdown: {},
+        stockMovements: [],
+        significantVariances: stockVariances || [],
+        notes: notes ? `Auto-generated during day closing. ${notes}` : 'Auto-generated during day closing.',
+        generatedBy: closedBy || 'System',
+        reportStatus: "final",
+        generatedAt: new Date()
+      }, { transaction });
 
       await transaction.commit();
 
@@ -436,6 +457,7 @@ const dayOperationsController = {
         message: "Day successfully closed",
         dayOperation: await DayOperation.findByPk(currentDay.id),
         dailyReport: reportData,
+        report: report,
         summary: {
           totalSales,
           totalTransactions,
