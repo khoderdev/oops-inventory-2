@@ -28,13 +28,15 @@ export interface DayOperationsModalProps {
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
-  onSubmit: () => void;
+  onSubmit: (data: DayOperationsFormData) => void | Promise<void>;
   type: "open" | "close";
   formData: DayOperationsFormData;
   onFormChange?: (data: DayOperationsFormData) => void;
   onChange?: (data: DayOperationsFormData) => void;
   isLoading?: boolean;
   currentDay?: {
+    // Optional status when the parent passes a full DayOperation
+    status?: "opened" | "closed" | string;
     expectedCash?: number;
     userOrderStats?: UserOrderStats[];
   } | null;

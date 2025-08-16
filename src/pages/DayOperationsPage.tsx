@@ -27,7 +27,7 @@ const DayOperationsPage: React.FC = () => {
   const [showTotalSales, setShowTotalSales] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
-  const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "" });
+  const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
 
@@ -63,14 +63,25 @@ const DayOperationsPage: React.FC = () => {
 
   // Update form user fields when user changes
   useEffect(() => {
-    if (user?.fullName) {
+    if (user) {
+      if (user.fullName) {
+        setOpenDayForm(prev => ({
+          ...prev,
+          openedBy: user.fullName
+        }));
+        setCloseDayForm(prev => ({
+          ...prev,
+          closedBy: user.fullName
+        }));
+      }
+      // Always keep userId in sync for per-user operations
       setOpenDayForm(prev => ({
         ...prev,
-        openedBy: user.fullName
+        userId: user.id as any
       }));
       setCloseDayForm(prev => ({
         ...prev,
-        closedBy: user.fullName
+        userId: user.id as any
       }));
     }
   }, [user]);
@@ -138,14 +149,15 @@ const DayOperationsPage: React.FC = () => {
     try {
       setActionLoading(true);
       setError(null);
-      const response = await openDay(openDayForm);
+      // Ensure per-user open by including userId
+      const response = await openDay({ ...openDayForm, userId: user?.id as any });
       // Immediately update the current day state with the response
       if (response.dayOperation) {
         setCurrentDay(response.dayOperation);
       }
-      setSuccess(`Day opened successfully! ${response.stockItemsCaptured} stock items captured.`);
+      setSuccess(`Shift opened successfully! ${response.stockItemsCaptured} stock items captured.`);
       setShowOpenModal(false);
-      setOpenDayForm({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
+      setOpenDayForm({ openingCash: 0, openedBy: user?.fullName || "", notes: "", userId: user?.id as any });
       // Add a small delay then refresh to ensure backend consistency
       setTimeout(async () => {
         await loadData();
@@ -161,14 +173,15 @@ const DayOperationsPage: React.FC = () => {
     try {
       setActionLoading(true);
       setError(null);
-      const response = await closeDay(closeDayForm);
+      // Ensure per-user close by including userId
+      const response = await closeDay({ ...closeDayForm, userId: user?.id as any });
       // Immediately update the current day state with the response
       if (response.dayOperation) {
         setCurrentDay(response.dayOperation);
       }
-      setSuccess(`Day closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
+      setSuccess(`Shift closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
       setShowCloseModal(false);
-      setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "" });
+      setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
       // Add a small delay then refresh to ensure backend consistency
       setTimeout(async () => {
         await loadData();
@@ -299,7 +312,7 @@ const DayOperationsPage: React.FC = () => {
                         </div>
                       </div>
                       <button onClick={() => setShowCloseModal(true)} className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6 lg:px-8 py-2 sm:py-3 lg:py-4 rounded-lg sm:rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm sm:text-base lg:text-lg w-full sm:w-auto">
-                        Close Day
+                        Close Shift
                       </button>
                     </div>
                   </div>

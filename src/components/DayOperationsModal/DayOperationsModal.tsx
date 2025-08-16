@@ -45,14 +45,15 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
         }
       : null);
   const isOpenType = type === "open";
-  const title = isOpenType ? "Open New Day" : "Close Current Day";
-  const submitText = isOpenType ? "Open Day" : "Close Day";
+  const isGlobalDayOpen = currentDay?.status === "opened";
+  const title = isOpenType ? (isGlobalDayOpen ? "Open Shift" : "Open New Day") : "Close Current Day";
+  const submitText = isOpenType ? (isGlobalDayOpen ? "Open Shift" : "Open Day") : "Close Day";
   const loadingText = isOpenType ? "Opening..." : "Closing...";
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !isLoading) {
       e.preventDefault();
-      onSubmit();
+      onSubmit(formData);
     } else if (e.key === "Escape") {
       e.preventDefault();
       handleOpenChange(false);
@@ -83,7 +84,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
   const handleNotesKeyDown = (e: React.KeyboardEvent) => {
     if (isOpenType && e.key === "Enter" && e.ctrlKey && !isLoading) {
       e.preventDefault();
-      onSubmit();
+      onSubmit(formData);
     }
   };
 
@@ -118,7 +119,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
                   onKeyDown={e => {
                     if (e.key === "Enter" && !isLoading) {
                       e.preventDefault();
-                      onSubmit();
+                      onSubmit(formData);
                     }
                   }}
                   placeholder="0.00"
@@ -140,7 +141,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
                 onKeyDown={e => {
                   if (e.key === "Enter" && !isLoading) {
                     e.preventDefault();
-                    onSubmit();
+                    onSubmit(formData);
                   }
                 }}
                 placeholder="0.00"
@@ -198,7 +199,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={onSubmit} disabled={isLoading} variant={isOpenType ? "default" : "destructive"}>
+          <Button onClick={() => onSubmit(formData)} disabled={isLoading} variant={isOpenType ? "default" : "destructive"}>
             {isLoading ? loadingText : submitText}
           </Button>
         </DialogFooter>
