@@ -7,10 +7,11 @@ import DayOperationsModal from "@/components/DayOperationsModal/DayOperationsMod
 import PinInput from "@/components/ui/PinInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
-import { POSLayoutProps, OpenDayRequest, CloseDayRequest } from "@/types/inventory";
+import { POSLayoutProps, OpenDayRequest, CloseDayRequest, DayOperation } from "@/types/inventory";
 import { DayOperationsFormData, UserOrderStats } from "@/types/dayOperations";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
-import { AlertCircle, Banknote, Calendar, Clock, GripVertical, List, Maximize2, Minimize2, Power, ShoppingCart } from "lucide-react";
+import { formatCurrency } from "@/utils/dayOperationsFormattings";
+import { AlertCircle, Banknote, Calendar, CheckCircle, Clock, GripVertical, List, Maximize2, Minimize2, Power, ShoppingCart, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
@@ -28,84 +29,75 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [isDayOpen, setIsDayOpen] = useState(false);
   const [userDayOpen, setUserDayOpen] = useState(false);
   const [dayOperationType, setDayOperationType] = useState<"open" | "close">("open");
-  const [dayFormData, setDayFormData] = useState<DayOperationsFormData>({});
-  const [isLoadingDayOperation, setIsLoadingDayOperation] = useState(false);
-  const [currentDay, setCurrentDay] = useState<{ expectedCash?: number } | null>(null);
+  const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
   const [showLockOverlay, setShowLockOverlay] = useState(false);
   const [isCheckingDayStatus, setIsCheckingDayStatus] = useState(true);
+  const [dayLoading, setDayLoading] = useState(false);
+  const [dayError, setDayError] = useState<string | null>(null);
+  const [daySuccess, setDaySuccess] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
+  const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "" });
   const isLocked = isCheckingDayStatus ? false : (hasRole("staff") ? !userDayOpen : !isDayOpen);
+
+  // Unified loader similar to DayOperationsPage.loadData
+  const loadDayData = useCallback(async () => {
+    try {
+      setDayLoading(true);
+      setDayError(null);
+
+      // Load current day
+      const currentResponse = await dayOperationsAPI.getCurrentDayOperation();
+      const current = currentResponse.currentDay;
+      const isOpen = current?.status === "opened";
+      setIsDayOpen(!!isOpen);
+      setCurrentDay(current);
+
+      // Load user order statistics when day is opened
+      let computedIsUserDayOpen = false;
+      try {
+        const statsResponse = await dayOperationsAPI.getUserOrderStats();
+        const stats = statsResponse.userOrderStats || [];
+        setUserOrderStats(stats);
+
+        if (user && stats) {
+          const currentUserStats = stats.find(stat => stat.userId === user.id);
+          // Only consider user day open if BOTH global day is open AND user has opened their shift
+          computedIsUserDayOpen = isOpen && Boolean(currentUserStats?.openingTime && !currentUserStats?.closingTime);
+        }
+      } catch (statsError) {
+        console.warn("Could not load user order statistics:", statsError);
+        setUserOrderStats([]);
+      }
+      setUserDayOpen(computedIsUserDayOpen);
+
+      return { isOpen: !!isOpen, computedIsUserDayOpen, currentDay: current };
+    } catch (err: any) {
+      const message = err?.message || "Failed to load day operations";
+      setDayError(message);
+      console.error("loadDayData error:", err);
+      setIsDayOpen(false);
+      setUserDayOpen(false);
+      setCurrentDay(null);
+      setUserOrderStats([]);
+      return { isOpen: false, computedIsUserDayOpen: false, currentDay: null };
+    } finally {
+      setDayLoading(false);
+    }
+  }, [user]);
 
   // Helper to refresh day status and user stats without triggering modals
   const refreshDayAndStats = useCallback(async () => {
-    try {
-      const { currentDay } = await dayOperationsAPI.getCurrentDayOperation();
-      const isOpen = currentDay?.status === "opened";
-      setIsDayOpen(!!isOpen);
-
-      if (currentDay) {
-        setCurrentDay({
-          expectedCash: currentDay.expectedCash || currentDay.openingCash || 0
-        });
-
-        try {
-          const { userOrderStats: stats } = await dayOperationsAPI.getUserOrderStats();
-          setUserOrderStats(stats);
-
-          if (user && stats) {
-            const currentUserStats = stats.find(stat => stat.userId === user.id);
-            const computedIsUserDayOpen = Boolean(currentUserStats?.openingTime && !currentUserStats?.closingTime);
-            setUserDayOpen(computedIsUserDayOpen);
-          } else {
-            setUserDayOpen(false);
-          }
-        } catch (error) {
-          console.error("User stats refresh error:", error);
-          setUserDayOpen(false);
-        }
-      } else {
-        setCurrentDay(null);
-        setUserDayOpen(false);
-      }
-    } catch (error) {
-      console.error("Day status refresh error:", error);
-      setIsDayOpen(false);
-      setUserDayOpen(false);
-    }
-  }, [user]);
+    return loadDayData();
+  }, [loadDayData]);
 
   useEffect(() => {
     let modalTimer: number | undefined;
     const fetchDayStatus = async () => {
       setIsCheckingDayStatus(true);
       try {
-        const { currentDay } = await dayOperationsAPI.getCurrentDayOperation();
-        const isOpen = currentDay?.status === "opened"; // Make sure this matches your backend enum
-        setIsDayOpen(isOpen);
-
-        let computedIsUserDayOpen = false;
-
-        if (currentDay) {
-          setCurrentDay({
-            expectedCash: currentDay.expectedCash || currentDay.openingCash || 0
-          });
-
-          try {
-            const { userOrderStats: stats } = await dayOperationsAPI.getUserOrderStats();
-            setUserOrderStats(stats);
-
-            if (user && stats) {
-              const currentUserStats = stats.find(stat => stat.userId === user.id);
-              // Make sure we're checking both openingTime and closingTime
-              computedIsUserDayOpen = Boolean(currentUserStats?.openingTime && !currentUserStats?.closingTime);
-              setUserDayOpen(computedIsUserDayOpen);
-            }
-          } catch (error) {
-            console.error("User stats error:", error);
-            setUserDayOpen(false);
-            computedIsUserDayOpen = false;
-          }
-        }
+        const { isOpen, computedIsUserDayOpen, currentDay } = await loadDayData();
 
         // Debug logging
         console.log("Day status:", {
@@ -113,7 +105,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           userDayOpen: computedIsUserDayOpen,
           currentDayStatus: currentDay?.status
         });
-
+        
+        // Force userDayOpen to false if global day is not open
+        if (!isOpen && computedIsUserDayOpen) {
+          setUserDayOpen(false);
+          computedIsUserDayOpen = false;
+        }
 
         const shouldForceOpen = hasRole("staff") ? (user ? !computedIsUserDayOpen : false) : !isOpen;
 
@@ -250,6 +247,26 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
     return () => clearInterval(timer);
   }, []);
+  
+  // Add keyboard shortcut for opening day operations modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Alt+O to open day operations modal for staff or admin
+      if (e.altKey && e.key === 'o') {
+        e.preventDefault();
+        // For staff users, always show modal regardless of day status
+        // For admin users, only show when day is not open
+        if (hasRole("staff") || (!hasRole("staff") && !isDayOpen)) {
+          handleOpenDayOperationsModal();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDayOpen, userDayOpen]);
 
   useEffect(() => {
     fetchOrdersCount();
@@ -310,34 +327,136 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   };
 
+  // Update form user fields when user changes
+  useEffect(() => {
+    if (user?.fullName) {
+      setOpenDayForm(prev => ({
+        ...prev,
+        openedBy: user.fullName
+      }));
+      setCloseDayForm(prev => ({
+        ...prev,
+        closedBy: user.fullName
+      }));
+    }
+  }, [user]);
+
+  // Handle opening a day
+  const handleOpenDay = async () => {
+    try {
+      setActionLoading(true);
+      setDayError(null);
+      const response = await dayOperationsAPI.openDay(openDayForm);
+      // Immediately update the current day state with the response
+      if (response.dayOperation) {
+        setCurrentDay(response.dayOperation);
+      }
+      setDaySuccess(`Day opened successfully! ${response.stockItemsCaptured} stock items captured.`);
+      setShowDayOperationsModal(false);
+      setOpenDayForm({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
+      // Add a small delay then refresh to ensure backend consistency
+      setTimeout(async () => {
+        await loadDayData();
+      }, 500);
+    } catch (err: any) {
+      setDayError(err instanceof Error ? err.message : "Failed to open day");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle closing a day
+  const handleCloseDay = async () => {
+    try {
+      setActionLoading(true);
+      setDayError(null);
+      const response = await dayOperationsAPI.closeDay(closeDayForm);
+      // Immediately update the current day state with the response
+      if (response.dayOperation) {
+        setCurrentDay(response.dayOperation);
+      }
+      setDaySuccess(`Day closed successfully! Total sales: ${formatCurrency(response.summary?.totalSales || 0)}`);
+      setShowDayOperationsModal(false);
+      setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "" });
+      // Add a small delay then refresh to ensure backend consistency
+      setTimeout(async () => {
+        await loadDayData();
+      }, 500);
+    } catch (err: any) {
+      setDayError(err instanceof Error ? err.message : "Failed to close day");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Convert form data for the reusable modal component
+  const convertToModalFormData = (type: "open" | "close"): DayOperationsFormData => {
+    if (type === "open") {
+      return {
+        openingCash: openDayForm.openingCash,
+        openedBy: openDayForm.openedBy,
+        notes: openDayForm.notes
+      };
+    } else {
+      return {
+        closingCash: closeDayForm.closingCash,
+        closedBy: closeDayForm.closedBy,
+        notes: closeDayForm.notes
+      };
+    }
+  };
+
+  // Handle modal form changes
+  const handleModalFormChange = (type: "open" | "close", data: DayOperationsFormData) => {
+    if (type === "open") {
+      setOpenDayForm({
+        openingCash: data.openingCash || 0,
+        openedBy: data.openedBy || "",
+        notes: data.notes || ""
+      });
+    } else {
+      setCloseDayForm({
+        closingCash: data.closingCash || 0,
+        closedBy: data.closedBy || "",
+        notes: data.notes || ""
+      });
+    }
+  };
+
   // Day Operations handlers
   const handleOpenDayOperationsModal = () => {
     const isStaff = hasRole("staff");
     const nextType: "open" | "close" = isStaff ? (userDayOpen ? "close" : "open") : (isDayOpen ? "close" : "open");
     setDayOperationType(nextType);
-    let openingCash = 0;
-    let closingCash = 0;
-    if (user && userOrderStats.length > 0) {
-      const userStats = userOrderStats.find(s => s.userId === user.id);
-      if (userStats) {
-        openingCash = userStats.openingCash || 0;
-        closingCash = (userStats.openingCash || 0) + (userStats.cashSales || 0);
+    
+    // Pre-fill form data based on user stats
+    if (nextType === "open") {
+      setOpenDayForm({
+        openingCash: 0,
+        openedBy: user?.fullName || "",
+        notes: ""
+      });
+    } else {
+      // For closing, calculate expected cash if we have user stats
+      let expectedClosingCash = 0;
+      if (user && userOrderStats.length > 0) {
+        const userStats = userOrderStats.find(s => s.userId === user.id);
+        if (userStats) {
+          expectedClosingCash = (userStats.openingCash || 0) + (userStats.cashSales || 0);
+        }
+      } else if (currentDay) {
+        // Use current day expected cash as fallback
+        expectedClosingCash = currentDay.expectedCash || 0;
       }
+      
+      setCloseDayForm({
+        closingCash: expectedClosingCash,
+        closedBy: user?.fullName || "",
+        notes: ""
+      });
     }
-    setDayFormData({
-      openingCash: nextType === "open" ? openingCash : 0,
-      closingCash: nextType === "close" ? closingCash : 0,
-      openedBy: user?.username || "",
-      closedBy: user?.username || "",
-      notes: "",
-      userId: isStaff ? user?.id : undefined
-    });
 
     setShowDayOperationsModal(true);
-  };
-
-  const handleDayFormChange = (data: DayOperationsFormData) => {
-    setDayFormData(data);
   };
 
   const showToast = async (message: string, variant: "success" | "error" | "info") => {
@@ -355,50 +474,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   };
 
-  const handleDayOperationSubmit = async () => {
-    setIsLoadingDayOperation(true);
-    try {
-      const isStaff = hasRole("staff");
-      if (dayOperationType === "open") {
-        const openDayRequest: OpenDayRequest = {
-          openingCash: Number(dayFormData.openingCash) || 0,
-          openedBy: user?.username || "System",
-          notes: dayFormData.notes || "",
-          ...(isStaff ? { userId: user?.id } : {})
-        };
-        await dayOperationsAPI.openDay(openDayRequest);
-        setUserDayOpen(true);
-        if (!isStaff) setIsDayOpen(true);
-      } else {
-        const closeDayRequest: CloseDayRequest = {
-          closingCash: Number(dayFormData.closingCash) || 0,
-          closedBy: user?.username || "System",
-          notes: dayFormData.notes || "",
-          ...(isStaff ? { userId: user?.id } : {})
-        };
-        await dayOperationsAPI.closeDay(closeDayRequest);
-        setUserDayOpen(false);
-        if (!isStaff) setIsDayOpen(false);
-      }
-      // Keep UI data fresh
-      // Small delay to avoid racing DB commit/caches
-      await new Promise(resolve => setTimeout(resolve, 250));
-      await refreshDayAndStats();
-      showToast(`Operation successful`, "success");
-      setShowDayOperationsModal(false);
-    } catch (error) {
-      console.error("Day operation failed:", error);
-      let errorMessage = error.message;
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.status === 400) {
-        errorMessage = "Invalid request data. Please check your inputs.";
-      }
-      showToast(`Operation failed: ${errorMessage}`, "error");
-    } finally {
-      setIsLoadingDayOperation(false);
-    }
-  };
+  // This function is now replaced by handleOpenDay and handleCloseDay
 
   {
     {
@@ -496,7 +572,11 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           <div className="relative flex items-center space-x-3 z-10 select-none">
             {/* Day Operations Button - Only for staff users */}
             {hasRole("staff") && (
-              <button onClick={handleOpenDayOperationsModal} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
+              <button 
+                onClick={handleOpenDayOperationsModal} 
+                className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95"
+                title={`${userDayOpen ? "Close your shift" : "Open your shift"} (Alt+O)`}
+              >
                 <div className={`absolute inset-0 ${userDayOpen ? "bg-gradient-to-r from-red-500/20 to-orange-500/20" : "bg-gradient-to-r from-green-500/20 to-emerald-500/20"} rounded-xl blur-sm group-hover:blur-none transition-all duration-300`} />
                 <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
                   {userDayOpen ? <Banknote className="w-4 h-4 text-red-300 group-hover:text-red-200 transition-colors" /> : <Calendar className="w-4 h-4 text-green-300 group-hover:text-green-200 transition-colors" />}
@@ -602,7 +682,37 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         </DialogContent>
       </Dialog>
       {/* Day Operations Modal */}
-      <DayOperationsModal open={showDayOperationsModal} onOpenChange={setShowDayOperationsModal} type={dayOperationType} formData={dayFormData} onFormChange={handleDayFormChange} onSubmit={handleDayOperationSubmit} isLoading={isLoadingDayOperation} currentDay={currentDay} />
+      <DayOperationsModal
+        open={showDayOperationsModal}
+        onOpenChange={setShowDayOperationsModal}
+        onSubmit={dayOperationType === "open" ? handleOpenDay : handleCloseDay}
+        type={dayOperationType}
+        formData={convertToModalFormData(dayOperationType)}
+        onFormChange={data => handleModalFormChange(dayOperationType, data)}
+        isLoading={actionLoading}
+        currentDay={currentDay as any}
+        userOrderStats={userOrderStats}
+        formatCurrency={formatCurrency}
+      />
+      {/* Day Operation Alerts */}
+      {dayError && (
+        <div className="fixed top-4 right-4 z-50 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center max-w-md shadow-lg">
+          <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-2 sm:mr-3 mt-0.5 sm:mt-0 flex-shrink-0" />
+          <span className="text-red-700 text-sm sm:text-base flex-1">{dayError}</span>
+          <button onClick={() => setDayError(null)} className="ml-2 sm:ml-auto text-red-500 hover:text-red-700 text-lg sm:text-xl">
+            ×
+          </button>
+        </div>
+      )}
+      {daySuccess && (
+        <div className="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center max-w-md shadow-lg">
+          <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2 sm:mr-3 mt-0.5 sm:mt-0 flex-shrink-0" />
+          <span className="text-green-700 text-sm sm:text-base flex-1">{daySuccess}</span>
+          <button onClick={() => setDaySuccess(null)} className="ml-2 sm:ml-auto text-green-500 hover:text-green-700 text-lg sm:text-xl">
+            ×
+          </button>
+        </div>
+      )}
       {/* Logout Confirmation Dialog */}
       <Dialog
         open={showLogoutDialog}
