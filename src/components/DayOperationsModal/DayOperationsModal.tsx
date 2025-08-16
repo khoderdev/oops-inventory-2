@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
-import { Banknote, Calendar } from "lucide-react";
 
 export interface DayOperationsFormData {
   openingCash?: number;
@@ -13,6 +11,13 @@ export interface DayOperationsFormData {
   openedBy?: string;
   closedBy?: string;
   notes?: string;
+}
+
+export interface UserOrderStats {
+  userId: number;
+  userName: string;
+  orderCount: number;
+  totalAmount: number;
 }
 
 export interface DayOperationsModalProps {
@@ -29,8 +34,10 @@ export interface DayOperationsModalProps {
   isLoading?: boolean;
   currentDay?: {
     expectedCash?: number;
+    userOrderStats?: UserOrderStats[];
   } | null;
   expectedCash?: number;
+  userOrderStats?: UserOrderStats[];
   formatCurrency?: (amount: number) => string;
 }
 
@@ -47,6 +54,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
   isLoading = false, 
   currentDay, 
   expectedCash,
+  userOrderStats,
   formatCurrency = amount => {
     // Handle undefined, null, or non-numeric values
     const numAmount = typeof amount === 'number' ? amount : 0;
@@ -65,8 +73,15 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
     if (onChange) onChange(data);
   };
   
-  // Use expectedCash if currentDay is not provided
-  const effectiveCurrentDay = currentDay ?? (expectedCash !== undefined ? { expectedCash } : null);
+  // Use expectedCash and userOrderStats if currentDay is not provided
+  const effectiveCurrentDay = currentDay ?? (
+    expectedCash !== undefined || userOrderStats !== undefined 
+      ? { 
+          expectedCash: expectedCash, 
+          userOrderStats: userOrderStats 
+        } 
+      : null
+  );
   const isOpenType = type === "open";
   const title = isOpenType ? "Open New Day" : "Close Current Day";
   const submitText = isOpenType ? "Open Day" : "Close Day";
@@ -181,6 +196,44 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
             <Input id="staff-name" type="text" value={staffValue} onChange={e => handleStaffChange(e.target.value)} className="bg-gray-50" placeholder="Staff name" readOnly />
             <p className="text-xs text-muted-foreground">Automatically detected from logged-in user</p>
           </div>
+
+          {/* User Order Statistics - Only show when closing day */}
+          {!isOpenType && effectiveCurrentDay?.userOrderStats && effectiveCurrentDay.userOrderStats.length > 0 && (
+            <div className="space-y-2">
+              <Label>User Order Statistics</Label>
+              <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-48 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                    <tr>
+                      <th className="px-2 py-1 text-left">Staff</th>
+                      <th className="px-2 py-1 text-right">Orders</th>
+                      <th className="px-2 py-1 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {effectiveCurrentDay.userOrderStats.map((stat, index) => (
+                      <tr key={index} className="border-t border-gray-200">
+                        <td className="px-2 py-1 font-medium">{stat.userName}</td>
+                        <td className="px-2 py-1 text-right">{stat.orderCount}</td>
+                        <td className="px-2 py-1 text-right">{formatCurrency(stat.totalAmount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="font-medium border-t border-gray-300 bg-gray-50">
+                    <tr>
+                      <td className="px-2 py-1">Total</td>
+                      <td className="px-2 py-1 text-right">
+                        {effectiveCurrentDay.userOrderStats.reduce((sum, stat) => sum + stat.orderCount, 0)}
+                      </td>
+                      <td className="px-2 py-1 text-right">
+                        {formatCurrency(effectiveCurrentDay.userOrderStats.reduce((sum, stat) => sum + stat.totalAmount, 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Notes Field */}
           <div className="space-y-2">

@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
-import { DayOperation, Material, Sale, Section, StockEntry } from "../models/index.js";
+import { DayOperation, Material, Sale, Section, StockEntry, User } from "../models/index.js";
 
 /**
  * DAY OPERATIONS CONTROLLER
@@ -505,6 +505,70 @@ const dayOperationsController = {
   },
 
   // Update day operation (for corrections)
+  // Get user order statistics for the current day
+  getCurrentDayUserOrderStats: async (req, res, next) => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+
+      // Find current day operation
+      const currentDay = await DayOperation.findOne({
+        where: { date: today }
+      });
+
+      if (!currentDay) {
+        return res.status(200).json({
+          userOrderStats: [],
+          message: "No day operation found for today"
+        });
+      }
+
+      const dayStart = new Date(currentDay.openedAt);
+      const dayEnd = currentDay.status === "closed" ? new Date(currentDay.closedAt) : new Date();
+
+      // Get all sales for the current day grouped by user
+      const userOrderStats = await Sale.findAll({
+        where: {
+          saleDate: {
+            [Op.between]: [dayStart, dayEnd]
+          },
+          isActive: true,
+          userId: { [Op.not]: null } // Only include sales with a userId
+        },
+        attributes: [
+          'userId',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'orderCount'],
+          [sequelize.fn('SUM', sequelize.col('totalAmount')), 'totalAmount']
+        ],
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ['firstName', 'lastName']
+          }
+        ],
+        group: ['userId', 'user.id'],
+        raw: false
+      });
+
+      // Format the response
+      const formattedStats = userOrderStats.map(stat => ({
+        userId: stat.userId,
+        userName: stat.user ? `${stat.user.firstName} ${stat.user.lastName}`.trim() : `User ${stat.userId}`,
+        orderCount: parseInt(stat.dataValues.orderCount, 10),
+        totalAmount: parseFloat(stat.dataValues.totalAmount)
+      }));
+
+      res.status(200).json({
+        userOrderStats: formattedStats,
+        totalUsers: formattedStats.length,
+        dayStatus: currentDay.status
+      });
+    } catch (error) {
+      console.error("Error fetching user order statistics:", error);
+      next(error);
+    }
+  },
+
   updateDayOperation: async (req, res, next) => {
     const transaction = await sequelize.transaction();
 

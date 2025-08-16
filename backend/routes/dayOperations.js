@@ -12,6 +12,9 @@ router.get("/current", dayOperationsController.getCurrentDayOperation);
 // Get activity logs for current day
 router.get("/current/activities", dayOperationsController.getCurrentDayActivities);
 
+// Get user order statistics for current day
+router.get("/current/user-order-stats", dayOperationsController.getCurrentDayUserOrderStats);
+
 // Open a new day
 router.post("/open", dayOperationsController.openDay);
 

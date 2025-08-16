@@ -1,5 +1,5 @@
 import api from "@/lib/http";
-import { CloseDayRequest, DailyReportData, DayActivitiesResponse, DayOperation, DayOperationResponse, DayOperationsListResponse, OpenDayRequest } from "../types/inventory";
+import { CloseDayRequest, DailyReportData, DayActivitiesResponse, DayOperation, DayOperationResponse, DayOperationsListResponse, OpenDayRequest, UserOrderStats } from "../types/inventory";
 
 export const dayOperationsAPI = {
   // Get all day operations with pagination
@@ -67,6 +67,12 @@ export const dayOperationsAPI = {
   updateDayOperation: async (id: number, updates: Partial<DayOperation> & { allowClosedDayUpdate?: boolean }): Promise<{ message: string; dayOperation: DayOperation }> => {
     const response = await api.put<{ message: string; dayOperation: DayOperation }, Partial<DayOperation> & { allowClosedDayUpdate?: boolean }>(`/day-operations/${id}`, updates);
     return response.data;
+  },
+  
+  // Get user order statistics for current day
+  getUserOrderStats: async (): Promise<{ userOrderStats: UserOrderStats[] }> => {
+    const response = await api.get<{ userOrderStats: UserOrderStats[] }>('/day-operations/current/user-order-stats');
+    return response.data;
   }
 };
 
@@ -79,5 +85,6 @@ export const {
   closeDay,
   getDayOperationById,
   getDailyReport,
-  updateDayOperation
+  updateDayOperation,
+  getUserOrderStats
 } = dayOperationsAPI;

@@ -4,13 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { dayOperationsAPI } from "../api/dayOperations.api";
 
 // Destructure API methods for cleaner usage
-const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay } = dayOperationsAPI;
+const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
 import { useAuth } from "../contexts/AuthContext";
 import DayOperationsModal, { DayOperationsFormData } from "../components/DayOperationsModal/DayOperationsModal";
 import DailyReports from "../components/analytics/DailyReports";
 import ViewReportButton from "../components/ui/ViewReportButton";
 import { useDailyReports } from "../hooks/useDailyReports";
-import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
+import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest, UserOrderStats } from "../types/inventory";
 
 const DayOperationsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +18,7 @@ const DayOperationsPage: React.FC = () => {
   const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
   const [recentDays, setRecentDays] = useState<DayOperation[]>([]);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +134,15 @@ const DayOperationsPage: React.FC = () => {
         try {
           const activitiesResponse = await getCurrentDayActivities();
           setActivities(activitiesResponse.activities);
+          
+          // Load user order statistics
+          try {
+            const statsResponse = await getUserOrderStats();
+            setUserOrderStats(statsResponse.userOrderStats || []);
+          } catch (statsError) {
+            console.warn("Could not load user order statistics:", statsError);
+            setUserOrderStats([]);
+          }
         } catch (activityError) {
           console.warn("Could not load activities:", activityError);
         }
@@ -603,96 +613,14 @@ const DayOperationsPage: React.FC = () => {
         formData={convertToModalFormData("close")} 
         onFormChange={data => handleModalFormChange("close", data)} 
         isLoading={actionLoading} 
-        currentDay={currentDay} 
+        currentDay={{
+          ...currentDay,
+          userOrderStats: userOrderStats
+        } as any} 
         formatCurrency={formatCurrency} 
       />
 
-      {/* Daily Report Modal */}
-      {showReportModal && selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4 sm:mb-6">
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Daily Report - {selectedReport.date}</h3>
-              <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl">
-                ×
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {/* Sales Summary */}
-              <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
-                <h4 className="font-semibold text-green-900 mb-2 sm:mb-3 text-sm sm:text-base">Sales Summary</h4>
-                <div className="space-y-1 sm:space-y-2">
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-green-700">Total Sales:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.sales.totalAmount)}</span>
-                  </p>
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-green-700">Transactions:</span>
-                    <span className="font-medium ml-2">{selectedReport.sales.totalTransactions}</span>
-                  </p>
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-green-700">Average Ticket:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.sales.averageTicket)}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Cash Summary */}
-              <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-2 sm:mb-3 text-sm sm:text-base">Cash Summary</h4>
-                <div className="space-y-1 sm:space-y-2">
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-blue-700">Opening:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cash.opening)}</span>
-                  </p>
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-blue-700">Expected:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cash.expected)}</span>
-                  </p>
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-blue-700">Actual:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cash.actual)}</span>
-                  </p>
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-blue-700">Variance:</span>
-                    <span className={`font-medium ml-2 ${selectedReport.cash.variance >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(selectedReport.cash.variance)}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Inventory Summary */}
-              <div className="bg-orange-50 p-3 sm:p-4 rounded-lg">
-                <h4 className="font-semibold text-orange-900 mb-2 sm:mb-3 text-sm sm:text-base">Inventory Summary</h4>
-                <div className="space-y-1 sm:space-y-2">
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-orange-700">Total Variances:</span>
-                    <span className="font-medium ml-2">{selectedReport.inventory.totalVariances}</span>
-                  </p>
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-orange-700">Gains:</span>
-                    <span className="font-medium ml-2 text-green-600">{selectedReport.inventory.gains}</span>
-                  </p>
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-orange-700">Losses:</span>
-                    <span className="font-medium ml-2 text-red-600">{selectedReport.inventory.losses}</span>
-                  </p>
-                  <p className="text-xs sm:text-sm">
-                    <span className="text-orange-700">Operational Hours:</span>
-                    <span className="font-medium ml-2">{selectedReport.operationalHours.toFixed(1)}h</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 sm:mt-6 text-center">
-              <button onClick={() => setShowReportModal(false)} className="px-4 sm:px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base">
-                Close Report
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* No inline modal here - using DailyReports component instead */}
 
       {/* Daily Reports Modal */}
       <DailyReports showReportModal={showReportModal} setShowReportModal={setShowReportModal} selectedReport={selectedReport} error={reportError} setError={setReportError} />

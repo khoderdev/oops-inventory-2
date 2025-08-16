@@ -1117,6 +1117,13 @@ export interface DayOperationsListResponse {
   };
 }
 
+export interface UserOrderStats {
+  userId: number;
+  userName: string;
+  orderCount: number;
+  totalAmount: number;
+}
+
 export interface DayActivitiesResponse {
   activities: ActivityLog[];
   totalActivities: number;
@@ -1128,6 +1135,7 @@ export interface DayActivitiesResponse {
 // Day Operation Reports Types
 
 export interface DayOperationReport {
+  date: string;
   id: number;
   dayOperationId: number;
   reportDate: string;
