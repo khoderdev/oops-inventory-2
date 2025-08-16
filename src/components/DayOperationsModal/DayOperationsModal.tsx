@@ -4,90 +4,51 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { DayOperationsFormData, DayOperationsModalProps } from "@/types/dayOperations";
 
-export interface DayOperationsFormData {
-  openingCash?: number;
-  closingCash?: number;
-  openedBy?: string;
-  closedBy?: string;
-  notes?: string;
-}
-
-export interface UserOrderStats {
-  userId: number;
-  userName: string;
-  orderCount: number;
-  totalAmount: number;
-}
-
-export interface DayOperationsModalProps {
-  // Support both naming patterns
-  open?: boolean;
-  isOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  onClose?: () => void;
-  onSubmit: () => void;
-  type: "open" | "close";
-  formData: DayOperationsFormData;
-  onFormChange?: (data: DayOperationsFormData) => void;
-  onChange?: (data: DayOperationsFormData) => void;
-  isLoading?: boolean;
-  currentDay?: {
-    expectedCash?: number;
-    userOrderStats?: UserOrderStats[];
-  } | null;
-  expectedCash?: number;
-  userOrderStats?: UserOrderStats[];
-  formatCurrency?: (amount: number) => string;
-}
-
-const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ 
-  open, 
-  isOpen, 
-  onOpenChange, 
-  onClose, 
-  onSubmit, 
-  type, 
-  formData, 
-  onFormChange, 
+const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
+  open,
+  isOpen,
+  onOpenChange,
+  onClose,
+  onSubmit,
+  type,
+  formData,
+  onFormChange,
   onChange,
-  isLoading = false, 
-  currentDay, 
+  isLoading = false,
+  currentDay,
   expectedCash,
   userOrderStats,
   formatCurrency = amount => {
-    // Handle undefined, null, or non-numeric values
-    const numAmount = typeof amount === 'number' ? amount : 0;
+    const numAmount = typeof amount === "number" ? amount : 0;
     return `$${numAmount.toFixed(2)}`;
   }
 }) => {
-  // Handle both naming patterns
   const isModalOpen = open ?? isOpen ?? false;
   const handleOpenChange = (state: boolean) => {
     if (onOpenChange) onOpenChange(state);
     if (!state && onClose) onClose();
   };
-  
+
   const handleFormChange = (data: DayOperationsFormData) => {
     if (onFormChange) onFormChange(data);
     if (onChange) onChange(data);
   };
-  
-  // Use expectedCash and userOrderStats if currentDay is not provided
-  const effectiveCurrentDay = currentDay ?? (
-    expectedCash !== undefined || userOrderStats !== undefined 
-      ? { 
-          expectedCash: expectedCash, 
-          userOrderStats: userOrderStats 
-        } 
-      : null
-  );
+
+  const effectiveCurrentDay =
+    currentDay ??
+    (expectedCash !== undefined || userOrderStats !== undefined
+      ? {
+          expectedCash: expectedCash,
+          userOrderStats: userOrderStats
+        }
+      : null);
   const isOpenType = type === "open";
   const title = isOpenType ? "Open New Day" : "Close Current Day";
   const submitText = isOpenType ? "Open Day" : "Close Day";
   const loadingText = isOpenType ? "Opening..." : "Closing...";
 
-  // Event handlers
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !isLoading) {
       e.preventDefault();
@@ -132,7 +93,6 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
     }
   };
 
-  // Computed values
   const cashValue = isOpenType ? formData.openingCash || 0 : formData.closingCash || 0;
   const staffValue = isOpenType ? formData.openedBy || "" : formData.closedBy || "";
 
@@ -144,7 +104,6 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Cash Amount Field */}
           <div className="space-y-2">
             <Label htmlFor="cash-amount">{isOpenType ? "Opening Cash Amount" : "Actual Closing Cash Amount *"}</Label>
 
@@ -190,14 +149,12 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
             )}
           </div>
 
-          {/* Staff Field */}
           <div className="space-y-2">
             <Label htmlFor="staff-name">{isOpenType ? "Opened By" : "Closed By"}</Label>
             <Input id="staff-name" type="text" value={staffValue} onChange={e => handleStaffChange(e.target.value)} className="bg-gray-50" placeholder="Staff name" readOnly />
             <p className="text-xs text-muted-foreground">Automatically detected from logged-in user</p>
           </div>
 
-          {/* User Order Statistics - Only show when closing day */}
           {!isOpenType && effectiveCurrentDay?.userOrderStats && effectiveCurrentDay.userOrderStats.length > 0 && (
             <div className="space-y-2">
               <Label>User Order Statistics</Label>
@@ -222,12 +179,8 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
                   <tfoot className="font-medium border-t border-gray-300 bg-gray-50">
                     <tr>
                       <td className="px-2 py-1">Total</td>
-                      <td className="px-2 py-1 text-right">
-                        {effectiveCurrentDay.userOrderStats.reduce((sum, stat) => sum + stat.orderCount, 0)}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {formatCurrency(effectiveCurrentDay.userOrderStats.reduce((sum, stat) => sum + stat.totalAmount, 0))}
-                      </td>
+                      <td className="px-2 py-1 text-right">{effectiveCurrentDay.userOrderStats.reduce((sum, stat) => sum + stat.orderCount, 0)}</td>
+                      <td className="px-2 py-1 text-right">{formatCurrency(effectiveCurrentDay.userOrderStats.reduce((sum, stat) => sum + stat.totalAmount, 0))}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -235,7 +188,6 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
             </div>
           )}
 
-          {/* Notes Field */}
           <div className="space-y-2">
             <Label htmlFor="notes">{isOpenType ? "Notes (Optional)" : "Closing Notes (Optional)"}</Label>
             <Textarea id="notes" value={formData.notes || ""} onChange={e => handleNotesChange(e.target.value)} onKeyDown={handleNotesKeyDown} rows={3} placeholder={isOpenType ? "Any opening notes... (Ctrl+Enter to submit)" : "Any closing notes..."} />
