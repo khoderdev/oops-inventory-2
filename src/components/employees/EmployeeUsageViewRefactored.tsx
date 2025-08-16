@@ -3,8 +3,6 @@ import { useAtom, useAtomValue } from "jotai";
 import { addDays } from "date-fns";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, getExpandedRowModel, ExpandedState } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-
-// UI Components
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,24 +13,11 @@ import { toast } from "@/components/ui/use-toast";
 import { ChevronDown, ChevronRight, MoreHorizontal, X } from "lucide-react";
 import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, usagesAtom, usagesFiltersAtom, usageStatsAtom } from "@/store/employeeAtoms";
 import type { EmployeeUsage, EmployeeUsageType, GroupedOrder, SettlementStatus } from "@/types/employee";
+import { formatCurrency } from "@/utils/conversionLogic";
 
-// Utility functions defined inline
-const formatCurrency = (amount: number) => {
-  if (amount == null || isNaN(amount) || !isFinite(amount)) {
-    return "$0.00";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD"
-  }).format(amount);
-};
 
 const formatQuantity = (quantity: number) => {
   return Number(quantity) % 1 === 0 ? Math.floor(quantity) : Number(quantity).toFixed(2);
-};
-
-const formatDateTime = (dateString: string) => {
-  return new Date(dateString).toLocaleString();
 };
 
 
@@ -60,8 +45,6 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
   });
   const [expandedRows, setExpandedRows] = useState<ExpandedState>({});
   const [rowSelection, setRowSelection] = React.useState({});
-  // This state is not used anymore, we're using expandedRows instead
-  // const [expanded, setExpanded] = React.useState<ExpandedState>({});
 
   const filteredUsages = useMemo(() => {
     const usagesArray = Array.isArray(allUsages) ? allUsages : [];
@@ -189,8 +172,6 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
         };
 
         const [usagesData, statsData] = await Promise.all([fetchUsages(baseFilters), fetchStats(baseFilters)]);
-        // Correctly access the data structure returned by the fetch atoms
-        // fetchUsageAtom returns { usages: EmployeeUsage[], pagination: {...} }
         setAllUsages(Array.isArray(usagesData?.usages) ? usagesData.usages : []);
         setAllStats(statsData || {});
         initialLoadComplete.current = true;
@@ -614,7 +595,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border overflow-hidden">
+          <div className="rounded-md border overflow-y-auto bg-red-400">
             <div
               className="w-full overflow-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400"
               ref={tableContainerRef}
@@ -624,7 +605,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
                 WebkitOverflowScrolling: "touch" // Smooth scrolling on iOS
               }}
             >
-              <Table className="relative w-full table-fixed border-collapse">
+              <Table className="relative w-full table-fixed border-collapse h-full ">
                 <TableHeader className="sticky top-0 z-20 bg-background border-b">
                   {table.getHeaderGroups().map(headerGroup => (
                     <TableRow key={headerGroup.id} className="hover:bg-background">

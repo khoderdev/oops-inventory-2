@@ -27,6 +27,13 @@ interface ApiConfig {
   headers?: Record<string, string>;
 }
 
+export interface PaginatedResponse {
+  data: any[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // API client class
 class ApiClient {
   private instance: AxiosInstance;

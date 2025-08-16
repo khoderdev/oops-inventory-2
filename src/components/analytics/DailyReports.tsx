@@ -1,7 +1,27 @@
-import React from "react";
-import { DailyReportsModalProps, DailyReportsProps } from "../../types/inventory";
+import React, { useState, useEffect } from "react";
+import { DayOperationReport } from "../../types/inventory";
+import { dayOperationReportsAPI } from "@/api/dayOperationReports.api";
 
-const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ className = "", showReportModal, setShowReportModal, selectedReport, error, setError }) => {
+export interface DailyReportsProps {
+  className?: string;
+}
+
+export interface DailyReportsModalProps {
+  showReportModal: boolean;
+  setShowReportModal: (show: boolean) => void;
+  selectedReport: DayOperationReport | null;
+  error: string | null;
+  setError: (error: string | null) => void;
+}
+
+const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ 
+  className = "", 
+  showReportModal, 
+  setShowReportModal, 
+  selectedReport, 
+  error, 
+  setError 
+}) => {
   const formatCurrency = (amount: number | null | undefined) => {
     const numAmount = Number(amount) || 0;
     return `$${numAmount.toFixed(2)}`;
@@ -37,15 +57,15 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
                 <div className="space-y-2">
                   <p className="text-sm">
                     <span className="text-green-700">Total Sales:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.sales.totalAmount)}</span>
+                    <span className="font-medium ml-2">{formatCurrency(selectedReport.salesSummary.totalAmount)}</span>
                   </p>
                   <p className="text-sm">
                     <span className="text-green-700">Transactions:</span>
-                    <span className="font-medium ml-2">{selectedReport.sales.totalTransactions}</span>
+                    <span className="font-medium ml-2">{selectedReport.salesSummary.totalTransactions}</span>
                   </p>
                   <p className="text-sm">
                     <span className="text-green-700">Average Ticket:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.sales.averageTicket)}</span>
+                    <span className="font-medium ml-2">{formatCurrency(selectedReport.salesSummary.averageTicket)}</span>
                   </p>
                 </div>
               </div>
@@ -56,19 +76,19 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
                 <div className="space-y-2">
                   <p className="text-sm">
                     <span className="text-blue-700">Opening:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cash.opening)}</span>
+                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cashSummary.opening)}</span>
                   </p>
                   <p className="text-sm">
                     <span className="text-blue-700">Expected:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cash.expected)}</span>
+                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cashSummary.expected)}</span>
                   </p>
                   <p className="text-sm">
                     <span className="text-blue-700">Actual:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cash.actual)}</span>
+                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cashSummary.closing)}</span>
                   </p>
                   <p className="text-sm">
                     <span className="text-blue-700">Variance:</span>
-                    <span className={`font-medium ml-2 ${selectedReport.cash.variance >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(selectedReport.cash.variance)}</span>
+                    <span className={`font-medium ml-2 ${selectedReport.cashSummary.variance >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(selectedReport.cashSummary.variance)}</span>
                   </p>
                 </div>
               </div>
@@ -79,30 +99,26 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
                 <div className="space-y-2">
                   <p className="text-sm">
                     <span className="text-orange-700">Total Variances:</span>
-                    <span className="font-medium ml-2">{selectedReport.inventory.totalVariances}</span>
+                    <span className="font-medium ml-2">{selectedReport.inventorySummary.totalVariances}</span>
                   </p>
                   <p className="text-sm">
                     <span className="text-orange-700">Gains:</span>
-                    <span className="font-medium ml-2 text-green-600">{selectedReport.inventory.gains}</span>
+                    <span className="font-medium ml-2 text-green-600">{selectedReport.inventorySummary.gains}</span>
                   </p>
                   <p className="text-sm">
                     <span className="text-orange-700">Losses:</span>
-                    <span className="font-medium ml-2 text-red-600">{selectedReport.inventory.losses}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-orange-700">Operational Hours:</span>
-                    <span className="font-medium ml-2">{selectedReport.operationalHours.toFixed(1)}h</span>
+                    <span className="font-medium ml-2 text-red-600">{selectedReport.inventorySummary.losses}</span>
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Sales by Section */}
-            {selectedReport.sales.salesBySection && Object.keys(selectedReport.sales.salesBySection).length > 0 && (
+            {selectedReport.salesBySection && Object.keys(selectedReport.salesBySection).length > 0 && (
               <div className="mt-6">
                 <h4 className="font-semibold text-gray-900 mb-3">Sales by Section</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(selectedReport.sales.salesBySection).map(([sectionName, sectionData]) => (
+                  {Object.entries(selectedReport.salesBySection).map(([sectionName, sectionData]) => (
                     <div key={sectionName} className="bg-gray-50 p-3 rounded-lg">
                       <h5 className="font-medium text-gray-800 mb-2">{sectionName}</h5>
                       <div className="space-y-1">
@@ -128,14 +144,31 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
                 <span className="font-medium">Report Generated:</span> {new Date(selectedReport.generatedAt).toLocaleString()}
               </p>
               <p className="text-sm text-gray-600 mt-1">
-                <span className="font-medium">Operational Hours:</span> {selectedReport.operationalHours.toFixed(1)} hours
+                <span className="font-medium">Report Status:</span> {selectedReport.reportStatus}
+              </p>
+              <p className="text-sm text-gray-600 mt-1">
+                <span className="font-medium">Report Type:</span> {selectedReport.reportType}
               </p>
             </div>
 
             <div className="mt-6 text-center">
-              <button onClick={() => setShowReportModal(false)} className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+              <button onClick={() => setShowReportModal(false)} className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors mr-2">
                 Close Report
               </button>
+              {selectedReport.reportStatus === "draft" && (
+                <button 
+                  onClick={async () => {
+                    try {
+                      await dayOperationReportsAPI.updateReport(selectedReport.id, { reportStatus: "final" });
+                      setShowReportModal(false);
+                    } catch (err) {
+                      setError("Failed to finalize report");
+                    }
+                  }} 
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                  Finalize Report
+                </button>
+              )}
             </div>
           </div>
         </div>

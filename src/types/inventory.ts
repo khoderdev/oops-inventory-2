@@ -1077,6 +1077,7 @@ export interface DayOperation {
   realTimeUpdate?: boolean;
   createdAt: Date;
   updatedAt: Date;
+  reports?: DayOperationReport[];
 }
 
 export interface OpenDayRequest {
@@ -1120,6 +1121,95 @@ export interface DayActivitiesResponse {
   totalActivities: number;
   lastActivity?: Date;
   dayStatus: "opened" | "closed";
+}
+
+//-----------------------------------------------------------------------------
+// Day Operation Reports Types
+
+export interface DayOperationReport {
+  id: number;
+  dayOperationId: number;
+  reportDate: string;
+  reportType: "daily" | "weekly" | "monthly" | "custom";
+  salesSummary: {
+    totalAmount: number;
+    totalTransactions: number;
+    averageTicket: number;
+    topCategories?: Record<string, number>;
+    topItems?: Array<{
+      name: string;
+      quantity: number;
+      revenue: number;
+    }>;
+    comparisonToPrevious?: {
+      percentage: number;
+      trend: "up" | "down" | "stable";
+    };
+  };
+  cashSummary: {
+    opening: number;
+    closing: number;
+    expected: number;
+    variance: number;
+    variancePercentage: number;
+    transactions: {
+      cash: number;
+      card: number;
+      other: number;
+    };
+  };
+  inventorySummary: {
+    totalItems: number;
+    totalValue: number;
+    totalVariances: number;
+    gains: number;
+    losses: number;
+  };
+  topSellingItems: Array<{
+    name: string;
+    quantity: number;
+    revenue: number;
+    profit: number;
+    profitMargin: number;
+  }>;
+  salesByCategory: Record<string, {
+    count: number;
+    total: number;
+    percentage: number;
+  }>;
+  salesBySection: Record<string, {
+    count: number;
+    total: number;
+    percentage: number;
+  }>;
+  salesByHour: Array<{
+    hour: number;
+    count: number;
+    total: number;
+  }>;
+  paymentMethodBreakdown: Record<string, {
+    count: number;
+    total: number;
+    percentage: number;
+  }>;
+  stockMovements: Array<{
+    materialId: number;
+    materialName: string;
+    startQuantity: number;
+    endQuantity: number;
+    consumed: number;
+    unit: string;
+    costPerUnit: number;
+    totalCost: number;
+  }>;
+  significantVariances: StockVariance[];
+  notes?: string;
+  generatedBy: string;
+  generatedAt: Date;
+  reportStatus: "draft" | "final" | "amended";
+  dayOperation?: DayOperation;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 //-------------------------------------------------------------------------------------------------------
