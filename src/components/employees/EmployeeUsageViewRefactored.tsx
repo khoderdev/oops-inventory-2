@@ -12,7 +12,7 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, MoreHorizontal, X } from "lucide-react";
 import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, usagesAtom, usagesFiltersAtom, usageStatsAtom } from "@/store/employeeAtoms";
 import type { EmployeeUsage, EmployeeUsageType, GroupedOrder, SettlementStatus } from "@/types/employee";
 
@@ -312,77 +312,91 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
       }),
       columnHelper.accessor("posTransactionId", {
         header: "Order",
-        cell: info => (info.getValue().startsWith("individual") ? "Individual Usage" : info.getValue()),
-        size: 120
+        size: 120,
+        cell: ({ row }) => <div className="font-medium">{row.original.posTransactionId}</div>
       }),
-      columnHelper.accessor(row => row.employee, {
-        id: "employee",
+      columnHelper.accessor("employee", {
         header: "Employee",
-        cell: info => {
-          const employee = info.getValue();
-          return `${employee.user?.firstName || ""} ${employee.user?.lastName || ""} (${employee.employeeNumber})`;
-        },
-        size: 150
+        size: 160,
+        cell: ({ row }) => {
+          const employee = row.original.employee;
+          // Direct access to firstName/lastName properties
+          let name = "Unknown";
+          if (employee) {
+            name = `${employee.firstName} ${employee.lastName}`;
+          }
+          return <div className="truncate max-w-[140px]">{name}</div>;
+        }
       }),
-      columnHelper.accessor(row => row.creator, {
-        id: "createdBy",
+      columnHelper.accessor("creator", {
         header: "Created By",
-        cell: info => {
-          const creator = info.getValue();
-          return creator ? `${creator.firstName} ${creator.lastName}` : "N/A";
-        },
-        size: 150
+        size: 160,
+        cell: ({ row }) => {
+          const creator = row.original.creator;
+          const name = creator ? `${creator.firstName} ${creator.lastName}` : "Unknown";
+          return <div className="truncate max-w-[140px]">{name}</div>;
+        }
       }),
       columnHelper.accessor("orderDate", {
         header: "Date & Time",
-        cell: info => formatDateTime(info.getValue()),
-        size: 150
+        size: 180,
+        cell: ({ row }) => (
+          <div className="whitespace-nowrap">
+            {new Date(row.original.orderDate).toLocaleDateString()} {new Date(row.original.orderDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </div>
+        )
       }),
       columnHelper.accessor("itemCount", {
         header: "Items",
-        cell: info => formatQuantity(info.getValue()),
-        size: 80
+        size: 80,
+        cell: ({ row }) => <div className="text-center">{row.original.items.length}</div>
       }),
       columnHelper.accessor("totalCost", {
         header: "Total Cost",
-        cell: info => formatCurrency(info.getValue()),
-        size: 120
+        size: 120,
+        cell: ({ row }) => <div className="text-right font-mono">{formatCurrency(row.original.totalCost)}</div>
       }),
       columnHelper.accessor("totalDiscountAmount", {
         header: "Discount",
-        cell: info => formatCurrency(info.getValue()),
-        size: 120
+        size: 120,
+        cell: ({ row }) => <div className="text-right font-mono">{formatCurrency(row.original.totalDiscountAmount)}</div>
       }),
       columnHelper.accessor("finalCost", {
         header: "Final Cost",
-        cell: info => formatCurrency(info.getValue()),
-        size: 120
+        size: 120,
+        cell: ({ row }) => <div className="text-right font-mono font-medium">{formatCurrency(row.original.finalCost)}</div>
       }),
-      columnHelper.accessor(row => row.items[0]?.order?.status || "N/A", {
-        id: "status",
+      columnHelper.accessor("status", {
         header: "Status",
-        cell: info => {
-          const status = info.getValue();
+        size: 100,
+        cell: ({ row }) => {
+          const status = row.original.items[0]?.order?.status || "unknown";
           return (
-            <Badge variant={status === "paid" ? "default" : "secondary"} className={`text-xs ${status === "paid" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
-              {status}
-            </Badge>
+            <div className="flex justify-center">
+              <Badge
+                variant={status === "paid" ? "default" : "outline"}
+                className={status === "paid" ? "bg-green-100 text-green-800" : ""}
+              >
+                {status}
+              </Badge>
+            </div>
           );
-        },
-        size: 100
+        }
       }),
       columnHelper.display({
         id: "actions",
         header: "Actions",
+        size: 100,
         cell: ({ row }) => {
           const order = row.original;
-          const hasUnsettledItems = order.items.some(item => !item.isSettled);
-          // Filter settlements that are open (using the correct status type)
           const employeeSettlements = settlements.filter(s => s.employeeId === order.employee?.id && s.status === "pending");
-
+          
           return (
-            <div className="flex space-x-2">
-              {hasUnsettledItems && employeeSettlements.length > 0 && (
+            <div className="flex items-center justify-center gap-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+              {employeeSettlements.length > 0 && !order.isSettled && (
                 <Select
                   onValueChange={value => {
                     const settlementId = parseInt(value);
@@ -403,11 +417,10 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
               )}
             </div>
           );
-        },
-        size: 150
+        }
       })
     ],
-    [settlements]
+    [settlements, addOrderToSettlement]
   );
 
   // Set up TanStack Table
@@ -465,10 +478,33 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     table.toggleAllRowsExpanded(false);
   };
 
+  // Calculate dynamic height based on viewport
+  const [tableHeight, setTableHeight] = useState("600px");
+  
+  // Update table height on window resize
+  useEffect(() => {
+    const updateTableHeight = () => {
+      // Calculate available height (viewport height - estimated other content height)
+      // Subtracting space for filters, stats cards, margins, and padding
+      const estimatedOtherContentHeight = 300; // Reduced from 400 to allow more space for table
+      const availableHeight = window.innerHeight - estimatedOtherContentHeight;
+      // Set a minimum height
+      const height = Math.max(500, availableHeight); // Increased minimum height from 400 to 500
+      setTableHeight(`${height}px`);
+    };
+    
+    // Set initial height
+    updateTableHeight();
+    
+    // Add resize listener
+    window.addEventListener('resize', updateTableHeight);
+    return () => window.removeEventListener('resize', updateTableHeight);
+  }, []);
+
   return (
     <div className="space-y-4">
       {/* Filter Controls */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-wrap gap-4 mb-4">
         <Select value={selectedEmployeeId || ""} onValueChange={value => setSelectedEmployeeId(value === "" ? null : value)}>
           <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="Select Employee" />
@@ -552,29 +588,56 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
         </Card>
       </div>
 
+      {/* Table Actions */}
+      <div className="flex justify-between items-center mb-2">
+        <div className="text-sm text-muted-foreground">
+          {groupedOrders.length} {groupedOrders.length === 1 ? 'order' : 'orders'} found
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExpandAll}>
+            <ChevronDown className="h-4 w-4 mr-1" /> Expand All
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleCollapseAll}>
+            <ChevronRight className="h-4 w-4 mr-1" /> Collapse All
+          </Button>
+        </div>
+      </div>
+      
       {/* Orders Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Employee Usage</CardTitle>
-          <CardDescription>View and manage employee usage records</CardDescription>
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Employee Usage</CardTitle>
+              <CardDescription>View and manage employee usage records</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-hidden">
             <div
-              className="w-full overflow-auto"
+              className="w-full overflow-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400"
               ref={tableContainerRef}
               style={{
-                height: "600px",
+                height: tableHeight,
                 overscrollBehavior: "contain", // Prevent scroll chaining
                 WebkitOverflowScrolling: "touch" // Smooth scrolling on iOS
               }}
             >
-              <Table>
-                <TableHeader>
+              <Table className="relative w-full table-fixed border-collapse">
+                <TableHeader className="sticky top-0 z-20 bg-background border-b">
                   {table.getHeaderGroups().map(headerGroup => (
-                    <TableRow key={headerGroup.id}>
+                    <TableRow key={headerGroup.id} className="hover:bg-background">
                       {headerGroup.headers.map(header => (
-                        <TableHead key={header.id} style={{ width: header.getSize() }}>
+                        <TableHead 
+                          key={header.id} 
+                          style={{ 
+                            width: header.getSize(),
+                            minWidth: header.getSize(),
+                            maxWidth: header.getSize() === 9999 ? 'none' : header.getSize()
+                          }}
+                          className="bg-muted/50 font-medium text-muted-foreground h-10 px-4 text-left"
+                        >
                           {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                         </TableHead>
                       ))}
@@ -622,7 +685,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
                                   ref={node => {
                                     if (node) rowVirtualizer.measureElement(node);
                                   }}
-                                  className="hover:bg-muted/50 cursor-pointer absolute w-full"
+                                  className={`hover:bg-muted/50 cursor-pointer absolute w-full transition-colors duration-200 ${row.getIsExpanded() ? 'bg-muted/30' : ''}`}
                                   onClick={() => row.toggleExpanded()}
                                   style={{
                                     transform: `translateY(${virtualRow.start}px)`,
@@ -630,7 +693,15 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
                                   }}
                                 >
                                   {row.getVisibleCells().map(cell => (
-                                    <TableCell key={cell.id}>
+                                    <TableCell 
+                                      key={cell.id} 
+                                      className="py-3 px-4"
+                                      style={{
+                                        width: cell.column.getSize(),
+                                        minWidth: cell.column.getSize(),
+                                        maxWidth: cell.column.getSize() === 9999 ? 'none' : cell.column.getSize()
+                                      }}
+                                    >
                                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                     </TableCell>
                                   ))}
@@ -639,19 +710,32 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
                                 {/* Expanded content - rendered outside the table for proper DOM nesting */}
                                 {isExpanded && (
                                   <div 
-                                    className="absolute w-full bg-muted/50 p-4 rounded-md"
+                                    className="absolute w-full bg-muted/50 p-4 rounded-md border border-muted shadow-sm backdrop-blur-sm"
                                     style={{
                                       transform: `translateY(${virtualRow.start + virtualRow.size}px)`,
                                       zIndex: 10
                                     }}
                                   >
-                                    <div className="text-lg font-semibold mb-2">Order Details</div>
+                                    <div className="flex justify-between items-center mb-3">
+                                      <div className="text-lg font-semibold">Order Details</div>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-8 px-2" 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          row.toggleExpanded(false);
+                                        }}
+                                      >
+                                        <ChevronRight className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                                       {row.original.items.map((usage) => (
-                                        <div key={usage.id} className="bg-card rounded-lg p-3 border">
+                                        <div key={usage.id} className="bg-card rounded-lg p-3 border hover:border-primary/20 transition-colors shadow-sm">
                                           <div className="flex justify-between items-start mb-2">
-                                            <div className="font-medium">{usage.item?.name || 'Unknown Item'}</div>
-                                            <Badge variant={usage.isSettled ? "default" : "outline"} className={usage.isSettled ? "bg-green-100 text-green-800" : ""}>
+                                            <div className="font-medium text-primary/90">{usage.item?.name || 'Unknown Item'}</div>
+                                            <Badge variant={usage.isSettled ? "default" : "outline"} className={usage.isSettled ? "bg-green-100 text-green-800" : "border-amber-300 text-amber-600"}>
                                               {usage.isSettled ? "Settled" : "Unsettled"}
                                             </Badge>
                                           </div>
@@ -703,24 +787,30 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
 
                                     {/* Order Info Section */}
                                     {row.original.items[0]?.order && (
-                                      <div className="bg-card rounded-lg p-4 border">
-                                        <div className="text-md font-semibold mb-2">Order Information</div>
+                                      <div className="bg-card rounded-lg p-4 border shadow-sm mb-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                          <div className="text-md font-semibold">Order Information</div>
+                                          <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200">
+                                            #{row.original.items[0].order.id}
+                                          </Badge>
+                                        </div>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                          <div>
-                                            <span className="text-muted-foreground">Order ID:</span>
-                                            <div>{row.original.items[0].order.id}</div>
-                                          </div>
-                                          <div>
-                                            <span className="text-muted-foreground">Status:</span>
-                                            <div>
-                                              <Badge variant={row.original.items[0].order.status === "paid" ? "default" : "secondary"} className={`text-xs ${row.original.items[0].order.status === "paid" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                                          <div className="bg-muted/30 p-2 rounded-md">
+                                            <span className="text-muted-foreground block text-xs">Status</span>
+                                            <div className="mt-1">
+                                              <Badge variant={row.original.items[0].order.status === "paid" ? "default" : "secondary"} 
+                                                className={`text-xs ${row.original.items[0].order.status === "paid" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
                                                 {row.original.items[0].order.status}
                                               </Badge>
                                             </div>
                                           </div>
-                                          <div>
-                                            <span className="text-muted-foreground">Order Total:</span>
-                                            <div className="font-medium font-mono">{formatCurrency(parseFloat(row.original.items[0].order.total?.toString() || "0"))}</div>
+                                          <div className="bg-muted/30 p-2 rounded-md">
+                                            <span className="text-muted-foreground block text-xs">Order Total</span>
+                                            <div className="font-medium font-mono mt-1">{formatCurrency(parseFloat(row.original.items[0].order.total?.toString() || "0"))}</div>
+                                          </div>
+                                          <div className="bg-muted/30 p-2 rounded-md">
+                                            <span className="text-muted-foreground block text-xs">Date</span>
+                                            <div className="mt-1">{new Date(row.original.orderDate).toLocaleDateString()}</div>
                                           </div>
                                         </div>
                                       </div>
@@ -728,9 +818,12 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
 
                                     {/* Notes Section */}
                                     {row.original.items[0]?.notes && (
-                                      <div className="mt-3 p-2 bg-background rounded border">
-                                        <div className="text-sm font-medium text-muted-foreground mb-1">Notes:</div>
-                                        <div className="text-sm">{row.original.items[0].notes}</div>
+                                      <div className="p-3 bg-background rounded-md border shadow-sm">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <div className="text-sm font-medium">Notes</div>
+                                          <div className="h-1 w-1 rounded-full bg-muted-foreground"></div>
+                                        </div>
+                                        <div className="text-sm italic bg-muted/20 p-2 rounded">{row.original.items[0].notes}</div>
                                       </div>
                                     )}
                                   </div>
