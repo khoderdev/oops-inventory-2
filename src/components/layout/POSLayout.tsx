@@ -18,6 +18,7 @@ const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openD
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
   const { user, logout, hasRole } = useAuth();
+  const isStaff = hasRole("staff");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -346,6 +347,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   // Day Operations handlers
   const handleOpenDayOperationsModal = () => {
+    if (!isStaff) return; // Only staff can open the operations modal
     const nextType: "open" | "close" = userDayOpen ? "close" : "open";
     setDayOperationType(nextType);
 
@@ -457,9 +459,15 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   // Open Close-Day modal with fresh data
   const handleShowCloseModal = useCallback(async () => {
+    if (!isStaff) return; // Only staff can open the close day modal
     await refreshExpectedAndStats();
     setShowCloseModal(true);
-  }, [refreshExpectedAndStats]);
+  }, [refreshExpectedAndStats, isStaff]);
+
+  const handleShowOpenModal = useCallback(() => {
+    if (!isStaff) return; // Only staff can open the open day modal
+    setShowOpenModal(true);
+  }, [isStaff]);
 
   // While the Close-Day modal is open, keep expected cash and stats fresh
   useEffect(() => {
@@ -474,12 +482,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   {
     {
-      isLocked && showLockOverlay && (
+      isStaff && isLocked && showLockOverlay && (
         <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
             <div className="mb-3 text-slate-900 dark:text-slate-100 font-semibold">Your shift is not open</div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">Please open your shift to start taking orders</p>
-            <button onClick={handleOpenDayOperationsModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+            <button onClick={handleShowOpenModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
               Open Shift
             </button>
           </div>
@@ -628,7 +636,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
               </button>
             ) : (
               <button
-                onClick={() => setShowOpenModal(true)}
+                onClick={handleShowOpenModal}
                 className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 sm:px-6  py-2  rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm  w-full sm:w-auto"
               >
                 Open New Day
@@ -707,12 +715,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           {/* Right Panel - Main Content */}
           <div className="flex-1 relative overflow-hidden">
             <div className="h-full w-full pointer-events-auto">{children}</div>
-            {isLocked && showLockOverlay && (
+            {isStaff && isLocked && showLockOverlay && (
               <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
                   <div className="mb-3 text-slate-900 dark:text-slate-100 font-semibold">Day is not open</div>
                   <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">Please open the day to start taking orders.</p>
-                  <button onClick={() => setShowOpenModal(true)} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                  <button onClick={handleShowOpenModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
                     Open Day
                   </button>
                 </div>
@@ -732,28 +740,41 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         </DialogContent>
       </Dialog>
       {/* Day Operations Modal */}
-      {/* Open Day Modal */}
-      <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} isLoading={actionLoading} formatCurrency={formatCurrency} />
+      {/* Open Day Modal - Staff only */}
+      {isStaff && (
+        <DayOperationsModal
+          open={showOpenModal}
+          onOpenChange={setShowOpenModal}
+          onSubmit={handleOpenDay}
+          type="open"
+          formData={convertToModalFormData("open")}
+          onFormChange={data => handleModalFormChange("open", data)}
+          isLoading={actionLoading}
+          formatCurrency={formatCurrency}
+        />
+      )}
 
-      {/* Close Day Modal */}
-      <DayOperationsModal
-        open={showCloseModal}
-        onOpenChange={setShowCloseModal}
-        onSubmit={handleCloseDay}
-        type="close"
-        formData={convertToModalFormData("close")}
-        onFormChange={data => handleModalFormChange("close", data)}
-        isLoading={actionLoading}
-        currentDay={
-          {
-            ...currentDay,
-            userOrderStats: userOrderStats
-          } as any
-        }
-        expectedCash={currentDay?.expectedCash ?? closeDayForm.closingCash ?? 0}
-        userOrderStats={userOrderStats}
-        formatCurrency={formatCurrency}
-      />
+      {/* Close Day Modal - Staff only */}
+      {isStaff && (
+        <DayOperationsModal
+          open={showCloseModal}
+          onOpenChange={setShowCloseModal}
+          onSubmit={handleCloseDay}
+          type="close"
+          formData={convertToModalFormData("close")}
+          onFormChange={data => handleModalFormChange("close", data)}
+          isLoading={actionLoading}
+          currentDay={
+            {
+              ...currentDay,
+              userOrderStats: userOrderStats
+            } as any
+          }
+          expectedCash={currentDay?.expectedCash ?? closeDayForm.closingCash ?? 0}
+          userOrderStats={userOrderStats}
+          formatCurrency={formatCurrency}
+        />
+      )}
       {/* Day Operation Alerts */}
       {dayError && (
         <div className="fixed top-4 right-4 z-50 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center max-w-md shadow-lg">
