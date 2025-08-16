@@ -13,6 +13,13 @@ export interface UserOrderStats {
   userName: string;
   orderCount: number;
   totalAmount: number;
+  openingTime?: string;
+  closingTime?: string;
+  openingCash?: number;
+  closingCash?: number;
+  cashSales?: number;
+  cardSales?: number;
+  notes?: string;
 }
 
 export interface DayOperationsModalProps {

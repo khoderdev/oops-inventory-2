@@ -1085,12 +1085,14 @@ export interface OpenDayRequest {
   openingCash?: number;
   openedBy?: string;
   notes?: string;
+  userId?: number; // For individual user day tracking
 }
 
 export interface CloseDayRequest {
   closingCash: number;
   closedBy?: string;
   notes?: string;
+  userId?: number; // For individual user day tracking
 }
 
 export interface DayOperationResponse {
@@ -1118,6 +1120,10 @@ export interface DayOperationsListResponse {
 }
 
 export interface UserOrderStats {
+  openingTime: boolean;
+  closingTime: any;
+  openingCash: number;
+  cashSales: number;
   userId: number;
   userName: string;
   orderCount: number;

@@ -3,11 +3,12 @@ import { authAPI } from "@/api/auth";
 import { dayOperationsAPI } from "@/api/dayOperations.api";
 import { POSClientOrders } from "@/components/pos/POSClientOrders";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import DayOperationsModal, { DayOperationsFormData } from "@/components/DayOperationsModal/DayOperationsModal";
+import DayOperationsModal from "@/components/DayOperationsModal/DayOperationsModal";
 import PinInput from "@/components/ui/PinInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
 import { POSLayoutProps, OpenDayRequest, CloseDayRequest } from "@/types/inventory";
+import { DayOperationsFormData, UserOrderStats } from "@/types/dayOperations";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { AlertCircle, Banknote, Calendar, Clock, GripVertical, List, Maximize2, Minimize2, Power, ShoppingCart } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -25,30 +26,67 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [showDayOperationsModal, setShowDayOperationsModal] = useState(false);
   const [isDayOpen, setIsDayOpen] = useState(false); // Default to closed
+  const [userDayOpen, setUserDayOpen] = useState(false); // Track current user's day status
   const [dayOperationType, setDayOperationType] = useState<"open" | "close">("open");
   const [dayFormData, setDayFormData] = useState<DayOperationsFormData>({});
   const [isLoadingDayOperation, setIsLoadingDayOperation] = useState(false);
   const [currentDay, setCurrentDay] = useState<{ expectedCash?: number } | null>(null);
+  const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
   
   useEffect(() => {
     const fetchDayStatus = async () => {
       try {
+        // Get current day operation status
         const { currentDay } = await dayOperationsAPI.getCurrentDayOperation();
         const isOpen = currentDay && !currentDay.closedAt;
         setIsDayOpen(isOpen);
+        
         if (currentDay) {
           setCurrentDay({ 
             expectedCash: currentDay.expectedCash || currentDay.openingCash || 0 
           });
+          
+          // Get user-specific order stats
+          try {
+            const { userOrderStats: stats } = await dayOperationsAPI.getUserOrderStats();
+            setUserOrderStats(stats);
+            
+            // Check if current user has opened their day
+            if (user && stats) {
+              const currentUserStats = stats.find(stat => stat.userId === user.id);
+              // User day is open if they have stats and openingTime exists but no closingTime
+              const isUserDayOpen = Boolean(currentUserStats?.openingTime && !currentUserStats?.closingTime);
+              console.log(`User day status for ${user.username}: ${isUserDayOpen ? 'Open' : 'Closed'}`);
+              setUserDayOpen(isUserDayOpen);
+            } else {
+              // If no user stats found, user day is closed
+              setUserDayOpen(false);
+            }
+          } catch (statsError) {
+            console.error("Failed to fetch user order stats:", statsError);
+            setUserOrderStats([]);
+            setUserDayOpen(false);
+          }
+        } else {
+          // No day operation exists, reset user stats
+          setUserOrderStats([]);
+          setUserDayOpen(false);
         }
       } catch (error) {
         console.error("Failed to fetch day status:", error);
         setIsDayOpen(false);
+        setUserDayOpen(false);
+        setUserOrderStats([]);
       }
     };
     
     fetchDayStatus();
-  }, []);
+    
+    // Set up interval to refresh day status every 5 minutes
+    const intervalId = setInterval(fetchDayStatus, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [user]);  // Re-run when user changes
 
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -234,14 +272,45 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   // Day Operations handlers
   const handleOpenDayOperationsModal = () => {
-    setDayOperationType(isDayOpen ? "close" : "open");
+    // For staff users, we're tracking their individual day status
+    const isUserDay = hasRole("staff");
+    const shouldClose = isUserDay ? userDayOpen : isDayOpen;
+    
+    setDayOperationType(shouldClose ? "close" : "open");
+    
+    // Find user's current stats if available
+    let userExpectedCash = 0;
+    let userOpeningCash = 0;
+    let userCashSales = 0;
+    let userCardSales = 0;
+    
+    if (user && userOrderStats.length > 0) {
+      const currentUserStats = userOrderStats.find(stat => stat.userId === user.id);
+      if (currentUserStats) {
+        userOpeningCash = currentUserStats.openingCash || 0;
+        userCashSales = currentUserStats.cashSales || 0;
+        userCardSales = currentUserStats.cardSales || 0;
+        userExpectedCash = userOpeningCash + userCashSales;
+        
+        console.log(`User stats for ${user.username}:`, {
+          openingCash: userOpeningCash,
+          cashSales: userCashSales,
+          cardSales: userCardSales,
+          expectedCash: userExpectedCash
+        });
+      }
+    }
+    
     setDayFormData({
-      openingCash: 0,
-      closingCash: currentDay?.expectedCash || 0,
+      openingCash: userOpeningCash || 0,
+      closingCash: shouldClose ? userExpectedCash : 0,
       openedBy: user?.username || "",
       closedBy: user?.username || "",
-      notes: ""
+      notes: "",
+      // Include additional stats for reference
+      userId: user?.id
     });
+    
     setShowDayOperationsModal(true);
   };
 
@@ -271,8 +340,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         await dayOperationsAPI.closeDay(closeDayRequest);
       }
       
-      // Update UI state
-      setIsDayOpen(dayOperationType === "open");
+      // Update UI state based on user role
+      if (hasRole("staff")) {
+        setUserDayOpen(dayOperationType === "open");
+      } else {
+        setIsDayOpen(dayOperationType === "open");
+      }
       
       // Show success message using toast if available
       const message = `Day ${dayOperationType === "open" ? "opened" : "closed"} successfully`;
@@ -376,15 +449,15 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
                 onClick={() => handleOpenDayOperationsModal()}
                 className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95"
               >
-                <div className={`absolute inset-0 ${isDayOpen ? "bg-gradient-to-r from-red-500/20 to-orange-500/20" : "bg-gradient-to-r from-green-500/20 to-emerald-500/20"} rounded-xl blur-sm group-hover:blur-none transition-all duration-300`} />
+                <div className={`absolute inset-0 ${userDayOpen ? "bg-gradient-to-r from-red-500/20 to-orange-500/20" : "bg-gradient-to-r from-green-500/20 to-emerald-500/20"} rounded-xl blur-sm group-hover:blur-none transition-all duration-300`} />
                 <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
-                  {isDayOpen ? (
+                  {userDayOpen ? (
                     <Banknote className="w-4 h-4 text-red-300 group-hover:text-red-200 transition-colors" />
                   ) : (
                     <Calendar className="w-4 h-4 text-green-300 group-hover:text-green-200 transition-colors" />
                   )}
                   <span className="text-xs font-medium text-white/90 group-hover:text-white transition-colors">
-                    {isDayOpen ? "Close Day" : "Open Day"}
+                    {userDayOpen ? "Close My Day" : "Open My Day"}
                   </span>
                 </div>
               </button>

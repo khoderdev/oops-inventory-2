@@ -168,31 +168,78 @@ const dayOperationsController = {
     const transaction = await sequelize.transaction();
 
     try {
-      const { openingCash = 0, openedBy = "System", notes } = req.body;
+      const { openingCash = 0, openedBy = "System", notes, userId } = req.body;
       const today = new Date().toISOString().split("T")[0];
-
-      // Check if day is already opened (not just if it exists)
+      // Find today's day operation (if any)
       const existingDay = await DayOperation.findOne({
         where: { date: today },
         transaction
       });
 
-      if (existingDay && existingDay.status === "opened") {
-        await transaction.rollback();
-        return res.status(400).json({
-          error: "Day is already opened",
-          existingDay
-        });
+      const isUserSpecificOperation = userId !== undefined;
+
+      // USER-SPECIFIC OPEN: only update reportData, never create/alter global day
+      if (isUserSpecificOperation) {
+        if (!existingDay || existingDay.status !== "opened") {
+          await transaction.rollback();
+          return res.status(400).json({ error: "Global day is not opened. Ask a manager to open the day first." });
+        }
+
+        try {
+          const user = await User.findByPk(userId, { transaction });
+          const userName = user ? `${user.firstName} ${user.lastName}`.trim() : `User ${userId}`;
+
+          const reportData = existingDay.reportData || {};
+          const userOrderStats = reportData.userOrderStats || [];
+          const idx = userOrderStats.findIndex(u => u.userId === userId);
+          const now = new Date();
+
+          if (idx >= 0) {
+            userOrderStats[idx] = {
+              ...userOrderStats[idx],
+              openingTime: now.toISOString(),
+              openingCash: parseFloat(openingCash ?? 0),
+              closingTime: null,
+              closingCash: null,
+              notes: notes || userOrderStats[idx].notes
+            };
+          } else {
+            userOrderStats.push({
+              userId,
+              userName,
+              openingTime: now.toISOString(),
+              openingCash: parseFloat(openingCash ?? 0),
+              closingTime: null,
+              closingCash: null,
+              orderCount: 0,
+              totalAmount: 0,
+              cashSales: 0,
+              cardSales: 0,
+              notes: notes || ''
+            });
+          }
+
+          await existingDay.update({ reportData: { ...reportData, userOrderStats } }, { transaction });
+        } catch (e) {
+          await transaction.rollback();
+          console.error("Error updating user-specific open:", e);
+          return next(e);
+        }
+
+        await transaction.commit();
+        return res.status(200).json({ message: "User day opened", dayOperation: existingDay });
       }
 
-      // Create stock snapshot for opening
+      // GLOBAL OPEN: create or reopen day
+      if (existingDay && existingDay.status === "opened") {
+        await transaction.rollback();
+        return res.status(400).json({ error: "Day is already opened" });
+      }
+
+      // Build opening stock snapshot
       const stockSnapshot = await StockEntry.findAll({
         include: [
-          {
-            model: Material,
-            as: "material",
-            attributes: ["id", "name", "baseUnit", "categoryId"]
-          }
+          { model: Material, as: "material", attributes: ["id", "name", "baseUnit", "categoryId"] }
         ],
         transaction
       });
@@ -210,9 +257,7 @@ const dayOperationsController = {
       }));
 
       let dayOperation;
-
       if (existingDay && existingDay.status === "closed") {
-        // Update existing closed day to reopen it
         dayOperation = await existingDay.update(
           {
             status: "opened",
@@ -225,7 +270,6 @@ const dayOperationsController = {
             totalSales: 0,
             totalTransactions: 0,
             averageTicket: 0,
-            // Reset closing data
             closedAt: null,
             closedBy: null,
             closingCash: null,
@@ -240,7 +284,6 @@ const dayOperationsController = {
           { transaction }
         );
       } else {
-        // Create new day operation (for first time opening)
         dayOperation = await DayOperation.create(
           {
             date: today,
@@ -260,11 +303,7 @@ const dayOperationsController = {
       }
 
       await transaction.commit();
-      res.status(201).json({
-        message: existingDay ? "Day successfully reopened" : "Day successfully opened",
-        dayOperation,
-        stockItemsCaptured: openingStockSnapshot.length
-      });
+      return res.status(201).json({ message: existingDay ? "Day successfully reopened" : "Day successfully opened", dayOperation, stockItemsCaptured: openingStockSnapshot.length });
     } catch (error) {
       await transaction.rollback();
       console.error("Error opening day:", error);
@@ -272,32 +311,93 @@ const dayOperationsController = {
     }
   },
 
-  // Close current day
+  // Close the current day
   closeDay: async (req, res, next) => {
     const transaction = await sequelize.transaction();
 
     try {
-      const { closingCash, closedBy = "System", notes } = req.body;
+      const { closingCash, closedBy = "System", notes, userId } = req.body;
       const today = new Date().toISOString().split("T")[0];
 
-      // Find current day operation
-      const currentDay = await DayOperation.findOne({
-        where: {
-          date: today,
-          status: "opened"
-        },
+      // Find the current day operation
+      const dayOperation = await DayOperation.findOne({
+        where: { date: today },
         transaction
       });
 
-      if (!currentDay) {
+      if (!dayOperation) {
         await transaction.rollback();
-        return res.status(404).json({
-          error: "No open day operation found for today"
-        });
+        return res.status(404).json({ error: "No day operation found for today" });
+      }
+
+      const isUserSpecificOperation = userId !== undefined;
+
+      // USER-SPECIFIC CLOSE: only update reportData for that user
+      if (isUserSpecificOperation) {
+        try {
+          // sales for this user today
+          const dayStart = new Date(dayOperation.openedAt);
+          const dayEnd = new Date();
+          const salesData = await Sale.findAll({
+            where: { saleDate: { [Op.between]: [dayStart, dayEnd] }, isActive: true, userId },
+            include: [{ model: Section, as: "section", attributes: ["id", "name"] }],
+            transaction
+          });
+
+          const userTotalSales = salesData.reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
+          const userCashSales = salesData.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + parseFloat(s.totalAmount), 0);
+          const userCardSales = salesData.filter(s => s.paymentMethod === 'card').reduce((sum, s) => sum + parseFloat(s.totalAmount), 0);
+
+          const reportData = dayOperation.reportData || {};
+          const userOrderStats = reportData.userOrderStats || [];
+          const idx = userOrderStats.findIndex(u => u.userId === userId);
+          const now = new Date();
+
+          if (idx >= 0) {
+            userOrderStats[idx] = {
+              ...userOrderStats[idx],
+              closingTime: now.toISOString(),
+              closingCash: parseFloat(closingCash ?? 0),
+              cashSales: userCashSales,
+              cardSales: userCardSales,
+              orderCount: salesData.length,
+              totalAmount: userTotalSales,
+              notes: notes || userOrderStats[idx].notes
+            };
+          } else {
+            userOrderStats.push({
+              userId,
+              userName: `User ${userId}`,
+              openingTime: dayStart.toISOString(),
+              openingCash: 0,
+              closingTime: now.toISOString(),
+              closingCash: parseFloat(closingCash ?? 0),
+              orderCount: salesData.length,
+              totalAmount: userTotalSales,
+              cashSales: userCashSales,
+              cardSales: userCardSales,
+              notes: notes || ''
+            });
+          }
+
+          await dayOperation.update({ reportData: { ...reportData, userOrderStats } }, { transaction });
+          await transaction.commit();
+          return res.status(200).json({ message: "User day closed", dayOperation, userStats: userOrderStats.find(u => u.userId === userId) });
+        } catch (e) {
+          await transaction.rollback();
+          console.error("Error updating user-specific close:", e);
+          return next(e);
+        }
+      }
+
+      // For global day operations (admin), check if day is already closed
+      if (dayOperation.status === "closed") {
+        await transaction.rollback();
+        return res.status(400).json({ error: "Day is already closed" });
       }
 
       // Calculate sales data for the day
-      const dayStart = new Date(currentDay.openedAt);
+      const dayStart = new Date(dayOperation.openedAt);
       const dayEnd = new Date();
 
       const salesData = await Sale.findAll({
@@ -323,7 +423,7 @@ const dayOperationsController = {
       const averageTicket = totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
       // Calculate expected cash
-      const expectedCash = parseFloat(currentDay.openingCash) + totalSales;
+      const expectedCash = parseFloat(dayOperation.openingCash) + totalSales;
       const actualClosingCash = parseFloat(closingCash || 0);
       const cashVariance = actualClosingCash - expectedCash;
 
@@ -353,7 +453,7 @@ const dayOperationsController = {
 
       // Calculate stock variances
       const stockVariances = [];
-      const openingSnapshot = currentDay.openingStockSnapshot || [];
+      const openingSnapshot = dayOperation.openingStockSnapshot || [];
 
       closingSnapshot.forEach(closingItem => {
         const openingItem = openingSnapshot.find(item => item.stockEntryId === closingItem.stockEntryId);
@@ -376,7 +476,9 @@ const dayOperationsController = {
       });
 
       // Generate daily report data
+      const existingReportData = dayOperation.reportData || {};
       const reportData = {
+        ...existingReportData,
         date: today,
         operationalHours: Math.round(((dayEnd - dayStart) / (1000 * 60 * 60)) * 100) / 100,
         sales: {
@@ -394,7 +496,7 @@ const dayOperationsController = {
           }, {})
         },
         cash: {
-          opening: parseFloat(currentDay.openingCash),
+          opening: parseFloat(dayOperation.openingCash),
           expected: expectedCash,
           actual: actualClosingCash,
           variance: cashVariance,
@@ -408,9 +510,72 @@ const dayOperationsController = {
         },
         generatedAt: new Date()
       };
+      
+      // Handle individual user day status if userId is provided
+      if (isUserSpecificOperation && userId) {
+        try {
+          // Get user information
+          const user = await User.findByPk(userId, { transaction });
+          const userName = user ? `${user.firstName} ${user.lastName}`.trim() : `User ${userId}`;
+          
+          // Get user order stats
+          const userOrderStats = reportData.userOrderStats || [];
+          const now = new Date();
+          
+          // Find user's sales data
+          const userSalesData = salesData.filter(sale => sale.userId === userId);
+          const userTotalSales = userSalesData.reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
+          const userCashSales = userSalesData
+            .filter(sale => sale.paymentMethod === 'cash')
+            .reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
+          const userCardSales = userSalesData
+            .filter(sale => sale.paymentMethod === 'card')
+            .reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
+          
+          // Check if user already exists in stats
+          const existingUserIndex = userOrderStats.findIndex(u => u.userId === userId);
+          
+          if (existingUserIndex >= 0) {
+            // Update existing user stats
+            userOrderStats[existingUserIndex] = {
+              ...userOrderStats[existingUserIndex],
+              closingTime: now.toISOString(),
+              closingCash: parseFloat(closingCash),
+              cashSales: userCashSales,
+              cardSales: userCardSales,
+              orderCount: userSalesData.length,
+              totalAmount: userTotalSales,
+              notes: notes || userOrderStats[existingUserIndex].notes
+            };
+          } else {
+            // Add new user stats (shouldn't happen for closing, but handle just in case)
+            userOrderStats.push({
+              userId,
+              userName,
+              openingTime: dayStart.toISOString(), // Assume opened at day start
+              openingCash: 0, // Default opening cash
+              closingTime: now.toISOString(),
+              closingCash: parseFloat(closingCash),
+              orderCount: userSalesData.length,
+              totalAmount: userTotalSales,
+              cashSales: userCashSales,
+              cardSales: userCardSales,
+              notes: notes || ''
+            });
+          }
+          
+          // Update report data with updated user stats
+          reportData.userOrderStats = userOrderStats;
+          
+          console.log(`Updated day operation with user ${userId} closing status`);
+        } catch (userError) {
+          console.error(`Error updating user day status for user ${userId}:`, userError);
+          // Continue with the transaction even if user update fails
+        }
+      }
 
       // Update day operation
-      await currentDay.update(
+      await dayOperation.update(
         {
           status: "closed",
           closedAt: dayEnd,
@@ -425,14 +590,14 @@ const dayOperationsController = {
           stockVariances,
           autoReportGenerated: true,
           reportData,
-          notes: notes ? (currentDay.notes ? `${currentDay.notes}\n[CLOSED] ${notes}` : notes) : currentDay.notes
+          notes: notes ? (dayOperation.notes ? `${dayOperation.notes}\n[CLOSED] ${notes}` : notes) : dayOperation.notes
         },
         { transaction }
       );
 
       // Create a DayOperationReport record automatically
       const report = await DayOperationReport.create({
-        dayOperationId: currentDay.id,
+        dayOperationId: dayOperation.id,
         reportDate: today,
         reportType: "daily",
         salesSummary: reportData.sales || {},
@@ -451,21 +616,37 @@ const dayOperationsController = {
         generatedAt: new Date()
       }, { transaction });
 
-      await transaction.commit();
-
-      res.status(200).json({
-        message: "Day successfully closed",
-        dayOperation: await DayOperation.findByPk(currentDay.id),
-        dailyReport: reportData,
-        report: report,
-        summary: {
-          totalSales,
-          totalTransactions,
-          averageTicket,
-          cashVariance,
-          stockVariances: stockVariances.length
-        }
-      });
+      // For individual user day operations, don't close the global day
+      if (isUserSpecificOperation) {
+        await transaction.commit();
+        res.status(200).json({
+          message: "User day closed successfully",
+          dayOperation,
+          userStats: reportData.userOrderStats?.find(u => u.userId === userId),
+          summary: {
+            totalSales,
+            totalTransactions,
+            averageTicket,
+            cashVariance,
+            stockVariances: stockVariances.length
+          }
+        });
+      } else {
+        // For global day operations (admin), close the entire day
+        await transaction.commit();
+        res.status(200).json({
+          message: "Day closed successfully",
+          dayOperation,
+          dailyReport: reportData,
+          summary: {
+            totalSales,
+            totalTransactions,
+            averageTicket,
+            cashVariance,
+            stockVariances: stockVariances.length
+          }
+        });
+      }
     } catch (error) {
       await transaction.rollback();
       console.error("Error closing day:", error);
@@ -527,7 +708,102 @@ const dayOperationsController = {
   },
 
   // Update day operation (for corrections)
-  // Get user order statistics for the current day
+  // Get user order statistics for the current day with individual day status
+  // getCurrentDayUserOrderStats: async (req, res, next) => {
+  //   try {
+  //     const today = new Date().toISOString().split("T")[0];
+
+  //     // Find current day operation
+  //     const currentDay = await DayOperation.findOne({
+  //       where: { date: today }
+  //     });
+
+  //     if (!currentDay) {
+  //       return res.status(200).json({
+  //         userOrderStats: [],
+  //         message: "No day operation found for today"
+  //       });
+  //     }
+
+  //     const dayStart = new Date(currentDay.openedAt);
+  //     const dayEnd = currentDay.status === "closed" ? new Date(currentDay.closedAt) : new Date();
+
+  //     // Get all sales for the current day grouped by user
+  //     const userOrderStats = await Sale.findAll({
+  //       where: {
+  //         saleDate: {
+  //           [Op.between]: [dayStart, dayEnd]
+  //         },
+  //         isActive: true,
+  //         userId: { [Op.not]: null } // Only include sales with a userId
+  //       },
+  //       attributes: [
+  //         'userId',
+  //         [sequelize.literal('COUNT("Sale"."id")'), 'orderCount'],
+  //         [sequelize.fn('SUM', sequelize.col('Sale.totalAmount')), 'totalAmount'],
+  //         [
+  //           sequelize.fn(
+  //             'SUM',
+  //             sequelize.literal("CASE WHEN \"Sale\".\"paymentMethod\" = 'cash' THEN \"Sale\".\"totalAmount\" ELSE 0 END")
+  //           ),
+  //           'cashSales'
+  //         ],
+  //         [
+  //           sequelize.fn(
+  //             'SUM',
+  //             sequelize.literal("CASE WHEN \"Sale\".\"paymentMethod\" = 'card' THEN \"Sale\".\"totalAmount\" ELSE 0 END")
+  //           ),
+  //           'cardSales'
+  //         ]
+  //       ],
+  //       include: [
+  //         {
+  //           model: User,
+  //           as: "creator",
+  //           attributes: ['firstName', 'lastName']
+  //         }
+  //       ],
+  //       group: ['Sale.userId', 'creator.id'],
+  //       raw: false
+  //     });
+
+  //     // Get user-specific day operation data from reportData if available
+  //     let userDayData = [];
+  //     if (currentDay.reportData && currentDay.reportData.userOrderStats) {
+  //       userDayData = currentDay.reportData.userOrderStats;
+  //     }
+
+  //     // Format the response with individual user day status
+  //     const formattedStats = userOrderStats.map(stat => {
+  //       // Find existing user data if available
+  //       const userData = userDayData.find(u => u.userId === stat.userId) || {};
+        
+  //       return {
+  //         userId: stat.userId,
+  //         userName: stat.creator ? `${stat.creator.firstName} ${stat.creator.lastName}`.trim() : `User ${stat.userId}`,
+  //         orderCount: parseInt(stat.dataValues.orderCount, 10),
+  //         totalAmount: parseFloat(stat.dataValues.totalAmount),
+  //         cashSales: parseFloat(stat.dataValues.cashSales || 0),
+  //         cardSales: parseFloat(stat.dataValues.cardSales || 0),
+  //         // Include user-specific day operation data
+  //         openingTime: userData.openingTime || null,
+  //         closingTime: userData.closingTime || null,
+  //         openingCash: userData.openingCash || 0,
+  //         closingCash: userData.closingCash || 0,
+  //         notes: userData.notes || ''
+  //       };
+  //     });
+
+  //     res.status(200).json({
+  //       userOrderStats: formattedStats,
+  //       totalUsers: formattedStats.length,
+  //       dayStatus: currentDay.status
+  //     });
+  //   } catch (error) {
+  //     console.error("Error fetching user order statistics:", error);
+  //     next(error);
+  //   }
+  // },
   getCurrentDayUserOrderStats: async (req, res, next) => {
     try {
       const today = new Date().toISOString().split("T")[0];
@@ -547,6 +823,36 @@ const dayOperationsController = {
       const dayStart = new Date(currentDay.openedAt);
       const dayEnd = currentDay.status === "closed" ? new Date(currentDay.closedAt) : new Date();
 
+      // First, verify the actual column names in your Sales model
+      const saleAttributes = Object.keys(Sale.rawAttributes);
+      console.log('Sales model attributes:', saleAttributes);
+
+      // Build aggregate attributes dynamically depending on whether paymentMethod exists
+      const paymentMethodExists = saleAttributes.includes('paymentMethod');
+      const aggregateAttributes = [
+        'userId',
+        [sequelize.fn('COUNT', sequelize.col('Sale.id')), 'orderCount'],
+        [sequelize.fn('SUM', sequelize.col('Sale.totalAmount')), 'totalAmount'],
+        paymentMethodExists
+          ? [
+              sequelize.fn(
+                'SUM',
+                sequelize.literal("CASE WHEN \"Sale\".\"paymentMethod\" = 'cash' THEN \"Sale\".\"totalAmount\" ELSE 0 END")
+              ),
+              'cashSales'
+            ]
+          : [sequelize.literal('0'), 'cashSales'],
+        paymentMethodExists
+          ? [
+              sequelize.fn(
+                'SUM',
+                sequelize.literal("CASE WHEN \"Sale\".\"paymentMethod\" = 'card' THEN \"Sale\".\"totalAmount\" ELSE 0 END")
+              ),
+              'cardSales'
+            ]
+          : [sequelize.literal('0'), 'cardSales']
+      ];
+
       // Get all sales for the current day grouped by user
       const userOrderStats = await Sale.findAll({
         where: {
@@ -554,31 +860,44 @@ const dayOperationsController = {
             [Op.between]: [dayStart, dayEnd]
           },
           isActive: true,
-          userId: { [Op.not]: null } // Only include sales with a userId
+          userId: { [Op.not]: null }
         },
-        attributes: [
-          'userId',
-          [sequelize.fn('COUNT', sequelize.col('id')), 'orderCount'],
-          [sequelize.fn('SUM', sequelize.col('totalAmount')), 'totalAmount']
-        ],
+        attributes: aggregateAttributes,
         include: [
           {
             model: User,
-            as: "user",
-            attributes: ['firstName', 'lastName']
+            as: "creator",
+            attributes: ['id', 'firstName', 'lastName']
           }
         ],
-        group: ['userId', 'user.id'],
+        group: ['Sale.userId', 'creator.id'],
         raw: false
       });
 
+      // Get user-specific day operation data from reportData if available
+      let userDayData = [];
+      if (currentDay.reportData && currentDay.reportData.userOrderStats) {
+        userDayData = currentDay.reportData.userOrderStats;
+      }
+
       // Format the response
-      const formattedStats = userOrderStats.map(stat => ({
-        userId: stat.userId,
-        userName: stat.user ? `${stat.user.firstName} ${stat.user.lastName}`.trim() : `User ${stat.userId}`,
-        orderCount: parseInt(stat.dataValues.orderCount, 10),
-        totalAmount: parseFloat(stat.dataValues.totalAmount)
-      }));
+      const formattedStats = userOrderStats.map(stat => {
+        const userData = userDayData.find(u => u.userId === stat.userId) || {};
+        
+        return {
+          userId: stat.userId,
+          userName: stat.creator ? `${stat.creator.firstName} ${stat.creator.lastName}`.trim() : `User ${stat.userId}`,
+          orderCount: parseInt(stat.dataValues.orderCount, 10),
+          totalAmount: parseFloat(stat.dataValues.totalAmount),
+          cashSales: parseFloat(stat.dataValues.cashSales || 0),
+          cardSales: parseFloat(stat.dataValues.cardSales || 0),
+          openingTime: userData.openingTime || null,
+          closingTime: userData.closingTime || null,
+          openingCash: userData.openingCash || 0,
+          closingCash: userData.closingCash || 0,
+          notes: userData.notes || ''
+        };
+      });
 
       res.status(200).json({
         userOrderStats: formattedStats,
