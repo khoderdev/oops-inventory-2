@@ -431,6 +431,47 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   };
 
+  // Ensure DayOperationsModal gets latest expected cash and user stats without full page refresh
+  const refreshExpectedAndStats = useCallback(async () => {
+    try {
+      const [currentResponse, statsResponse] = await Promise.all([
+        getCurrentDayOperation(),
+        getUserOrderStats().catch(() => ({ userOrderStats: [] as UserOrderStats[] }))
+      ]);
+
+      setCurrentDay(currentResponse.currentDay);
+      setUserOrderStats(statsResponse.userOrderStats || []);
+
+      // Prefer backend-provided expectedCash for accuracy
+      const latestExpected = currentResponse.currentDay?.expectedCash ?? 0;
+      setCloseDayForm(prev => ({
+        ...prev,
+        closingCash: latestExpected,
+        closedBy: user?.fullName || prev.closedBy || "",
+        userId: (user?.id as any) ?? prev.userId
+      }));
+    } catch (e) {
+      console.warn("Failed to refresh expected cash or user stats before showing modal", e);
+    }
+  }, [getCurrentDayOperation, getUserOrderStats, user?.fullName, user?.id]);
+
+  // Open Close-Day modal with fresh data
+  const handleShowCloseModal = useCallback(async () => {
+    await refreshExpectedAndStats();
+    setShowCloseModal(true);
+  }, [refreshExpectedAndStats]);
+
+  // While the Close-Day modal is open, keep expected cash and stats fresh
+  useEffect(() => {
+    if (!showCloseModal) return;
+    // Initial refresh when it becomes open
+    refreshExpectedAndStats();
+    const id = window.setInterval(() => {
+      refreshExpectedAndStats();
+    }, 10000); // refresh every 10s
+    return () => window.clearInterval(id);
+  }, [showCloseModal, refreshExpectedAndStats]);
+
   {
     {
       isLocked && showLockOverlay && (
@@ -580,7 +621,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
             {/* Day Operations Button - For all users */}
             {currentDay?.status === "opened" ? (
               <button
-                onClick={() => setShowCloseModal(true)}
+                onClick={handleShowCloseModal}
                 className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6  py-2  rounded-lg sm:rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm  w-full sm:w-auto"
               >
                 Close Day
@@ -671,7 +712,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
                   <div className="mb-3 text-slate-900 dark:text-slate-100 font-semibold">Day is not open</div>
                   <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">Please open the day to start taking orders.</p>
-                  <button onClick={handleOpenDayOperationsModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                  <button onClick={() => setShowOpenModal(true)} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
                     Open Day
                   </button>
                 </div>
@@ -709,6 +750,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
             userOrderStats: userOrderStats
           } as any
         }
+        expectedCash={currentDay?.expectedCash ?? closeDayForm.closingCash ?? 0}
+        userOrderStats={userOrderStats}
         formatCurrency={formatCurrency}
       />
       {/* Day Operation Alerts */}
