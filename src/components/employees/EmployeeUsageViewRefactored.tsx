@@ -5,21 +5,20 @@ import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, getExpa
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
-import { ChevronDown, ChevronRight, MoreHorizontal, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, BadgePercent, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, CreditCard, DollarSign, FileText, MoreHorizontal, NotebookText, RefreshCw, Search, ShoppingBag, User, Users, Wallet, X } from "lucide-react";
 import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, usagesAtom, usagesFiltersAtom, usageStatsAtom } from "@/store/employeeAtoms";
 import type { EmployeeUsage, EmployeeUsageType, GroupedOrder, SettlementStatus } from "@/types/employee";
 import { formatCurrency } from "@/utils/conversionLogic";
-
+import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar";
 
 const formatQuantity = (quantity: number) => {
   return Number(quantity) % 1 === 0 ? Math.floor(quantity) : Number(quantity).toFixed(2);
 };
-
 
 export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = null, isLoading = false }: { prefetchedUsages?: EmployeeUsage[] | null; prefetchedStats?: any | null; isLoading?: boolean }) => {
   const [usages, setUsages] = useAtom(usagesAtom);
@@ -92,6 +91,12 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
           },
           creator: usage.recorder
             ? {
+                user: {
+                  id: usage.recorder.id,
+                  firstName: usage.recorder.firstName,
+                  lastName: usage.recorder.lastName,
+                  username: usage.recorder.username
+                } as any,
                 id: usage.recorder.id,
                 firstName: usage.recorder.firstName,
                 lastName: usage.recorder.lastName,
@@ -143,16 +148,16 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
   }, [filteredUsages]);
 
   useEffect(() => {
-    console.log('EmployeeUsageView - prefetchedUsages received:', prefetchedUsages);
-    console.log('EmployeeUsageView - prefetchedStats received:', prefetchedStats);
-    
+    console.log("EmployeeUsageView - prefetchedUsages received:", prefetchedUsages);
+    console.log("EmployeeUsageView - prefetchedStats received:", prefetchedStats);
+
     if (prefetchedUsages) {
       setAllUsages(prefetchedUsages);
-      console.log('EmployeeUsageView - allUsages set to:', prefetchedUsages);
+      console.log("EmployeeUsageView - allUsages set to:", prefetchedUsages);
     }
     if (prefetchedStats) {
       setAllStats(prefetchedStats);
-      console.log('EmployeeUsageView - allStats set to:', prefetchedStats);
+      console.log("EmployeeUsageView - allStats set to:", prefetchedStats);
     }
   }, [prefetchedUsages, prefetchedStats]);
 
@@ -185,11 +190,12 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     }
   }, [prefetchedUsages, prefetchedStats, fetchUsages, fetchStats]);
 
-    useEffect(() => {
+  useEffect(() => {
     if (initialLoadComplete.current) {
+      const employeeIdNum = selectedEmployeeId && !isNaN(Number(selectedEmployeeId)) ? Number(selectedEmployeeId) : undefined;
       const updatedFilters = {
         ...filters,
-        employeeId: selectedEmployeeId || undefined,
+        employeeId: employeeIdNum,
         startDate: dateRange.from.toISOString().split("T")[0],
         endDate: dateRange.to.toISOString().split("T")[0]
       };
@@ -220,7 +226,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
         toast({
           title: "Success",
           description: "Items added to settlement successfully",
-          duration: 1500,
+          duration: 1500
         });
       } catch (error) {
         console.error("Failed to add items to settlement:", error);
@@ -228,7 +234,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
           title: "Error",
           description: "Failed to add items to settlement",
           variant: "destructive",
-          duration: 1500,
+          duration: 1500
         });
       }
     },
@@ -264,12 +270,6 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     [addToSettlement, toast]
   );
 
-  const toggleOrderExpansion = useCallback((orderId: string) => {
-    setExpandedRows(prev => ({
-      ...prev,
-      [orderId]: !prev[orderId]
-    }));
-  }, []);
 
   const columnHelper = createColumnHelper<GroupedOrder>();
   const columns = useMemo(
@@ -301,10 +301,9 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
         size: 160,
         cell: ({ row }) => {
           const employee = row.original.employee;
-          // Direct access to firstName/lastName properties
           let name = "Unknown";
           if (employee) {
-            name = `${employee.firstName} ${employee.lastName}`;
+            name = `${employee.user?.firstName} ${employee.user?.lastName}`;
           }
           return <div className="truncate max-w-[140px]">{name}</div>;
         }
@@ -314,7 +313,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
         size: 160,
         cell: ({ row }) => {
           const creator = row.original.creator;
-          const name = creator ? `${creator.firstName} ${creator.lastName}` : "Unknown";
+          const name = creator ? `${creator.user?.firstName} ${creator.user?.lastName}` : "Unknown";
           return <div className="truncate max-w-[140px]">{name}</div>;
         }
       }),
@@ -354,10 +353,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
           const status = row.original.items[0]?.order?.status || "unknown";
           return (
             <div className="flex justify-center">
-              <Badge
-                variant={status === "paid" ? "default" : "outline"}
-                className={status === "paid" ? "bg-green-100 text-green-800" : ""}
-              >
+              <Badge variant={status === "paid" ? "default" : "outline"} className={status === "paid" ? "bg-green-100 text-green-800" : ""}>
                 {status}
               </Badge>
             </div>
@@ -371,7 +367,7 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
         cell: ({ row }) => {
           const order = row.original;
           const employeeSettlements = settlements.filter(s => s.employeeId === order.employee?.id && s.status === "pending");
-          
+
           return (
             <div className="flex items-center justify-center gap-2">
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -404,7 +400,6 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     [settlements, addOrderToSettlement]
   );
 
-  // Set up TanStack Table
   const table = useReactTable({
     data: groupedOrders,
     columns,
@@ -418,329 +413,389 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
     onExpandedChange: updater => {
       if (typeof updater === "function") {
         setExpandedRows(prev => {
-          // Handle the case where updater returns a boolean (toggle all)
           const result = updater(prev);
-          return typeof result === 'boolean' ? (result ? prev : {}) : result;
+          return typeof result === "boolean" ? (result ? prev : {}) : result;
         });
-      } else if (typeof updater === 'boolean') {
-        // Handle boolean toggle all case
+      } else if (typeof updater === "boolean") {
         setExpandedRows(updater ? expandedRows : {});
       } else {
-        // Handle direct object assignment
         setExpandedRows(updater);
       }
     },
     onRowSelectionChange: setRowSelection
   });
 
-  // Set up virtualization with optimized settings
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
-
   const { rows } = table.getRowModel();
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: useCallback(() => 50, []), // Memoized row height estimation
-    overscan: 20, // Increased overscan for smoother scrolling
-    measureElement:
-      typeof window !== "undefined" && // Only measure in browser environment
-      navigator.userAgent.indexOf("Firefox") === -1 // Skip for Firefox due to performance issues
-        ? element => element?.getBoundingClientRect().height
-        : undefined
+    estimateSize: useCallback(() => 50, []),
+    overscan: 20,
+    measureElement: typeof window !== "undefined" && navigator.userAgent.indexOf("Firefox") === -1 ? element => element?.getBoundingClientRect().height : undefined
   });
 
   // Handle expand/collapse all rows
   const handleExpandAll = () => {
     table.toggleAllRowsExpanded(true);
   };
-
   const handleCollapseAll = () => {
     table.toggleAllRowsExpanded(false);
   };
-
-  // Calculate dynamic height based on viewport
   const [tableHeight, setTableHeight] = useState("600px");
-  
-  // Update table height on window resize
   useEffect(() => {
     const updateTableHeight = () => {
-      // Calculate available height (viewport height - estimated other content height)
-      // Subtracting space for filters, stats cards, margins, and padding
-      const estimatedOtherContentHeight = 300; // Reduced from 400 to allow more space for table
+      const estimatedOtherContentHeight = 300;
       const availableHeight = window.innerHeight - estimatedOtherContentHeight;
-      // Set a minimum height
-      const height = Math.max(500, availableHeight); // Increased minimum height from 400 to 500
+      const height = Math.max(500, availableHeight);
       setTableHeight(`${height}px`);
     };
-    
-    // Set initial height
     updateTableHeight();
-    
-    // Add resize listener
-    window.addEventListener('resize', updateTableHeight);
-    return () => window.removeEventListener('resize', updateTableHeight);
+    window.addEventListener("resize", updateTableHeight);
+    return () => window.removeEventListener("resize", updateTableHeight);
   }, []);
 
   return (
-    <div className="space-y-4">
-      {/* Filter Controls */}
-      <div className="flex flex-wrap gap-4 mb-4">
-        <Select value={selectedEmployeeId || ""} onValueChange={value => setSelectedEmployeeId(value === "" ? null : value)}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+    <div className="space-y-6">
+      {/* Filter Controls - Improved Responsive Layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Select value={selectedEmployeeId || ""} onValueChange={value => setSelectedEmployeeId(value === "" || value === "all" ? null : value)}>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Select Employee" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Employees</SelectItem>
             {employees.map(employee => (
               <SelectItem key={employee.id} value={employee.id.toString()}>
-                {employee.user?.firstName} {employee.user?.lastName} ({employee.employeeNumber})
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={employee.user?.imageUrl} />
+                    <AvatarFallback>
+                      {employee.user?.firstName?.[0]}
+                      {employee.user?.lastName?.[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>
+                    {employee.user?.firstName} {employee.user?.lastName} ({employee.employeeNumber})
+                  </span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
         <Select value={selectedUsageType} onValueChange={value => setSelectedUsageType(value as EmployeeUsageType)}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Usage Type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="pos">POS Transaction</SelectItem>
-            <SelectItem value="individual">Individual Usage</SelectItem>
+            <SelectItem value="pos">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                POS Transaction
+              </div>
+            </SelectItem>
+            <SelectItem value="individual">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Individual Usage
+              </div>
+            </SelectItem>
           </SelectContent>
         </Select>
 
         <Select value={selectedSettlementStatus} onValueChange={value => setSelectedSettlementStatus(value as "all" | "settled" | "unsettled")}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Settlement Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="settled">Settled</SelectItem>
-            <SelectItem value="unsettled">Unsettled</SelectItem>
+            <SelectItem value="settled">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                Settled
+              </div>
+            </SelectItem>
+            <SelectItem value="unsettled">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+                Unsettled
+              </div>
+            </SelectItem>
           </SelectContent>
         </Select>
 
-        <DatePickerWithRange
-          className="w-full md:w-auto"
-          date={dateRange}
-          setDate={setDateRange}
-        />
+        <DatePickerWithRange className="w-full" date={dateRange} setDate={setDateRange} />
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Improved Visual Hierarchy */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-lg">Total Records</CardTitle>
-            <CardDescription>Usage records in period</CardDescription>
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Total Records
+            </CardTitle>
           </CardHeader>
-          <CardContent className="py-2">
+          <CardContent>
             <div className="text-2xl font-bold">{stats?.totalRecords || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">Usage records in period</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-lg">Total Cost</CardTitle>
-            <CardDescription>Before discounts</CardDescription>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Total Cost
+            </CardTitle>
           </CardHeader>
-          <CardContent className="py-2">
+          <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats?.totalCost || 0)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Before discounts</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-lg">Final Cost</CardTitle>
-            <CardDescription>After discounts</CardDescription>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              Final Cost
+            </CardTitle>
           </CardHeader>
-          <CardContent className="py-2">
+          <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats?.finalCost || 0)}</div>
+            <p className="text-xs text-muted-foreground mt-1">After discounts</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-lg">Savings</CardTitle>
-            <CardDescription>Total discounts</CardDescription>
+
+        <Card className="hover:shadow-md transition-shadow bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <BadgePercent className="h-4 w-4 text-green-600" />
+              Savings
+            </CardTitle>
           </CardHeader>
-          <CardContent className="py-2">
-            <div className="text-2xl font-bold">{formatCurrency((stats?.totalCost || 0) - (stats?.finalCost || 0))}</div>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-800">{formatCurrency((stats?.totalCost || 0) - (stats?.finalCost || 0))}</div>
+            <p className="text-xs text-green-600 mt-1">Total discounts applied</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Table Actions */}
-      <div className="flex justify-between items-center mb-2">
-        <div className="text-sm text-muted-foreground">
-          {groupedOrders.length} {groupedOrders.length === 1 ? 'order' : 'orders'} found
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExpandAll}>
-            <ChevronDown className="h-4 w-4 mr-1" /> Expand All
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleCollapseAll}>
-            <ChevronRight className="h-4 w-4 mr-1" /> Collapse All
-          </Button>
-        </div>
-      </div>
-      
-      {/* Orders Table */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-3">
-          <div className="flex justify-between items-center">
+      {/* Table Section */}
+      <Card className="shadow-sm border">
+        <CardHeader className="pb-3 border-b">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle>Employee Usage</CardTitle>
-              <CardDescription>View and manage employee usage records</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Employee Usage
+              </CardTitle>
+              <CardDescription className="mt-1">View and manage employee usage records</CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <Button variant="outline" size="sm" onClick={handleExpandAll} className="flex-1 sm:flex-none">
+                <ChevronDown className="h-4 w-4 mr-1" />
+                Expand All
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleCollapseAll} className="flex-1 sm:flex-none">
+                <ChevronRight className="h-4 w-4 mr-1" />
+                Collapse All
+              </Button>
+              <div className="text-sm text-muted-foreground flex items-center sm:ml-2 w-full sm:w-auto justify-end sm:justify-start">
+                {groupedOrders.length} {groupedOrders.length === 1 ? "record" : "records"} found
+              </div>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-y-auto bg-red-400">
-            <div
-              className="w-full overflow-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400"
-              ref={tableContainerRef}
-              style={{
-                height: tableHeight,
-                overscrollBehavior: "contain", // Prevent scroll chaining
-                WebkitOverflowScrolling: "touch" // Smooth scrolling on iOS
-              }}
-            >
-              <Table className="relative w-full table-fixed border-collapse h-full ">
-                <TableHeader className="sticky top-0 z-20 bg-background border-b">
-                  {table.getHeaderGroups().map(headerGroup => (
-                    <TableRow key={headerGroup.id} className="hover:bg-background">
-                      {headerGroup.headers.map(header => (
-                        <TableHead 
-                          key={header.id} 
-                          style={{ 
-                            width: header.getSize(),
-                            minWidth: header.getSize(),
-                            maxWidth: header.getSize() === 9999 ? 'none' : header.getSize()
-                          }}
-                          className="bg-muted/50 font-medium text-muted-foreground h-10 px-4 text-left"
-                        >
+
+        <CardContent className="p-0">
+          <div
+            className="relative rounded-md border overflow-hidden"
+            ref={tableContainerRef}
+            style={{
+              height: tableHeight,
+              overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch"
+            }}
+          >
+            <Table className="relative w-full h-full border-collapse">
+              <TableHeader className="sticky top-0 z-20 bg-background border-b">
+                {table.getHeaderGroups().map(headerGroup => (
+                  <TableRow key={headerGroup.id} className="hover:bg-background">
+                    {headerGroup.headers.map(header => (
+                      <TableHead
+                        key={header.id}
+                        style={{
+                          width: header.getSize(),
+                          minWidth: header.getSize(),
+                          maxWidth: header.getSize() === 9999 ? "none" : header.getSize()
+                        }}
+                        className="bg-muted/50 font-medium text-muted-foreground h-12 px-4 text-left"
+                      >
+                        <div className="flex items-center gap-1">
                           {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
+                          {header.column.getCanSort() && (
+                            <button onClick={header.column.getToggleSortingHandler()} className="ml-1 p-1 rounded hover:bg-muted">
+                              {{
+                                asc: <ArrowUp className="h-3 w-3" />,
+                                desc: <ArrowDown className="h-3 w-3" />
+                              }[header.column.getIsSorted() as string] ?? <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-100" />}
+                            </button>
+                          )}
+                        </div>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+
+              {isLoading || !initialLoadComplete.current ? (
+                <TableBody>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={`loading-${i}`} className="hover:bg-transparent">
+                      {Array.from({ length: columns.length }).map((_, j) => (
+                        <TableCell key={`loading-cell-${i}-${j}`} className="py-3 px-4">
+                          <div className="h-5 bg-muted/50 animate-pulse rounded"></div>
+                        </TableCell>
                       ))}
                     </TableRow>
                   ))}
-                </TableHeader>
-                
-                {isLoading || !initialLoadComplete.current ? (
-                  // Loading state
-                  <TableBody>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={`loading-${i}`}>
-                        {Array.from({ length: columns.length }).map((_, j) => (
-                          <TableCell key={`loading-cell-${i}-${j}`} className="py-2">
-                            <div className="h-4 bg-muted animate-pulse rounded"></div>
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                ) : groupedOrders.length === 0 ? (
-                  // Empty state
-                  <TableBody>
-                    <TableRow>
-                      <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
-                        No orders found
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                ) : (
-                  // Virtualized rows
-                  <TableBody>
-                    <tr style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
-                      <td colSpan={columns.length} style={{ padding: 0 }}>
-                        <div style={{ position: 'relative', height: '100%', width: '100%' }}>
-                          {rowVirtualizer.getVirtualItems().map(virtualRow => {
-                            const row = rows[virtualRow.index];
-                            const isExpanded = row.getIsExpanded();
-                            
-                            return (
-                              <React.Fragment key={row.id}>
-                                {/* Main row */}
-                                <TableRow 
-                                  data-index={virtualRow.index}
-                                  ref={node => {
-                                    if (node) rowVirtualizer.measureElement(node);
-                                  }}
-                                  className={`hover:bg-muted/50 cursor-pointer absolute w-full transition-colors duration-200 ${row.getIsExpanded() ? 'bg-muted/30' : ''}`}
-                                  onClick={() => row.toggleExpanded()}
-                                  style={{
-                                    transform: `translateY(${virtualRow.start}px)`,
-                                    height: virtualRow.size
-                                  }}
-                                >
-                                  {row.getVisibleCells().map(cell => (
-                                    <TableCell 
-                                      key={cell.id} 
-                                      className="py-3 px-4"
-                                      style={{
-                                        width: cell.column.getSize(),
-                                        minWidth: cell.column.getSize(),
-                                        maxWidth: cell.column.getSize() === 9999 ? 'none' : cell.column.getSize()
-                                      }}
-                                    >
-                                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </TableCell>
-                                  ))}
-                                </TableRow>
-                                
-                                {/* Expanded content - rendered outside the table for proper DOM nesting */}
-                                {isExpanded && (
-                                  <div 
-                                    className="absolute w-full bg-muted/50 p-4 rounded-md border border-muted shadow-sm backdrop-blur-sm"
+                </TableBody>
+              ) : groupedOrders.length === 0 ? (
+                <TableBody>
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={columns.length} className="text-center py-12">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Search className="h-8 w-8 text-muted-foreground" />
+                        <div className="text-lg font-medium">No records found</div>
+                        <p className="text-sm text-muted-foreground max-w-md text-center">Try adjusting your filters or date range to find what you're looking for.</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => {
+                            setSelectedEmployeeId(null);
+                            setSelectedUsageType("all");
+                            setSelectedSettlementStatus("all");
+                            setDateRange({
+                              from: new Date(new Date().setDate(new Date().getDate() - 30)),
+                              to: new Date()
+                            });
+                          }}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Reset Filters
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              ) : (
+                <TableBody>
+                  <tr style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+                    <td colSpan={columns.length} style={{ padding: 0 }}>
+                      <div style={{ position: "relative", height: "100%", width: "100%" }}>
+                        {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                          const row = rows[virtualRow.index];
+                          const isExpanded = row.getIsExpanded();
+
+                          return (
+                            <React.Fragment key={row.id}>
+                              {/* Main row */}
+                              <TableRow
+                                data-index={virtualRow.index}
+                                ref={node => {
+                                  if (node) rowVirtualizer.measureElement(node);
+                                }}
+                                className={`hover:bg-muted/30 cursor-pointer absolute w-full transition-colors duration-200 ${row.getIsExpanded() ? "bg-muted/20" : ""}`}
+                                onClick={() => row.toggleExpanded()}
+                                style={{
+                                  transform: `translateY(${virtualRow.start}px)`,
+                                  height: virtualRow.size
+                                }}
+                              >
+                                {row.getVisibleCells().map(cell => (
+                                  <TableCell
+                                    key={cell.id}
+                                    className="py-3 px-4"
                                     style={{
-                                      transform: `translateY(${virtualRow.start + virtualRow.size}px)`,
-                                      zIndex: 10
+                                      width: cell.column.getSize(),
+                                      minWidth: cell.column.getSize(),
+                                      maxWidth: cell.column.getSize() === 9999 ? "none" : cell.column.getSize()
                                     }}
                                   >
-                                    <div className="flex justify-between items-center mb-3">
-                                      <div className="text-lg font-semibold">Order Details</div>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        className="h-8 px-2" 
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          row.toggleExpanded(false);
-                                        }}
-                                      >
-                                        <ChevronRight className="h-4 w-4" />
-                                      </Button>
+                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+
+                              {/* Expanded content */}
+                              {isExpanded && (
+                                <div
+                                  className="absolute w-full bg-background p-4 border-t border-muted shadow-sm"
+                                  style={{
+                                    transform: `translateY(${virtualRow.start + virtualRow.size}px)`,
+                                    zIndex: 10
+                                  }}
+                                >
+                                  <div className="flex justify-between items-center mb-4">
+                                    <div className="flex items-center gap-3">
+                                      <h3 className="text-lg font-semibold">Order Details</h3>
+                                      <Badge variant="outline" className="px-2 py-1 text-xs">
+                                        {row.original.items.length} items
+                                      </Badge>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                                      {row.original.items.map((usage) => (
-                                        <div key={usage.id} className="bg-card rounded-lg p-3 border hover:border-primary/20 transition-colors shadow-sm">
-                                          <div className="flex justify-between items-start mb-2">
-                                            <div className="font-medium text-primary/90">{usage.item?.name || 'Unknown Item'}</div>
-                                            <Badge variant={usage.isSettled ? "default" : "outline"} className={usage.isSettled ? "bg-green-100 text-green-800" : "border-amber-300 text-amber-600"}>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 rounded-full"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        row.toggleExpanded(false);
+                                      }}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                                    {row.original.items.map(usage => (
+                                      <Card key={usage.id} className="hover:border-primary/30 transition-colors">
+                                        <CardHeader className="pb-3">
+                                          <div className="flex justify-between items-start">
+                                            <CardTitle className="text-base font-medium">{usage.item?.name || "Unknown Item"}</CardTitle>
+                                            <Badge variant={usage.isSettled ? "default" : "outline"} className={usage.isSettled ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-50"}>
+                                              {usage.isSettled ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <AlertCircle className="h-3 w-3 mr-1" />}
                                               {usage.isSettled ? "Settled" : "Unsettled"}
                                             </Badge>
                                           </div>
-                                          <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div>
-                                              <span className="text-muted-foreground">Quantity:</span>
-                                              <div>{formatQuantity(usage.quantity)}</div>
+                                        </CardHeader>
+                                        <CardContent>
+                                          <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div className="space-y-1">
+                                              <p className="text-muted-foreground text-xs">Quantity</p>
+                                              <p>{formatQuantity(usage.quantity)}</p>
                                             </div>
-                                            <div>
-                                              <span className="text-muted-foreground">Unit Price:</span>
-                                              <div className="font-mono">{formatCurrency(parseFloat(usage.unitPrice?.toString() || "0"))}</div>
+                                            <div className="space-y-1">
+                                              <p className="text-muted-foreground text-xs">Unit Price</p>
+                                              <p className="font-mono">{formatCurrency(parseFloat(usage.unitPrice?.toString() || "0"))}</p>
                                             </div>
-                                            <div>
-                                              <span className="text-muted-foreground">Total Cost:</span>
-                                              <div className="font-mono">{formatCurrency(parseFloat(usage.totalCost?.toString() || "0"))}</div>
+                                            <div className="space-y-1">
+                                              <p className="text-muted-foreground text-xs">Total Cost</p>
+                                              <p className="font-mono">{formatCurrency(parseFloat(usage.totalCost?.toString() || "0"))}</p>
                                             </div>
-                                            <div>
-                                              <span className="text-muted-foreground">Final Cost:</span>
-                                              <div className="font-mono">{formatCurrency(parseFloat(usage.finalCost?.toString() || "0"))}</div>
+                                            <div className="space-y-1">
+                                              <p className="text-muted-foreground text-xs">Final Cost</p>
+                                              <p className="font-mono">{formatCurrency(parseFloat(usage.finalCost?.toString() || "0"))}</p>
                                             </div>
                                           </div>
 
                                           {!usage.isSettled && (
-                                            <div className="mt-3">
+                                            <div className="mt-4">
                                               <Select
                                                 onValueChange={value => {
                                                   const settlementId = parseInt(value);
@@ -748,79 +803,124 @@ export const EmployeeUsageView = ({ prefetchedUsages = null, prefetchedStats = n
                                                 }}
                                               >
                                                 <SelectTrigger className="h-8 w-full">
-                                                  <SelectValue placeholder="Add to settlement" />
+                                                  <SelectValue placeholder="Add to settlement..." />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                  {settlements
-                                                    .filter(s => s.employeeId === row.original.employee?.id && s.status === "pending")
-                                                    .map(settlement => (
-                                                      <SelectItem key={settlement.id} value={settlement.id.toString()}>
-                                                        {settlement.name}
-                                                      </SelectItem>
-                                                    ))}
+                                                  {settlements.length > 0 ? (
+                                                    settlements
+                                                      .filter(s => s.employeeId === row.original.employee?.id && s.status === "pending")
+                                                      .map(settlement => (
+                                                        <SelectItem key={settlement.id} value={settlement.id.toString()}>
+                                                          <div className="flex items-center gap-2">
+                                                            <Wallet className="h-4 w-4" />
+                                                            {settlement.name}
+                                                          </div>
+                                                        </SelectItem>
+                                                      ))
+                                                  ) : (
+                                                    <div className="text-sm p-2 text-muted-foreground">No pending settlements found</div>
+                                                  )}
                                                 </SelectContent>
                                               </Select>
                                             </div>
                                           )}
-                                        </div>
-                                      ))}
-                                    </div>
+                                        </CardContent>
+                                      </Card>
+                                    ))}
+                                  </div>
 
-                                    {/* Order Info Section */}
-                                    {row.original.items[0]?.order && (
-                                      <div className="bg-card rounded-lg p-4 border shadow-sm mb-4">
-                                        <div className="flex items-center gap-2 mb-3">
-                                          <div className="text-md font-semibold">Order Information</div>
-                                          <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200">
-                                            #{row.original.items[0].order.id}
-                                          </Badge>
-                                        </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                          <div className="bg-muted/30 p-2 rounded-md">
-                                            <span className="text-muted-foreground block text-xs">Status</span>
-                                            <div className="mt-1">
-                                              <Badge variant={row.original.items[0].order.status === "paid" ? "default" : "secondary"} 
-                                                className={`text-xs ${row.original.items[0].order.status === "paid" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                                  {/* Order Info Section */}
+                                  {row.original.items[0]?.order && (
+                                    <Card className="mb-6">
+                                      <CardHeader>
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                          <ShoppingBag className="h-4 w-4" />
+                                          Order Information
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                          <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Order ID</p>
+                                            <p className="font-mono">#{row.original.items[0].order.id}</p>
+                                          </div>
+                                          <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Status</p>
+                                            <div>
+                                              <Badge variant={row.original.items[0].order.status === "paid" ? "default" : "secondary"} className={`text-xs ${row.original.items[0].order.status === "paid" ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-gray-100 text-gray-800 hover:bg-gray-100"}`}>
+                                                {row.original.items[0].order.status === "paid" ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
                                                 {row.original.items[0].order.status}
                                               </Badge>
                                             </div>
                                           </div>
-                                          <div className="bg-muted/30 p-2 rounded-md">
-                                            <span className="text-muted-foreground block text-xs">Order Total</span>
-                                            <div className="font-medium font-mono mt-1">{formatCurrency(parseFloat(row.original.items[0].order.total?.toString() || "0"))}</div>
+                                          <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Order Total</p>
+                                            <p className="font-mono">{formatCurrency(parseFloat(row.original.items[0].order.total?.toString() || "0"))}</p>
                                           </div>
-                                          <div className="bg-muted/30 p-2 rounded-md">
-                                            <span className="text-muted-foreground block text-xs">Date</span>
-                                            <div className="mt-1">{new Date(row.original.orderDate).toLocaleDateString()}</div>
+                                          <div className="space-y-1">
+                                            <p className="text-muted-foreground text-xs">Date</p>
+                                            <p>{new Date(row.original.orderDate).toLocaleDateString()}</p>
                                           </div>
                                         </div>
-                                      </div>
-                                    )}
+                                      </CardContent>
+                                    </Card>
+                                  )}
 
-                                    {/* Notes Section */}
-                                    {row.original.items[0]?.notes && (
-                                      <div className="p-3 bg-background rounded-md border shadow-sm">
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <div className="text-sm font-medium">Notes</div>
-                                          <div className="h-1 w-1 rounded-full bg-muted-foreground"></div>
+                                  {/* Notes Section */}
+                                  {row.original.items[0]?.notes && (
+                                    <Card>
+                                      <CardHeader>
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                          <NotebookText className="h-4 w-4" />
+                                          Additional Notes
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent>
+                                        <div className="bg-muted/20 p-3 rounded-md">
+                                          <p className="text-sm">{row.original.items[0].notes}</p>
                                         </div>
-                                        <div className="text-sm italic bg-muted/20 p-2 rounded">{row.original.items[0].notes}</div>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </div>
-                      </td>
-                    </tr>
-                  </TableBody>
-                )}
-              </Table>
-            </div>
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                                </div>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    </td>
+                  </tr>
+                </TableBody>
+              )}
+            </Table>
           </div>
         </CardContent>
+
+        {/* Pagination/Summary Footer */}
+        <CardFooter className="bg-muted/50 border-t p-3">
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+            <div>
+              Showing {groupedOrders.length} of {stats?.totalRecords || 0} records
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: table.getPageCount() }).map((_, i) => (
+                  <Button key={i} variant={table.getState().pagination.pageIndex === i ? "default" : "outline"} size="sm" className="h-8 w-8 p-0" onClick={() => table.setPageIndex(i)}>
+                    {i + 1}
+                  </Button>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

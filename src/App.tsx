@@ -16,6 +16,7 @@ import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
+import { EmployeeUsageView } from "./components/employees/EmployeeUsageView";
 
 
 // Lazy load components for better performance
@@ -228,7 +229,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 element={
                   <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_USAGE_VIEW}>
                     <AuthenticatedLayout>
-                      <EmployeeUsagePrefetch />
+                      <EmployeeUsageView />
                     </AuthenticatedLayout>
                   </ProtectedRoute>
                 }

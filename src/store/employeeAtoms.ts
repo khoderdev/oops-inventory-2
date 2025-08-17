@@ -452,26 +452,6 @@ export const recordUsageAtom = atom(null, async (get, set, usage: Omit<EmployeeU
 });
 
 // Settlement actions
-
-// export const approveSettlementAtom = atom(null, async (get, set, { id, notes }: { id: number; notes?: string }) => {
-//   set(settlementsLoadingAtom, true);
-//   set(settlementsErrorAtom, null);
-
-//   try {
-//     // Update settlement status optimistically
-//     const settlements = get(settlementsAtom);
-//     const updatedSettlements = settlements.map(settlement => (settlement.id === id ? { ...settlement, status: "approved" as const, approvedAt: new Date().toISOString() } : settlement));
-//     set(settlementsAtom, updatedSettlements);
-
-//     return true;
-//   } catch (error) {
-//     set(settlementsErrorAtom, error instanceof Error ? error.message : "Failed to approve settlement");
-//     return false;
-//   } finally {
-//     set(settlementsLoadingAtom, false);
-//   }
-// });
-
 export const createSettlementAtom = atom(null, async (get, set, data: CreateSettlementData) => {
   set(settlementFormLoadingAtom, true);
   set(settlementsErrorAtom, null);

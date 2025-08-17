@@ -80,52 +80,40 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     try {
       setLoading(true);
       setError(null);
-      // Load current day
       const currentResponse = await getCurrentDayOperation();
-      console.log("currentResponse", currentResponse);
       setCurrentDay(currentResponse.currentDay);
-
-      // Add this line to update userDayOpen based on the day status
       setUserDayOpen(currentResponse.currentDay?.status === "opened");
-      // Load recent days
       const recentResponse = await getDayOperations(1, 10);
-      // Debug: Log the date values to understand the format
-      console.log(
-        "🔍 Debug - Recent days data:",
-        recentResponse.dayOperations.map(day => {
-          const dateStr = day.date;
-          let localDate: Date;
-          if (typeof dateStr === "string" && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            const [year, month, dayNum] = dateStr.split("-").map(Number);
-            localDate = new Date(year, month - 1, dayNum);
-          } else {
-            localDate = new Date(dateStr);
-          }
-          return {
-            id: day.id,
-            date: dateStr,
-            dateType: typeof dateStr,
-            openedAt: day.openedAt,
-            closedAt: day.closedAt,
-            parsedDate: new Date(dateStr),
-            localDate: localDate,
-            currentTime: new Date().toISOString(),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-          };
-        })
-      );
+      recentResponse.dayOperations.map(day => {
+        const dateStr = day.date;
+        let localDate: Date;
+        if (typeof dateStr === "string" && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const [year, month, dayNum] = dateStr.split("-").map(Number);
+          localDate = new Date(year, month - 1, dayNum);
+        } else {
+          localDate = new Date(dateStr);
+        }
+        return {
+          id: day.id,
+          date: dateStr,
+          dateType: typeof dateStr,
+          openedAt: day.openedAt,
+          closedAt: day.closedAt,
+          parsedDate: new Date(dateStr),
+          localDate: localDate,
+          currentTime: new Date().toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+      });
       setRecentDays(recentResponse.dayOperations);
-      // Load current day activities if day is open
       if (currentResponse.currentDay && currentResponse.currentDay.status === "opened") {
         try {
           const activitiesResponse = await getCurrentDayActivities();
           setActivities(activitiesResponse.activities);
-          // Load user order statistics
           try {
             const statsResponse = await getUserOrderStats();
             setUserOrderStats(statsResponse.userOrderStats || []);
           } catch (statsError) {
-            console.warn("Could not load user order statistics:", statsError);
             setUserOrderStats([]);
           }
         } catch (activityError) {
@@ -136,14 +124,13 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       setError(err instanceof Error ? err.message : "Failed to load day operations");
     } finally {
       setLoading(false);
-      // Mark status check complete so UI can react to lock state and buttons
       setIsCheckingDayStatus(false);
     }
   };
 
   useEffect(() => {
     loadData();
-  }, []); // Empty dependency array means it runs once on mount
+  }, []);
 
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -383,21 +370,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     setShowDayOperationsModal(true);
   };
 
-  const showToast = async (message: string, variant: "success" | "error" | "info") => {
-    try {
-      const { toast } = await import("@/components/ui/use-toast");
-      toast({
-        title: variant === "success" ? "Success" : variant === "error" ? "Error" : "Info",
-        description: message,
-        variant: variant === "success" ? "default" : "destructive",
-        duration: 1500
-      });
-    } catch (e) {
-      console.log(message);
-      alert(message);
-    }
-  };
-
   // Convert form data for the reusable modal component
   const convertToModalFormData = (type: "open" | "close"): DayOperationsFormData => {
     if (type === "open") {
@@ -436,14 +408,9 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   // Ensure DayOperationsModal gets latest expected cash and user stats without full page refresh
   const refreshExpectedAndStats = useCallback(async () => {
     try {
-      const [currentResponse, statsResponse] = await Promise.all([
-        getCurrentDayOperation(),
-        getUserOrderStats().catch(() => ({ userOrderStats: [] as UserOrderStats[] }))
-      ]);
-
+      const [currentResponse, statsResponse] = await Promise.all([getCurrentDayOperation(), getUserOrderStats().catch(() => ({ userOrderStats: [] as UserOrderStats[] }))]);
       setCurrentDay(currentResponse.currentDay);
       setUserOrderStats(statsResponse.userOrderStats || []);
-
       // Prefer backend-provided expectedCash for accuracy
       const latestExpected = currentResponse.currentDay?.expectedCash ?? 0;
       setCloseDayForm(prev => ({
@@ -628,17 +595,11 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           <div className="relative flex items-center space-x-3 z-10 select-none">
             {/* Day Operations Button - For all users */}
             {currentDay?.status === "opened" ? (
-              <button
-                onClick={handleShowCloseModal}
-                className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6  py-2  rounded-lg sm:rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm  w-full sm:w-auto"
-              >
+              <button onClick={handleShowCloseModal} className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6  py-2  rounded-lg sm:rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm  w-full sm:w-auto">
                 Close Day
               </button>
             ) : (
-              <button
-                onClick={handleShowOpenModal}
-                className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 sm:px-6  py-2  rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm  w-full sm:w-auto"
-              >
+              <button onClick={handleShowOpenModal} className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 sm:px-6  py-2  rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm  w-full sm:w-auto">
                 Open New Day
               </button>
             )}
@@ -741,18 +702,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       </Dialog>
       {/* Day Operations Modal */}
       {/* Open Day Modal - Staff only */}
-      {isStaff && (
-        <DayOperationsModal
-          open={showOpenModal}
-          onOpenChange={setShowOpenModal}
-          onSubmit={handleOpenDay}
-          type="open"
-          formData={convertToModalFormData("open")}
-          onFormChange={data => handleModalFormChange("open", data)}
-          isLoading={actionLoading}
-          formatCurrency={formatCurrency}
-        />
-      )}
+      {isStaff && <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} isLoading={actionLoading} formatCurrency={formatCurrency} />}
 
       {/* Close Day Modal - Staff only */}
       {isStaff && (

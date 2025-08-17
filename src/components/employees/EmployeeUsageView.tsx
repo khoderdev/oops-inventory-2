@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,10 +8,9 @@ import { toast } from "@/components/ui/use-toast";
 import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, usagesAtom, usagesFiltersAtom, usagesLoadingAtom, usageStatsAtom } from "@/store/employeeAtoms";
 import type { EmployeeUsage, EmployeeUsageType, EmployeeSettlement } from "@/types/employee";
 import { ArrowRight, ChevronDown, ChevronRight, Download, Filter, ShoppingCart, TrendingUp, UserPlus } from "lucide-react";
-import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useAtom, useAtomValue } from "jotai";
-import { format, addDays } from "date-fns";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import React, { useState, useMemo, useEffect } from "react";
+import { useAtom } from "jotai";
+import { addDays } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
 interface EmployeeUsageViewProps {
@@ -32,6 +31,8 @@ export interface GroupedOrder {
   employee: {
     id: number;
     employeeNumber: string;
+    firstName: string;
+    lastName: string;
     user?: {
       firstName: string;
       lastName: string;
@@ -82,14 +83,17 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
           employee: {
             id: usage.employee?.id || 0,
             employeeNumber: usage.employee?.employeeNumber || "",
-            user: usage.employee?.user
+            firstName: usage.employee?.firstName || "",
+            lastName: usage.employee?.lastName || ""
           },
-          creator: usage.recorder ? {
-            id: usage.recorder.id,
-            firstName: usage.recorder.firstName,
-            lastName: usage.recorder.lastName,
-            username: usage.recorder.username
-          } : undefined,
+          creator: usage.recorder
+            ? {
+                id: usage.recorder.id,
+                firstName: usage.recorder.firstName,
+                lastName: usage.recorder.lastName,
+                username: usage.recorder.username
+              }
+            : undefined,
           orderDate: usage.usageDate,
           items: [],
           totalCost: 0,
@@ -435,11 +439,16 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
-                  {employees.map(employee => (
-                    <SelectItem key={employee.id} value={employee.id.toString()}>
-                      {employee.user?.firstName} {employee.user?.lastName} (#{employee.employeeNumber})
-                    </SelectItem>
-                  ))}
+                  {employees.map(employee => {
+                    const firstName = employee.user?.firstName ?? employee.firstName ?? "";
+                    const lastName = employee.user?.lastName ?? employee.lastName ?? "";
+                    const fullName = `${firstName} ${lastName}`.trim() || employee.employeeNumber || `Employee #${employee.id}`;
+                    return (
+                      <SelectItem key={employee.id} value={employee.id.toString()}>
+                        {fullName}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -551,21 +560,22 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">{getOrderDisplayId(order.posTransactionId)}</div>
-                          <div className="text-sm text-muted-foreground">{order.posTransactionId.startsWith("individual-") ? "Individual usage record" : "POS Transaction"}</div>
+                          <div className="text-sm text-muted-foreground">{order.posTransactionId.startsWith("individual-") ? "Individual usage record" : "POS Order"}</div>
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">
                             {order.employee.user?.firstName} {order.employee.user?.lastName}
                           </div>
-                          <div className="text-sm text-muted-foreground">#{order.employee.employeeNumber}</div>
+                          <div className="font-medium flex flex-col items-center gap-2">
+                            {order.employee.firstName + " " + order.employee.lastName}
+                            <Badge variant="outline" className="!text-[0.7rem] text-muted-foreground">
+                              {order.employee.employeeNumber}
+                            </Badge>
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">
-                            {order.creator ? `${order.creator.firstName} ${order.creator.lastName}` : "Unknown"}
-                          </div>
-                          {order.creator && (
-                            <div className="text-sm text-muted-foreground">{order.creator.username}</div>
-                          )}
+                          <div className="font-medium">{order.creator ? `${order.creator.firstName} ${order.creator.lastName}` : "Unknown"}</div>
+                          {order.creator && <div className="text-sm text-muted-foreground">{order.creator.username}</div>}
                         </TableCell>
                         <TableCell className="text-sm">{formatDateTime(order.orderDate)}</TableCell>
                         <TableCell>

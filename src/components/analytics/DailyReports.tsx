@@ -23,158 +23,143 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
       {/* Daily Report Modal */}
       {showReportModal && selectedReport && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-gray-900">Daily Report - {selectedReport.date}</h3>
-              <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">
-                ×
-              </button>
+          <div className="bg-white rounded-md p-4 w-full max-w-md max-h-[90vh] overflow-y-auto font-mono text-xs text-gray-800 shadow-lg">
+            {/* Header */}
+            <div className="text-center">
+              <h3 className="text-sm font-bold tracking-wide">DAILY REPORT</h3>
+              <p className="text-[11px] mt-1">{selectedReport.date}</p>
+              <div className="border-t border-dashed border-gray-400 mt-2" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Sales Summary */}
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-green-900 mb-3">Sales Summary</h4>
-                <div className="space-y-2">
-                  <p className="text-sm">
-                    <span className="text-green-700">Total Sales:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.salesSummary.totalAmount)}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-green-700">Transactions:</span>
-                    <span className="font-medium ml-2">{selectedReport.salesSummary.totalTransactions}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-green-700">Average Ticket:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.salesSummary.averageTicket)}</span>
-                  </p>
+            {/* Sales Summary */}
+            <div className="mt-3">
+              <p className="uppercase text-[11px] tracking-wider text-gray-700">Sales Summary</p>
+              <div className="border-t border-dashed border-gray-300 my-1" />
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span>Total Sales</span>
+                  <span className="tabular-nums font-semibold">{formatCurrency(selectedReport.salesSummary.totalAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Transactions</span>
+                  <span className="tabular-nums">{selectedReport.salesSummary.totalTransactions}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Average Ticket</span>
+                  <span className="tabular-nums">{formatCurrency(selectedReport.salesSummary.averageTicket)}</span>
                 </div>
               </div>
+            </div>
 
-              {/* Cash Summary */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-3">Cash Summary</h4>
-                <div className="space-y-2">
-                  <p className="text-sm">
-                    <span className="text-blue-700">Opening:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cashSummary.opening)}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-blue-700">Expected:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cashSummary.expected)}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-blue-700">Actual:</span>
-                    <span className="font-medium ml-2">{formatCurrency(selectedReport.cashSummary.closing)}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-blue-700">Variance:</span>
-                    <span className={`font-medium ml-2 ${selectedReport.cashSummary.variance >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(selectedReport.cashSummary.variance)}</span>
-                  </p>
+            {/* Cash Summary */}
+            <div className="mt-3">
+              <p className="uppercase text-[11px] tracking-wider text-gray-700">Cash Summary</p>
+              <div className="border-t border-dashed border-gray-300 my-1" />
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span>Opening</span>
+                  <span className="tabular-nums">{formatCurrency(selectedReport.cashSummary.opening)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Expected</span>
+                  <span className="tabular-nums">{formatCurrency(selectedReport.cashSummary.expected)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Actual</span>
+                  <span className="tabular-nums">{formatCurrency(selectedReport.cashSummary.closing)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Variance</span>
+                  <span className={`tabular-nums font-semibold ${selectedReport.cashSummary.variance >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(selectedReport.cashSummary.variance)}</span>
                 </div>
               </div>
+            </div>
 
-              {/* Inventory Summary */}
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-orange-900 mb-3">Inventory Summary</h4>
-                <div className="space-y-2">
-                  <p className="text-sm">
-                    <span className="text-orange-700">Total Variances:</span>
-                    <span className="font-medium ml-2">{selectedReport.inventorySummary.totalVariances}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-orange-700">Gains:</span>
-                    <span className="font-medium ml-2 text-green-600">{selectedReport.inventorySummary.gains}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-orange-700">Losses:</span>
-                    <span className="font-medium ml-2 text-red-600">{selectedReport.inventorySummary.losses}</span>
-                  </p>
+            {/* Inventory Summary */}
+            <div className="mt-3">
+              <p className="uppercase text-[11px] tracking-wider text-gray-700">Inventory Summary</p>
+              <div className="border-t border-dashed border-gray-300 my-1" />
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span>Total Variances</span>
+                  <span className="tabular-nums">{selectedReport.inventorySummary.totalVariances}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Gains</span>
+                  <span className="tabular-nums text-green-700">{selectedReport.inventorySummary.gains}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Losses</span>
+                  <span className="tabular-nums text-red-700">{selectedReport.inventorySummary.losses}</span>
                 </div>
               </div>
             </div>
 
             {/* User-specific Reports */}
             {selectedReport.userReports && selectedReport.userReports.length > 0 && (
-              <div className="mt-6">
-                <h4 className="font-semibold text-gray-900 mb-3">Individual User Reports</h4>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="py-2 px-3 text-left text-sm font-medium text-gray-700">Staff</th>
-                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Opening Cash</th>
-                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Expected Closing</th>
-                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Actual Closing</th>
-                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Variance</th>
-                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Orders</th>
-                        <th className="py-2 px-3 text-right text-sm font-medium text-gray-700">Sales</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedReport.userReports.map((userReport, index) => (
-                        <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                          <td className="py-2 px-3 text-sm font-medium text-gray-900">{userReport.userName}</td>
-                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{formatCurrency(userReport.openingCash)}</td>
-                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{formatCurrency(userReport.expectedClosingCash)}</td>
-                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{formatCurrency(userReport.closingCash)}</td>
-                          <td className="py-2 px-3 text-sm text-right">
-                            <span className={`font-medium ${userReport.variance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                              {formatCurrency(userReport.variance)}
-                            </span>
-                          </td>
-                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{userReport.orderCount}</td>
-                          <td className="py-2 px-3 text-sm text-gray-700 text-right">{formatCurrency(userReport.totalAmount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-100">
-                      <tr>
-                        <td className="py-2 px-3 text-sm font-medium text-gray-900">Total</td>
-                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
-                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.openingCash, 0))}
-                        </td>
-                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
-                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.expectedClosingCash, 0))}
-                        </td>
-                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
-                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.closingCash, 0))}
-                        </td>
-                        <td className="py-2 px-3 text-sm font-medium text-right">
-                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.variance, 0))}
-                        </td>
-                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
-                          {selectedReport.userReports.reduce((sum, user) => sum + user.orderCount, 0)}
-                        </td>
-                        <td className="py-2 px-3 text-sm font-medium text-gray-900 text-right">
-                          {formatCurrency(selectedReport.userReports.reduce((sum, user) => sum + user.totalAmount, 0))}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+              <div className="mt-4">
+                <p className="uppercase text-[11px] tracking-wider text-gray-700">Staff Summary</p>
+                <div className="border-t border-dashed border-gray-300 my-1" />
+                <div className="space-y-2">
+                  {selectedReport.userReports.map((userReport, index) => (
+                    <div key={index}>
+                      <div className="flex justify-between font-semibold">
+                        <span>{userReport.userName}</span>
+                        <span className={`tabular-nums ${userReport.variance >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(userReport.variance)}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>Open</span>
+                        <span className="tabular-nums">{formatCurrency(userReport.openingCash)}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>Expected</span>
+                        <span className="tabular-nums">{formatCurrency(userReport.expectedClosingCash)}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>Actual</span>
+                        <span className="tabular-nums">{formatCurrency(userReport.closingCash)}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>Orders</span>
+                        <span className="tabular-nums">{userReport.orderCount}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>Sales</span>
+                        <span className="tabular-nums">{formatCurrency(userReport.totalAmount)}</span>
+                      </div>
+                      <div className="border-t border-dashed border-gray-200 my-2" />
+                    </div>
+                  ))}
+                </div>
+                {/* Totals */}
+                <div className="flex justify-between font-bold">
+                  <span>Totals</span>
+                  <span className="text-right">{formatCurrency(selectedReport.userReports.reduce((sum, u) => sum + u.totalAmount, 0))}</span>
                 </div>
               </div>
             )}
 
             {/* Sales by Section */}
             {selectedReport.salesBySection && Object.keys(selectedReport.salesBySection).length > 0 && (
-              <div className="mt-6">
-                <h4 className="font-semibold text-gray-900 mb-3">Sales by Section</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="mt-4">
+                <p className="uppercase text-[11px] tracking-wider text-gray-700">Sales by Section</p>
+                <div className="border-t border-dashed border-gray-300 my-1" />
+                <div className="space-y-1">
                   {Object.entries(selectedReport.salesBySection).map(([sectionName, sectionData]) => (
-                    <div key={sectionName} className="bg-gray-50 p-3 rounded-lg">
-                      <h5 className="font-medium text-gray-800 mb-2">{sectionName}</h5>
-                      <div className="space-y-1">
-                        <p className="text-sm text-gray-600">
-                          Transactions: <span className="font-medium">{sectionData.count}</span>
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Total: <span className="font-medium">{formatCurrency(sectionData.total)}</span>
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Percentage: <span className="font-medium">{(sectionData.percentage || 0).toFixed(1)}%</span>
-                        </p>
+                    <div key={sectionName}>
+                      <div className="flex justify-between font-medium">
+                        <span>{sectionName}</span>
+                        <span className="tabular-nums">{formatCurrency(sectionData.total)}</span>
                       </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>Tx</span>
+                        <span className="tabular-nums">{sectionData.count}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>%</span>
+                        <span className="tabular-nums">{((sectionData.percentage || 0) as number).toFixed(1)}%</span>
+                      </div>
+                      <div className="border-t border-dashed border-gray-200 my-1" />
                     </div>
                   ))}
                 </div>
@@ -182,26 +167,38 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
             )}
 
             {/* Report Generation Info */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">Report Generated:</span> {new Date(selectedReport.generatedAt).toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                <span className="font-medium">Report Status:</span> {selectedReport.reportStatus}
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                <span className="font-medium">Report Type:</span> {selectedReport.reportType}
-              </p>
-              {selectedReport.generatedBy && (
-                <p className="text-sm text-gray-600 mt-1">
-                  <span className="font-medium">Generated By:</span> {selectedReport.generatedBy}
-                </p>
-              )}
+            <div className="mt-4">
+              <div className="border-t border-dashed border-gray-400 my-2" />
+              <div className="space-y-1 text-[11px]">
+                <div className="flex justify-between">
+                  <span>Generated</span>
+                  <span className="tabular-nums">{new Date(selectedReport.generatedAt).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Status</span>
+                  <span className="uppercase">{selectedReport.reportStatus}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Type</span>
+                  <span className="uppercase">{selectedReport.reportType}</span>
+                </div>
+                {selectedReport.generatedBy && (
+                  <div className="flex justify-between">
+                    <span>By</span>
+                    <span>{selectedReport.generatedBy}</span>
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-dashed border-gray-400 mt-2" />
             </div>
 
-            <div className="mt-6 text-center">
-              <button onClick={() => setShowReportModal(false)} className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors mr-2">
-                Close Report
+            {/* Actions */}
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <button onClick={() => setShowReportModal(false)} className="px-4 py-1.5 bg-gray-700 text-white rounded hover:bg-gray-800">
+                Close
+              </button>
+              <button onClick={() => window.print()} className="px-4 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                Print
               </button>
               {selectedReport.reportStatus === "draft" && (
                 <button
@@ -213,9 +210,9 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
                       setError("Failed to finalize report");
                     }
                   }}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  className="px-4 py-1.5 bg-green-700 text-white rounded hover:bg-green-800"
                 >
-                  Finalize Report
+                  Finalize
                 </button>
               )}
             </div>

@@ -41,6 +41,7 @@ export interface Employee {
 
   // Associated data
   user?: {
+    imageUrl: string;
     id: number;
     username: string;
     firstName: string;
@@ -604,6 +605,7 @@ export type GroupedOrder = {
     };
   };
   creator?: {
+    user: any;
     id: number;
     firstName: string;
     lastName: string;

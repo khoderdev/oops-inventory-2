@@ -164,6 +164,31 @@ export const employeeAPI = {
     return response.data;
   },
 
+  // Add usages to an existing settlement by updating each usage record
+  async addUsagesToSettlement(settlementId: number, usageIds: number[]): Promise<{ success: boolean; updated: number; failed: number }> {
+    if (!Array.isArray(usageIds) || usageIds.length === 0) {
+      return { success: true, updated: 0, failed: 0 };
+    }
+
+    const results = await Promise.allSettled(
+      usageIds.map(id =>
+        api.put<EmployeeUsageResponse, Partial<EmployeeUsage>>(`/employees/usage/${id}`, {
+          settlementId,
+          isSettled: true
+        })
+      )
+    );
+
+    const updated = results.filter(r => r.status === "fulfilled").length;
+    const failed = results.length - updated;
+
+    if (failed > 0) {
+      throw new Error(`Failed to add ${failed} usage(s) to settlement`);
+    }
+
+    return { success: true, updated, failed: 0 };
+  },
+
   // Utility functions
   formatCurrency(amount: number): string {
     return new Intl.NumberFormat("en-US", {
@@ -296,5 +321,10 @@ export const employeeAPI = {
     return Promise.all(usagePromises);
   }
 };
+
+// Named export for dynamic import usage in components
+export async function addUsagesToSettlement(settlementId: number, usageIds: number[]) {
+  return employeeAPI.addUsagesToSettlement(settlementId, usageIds);
+}
 
 export default employeeAPI;
