@@ -98,11 +98,13 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
 
   // Check if user has access to Back Office (Admin or Manager only)
   const canAccessBackOffice = hasRole(["admin", "manager"]);
+  const canAccessReports = hasRole(["admin", "manager"]);
+
   const navigate = useNavigate();
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
-    const { onSaveOrder, onPrintReceipt, onVoidOrder, onShowOrders, onShowReports, hasUnsavedChanges = false, isOrderLoading = false, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, incompleteOrdersCount = 0, incompleteDeliveryTakeawayCount = 0, onDiscount = () => {}, onShowPrinterSettings, hasSavedPrinter = false, savedPrinterName } = props;
+    const { onPrintReceipt, onVoidOrder, onShowReports, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, onShowPrinterSettings, hasSavedPrinter = false, savedPrinterName } = props;
 
     buttons = [
       {
@@ -124,9 +126,7 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         className: canVoidOrder ? "!bg-transparent border border-red-500 text-red-600 hover:!bg-red-50 hover:text-red-700" : ""
       },
       { id: "refund", icon: DollarSign, label: "Refund", active: false },
-      // { id: "discount", icon: Banknote, label: "Discount", active: false, onClick: onDiscount },
-      { id: "reports", icon: FileText, label: "Reports", active: false, onClick: onShowReports },
-
+      { id: "reports", icon: FileText, label: "Reports", active: false, onClick: onShowReports, disabled: !canAccessReports, requiredRole: ["admin", "manager"] },
       {
         id: "printer",
         icon: WifiCog,
