@@ -593,8 +593,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
           {/* Right Section - User & Controls */}
           <div className="relative flex items-center space-x-3 z-10 select-none">
-            {/* Day Operations Button - For all users */}
-            {currentDay?.status === "opened" ? (
+            {/* Day Operations Button - Staff only */}
+            {isStaff && (currentDay?.status === "opened" ? (
               <button onClick={handleShowCloseModal} className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6  py-2  rounded-lg sm:rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm  w-full sm:w-auto">
                 Close Day
               </button>
@@ -602,7 +602,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
               <button onClick={handleShowOpenModal} className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 sm:px-6  py-2  rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm  w-full sm:w-auto">
                 Open New Day
               </button>
-            )}
+            ))}
             {/* Session Stats */}
             <div className="flex items-center space-x-2 select-none">
               {!hasRole("staff") && (
