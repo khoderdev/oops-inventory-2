@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { ReportGeneratorProps, SaleRecord, StockEntry } from "@/types/inventory";
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { format, isValid } from "date-fns";
-import { CalendarIcon, Download, FileText, ToggleLeft, ToggleRight, X } from "lucide-react";
+import { CalendarIcon, Download, FileText, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { REPORT_CONFIGS, ReportType } from "./configs";
 import { generateCategoryAnalysisReport, generateCategorySalesAnalysisReport, generateCostAnalysisReport, generateExpiryAlertsReport, generateInventorySummaryReport, generateMenuProfitabilityReport, generateSalesPerformanceReport, generateSectionPerformanceReport, generateStockPurchasesReport, generateSupplierPerformanceReport, generateVarianceAnalysisReport, generateWasteReport } from "./generationFunctions";
@@ -266,7 +266,6 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
   const exportReport = () => {
     if (!hasGenerated || reportData.length === 0) return;
-
     // Helper function to format dates consistently as DD-MM-YYYY HH:MM:SS AM/PM for CSV
     const formatDateForCSV = (date: Date): string => {
       const day = date.getDate().toString().padStart(2, "0");

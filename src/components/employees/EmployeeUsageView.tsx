@@ -182,6 +182,100 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     }
   };
 
+  // Export currently displayed grouped orders to CSV
+  const exportUsages = () => {
+    if (loading || (groupedOrders?.length || 0) === 0) return;
+
+    const headers = [
+      "Order",
+      "Transaction ID",
+      "Employee",
+      "Employee Number",
+      "Created By",
+      "Username",
+      "Date & Time",
+      "Items Count",
+      "Total Cost",
+      "Discount Amount",
+      "Final Cost",
+      "Status",
+      "Order Total",
+      "Notes"
+    ];
+
+    const rows = groupedOrders.map(order => {
+      const employeeName = (() => {
+        const userName = `${order.employee.user?.firstName ?? ""} ${order.employee.user?.lastName ?? ""}`.trim();
+        const fallback = `${order.employee.firstName ?? ""} ${order.employee.lastName ?? ""}`.trim();
+        return userName || fallback || `Employee #${order.employee.id}`;
+      })();
+      const employeeNumber = order.employee.employeeNumber ?? "-";
+      const creatorName = order.creator ? `${order.creator.firstName} ${order.creator.lastName}` : "Unknown";
+      const creatorUsername = order.creator?.username ?? "";
+      const dt = new Date(order.orderDate);
+      const dateTime = isNaN(dt.getTime()) ? "-" : formatDateForCSV(dt);
+      const orderTotal = order.items[0]?.order?.total != null ? Number(parseFloat(order.items[0].order.total.toString())).toFixed(2) : "-";
+      const notes = order.items[0]?.notes ? String(order.items[0].notes) : "";
+
+      // Determine payment/settlement status similar to UI
+      const employeeId = order.employee.id;
+      const settledUsages = order.items.filter(i => i.isSettled);
+      const isPaid = settledUsages.some(usage =>
+        settlements.find(
+          s => s.employeeId === employeeId && s.settlementData?.usageBreakdown?.some(ub => ub.id === usage.id) && s.status === "paid"
+        )
+      );
+      const status = isPaid ? "Paid" : order.isSettled ? "Settled (Unpaid)" : "Pending Settlement";
+
+      const values: (string | number)[] = [
+        order.posTransactionId.startsWith("individual-") ? "Individual Usage" : "POS Order",
+        order.posTransactionId,
+        employeeName,
+        String(employeeNumber),
+        creatorName,
+        creatorUsername,
+        dateTime,
+        String(order.itemCount),
+        Number(order.totalCost ?? 0).toFixed(2),
+        Number(order.totalDiscountAmount ?? 0).toFixed(2),
+        Number(order.finalCost ?? 0).toFixed(2),
+        status,
+        orderTotal,
+        notes
+      ];
+
+      const escapeCSV = (v: string | number) => {
+        const s = String(v ?? "");
+        if (/[",\n]/.test(s)) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      };
+
+      return values.map(escapeCSV).join(",");
+    });
+
+    const csv = [headers.join(","), ...rows].join("\n");
+
+    // Build filename with current filters
+    const emp = (selectedEmployeeId ?? internalSelectedEmployeeId) ?? "all";
+    const type = filters.usageType ?? "all";
+    const settled = filters.isSettled === undefined ? "all" : filters.isSettled ? "settled" : "unsettled";
+    const from = dateRange.from.toISOString().split("T")[0];
+    const to = dateRange.to.toISOString().split("T")[0];
+    const filename = `employee-usage_emp-${emp}_type-${type}_status-${settled}_from-${from}_to-${to}.csv`;
+
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleUsageTypeFilter = async (usageType: string) => {
     const updatedFilters = {
       ...filters,
@@ -226,6 +320,22 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
 
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  // Format: DD-MM-YYYY HH:MM:SS AM/PM
+  const formatDateForCSV = (date: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const day = pad(date.getDate());
+    const month = pad(date.getMonth() + 1);
+    const year = date.getFullYear();
+    let hours = date.getHours();
+    const minutes = pad(date.getMinutes());
+    const seconds = pad(date.getSeconds());
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    const hh = pad(hours);
+    return `${day}-${month}-${year} ${hh}:${minutes}:${seconds} ${ampm}`;
   };
 
   const getItemName = (usage: EmployeeUsage) => {
@@ -514,7 +624,7 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
               />
             </div>
 
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={exportUsages} disabled={loading || groupedOrders.length === 0}>
               <Download className="h-4 w-4" />
               Export
             </Button>

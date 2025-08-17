@@ -30,7 +30,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [settlementStats] = useAtom(settlementStatsAtom);
   const [selectedSettlement, setSelectedSettlement] = useAtom(selectedSettlementAtom);
   const [loading] = useAtom(settlementsLoadingAtom);
-  const [statsLoading] = useAtom(settlementStatsLoadingAtom);
   const [formLoading] = useAtom(settlementFormLoadingAtom);
   const [filters, setFilters] = useAtom(settlementsFiltersAtom);
   const [, fetchSettlements] = useAtom(fetchSettlementsAtom);
@@ -48,10 +47,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [settlementToDelete, setSettlementToDelete] = useState<EmployeeSettlement | null>(null);
   const [forceDelete, setForceDelete] = useState(false);
   const [internalSelectedEmployeeId, setInternalSelectedEmployeeId] = useState<number | null>(selectedEmployeeId || null);
-  const [newUsagesDialogOpen, setNewUsagesDialogOpen] = useState(false);
   const [newUsages, setNewUsages] = useState<any[]>([]);
-  const [selectedUsageIds, setSelectedUsageIds] = useState<number[]>([]);
-  const [loadingNewUsages, setLoadingNewUsages] = useState(false);
   const [addedUsageIds, setAddedUsageIds] = useState<Set<number>>(new Set());
   const [editingDiscountId, setEditingDiscountId] = useState<number | null>(null);
   const [editingDiscountValue, setEditingDiscountValue] = useState<string>("");
@@ -102,17 +98,14 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
   const handleViewDetails = async (settlement: EmployeeSettlement) => {
     try {
-      // Fetch all settled usages for this specific settlement
       const settledUsagesResponse = await employeeAPI.getUsageHistory({
         employeeId: settlement.employeeId,
         isSettled: true,
         settlementId: settlement.id
       });
-
       if (settledUsagesResponse.success && settledUsagesResponse.data?.usages) {
         const settledUsages = settledUsagesResponse.data.usages;
-        
-        // Build usage breakdown from all settled usages for this settlement
+
         const usageBreakdown = settledUsages.map(usage => ({
           id: usage.id,
           usageType: usage.usageType,
@@ -126,12 +119,10 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
           usageDate: usage.usageDate
         }));
 
-        // Calculate totals from actual settled usages
         const totalUsageCost = usageBreakdown.reduce((sum, item) => sum + item.totalCost, 0);
         const totalDiscountAmount = usageBreakdown.reduce((sum, item) => sum + (item.totalCost - item.finalCost), 0);
         const totalDeduction = totalUsageCost - totalDiscountAmount;
 
-        // Update settlement data with actual usage breakdown
         const updatedSettlement = {
           ...settlement,
           settlementData: {
@@ -155,16 +146,12 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
         setSelectedSettlement(updatedSettlement);
       } else {
-        // If no settled usages found, use the settlement as-is
         setSelectedSettlement(settlement);
       }
-
       setDetailsOpen(true);
-      // Reset added usage IDs when viewing a different settlement
       setAddedUsageIds(new Set());
     } catch (error) {
       console.error("Error fetching settled usages:", error);
-      // Fallback to showing settlement without updated usage breakdown
       setSelectedSettlement(settlement);
       setDetailsOpen(true);
       setAddedUsageIds(new Set());
@@ -200,7 +187,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     }
   };
 
-
   const handleDiscountEdit = (usageId: number, currentDiscount: number) => {
     setEditingDiscountId(usageId);
     setEditingDiscountValue(currentDiscount.toString());
@@ -215,29 +201,15 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         toast.error("Please enter a valid discount percentage (0-100)");
         return;
       }
-
-      // Find the usage item in the breakdown
       const usageItem = selectedSettlement.settlementData?.usageBreakdown?.find(u => u.id === usageId);
       if (!usageItem) return;
-
-      // Calculate new final cost based on new discount
       const discountAmount = (usageItem.totalCost * newDiscountValue) / 100;
       const newFinalCost = usageItem.totalCost - discountAmount;
-
-      // Update the usage record in the backend
       await employeeAPI.updateUsage(usageId, {
         discountApplied: newDiscountValue,
         finalCost: newFinalCost
       });
-
-      // Update the local state
-      const updatedUsageBreakdown = selectedSettlement.settlementData.usageBreakdown.map(usage => 
-        usage.id === usageId 
-          ? { ...usage, discountApplied: newDiscountValue, finalCost: newFinalCost }
-          : usage
-      );
-
-      // Recalculate totals
+      const updatedUsageBreakdown = selectedSettlement.settlementData.usageBreakdown.map(usage => (usage.id === usageId ? { ...usage, discountApplied: newDiscountValue, finalCost: newFinalCost } : usage));
       const totalUsageCost = updatedUsageBreakdown.reduce((sum, item) => sum + Number(item.totalCost || 0), 0);
       const totalDiscountAmount = updatedUsageBreakdown.reduce((sum, item) => sum + (Number(item.totalCost || 0) - Number(item.finalCost || 0)), 0);
       const totalDeduction = totalUsageCost - totalDiscountAmount;
@@ -245,8 +217,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
       const bonusAmount = Number(selectedSettlement.bonusAmount || 0);
       const penaltyAmount = Number(selectedSettlement.penaltyAmount || 0);
       const finalSalary = baseSalary - totalDeduction + bonusAmount - penaltyAmount;
-
-      // Update settlement data for local state (EmployeeSettlement.settlementData format)
       const updatedSettlementDataForState = {
         ...selectedSettlement.settlementData,
         usageBreakdown: updatedUsageBreakdown,
@@ -270,7 +240,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         period: {
           month: selectedSettlement.settlementMonth,
           year: selectedSettlement.settlementYear,
-          monthName: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth - 1).toLocaleString('default', { month: 'long' })
+          monthName: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth - 1).toLocaleString("default", { month: "long" })
         },
         calculation: {
           baseSalary: Number(selectedSettlement.baseSalary),
@@ -294,8 +264,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         finalSalary,
         settlementData: settlementDataForAPI
       });
-
-      // Update local state
       setSelectedSettlement({
         ...selectedSettlement,
         totalUsageCost,
@@ -304,13 +272,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         finalSalary,
         settlementData: updatedSettlementDataForState
       });
-
       setEditingDiscountId(null);
       setEditingDiscountValue("");
-      
-      // Refresh settlements list
       await fetchSettlements(filters);
-      
       toast.success("Discount updated successfully");
     } catch (error) {
       console.error("Error updating discount:", error);
@@ -323,176 +287,17 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     setEditingDiscountValue("");
   };
 
-  const addUsagesToCurrentSettlement = async (usageIds: number[]) => {
-    if (!selectedSettlement) {
-      return;
-    }
-
-    try {
-      // Mark selected usages as settled with current settlement ID and collect the updated usages
-      const updatedUsages = [];
-      for (const usageId of usageIds) {
-        const updateResult = await employeeAPI.updateUsage(usageId, {
-          isSettled: true,
-          settlementId: selectedSettlement.id
-        });
-        
-        if (updateResult.success && updateResult.data) {
-          updatedUsages.push(updateResult.data);
-        }
-      }
-
-      // Get existing usages that already belong to this settlement
-      const existingUsagesResponse = await employeeAPI.getUsageHistory({
-        employeeId: selectedSettlement.employeeId,
-        startDate: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth - 1, 1).toISOString().split("T")[0],
-        endDate: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth, 0).toISOString().split("T")[0],
-        isSettled: true
-      });
-
-      if (existingUsagesResponse.success && existingUsagesResponse.data?.usages) {
-        // Get existing usages for this settlement (excluding the ones we just added)
-        const existingSettlementUsages = existingUsagesResponse.data.usages.filter(usage => 
-          usage.settlementId === selectedSettlement.id && !usageIds.includes(usage.id)
-        );
-        
-        // Combine existing usages with newly added ones
-        const allSettlementUsages = [...existingSettlementUsages, ...updatedUsages];
-
-        // Build complete usage breakdown
-        const completeUsageBreakdown = allSettlementUsages.map(usage => ({
-          id: usage.id,
-          usageType: usage.usageType,
-          itemName: usage.material?.name || usage.menuItem?.name || "Unknown Item",
-          quantity: Number(usage.quantity),
-          unit: usage.unit,
-          unitCost: Number(usage.unitCost),
-          totalCost: Number(usage.totalCost),
-          discountApplied: Number(usage.discountApplied),
-          finalCost: Number(usage.finalCost),
-          usageDate: usage.usageDate
-        }));
-
-        // Calculate totals
-        const totalUsageCost = completeUsageBreakdown.reduce((sum, item) => sum + item.totalCost, 0);
-        const totalDiscountAmount = completeUsageBreakdown.reduce((sum, item) => sum + (item.totalCost - item.finalCost), 0);
-        const totalDeduction = totalUsageCost - totalDiscountAmount;
-        const finalSalary = Number(selectedSettlement.baseSalary) - totalDeduction + Number(selectedSettlement.bonusAmount) - Number(selectedSettlement.penaltyAmount);
-
-        const { employeeAPI: api } = await import("@/api/employee.api");
-        
-        // Build settlement data in the format the backend expects (SettlementPreview)
-        const settlementDataForAPI = {
-          employee: {
-            id: selectedSettlement.employee.id,
-            name: `${selectedSettlement.employee.firstName} ${selectedSettlement.employee.lastName}`,
-            employeeNumber: selectedSettlement.employee.employeeNumber,
-            department: selectedSettlement.employee.department,
-            discountPercentage: Number(selectedSettlement.employee?.discountPercentage || 0)
-          },
-          period: {
-            month: selectedSettlement.settlementMonth,
-            year: selectedSettlement.settlementYear,
-            monthName: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth - 1).toLocaleString('default', { month: 'long' })
-          },
-          calculation: {
-            baseSalary: Number(selectedSettlement.baseSalary),
-            totalUsageCost,
-            totalDiscountAmount,
-            totalDeduction,
-            bonusAmount: Number(selectedSettlement.bonusAmount),
-            penaltyAmount: Number(selectedSettlement.penaltyAmount),
-            finalSalary,
-            usageItemsCount: completeUsageBreakdown.length
-          },
-          usages: completeUsageBreakdown,
-          usageBreakdown: completeUsageBreakdown
-        };
-
-        const updateSettlementResult = await api.updateSettlement(selectedSettlement.id, {
-          totalUsageCost,
-          totalDiscountAmount,
-          totalDeduction,
-          finalSalary,
-          settlementData: settlementDataForAPI
-        });
-
-        if (updateSettlementResult.success) {
-          // Build settlement data in the format expected by EmployeeSettlement type
-          const settlementDataForState = {
-            usageBreakdown: completeUsageBreakdown,
-            calculationDetails: {
-              baseSalary: Number(selectedSettlement.baseSalary),
-              totalUsageCost,
-              discountPercentage: Number(selectedSettlement.employee?.discountPercentage || 0),
-              totalDiscountAmount,
-              netDeduction: totalDeduction,
-              bonusAmount: Number(selectedSettlement.bonusAmount),
-              penaltyAmount: Number(selectedSettlement.penaltyAmount)
-            }
-          };
-
-          // Immediately update the selected settlement with the new data
-          const updatedSelectedSettlement = {
-            ...selectedSettlement,
-            totalUsageCost,
-            totalDiscountAmount,
-            totalDeduction,
-            finalSalary,
-            usageItemsCount: completeUsageBreakdown.length,
-            settlementData: settlementDataForState
-          };
-          
-          setSelectedSettlement(updatedSelectedSettlement);
-          
-          // Track the added usage IDs locally to prevent them from reappearing
-          setAddedUsageIds(prev => {
-            const newSet = new Set(prev);
-            usageIds.forEach(id => newSet.add(id));
-            return newSet;
-          });
-          
-          // Remove the added usages from the newUsages list
-          const remainingNewUsages = newUsages.filter(usage => !usageIds.includes(Number(usage.id)));
-          setNewUsages(remainingNewUsages);
-          
-          // Update selected usage IDs to remove the added ones
-          setSelectedUsageIds(prev => prev.filter(id => !usageIds.includes(id)));
-          
-          // If no more usages remain, close the dialog
-          if (remainingNewUsages.length === 0) {
-            setNewUsagesDialogOpen(false);
-            setSelectedUsageIds([]);
-          }
-        }
-      }
-
-      await fetchSettlements(filters);
-      
-      toast.success(`Added ${usageIds.length} usage records to the current settlement`);
-    } catch (error) {
-      console.error("Error adding usages to settlement:", error);
-      toast.error("Failed to add usages to settlement");
-    }
-  };
-
   const handleApprove = async (settlementId: number) => {
     try {
-      // Find the settlement to get its details
       const settlement = settlements.find(s => s.id === settlementId);
       if (!settlement) {
         throw new Error("Settlement not found");
       }
-
-      // Approve the settlement
       await approveSettlement({
         id: settlementId,
         notes: "Approved via settlement management interface"
       });
-
-      // Mark all usage items as settled
       await markUsageItemsAsSettled(settlement);
-
       await fetchSettlements(filters);
       toast.success("Settlement approved and usage items marked as settled");
     } catch (error) {
@@ -503,22 +308,16 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
   const handleMarkAsPaid = async (settlementId: number) => {
     try {
-      // Find the settlement to get its details
       const settlement = settlements.find(s => s.id === settlementId);
       if (!settlement) {
         throw new Error("Settlement not found");
       }
-
-      // Mark the settlement as paid
       await markAsPaid({
         id: settlementId,
-        paymentMethod: "bank_transfer",
+        paymentMethod: "cash",
         paymentReference: `PAY-${settlementId}-${Date.now()}`
       });
-
-      // Mark all usage items as settled (if not already settled from approval)
       await markUsageItemsAsSettled(settlement);
-
       await fetchSettlements(filters);
       toast.success("Settlement marked as paid and usage items marked as settled");
     } catch (error) {
@@ -594,6 +393,67 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
   const getMonthName = (month: number) => {
     return new Date(2024, month - 1, 1).toLocaleDateString("en-US", { month: "long" });
+  };
+
+  // Format as DD-MM-YYYY HH:MM:SS AM/PM (match ReportGenerator CSV style)
+  const formatDateForCSV = (date: Date): string => {
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+
+    let hours = date.getHours();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0 -> 12
+    const hoursStr = hours.toString().padStart(2, "0");
+
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
+    return `${day}-${month}-${year} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+  };
+
+  const exportSettlements = () => {
+    if (loading || (settlements?.length || 0) === 0) return;
+    const headers = ["Employee", "Employee Number", "Department", "Period", "Base Salary", "Total Usage Cost", "Discount Amount", "Net Deduction", "Bonus", "Penalty", "Final Salary", "Status", "Settlement Date", "Usage Items Count"];
+    const csvRows = settlements.map(s => {
+      const employeeName = s.employee ? `${s.employee.firstName} ${s.employee.lastName}` : `Employee #${s.employeeId}`;
+      const employeeNumber = s.employee?.employeeNumber ?? "-";
+      const department = s.employee?.department ?? "-";
+      const period = `${getMonthName(s.settlementMonth)} ${s.settlementYear}`;
+      const settlementDate = (() => {
+        const d = new Date(s.settlementDate);
+        return isNaN(d.getTime()) ? "-" : formatDateForCSV(d);
+      })();
+
+      const values: (string | number)[] = [employeeName, String(employeeNumber), department, period, Number(s.baseSalary ?? 0).toFixed(2), Number(s.totalUsageCost ?? 0).toFixed(2), Number(s.totalDiscountAmount ?? 0).toFixed(2), Number(s.totalDeduction ?? 0).toFixed(2), Number(s.bonusAmount ?? 0).toFixed(2), Number(s.penaltyAmount ?? 0).toFixed(2), Number(s.finalSalary ?? 0).toFixed(2), s.status, settlementDate, String(s.usageItemsCount ?? 0)];
+
+      // CSV escape: wrap fields containing commas, quotes, or newlines in quotes and escape quotes
+      const escapeCSV = (v: string | number) => {
+        const str = String(v);
+        if (/[",\n]/.test(str)) {
+          return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+      };
+
+      return values.map(escapeCSV).join(",");
+    });
+
+    const csvContent = [headers.join(","), ...csvRows].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    // Build a helpful filename from filters
+    const parts: string[] = ["employee-settlements"];
+    if (internalSelectedEmployeeId) parts.push(`emp-${internalSelectedEmployeeId}`);
+    if (selectedYear) parts.push(String(selectedYear));
+    if (selectedMonth) parts.push(String(selectedMonth).padStart(2, "0"));
+    link.download = parts.join("-") + ".csv";
+    link.href = url;
+    link.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const currentYear = new Date().getFullYear();
@@ -730,7 +590,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
               </Select>
             </div>
 
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={exportSettlements} disabled={loading || settlements.length === 0}>
               <Download className="h-4 w-4" />
               Export
             </Button>
@@ -950,21 +810,17 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                               <TableCell>{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
                               <TableCell className="font-mono">{formatCurrency(usage.unitCost)}</TableCell>
                               <TableCell className="font-mono">{formatCurrency(usage.totalCost)}</TableCell>
-                              <TableCell 
-                                className="font-mono text-green-600 cursor-pointer hover:bg-muted/50"
-                                onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied)}
-                                title="Double-click to edit discount"
-                              >
+                              <TableCell className="font-mono text-green-600 cursor-pointer hover:bg-muted/50" onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied)} title="Double-click to edit discount">
                                 {editingDiscountId === usage.id ? (
                                   <div className="flex items-center gap-1">
                                     <input
                                       type="number"
                                       value={editingDiscountValue}
-                                      onChange={(e) => setEditingDiscountValue(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
+                                      onChange={e => setEditingDiscountValue(e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === "Enter") {
                                           handleDiscountSave(usage.id);
-                                        } else if (e.key === 'Escape') {
+                                        } else if (e.key === "Escape") {
                                           handleDiscountCancel();
                                         }
                                       }}
