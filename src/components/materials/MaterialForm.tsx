@@ -10,12 +10,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { materialSchema } from "./materialsSchema";
-import { createCategory, getCategories, getCategoriesByType, updateCategory } from "@/api/categories.api";
-import { Category, CategoryFormData, CategoryManagementProps } from "@/types/categories";
+import { createCategory, getCategoriesByType, updateCategory } from "@/api/categories.api";
+import { Category, CategoryFormData } from "@/types/categories";
 import { Loader2 } from "lucide-react";
 import { CategoryModal } from "../categories/CategoryModal";
 
-export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps, { onCategoryChange }: CategoryManagementProps) {
+export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
@@ -41,32 +41,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   const watchedPackageQuantity = form.watch("packageQuantity");
 
   const suggestedUnits = getSuggestedUnits(watchedUnitType);
-
-  // Fetch material categories on component mount
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        console.log("🔄 Starting to fetch categories...");
-        setLoadingCategories(true);
-        setCategoriesError(null);
-        const response = await getCategoriesByType("materials", true);
-        console.log("📦 Categories API response:", response);
-        console.log("📋 Categories totalItems:", response.totalItems);
-        // Use the correct response structure with totalItems
-        setCategories(response.totalItems);
-        console.log("✅ Categories set in state:", response.totalItems);
-      } catch (error) {
-        console.error("❌ Failed to fetch categories:", error);
-        setCategoriesError("Failed to load categories");
-        setCategories([]);
-      } finally {
-        setLoadingCategories(false);
-        console.log("🏁 Loading categories finished");
-      }
-    };
-
-    fetchCategories();
-  }, []);
+  const uniqueSuggestedUnits = useMemo(() => Array.from(new Set(suggestedUnits)), [suggestedUnits]);
 
   // Set default category if none selected and categories are loaded
   useEffect(() => {
@@ -220,35 +195,82 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     onSubmit(finalData);
   };
 
-  const loadCategories = useCallback(async () => {
+  const loadCategories = useCallback(async (): Promise<Category[]> => {
     try {
       setLoading(true);
-      const response = await getCategories();
-      setCategories(response.totalItems);
+      setLoadingCategories(true);
+      // Fetch only material categories (active)
+      const response = await getCategoriesByType("materials", true);
+      const fetched = response.totalItems;
+      // Preserve the currently selected category (possibly newly created)
+      setCategories(prev => {
+        const currentVal = form.getValues("category");
+        let next = fetched;
+        if (currentVal && !fetched.some(c => c.value === currentVal)) {
+          const localMatch = prev.find(c => c.value === currentVal);
+          if (localMatch) {
+            next = [...fetched, localMatch];
+          }
+        }
+        return next.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+      });
+      return fetched;
     } catch (error) {
       console.error("Error loading categories:", error);
+      return [];
     } finally {
       setLoading(false);
+      setLoadingCategories(false);
     }
-  }, []);
+  }, [form]);
 
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
 
+
   const handleFormSubmit = async (formData: CategoryFormData) => {
     try {
       setFormLoading(true);
+      let savedCategory: Category | undefined;
+      console.log(formData);
       if (selectedCategory) {
-        await updateCategory(selectedCategory.id, formData);
+        const res = await updateCategory(selectedCategory.id, formData);
+        savedCategory = res.data;
       } else {
-        await createCategory(formData);
+        const res = await createCategory({
+          ...formData,
+          type: "materials",
+          isActive: true
+        });
+        savedCategory = res.data;
       }
+      console.log("savedCategory 1111", savedCategory);
+      if (savedCategory) {
+        // Update categories state immediately
+        console.log("savedCategory 2222", savedCategory);
+        setCategories(prev => {
+          const exists = prev.some(c => c.id === savedCategory!.id);
+          const next = exists ? prev.map(c => (c.id === savedCategory!.id ? savedCategory! : c)) : [...prev, savedCategory!];
+          return next.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+        });
+
+        // IMPORTANT: Wait for state update before setting form value
+        setTimeout(() => {
+          if (savedCategory?.value) {
+            form.setValue("category", savedCategory.value, {
+              shouldDirty: true,
+              shouldTouch: true
+            });
+          }
+        }, 0);
+      }
+
+      // Background refresh for consistency
+      loadCategories();
       setShowForm(false);
       setSelectedCategory(undefined);
-      await loadCategories();
-      onCategoryChange?.();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error saving category:", error);
     } finally {
       setFormLoading(false);
@@ -286,46 +308,50 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                     return (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
-                        <Select
-                          onValueChange={value => {
-                            field.onChange(value);
-                          }}
-                          value={field.value}
-                          disabled={loadingCategories}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder={loadingCategories ? "Loading categories..." : "Select category"} />
-                              {loadingCategories && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-                            </SelectTrigger>
-                          </FormControl>
-                          <Button onClick={() => setShowForm(true)} type="submit">
+                        <div className="flex items-center gap-2">
+                          <Select
+                            key={`category-select-${categories.length}`}
+                            onValueChange={value => {
+                              field.onChange(value);
+                            }}
+                            value={field.value || ""}
+                            disabled={loadingCategories}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={loadingCategories ? "Loading categories..." : "Select category"} />
+                                {loadingCategories && (
+                                  <div className="flex items-center">
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    <span>Loading categories...</span>
+                                  </div>
+                                )}
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {categoriesError && (
+                                <SelectItem key="categories-error" value="" disabled>
+                                  {categoriesError}
+                                </SelectItem>
+                              )}
+                              {!categoriesError && categories.length === 0 && !loadingCategories && (
+                                <SelectItem key="no-categories" value="no-categories" disabled>
+                                  No categories available
+                                </SelectItem>
+                              )}
+                              {!categoriesError &&
+                                categories.length > 0 &&
+                                categories.map(category => (
+                                  <SelectItem key={`cat-${category.id}`} value={category.value}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <Button onClick={() => setShowForm(true)} type="button">
                             new
                           </Button>
-                          <SelectContent>
-                            {categoriesError ? (
-                              <SelectItem value="" disabled>
-                                {categoriesError}
-                              </SelectItem>
-                            ) : (
-                              <>
-                                {categories.length === 0 && !loadingCategories ? (
-                                  <SelectItem value="no-categories" disabled>
-                                    No categories available
-                                  </SelectItem>
-                                ) : (
-                                  categories.map(category => {
-                                    return (
-                                      <SelectItem key={category.id} value={category.value}>
-                                        {category.name}
-                                      </SelectItem>
-                                    );
-                                  })
-                                )}
-                              </>
-                            )}
-                          </SelectContent>
-                        </Select>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     );
@@ -345,9 +371,15 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="package">Package (box, pack, bag)</SelectItem>
-                          <SelectItem value="mass">Mass (kg, gram)</SelectItem>
-                          <SelectItem value="volume">Volume (liter, ml)</SelectItem>
+                          <SelectItem key="unitType-package" value="package">
+                            Package (box, pack, bag)
+                          </SelectItem>
+                          <SelectItem key="unitType-mass" value="mass">
+                            Mass (kg, gram)
+                          </SelectItem>
+                          <SelectItem key="unitType-volume" value="volume">
+                            Volume (liter, ml)
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -368,8 +400,8 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {suggestedUnits.map(unit => (
-                            <SelectItem key={unit} value={unit}>
+                          {uniqueSuggestedUnits.map(unit => (
+                            <SelectItem key={`unit-${unit}`} value={unit}>
                               {unit}
                             </SelectItem>
                           ))}
