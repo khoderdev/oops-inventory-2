@@ -6,19 +6,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import DayOperationsModal from "@/components/DayOperationsModal/DayOperationsModal";
 import PinInput from "@/components/ui/PinInput";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@/types/auth";
 import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
 import { POSLayoutProps, OpenDayRequest, CloseDayRequest, DayOperation, ActivityLog } from "@/types/inventory";
 import { DayOperationsFormData, UserOrderStats } from "@/types/dayOperations";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { formatCurrency } from "@/utils/dayOperationsFormattings";
-import { AlertCircle, Banknote, Calendar, CheckCircle, Clock, GripVertical, List, Maximize2, Minimize2, Power, ShoppingCart, XCircle } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle, Clock, GripVertical, List, Maximize2, Minimize2, Power, ShoppingCart, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
-  const { user, logout, hasRole } = useAuth();
-  const isStaff = hasRole("staff");
+  const { user, logout } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canAccessPOS = hasPermission(PERMISSIONS.POS_ACCESS);
+  const canOpenDay = hasPermission(PERMISSIONS.DAY_OPERATIONS_CREATE);
+  const canCloseDayPerm = hasPermission(PERMISSIONS.DAY_OPERATIONS_CLOSE);
+  const canManageDay = canOpenDay || canCloseDayPerm;
+  const canViewOrders = hasPermission(PERMISSIONS.ORDERS_READ);
+  const canAccessSalesHistory = hasPermission(PERMISSIONS.REPORTS_SALES) || hasPermission(PERMISSIONS.REPORTS_READ);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -28,30 +36,27 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [leftPanelWidth, setLeftPanelWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(false);
-  const [showDayOperationsModal, setShowDayOperationsModal] = useState(false);
+  const [, setShowDayOperationsModal] = useState(false);
   const [userDayOpen, setUserDayOpen] = useState(false);
-  const [dayOperationType, setDayOperationType] = useState<"open" | "close">("open");
+  const [, setDayOperationType] = useState<"open" | "close">("open");
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
   const [showLockOverlay, setShowLockOverlay] = useState(false);
   const [isCheckingDayStatus, setIsCheckingDayStatus] = useState(true);
-  const [, setDayLoading] = useState(false);
   const [dayError, setDayError] = useState<string | null>(null);
   const [daySuccess, setDaySuccess] = useState<string | null>(null);
-  const [isLoadingDayOperation, setIsLoadingDayOperation] = useState(false);
   const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
   const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
   const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
   const isLocked = isCheckingDayStatus ? false : !userDayOpen;
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [, setLoading] = useState(true);
+  const [, setError] = useState<string | null>(null);
+  const [, setSuccess] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [recentDays, setRecentDays] = useState<DayOperation[]>([]);
+  const [, setRecentDays] = useState<DayOperation[]>([]);
   const [, setActivities] = useState<ActivityLog[]>([]);
 
-  // Update form user fields when user changes
   useEffect(() => {
     if (user) {
       if (user.fullName) {
@@ -64,7 +69,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           closedBy: user.fullName
         }));
       }
-      // Always keep userId in sync for per-user operations
       setOpenDayForm(prev => ({
         ...prev,
         userId: user.id as any
@@ -243,16 +247,13 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     return () => clearInterval(timer);
   }, []);
 
-  // Add keyboard shortcut for opening day operations modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Alt+O to open day operations modal
       if (e.altKey && e.key === "o") {
         e.preventDefault();
         handleOpenDayOperationsModal();
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
@@ -318,7 +319,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   };
 
-  // Update form user fields when user changes
   useEffect(() => {
     if (user?.fullName) {
       setOpenDayForm(prev => ({
@@ -332,13 +332,10 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   }, [user]);
 
-  // Day Operations handlers
   const handleOpenDayOperationsModal = () => {
-    if (!isStaff) return; // Only staff can open the operations modal
+    if (!canManageDay) return;
     const nextType: "open" | "close" = userDayOpen ? "close" : "open";
     setDayOperationType(nextType);
-
-    // Pre-fill form data based on user stats
     if (nextType === "open") {
       setOpenDayForm(prev => ({
         ...prev,
@@ -347,7 +344,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         notes: ""
       }));
     } else {
-      // For closing, calculate expected cash if we have user stats
       let expectedClosingCash = 0;
       if (user && userOrderStats.length > 0) {
         const userStats = userOrderStats.find(s => s.userId === user.id);
@@ -355,10 +351,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           expectedClosingCash = (userStats.openingCash || 0) + (userStats.cashSales || 0);
         }
       } else if (currentDay) {
-        // Use current day expected cash as fallback
         expectedClosingCash = currentDay.expectedCash || 0;
       }
-
       setCloseDayForm(prev => ({
         ...prev,
         closingCash: expectedClosingCash,
@@ -370,7 +364,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     setShowDayOperationsModal(true);
   };
 
-  // Convert form data for the reusable modal component
   const convertToModalFormData = (type: "open" | "close"): DayOperationsFormData => {
     if (type === "open") {
       return {
@@ -405,13 +398,11 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   };
 
-  // Ensure DayOperationsModal gets latest expected cash and user stats without full page refresh
   const refreshExpectedAndStats = useCallback(async () => {
     try {
       const [currentResponse, statsResponse] = await Promise.all([getCurrentDayOperation(), getUserOrderStats().catch(() => ({ userOrderStats: [] as UserOrderStats[] }))]);
       setCurrentDay(currentResponse.currentDay);
       setUserOrderStats(statsResponse.userOrderStats || []);
-      // Prefer backend-provided expectedCash for accuracy
       const latestExpected = currentResponse.currentDay?.expectedCash ?? 0;
       setCloseDayForm(prev => ({
         ...prev,
@@ -424,46 +415,27 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   }, [getCurrentDayOperation, getUserOrderStats, user?.fullName, user?.id]);
 
-  // Open Close-Day modal with fresh data
   const handleShowCloseModal = useCallback(async () => {
-    if (!isStaff) return; // Only staff can open the close day modal
+    if (!canCloseDayPerm) return;
     await refreshExpectedAndStats();
     setShowCloseModal(true);
-  }, [refreshExpectedAndStats, isStaff]);
+  }, [refreshExpectedAndStats, canCloseDayPerm]);
 
   const handleShowOpenModal = useCallback(() => {
-    if (!isStaff) return; // Only staff can open the open day modal
+    if (!canOpenDay) return;
     setShowOpenModal(true);
-  }, [isStaff]);
+  }, [canOpenDay]);
 
-  // While the Close-Day modal is open, keep expected cash and stats fresh
   useEffect(() => {
     if (!showCloseModal) return;
-    // Initial refresh when it becomes open
     refreshExpectedAndStats();
     const id = window.setInterval(() => {
       refreshExpectedAndStats();
-    }, 10000); // refresh every 10s
+    }, 10000);
     return () => window.clearInterval(id);
   }, [showCloseModal, refreshExpectedAndStats]);
 
-  {
-    {
-      isStaff && isLocked && showLockOverlay && (
-        <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
-            <div className="mb-3 text-slate-900 dark:text-slate-100 font-semibold">Your shift is not open</div>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">Please open your shift to start taking orders</p>
-            <button onClick={handleShowOpenModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
-              Open Shift
-            </button>
-          </div>
-        </div>
-      );
-    }
-  }
 
-  // Delay showing the lock overlay slightly for better UX, but don't show during initial status check
   useEffect(() => {
     let overlayTimer: number | undefined;
     if (isCheckingDayStatus) {
@@ -506,9 +478,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     try {
       setActionLoading(true);
       setError(null);
-      // Ensure per-user open by including userId
       const response = await openDay({ ...openDayForm, userId: user?.id as any });
-      // Immediately update the current day state with the response
       if (response.dayOperation) {
         setCurrentDay(response.dayOperation);
         setUserDayOpen(response.dayOperation.status === "opened");
@@ -516,7 +486,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       setSuccess(`Shift opened successfully! ${response.stockItemsCaptured} stock items captured.`);
       setShowOpenModal(false);
       setOpenDayForm({ openingCash: 0, openedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-      // Add a small delay then refresh to ensure backend consistency
       setTimeout(async () => {
         await loadData();
       }, 500);
@@ -531,9 +500,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     try {
       setActionLoading(true);
       setError(null);
-      // Ensure per-user close by including userId
       const response = await closeDay({ ...closeDayForm, userId: user?.id as any });
-      // Immediately update the current day state with the response
       if (response.dayOperation) {
         setCurrentDay(response.dayOperation);
         setUserDayOpen(response.dayOperation.status === "opened");
@@ -541,7 +508,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       setSuccess(`Shift closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
       setShowCloseModal(false);
       setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-      // Add a small delay then refresh to ensure backend consistency
       setTimeout(async () => {
         await loadData();
       }, 500);
@@ -594,7 +560,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           {/* Right Section - User & Controls */}
           <div className="relative flex items-center space-x-3 z-10 select-none">
             {/* Day Operations Button - Staff only */}
-            {isStaff && (currentDay?.status === "opened" ? (
+          {canManageDay &&
+            (currentDay?.status === "opened" ? (
               <button onClick={handleShowCloseModal} className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 sm:px-6  py-2  rounded-lg sm:rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm  w-full sm:w-auto">
                 Close Day
               </button>
@@ -603,20 +570,21 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
                 Open New Day
               </button>
             ))}
-            {/* Session Stats */}
-            <div className="flex items-center space-x-2 select-none">
-              {!hasRole("staff") && (
-                <button onClick={() => setShowSalesHistoryDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
-                  <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
-                    <List className="w-4 h-4 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
-                    <div className="flex items-center space-x-1">
-                      <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Sales History</span>
-                    </div>
+          {/* Session Stats */}
+          <div className="flex items-center space-x-2 select-none">
+            {canAccessSalesHistory && (
+              <button onClick={() => setShowSalesHistoryDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
+                <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">
+                  <List className="w-4 h-4 text-emerald-300 group-hover:text-emerald-200 transition-colors" />
+                  <div className="flex items-center space-x-1">
+                    <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Sales History</span>
                   </div>
-                </button>
-              )}
-              {/* Transactions Card - Clickable */}
+                </div>
+              </button>
+            )}
+            {/* Transactions Card - Clickable */}
+            {canViewOrders && (
               <button
                 onClick={() => {
                   if (!isLocked) setShowOrdersDialog(true);
@@ -633,7 +601,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
                   </div>
                 </div>
               </button>
-            </div>
+            )}
+          </div>
 
             {/* User Info */}
             <div className="group select-none">
@@ -676,7 +645,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           {/* Right Panel - Main Content */}
           <div className="flex-1 relative overflow-hidden">
             <div className="h-full w-full pointer-events-auto">{children}</div>
-            {isStaff && isLocked && showLockOverlay && (
+            {canAccessPOS && isLocked && showLockOverlay && (
               <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
                   <div className="mb-3 text-slate-900 dark:text-slate-100 font-semibold">Day is not open</div>
@@ -702,10 +671,10 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       </Dialog>
       {/* Day Operations Modal */}
       {/* Open Day Modal - Staff only */}
-      {isStaff && <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} isLoading={actionLoading} formatCurrency={formatCurrency} />}
+      {canOpenDay && <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} isLoading={actionLoading} formatCurrency={formatCurrency} />}
 
       {/* Close Day Modal - Staff only */}
-      {isStaff && (
+      {canCloseDayPerm && (
         <DayOperationsModal
           open={showCloseModal}
           onOpenChange={setShowCloseModal}

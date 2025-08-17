@@ -84,7 +84,8 @@ export const navigationItemsVisibilityAtom = atom<Record<string, boolean>>({});
 export const collapsedNavigationSectionsAtom = atomWithStorage("collapsedNavigationSections", new Set<string>());
 
 // Security and audit atoms
-export const lastPermissionCheckAtom = atom<Date | null>(null);
+// Use a concrete Date (no null) to keep WritableAtom<Date, [Date], ...> compatible with set(..., new Date())
+export const lastPermissionCheckAtom = atom<Date>(new Date());
 export const permissionViolationAttemptsAtom = atom<Array<{
   permission: string;
   route: string;

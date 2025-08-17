@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@/types/auth";
 import { Calculator, DollarSign, FileText, Grid3X3, LucideIcon, Package, Printer, Save, Settings, ShoppingCart, Trash, WifiCog, X } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
@@ -24,48 +25,42 @@ export interface ActionButtonConfig {
 
 // Default button configurations
 export const defaultActionButtons: ActionButtonConfig[] = [
-  { id: "void", icon: X, label: "Void", active: false },
-  { id: "print", icon: Printer, label: "Print Receipt", active: false },
-  { id: "refund", icon: DollarSign, label: "Refund", active: false },
-  { id: "table-orders", icon: Package, label: "Table Orders", active: false },
-  { id: "orders", icon: ShoppingCart, label: "Orders", active: false },
+  { id: "void", icon: X, label: "Void", active: false, requiredPermission: PERMISSIONS.SALES_VOID },
+  { id: "print", icon: Printer, label: "Print Receipt", active: false, requiredPermission: PERMISSIONS.POS_RECEIPTS },
+  { id: "refund", icon: DollarSign, label: "Refund", active: false, requiredPermission: PERMISSIONS.SALES_REFUND },
+  { id: "table-orders", icon: Package, label: "Table Orders", active: false, requiredPermission: PERMISSIONS.POS_TABLES },
+  { id: "orders", icon: ShoppingCart, label: "Orders", active: false, requiredPermission: PERMISSIONS.ORDERS_READ },
   { id: "depts", icon: Calculator, label: "Depts", active: false },
   { id: "speed-key", icon: Grid3X3, label: "Speed Key", active: false },
-  { id: "save", icon: Save, label: "Save Order", active: false }
+  { id: "save", icon: Save, label: "Save Order", active: false, requiredPermission: PERMISSIONS.ORDERS_CREATE }
 ];
 
 // Legacy props interface for backward compatibility
-interface LegacyActionBarProps {
+export interface LegacyActionBarProps {
   onSaveOrder?: () => void;
   onPrintReceipt?: () => void;
   onVoidOrder?: () => void;
   onShowOrders?: () => void;
   onShowReports?: () => void;
   hasUnsavedChanges?: boolean;
-  isOrderLoading?: boolean;
+  isOrderLoading?:boolean;
   canPrintReceipt?: boolean;
   canVoidOrder?: boolean;
   onCancelOrder?: () => void;
   incompleteOrdersCount?: number;
   incompleteDeliveryTakeawayCount?: number;
   onDiscount?: () => void;
-  // Printer settings
   onShowPrinterSettings?: () => void;
   hasSavedPrinter?: boolean;
   savedPrinterName?: string;
 }
 
-// New flexible props interface
-interface FlexibleActionBarProps {
+export interface FlexibleActionBarProps {
   buttons: ActionButtonConfig[];
   columns?: number;
   className?: string;
 }
-
-// Combined props type
-type ActionBarProps = LegacyActionBarProps | FlexibleActionBarProps;
-
-// Type guard to check if props are legacy
+export type ActionBarProps = LegacyActionBarProps | FlexibleActionBarProps;
 function isLegacyProps(props: ActionBarProps): props is LegacyActionBarProps {
   return "onSaveOrder" in props || "onPrintReceipt" in props || !("buttons" in props);
 }
@@ -113,7 +108,8 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         label: "Print Receipt",
         active: canPrintReceipt,
         onClick: onPrintReceipt,
-        disabled: !canPrintReceipt || !onPrintReceipt
+        disabled: !canPrintReceipt || !onPrintReceipt,
+        requiredPermission: PERMISSIONS.POS_RECEIPTS
       },
       { id: "cancel", icon: X, label: "Cancel", active: false, onClick: onCancelOrder, disabled: !onCancelOrder },
       {
@@ -123,10 +119,11 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         active: canVoidOrder,
         onClick: onVoidOrder,
         disabled: !canVoidOrder || !onVoidOrder,
-        className: canVoidOrder ? "!bg-transparent border border-red-500 text-red-600 hover:!bg-red-50 hover:text-red-700" : ""
+        className: canVoidOrder ? "!bg-transparent border border-red-500 text-red-600 hover:!bg-red-50 hover:text-red-700" : "",
+        requiredPermission: PERMISSIONS.SALES_VOID
       },
-      { id: "refund", icon: DollarSign, label: "Refund", active: false },
-      { id: "reports", icon: FileText, label: "Reports", active: false, onClick: onShowReports, disabled: !canAccessReports, requiredRole: ["admin", "manager"] },
+      { id: "refund", icon: DollarSign, label: "Refund", active: false, requiredPermission: PERMISSIONS.SALES_REFUND },
+      { id: "reports", icon: FileText, label: "Reports", active: false, onClick: onShowReports, disabled: !canAccessReports, requiredRole: ["admin", "manager"], requiredPermission: PERMISSIONS.REPORTS_READ },
       {
         id: "printer",
         icon: WifiCog,
@@ -156,24 +153,13 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
     className = props.className || "";
   }
 
-  // Create grid style based on columns count
-  const gridStyle = {
-    display: "grid",
-    gridTemplateColumns: `repeat(${columns}, 1fr)`
-  };
-
-  // Filter buttons based on permissions
   const visibleButtons = buttons.filter(button => {
-    // Check permission requirement
     if (button.requiredPermission && !hasPermission(button.requiredPermission)) {
       return false;
     }
-
-    // Check role requirement
     if (button.requiredRole && !hasRole(button.requiredRole)) {
       return false;
     }
-
     return true;
   });
 

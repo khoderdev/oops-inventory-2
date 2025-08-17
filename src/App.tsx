@@ -17,6 +17,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
 import { EmployeeUsageView } from "./components/employees/EmployeeUsageView";
+import { PermissionsTest } from "./PermissionsTest";
 
 
 // Lazy load components for better performance
@@ -77,6 +78,15 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                       <DayOperationsPage />
                     </AuthenticatedLayout>
                   </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/permissions"
+                element={
+                  // <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_READ}>
+                    <PermissionsTest />
+                  // </ProtectedRoute>
                 }
               />
 
