@@ -41,6 +41,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const [selectedOrderForTransfer, setSelectedOrderForTransfer] = useState<any>(null);
   const [inactiveTablesCount, setInactiveTablesCount] = useState(0);
   const [isDeletingTable, setIsDeletingTable] = useState(false);
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   
 
   
@@ -390,7 +391,13 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   );
 
   return (
-    <div className="h-[calc(100vh-0rem)] w-full flex flex-col overflow-hidden">
+    <div
+      className="h-[calc(100vh-0rem)] w-full flex flex-col overflow-hidden"
+      onContextMenu={(e) => {
+        // Prevent native browser context menu anywhere within TablesLayout
+        e.preventDefault();
+      }}
+    >
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 mr-6">
           <div className="flex items-center gap-4">
@@ -517,7 +524,14 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                       >
                         {(() => {
                           const content = (
-                            <div className="relative">
+                            <div
+                              className="relative"
+                              onContextMenu={() => {
+                                // Close hover info when opening right-click context menu
+                                setHoveredTable(null);
+                                setPopupPosition(null);
+                              }}
+                            >
                               <div
                                 className={`
                             ${getTableShape(table.shape, table.seats)} 
@@ -552,13 +566,31 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                                   </div>
                                 )}
                               </div>
-                              {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
+                              {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && (
+                                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">
+                                  {tableOrders[table.number.toString()]}
+                                </div>
+                              )}
                             </div>
                           );
                           return isDragMode || isArrangeMode ? (
                             content
                           ) : (
-                            <TableContextMenu table={table} tableOrders={tableOrders} onRename={handleRenameTable} onTransfer={handleTransferOrder} onClear={handleClearTable} onDelete={handleDeleteTable}>
+                            <TableContextMenu
+                              table={table}
+                              tableOrders={tableOrders}
+                              onRename={handleRenameTable}
+                              onTransfer={handleTransferOrder}
+                              onClear={handleClearTable}
+                              onDelete={handleDeleteTable}
+                              onOpenChange={(open) => {
+                                setIsContextMenuOpen(open);
+                                if (open) {
+                                  setHoveredTable(null);
+                                  setPopupPosition(null);
+                                }
+                              }}
+                            >
                               {content}
                             </TableContextMenu>
                           );
@@ -604,7 +636,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         </div>
       </div>
 
-      {hoveredTable && popupPosition && (
+      {hoveredTable && popupPosition && !isContextMenuOpen && (
         <div
           className="fixed z-[9999] pointer-events-none"
           style={{

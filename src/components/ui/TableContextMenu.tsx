@@ -11,6 +11,7 @@ interface TableContextMenuProps {
   onClear: (table: Table) => void;
   onDelete: (table: Table) => void;
   children: React.ReactNode;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const TableContextMenu = ({
@@ -20,10 +21,11 @@ export const TableContextMenu = ({
   onTransfer,
   onClear,
   onDelete,
-  children
+  children,
+  onOpenChange
 }: TableContextMenuProps) => {
   return (
-    <ContextMenu.Root>
+    <ContextMenu.Root onOpenChange={onOpenChange}>
       <ContextMenu.Trigger asChild>
         {children}
       </ContextMenu.Trigger>
