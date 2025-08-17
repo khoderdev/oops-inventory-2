@@ -29,27 +29,33 @@ export const getCategoriesByType = async (type: "materials" | "menu_items", isAc
 // Get single category by ID
 export const getCategoryById = async (id: number): Promise<CategoryResponse> => {
   const response = await api.get(`/categories/${id}`);
+  const body: any = (response as any).data;
+  const payload = (body?.data ?? body) as Category;
   return {
     success: true,
-    data: response.data as Category
+    data: payload
   };
 };
 
 // Create new category
 export const createCategory = async (categoryData: CategoryFormData): Promise<CategoryResponse> => {
   const response = await api.post("/categories", categoryData);
+  const body: any = (response as any).data;
+  const payload = (body?.data ?? body) as Category;
   return {
     success: true,
-    data: response.data as Category
+    data: payload
   };
 };
 
 // Update category
 export const updateCategory = async (id: number, categoryData: Partial<CategoryFormData>): Promise<CategoryResponse> => {
   const response = await api.put(`/categories/${id}`, categoryData);
+  const body: any = (response as any).data;
+  const payload = (body?.data ?? body) as Category;
   return {
     success: true,
-    data: response.data as Category
+    data: payload
   };
 };
 

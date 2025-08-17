@@ -236,40 +236,86 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       console.log(formData);
       if (selectedCategory) {
         const res = await updateCategory(selectedCategory.id, formData);
-        savedCategory = res.data;
+        // Unwrap possible shapes: axios -> res.data, backend wrapper -> res.data.data
+        const unwrapped = ((res as any)?.data?.data ?? (res as any)?.data ?? (res as any)) as any;
+        savedCategory = unwrapped as unknown as Category;
       } else {
         const res = await createCategory({
           ...formData,
           type: "materials",
           isActive: true
         });
-        savedCategory = res.data;
+        const unwrapped = ((res as any)?.data?.data ?? (res as any)?.data ?? (res as any)) as any;
+        savedCategory = unwrapped as unknown as Category;
       }
-      console.log("savedCategory 1111", savedCategory);
+      console.log("savedCategory 1111 (unwrapped)", savedCategory);
+      // Track the final value we intend to keep selected (handles any re-mounts)
+      let finalSelectedValue: string | undefined;
+
       if (savedCategory) {
-        // Update categories state immediately
+        // Normalize to ensure "value" exists (fallback to name) and update state immediately
         console.log("savedCategory 2222", savedCategory);
+        const normalized: Category = {
+          ...savedCategory,
+          value: (savedCategory as any)?.value ?? (savedCategory as any)?.name
+        } as Category;
+
+        // 1) Optimistic local update so UI shows item immediately
         setCategories(prev => {
-          const exists = prev.some(c => c.id === savedCategory!.id);
-          const next = exists ? prev.map(c => (c.id === savedCategory!.id ? savedCategory! : c)) : [...prev, savedCategory!];
+          const exists = prev.some(c => c.id === normalized.id);
+          const next = exists ? prev.map(c => (c.id === normalized.id ? normalized : c)) : [...prev, normalized];
           return next.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         });
 
-        // IMPORTANT: Wait for state update before setting form value
-        setTimeout(() => {
-          if (savedCategory?.value) {
-            form.setValue("category", savedCategory.value, {
+        // 2) Immediately select using optimistic value
+        const optimisticValue = (normalized as any).value ?? (normalized as any).name ?? "";
+        finalSelectedValue = optimisticValue;
+        console.log("🔧 Optimistically selecting category:", optimisticValue);
+        form.setValue("category", optimisticValue, {
+          shouldDirty: true,
+          shouldTouch: true
+        });
+        await form.trigger("category");
+
+        // 3) Fetch latest categories and, if server normalized value differs (e.g., slug), select exact server value
+        try {
+          const fetched = await loadCategories();
+          const match = fetched.find(
+            c => c.id === normalized.id || c.value === normalized.value || c.name === normalized.name
+          );
+          if (match && match.value) {
+            console.log("🔁 Server-confirmed category value:", match.value);
+            form.setValue("category", match.value, {
               shouldDirty: true,
               shouldTouch: true
             });
+            await form.trigger("category");
+            finalSelectedValue = match.value;
+          }
+        } catch (e) {
+          console.warn("Category reload failed; keeping optimistic selection.", e);
+        }
+      }
+
+      setShowForm(false);
+      setSelectedCategory(undefined);
+
+      // Re-assert selection after the modal closes in case any remount wiped the value
+      if (finalSelectedValue) {
+        setTimeout(() => {
+          const current = form.getValues("category");
+          if (current !== finalSelectedValue) {
+            console.log("⚠️ Re-asserting category value after close. Prev:", current, " -> New:", finalSelectedValue);
+            form.setValue("category", finalSelectedValue!, { shouldDirty: true, shouldTouch: true });
+            form.trigger("category");
+          }
+          // Final hard reset to defeat any Select internal caching
+          const all = form.getValues();
+          if (all.category !== finalSelectedValue) {
+            form.reset({ ...all, category: finalSelectedValue });
           }
         }, 0);
       }
-
-      // Background refresh for consistency
-      loadCategories();
-      setShowForm(false);
-      setSelectedCategory(undefined);
     } catch (error) {
       console.error("Error saving category:", error);
     } finally {
@@ -310,7 +356,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                         <FormLabel>Category</FormLabel>
                         <div className="flex items-center gap-2">
                           <Select
-                            key={`category-select-${categories.length}`}
                             onValueChange={value => {
                               field.onChange(value);
                             }}
