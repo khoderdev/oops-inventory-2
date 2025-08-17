@@ -5,12 +5,12 @@ import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { tablesAPI } from "@/api/tables.api";
 import { ordersAPI } from "@/api/orders.api";
-import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Edit3, EyeOff, RefreshCw, Settings } from "lucide-react";
+import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Settings } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
 import { RenameTableModal, TransferTableModal, InactiveTablesModal, DeleteTableModal } from "@/components/tables";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { TableContextMenu } from "../ui/TableContextMenu";
 
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
   const safeTablesList = useMemo(() => (Array.isArray(tables) ? tables : []), [tables]);
@@ -39,10 +39,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [selectedTableForAction, setSelectedTableForAction] = useState<Table | null>(null);
   const [selectedOrderForTransfer, setSelectedOrderForTransfer] = useState<any>(null);
-  const [contextMenu, setContextMenu] = useState<{ table: Table; x: number; y: number } | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [inactiveTablesCount, setInactiveTablesCount] = useState(0);
   const [isDeletingTable, setIsDeletingTable] = useState(false);
+  
+
+  
 
   useEffect(() => {
     setUpdatedTables(safeTablesList);
@@ -126,13 +127,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const handleRenameTable = (table: Table) => {
     setSelectedTableForAction(table);
     setShowRenameModal(true);
-    setContextMenu(null);
   };
 
   const handleTransferOrder = async (table: Table) => {
     try {
-      setContextMenu(null);
-
       if (!table.currentOrder?.orderId) {
         toast.error("No order found for this table");
         return;
@@ -153,14 +151,29 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const handleDeleteTable = (table: Table) => {
     if (table.status === "opened") {
       toast.error("Cannot delete table with active orders");
-      setContextMenu(null);
       return;
     }
 
     // Show confirmation dialog instead of browser alert
     setSelectedTableForAction(table);
     setShowDeleteConfirmModal(true);
-    setContextMenu(null);
+  };
+
+  const handleClearTable = async (table: Table) => {
+    try {
+      const response = await tablesAPI.clearReservation(table.id.toString());
+      // Handle both possible response shapes
+      const respData: any = response.data as any;
+      const updatedTable = respData?.table || respData;
+
+      // Update the local state with the cleared table
+      setUpdatedTables(prev => prev.map(t => (t.id === table.id ? updatedTable : t)));
+
+      toast.success(`Table ${table.number} has been cleared`);
+    } catch (error: any) {
+      console.error("Failed to clear table:", error);
+      toast.error(error.response?.data?.message || "Failed to clear table");
+    }
   };
 
   const confirmDeleteTable = async () => {
@@ -184,7 +197,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       setIsDeletingTable(false);
     }
   };
-
 
   const constrainPosition = useCallback((x: number, y: number) => {
     const constrainedX = Math.max(8, Math.min(x, 92));
@@ -309,23 +321,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     [isDragMode, isArrangeMode, onTableSelect]
   );
 
-  const handleTableRightClick = useCallback(
-    (e: React.MouseEvent, table: Table) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Don't show context menu in drag mode or arrange mode
-      if (isDragMode || isArrangeMode) return;
-
-      setContextMenu({
-        table,
-        x: e.clientX,
-        y: e.clientY
-      });
-    },
-    [isDragMode, isArrangeMode]
-  );
-
   // Handle table hover - show popup without API calls
   const handleTableHover = useCallback(
     (table: Table, e: React.MouseEvent) => {
@@ -352,9 +347,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   // Close context menu when clicking elsewhere
   const handleCanvasClick = useCallback(
     async (e: React.MouseEvent) => {
-      // Close context menu
-      setContextMenu(null);
-
       if (selectedTool === "select" || isDragMode || !isArrangeMode || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
@@ -503,28 +495,31 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                   </div>
                 </div>
               ) : (
-                updatedTables.map((table, index) => {
-                  const basePosition = table.position || {
-                    ...constrainPosition(15 + (index % 4) * 20, 20 + Math.floor(index / 4) * 20)
-                  };
-                  const isDragging = dragState?.tableId === table.id;
-                  const isUpdating = isUpdatingPosition === table.id;
-                  const currentPosition = isDragging && tempPositions[table.id] ? tempPositions[table.id] : basePosition;
-                  return (
-                    <div
-                      key={table.id}
-                      className="absolute"
-                      style={{
-                        left: `${currentPosition.x}%`,
-                        top: `${currentPosition.y}%`,
-                        transform: "translate(-50%, -50%)",
-                        zIndex: isDragging ? 1000 : "auto",
-                        opacity: isUpdating ? 0.7 : 1
-                      }}
-                    >
-                      <div className="relative">
-                        <div
-                          className={`
+                <div className="relative w-full h-full">
+                  {updatedTables.map((table, index) => {
+                    const basePosition = table.position || {
+                      ...constrainPosition(15 + (index % 4) * 20, 20 + Math.floor(index / 4) * 20)
+                    };
+                    const isDragging = dragState?.tableId === table.id;
+                    const isUpdating = isUpdatingPosition === table.id;
+                    const currentPosition = isDragging && tempPositions[table.id] ? tempPositions[table.id] : basePosition;
+                    return (
+                      <div
+                        key={table.id}
+                        className="absolute"
+                        style={{
+                          left: `${currentPosition.x}%`,
+                          top: `${currentPosition.y}%`,
+                          transform: "translate(-50%, -50%)",
+                          zIndex: isDragging ? 1000 : "auto",
+                          opacity: isUpdating ? 0.7 : 1
+                        }}
+                      >
+                        {(() => {
+                          const content = (
+                            <div className="relative">
+                              <div
+                                className={`
                             ${getTableShape(table.shape, table.seats)} 
                             ${getTableStatusColor(table.status)} 
                             ${selectedTable?.id === table.id && !isArrangeMode ? "ring-4 ring-blue-500" : ""}
@@ -535,34 +530,43 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                             ${isArrangeMode && !isDragMode ? "opacity-75" : ""}
                             transition-all duration-200
                           `}
-                          onClick={() => handleTableClick(table)}
-                          onContextMenu={e => handleTableRightClick(e, table)}
-                          onMouseDown={e => handleMouseDown(e, table)}
-                          onMouseEnter={e => !isDragMode && !isArrangeMode && handleTableHover(table, e)}
-                          onMouseLeave={handleTableLeave}
-                        >
-                          <div className="text-center">
-                            <div className="font-bold text-lg text-gray-800">{table.number}</div>
-                            <div className="text-xs text-gray-600 text-center">{table.name}</div>
-                          </div>
+                                onClick={() => handleTableClick(table)}
+                                onMouseDown={e => handleMouseDown(e, table)}
+                                onMouseEnter={e => !isDragMode && !isArrangeMode && handleTableHover(table, e)}
+                                onMouseLeave={handleTableLeave}
+                              >
+                                <div className="text-center">
+                                  <div className="font-bold text-lg text-gray-800">{table.number}</div>
+                                  <div className="text-xs text-gray-600 text-center">{table.name}</div>
+                                </div>
 
-                          {isDragMode && (
-                            <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
-                              <Move className="w-2 h-2" />
-                            </div>
-                          )}
+                                {isDragMode && (
+                                  <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                                    <Move className="w-2 h-2" />
+                                  </div>
+                                )}
 
-                          {isUpdating && (
-                            <div className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center">
-                              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                {isUpdating && (
+                                  <div className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center">
+                                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                  </div>
+                                )}
+                              </div>
+                              {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
                             </div>
-                          )}
-                        </div>
-                        {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
+                          );
+                          return isDragMode || isArrangeMode ? (
+                            content
+                          ) : (
+                            <TableContextMenu table={table} tableOrders={tableOrders} onRename={handleRenameTable} onTransfer={handleTransferOrder} onClear={handleClearTable} onDelete={handleDeleteTable}>
+                              {content}
+                            </TableContextMenu>
+                          );
+                        })()}
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
@@ -661,67 +665,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         </div>
       )}
 
-      {/* Table Management Modals */}
-      <RenameTableModal
-        isOpen={showRenameModal}
-        onClose={() => {
-          setShowRenameModal(false);
-          setSelectedTableForAction(null);
-        }}
-        table={selectedTableForAction}
-        onTableRenamed={(updatedTable: Table) => {
-          // Update the table in the local state with the fresh data from API
-          setUpdatedTables(prev => prev.map(t => (t.id === updatedTable.id ? updatedTable : t)));
-          setShowRenameModal(false);
-          setSelectedTableForAction(null);
-        }}
-      />
-
-      {/* Right-click Context Menu */}
-      {contextMenu && (
-        <>
-          {/* Backdrop to close context menu */}
-          <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
-
-          {/* Context Menu */}
-          <div
-            className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-[180px]"
-            style={{
-              left: contextMenu.x,
-              top: contextMenu.y,
-              transform: "translate(-50%, 0)"
-            }}
-          >
-            <div className="px-3 py-2 border-b border-gray-100">
-              <div className="font-medium text-gray-900">Table {contextMenu.table.number}</div>
-              <div className="text-sm text-gray-500">
-                {contextMenu.table.seats} seats • {contextMenu.table.status}
-              </div>
-            </div>
-
-            <div className="py-1">
-              <button onClick={() => handleRenameTable(contextMenu.table)} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                <Edit3 className="w-4 h-4" />
-                Rename Table
-              </button>
-
-              {(contextMenu.table.status === "opened" || contextMenu.table.currentOrder || tableOrders[contextMenu.table.number?.toString()]) && (
-                <button onClick={() => handleTransferOrder(contextMenu.table)} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                  <Move className="w-4 h-4" />
-                  Transfer Order
-                </button>
-              )}
-
-              <div className="border-t border-gray-100 my-1"></div>
-
-              <button onClick={() => handleDeleteTable(contextMenu.table)} disabled={contextMenu.table.status === "opened"} className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${contextMenu.table.status === "opened" ? "text-gray-400 cursor-not-allowed" : "text-red-600 hover:bg-red-50"}`}>
-                <Trash2 className="w-4 h-4" />
-                Delete Table
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      
 
       {/* Modals */}
       <RenameTableModal
@@ -731,10 +675,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           setSelectedTableForAction(null);
         }}
         table={selectedTableForAction}
-        onTableRenamed={(updatedTable) => {
-          setUpdatedTables(prev => 
-            prev.map(table => table.id === updatedTable.id ? updatedTable : table)
-          );
+        onTableRenamed={updatedTable => {
+          setUpdatedTables(prev => prev.map(table => (table.id === updatedTable.id ? updatedTable : table)));
           setShowRenameModal(false);
           setSelectedTableForAction(null);
           toast.success("Table renamed successfully");
@@ -755,10 +697,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           setShowTransferModal(false);
           setSelectedTableForAction(null);
           setSelectedOrderForTransfer(null);
-          
+
           // Force immediate refresh with fresh data
           await refreshTablesData();
-          
+
           toast.success("Transfer completed successfully");
         }}
       />

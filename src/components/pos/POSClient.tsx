@@ -1,4 +1,3 @@
-import { menuAPI } from "@/api/menu.api.ts.tsx";
 import { ordersAPI } from "@/api/orders.api";
 import { printerAPI } from "@/api/printer.api";
 import { tablesAPI } from "@/api/tables.api";
@@ -955,21 +954,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [cart]);
 
-  useEffect(() => {
-    console.log("🍽️ Fetching menu items");
-    const fetchMenuItems = async () => {
-      try {
-        const response = await menuAPI.getMenus();
-        console.log("🍽️ Menu items fetched:", { count: response.data.length });
-        setMenuItems(response.data);
-      } catch (error) {
-        console.error("❌ Failed to load menu items:", error);
-        showError("Failed to load menu items");
-      }
-    };
-
-    fetchMenuItems();
-  }, [showError]);
 
   const fetchTablesData = useCallback(async () => {
     console.log("📍 Fetching tables data");

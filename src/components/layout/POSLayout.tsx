@@ -20,13 +20,13 @@ const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openD
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
   const { user, logout } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, hasRole } = usePermissions();
   const canAccessPOS = hasPermission(PERMISSIONS.POS_ACCESS);
   const canOpenDay = hasPermission(PERMISSIONS.DAY_OPERATIONS_CREATE);
   const canCloseDayPerm = hasPermission(PERMISSIONS.DAY_OPERATIONS_CLOSE);
   const canManageDay = canOpenDay || canCloseDayPerm;
   const canViewOrders = hasPermission(PERMISSIONS.ORDERS_READ);
-  const canAccessSalesHistory = hasPermission(PERMISSIONS.REPORTS_SALES) || hasPermission(PERMISSIONS.REPORTS_READ);
+  const canAccessSalesHistory = hasPermission(PERMISSIONS.REPORTS_READ);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);

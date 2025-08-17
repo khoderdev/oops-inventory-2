@@ -254,6 +254,19 @@ export const tablesController = {
         return res.status(404).json({ message: "Table not found" });
       }
 
+      // Disassociate any active orders from this table so it has no orders after clearing
+      // Do not cancel/modify order status; simply detach from table to avoid side effects
+      await Order.update(
+        { tableId: null },
+        {
+          where: {
+            tableId,
+            status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
+          }
+        }
+      );
+
+      // Reset table to default available state and clear reservation fields
       await table.update({
         status: "available",
         reservedBy: null,
@@ -261,7 +274,7 @@ export const tablesController = {
         reservedUntil: null
       });
 
-      res.json({ message: "Table reservation cleared successfully", table });
+      res.json({ message: "Table cleared to default state successfully", table });
     } catch (error) {
       console.error("Clear reservation error:", error);
       res.status(500).json({ message: "Failed to clear table reservation", error: error.message });

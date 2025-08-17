@@ -22,12 +22,14 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   const availableDestinations = tables.filter(table => {
-    if (!sourceTable || table.id === sourceTable.id) return false;
+    if (!sourceTable) return false;
+    if (!table?.id) return false; // skip tables without valid ID
+    if (sourceTable.id && table.id === sourceTable.id) return false;
     if (transferType === "full" && table.status === "opened") return false;
     return table.status === "available" || table.status === "opened";
   });
 
-  const destinationTable = tables.find(t => t.id.toString() === destinationTableId);
+  const destinationTable = tables.find(t => t?.id && String(t.id) === destinationTableId);
   const destinationHasOrder = destinationTable?.status === "opened";
 
   useEffect(() => {
@@ -108,8 +110,8 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
         }
 
         const response = await tablesAPI.transferItems({
-          fromTableId: sourceTable.id.toString(),
-          toTableId: destinationTableId,
+          fromTableId,
+          toTableId,
           itemIds: selectedItems,
           createNewOrder: !destinationHasOrder || createNewOrder
         });
@@ -301,7 +303,7 @@ export const TransferTableModal: React.FC<TransferTableModalProps> = ({ isOpen, 
               </SelectTrigger>
               <SelectContent className="max-h-60 sm:max-h-80">
                 {availableDestinations.map(table => (
-                  <SelectItem key={table.id} value={table.id.toString()} className="p-2 sm:p-3">
+                  <SelectItem key={String(table.id)} value={String(table.id)} className="p-2 sm:p-3">
                     <div className="flex items-center justify-between w-full min-w-0">
                       <span className="truncate mr-2 text-sm sm:text-base">
                         Table {table.number}: {table.name}
