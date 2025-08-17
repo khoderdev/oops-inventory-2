@@ -593,19 +593,33 @@ export interface POSEmployeeUsageData {
   notes?: string;
 }
 
+export interface EmployeeUsageViewProps {
+  selectedEmployeeId?: number | null;
+  onEmployeeSelect?: (employeeId: number | null) => void;
+}
 
-export type GroupedOrder = {
+export const usageTypeColors = {
+  material: "bg-blue-100 text-blue-800",
+  menu_item: "bg-green-100 text-green-800",
+  stock_entry: "bg-orange-100 text-orange-800"
+};
+
+export const usageTypes: EmployeeUsageType[] = ["material", "menu_item", "stock_entry"];
+
+
+export interface GroupedOrder {
   posTransactionId: string;
   employee: {
     id: number;
     employeeNumber: string;
+    firstName: string;
+    lastName: string;
     user?: {
-      firstName?: string;
-      lastName?: string;
+      firstName: string;
+      lastName: string;
     };
   };
   creator?: {
-    user: any;
     id: number;
     firstName: string;
     lastName: string;
@@ -618,4 +632,4 @@ export type GroupedOrder = {
   finalCost: number;
   itemCount: number;
   isSettled: boolean;
-};
+}

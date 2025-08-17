@@ -6,52 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import { employeesAtom, fetchUsageAtom, fetchUsageStatsAtom, settlementsAtom, usagesAtom, usagesFiltersAtom, usagesLoadingAtom, usageStatsAtom } from "@/store/employeeAtoms";
-import type { EmployeeUsage, EmployeeUsageType, EmployeeSettlement } from "@/types/employee";
+import { type EmployeeUsage, type EmployeeUsageType, type EmployeeSettlement, type GroupedOrder, usageTypes, usageTypeColors, EmployeeUsageViewProps } from "@/types/employee";
 import { ArrowRight, ChevronDown, ChevronRight, Download, Filter, ShoppingCart, TrendingUp, UserPlus } from "lucide-react";
 import React, { useState, useMemo, useEffect } from "react";
 import { useAtom } from "jotai";
 import { addDays } from "date-fns";
 import { useNavigate } from "react-router-dom";
-
-interface EmployeeUsageViewProps {
-  selectedEmployeeId?: number | null;
-  onEmployeeSelect?: (employeeId: number | null) => void;
-}
-
-const usageTypeColors = {
-  material: "bg-blue-100 text-blue-800",
-  menu_item: "bg-green-100 text-green-800",
-  stock_entry: "bg-orange-100 text-orange-800"
-};
-
-const usageTypes: EmployeeUsageType[] = ["material", "menu_item", "stock_entry"];
-
-export interface GroupedOrder {
-  posTransactionId: string;
-  employee: {
-    id: number;
-    employeeNumber: string;
-    firstName: string;
-    lastName: string;
-    user?: {
-      firstName: string;
-      lastName: string;
-    };
-  };
-  creator?: {
-    id: number;
-    firstName: string;
-    lastName: string;
-    username: string;
-  };
-  orderDate: string;
-  items: EmployeeUsage[];
-  totalCost: number;
-  totalDiscountAmount: number;
-  finalCost: number;
-  itemCount: number;
-  isSettled: boolean;
-}
 
 export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEmployeeId, onEmployeeSelect }) => {
   const navigate = useNavigate();
@@ -72,6 +32,12 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     from: addDays(new Date(), -30),
     to: new Date()
   });
+
+  // Support both controlled (via props) and uncontrolled (internal) employee selection
+  const [internalSelectedEmployeeId, setInternalSelectedEmployeeId] = useState<number | null>(selectedEmployeeId ?? null);
+  useEffect(() => {
+    setInternalSelectedEmployeeId(selectedEmployeeId ?? null);
+  }, [selectedEmployeeId]);
 
   const groupedOrders = useMemo(() => {
     const orderMap = new Map<string, GroupedOrder>();
@@ -137,12 +103,63 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     return Array.from(orderMap.values()).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   }, [usages]);
 
+  // Build employees list from usages response to ensure the dropdown always has data
+  const employeesFromUsages = useMemo(() => {
+    const map = new Map<
+      number,
+      {
+        id: number;
+        employeeNumber: string;
+        firstName: string;
+        lastName: string;
+        user?: { firstName: string; lastName: string } | null;
+      }
+    >();
+    usages.forEach(u => {
+      const e = u.employee;
+      if (e) {
+        if (!map.has(e.id)) {
+          map.set(e.id, {
+            id: e.id,
+            employeeNumber: e.employeeNumber || "",
+            firstName: e.firstName || "",
+            lastName: e.lastName || "",
+            user: e.user ?? null
+          });
+        }
+      } else if (u.employeeId && !map.has(u.employeeId)) {
+        // Fallback if API didn't embed employee object
+        map.set(u.employeeId, {
+          id: u.employeeId,
+          employeeNumber: "",
+          firstName: "",
+          lastName: "",
+          user: null
+        });
+      }
+    });
+    const list = Array.from(map.values());
+    // Sort by full name if available
+    list.sort((a, b) => {
+      const an = `${a.firstName} ${a.lastName}`.trim().toLowerCase();
+      const bn = `${b.firstName} ${b.lastName}`.trim().toLowerCase();
+      return an.localeCompare(bn);
+    });
+    return list;
+  }, [usages]);
+
+  // Use usages-derived employees if available; otherwise fallback to employees store
+  const employeesOptions = employeesFromUsages.length > 0 ? employeesFromUsages : employees;
+
+  // Effective selected employee id (prop takes precedence, falls back to internal state)
+  const effectiveSelectedEmployeeId = selectedEmployeeId ?? internalSelectedEmployeeId;
+
   useEffect(() => {
     const loadData = async () => {
       try {
         const updatedFilters = {
           ...filters,
-          employeeId: selectedEmployeeId || undefined,
+          employeeId: effectiveSelectedEmployeeId || undefined,
           startDate: dateRange.from.toISOString().split("T")[0],
           endDate: dateRange.to.toISOString().split("T")[0]
         };
@@ -154,11 +171,15 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
     };
 
     loadData();
-  }, [selectedEmployeeId, dateRange]);
+  }, [effectiveSelectedEmployeeId, dateRange]);
 
   const handleEmployeeChange = (employeeId: string) => {
     const id = employeeId === "all" ? null : parseInt(employeeId);
-    onEmployeeSelect?.(id);
+    if (onEmployeeSelect) {
+      onEmployeeSelect(id);
+    } else {
+      setInternalSelectedEmployeeId(id);
+    }
   };
 
   const handleUsageTypeFilter = async (usageType: string) => {
@@ -433,13 +454,13 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
         <CardContent className="pt-0">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[200px]">
-              <Select value={selectedEmployeeId?.toString() || "all"} onValueChange={handleEmployeeChange}>
+              <Select value={effectiveSelectedEmployeeId?.toString() || "all"} onValueChange={handleEmployeeChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
-                  {employees.map(employee => {
+                  {employeesOptions.map(employee => {
                     const firstName = employee.user?.firstName ?? employee.firstName ?? "";
                     const lastName = employee.user?.lastName ?? employee.lastName ?? "";
                     const fullName = `${firstName} ${lastName}`.trim() || employee.employeeNumber || `Employee #${employee.id}`;
