@@ -7,17 +7,22 @@ import { MaterialFormData, MaterialFormProps } from "@/types/inventory";
 import { UNIT_DEFINITIONS } from "@/utils/enhancedConversions";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { materialSchema } from "./materialsSchema";
-import { getCategoriesByType } from "@/api/categories.api";
-import { Category } from "@/types/categories";
+import { createCategory, getCategories, getCategoriesByType, updateCategory } from "@/api/categories.api";
+import { Category, CategoryFormData, CategoryManagementProps } from "@/types/categories";
 import { Loader2 } from "lucide-react";
+import { CategoryModal } from "../categories/CategoryModal";
 
-export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps) {
+export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps, { onCategoryChange }: CategoryManagementProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | undefined>();
+  const [formLoading, setFormLoading] = useState(false);
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
@@ -41,22 +46,22 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        console.log('🔄 Starting to fetch categories...');
+        console.log("🔄 Starting to fetch categories...");
         setLoadingCategories(true);
         setCategoriesError(null);
-        const response = await getCategoriesByType('materials', true);
-        console.log('📦 Categories API response:', response);
-        console.log('📋 Categories totalItems:', response.totalItems);
+        const response = await getCategoriesByType("materials", true);
+        console.log("📦 Categories API response:", response);
+        console.log("📋 Categories totalItems:", response.totalItems);
         // Use the correct response structure with totalItems
         setCategories(response.totalItems);
-        console.log('✅ Categories set in state:', response.totalItems);
+        console.log("✅ Categories set in state:", response.totalItems);
       } catch (error) {
-        console.error('❌ Failed to fetch categories:', error);
-        setCategoriesError('Failed to load categories');
+        console.error("❌ Failed to fetch categories:", error);
+        setCategoriesError("Failed to load categories");
         setCategories([]);
       } finally {
         setLoadingCategories(false);
-        console.log('🏁 Loading categories finished');
+        console.log("🏁 Loading categories finished");
       }
     };
 
@@ -65,9 +70,9 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
 
   // Set default category if none selected and categories are loaded
   useEffect(() => {
-    if (categories.length > 0 && !form.getValues('category') && !material) {
-      const defaultCategory = categories.find(cat => cat.value === 'other') || categories[0];
-      form.setValue('category', defaultCategory.value);
+    if (categories.length > 0 && !form.getValues("category") && !material) {
+      const defaultCategory = categories.find(cat => cat.value === "other") || categories[0];
+      form.setValue("category", defaultCategory.value);
     }
   }, [categories, form, material]);
 
@@ -75,15 +80,20 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   useEffect(() => {
     if (categories.length > 0 && material && (material as any).categoryId && !form.formState.isDirty) {
       const categoryId = (material as any).categoryId;
-      console.log('🔍 Looking for categoryId:', categoryId, 'in categories:', categories.map(c => `${c.id}:${c.name}`));
+      console.log(
+        "🔍 Looking for categoryId:",
+        categoryId,
+        "in categories:",
+        categories.map(c => `${c.id}:${c.name}`)
+      );
       const matchingCategory = categories.find(cat => cat.id === categoryId);
       if (matchingCategory) {
-        console.log('✅ Found matching category:', matchingCategory.name, 'value:', matchingCategory.value);
-        form.setValue('category', matchingCategory.value);
+        console.log("✅ Found matching category:", matchingCategory.name, "value:", matchingCategory.value);
+        form.setValue("category", matchingCategory.value);
       } else {
         // Fallback: categoryId doesn't match any materials category - just leave it empty for user to select
-        console.warn('⚠️ Material categoryId', categoryId, 'not found in materials categories. User needs to select manually.');
-        form.setValue('category', '');
+        console.warn("⚠️ Material categoryId", categoryId, "not found in materials categories. User needs to select manually.");
+        form.setValue("category", "");
       }
     }
   }, [categories, material, form]);
@@ -210,218 +220,256 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     onSubmit(finalData);
   };
 
-  return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>{material ? "Edit Material" : "Add New Material"}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Material Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Ground Beef" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+  const loadCategories = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getCategories();
+      setCategories(response.totalItems);
+    } catch (error) {
+      console.error("Error loading categories:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => {
-                  console.log('🎯 CATEGORY FIELD RENDER - field.value:', field.value);
-                  console.log('🎯 CATEGORY FIELD RENDER - form.getValues("category"):', form.getValues("category"));
-                  return (
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  const handleFormSubmit = async (formData: CategoryFormData) => {
+    try {
+      setFormLoading(true);
+      if (selectedCategory) {
+        await updateCategory(selectedCategory.id, formData);
+      } else {
+        await createCategory(formData);
+      }
+      setShowForm(false);
+      setSelectedCategory(undefined);
+      await loadCategories();
+      onCategoryChange?.();
+    } catch (error: any) {
+      console.error("Error saving category:", error);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>{material ? "Edit Material" : "Add New Material"}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <Select 
-                        onValueChange={(value) => {
-                          console.log('🔄 Category changed to:', value);
-                          field.onChange(value);
-                        }} 
-                        value={field.value} 
-                        disabled={loadingCategories}
-                      >
+                      <FormLabel>Material Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Ground Beef" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => {
+                    return (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select
+                          onValueChange={value => {
+                            field.onChange(value);
+                          }}
+                          value={field.value}
+                          disabled={loadingCategories}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={loadingCategories ? "Loading categories..." : "Select category"} />
+                              {loadingCategories && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                            </SelectTrigger>
+                          </FormControl>
+                          <Button onClick={() => setShowForm(true)} type="submit">
+                            new
+                          </Button>
+                          <SelectContent>
+                            {categoriesError ? (
+                              <SelectItem value="" disabled>
+                                {categoriesError}
+                              </SelectItem>
+                            ) : (
+                              <>
+                                {categories.length === 0 && !loadingCategories ? (
+                                  <SelectItem value="no-categories" disabled>
+                                    No categories available
+                                  </SelectItem>
+                                ) : (
+                                  categories.map(category => {
+                                    return (
+                                      <SelectItem key={category.id} value={category.value}>
+                                        {category.name}
+                                      </SelectItem>
+                                    );
+                                  })
+                                )}
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="unitType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Unit Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder={loadingCategories ? "Loading categories..." : "Select category"} />
-                            {loadingCategories && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                            <SelectValue placeholder="Select unit type" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categoriesError ? (
-                            <SelectItem value="" disabled>
-                              {categoriesError}
-                            </SelectItem>
-                          ) : (
-                            <>
-                              {categories.length === 0 && !loadingCategories ? (
-                                <SelectItem value="no-categories" disabled>
-                                  No categories available
-                                </SelectItem>
-                              ) : (
-                                categories.map(category => {
-                                  return (
-                                    <SelectItem key={category.id} value={category.value}>
-                                      {category.name}
-                                    </SelectItem>
-                                  );
-                                })
-                              )}
-                            </>
-                          )}
+                          <SelectItem value="package">Package (box, pack, bag)</SelectItem>
+                          <SelectItem value="mass">Mass (kg, gram)</SelectItem>
+                          <SelectItem value="volume">Volume (liter, ml)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
-                  );
-                }}
-              />
-
-              <FormField
-                control={form.control}
-                name="unitType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select unit type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="package">Package (box, pack, bag)</SelectItem>
-                        <SelectItem value="mass">Mass (kg, gram)</SelectItem>
-                        <SelectItem value="volume">Volume (liter, ml)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="inputUnit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Input Unit</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select input unit" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {suggestedUnits.map(unit => (
-                          <SelectItem key={unit} value={unit}>
-                            {unit}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Package Quantity Field - Only show for package units */}
-              {watchedUnitType === "package" && watchedInputUnit && isPackageUnit(watchedInputUnit) && (
-                <FormField
-                  control={form.control}
-                  name="packageQuantity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{watchedInputUnit === "pack" ? "How many Pieces per 1 Pack?" : watchedInputUnit === "box" ? "How many Bottles per 1 Box?" : watchedInputUnit === "bag" ? "How many Items per 1 Bag?" : "How many Items per Package?"}</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="1" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 1)} />
-                      </FormControl>
-                      <FormMessage />
-                   </FormItem>
                   )}
                 />
-              )}
 
-              <FormField
-                control={form.control}
-                name="baseUnit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Base Unit (Auto-calculated)</FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled className="bg-gray-50" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                <FormField
+                  control={form.control}
+                  name="inputUnit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Input Unit</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select input unit" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {suggestedUnits.map(unit => (
+                            <SelectItem key={unit} value={unit}>
+                              {unit}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Package Quantity Field - Only show for package units */}
+                {watchedUnitType === "package" && watchedInputUnit && isPackageUnit(watchedInputUnit) && (
+                  <FormField
+                    control={form.control}
+                    name="packageQuantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{watchedInputUnit === "pack" ? "How many Pieces per 1 Pack?" : watchedInputUnit === "box" ? "How many Bottles per 1 Box?" : watchedInputUnit === "bag" ? "How many Items per 1 Bag?" : "How many Items per Package?"}</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="1" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 1)} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
-            </div>
 
-            {/* Unit Conversion Display (without cost) */}
-            {conversionData && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                <h4 className="font-semibold text-blue-900">Unit Conversion Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-blue-700">Input Unit:</span>
-                      <span className="font-medium">{conversionData.inputUnit}</span>
+                <FormField
+                  control={form.control}
+                  name="baseUnit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Base Unit (Auto-calculated)</FormLabel>
+                      <FormControl>
+                        <Input {...field} disabled className="bg-gray-50" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Unit Conversion Display (without cost) */}
+              {conversionData && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                  <h4 className="font-semibold text-blue-900">Unit Conversion Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-blue-700">Input Unit:</span>
+                        <span className="font-medium">{conversionData.inputUnit}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-700">Base Unit:</span>
+                        <span className="font-medium">{conversionData.baseUnit}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-700">{conversionData.isPackage ? "Package Contents:" : "Conversion Factor:"}</span>
+                        <span className="font-medium">{conversionData.isPackage ? `${conversionData.packageQuantity} ${conversionData.baseUnit} per ${conversionData.inputUnit}` : `1 ${conversionData.inputUnit} = ${conversionData.conversionFactor.toFixed(2)} ${conversionData.baseUnit}`}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-700">Base Unit:</span>
-                      <span className="font-medium">{conversionData.baseUnit}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-700">{conversionData.isPackage ? "Package Contents:" : "Conversion Factor:"}</span>
-                      <span className="font-medium">{conversionData.isPackage ? `${conversionData.packageQuantity} ${conversionData.baseUnit} per ${conversionData.inputUnit}` : `1 ${conversionData.inputUnit} = ${conversionData.conversionFactor.toFixed(2)} ${conversionData.baseUnit}`}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-blue-800 font-medium">Examples:</div>
-                    <div className="text-xs space-y-1">
-                      {conversionData.isPackage ? (
-                        <>
-                          <div>
-                            • 1 {conversionData.inputUnit} contains {conversionData.packageQuantity} {conversionData.baseUnit}
-                          </div>
-                          <div>
-                            • 2 {conversionData.inputUnit} contains {conversionData.packageQuantity * 2} {conversionData.baseUnit}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div>
-                            • 1 {conversionData.inputUnit} = {conversionData.conversionFactor.toFixed(2)} {conversionData.baseUnit}
-                          </div>
-                          <div>
-                            • {conversionData.conversionFactor >= 1 ? 1 : Math.ceil(1 / conversionData.conversionFactor)} {conversionData.baseUnit} = {conversionData.conversionFactor >= 1 ? (1 / conversionData.conversionFactor).toFixed(2) : 1} {conversionData.inputUnit}
-                          </div>
-                        </>
-                      )}
+                    <div className="space-y-2">
+                      <div className="text-blue-800 font-medium">Examples:</div>
+                      <div className="text-xs space-y-1">
+                        {conversionData.isPackage ? (
+                          <>
+                            <div>
+                              • 1 {conversionData.inputUnit} contains {conversionData.packageQuantity} {conversionData.baseUnit}
+                            </div>
+                            <div>
+                              • 2 {conversionData.inputUnit} contains {conversionData.packageQuantity * 2} {conversionData.baseUnit}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              • 1 {conversionData.inputUnit} = {conversionData.conversionFactor.toFixed(2)} {conversionData.baseUnit}
+                            </div>
+                            <div>
+                              • {conversionData.conversionFactor >= 1 ? 1 : Math.ceil(1 / conversionData.conversionFactor)} {conversionData.baseUnit} = {conversionData.conversionFactor >= 1 ? (1 / conversionData.conversionFactor).toFixed(2) : 1} {conversionData.inputUnit}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="flex gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button type="submit">{material ? "Update Material" : "Add Material"}</Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+              <div className="flex gap-3 justify-end">
+                <Button type="button" variant="outline" onClick={onCancel}>
+                  Cancel
+                </Button>
+                <Button type="submit">{material ? "Update Material" : "Add Material"}</Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+      <CategoryModal showForm={showForm} setShowForm={setShowForm} selectedCategory={selectedCategory} handleFormSubmit={handleFormSubmit} handleFormCancel={() => setShowForm(false)} formLoading={formLoading} />
+    </>
   );
 }

@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CategoryForm } from "./CategoryForm";
 import { CategoryTable } from "./CategoryTable";
 import { Category, CategoryFormData, CategoryManagementProps } from "@/types/categories";
 import { Plus } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import { getCategories, createCategory, updateCategory, deleteCategory, updateSortOrders } from "@/api/categories.api";
+import { CategoryModal } from "./CategoryModal";
 
 export function CategoryManagement({ onCategoryChange }: CategoryManagementProps) {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -15,9 +14,7 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
   const [selectedCategory, setSelectedCategory] = useState<Category | undefined>();
   const [formLoading, setFormLoading] = useState(false);
 
-
-
-  // Load categories
+  // Load categorieshandleFormSubmit
   const loadCategories = useCallback(async () => {
     try {
       setLoading(true);
@@ -39,13 +36,10 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
     loadCategories();
   }, [loadCategories]);
 
-
-
   // Handle form submission
   const handleFormSubmit = async (formData: CategoryFormData) => {
     try {
       setFormLoading(true);
-
       if (selectedCategory) {
         await updateCategory(selectedCategory.id, formData);
         toast({
@@ -59,7 +53,6 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
           description: "Category created successfully"
         });
       }
-
       setShowForm(false);
       setSelectedCategory(undefined);
       await loadCategories();
@@ -161,32 +154,19 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
     setSelectedCategory(undefined);
   };
 
-
-
   return (
     <div className="space-y-6 relative">
       {/* Categories Table */}
       <CategoryTable categories={categories} onEdit={handleEdit} onDelete={handleDelete} onToggleActive={handleToggleActive} onUpdateSortOrder={handleUpdateSortOrder} loading={loading} />
 
       {/* Floating Action Button */}
-      <Button
-        onClick={handleCreateNew}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50 md:h-16 md:w-16"
-        size="lg"
-      >
+      <Button onClick={handleCreateNew} className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50 md:h-16 md:w-16" size="lg">
         <Plus className="h-6 w-6 md:h-7 md:w-7" />
         <span className="sr-only">Add Category</span>
       </Button>
 
       {/* Form Dialog */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selectedCategory ? "Edit Category" : "Create New Category"}</DialogTitle>
-          </DialogHeader>
-          <CategoryForm category={selectedCategory} onSubmit={handleFormSubmit} onCancel={handleFormCancel} loading={formLoading} />
-        </DialogContent>
-      </Dialog>
+      <CategoryModal showForm={showForm} setShowForm={setShowForm} selectedCategory={selectedCategory} handleFormSubmit={handleFormSubmit} handleFormCancel={handleFormCancel} formLoading={formLoading} />
     </div>
   );
 }
