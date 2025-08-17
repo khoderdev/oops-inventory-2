@@ -18,6 +18,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const [hoveredTable, setHoveredTable] = useState<Table | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
   const [isDragMode, setIsDragMode] = useState(false);
   const [isArrangeMode, setIsArrangeMode] = useState(false);
   const [selectedTool, setSelectedTool] = useState<string>("select");
@@ -51,6 +52,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     // Simulate fetching inactive tables count
     fetchInactiveTablesCount();
   }, [safeTablesList]);
+
+  // Note: we avoid capture-phase blocking here to let Radix Trigger handle contextmenu cleanly.
 
   const fetchInactiveTablesCount = async () => {
     try {
@@ -392,9 +395,15 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
   return (
     <div
+      ref={layoutRef}
       className="h-[calc(100vh-0rem)] w-full flex flex-col overflow-hidden"
       onContextMenu={(e) => {
-        // Prevent native browser context menu anywhere within TablesLayout
+        const target = e.target as HTMLElement | null;
+        if (target && target.closest('[data-table-trigger]')) {
+          // Let Radix open the custom menu from triggers
+          return;
+        }
+        // Block native context menu everywhere else in the layout
         e.preventDefault();
       }}
     >
@@ -493,6 +502,14 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 backgroundSize: isDragMode ? "20px 20px" : "auto"
               }}
               onClick={handleCanvasClick}
+              onContextMenu={(e) => {
+                const target = e.target as HTMLElement | null;
+                if (target && target.closest('[data-table-trigger]')) {
+                  // Allow triggers to handle opening the custom context menu
+                  return;
+                }
+                e.preventDefault();
+              }}
             >
               {safeTablesList.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
@@ -526,11 +543,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                           const content = (
                             <div
                               className="relative"
-                              onContextMenu={() => {
-                                // Close hover info when opening right-click context menu
-                                setHoveredTable(null);
-                                setPopupPosition(null);
-                              }}
+                              data-table-trigger
                             >
                               <div
                                 className={`
