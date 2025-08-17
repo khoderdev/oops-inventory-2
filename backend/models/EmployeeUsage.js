@@ -227,12 +227,12 @@ EmployeeUsage.getMonthlyUsage = function(employeeId, month, year) {
       {
         model: sequelize.models.Material,
         as: 'material',
-        attributes: ['id', 'name', 'category', 'baseUnit']
+        attributes: ['id', 'name', 'categoryId', 'baseUnit']
       },
       {
         model: sequelize.models.MenuItem,
         as: 'menuItem',
-        attributes: ['id', 'name', 'description', 'category']
+        attributes: ['id', 'name', 'description', 'categoryId']
       },
       {
         model: sequelize.models.StockEntry,
@@ -254,12 +254,12 @@ EmployeeUsage.getUnsettledUsage = function(employeeId) {
       {
         model: sequelize.models.Material,
         as: 'material',
-        attributes: ['id', 'name', 'category']
+        attributes: ['id', 'name', 'categoryId']
       },
       {
         model: sequelize.models.MenuItem,
         as: 'menuItem',
-        attributes: ['id', 'name', 'category']
+        attributes: ['id', 'name', 'categoryId']
       }
     ],
     order: [['usageDate', 'DESC']]

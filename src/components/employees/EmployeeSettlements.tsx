@@ -193,7 +193,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
             settlementId: settlement.id
           });
         }
-        console.log(`Marked ${unsettledUsages.data.usages.length} usage items as settled for settlement ${settlement.id}`);
       }
     } catch (error) {
       console.error("Error marking usage items as settled:", error);
@@ -201,55 +200,6 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     }
   };
 
-  const fetchNewUsagesAfterSettlement = async (settlement: EmployeeSettlement) => {
-    setLoadingNewUsages(true);
-    try {
-      // Get usages created after the settlement date
-      const settlementDate = new Date(settlement.createdAt);
-      const startDate = settlementDate.toISOString().split("T")[0];
-      const endDate = new Date(settlement.settlementYear, settlement.settlementMonth, 0).toISOString().split("T")[0];
-
-      const usagesResponse = await employeeAPI.getUsageHistory({
-        employeeId: settlement.employeeId,
-        startDate,
-        endDate,
-        isSettled: false
-      });
-
-      if (usagesResponse.success && usagesResponse.data?.usages) {
-        // Get all usage IDs that should be excluded (already in settlement + locally added)
-        const excludedUsageIds = new Set(addedUsageIds);
-        
-        // Add existing usage IDs from the settlement's usage breakdown
-        if (settlement.settlementData?.usageBreakdown) {
-          settlement.settlementData.usageBreakdown.forEach(usage => {
-            excludedUsageIds.add(usage.id);
-          });
-        }
-        
-        // Filter for truly new usages only
-        const newUsagesAfterSettlement = usagesResponse.data.usages.filter(usage => {
-          const createdAfterSettlement = new Date(usage.createdAt) > settlementDate;
-          const notExcluded = !excludedUsageIds.has(usage.id);
-          
-          return createdAfterSettlement && notExcluded;
-        });
-        
-        if (newUsagesAfterSettlement.length > 0) {
-          setNewUsages(newUsagesAfterSettlement);
-          setSelectedUsageIds(newUsagesAfterSettlement.map(usage => usage.id));
-          setNewUsagesDialogOpen(true);
-        } else {
-          toast.info("No new usage records found after this settlement date");
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching new usages:", error);
-      toast.error("Failed to fetch new usage records");
-    } finally {
-      setLoadingNewUsages(false);
-    }
-  };
 
   const handleDiscountEdit = (usageId: number, currentDiscount: number) => {
     setEditingDiscountId(usageId);

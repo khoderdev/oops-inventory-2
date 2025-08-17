@@ -108,9 +108,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
         return false;
       }
       const isDisabled = usedMonths.includes(monthValue);
-      if (watchedEmployeeId === 2) {
-        console.log(`Month ${monthValue} disabled:`, isDisabled, "Used months:", usedMonths);
-      }
       return isDisabled;
     },
     [getUsedMonths, settlement, watchedEmployeeId]
@@ -136,9 +133,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
           // First ensure all usage for this period is accounted for
           const { ensureUsageInSettlement } = await import("@/utils/employeeUsageUtils");
           const usageCheck = await ensureUsageInSettlement(watchedEmployeeId, watchedMonth, watchedYear);
-
-          console.log("📊 Usage check for settlement preview:", usageCheck);
-
           const settlementData: CreateSettlementData = {
             employeeId: watchedEmployeeId,
             settlementMonth: watchedMonth,
@@ -166,7 +160,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
     try {
       const { ensureUsageInSettlement } = await import("@/utils/employeeUsageUtils");
       const usageCheck = await ensureUsageInSettlement(data.employeeId, data.settlementMonth, data.settlementYear);
-      console.log("📊 Final usage check before settlement creation:", usageCheck);
       const settlementData: CreateSettlementData = {
         employeeId: data.employeeId,
         settlementMonth: data.settlementMonth,
