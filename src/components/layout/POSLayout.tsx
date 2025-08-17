@@ -572,7 +572,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
             ))}
           {/* Session Stats */}
           <div className="flex items-center space-x-2 select-none">
-            {canAccessSalesHistory && (
+            {canAccessSalesHistory && (user?.role === "admin" || user?.role === "manager") && (
               <button onClick={() => setShowSalesHistoryDialog(true)} className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95">
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
                 <div className="relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20 cursor-pointer">

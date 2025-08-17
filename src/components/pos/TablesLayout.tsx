@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
 import { RenameTableModal, TransferTableModal, InactiveTablesModal, DeleteTableModal } from "@/components/tables";
 import { TableContextMenu } from "../ui/TableContextMenu";
+import ClearTableModal from "../tables/ClearTableModal";
 
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
   const safeTablesList = useMemo(() => (Array.isArray(tables) ? tables : []), [tables]);
@@ -32,8 +33,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const dragStateRef = useRef(dragState);
   const [tempPositions, setTempPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [isUpdatingPosition, setIsUpdatingPosition] = useState<string | null>(null);
-
-  // Table Management Modal States
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showInactiveTablesModal, setShowInactiveTablesModal] = useState(false);
@@ -43,24 +42,17 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const [inactiveTablesCount, setInactiveTablesCount] = useState(0);
   const [isDeletingTable, setIsDeletingTable] = useState(false);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
-  
-
-  
+  const [showClearDialog, setShowClearDialog] = useState(false);
+  const [tableToClear, setTableToClear] = useState<Table | null>(null);
 
   useEffect(() => {
     setUpdatedTables(safeTablesList);
-    // Simulate fetching inactive tables count
     fetchInactiveTablesCount();
   }, [safeTablesList]);
 
-  // Note: we avoid capture-phase blocking here to let Radix Trigger handle contextmenu cleanly.
-
   const fetchInactiveTablesCount = async () => {
     try {
-      // Fetch all tables and count inactive ones
       const response = await tablesAPI.getTables();
-
-      // Handle the response structure - backend returns { data: tables }
       let allTables = [];
       if (response.data && Array.isArray(response.data.data)) {
         allTables = response.data.data;
@@ -71,8 +63,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         setInactiveTablesCount(0);
         return;
       }
-
-      // Count inactive tables (isActive === false)
       const inactiveCount = allTables.filter(table => table.isActive === false).length;
       setInactiveTablesCount(inactiveCount);
     } catch (error) {
@@ -83,9 +73,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
   const refreshTablesData = async () => {
     try {
-      // Fetch fresh tables data with orders
       const response = await tablesAPI.getTables({ includeOrders: true });
-      // Handle the response structure consistently
       let freshTables = [];
       if (response.data && Array.isArray(response.data.data)) {
         freshTables = response.data.data;
@@ -95,12 +83,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         console.error("Unexpected API response structure:", response);
         return;
       }
-
-      // Filter only active tables for the main view
       const activeTables = freshTables.filter(table => table.isActive !== false);
-      // Force state update with fresh data
-      setUpdatedTables([...activeTables]); // Use spread to ensure new reference
-      // Also refresh the inactive count
+      setUpdatedTables([...activeTables]);
       await fetchInactiveTablesCount();
     } catch (error) {
       console.error("❌ Failed to refresh tables data:", error);
@@ -110,23 +94,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   useEffect(() => {
     dragStateRef.current = dragState;
   }, [dragState]);
-
-  const refreshTablesAfterTransfer = useCallback(async () => {
-    try {
-      const response = await tablesAPI.getTables({ includeOrders: true });
-      const responseData = response.data as Table[] | { data: Table[] };
-      const freshTablesData = Array.isArray(responseData) ? responseData : responseData.data;
-      setUpdatedTables(freshTablesData);
-      if (hoveredTable) {
-        const updatedHoveredTable = freshTablesData.find(t => t.id === hoveredTable.id);
-        if (updatedHoveredTable) {
-          setHoveredTable(updatedHoveredTable);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to refresh table data after transfer:", error);
-    }
-  }, [hoveredTable]);
 
   const handleRenameTable = (table: Table) => {
     setSelectedTableForAction(table);
@@ -139,12 +106,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         toast.error("No order found for this table");
         return;
       }
-      // Fetch complete order details with items
       const orderResponse = await ordersAPI.getOrder(table.currentOrder.orderId);
       const responseData = orderResponse.data as { data?: any } | any;
-      const fullOrderData = responseData.data || responseData; // Handle nested response structure
+      const fullOrderData = responseData.data || responseData;
       setSelectedTableForAction(table);
-      setSelectedOrderForTransfer(fullOrderData); // Pass the actual order data
+      setSelectedOrderForTransfer(fullOrderData);
       setShowTransferModal(true);
     } catch (error: any) {
       console.error("Failed to fetch order details:", error);
@@ -157,22 +123,21 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       toast.error("Cannot delete table with active orders");
       return;
     }
-
-    // Show confirmation dialog instead of browser alert
     setSelectedTableForAction(table);
     setShowDeleteConfirmModal(true);
+  };
+
+  const requestClearTable = (table: Table) => {
+    setTableToClear(table);
+    setShowClearDialog(true);
   };
 
   const handleClearTable = async (table: Table) => {
     try {
       const response = await tablesAPI.clearReservation(table.id.toString());
-      // Handle both possible response shapes
       const respData: any = response.data as any;
       const updatedTable = respData?.table || respData;
-
-      // Update the local state with the cleared table
       setUpdatedTables(prev => prev.map(t => (t.id === table.id ? updatedTable : t)));
-
       toast.success(`Table ${table.number} has been cleared`);
     } catch (error: any) {
       console.error("Failed to clear table:", error);
@@ -180,18 +145,20 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     }
   };
 
+  const confirmClearTable = async () => {
+    if (!tableToClear) return;
+    await handleClearTable(tableToClear);
+    setShowClearDialog(false);
+    setTableToClear(null);
+  };
+
   const confirmDeleteTable = async () => {
     if (!selectedTableForAction) return;
-
     setIsDeletingTable(true);
     try {
       await tablesAPI.deleteTable(selectedTableForAction.id.toString());
       toast.success(`Table ${selectedTableForAction.number} deleted`);
-
-      // Refresh tables data instead of page reload
       await refreshTablesData();
-
-      // Close modal and reset state
       setShowDeleteConfirmModal(false);
       setSelectedTableForAction(null);
     } catch (error: any) {
@@ -211,11 +178,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const pixelToPercentage = useCallback(
     (pixelX: number, pixelY: number) => {
       if (!canvasRef.current) return { x: 50, y: 50 };
-
       const rect = canvasRef.current.getBoundingClientRect();
       const x = (pixelX / rect.width) * 100;
       const y = (pixelY / rect.height) * 100;
-
       return constrainPosition(x, y);
     },
     [constrainPosition]
@@ -325,12 +290,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     [isDragMode, isArrangeMode, onTableSelect]
   );
 
-  // Handle table hover - show popup without API calls
   const handleTableHover = useCallback(
     (table: Table, e: React.MouseEvent) => {
       if (isDragMode || isArrangeMode) return;
-
-      // Only show popup for tables with orders
       if (table.status === "opened" && table.currentOrder) {
         setHoveredTable(table);
         setPopupPosition({
@@ -342,13 +304,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     [isDragMode, isArrangeMode]
   );
 
-  // Handle table leave - hide popup
   const handleTableLeave = useCallback(() => {
     setHoveredTable(null);
     setPopupPosition(null);
   }, []);
 
-  // Close context menu when clicking elsewhere
   const handleCanvasClick = useCallback(
     async (e: React.MouseEvent) => {
       if (selectedTool === "select" || isDragMode || !isArrangeMode || !canvasRef.current) return;
@@ -397,13 +357,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     <div
       ref={layoutRef}
       className="h-[calc(100vh-0rem)] w-full flex flex-col overflow-hidden"
-      onContextMenu={(e) => {
+      onContextMenu={e => {
         const target = e.target as HTMLElement | null;
-        if (target && target.closest('[data-table-trigger]')) {
-          // Let Radix open the custom menu from triggers
+        if (target && target.closest("[data-table-trigger]")) {
           return;
         }
-        // Block native context menu everywhere else in the layout
         e.preventDefault();
       }}
     >
@@ -502,10 +460,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                 backgroundSize: isDragMode ? "20px 20px" : "auto"
               }}
               onClick={handleCanvasClick}
-              onContextMenu={(e) => {
+              onContextMenu={e => {
                 const target = e.target as HTMLElement | null;
-                if (target && target.closest('[data-table-trigger]')) {
-                  // Allow triggers to handle opening the custom context menu
+                if (target && target.closest("[data-table-trigger]")) {
                   return;
                 }
                 e.preventDefault();
@@ -541,10 +498,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                       >
                         {(() => {
                           const content = (
-                            <div
-                              className="relative"
-                              data-table-trigger
-                            >
+                            <div className="relative" data-table-trigger>
                               <div
                                 className={`
                             ${getTableShape(table.shape, table.seats)} 
@@ -579,11 +533,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                                   </div>
                                 )}
                               </div>
-                              {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && (
-                                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">
-                                  {tableOrders[table.number.toString()]}
-                                </div>
-                              )}
+                              {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
                             </div>
                           );
                           return isDragMode || isArrangeMode ? (
@@ -594,9 +544,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                               tableOrders={tableOrders}
                               onRename={handleRenameTable}
                               onTransfer={handleTransferOrder}
-                              onClear={handleClearTable}
+                              onClear={requestClearTable}
                               onDelete={handleDeleteTable}
-                              onOpenChange={(open) => {
+                              onOpenChange={open => {
                                 setIsContextMenuOpen(open);
                                 if (open) {
                                   setHoveredTable(null);
@@ -710,9 +660,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         </div>
       )}
 
-      
-
       {/* Modals */}
+      <ClearTableModal showClearDialog={showClearDialog} setShowClearDialog={setShowClearDialog} tableToClear={tableToClear} confirmClearTable={confirmClearTable} setTableToClear={setTableToClear} />
+
       <RenameTableModal
         isOpen={showRenameModal}
         onClose={() => {
