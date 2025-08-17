@@ -1,4 +1,4 @@
-import { menuAPI } from "@/api/menu.api.ts";
+import { menuAPI } from "@/api/inventory.api";
 import { getCategoriesByType } from "@/api/categories.api";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterA
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
-  
+
   // Use store menu items if available, fallback to props
   const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems;
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
@@ -83,6 +83,11 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
     fetchCategories();
   }, []);
+
+  // Ensure menu items are loaded when this component mounts
+  useEffect(() => {
+    fetchTabData("menu");
+  }, [fetchTabData]);
 
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
     if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
@@ -285,12 +290,12 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       try {
         // Call the parent handler if provided
         if (onDeleteMenuItem) {
-          onDeleteMenuItem(id);
+          await onDeleteMenuItem(id);
         }
-        
+
         // Refresh store data for instant rendering
         await fetchTabData("menu");
-        
+
         toast({
           title: "Success",
           description: "Menu item deleted successfully",
@@ -391,23 +396,22 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         cell: ({ getValue, row }) => {
           const category = getValue();
           let categoryLabel;
-          
-          if (typeof category === 'object' && category !== null) {
+
+          if (typeof category === "object" && category !== null) {
             // Category is an object with name/value
-            categoryLabel = category.name || category.value || 'Uncategorized';
-          } else if (typeof category === 'string') {
+            categoryLabel = category.name || category.value || "Uncategorized";
+          } else if (typeof category === "string") {
             // Category is a string - try to find matching category by value first, then by name
-            const matchingCategory = categories.find(c => c.value === category) || 
-                                   categories.find(c => c.name?.toLowerCase() === category.toLowerCase());
-            categoryLabel = matchingCategory?.name || category || 'Uncategorized';
-          } else if (typeof category === 'number') {
+            const matchingCategory = categories.find(c => c.value === category) || categories.find(c => c.name?.toLowerCase() === category.toLowerCase());
+            categoryLabel = matchingCategory?.name || category || "Uncategorized";
+          } else if (typeof category === "number") {
             // Category is an ID - find by ID
             const matchingCategory = categories.find(c => c.id === category);
-            categoryLabel = matchingCategory?.name || 'Uncategorized';
+            categoryLabel = matchingCategory?.name || "Uncategorized";
           } else {
-            categoryLabel = 'Uncategorized';
+            categoryLabel = "Uncategorized";
           }
-          
+
           return <span>{String(categoryLabel)}</span>;
         },
         size: 128
@@ -568,24 +572,28 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       });
       const matchesSearch = matchesNameOrDescription || matchesIngredients;
       // Handle different category formats: string, object, or number
-      const matchesCategory = selectedCategory === "all" || (() => {
-        if (typeof item.category === 'string') {
-          const result = item.category === selectedCategory;
-          return result;
-        } else if (typeof item.category === 'object' && item.category !== null && 'name' in item.category) {
-          // For category objects, we need to find the matching category by name and compare values
-          const categoryObj = categories.find(c => c.name === (item.category as { name: string }).name);
-          const result = categoryObj?.value === selectedCategory;
-          return result;
-        } else if (typeof item.category === 'number') {
-          // Find category by ID and compare values
-          const categoryObj = categories.find(c => c.id === item.category);
-          const result = categoryObj?.value === selectedCategory;
-          return result;
-        }
-        return false;
-      })();
-      
+      const matchesCategory =
+        selectedCategory === "all" ||
+        (() => {
+          if (typeof item.category === "string") {
+            // Support both stored category value and name (case-insensitive)
+            if (item.category === selectedCategory) return true;
+            const categoryObj = categories.find(c => c.value === item.category) || categories.find(c => c.name?.toLowerCase() === item.category.toLowerCase());
+            return categoryObj?.value === selectedCategory;
+          } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
+            // For category objects, we need to find the matching category by name and compare values
+            const categoryObj = categories.find(c => c.name === (item.category as { name: string }).name);
+            const result = categoryObj?.value === selectedCategory;
+            return result;
+          } else if (typeof item.category === "number") {
+            // Find category by ID and compare values
+            const categoryObj = categories.find(c => c.id === item.category);
+            const result = categoryObj?.value === selectedCategory;
+            return result;
+          }
+          return false;
+        })();
+
       return matchesSearch && matchesCategory;
     });
   }, [currentMenuItems, searchTerm, selectedCategory, getMaterialName, categories]);
@@ -632,18 +640,18 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           createdAt: new Date(),
           updatedAt: new Date()
         };
-        
+
         // Call the parent handler
         if (onCreateMenuItem) {
           onCreateMenuItem(menuItemToCreate);
         }
-        
+
         // Refresh store data for instant rendering
         await fetchTabData("menu");
-        
+
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
-        
+
         toast({
           title: "Success",
           description: "Menu item created successfully",
@@ -678,18 +686,18 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           ingredients: ingredientsWithCosts,
           updatedAt: new Date()
         };
-        
+
         // Call the parent handler if provided
         if (onUpdateMenuItem) {
           onUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
         }
-        
+
         // Refresh store data for instant rendering
         await fetchTabData("menu");
-        
+
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
-        
+
         toast({
           title: "Success",
           description: "Menu item updated successfully",
@@ -700,7 +708,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         console.error("Error updating menu item:", error);
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
-        
+
         toast({
           title: "Error",
           description: "Failed to update menu item",
