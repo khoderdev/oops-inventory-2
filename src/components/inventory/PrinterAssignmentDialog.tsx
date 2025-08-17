@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { MenuItem, StockEntryWithMaterial } from "@/types/inventory";
+import { MenuItem, StockEntryWithMaterial, StockEntry } from "@/types/inventory";
 import { Printer } from "@/types/printer";
 import { Loader2, Printer as PrinterIcon, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -16,10 +16,11 @@ interface PrinterAssignmentDialogProps {
   onOpenChange: (open: boolean) => void;
   item: StockEntryWithMaterial | MenuItem | null;
   itemType: "stock" | "menu";
-  onAssignmentChange?: () => void;
+  onAssignmentChange?: (updated?: StockEntry) => void;
+  onAssign?: (id: string | number, printerId: number | null) => Promise<StockEntry | void>;
 }
 
-export const PrinterAssignmentDialog: React.FC<PrinterAssignmentDialogProps> = ({ open, onOpenChange, item, itemType, onAssignmentChange }) => {
+export const PrinterAssignmentDialog: React.FC<PrinterAssignmentDialogProps> = ({ open, onOpenChange, item, itemType, onAssignmentChange, onAssign }) => {
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [selectedPrinterId, setSelectedPrinterId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -72,20 +73,29 @@ export const PrinterAssignmentDialog: React.FC<PrinterAssignmentDialogProps> = (
       const printerId = selectedPrinterId && selectedPrinterId !== "none" ? parseInt(selectedPrinterId) : null;
 
       if (itemType === "stock") {
-        await stockAPI.assignPrinter(item.id, printerId);
+        let updated: StockEntry | undefined;
+        if (onAssign) {
+          const res = await onAssign(item.id, printerId);
+          updated = res as StockEntry | undefined;
+        } else {
+          const res: any = await stockAPI.assignPrinter(item.id, printerId);
+          updated = res?.data?.stockEntry || res?.stockEntry;
+        }
         toast({
           title: "Success",
           description: `Printer ${printerId ? "assigned to" : "removed from"} stock entry`
         });
+        // Pass updated stock entry back for optimistic UI update
+        onAssignmentChange?.(updated);
       } else {
         await menuAPI.assignPrinter(item.id, printerId);
         toast({
           title: "Success",
           description: `Printer ${printerId ? "assigned to" : "removed from"} menu item`
         });
+        onAssignmentChange?.();
       }
 
-      onAssignmentChange?.();
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to assign printer:", error);

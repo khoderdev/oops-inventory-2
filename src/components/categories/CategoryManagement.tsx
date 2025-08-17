@@ -25,7 +25,8 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       toast({
         title: "Error",
         description: "Failed to load categories",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 1000
       });
     } finally {
       setLoading(false);
@@ -44,13 +45,15 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
         await updateCategory(selectedCategory.id, formData);
         toast({
           title: "Success",
-          description: "Category updated successfully"
+          description: "Category updated successfully",
+          duration: 1000
         });
       } else {
         await createCategory(formData);
         toast({
           title: "Success",
-          description: "Category created successfully"
+          description: "Category created successfully",
+          duration: 1000
         });
       }
       setShowForm(false);
@@ -62,7 +65,8 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       toast({
         title: "Error",
         description: error.response?.data?.error || "Failed to save category",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 1000
       });
     } finally {
       setFormLoading(false);
@@ -75,7 +79,8 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       await deleteCategory(id);
       toast({
         title: "Success",
-        description: "Category deleted successfully"
+        description: "Category deleted successfully",
+        duration: 1000
       });
       await loadCategories();
       onCategoryChange?.();
@@ -84,7 +89,8 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       toast({
         title: "Error",
         description: error.response?.data?.error || "Failed to delete category",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 1000
       });
     }
   };
@@ -96,7 +102,7 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       toast({
         title: "Success",
         description: `Category ${isActive ? "activated" : "deactivated"} successfully`,
-        duration: 1500
+        duration: 1000
       });
       await loadCategories();
       onCategoryChange?.();
@@ -131,7 +137,8 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       toast({
         title: "Error",
         description: error.response?.data?.error || "Failed to update category order",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 1000
       });
     }
   };

@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePrefetch } from "@/hooks/usePrefetch";
 import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
 import { materialsAPI } from "@/api/matierials.api.ts.tsx";
-import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, MaterialFormData, StockFormData, RecordWasteData, CreateStockEntryData, MaterialCategory } from "@/types/inventory";
+import { stockAPI } from "@/api/stock.api.ts.tsx";
+import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, MaterialFormData, StockFormData, RecordWasteData, CreateStockEntryData, MaterialCategory, Material } from "@/types/inventory";
 import { Package, Warehouse, Loader2, Tags } from "lucide-react";
 import { useAtom } from "jotai";
 import { useState, useCallback, useMemo } from "react";
@@ -25,7 +26,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         title: "Loading Error",
         description: "Failed to load data",
         variant: "destructive",
-        duration: 1500
+        duration: 1000
       });
     }
   });
@@ -104,7 +105,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           toast({
             title: "Updated",
             description: `${data.name} updated`,
-            duration: 1500
+            duration: 1000
           });
         } else {
           await inventoryAPIWithPrefetch.materials.createMaterialWithCache({
@@ -115,7 +116,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           toast({
             title: "Created",
             description: `${data.name} created`,
-            duration: 1500
+            duration: 1000
           });
         }
 
@@ -128,7 +129,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           title: "Error",
           description: `Failed to ${selectedMaterial ? "update" : "create"} material`,
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, material: false }));
@@ -146,14 +147,14 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           toast({
             title: "Updated",
             description: "Stock entry updated",
-            duration: 1500
+            duration: 1000
           });
         } else {
           await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(data);
           toast({
             title: "Created",
             description: "Stock entry created",
-            duration: 1500
+            duration: 1000
           });
         }
         await refresh("stock");
@@ -166,7 +167,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           title: "Error",
           description: `Failed to ${selectedStockEntry ? "update" : "create"} stock entry`,
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, stock: false }));
@@ -218,7 +219,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
               title: "Material Not Found",
               description: `Material ID ${materialId} does not exist in the database. Please refresh the materials list.`,
               variant: "destructive",
-              duration: 1500
+              duration: 1000
             });
             console.log("🔄 Forcing materials refresh to sync with backend...");
             await refresh("materials");
@@ -233,11 +234,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         setSelectedStockEntry(null);
         setShowStockForm(true);
         setActiveTab("stock");
-        toast({
-          title: "Material Selected",
-          description: `Ready to add stock for ${material.name}`,
-          duration: 1500
-        });
+      
       } else {
         console.error("❌ Material not found with ID:", materialId, "Even after direct API fetch. This material may not exist.");
         console.log("🔄 Forcing complete data refresh due to material not found...");
@@ -246,7 +243,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           title: "Material Not Found",
           description: `Material ID ${materialId} could not be found. The materials list has been refreshed to sync with the database.`,
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       }
     },
@@ -263,7 +260,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         toast({
           title: "Deleted",
           description: "Material deleted",
-          duration: 1500
+          duration: 1000
         });
         if (onDeleteMaterial) {
           onDeleteMaterial(materialId);
@@ -273,7 +270,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           title: "Error",
           description: "Failed to delete material",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       } finally {
         setOperationLoading(prev => ({ ...prev, [`delete-material-${materialId}`]: false }));
@@ -304,14 +301,14 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         toast({
           title: "Added",
           description: "Stock added",
-          duration: 1500
+          duration: 1000
         });
       } catch (error) {
         toast({
           title: "Error",
           description: "Failed to add stock",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       }
     },
@@ -327,14 +324,14 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         toast({
           title: "Recorded",
           description: "Waste recorded",
-          duration: 1500
+          duration: 1000
         });
       } catch (error) {
         toast({
           title: "Error",
           description: "Failed to record waste",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       }
     },
@@ -375,7 +372,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         toast({
           title: "Added",
           description: "Stock added",
-          duration: 1500
+          duration: 1000
         });
       } catch (error) {
         console.error("❌ Error adding to specific entry:", error);
@@ -383,11 +380,57 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           title: "Error",
           description: "Failed to add stock",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       }
     },
     [refresh, setShowStockForm]
+  );
+
+  // Handlers passed down to StockEntriesTable for centralized mutations and instant UI updates
+  const handleRefreshAll = useCallback(async () => {
+    await refresh("stock");
+    await refresh("materials");
+  }, [refresh]);
+
+  const handleDeleteStockEntry = useCallback(
+    async (stockEntryId: string | number) => {
+      await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId.toString());
+      await refresh("stock");
+      await refresh("materials");
+    },
+    [refresh]
+  );
+
+  const handleTogglePOSVisibility = useCallback(
+    async (entry: StockEntry & { material?: Material }) => {
+      await stockAPI.updateStockEntryPOS(entry.id.toString(), { isPOSItem: !entry.isPOSItem });
+      // Table handles optimistic UI; ensure caches refresh quickly
+      await refresh("stock");
+    },
+    [refresh]
+  );
+
+  // Assign a printer to a single stock entry
+  const handleAssignPrinter = useCallback(
+    async (id: string | number, printerId: number | null) => {
+      const res: any = await stockAPI.assignPrinter(id, printerId);
+      // Refresh stock to keep cache in sync; table applies optimistic update immediately
+      await refresh("stock");
+      return res?.data?.stockEntry || res?.stockEntry;
+    },
+    [refresh]
+  );
+
+  // Bulk-assign a printer to multiple stock entries
+  const handleBulkAssignPrinter = useCallback(
+    async (ids: (string | number)[], printerId: number | null) => {
+      const res: any = await stockAPI.bulkAssignPrinter(ids, printerId);
+      // Refresh stock to keep cache in sync; table applies optimistic update immediately
+      await refresh("stock");
+      return res?.data?.stockEntries || res?.stockEntries;
+    },
+    [refresh]
   );
 
   const handleWasteFromSpecificEntryOperation = useCallback(
@@ -425,7 +468,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         toast({
           title: "Recorded",
           description: "Waste recorded",
-          duration: 1500
+          duration: 1000
         });
       } catch (error) {
         console.error("❌ Error recording waste from specific entry:", error);
@@ -433,7 +476,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           title: "Error",
           description: "Failed to record waste",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       }
     },
@@ -480,7 +523,15 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
         </TabsContent>
 
         <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden ">
-          <StockEntriesTable />
+          <StockEntriesTable
+            stockEntries={stock}
+            materials={materials}
+            onRefresh={handleRefreshAll}
+            onDeleteStockEntry={handleDeleteStockEntry}
+            onTogglePOSVisibility={handleTogglePOSVisibility}
+            onAssign={handleAssignPrinter}
+            onBulkAssign={handleBulkAssignPrinter}
+          />
         </TabsContent>
 
         <TabsContent value="categories" className="flex-1 focus-visible:outline-none overflow-hidden">

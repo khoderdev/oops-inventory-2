@@ -1,5 +1,3 @@
-import { salesAPI } from "@/api/sales.api.ts.tsx";
-import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -9,20 +7,30 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TanStackTable } from "@/components/ui/TanStackTable";
-import { Loading } from "@/components/ui/Loading";
 import { toast } from "@/hooks/use-toast";
-import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
-import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial, StockFormData, AddStockData, RecordWasteData, MaterialWithStock, PaginationInfo, CachedStockEntryData } from "@/types/inventory";
+import { Material, NegativeStockReport, StockEntry, StockEntryWithMaterial, MaterialWithStock, PaginationInfo, AddStockData, RecordWasteData, StockFormData } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, EyeOff, FileText, Loader2, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Eye, EyeOff, FileText, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useAtom } from "jotai";
 import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from "@/store/inventoryAtoms";
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
-import { useDebounce } from "@/hooks/useDebounce";
-import { usePrefetch } from "@/hooks/usePrefetch";
+import { stockAPI } from "@/api/stock.api.ts";
+import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
+import { salesAPI } from "@/api/sales.api.ts";
+// Note: This component now relies on parent-provided data and handlers for instant UI updates.
+
+type StockEntriesTableProps = {
+  stockEntries: StockEntry[];
+  materials: Material[] | MaterialWithStock[];
+  onRefresh?: () => Promise<void> | void;
+  onDeleteStockEntry?: (stockEntryId: string | number) => Promise<void> | void;
+  onTogglePOSVisibility?: (entry: StockEntry & { material?: Material }) => Promise<void> | void;
+  onAssign?: (id: string | number, printerId: number | null) => Promise<StockEntry | void>;
+  onBulkAssign?: (ids: (string | number)[], printerId: number | null) => Promise<StockEntry[] | void>;
+};
 
 const hasNegativeStock = (entry: StockEntryWithMaterial) => {
   return (entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity < 0) || (entry.purchasedQuantity && entry.purchasedQuantity < 0);
@@ -32,61 +40,17 @@ const isVirtualEntry = (entry: StockEntryWithMaterial) => {
   return entry.supplier === "-";
 };
 
-const STOCK_ENTRIES_CACHE_KEY = "stock_entries_table_cache";
-const CACHE_DURATION = 2 * 60 * 1000;
+export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, onRefresh, onDeleteStockEntry, onTogglePOSVisibility, onAssign, onBulkAssign }: StockEntriesTableProps) {
+  // Props-driven data for instant UI updates
+  const stockEntries = stockEntriesProp as (StockEntry | StockEntryWithMaterial)[];
 
-export function StockEntriesTable() {
-  const { materials: materialsWithStock, refresh, status } = usePrefetch();
-  const materials = materialsWithStock;
-
-  const initializeFromCache = () => {
-    try {
-      const cached = localStorage.getItem(STOCK_ENTRIES_CACHE_KEY);
-      if (cached) {
-        const parsedCache: CachedStockEntryData = JSON.parse(cached);
-        const isExpired = Date.now() - parsedCache.timestamp > CACHE_DURATION;
-        if (!isExpired) {
-          return {
-            stockEntries: parsedCache.stockEntries,
-            pagination: parsedCache.pagination,
-            searchTerm: parsedCache.searchTerm,
-            materialFilter: parsedCache.materialFilter,
-            sortBy: parsedCache.sortBy,
-            sortOrder: parsedCache.sortOrder,
-            currentPage: parsedCache.pagination.currentPage,
-            pageSize: parsedCache.pagination.itemsPerPage
-          };
-        }
-      }
-    } catch (error) {
-      console.warn("Failed to load cached stock entries data:", error);
-    }
-    return {
-      stockEntries: [],
-      pagination: null,
-      searchTerm: "",
-      materialFilter: "all",
-      sortBy: "purchaseDate",
-      sortOrder: "DESC" as const,
-      currentPage: 1,
-      pageSize: 50
-    };
-  };
-
-  const initialState = initializeFromCache();
-  const [searchTerm, setSearchTerm] = useState(initialState.searchTerm);
-  const [materialFilter, setMaterialFilter] = useState<string>(initialState.materialFilter);
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
-  const [currentPage, setCurrentPage] = useState(initialState.currentPage);
-  const [pageSize, setPageSize] = useState(initialState.pageSize);
-  const [sortBy, setSortBy] = useState(initialState.sortBy);
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">(initialState.sortOrder);
-  const [stockEntries, setStockEntries] = useState<StockEntryWithMaterial[]>(initialState.stockEntries);
-  const [pagination, setPagination] = useState<PaginationInfo | null>(initialState.pagination);
-  const [loading, setLoading] = useState(false);
-  const isParentLoading = status.individual.materials.loading && materials.length === 0;
-  const [error, setError] = useState<string | null>(null);
-  const [dataCache, setDataCache] = useState<Map<string, CachedStockEntryData>>(new Map());
+  // Local UI state only (no fetching/caching/loading here)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [materialFilter, setMaterialFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [sortBy, setSortBy] = useState("purchaseDate");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
   const [showFloatingButton, setShowFloatingButton] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -102,14 +66,14 @@ export function StockEntriesTable() {
   const [reportSorting, setReportSorting] = useState<SortingState>([]);
   const materialsMap = useMemo(() => {
     const map = new Map();
-    // Add materials from the prefetch hook
-    materials.forEach(m => {
+    // Add materials from the parent-provided data
+    (materials as Material[]).forEach(m => {
       map.set(m.id, m);
       map.set(m.id.toString(), m);
       map.set(parseInt(m.id), m);
     });
     
-    // Also add materials that come with stock entries (for materials not in prefetch)
+    // Also add materials that come with stock entries (for materials not in parent list)
     stockEntries.forEach(entry => {
       if (entry.material && !map.has(entry.materialId)) {
         const material = entry.material;
@@ -219,33 +183,6 @@ export function StockEntriesTable() {
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
   const optimisticUpdatesRef = useRef<Map<string | number, Partial<StockEntry>>>(new Map());
   const [updateCounter, setUpdateCounter] = useState(0);
-  const getCacheKey = useCallback((page: number, size: number, search: string, material: string, sort: string, order: string) => {
-    return `${search}_${material}_${sort}_${order}_${size}`;
-  }, []);
-
-  const saveToCache = useCallback(
-    (data: StockEntryWithMaterial[], paginationInfo: PaginationInfo, cacheKey: string) => {
-      const cacheData: CachedStockEntryData = { stockEntries: data, pagination: paginationInfo, timestamp: Date.now(), searchTerm: debouncedSearchTerm, materialFilter, sortBy, sortOrder };
-      setDataCache(prev => new Map(prev.set(cacheKey, cacheData)));
-      try {
-        localStorage.setItem(STOCK_ENTRIES_CACHE_KEY, JSON.stringify(cacheData));
-      } catch (error) {
-        console.warn("Failed to save stock entries cache:", error);
-      }
-    },
-    [debouncedSearchTerm, materialFilter, sortBy, sortOrder]
-  );
-
-  const getCachedData = useCallback(
-    (cacheKey: string): CachedStockEntryData | null => {
-      const cached = dataCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        return cached;
-      }
-      return null;
-    },
-    [dataCache]
-  );
 
   const optimisticStockEntries = useMemo(() => {
     return stockEntries.map(entry => {
@@ -302,6 +239,63 @@ export function StockEntriesTable() {
     });
   }, [optimisticStockEntries, materialsMap, searchTerm, materialFilter]);
 
+  // Sort client-side based on sortBy/sortOrder
+  const sortedStockEntries = useMemo(() => {
+    const sorted = [...filteredStockEntries];
+    sorted.sort((a, b) => {
+      const dir = sortOrder === "ASC" ? 1 : -1;
+      switch (sortBy) {
+        case "materialName": {
+          const an = (a.material?.name || "").toLowerCase();
+          const bn = (b.material?.name || "").toLowerCase();
+          return an.localeCompare(bn) * dir;
+        }
+        case "costPerPurchasedUnit":
+          return ((a.costPerPurchasedUnit || 0) - (b.costPerPurchasedUnit || 0)) * dir;
+        case "totalCost":
+          return ((a.totalCost || 0) - (b.totalCost || 0)) * dir;
+        case "purchaseDate":
+        default: {
+          const ad = new Date(a.purchaseDate as any).getTime();
+          const bd = new Date(b.purchaseDate as any).getTime();
+          return (ad - bd) * dir;
+        }
+      }
+    });
+    return sorted;
+  }, [filteredStockEntries, sortBy, sortOrder]);
+
+  // Clamp current page when total pages change
+  const totalItems = sortedStockEntries.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  // Paginate client-side
+  const paginatedStockEntries = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedStockEntries.slice(start, start + pageSize);
+  }, [sortedStockEntries, currentPage, pageSize]);
+
+  // Build local pagination info for UI
+  const pagination: PaginationInfo = useMemo(() => {
+    const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const end = totalItems === 0 ? 0 : Math.min(currentPage * pageSize, totalItems);
+    return {
+      currentPage,
+      itemsPerPage: pageSize,
+      totalItems,
+      totalPages,
+      hasPreviousPage: currentPage > 1,
+      hasNextPage: currentPage < totalPages,
+      startIndex: start,
+      endIndex: end,
+    } as PaginationInfo;
+  }, [currentPage, pageSize, totalItems, totalPages]);
+
   const applyOptimisticUpdate = useCallback((entryId: string | number, updates: Partial<StockEntry>) => {
     optimisticUpdatesRef.current.set(entryId, updates);
     setUpdateCounter(prev => prev + 1);
@@ -312,63 +306,7 @@ export function StockEntriesTable() {
     setUpdateCounter(prev => prev + 1);
   }, []);
 
-  const getPageFromCache = useCallback(
-    (cachedData: CachedStockEntryData, page: number) => {
-      if (cachedData.pagination.currentPage === page && cachedData.pagination.itemsPerPage === pageSize && cachedData.searchTerm === debouncedSearchTerm && cachedData.materialFilter === materialFilter && cachedData.sortBy === sortBy && cachedData.sortOrder === sortOrder) {
-        return {
-          stockEntries: cachedData.stockEntries,
-          pagination: cachedData.pagination
-        };
-      }
-      return null;
-    },
-    [pageSize, debouncedSearchTerm, materialFilter, sortBy, sortOrder]
-  );
-
-  const fetchStockEntries = useCallback(
-    async (forceRefresh = false) => {
-      const cacheKey = getCacheKey(currentPage, pageSize, debouncedSearchTerm, materialFilter, sortBy, sortOrder);
-      if (!forceRefresh) {
-        const cachedData = getCachedData(cacheKey);
-        if (cachedData) {
-          const pageData = getPageFromCache(cachedData, currentPage);
-          if (pageData) {
-            setStockEntries(pageData.stockEntries);
-            setPagination(pageData.pagination);
-            return;
-          }
-        }
-      }
-      setLoading(true);
-      setError(null);
-      try {
-        const searchParams = {
-          page: currentPage,
-          limit: pageSize,
-          materialId: materialFilter === "all" ? undefined : materialFilter,
-          sortBy,
-          sortOrder,
-          includeMaterial: "true"
-        };
-        const response = await stockAPI.getStockEntriesPaginated(searchParams);
-        const newStockEntries = response.data.data;
-        const newPagination = response.data.pagination;
-        setStockEntries(newStockEntries);
-        setPagination(newPagination);
-        saveToCache(newStockEntries, newPagination, cacheKey);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch stock entries");
-        console.error("Error fetching stock entries:", err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [getCacheKey, getCachedData, saveToCache, getPageFromCache]
-  );
-
-  useEffect(() => {
-    fetchStockEntries();
-  }, [currentPage, pageSize, materialFilter, sortBy, sortOrder]);
+  // Client-side sorting + pagination derived from filtered results
 
   const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
@@ -386,9 +324,10 @@ export function StockEntriesTable() {
   }, []);
 
   const refreshData = useCallback(async () => {
-    await fetchStockEntries(true);
-    await refresh("materials");
-  }, [refresh]);
+    if (onRefresh) {
+      await onRefresh();
+    }
+  }, [onRefresh]);
 
   const isAllowedPOSCategory = (material: Material | undefined) => {
     if (!material || !material.category) return false;
@@ -422,11 +361,15 @@ export function StockEntriesTable() {
     const newPOSStatus = !entry.isPOSItem;
     applyOptimisticUpdate(entry.id, { isPOSItem: newPOSStatus });
     try {
-      const response = await stockAPI.updateStockEntryPOS(entry.id.toString(), {
-        isPOSItem: newPOSStatus
-      });
-      if (!response) {
-        throw new Error("Failed to update stock entry POS visibility");
+      if (onTogglePOSVisibility) {
+        await onTogglePOSVisibility(entry);
+      } else {
+        const response = await stockAPI.updateStockEntryPOS(entry.id.toString(), {
+          isPOSItem: newPOSStatus
+        });
+        if (!response) {
+          throw new Error("Failed to update stock entry POS visibility");
+        }
       }
       clearOptimisticUpdate(entry.id);
     } catch (error) {
@@ -447,7 +390,7 @@ export function StockEntriesTable() {
 
   const handleEditStockEntry = (stockEntry: StockEntry) => {
     setSelectedStockEntry(stockEntry);
-    const material = materialsWithStock.find(m => m.id === stockEntry.materialId);
+    const material = (materials as (MaterialWithStock | Material)[]).find(m => (m as any).id === stockEntry.materialId) as MaterialWithStock | undefined;
     if (material) {
       setSelectedMaterial(material);
     }
@@ -456,8 +399,12 @@ export function StockEntriesTable() {
 
   const handleDeleteStockEntry = async (stockEntryId: string | number) => {
     try {
-      await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId.toString());
-      await refreshData();
+      if (onDeleteStockEntry) {
+        await onDeleteStockEntry(stockEntryId);
+      } else {
+        await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId.toString());
+        await refreshData();
+      }
       toast({
         title: "Stock Entry Deleted",
         description: "Stock entry has been successfully deleted",
@@ -1045,7 +992,7 @@ const uniqueMaterials = useMemo(() =>
     );
   };
 
-  const negativeStockCount = useMemo(() => pagination?.meta?.negativeEntriesCount || filteredStockEntries.filter(hasNegativeStock).length, [filteredStockEntries, pagination]);
+  const negativeStockCount = useMemo(() => filteredStockEntries.filter(hasNegativeStock).length, [filteredStockEntries]);
 
   const handlePrinterAssignmentChange = async (updatedEntry?: StockEntry) => {
     if (updatedEntry) {
@@ -1107,28 +1054,14 @@ const uniqueMaterials = useMemo(() =>
             <div className="space-y-1">
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Stock Entries</h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                {loading && !isParentLoading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading stock entries...</span>
-                  </div>
-                ) : isParentLoading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading materials...</span>
-                  </div>
-                ) : (
-                  <>
-                    <span>Total: {pagination?.totalItems || 0} entries</span>
-                    {pagination && (
-                      <span className="text-blue-600 font-medium">
-                        Showing {pagination.startIndex}-{pagination.endIndex} of {pagination.totalItems}
-                        {(debouncedSearchTerm || materialFilter !== "all") && " (filtered)"}
-                        {materialFilter !== "all" && materialsById.get(materialFilter) && ` by ${materialsById.get(materialFilter)?.name}`}
-                      </span>
-                    )}
-                  </>
-                )}
+                <>
+                  <span>Total: {pagination.totalItems} entries</span>
+                  <span className="text-blue-600 font-medium">
+                    Showing {pagination.startIndex}-{pagination.endIndex} of {pagination.totalItems}
+                    {(searchTerm || materialFilter !== "all") && " (filtered)"}
+                    {materialFilter !== "all" && materialsById.get(materialFilter) && ` by ${materialsById.get(materialFilter)?.name}`}
+                  </span>
+                </>
               </div>
             </div>
 
@@ -1143,13 +1076,12 @@ const uniqueMaterials = useMemo(() =>
                       placeholder="Search by material name or supplier..." 
                       value={searchTerm} 
                       onChange={handleSearchChange} 
-                      disabled={loading || isParentLoading} 
                       className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-64 lg:w-80" 
                     />
                   </div>
 
                   <div className="w-fit shrink-0">
-                    <Select value={materialFilter} onValueChange={setMaterialFilter} disabled={loading || isParentLoading}>
+                    <Select value={materialFilter} onValueChange={setMaterialFilter}>
                       <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-48">
                         <SelectValue placeholder="All Materials">
                           {materialFilter === "all" ? "All Materials" : materialsById.get(materialFilter)?.name || "All Materials"}
@@ -1168,20 +1100,20 @@ const uniqueMaterials = useMemo(() =>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant={bulkSelectionMode ? "default" : "outline"} onClick={handleToggleBulkSelection} disabled={loading || isParentLoading} className={`${bulkSelectionMode ? "bg-red-600 hover:bg-red-700" : "border-gray-200 hover:border-gray-300"}`}>
+                  <Button size="sm" variant={bulkSelectionMode ? "default" : "outline"} onClick={handleToggleBulkSelection} className={`${bulkSelectionMode ? "bg-red-600 hover:bg-red-700" : "border-gray-200 hover:border-gray-300"}`}>
                     <Check className="h-4 w-4 mr-1.5" />
                     <span className="hidden lg:inline">{bulkSelectionMode ? "Cancel" : "Bulk Select"}</span>
                     <span className="lg:hidden">{bulkSelectionMode ? "Cancel" : "Select"}</span>
                   </Button>
 
-                  <Button variant="outline" size="sm" onClick={refreshData} disabled={loading || isParentLoading} className="border-gray-200 hover:border-gray-300">
-                    {loading && !isParentLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+                  <Button variant="outline" size="sm" onClick={refreshData} className="border-gray-200 hover:border-gray-300">
+                    <RefreshCw className="h-4 w-4 mr-1.5" />
                     <span className="hidden lg:inline">Refresh</span>
                     <span className="lg:hidden">Refresh</span>
                   </Button>
 
                   {negativeStockCount > 0 && (
-                    <Button variant="outline" size="sm" onClick={fetchNegativeStockReport} disabled={loadingReport || loading || isParentLoading} className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300">
+                    <Button variant="outline" size="sm" onClick={fetchNegativeStockReport} disabled={loadingReport} className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300">
                       {loadingReport ? <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
                       <span className="hidden lg:inline">Negative Stock Report</span>
                       <span className="lg:hidden">Report</span>
@@ -1193,7 +1125,7 @@ const uniqueMaterials = useMemo(() =>
                 <div className="flex items-center justify-end gap-4">
                   {/* Page Size Selector */}
                   <div className="w-fit shrink-0">
-                    <Select value={pageSize.toString()} onValueChange={value => handlePageSizeChange(parseInt(value))} disabled={loading || isParentLoading}>
+                    <Select value={pageSize.toString()} onValueChange={value => handlePageSizeChange(parseInt(value))}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1208,17 +1140,17 @@ const uniqueMaterials = useMemo(() =>
 
                   {/* Pagination Controls */}
                   <div className="flex items-center gap-1">
-                    <Button variant="outline" size="sm" onClick={() => handlePageChange(1)} disabled={!pagination.hasPreviousPage || loading || isParentLoading} className="h-10 px-3">
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(1)} disabled={!pagination.hasPreviousPage} className="h-10 px-3">
                       <ChevronsLeft className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={!pagination.hasPreviousPage || loading || isParentLoading} className="h-10 px-3">
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={!pagination.hasPreviousPage} className="h-10 px-3">
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <span className="px-3 py-2 text-sm font-medium bg-gray-50 rounded border">{pagination.currentPage}</span>
-                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={!pagination.hasNextPage || loading || isParentLoading} className="h-10 px-3">
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={!pagination.hasNextPage} className="h-10 px-3">
                       <ChevronRight className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.totalPages)} disabled={!pagination.hasNextPage || loading || isParentLoading} className="h-10 px-3">
+                    <Button variant="outline" size="sm" onClick={() => handlePageChange(pagination.totalPages)} disabled={!pagination.hasNextPage} className="h-10 px-3">
                       <ChevronsRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1230,12 +1162,12 @@ const uniqueMaterials = useMemo(() =>
           {bulkSelectionMode && (
             <div className="flex items-center gap-3">
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                <Button size="sm" variant="outline" onClick={handleSelectAllStockEntries} disabled={filteredStockEntries.length === 0 || loading} className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0">
+                <Button size="sm" variant="outline" onClick={handleSelectAllStockEntries} disabled={filteredStockEntries.length === 0} className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0">
                   <Check className="h-4 w-4 mr-1.5 flex-shrink-0" />
                   <span className="hidden sm:inline">{selectedStockEntries.size === filteredStockEntries.length ? "Deselect All" : "Select All"}</span>
                   <span className="sm:hidden truncate">{selectedStockEntries.size === filteredStockEntries.length ? "Deselect" : "Select"}</span>
                 </Button>
-                <Button size="sm" variant="outline" onClick={handleOpenBulkPrinterDialog} disabled={selectedStockEntries.size === 0 || loading} className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0">
+                <Button size="sm" variant="outline" onClick={handleOpenBulkPrinterDialog} disabled={selectedStockEntries.size === 0} className="flex-1 sm:flex-none border-gray-200 hover:border-gray-300 min-w-0">
                   <Printer className="h-4 w-4 mr-1.5 flex-shrink-0" />
                   <span className="hidden sm:inline">Assign Printer ({selectedStockEntries.size})</span>
                   <span className="sm:hidden truncate">Printer ({selectedStockEntries.size})</span>
@@ -1246,23 +1178,7 @@ const uniqueMaterials = useMemo(() =>
         </div>
 
         <div ref={scrollContainerRef} className="px-4 sm:px-6 pb-4 sm:pb-6 flex-1 overflow-hidden overflow-y-auto relative">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center gap-2 text-red-800">
-                <AlertTriangle className="h-5 w-5" />
-                <span className="font-medium">Error loading stock entries</span>
-              </div>
-              <p className="text-red-700 text-sm mt-1">{error}</p>
-              <Button variant="outline" size="sm" onClick={() => refreshData()} className="mt-2 border-red-300 text-red-700 hover:bg-red-100">
-                <RefreshCw className="h-4 w-4 mr-1.5" />
-                Try Again
-              </Button>
-            </div>
-          )}
-
-          {loading && !isParentLoading && <Loading />}
-
-          {!loading && !isParentLoading && !error && filteredStockEntries.length === 0 && (
+          {filteredStockEntries.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="bg-gray-100 rounded-full p-3 mb-4">
                 <Search className="h-8 w-8 text-gray-400" />
@@ -1277,9 +1193,9 @@ const uniqueMaterials = useMemo(() =>
               )}
             </div>
           )}
-          {!loading && !isParentLoading && !error && filteredStockEntries.length > 0 && (
+          {filteredStockEntries.length > 0 && (
             <div className="lg:hidden space-y-4">
-              {filteredStockEntries.map(entry => {
+              {paginatedStockEntries.map(entry => {
                 const material = materialsMap.get(entry.materialId);
 
                 const isNegative = hasNegativeStock(entry);
@@ -1428,7 +1344,7 @@ const uniqueMaterials = useMemo(() =>
           )}
 
           {/* Desktop Table View - TanStack Virtualized */}
-          {!loading && !error && filteredStockEntries.length > 0 && (
+          {filteredStockEntries.length > 0 && (
             <div className="hidden lg:block px-2">
               <div className="h-[calc(100vh-260px)] overflow-y-hidden">
                 <TanStackTable
@@ -1454,7 +1370,7 @@ const uniqueMaterials = useMemo(() =>
                   }}
                   estimatedRowSize={60}
                   overscan={10}
-                  loading={loading}
+                  loading={false}
                   emptyMessage="No stock entries found"
                   maxHeight="calc(100vh-260px)"
                   rowClassName={row => {

@@ -1,11 +1,11 @@
-import { menuAPI } from "@/api/menu.api.ts";
+import { menuAPI } from "@/api/menu.api.ts.tsx";
 import { printersAPI } from "@/api/printers.api";
-import { stockAPI } from "@/api/stock.api.ts";
+import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { MenuItem, Printer, StockEntryWithMaterial } from "@/types/inventory";
+import { MenuItem, Printer, StockEntryWithMaterial, StockEntry } from "@/types/inventory";
 import { Loader2, Printer as PrinterIcon, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -14,15 +14,17 @@ interface BulkPrinterAssignmentDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedItems: Set<string>;
   itemType: "stock" | "menu";
-  onAssignmentChange?: () => void;
+  onAssignmentChange?: (updated?: StockEntry[]) => void;
+  onBulkAssign?: (ids: (string | number)[], printerId: number | null) => Promise<StockEntry[] | void>;
 }
 
-export const BulkPrinterAssignmentDialog: React.FC<BulkPrinterAssignmentDialogProps> = ({ 
-  open, 
-  onOpenChange, 
-  selectedItems, 
-  itemType, 
-  onAssignmentChange 
+export const BulkPrinterAssignmentDialog: React.FC<BulkPrinterAssignmentDialogProps> = ({
+  open,
+  onOpenChange,
+  selectedItems,
+  itemType,
+  onAssignmentChange,
+  onBulkAssign
 }) => {
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [selectedPrinterId, setSelectedPrinterId] = useState<string>("");
@@ -73,8 +75,15 @@ export const BulkPrinterAssignmentDialog: React.FC<BulkPrinterAssignmentDialogPr
       const itemIds = Array.from(selectedItems);
       const printerId = selectedPrinterId === "none" ? null : parseInt(selectedPrinterId);
 
+      let updatedEntries: StockEntry[] | undefined;
       if (itemType === "stock") {
-        await stockAPI.bulkAssignPrinter(itemIds, printerId);
+        if (onBulkAssign) {
+          const res = await onBulkAssign(itemIds, printerId);
+          updatedEntries = res as StockEntry[] | undefined;
+        } else {
+          const res: any = await stockAPI.bulkAssignPrinter(itemIds, printerId);
+          updatedEntries = res?.data?.stockEntries || res?.stockEntries;
+        }
       } else {
         await menuAPI.bulkAssignPrinter(itemIds, printerId);
       }
@@ -85,7 +94,7 @@ export const BulkPrinterAssignmentDialog: React.FC<BulkPrinterAssignmentDialogPr
         variant: "default"
       });
 
-      onAssignmentChange?.();
+      onAssignmentChange?.(updatedEntries);
       onOpenChange(false);
     } catch (error) {
       console.error("Error assigning printer:", error);
@@ -106,8 +115,15 @@ export const BulkPrinterAssignmentDialog: React.FC<BulkPrinterAssignmentDialogPr
       setIsSaving(true);
       const itemIds = Array.from(selectedItems);
 
+      let updatedEntries: StockEntry[] | undefined;
       if (itemType === "stock") {
-        await stockAPI.bulkAssignPrinter(itemIds, null);
+        if (onBulkAssign) {
+          const res = await onBulkAssign(itemIds, null);
+          updatedEntries = res as StockEntry[] | undefined;
+        } else {
+          const res: any = await stockAPI.bulkAssignPrinter(itemIds, null);
+          updatedEntries = res?.data?.stockEntries || res?.stockEntries;
+        }
       } else {
         await menuAPI.bulkAssignPrinter(itemIds, null);
       }
@@ -118,7 +134,7 @@ export const BulkPrinterAssignmentDialog: React.FC<BulkPrinterAssignmentDialogPr
         variant: "default"
       });
 
-      onAssignmentChange?.();
+      onAssignmentChange?.(updatedEntries);
       onOpenChange(false);
     } catch (error) {
       console.error("Error removing printer:", error);

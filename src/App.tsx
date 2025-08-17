@@ -56,7 +56,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Sonner />
+        {/* <Sonner /> */}
         <BrowserRouter
           future={{
             v7_startTransition: true,
