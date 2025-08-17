@@ -21,7 +21,7 @@ export const loadingStatesAtom = atom<Record<string, boolean>>({});
 export const errorStatesAtom = atom<Record<string, string | null>>({});
 
 // UI state atoms
-export const activeTabAtom = atomWithStorage("inventoryManagementActiveTab", "sections");
+export const activeTabAtom = atomWithStorage("inventoryManagementActiveTab", "stock");
 export const searchTermAtom = atom<string>("");
 export const categoryFilterAtom = atom<string>("all");
 export const lowStockFilterAtom = atom<boolean>(false);

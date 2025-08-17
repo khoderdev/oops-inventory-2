@@ -14,7 +14,7 @@ import { Package, Warehouse, Loader2, Tags } from "lucide-react";
 import { useAtom } from "jotai";
 import { useState, useCallback, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
-import { activeTabAtom, searchTermAtom, categoryFilterAtom, lowStockFilterAtom, showMaterialFormAtom, showStockFormAtom, selectedMaterialAtom, selectedStockEntryAtom } from "@/store/inventoryAtoms";
+import { activeTabAtom, showMaterialFormAtom, showStockFormAtom, selectedMaterialAtom, selectedStockEntryAtom } from "@/store/inventoryAtoms";
 
 export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManagementPanelProps = {}) {
   const { materials, stock, status, refresh, isCacheValid } = usePrefetch({
@@ -31,9 +31,6 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   });
 
   const [activeTab, setActiveTab] = useAtom(activeTabAtom);
-  const [searchTerm] = useAtom(searchTermAtom);
-  const [categoryFilter] = useAtom(categoryFilterAtom);
-  const [lowStockFilter] = useAtom(lowStockFilterAtom);
   const [showMaterialForm, setShowMaterialForm] = useAtom(showMaterialFormAtom);
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
@@ -71,19 +68,6 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
     return baseMaterials;
   }, [materials, stock, selectedMaterial]);
 
-  const filteredMaterials = useMemo(() => {
-    return materialsWithStock.filter(material => {
-      const matchesSearch = searchTerm === "" || material.name.toLowerCase().includes(searchTerm.toLowerCase()) || material.category.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesCategory = categoryFilter === "all" || material.category === categoryFilter;
-
-      const matchesLowStock = !lowStockFilter || material.availableQuantity < 10; // Configurable threshold
-
-      return matchesSearch && matchesCategory && matchesLowStock;
-    });
-  }, [materialsWithStock, searchTerm, categoryFilter, lowStockFilter]);
-
-  const stockEntries = stock;
 
   const tabLoading = {
     material: status.individual.materials.loading && materials.length === 0,
@@ -492,35 +476,10 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
     [refresh, setShowStockForm]
   );
 
-  const fetchTabData = useCallback(
-    async (tabName: string) => {
-      switch (tabName) {
-        case "material":
-        case "materials":
-          await refresh("materials");
-          break;
-        case "stock":
-          await refresh("stock");
-          break;
-        case "menu":
-          await refresh("menu");
-          break;
-        case "categories":
-          // Categories are managed independently
-          break;
-        case "sections":
-          // Would refresh sections
-          break;
-        default:
-          await refresh("all");
-      }
-    },
-    [refresh]
-  );
 
   return (
     <div className="h-[calc(100vh-4rem)] w-full flex flex-col overflow-hidden">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
+      <Tabs defaultValue="stock" value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
         <TabsList className="grid w-full grid-cols-3">
           {[
             { value: "material", label: "Materials", icon: Package, short: "Mat", loading: tabLoading.material },
