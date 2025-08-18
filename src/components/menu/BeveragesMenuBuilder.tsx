@@ -78,8 +78,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
     return beverageBeverageItems.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      // If "all" is selected, don't filter by category
       if (selectedCategory === "all") {
         return matchesSearch;
       }

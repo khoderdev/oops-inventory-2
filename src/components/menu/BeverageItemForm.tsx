@@ -23,7 +23,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [showBeverageDropdown, setShowBeverageDropdown] = useState(false);
   const [isBeverageLoading, setIsBeverageLoading] = useState(false);
   const [selectedBeverageStock, setSelectedBeverageStock] = useState<StockEntryWithMaterial | null>(null);
-  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(menuItem?.ingredients?.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) || []);
+  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showVariantsSection, setShowVariantsSection] = useState(true);
   const [showIngredientsSection, setShowIngredientsSection] = useState(false);
@@ -118,18 +118,52 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       setIsPOSItem(menuItem.isPOSItem ?? true);
       setImage(menuItem.image);
 
-      // Initialize variant data if menu item has variants
-      if (menuItem.variants) {
+      // Initialize beverage stock selection if beverageStockId exists
+      if (menuItem.beverageStockId && beverageStockEntries.length > 0) {
+        const matchingStock = beverageStockEntries.find(entry => entry.id === menuItem.beverageStockId);
+        if (matchingStock) {
+          setSelectedBeverageStock(matchingStock);
+          setBeverageSearchTerm(matchingStock.material?.name || "");
+        }
+      }
+
+      // Initialize ingredients from menuItemIngredients
+      if (menuItem.menuItemIngredients && Array.isArray(menuItem.menuItemIngredients)) {
+        const loadedIngredients = menuItem.menuItemIngredients.map(ingredient => ({
+          materialId: ingredient.materialId,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          cost: ingredient.cost
+        }));
+        setIngredients(loadedIngredients);
+        if (loadedIngredients.length > 0) {
+          setShowIngredientsSection(true);
+        }
+      }
+
+      // Initialize variant data from variants array
+      if (menuItem.variants && Array.isArray(menuItem.variants) && menuItem.variants.length > 0) {
+        const selectedVariants = menuItem.variants.map(v => v.name);
+        const variantVolumes: Record<string, number> = {};
+        const variantVolumeUnits: Record<string, string> = {};
+        const variantPrices: Record<string, number> = {};
+        
+        menuItem.variants.forEach(variant => {
+          variantVolumes[variant.name] = parseFloat(variant.volume);
+          variantVolumeUnits[variant.name] = variant.unit;
+          variantPrices[variant.name] = parseFloat(variant.price);
+        });
+        
         setVariantData({
-          selectedVariants: menuItem.variants.selectedVariants || [],
-          variantVolumes: menuItem.variants.variantVolumes || {},
-          variantVolumeUnits: menuItem.variants.variantVolumeUnits || {},
-          variantPrices: menuItem.variants.variantPrices || {}
+          selectedVariants,
+          variantVolumes,
+          variantVolumeUnits,
+          variantPrices
         });
         setShowVariantsSection(true);
       }
     }
-  }, [menuItem]);
+  }, [menuItem, beverageStockEntries]);
 
   const handleBeverageSearchChange = useCallback((value: string) => {
     setBeverageSearchTerm(value);
