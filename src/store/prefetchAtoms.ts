@@ -5,7 +5,7 @@ import { ordersAPI } from "@/api/orders.api";
 import { Material, MenuItem, StockEntry, MaterialWithStock, StockEntryWithMaterial } from "@/types/inventory";
 import { Order, OrderSummary } from "@/types/orders";
 
-export const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+export const CACHE_DURATION = 0; // 2 minutes cache duration for balanced performance
 export const PREFETCH_DELAY = 100; // 100ms delay between prefetch calls
 
 // Cache metadata atoms
@@ -33,7 +33,7 @@ export const menuCacheAtom = atomWithStorage<MenuItem[]>("inventory-menu-cache",
 export const ordersCacheAtom = atomWithStorage<OrderSummary[]>("orders-cache", []);
 export const orderSummariesCacheAtom = atomWithStorage<OrderSummary[]>("order-summaries-cache", []);
 
-// Helper function to check if cache is valid
+// Helper function to check if cache is valid - Smart cache validation
 const isCacheValid = (lastFetch: number): boolean => {
   return Date.now() - lastFetch < CACHE_DURATION;
 };
@@ -97,15 +97,15 @@ const transformOrderSummariesData = (orderSummaries: OrderSummary[]): OrderSumma
   }));
 };
 
-// Materials prefetch action
+// Materials prefetch action - Smart caching with force option
 export const prefetchMaterialsAction = atom(null, async (get, set, options?: { force?: boolean }) => {
   const cacheMetadata = get(cacheMetadataAtom);
   const currentStatus = get(prefetchStatusAtom);
 
   // Skip if already loading
-  if (currentStatus.materials.loading) return;
+  if (currentStatus.materials.loading) return get(materialsCacheAtom);
 
-  // Check if cache is valid and force is not requested
+  // Check cache validity unless force is requested
   if (!options?.force && isCacheValid(cacheMetadata.materials.lastFetch)) {
     return get(materialsCacheAtom);
   }
@@ -149,15 +149,15 @@ export const prefetchMaterialsAction = atom(null, async (get, set, options?: { f
   }
 });
 
-// Stock prefetch action
+// Stock prefetch action - Smart caching with force option
 export const prefetchStockAction = atom(null, async (get, set, options?: { force?: boolean }) => {
   const cacheMetadata = get(cacheMetadataAtom);
   const currentStatus = get(prefetchStatusAtom);
 
   // Skip if already loading
-  if (currentStatus.stock.loading) return;
+  if (currentStatus.stock.loading) return get(stockCacheAtom);
 
-  // Check if cache is valid and force is not requested
+  // Check cache validity unless force is requested
   if (!options?.force && isCacheValid(cacheMetadata.stock.lastFetch)) {
     return get(stockCacheAtom);
   }
@@ -201,15 +201,15 @@ export const prefetchStockAction = atom(null, async (get, set, options?: { force
   }
 });
 
-// Menu prefetch action
+// Menu prefetch action - Smart caching with force option
 export const prefetchMenuAction = atom(null, async (get, set, options?: { force?: boolean }) => {
   const cacheMetadata = get(cacheMetadataAtom);
   const currentStatus = get(prefetchStatusAtom);
 
   // Skip if already loading
-  if (currentStatus.menu.loading) return;
+  if (currentStatus.menu.loading) return get(menuCacheAtom);
 
-  // Check if cache is valid and force is not requested
+  // Check cache validity unless force is requested
   if (!options?.force && isCacheValid(cacheMetadata.menu.lastFetch)) {
     return get(menuCacheAtom);
   }
@@ -252,18 +252,18 @@ export const prefetchMenuAction = atom(null, async (get, set, options?: { force?
   }
 });
 
-// Orders prefetch action
+// Orders prefetch action - Smart caching with force option
 export const prefetchOrdersAction = atom(null, async (get, set, options?: { force?: boolean }) => {
   const cacheMetadata = get(cacheMetadataAtom);
   const currentStatus = get(prefetchStatusAtom);
 
-  // Check if we need to fetch (force or cache is invalid)
-  if (!options?.force && isCacheValid(cacheMetadata.orders.lastFetch) && cacheMetadata.orders.isValid) {
+  // Don't fetch if already loading
+  if (currentStatus.orders.loading) {
     return get(ordersCacheAtom);
   }
 
-  // Don't fetch if already loading
-  if (currentStatus.orders.loading) {
+  // Check cache validity unless force is requested
+  if (!options?.force && isCacheValid(cacheMetadata.orders.lastFetch)) {
     return get(ordersCacheAtom);
   }
 
@@ -308,18 +308,18 @@ export const prefetchOrdersAction = atom(null, async (get, set, options?: { forc
   }
 });
 
-// Order summaries prefetch action
+// Order summaries prefetch action - Smart caching with force option
 export const prefetchOrderSummariesAction = atom(null, async (get, set, options?: { force?: boolean }) => {
   const cacheMetadata = get(cacheMetadataAtom);
   const currentStatus = get(prefetchStatusAtom);
 
-  // Check if we need to fetch (force or cache is invalid)
-  if (!options?.force && isCacheValid(cacheMetadata.orderSummaries.lastFetch) && cacheMetadata.orderSummaries.isValid) {
+  // Don't fetch if already loading
+  if (currentStatus.orderSummaries.loading) {
     return get(orderSummariesCacheAtom);
   }
 
-  // Don't fetch if already loading
-  if (currentStatus.orderSummaries.loading) {
+  // Check cache validity unless force is requested
+  if (!options?.force && isCacheValid(cacheMetadata.orderSummaries.lastFetch)) {
     return get(orderSummariesCacheAtom);
   }
 
@@ -363,18 +363,18 @@ export const prefetchOrderSummariesAction = atom(null, async (get, set, options?
   }
 });
 
-// Combined prefetch action for all inventory data
+// Combined prefetch action for all inventory data - Smart caching with performance optimization
 export const prefetchAllInventoryAction = atom(null, async (get, set, options?: { force?: boolean; parallel?: boolean }) => {
-  const { parallel = true } = options || {};
+  const { parallel = true, force = false } = options || {};
 
   try {
     if (parallel) {
-      // Parallel execution for better performance
+      // Parallel execution with smart caching
       const [materials, stock, menu] = await Promise.allSettled([
-        set(prefetchMaterialsAction, options),
-        // Add delay to prevent API overload
-        new Promise(resolve => setTimeout(() => resolve(set(prefetchStockAction, options)), PREFETCH_DELAY)),
-        new Promise(resolve => setTimeout(() => resolve(set(prefetchMenuAction, options)), PREFETCH_DELAY * 2))
+        set(prefetchMaterialsAction, { force }),
+        // Minimal delay to prevent API overload
+        new Promise(resolve => setTimeout(() => resolve(set(prefetchStockAction, { force })), 50)),
+        new Promise(resolve => setTimeout(() => resolve(set(prefetchMenuAction, { force })), 100))
       ]);
 
       // Check for any failures
@@ -389,14 +389,14 @@ export const prefetchAllInventoryAction = atom(null, async (get, set, options?: 
         menu: menu.status === "fulfilled" ? menu.value : null
       };
     } else {
-      // Sequential execution
-      const materials = await set(prefetchMaterialsAction, options);
-      await new Promise(resolve => setTimeout(resolve, PREFETCH_DELAY));
+      // Sequential execution with smart caching
+      const materials = await set(prefetchMaterialsAction, { force });
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-      const stock = await set(prefetchStockAction, options);
-      await new Promise(resolve => setTimeout(resolve, PREFETCH_DELAY));
+      const stock = await set(prefetchStockAction, { force });
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-      const menu = await set(prefetchMenuAction, options);
+      const menu = await set(prefetchMenuAction, { force });
 
       return { materials, stock, menu };
     }
@@ -485,25 +485,12 @@ export const cachedMenuAtom = atom(get => get(menuCacheAtom));
 export const cachedOrdersAtom = atom(get => get(ordersCacheAtom));
 export const cachedOrderSummariesAtom = atom(get => get(orderSummariesCacheAtom));
 
-// TEMPORARY: Clear cache function for debugging - run in browser console
-if (typeof window !== 'undefined') {
-  (window as any).clearInventoryCache = () => {
-    console.log('🧹 Clearing inventory cache...');
-    localStorage.removeItem('inventory-materials-cache');
-    localStorage.removeItem('inventory-stock-cache'); 
-    localStorage.removeItem('inventory-menu-cache');
-    localStorage.removeItem('inventory-cache-metadata');
-    console.log('✅ Cache cleared! Refresh the page to load all materials.');
-    window.location.reload();
-  };
-}
-
 // Combined status atom
 export const overallPrefetchStatusAtom = atom(get => {
   const status = get(prefetchStatusAtom);
-  const isLoading = status.materials.loading || status.stock.loading || status.menu.loading || status.orders.loading || status.orderSummaries.loading;
-  const hasError = status.materials.error || status.stock.error || status.menu.error || status.orders.error || status.orderSummaries.error;
-  const lastUpdated = [status.materials.lastUpdated, status.stock.lastUpdated, status.menu.lastUpdated, status.orders.lastUpdated, status.orderSummaries.lastUpdated].filter(Boolean).sort((a, b) => (b?.getTime() || 0) - (a?.getTime() || 0))[0];
+  const isLoading = status.materials.loading || status.stock.loading || status.menu.loading;
+  const hasError = status.materials.error || status.stock.error || status.menu.error;
+  const lastUpdated = [status.materials.lastUpdated, status.stock.lastUpdated, status.menu.lastUpdated].filter(Boolean).sort((a, b) => (b?.getTime() || 0) - (a?.getTime() || 0))[0];
 
   return {
     isLoading,
@@ -512,8 +499,6 @@ export const overallPrefetchStatusAtom = atom(get => {
       materials: status.materials.error,
       stock: status.stock.error,
       menu: status.menu.error,
-      orders: status.orders.error,
-      orderSummaries: status.orderSummaries.error
     },
     lastUpdated,
     individual: status

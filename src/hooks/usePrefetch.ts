@@ -133,6 +133,7 @@ export const usePrefetch = (options: UsePrefetchOptions = {}): UsePrefetchReturn
   const refresh = useCallback(
     async (cacheType?: "materials" | "stock" | "menu" | "all") => {
       try {
+        // ALWAYS force refresh for latest data
         const result = await refreshAction(cacheType);
         onSuccess?.(result);
         return result;
@@ -152,7 +153,7 @@ export const usePrefetch = (options: UsePrefetchOptions = {}): UsePrefetchReturn
     [invalidateAction]
   );
 
-  // Auto-fetch on mount
+  // Auto-fetch on mount - Smart caching with force option for initial load
   useEffect(() => {
     if (!autoFetch) return;
 
@@ -161,17 +162,17 @@ export const usePrefetch = (options: UsePrefetchOptions = {}): UsePrefetchReturn
     if (shouldFetch) {
       if (dataTypes.length === 3) {
         // Fetch all if all types are requested
-        prefetchAll().catch(console.error);
+        prefetchAll({ force }).catch(console.error);
       } else {
         // Fetch individual types
         const promises = dataTypes.map(type => {
           switch (type) {
             case "materials":
-              return prefetchMaterials();
+              return prefetchMaterials({ force });
             case "stock":
-              return prefetchStock();
+              return prefetchStock({ force });
             case "menu":
-              return prefetchMenu();
+              return prefetchMenu({ force });
             default:
               return Promise.resolve();
           }

@@ -1340,7 +1340,7 @@ const uniqueMaterials = useMemo(() =>
           {/* Desktop Table View - TanStack Virtualized */}
           {filteredStockEntries.length > 0 && (
             <div className="hidden lg:block px-2">
-              <div className="h-[calc(100vh-260px)] overflow-y-hidden">
+              <div className="h-[calc(100vh-225px)] overflow-y-hidden">
                 <TanStackTable
                   table={table}
                   virtualized={true}
@@ -1366,7 +1366,7 @@ const uniqueMaterials = useMemo(() =>
                   overscan={10}
                   loading={false}
                   emptyMessage="No stock entries found"
-                  maxHeight="calc(100vh-260px)"
+                  maxHeight="calc(100vh-225px)"
                   rowClassName={row => {
                     const entry = row.original;
                     const isNegative = hasNegativeStock(entry);
