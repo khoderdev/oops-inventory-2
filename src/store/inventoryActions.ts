@@ -396,7 +396,7 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
     // Optimistic update - add menu item immediately at the top
     set(menuItemsAtom, prev => [data, ...prev]);
 
-    // Transform MenuItem to CreateMenuItemData format
+    // Transform MenuItem to CreateMenuItemData format, preserving all beverage fields
     const createData: CreateMenuItemData = {
       name: data.name,
       description: data.description,
@@ -405,8 +405,26 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
                 'plates' as MenuItemCategory, // fallback category
       price: data.price,
       ingredients: data.ingredients,
-      isPOSItem: data.isPOSItem
+      isPOSItem: data.isPOSItem,
+      // Preserve all beverage-specific fields
+      beverageStockId: (data as any).beverageStockId,
+      unit: (data as any).unit,
+      availableQuantity: (data as any).availableQuantity,
+      costPerUnit: (data as any).costPerUnit,
+      variants: (data as any).variants
     };
+
+    console.log("🔍 Store - createMenuItemAction - Transformed data:", {
+      original: data,
+      transformed: createData,
+      beverageFields: {
+        beverageStockId: createData.beverageStockId,
+        unit: createData.unit,
+        availableQuantity: createData.availableQuantity,
+        costPerUnit: createData.costPerUnit,
+        variants: createData.variants
+      }
+    });
 
     // Extract imageFile from data
     const imageFile = data.imageFile;

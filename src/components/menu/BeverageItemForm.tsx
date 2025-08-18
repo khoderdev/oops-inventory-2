@@ -199,6 +199,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       });
       return;
     }
+
+    // Prepare form data to match backend expectations
     const formData = {
       name,
       category: selectedCategoryObj
@@ -209,15 +211,17 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           }
         : null,
       price: parseFloat(price),
-      unit: selectedBeverageStock?.purchasedUnit || "piece",
-      availableQuantity: selectedBeverageStock?.purchasedQuantity || 0,
-      costPerUnit: selectedBeverageStock?.costPerPurchasedUnit || 0,
-      ingredients: ingredients,
-      menuItemIngredients: false,
+      description: "", // Add empty description if not provided
+      ingredients: ingredients.length > 0 ? ingredients : undefined,
       isPOSItem,
       image: image || "",
-      imageFile: imageFile, // Include imageFile in the form data
-      beverageStockId: selectedBeverageStock?.id || "",
+      imageFile: imageFile,
+      // Beverage-specific fields
+      beverageStockId: selectedBeverageStock?.id ? parseInt(selectedBeverageStock.id.toString()) : undefined,
+      unit: selectedBeverageStock?.purchasedUnit || "piece",
+      availableQuantity: selectedBeverageStock?.purchasedQuantity ? parseFloat(selectedBeverageStock.purchasedQuantity.toString()) : undefined,
+      costPerUnit: selectedBeverageStock?.costPerPurchasedUnit ? parseFloat(selectedBeverageStock.costPerPurchasedUnit.toString()) : undefined,
+      // Variants data - only include if variants are selected
       variants:
         showVariantsSection && variantData.selectedVariants.length > 0
           ? Object.fromEntries(
@@ -233,10 +237,29 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           : undefined
     };
 
-    // Simple beverage form data logging
-    console.log("Beverage Form Data:", formData);
+    // Remove undefined values to clean up the payload
+    const cleanedFormData = Object.fromEntries(
+      Object.entries(formData).filter(([_, value]) => value !== undefined)
+    );
 
-    onSubmit(formData);
+    // Debug logging to see what's being sent
+    console.log("🚀 Frontend: Sending beverage form data:", {
+      name: cleanedFormData.name,
+      category: cleanedFormData.category,
+      beverageStockId: cleanedFormData.beverageStockId,
+      unit: cleanedFormData.unit,
+      availableQuantity: cleanedFormData.availableQuantity,
+      costPerUnit: cleanedFormData.costPerUnit,
+      variants: cleanedFormData.variants,
+      price: cleanedFormData.price
+    });
+
+    console.log("🔍 BeverageItemForm - Complete cleanedFormData being sent to onSubmit:", cleanedFormData);
+    console.log("🔍 BeverageItemForm - imageFile being sent to onSubmit:", imageFile);
+
+    onSubmit(cleanedFormData, imageFile);
+    
+    // Reset form after successful submission
     setName("");
     setCategoryId("");
     setPrice("");
@@ -247,7 +270,13 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     setBeverageSearchTerm("");
     setIngredients([]);
     setErrors({});
-  }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, showVariantsSection, variantData, categories, validateForm, onSubmit]);
+    setVariantData({
+      selectedVariants: [],
+      variantVolumes: { small: 2, medium: 3, large: 5, glass: 3, shot: 1 },
+      variantVolumeUnits: { small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl" },
+      variantPrices: { small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0 }
+    });
+  }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, showVariantsSection, variantData, categories, ingredients, validateForm, onSubmit]);
 
   return (
     <div className="space-y-6 p-4">

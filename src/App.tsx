@@ -48,14 +48,25 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
   const [, setSelectedEmployee] = useAtom(selectedEmployeeAtom);
   const [categories, setCategories] = useState<Category[]>([]);
   
-  // Fetch categories for menu items
+  // Fetch categories for menu items and beverages
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await getCategoriesByType("menu_items");
-        setCategories(response.totalItems || []);
+        // Fetch both menu_items and beverages categories
+        const [menuResponse, beverageResponse] = await Promise.all([
+          getCategoriesByType("menu_items"),
+          getCategoriesByType("beverages")
+        ]);
+        
+        const allCategories = [
+          ...(menuResponse.totalItems || []),
+          ...(beverageResponse.totalItems || [])
+        ];
+        
+        setCategories(allCategories);
+        console.log("Fetched categories:", allCategories);
       } catch (error) {
-        console.error("Failed to fetch menu categories:", error);
+        console.error("Failed to fetch categories:", error);
       }
     };
     
@@ -67,8 +78,24 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
   const handleDeleteMenuItem = onDeleteMenuItem || storeDeleteMenuItem;
   
   // Convert handler functions to return Promises to match TabMenu prop types
-  const handleCreateMenuItemAsync = async (data: any) => {
-    await handleCreateMenuItem(data);
+  const handleCreateMenuItemAsync = async (data: any, imageFile?: File) => {
+    console.log("🔍 App.tsx - handleCreateMenuItemAsync received:", {
+      data,
+      imageFile,
+      beverageFields: {
+        beverageStockId: (data as any)?.beverageStockId,
+        unit: (data as any)?.unit,
+        availableQuantity: (data as any)?.availableQuantity,
+        costPerUnit: (data as any)?.costPerUnit,
+        variants: (data as any)?.variants
+      }
+    });
+    
+    // Include imageFile in the data object as expected by the store
+    const dataWithImage = { ...data, imageFile };
+    console.log("🔍 App.tsx - Calling handleCreateMenuItem with:", dataWithImage);
+    
+    await handleCreateMenuItem(dataWithImage);
     return Promise.resolve();
   };
   

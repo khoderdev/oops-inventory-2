@@ -2,7 +2,6 @@ import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 import Material from "./materials.js";
 import Printer from "./Printer.js";
-import { isValidCategory } from "../utils/categoryHelpers.js";
 
 const MenuItem = sequelize.define(
   "MenuItem",
@@ -36,7 +35,7 @@ const MenuItem = sequelize.define(
     },
     price: {
       type: DataTypes.FLOAT,
-      allowNull: false,
+      allowNull: true,
       validate: {
         min: { args: [0], msg: "Price cannot be negative" }
       }
@@ -60,31 +59,26 @@ const MenuItem = sequelize.define(
       },
       comment: "Assigned printer for this menu item when ordered in POS"
     },
-    // Variant-related fields
-    isVariant: {
-      type: DataTypes.BOOLEAN,
-      allowNull: true,
-      defaultValue: false,
-      comment: "Indicates if this item is a variant of another menu item"
-    },
-    parentItemId: {
+    // Beverage-specific fields
+    beverageStockId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      references: {
-        model: 'menuItems',
-        key: 'id'
-      },
-      comment: "Reference to the parent menu item if this is a variant"
+      comment: "Reference to beverage stock entry for beverage items"
     },
-    variantId: {
+    unit: {
       type: DataTypes.STRING,
       allowNull: true,
-      comment: "UUID to group variants created in the same batch"
+      comment: "Unit of measurement for the item"
     },
-    variantSize: {
-      type: DataTypes.STRING,
+    availableQuantity: {
+      type: DataTypes.DECIMAL(10, 3),
       allowNull: true,
-      comment: "Size of the variant (e.g., small, medium, large, custom sizes)"
+      comment: "Available quantity in stock"
+    },
+    costPerUnit: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      comment: "Cost per unit for the item"
     },
     createdAt: {
       type: DataTypes.DATE,

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { MenuItem, Material, StockEntry, MenuItemCategory, Section } from "@/types/inventory";
+import { MenuItem, Material, StockEntry, MenuItemCategory, Section, CreateMenuItemData } from "@/types/inventory";
 import { Category } from "@/types/categories";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
@@ -19,7 +19,7 @@ interface BeveragesMenuBuilderProps {
   menuItems: MenuItem[];
   categories: Category[];
   sections: Section[];
-  onCreateBeverageItem: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt">) => void | Promise<void>;
+  onCreateBeverageItem: (data: CreateMenuItemData, imageFile?: File) => void | Promise<void>;
   onUpdateBeverageItem: (id: string, data: Partial<MenuItem>) => void | Promise<void>;
   onDeleteBeverageItem: (id: string) => void | Promise<void>;
 }
@@ -278,7 +278,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
                     {beverageCategories.map(category => (
-                      <SelectItem key={category.value} value={category.value}>
+                      <SelectItem key={`${category.id}-${category.value}`} value={category.value}>
                         {category.name}
                       </SelectItem>
                     ))}
@@ -352,14 +352,29 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                   stockEntries={stockEntries}
                   onSubmit={
                     editingBeverageItem
-                      ? data => {
+                      ? (data, imageFile) => {
                           // Pass data including imageFile to the update handler
                           onUpdateBeverageItem(editingBeverageItem.id, data);
                           handleCloseModal();
                         }
-                      : data => {
+                      : (data, imageFile) => {
+                          // Debug logging to track data flow
+                          console.log("🔍 BeveragesMenuBuilder - Received data from BeverageItemForm:", data);
+                          console.log("🔍 BeveragesMenuBuilder - Received imageFile from BeverageItemForm:", imageFile);
+                          console.log("🔍 BeveragesMenuBuilder - About to call onCreateBeverageItem with:", {
+                            data,
+                            imageFile,
+                            beverageFields: {
+                              beverageStockId: (data as any).beverageStockId,
+                              unit: (data as any).unit,
+                              availableQuantity: (data as any).availableQuantity,
+                              costPerUnit: (data as any).costPerUnit,
+                              variants: (data as any).variants
+                            }
+                          });
+                          
                           // Pass data including imageFile to the create handler
-                          onCreateBeverageItem(data);
+                          onCreateBeverageItem(data, imageFile);
                           handleCloseModal();
                         }
                   }

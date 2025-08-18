@@ -24,6 +24,7 @@ import sessionsRoutes from "./routes/sessions.js";
 import stockEntriesRoutes from "./routes/stockEntries.js";
 import tablesRoutes from "./routes/tables.js";
 import userRoutes from "./routes/users.js";
+import variantsRoutes from "./routes/variants.js";
 import PrinterService from "./services/PrinterService.js";
 import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
@@ -161,6 +162,7 @@ app.use("/api/sessions", sessionsRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/backup-scheduler", backupSchedulerRoutes);
 app.use("/api/printers", printersRoutes);
+app.use("/api/variants", variantsRoutes);
 
 // Error handling middleware
 // IMPORTANT: app.use(errorHandler) should be the *last* middleware

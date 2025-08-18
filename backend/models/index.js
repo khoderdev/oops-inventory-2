@@ -10,6 +10,7 @@ import EmployeeSettlement from "./EmployeeSettlement.js";
 import EmployeeUsage from "./EmployeeUsage.js";
 import Material from "./materials.js";
 import { MenuItem, MenuItemIngredient } from "./menuItems.js";
+import Variants from "./Variants.js";
 import Order from "./Order.js";
 import OrderItem from "./OrderItem.js";
 import Printer from "./Printer.js";
@@ -687,4 +688,18 @@ DayOperationReport.belongsTo(DayOperation, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, DayOperation, DayOperationReport, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Wasting };
+// MenuItem ↔ Variants
+MenuItem.hasMany(Variants, {
+  foreignKey: "menuItemId",
+  as: "variants",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+Variants.belongsTo(MenuItem, {
+  foreignKey: "menuItemId",
+  as: "menuItem",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+export { Assignment, AuditLog, BackupSchedule, Category, DayOperation, DayOperationReport, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };

@@ -744,9 +744,6 @@ export interface MenuItem {
     value: boolean; id: number; name: string 
 } | null;
   price: number;
-  unit: string;
-  availableQuantity: number;
-  costPerUnit: number;
   ingredients: MenuItemIngredient[];
   menuItemIngredients: boolean;
   isPOSItem?: boolean;
@@ -758,6 +755,11 @@ export interface MenuItem {
     type: string;
     status: string;
   };
+  // Beverage-specific fields (optional to match backend)
+  beverageStockId?: number | null;
+  unit?: string | null;
+  availableQuantity?: number | null;
+  costPerUnit?: number | null;
   variants?: {
     selectedVariants: string[];
     variantVolumes: Record<string, number>;
@@ -832,19 +834,43 @@ export interface MenuItemIngredient {
 export interface CreateMenuItemData {
   name: string;
   description?: string;
-  category: MenuItemCategory;
+  category: MenuItemCategory | number | { id: number; name: string } | null;
   price: number;
   ingredients: MenuItemIngredient[];
   isPOSItem?: boolean;
+  // Beverage-specific fields
+  beverageStockId?: number;
+  unit?: string;
+  availableQuantity?: number;
+  costPerUnit?: number;
+  variants?: {
+    selectedVariants: string[];
+    variantVolumes: Record<string, number>;
+    variantVolumeUnits: Record<string, string>;
+    variantPrices: Record<string, number>;
+    nameFormat?: "prefix" | "suffix";
+  } | Record<string, { volume: number; unit: string; price: number }>;
 }
 
 export interface UpdateMenuItemData {
   name?: string;
   description?: string;
-  category?: MenuItemCategory;
+  category?: MenuItemCategory | number | { id: number; name: string } | null;
   price?: number;
   ingredients?: MenuItemIngredient[];
   isPOSItem?: boolean;
+  // Beverage-specific fields
+  beverageStockId?: number;
+  unit?: string;
+  availableQuantity?: number;
+  costPerUnit?: number;
+  variants?: {
+    selectedVariants: string[];
+    variantVolumes: Record<string, number>;
+    variantVolumeUnits: Record<string, string>;
+    variantPrices: Record<string, number>;
+    nameFormat?: "prefix" | "suffix";
+  } | Record<string, { volume: number; unit: string; price: number }>;
 }
 
 export interface MenuItemBuilderProps {
@@ -852,9 +878,9 @@ export interface MenuItemBuilderProps {
   materials?: Material[];
   sections: Section[];
   menuItems: MenuItem[];
-  onCreateMenuItem?: (data: MenuItem) => void;
-  onUpdateMenuItem?: (id: string, data: MenuItem) => void;
-  onDeleteMenuItem?: (id: string) => void;
+  onCreateMenuItem?: (menuItem: CreateMenuItemData, imageFile?: File) => Promise<void>;
+  onUpdateMenuItem?: (id: string, menuItem: Partial<MenuItem>) => Promise<void>;
+  onDeleteMenuItem?: (id: string) => Promise<void>;
 }
 
 

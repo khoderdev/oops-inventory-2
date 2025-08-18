@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
-import { MenuItem, Material, StockEntry, Section } from "@/types/inventory";
+import { MenuItem, Material, StockEntry, Section, CreateMenuItemData } from "@/types/inventory";
 import { Category } from "@/types/categories";
 import { MenuItemBuilder } from "./MenuBuilder";
 import BeveragesMenuBuilder from "./BeveragesMenuBuilder";
@@ -11,7 +11,7 @@ interface TabMenuProps {
   materials: Material[];
   categories: Category[];
   sections: Section[];
-  onCreateMenuItem: (menuItem: Omit<MenuItem, "id" | "createdAt" | "updatedAt">) => Promise<void>;
+  onCreateMenuItem: (menuItem: CreateMenuItemData, imageFile?: File) => Promise<void>;
   onUpdateMenuItem: (id: string, menuItem: Partial<MenuItem>) => Promise<void>;
   onDeleteMenuItem: (id: string) => Promise<void>;
 }

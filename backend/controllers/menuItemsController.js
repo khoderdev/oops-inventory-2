@@ -1,7 +1,12 @@
 import sequelize from "../config/database.js";
-import { Material, MenuItem, MenuItemIngredient, Printer, Category } from "../models/index.js";
-import { isValidCategory, getMenuItemCategories } from "../utils/categoryHelpers.js";
+import { MenuItem, MenuItemIngredient, Variants } from "../models/index.js";
+import Category from "../models/Category.js";
+import Material from "../models/materials.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
+import multer from "multer";
 
 const menuItemsController = {
   // Get all menu items with ingredients
@@ -21,9 +26,12 @@ const menuItemsController = {
             include: [{ model: Material, as: "material" }]
           },
           {
-            model: Printer,
-            as: "assignedPrinter",
-            required: false
+            model: Variants,
+            as: "variants",
+            attributes: ["id", "name", "volume", "unit", "price", "isActive", "sortOrder"],
+            where: { isActive: true },
+            required: false,
+            order: [["sortOrder", "ASC"], ["name", "ASC"]]
           }
         ]
       });
@@ -35,7 +43,8 @@ const menuItemsController = {
           quantity: ingredient.quantity,
           unit: ingredient.unit,
           cost: ingredient.cost
-        }))
+        })),
+        variants: item.variants || []
       }));
 
       res.status(200).json(formattedMenuItems);
@@ -62,9 +71,12 @@ const menuItemsController = {
             include: [{ model: Material, as: "material" }]
           },
           {
-            model: Printer,
-            as: "assignedPrinter",
-            required: false
+            model: Variants,
+            as: "variants",
+            attributes: ["id", "name", "volume", "unit", "price", "isActive", "sortOrder"],
+            where: { isActive: true },
+            required: false,
+            order: [["sortOrder", "ASC"], ["name", "ASC"]]
           }
         ]
       });
@@ -80,7 +92,8 @@ const menuItemsController = {
           quantity: ingredient.quantity,
           unit: ingredient.unit,
           cost: ingredient.cost
-        }))
+        })),
+        variants: menuItem.variants || []
       };
 
       res.status(200).json(formattedMenuItem);
@@ -89,11 +102,38 @@ const menuItemsController = {
     }
   },
 
-  // Create new menu item with ingredients
+  // Create new menu item with ingredients and variants
   createMenuItem: async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
-      const { name, price, category, description, ingredients, isPOSItem, image, imageBase64 } = req.body;
+      const {
+        name,
+        price,
+        category,
+        description,
+        isPOSItem,
+        image,
+        imageBase64,
+        ingredients,
+        beverageStockId,
+        unit,
+        availableQuantity,
+        costPerUnit,
+        variants
+      } = req.body;
+
+      // Debug logging to see what backend receives
+      console.log('📥 Backend: Full req.body:', req.body);
+      console.log('📥 Backend: Extracted beverage fields:', {
+        name,
+        category: typeof category === 'string' ? category : category,
+        beverageStockId,
+        unit,
+        availableQuantity,
+        costPerUnit,
+        variants: typeof variants === 'string' ? 'JSON string' : variants,
+        hasImageFile: !!req.file
+      });
 
       // Validate and convert price
       const priceValue = typeof price === "string" ? parseFloat(price) : price;
@@ -186,48 +226,91 @@ const menuItemsController = {
         });
       }
 
-      // Parse and validate ingredients (if provided)
-      let parsedIngredients = ingredients;
-      
-      // Check if ingredients are required for this category
-      const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
-      const requiresIngredients = !noIngredientsCategories.includes(categoryValue?.toLowerCase());
-      
+      // Parse ingredients if they exist
+      let parsedIngredients = null;
       if (ingredients) {
-        // Handle case where ingredients come as JSON string (from FormData)
         if (typeof ingredients === "string") {
           try {
             parsedIngredients = JSON.parse(ingredients);
           } catch (e) {
             await transaction.rollback();
-            return res.status(400).json({ error: "Invalid ingredients format - must be valid JSON array" });
+            return res.status(400).json({ error: "Invalid ingredients format - must be valid JSON" });
           }
+        } else if (Array.isArray(ingredients)) {
+          parsedIngredients = ingredients;
         }
+      }
 
-        if (!Array.isArray(parsedIngredients)) {
+      // Check if ingredients are required for this category
+      const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+      const requiresIngredients = !noIngredientsCategories.includes(categoryValue?.toLowerCase());
+
+      // Parse and validate beverage-specific fields
+      let beverageData = {};
+      if (beverageStockId !== undefined) {
+        const stockId = typeof beverageStockId === "string" ? parseInt(beverageStockId) : beverageStockId;
+        if (isNaN(stockId)) {
           await transaction.rollback();
-          return res.status(400).json({ error: "Ingredients must be an array" });
+          return res.status(400).json({ error: "Beverage stock ID must be a valid number" });
         }
+        beverageData.beverageStockId = stockId;
+      }
 
-        // Validate ingredients if any are provided
-        if (parsedIngredients.length > 0) {
-          for (const ingredient of parsedIngredients) {
-            if (!ingredient.materialId || ingredient.quantity === undefined || !ingredient.unit || ingredient.cost === undefined) {
-              await transaction.rollback();
-              return res.status(400).json({ error: "All ingredient fields are required" });
-            }
-            if (ingredient.quantity <= 0) {
-              await transaction.rollback();
-              return res.status(400).json({ error: "Ingredient quantity must be positive" });
-            }
-            if (ingredient.unit.trim() === "") {
-              await transaction.rollback();
-              return res.status(400).json({ error: "Ingredient unit cannot be empty" });
-            }
-            if (ingredient.cost < 0) {
-              await transaction.rollback();
-              return res.status(400).json({ error: "Ingredient cost cannot be negative" });
-            }
+      if (unit !== undefined) {
+        beverageData.unit = unit;
+      }
+
+      if (availableQuantity !== undefined) {
+        const quantity = typeof availableQuantity === "string" ? parseFloat(availableQuantity) : availableQuantity;
+        if (isNaN(quantity) || quantity < 0) {
+          await transaction.rollback();
+          return res.status(400).json({ error: "Available quantity must be a non-negative number" });
+        }
+        beverageData.availableQuantity = quantity;
+      }
+
+      if (costPerUnit !== undefined) {
+        const cost = typeof costPerUnit === "string" ? parseFloat(costPerUnit) : costPerUnit;
+        if (isNaN(cost) || cost < 0) {
+          await transaction.rollback();
+          return res.status(400).json({ error: "Cost per unit must be a non-negative number" });
+        }
+        beverageData.costPerUnit = cost;
+      }
+
+      // Parse variants if they exist
+      let parsedVariants = null;
+      if (variants) {
+        if (typeof variants === "string") {
+          try {
+            parsedVariants = JSON.parse(variants);
+          } catch (e) {
+            await transaction.rollback();
+            return res.status(400).json({ error: "Invalid variants format - must be valid JSON" });
+          }
+        } else if (typeof variants === "object") {
+          parsedVariants = variants;
+        }
+      }
+
+      // Validate ingredients if any are provided
+      if (parsedIngredients && parsedIngredients.length > 0) {
+        for (const ingredient of parsedIngredients) {
+          if (!ingredient.materialId || ingredient.quantity === undefined || !ingredient.unit || ingredient.cost === undefined) {
+            await transaction.rollback();
+            return res.status(400).json({ error: "All ingredient fields are required" });
+          }
+          if (ingredient.quantity <= 0) {
+            await transaction.rollback();
+            return res.status(400).json({ error: "Ingredient quantity must be positive" });
+          }
+          if (ingredient.unit.trim() === "") {
+            await transaction.rollback();
+            return res.status(400).json({ error: "Ingredient unit cannot be empty" });
+          }
+          if (ingredient.cost < 0) {
+            await transaction.rollback();
+            return res.status(400).json({ error: "Ingredient cost cannot be negative" });
           }
         }
       } else {
@@ -257,7 +340,7 @@ const menuItemsController = {
         imageUrl = image;
       }
 
-      // Create menu item with properly converted price and categoryId
+      // Create menu item with properly converted price, categoryId, and beverage data
       const menuItem = await MenuItem.create(
         {
           name,
@@ -265,7 +348,8 @@ const menuItemsController = {
           categoryId,
           description,
           isPOSItem: isPOSItem !== undefined ? isPOSItem : false,
-          image: imageUrl
+          image: imageUrl,
+          ...beverageData
         },
         { transaction }
       );
@@ -282,7 +366,42 @@ const menuItemsController = {
         await MenuItemIngredient.bulkCreate(ingredientData, { transaction });
       }
 
-      // Fetch the created menu item with ingredients and category
+      // Create variants if provided
+      if (parsedVariants && typeof parsedVariants === "object") {
+        const variantEntries = Object.entries(parsedVariants);
+        if (variantEntries.length > 0) {
+          const variantData = variantEntries.map(([variantName, variantInfo], index) => {
+            // Validate variant data
+            if (!variantInfo.volume || !variantInfo.unit || variantInfo.price === undefined) {
+              throw new Error(`Variant "${variantName}" is missing required fields (volume, unit, price)`);
+            }
+
+            const volume = typeof variantInfo.volume === "string" ? parseFloat(variantInfo.volume) : variantInfo.volume;
+            const price = typeof variantInfo.price === "string" ? parseFloat(variantInfo.price) : variantInfo.price;
+
+            if (isNaN(volume) || volume <= 0) {
+              throw new Error(`Variant "${variantName}" has invalid volume`);
+            }
+            if (isNaN(price) || price < 0) {
+              throw new Error(`Variant "${variantName}" has invalid price`);
+            }
+
+            return {
+              menuItemId: menuItem.id,
+              name: variantName,
+              volume: volume,
+              unit: variantInfo.unit,
+              price: price,
+              isActive: true,
+              sortOrder: index
+            };
+          });
+
+          await Variants.bulkCreate(variantData, { transaction });
+        }
+      }
+
+      // Fetch the created menu item with ingredients, variants, and category
       const createdMenuItem = await MenuItem.findByPk(menuItem.id, {
         include: [
           {
@@ -295,6 +414,14 @@ const menuItemsController = {
             model: MenuItemIngredient,
             as: "menuItemIngredients",
             include: [{ model: Material, as: "material" }]
+          },
+          {
+            model: Variants,
+            as: "variants",
+            attributes: ["id", "name", "volume", "unit", "price", "isActive", "sortOrder"],
+            where: { isActive: true },
+            required: false,
+            order: [["sortOrder", "ASC"], ["name", "ASC"]]
           }
         ],
         transaction
@@ -302,13 +429,20 @@ const menuItemsController = {
 
       const formattedMenuItem = {
         ...createdMenuItem.get(),
-        ingredients: createdMenuItem.menuItemIngredients.map(ingredient => ({
-          materialId: ingredient.materialId,
-          quantity: ingredient.quantity,
-          unit: ingredient.unit,
-          cost: ingredient.cost
-        }))
+        variants: createdMenuItem.variants || []
       };
+
+      // Debug logging to see what's being returned
+      console.log('🔍 Backend: Created beverage item response:', {
+        id: formattedMenuItem.id,
+        name: formattedMenuItem.name,
+        beverageStockId: formattedMenuItem.beverageStockId,
+        unit: formattedMenuItem.unit,
+        availableQuantity: formattedMenuItem.availableQuantity,
+        costPerUnit: formattedMenuItem.costPerUnit,
+        variants: formattedMenuItem.variants,
+        category: formattedMenuItem.category
+      });
 
       await transaction.commit();
       res.status(201).json(formattedMenuItem);
