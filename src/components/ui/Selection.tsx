@@ -140,7 +140,7 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
 
         <div className="flex items-center pr-3">
           {searchTerm && (
-            <button type="button" onClick={handleClearSelection} className="p-1 hover:bg-muted rounded-full mr-1">
+            <button type="button" onClick={handleClearSelection} className="mr-1">
               <X size={14} className="text-muted-foreground" />
             </button>
           )}

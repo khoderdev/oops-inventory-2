@@ -364,7 +364,8 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         toast({
           title: "Error",
           description: "Selected category is not valid. Please select a valid category.",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 1000
         });
         return;
       }

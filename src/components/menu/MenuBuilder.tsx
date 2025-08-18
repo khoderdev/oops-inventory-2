@@ -71,7 +71,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           title: "Error",
           description: "Failed to load menu categories",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       } finally {
         setCategoriesLoading(false);
@@ -121,7 +121,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         title: "Validation Disabled",
         description: "Data validation is disabled. Enable it in System Settings to run validation.",
         variant: "destructive",
-        duration: 1500
+        duration: 1000
       });
       return;
     }
@@ -297,7 +297,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           title: "Success",
           description: "Menu item deleted successfully",
           variant: "default",
-          duration: 1500
+          duration: 1000
         });
       } catch (error) {
         console.error("❌ [MenuBuilder] Error deleting menu item:", error);
@@ -305,7 +305,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           title: "Error",
           description: "Failed to delete menu item",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       }
     },
@@ -326,7 +326,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           title: "Success",
           description: `${item.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
           variant: "default",
-          duration: 1500
+          duration: 1000
         });
         await fetchTabData("menu");
         if (onUpdateMenuItem) {
@@ -338,7 +338,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           title: "Error",
           description: "Failed to update POS visibility",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       }
     },
@@ -653,7 +653,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           title: "Success",
           description: "Menu item created successfully",
           variant: "default",
-          duration: 1500
+          duration: 1000
         });
       } catch (error) {
         console.error("Error creating menu item:", error);
@@ -661,7 +661,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           title: "Error",
           description: "Failed to create menu item",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       }
     },
@@ -699,7 +699,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           title: "Success",
           description: "Menu item updated successfully",
           variant: "default",
-          duration: 1500
+          duration: 1000
         });
       } catch (error) {
         console.error("Error updating menu item:", error);
@@ -710,7 +710,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           title: "Error",
           description: "Failed to update menu item",
           variant: "destructive",
-          duration: 1500
+          duration: 1000
         });
       }
     },
@@ -787,7 +787,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         title: "Error",
         description: "Please select a category",
         variant: "destructive",
-        duration: 1500
+        duration: 1000
       });
       return;
     }
@@ -810,7 +810,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         title: "Success",
         description: `Updated ${response.data.updatedCount} menu items to ${categoryLabel} category`,
         variant: "default",
-        duration: 1500
+        duration: 1000
       });
       await fetchTabData("menu");
       setSelectedMenuItems(new Set());
@@ -822,7 +822,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         title: "Error",
         description: "Failed to update menu item categories",
         variant: "destructive",
-        duration: 1500
+        duration: 1000
       });
     }
   }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, categories, fetchTabData, handleCloseBulkCategoryDialog]);
