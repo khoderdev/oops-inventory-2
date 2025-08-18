@@ -6,11 +6,12 @@ import { ImageUpload } from "../ui/image-upload";
 import { Selection, StockEntryItemRenderer } from "../ui/Selection";
 import { Variants, VariantData } from "../ui/Variants";
 import { CostBreakdown } from "./CostBreakdown";
+import { Ingredients } from "./Ingredients";
 import { toast } from "../ui/use-toast";
 import { beverageStockAPI } from "@/api/stock.api.ts";
-import { BeverageItemFormProps, StockEntryWithMaterial } from "@/types/inventory";
+import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient, Material, StockEntry } from "@/types/inventory";
 
-export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, onSubmit, onCancel, enableVariants = false }) => {
+export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, materials = [], stockEntries = [], onSubmit, onCancel, enableVariants = false }) => {
   const [name, setName] = useState(menuItem?.name || "");
   const [categoryId, setCategoryId] = useState<string>(typeof menuItem?.category === "object" && menuItem.category !== null && "id" in menuItem.category ? String(menuItem.category.id) : "");
   const [price, setPrice] = useState(menuItem?.price?.toString() || "");
@@ -22,6 +23,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [showBeverageDropdown, setShowBeverageDropdown] = useState(false);
   const [isBeverageLoading, setIsBeverageLoading] = useState(false);
   const [selectedBeverageStock, setSelectedBeverageStock] = useState<StockEntryWithMaterial | null>(null);
+  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(menuItem?.ingredients?.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) || []);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showVariantsSection, setShowVariantsSection] = useState(true);
   const [variantData, setVariantData] = useState<VariantData>({
@@ -114,7 +116,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       setPrice(menuItem.price?.toString() || "");
       setIsPOSItem(menuItem.isPOSItem ?? true);
       setImage(menuItem.image);
-      
+
       // Initialize variant data if menu item has variants
       if (menuItem.variants) {
         setVariantData({
@@ -209,7 +211,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       unit: selectedBeverageStock?.purchasedUnit || "piece",
       availableQuantity: selectedBeverageStock?.purchasedQuantity || 0,
       costPerUnit: selectedBeverageStock?.costPerPurchasedUnit || 0,
-      ingredients: [],
+      ingredients: ingredients,
       menuItemIngredients: false,
       isPOSItem,
       image: image || "",
@@ -235,6 +237,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     setImageFile(undefined);
     setSelectedBeverageStock(null);
     setBeverageSearchTerm("");
+    setIngredients([]);
     setErrors({});
   }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, showVariantsSection, variantData, categories, validateForm, onSubmit]);
 
@@ -332,6 +335,29 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
 
       {/* Cost Breakdown Section */}
       {selectedBeverageStock && <CostBreakdown selectedBeverageStock={selectedBeverageStock} price={price} variantData={variantData} />}
+
+      {/* Ingredients Section */}
+      {materials && stockEntries && (
+        <Ingredients
+          ingredients={ingredients}
+          materials={materials}
+          stockEntries={stockEntries}
+          menuItem={menuItem}
+          category={categories.find(cat => cat.id === categoryId)?.name || ""}
+          price={price}
+          onIngredientsChange={setIngredients}
+          errors={{
+            ingredients: errors.ingredients,
+            ingredientQuantity: errors.ingredientQuantity
+          }}
+          onErrorsChange={ingredientErrors => {
+            setErrors(prev => ({
+              ...prev,
+              ...ingredientErrors
+            }));
+          }}
+        />
+      )}
 
       {/* Image Upload Section */}
       <div className="border-t pt-4">
