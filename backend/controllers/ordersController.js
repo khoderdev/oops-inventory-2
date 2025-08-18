@@ -8,22 +8,49 @@ import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js"
 const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => {
   try {
     console.log(`🔍 Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
-    
+
     // Get menu item with its ingredients
     const menuItem = await MenuItem.findByPk(menuItemId, {
-      include: [{
-        model: MenuItemIngredient,
-        as: "menuItemIngredients",
-        include: [{
-          model: Material,
-          as: "material"
-        }]
-      }],
+      include: [
+        {
+          model: MenuItemIngredient,
+          as: "menuItemIngredients",
+          include: [
+            {
+              model: Material,
+              as: "material"
+            }
+          ]
+        }
+      ],
       transaction
     });
 
-    if (!menuItem || !menuItem.menuItemIngredients) {
-      console.log(`⚠️ No ingredients found for menu item ID: ${menuItemId}`);
+    if (!menuItem) {
+      console.log(`❌ Menu item not found: ${menuItemId}`);
+      return;
+    }
+
+    // Check if menu item has ingredients
+    if (!menuItem.menuItemIngredients || menuItem.menuItemIngredients.length === 0) {
+      console.log(`🍾 No ingredients found for menu item "${menuItem.name}" - treating as direct material consumption`);
+
+      // For menu items without ingredients (like beverages), try to find a material with the same name
+      const matchingMaterial = await Material.findOne({
+        where: {
+          name: { [Op.iLike]: `%${menuItem.name}%` }
+        },
+        transaction
+      });
+
+      if (matchingMaterial) {
+        console.log(`🎯 Found matching material: ${matchingMaterial.name} (ID: ${matchingMaterial.id}) for menu item "${menuItem.name}"`);
+
+        // Deduct stock directly from this material
+        await deductStockFromMaterial(matchingMaterial.id, orderQuantity, menuItem.name, transaction);
+      } else {
+        console.log(`⚠️ No matching material found for menu item "${menuItem.name}" - skipping stock deduction`);
+      }
       return;
     }
 
@@ -35,7 +62,7 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
       const requiredQuantity = ingredient.quantity * orderQuantity;
       const unit = ingredient.unit;
 
-      console.log(`🥄 Processing ingredient: ${ingredient.material?.name || 'Unknown'} - Required: ${requiredQuantity} ${unit}`);
+      console.log(`🥄 Processing ingredient: ${ingredient.material?.name || "Unknown"} - Required: ${requiredQuantity} ${unit}`);
       console.log(`📊 Ingredient details: materialId=${materialId}, quantity=${ingredient.quantity}, unit=${ingredient.unit}, orderQuantity=${orderQuantity}`);
 
       // Find available stock entries for this material (FIFO - oldest first)
@@ -56,7 +83,7 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
             }
           ]
         },
-        order: [['purchaseDate', 'ASC']], // FIFO ordering
+        order: [["purchaseDate", "ASC"]], // FIFO ordering
         transaction
       });
 
@@ -86,15 +113,21 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
 
         // Update stock entry quantity
         const newQuantity = Math.max(0, availableQuantity - deductAmount); // Ensure non-negative
-        
+
         if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
-          await stockEntry.update({
-            purchasedIndividualQuantity: newQuantity
-          }, { transaction });
+          await stockEntry.update(
+            {
+              purchasedIndividualQuantity: newQuantity
+            },
+            { transaction }
+          );
         } else {
-          await stockEntry.update({
-            purchasedQuantity: newQuantity
-          }, { transaction });
+          await stockEntry.update(
+            {
+              purchasedQuantity: newQuantity
+            },
+            { transaction }
+          );
         }
 
         remainingToDeduct -= deductAmount;
@@ -112,6 +145,92 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
     console.log(`🎉 Stock deduction completed for menu item: ${menuItem.name}`);
   } catch (error) {
     console.error(`❌ Error deducting ingredient stock for menu item ID ${menuItemId}:`, error);
+    throw error;
+  }
+};
+
+// Helper function to deduct stock directly from a material (for menu items without ingredients)
+const deductStockFromMaterial = async (materialId, requiredQuantity, itemName, transaction) => {
+  try {
+    console.log(`🥤 Deducting ${requiredQuantity} units directly from material ID: ${materialId} for "${itemName}"`);
+
+    // Find available stock entries for this material (FIFO - oldest first)
+    const stockEntries = await StockEntry.findAll({
+      where: {
+        materialId: materialId,
+        [Op.or]: [
+          {
+            purchasedIndividualQuantity: {
+              [Op.gt]: 0 // Only positive individual quantities
+            }
+          },
+          {
+            purchasedIndividualQuantity: null,
+            purchasedQuantity: {
+              [Op.gt]: 0 // Only positive purchased quantities when individual is null
+            }
+          }
+        ]
+      },
+      order: [["purchaseDate", "ASC"]], // FIFO ordering
+      transaction
+    });
+
+    if (stockEntries.length === 0) {
+      console.log(`⚠️ No stock available for material ID: ${materialId} (${itemName})`);
+      return;
+    }
+
+    let remainingToDeduct = requiredQuantity;
+    console.log(`📦 Found ${stockEntries.length} stock entries for material ID: ${materialId}`);
+
+    // Deduct from stock entries using FIFO
+    for (const stockEntry of stockEntries) {
+      if (remainingToDeduct <= 0) break;
+
+      const availableQuantity = stockEntry.purchasedIndividualQuantity || stockEntry.purchasedQuantity || 0;
+      const deductAmount = Math.min(remainingToDeduct, availableQuantity);
+
+      console.log(`📊 Stock Entry Details: ID=${stockEntry.id}, purchasedQuantity=${stockEntry.purchasedQuantity}, purchasedUnit=${stockEntry.purchasedUnit}, purchasedIndividualQuantity=${stockEntry.purchasedIndividualQuantity}, purchasedIndividualUnit=${stockEntry.purchasedIndividualUnit}`);
+
+      if (deductAmount <= 0) {
+        console.log(`⚠️ No quantity to deduct from stock entry ID: ${stockEntry.id}`);
+        continue;
+      }
+
+      console.log(`📉 Deducting ${deductAmount} from stock entry ID: ${stockEntry.id} (Available: ${availableQuantity})`);
+
+      // Update stock entry quantity
+      const newQuantity = Math.max(0, availableQuantity - deductAmount); // Ensure non-negative
+
+      if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
+        await stockEntry.update(
+          {
+            purchasedIndividualQuantity: newQuantity
+          },
+          { transaction }
+        );
+      } else {
+        await stockEntry.update(
+          {
+            purchasedQuantity: newQuantity
+          },
+          { transaction }
+        );
+      }
+
+      remainingToDeduct -= deductAmount;
+      console.log(`✅ Updated stock entry ID: ${stockEntry.id} - New quantity: ${newQuantity}, Remaining to deduct: ${remainingToDeduct}`);
+    }
+
+    if (remainingToDeduct > 0) {
+      console.log(`⚠️ Insufficient stock for ${itemName}. Short by: ${remainingToDeduct} units`);
+      // Note: We continue processing rather than throwing an error to allow partial fulfillment
+    } else {
+      console.log(`✅ Successfully deducted all required stock for ${itemName}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error deducting stock for material ID ${materialId}:`, error);
     throw error;
   }
 };
@@ -173,13 +292,13 @@ export const ordersController = {
               notes: item.notes
             };
             const orderItem = await OrderItem.create(orderItemData, { transaction });
-            
+
             // Deduct ingredient stock for menu items
-            if (item.type === 'menu_item' && item.menuItemId) {
+            if (item.type === "menu_item" && item.menuItemId) {
               console.log(`🍽️ Processing menu item for stock deduction: ${item.name} (ID: ${item.menuItemId}), Quantity: ${item.quantity}`);
               await deductIngredientStock(item.menuItemId, item.quantity, transaction);
             }
-            
+
             return orderItem;
           })
         );
@@ -231,13 +350,7 @@ export const ordersController = {
         whereClause.orderType = orderType;
       } else {
         // Postgres enum-safe filter: cast enum to text then NOT IN
-        whereClause[Op.and] = [
-          ...(whereClause[Op.and] || []),
-          sequelize.where(
-            sequelize.cast(sequelize.col("orderType"), "text"),
-            { [Op.notIn]: excludedTypes }
-          )
-        ];
+        whereClause[Op.and] = [...(whereClause[Op.and] || []), sequelize.where(sequelize.cast(sequelize.col("orderType"), "text"), { [Op.notIn]: excludedTypes })];
       }
       if (tableId) whereClause.tableId = tableId;
       if (startDate || endDate) {
@@ -307,7 +420,9 @@ export const ordersController = {
           { model: User, as: "updater", attributes: ["id", "username"] }
         ]
       });
-      if (!order) { return res.status(404).json({ message: "Order not found" }); }
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
       // Exclude staff/employee orders from this endpoint
       if (["employees", "staff"].includes(String(order.orderType).toLowerCase())) {
         return res.status(404).json({ message: "Order not found" });
@@ -326,7 +441,10 @@ export const ordersController = {
       const { orderType, tableId, customerName, customerPhone, customerAddress, notes, items } = req.body;
       const userId = req.user?.id;
       const order = await Order.findByPk(orderId, { transaction });
-      if (!order) { await transaction.rollback(); return res.status(404).json({ message: "Order not found" }); }
+      if (!order) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Order not found" });
+      }
       const originalOrder = order.toJSON();
       const oldTableId = order.tableId;
       const newTableId = tableId !== undefined ? tableId : order.tableId;
@@ -354,12 +472,16 @@ export const ordersController = {
               },
               transaction
             });
-            if (otherActiveOrders === 0) { await oldTable.update({ status: "available" }, { transaction }); }
+            if (otherActiveOrders === 0) {
+              await oldTable.update({ status: "available" }, { transaction });
+            }
           }
         }
         if (newTableId) {
           const newTable = await Table.findByPk(newTableId, { transaction });
-          if (newTable && newTable.status === "available") { await newTable.update({ status: "opened" }, { transaction }); }
+          if (newTable && newTable.status === "available") {
+            await newTable.update({ status: "opened" }, { transaction });
+          }
         }
       }
       if (items) {
@@ -385,7 +507,9 @@ export const ordersController = {
               const newMaterialId = String(newItem.materialId);
               return existingMaterialId === newMaterialId;
             }
-            if (existingItem.type === newItem.type && existingItem.name === newItem.name) { return true; }
+            if (existingItem.type === newItem.type && existingItem.name === newItem.name) {
+              return true;
+            }
             return false;
           });
 
@@ -455,7 +579,9 @@ export const ordersController = {
           console.error("❌ Failed to process void print jobs:", voidPrintError);
         }
       }
-      if (userId) { await auditOrderOperation(userId, "UPDATE", updatedOrder.toJSON(), originalOrder, req); }
+      if (userId) {
+        await auditOrderOperation(userId, "UPDATE", updatedOrder.toJSON(), originalOrder, req);
+      }
       res.json({ message: "Order updated successfully", order: updatedOrder });
     } catch (error) {
       await transaction.rollback();
@@ -519,12 +645,15 @@ export const ordersController = {
       const discountAmountValue = parseFloat(order.discountAmount) || 0;
       const total = Math.max(0, subtotal - discountAmountValue);
 
-      await order.update({ 
-        subtotal, 
-        tax, 
-        total,
-        updatedBy: userId 
-      }, { transaction });
+      await order.update(
+        {
+          subtotal,
+          tax,
+          total,
+          updatedBy: userId
+        },
+        { transaction }
+      );
 
       await transaction.commit();
 
@@ -551,11 +680,10 @@ export const ordersController = {
         await auditOrderOperation(userId, "ADD_ITEMS", updatedOrder.toJSON(), null, req);
       }
 
-      res.json({ 
-        message: `Successfully added ${newOrderItems.length} items to order`, 
-        order: updatedOrder 
+      res.json({
+        message: `Successfully added ${newOrderItems.length} items to order`,
+        order: updatedOrder
       });
-
     } catch (error) {
       await transaction.rollback();
       console.error("Add order items error:", error);
@@ -999,12 +1127,7 @@ export const ordersController = {
         where: {
           tableId,
           status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] },
-          [Op.and]: [
-            sequelize.where(
-              sequelize.cast(sequelize.col("orderType"), "text"),
-              { [Op.notIn]: ["employees", "staff"] }
-            )
-          ]
+          [Op.and]: [sequelize.where(sequelize.cast(sequelize.col("orderType"), "text"), { [Op.notIn]: ["employees", "staff"] })]
         },
         include: [
           { model: OrderItem, as: "items" },
@@ -1026,12 +1149,7 @@ export const ordersController = {
       const orders = await Order.findAll({
         where: {
           status: "draft",
-          [Op.and]: [
-            sequelize.where(
-              sequelize.cast(sequelize.col("orderType"), "text"),
-              { [Op.notIn]: ["employees", "staff"] }
-            )
-          ]
+          [Op.and]: [sequelize.where(sequelize.cast(sequelize.col("orderType"), "text"), { [Op.notIn]: ["employees", "staff"] })]
         },
         include: [
           { model: OrderItem, as: "items" },
@@ -1060,13 +1178,7 @@ export const ordersController = {
         if (endDate) whereClause.createdAt[Op.lte] = new Date(endDate);
       }
       // Postgres enum-safe filter: cast enum to text then IN
-      whereClause[Op.and] = [
-        ...(whereClause[Op.and] || []),
-        sequelize.where(
-          sequelize.cast(sequelize.col("orderType"), "text"),
-          { [Op.in]: ["employees", "staff"] }
-        )
-      ];
+      whereClause[Op.and] = [...(whereClause[Op.and] || []), sequelize.where(sequelize.cast(sequelize.col("orderType"), "text"), { [Op.in]: ["employees", "staff"] })];
 
       const orders = await Order.findAll({
         where: whereClause,
@@ -1153,7 +1265,7 @@ export const ordersController = {
 async function processVoidPrintJobs(removedItems, order, userId) {
   try {
     console.log(`🔄 Processing void print jobs for ${removedItems.length} removed items`);
-    
+
     // Group removed items by their assigned printer
     const itemsByPrinter = new Map();
     const printerAssignmentCache = new Map();
@@ -1259,7 +1371,7 @@ async function processVoidPrintJobs(removedItems, order, userId) {
         console.error(`❌ Failed to create void print job for printer ${printerId}:`, printerError);
       }
     }
-    
+
     console.log(`📋 Total void print jobs created: ${printJobs.length}`);
     return printJobs;
   } catch (error) {
@@ -1298,7 +1410,7 @@ async function determinePrinterAssignment(item, cache = new Map()) {
     // 2. Category-based assignment with database lookup
     const category = getItemCategory(item);
     const cacheKey = `category_${category}`;
-    
+
     if (cache.has(cacheKey)) {
       printerId = cache.get(cacheKey);
       console.log(`📦 Cached category assignment - "${category}" → Printer ID: ${printerId}`);
@@ -1307,7 +1419,7 @@ async function determinePrinterAssignment(item, cache = new Map()) {
 
     // 3. Query database for category-based printer assignments
     printerId = await getCategoryPrinterAssignment(category, item.type);
-    
+
     if (printerId) {
       cache.set(cacheKey, printerId);
       console.log(`🏷️ Category assignment - "${category}" → Printer ID: ${printerId}`);
@@ -1316,7 +1428,7 @@ async function determinePrinterAssignment(item, cache = new Map()) {
 
     // 4. Fallback to default printer by type
     printerId = await getDefaultPrinterByType(item.type);
-    
+
     if (printerId) {
       console.log(`🔄 Fallback assignment - Type "${item.type}" → Printer ID: ${printerId}`);
       return printerId;
@@ -1324,7 +1436,7 @@ async function determinePrinterAssignment(item, cache = new Map()) {
 
     // 5. Ultimate fallback - get any active printer
     printerId = await getAnyActivePrinter();
-    
+
     if (printerId) {
       console.log(`⚡ Ultimate fallback - Any active printer → Printer ID: ${printerId}`);
       return printerId;
@@ -1332,7 +1444,6 @@ async function determinePrinterAssignment(item, cache = new Map()) {
 
     console.warn(`⚠️ No printer assignment possible for item: ${getItemDisplayName(item)}`);
     return null;
-
   } catch (error) {
     console.error(`❌ Error determining printer assignment for item:`, error);
     return null;
@@ -1347,27 +1458,27 @@ async function getCategoryPrinterAssignment(category, itemType) {
     // Define category to printer type mapping
     const categoryPrinterMap = {
       // Food categories → Kitchen printers
-      'appetizers': 'kitchen',
-      'main_course': 'kitchen', 
-      'burgers': 'kitchen',
-      'sandwiches': 'kitchen',
-      'pasta': 'kitchen',
-      'pizza': 'kitchen',
-      'breakfast': 'kitchen',
-      'salads': 'kitchen',
-      'sushi': 'kitchen',
-      
+      appetizers: "kitchen",
+      main_course: "kitchen",
+      burgers: "kitchen",
+      sandwiches: "kitchen",
+      pasta: "kitchen",
+      pizza: "kitchen",
+      breakfast: "kitchen",
+      salads: "kitchen",
+      sushi: "kitchen",
+
       // Beverage categories → Bar printers
-      'beverages': 'bar',
-      'drinks': 'bar',
-      'cocktails': 'bar',
-      'smoothies': 'bar',
-      'coffee': 'bar',
-      
+      beverages: "bar",
+      drinks: "bar",
+      cocktails: "bar",
+      smoothies: "bar",
+      coffee: "bar",
+
       // Hookah/Shisha → Arguile printers
-      'hookah': 'arguile',
-      'shisha': 'arguile',
-      'arguile': 'arguile'
+      hookah: "arguile",
+      shisha: "arguile",
+      arguile: "arguile"
     };
 
     const printerType = categoryPrinterMap[category?.toLowerCase()];
@@ -1375,13 +1486,9 @@ async function getCategoryPrinterAssignment(category, itemType) {
       const printer = await Printer.findOne({
         where: {
           isActive: true,
-          [Op.or]: [
-            { location: { [Op.iLike]: `%${printerType}%` } },
-            { name: { [Op.iLike]: `%${printerType}%` } },
-            { description: { [Op.iLike]: `%${printerType}%` } }
-          ]
+          [Op.or]: [{ location: { [Op.iLike]: `%${printerType}%` } }, { name: { [Op.iLike]: `%${printerType}%` } }, { description: { [Op.iLike]: `%${printerType}%` } }]
         },
-        order: [['lastPing', 'DESC']]
+        order: [["lastPing", "DESC"]]
       });
       return printer?.id || null;
     }
@@ -1392,31 +1499,28 @@ async function getCategoryPrinterAssignment(category, itemType) {
   }
 }
 
-
- // Get default printer by item type
+// Get default printer by item type
 async function getDefaultPrinterByType(itemType) {
   try {
     let searchTerms = [];
-    if (itemType === 'menu_item') {
-      searchTerms = ['kitchen', 'food', 'main'];
-    } else if (itemType === 'material') {
-      searchTerms = ['bar', 'beverage', 'drink'];
+    if (itemType === "menu_item") {
+      searchTerms = ["kitchen", "food", "main"];
+    } else if (itemType === "material") {
+      searchTerms = ["bar", "beverage", "drink"];
     } else {
-      searchTerms = ['kitchen', 'main'];
+      searchTerms = ["kitchen", "main"];
     }
     for (const term of searchTerms) {
       const printer = await Printer.findOne({
         where: {
           isActive: true,
-          [Op.or]: [
-            { location: { [Op.iLike]: `%${term}%` } },
-            { name: { [Op.iLike]: `%${term}%` } },
-            { description: { [Op.iLike]: `%${term}%` } }
-          ]
+          [Op.or]: [{ location: { [Op.iLike]: `%${term}%` } }, { name: { [Op.iLike]: `%${term}%` } }, { description: { [Op.iLike]: `%${term}%` } }]
         },
-        order: [['lastPing', 'DESC']]
+        order: [["lastPing", "DESC"]]
       });
-      if (printer) { return printer.id; }
+      if (printer) {
+        return printer.id;
+      }
     }
     return null;
   } catch (error) {
@@ -1430,7 +1534,10 @@ async function getAnyActivePrinter() {
   try {
     const printer = await Printer.findOne({
       where: { isActive: true },
-      order: [['lastPing', 'DESC'], ['totalJobs', 'ASC']] 
+      order: [
+        ["lastPing", "DESC"],
+        ["totalJobs", "ASC"]
+      ]
     });
     return printer?.id || null;
   } catch (error) {
@@ -1439,10 +1546,9 @@ async function getAnyActivePrinter() {
   }
 }
 
-
- // Get display name for an item
+// Get display name for an item
 function getItemDisplayName(item) {
-  if (item.name && item.name !== 'Unknown Item') {
+  if (item.name && item.name !== "Unknown Item") {
     return item.name;
   }
   if (item.menuItem && item.menuItem.name) {
@@ -1454,7 +1560,7 @@ function getItemDisplayName(item) {
   if (item.assignment && item.assignment.name) {
     return item.assignment.name;
   }
-  return `Unknown Item (ID: ${item.id || 'N/A'})`;
+  return `Unknown Item (ID: ${item.id || "N/A"})`;
 }
 
 /**
@@ -1470,52 +1576,52 @@ function getItemCategory(item) {
   if (item.assignment && item.assignment.category) {
     return item.assignment.category;
   }
-  if (item.type === 'material') {
-    return 'beverages';
+  if (item.type === "material") {
+    return "beverages";
   }
-  return 'main_course';
+  return "main_course";
 }
 
 /**
  * Extract station name from printer configuration
  */
 function extractStationName(printer) {
-  if (!printer) return 'UNKNOWN';
-  
+  if (!printer) return "UNKNOWN";
+
   // Try to extract from location first
   if (printer.location) {
     const location = printer.location.toUpperCase();
-    if (location.includes('KITCHEN')) return 'KITCHEN';
-    if (location.includes('BAR')) return 'BAR';
-    if (location.includes('ARGUILE') || location.includes('SHISHA')) return 'ARGUILE';
+    if (location.includes("KITCHEN")) return "KITCHEN";
+    if (location.includes("BAR")) return "BAR";
+    if (location.includes("ARGUILE") || location.includes("SHISHA")) return "ARGUILE";
   }
-  
+
   // Try to extract from name
   if (printer.name) {
     const name = printer.name.toUpperCase();
-    if (name.includes('KITCHEN')) return 'KITCHEN';
-    if (name.includes('BAR')) return 'BAR';
-    if (name.includes('ARGUILE') || name.includes('SHISHA')) return 'ARGUILE';
-    
+    if (name.includes("KITCHEN")) return "KITCHEN";
+    if (name.includes("BAR")) return "BAR";
+    if (name.includes("ARGUILE") || name.includes("SHISHA")) return "ARGUILE";
+
     // Clean up printer name for display
     const cleanName = name
-      .replace(/PRINTER\s*\d*/i, '')
-      .replace(/THERMAL/i, '')
-      .replace(/RECEIPT/i, '')
+      .replace(/PRINTER\s*\d*/i, "")
+      .replace(/THERMAL/i, "")
+      .replace(/RECEIPT/i, "")
       .trim();
-    
+
     if (cleanName) return cleanName;
   }
-  
+
   // Try to extract from description
   if (printer.description) {
     const desc = printer.description.toUpperCase();
-    if (desc.includes('KITCHEN')) return 'KITCHEN';
-    if (desc.includes('BAR')) return 'BAR';
-    if (desc.includes('ARGUILE') || desc.includes('SHISHA')) return 'ARGUILE';
+    if (desc.includes("KITCHEN")) return "KITCHEN";
+    if (desc.includes("BAR")) return "BAR";
+    if (desc.includes("ARGUILE") || desc.includes("SHISHA")) return "ARGUILE";
   }
-  
-  return 'STATION';
+
+  return "STATION";
 }
 
 /**
@@ -1587,12 +1693,12 @@ async function formatVoidItemsForThermalPrinter(items, order, printer) {
       // Bold text for emphasis (ESC/POS command)
       content += "\x1B\x45"; // ESC E - Bold on
       content += `            ${quantity}x ${itemName}\n`;
-      
+
       // Add category info if available and different from default
-      if (category && category !== 'main_course') {
+      if (category && category !== "main_course") {
         content += `                [${category.toUpperCase()}]\n`;
       }
-      
+
       content += "\x1B\x46"; // ESC F - Bold off
     });
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -1605,7 +1711,7 @@ async function formatVoidItemsForThermalPrinter(items, order, printer) {
     content += "\n";
     content += "\n";
     content += "\n";
-    content += "\x1B\x69"; 
+    content += "\x1B\x69";
     return content;
   } catch (error) {
     console.error("Error formatting void items for printer:", error);
@@ -1622,11 +1728,11 @@ async function formatVoidItemsForThermalPrinter(items, order, printer) {
     items.forEach(item => {
       const itemName = getItemDisplayName(item);
       const category = getItemCategory(item);
-      
+
       fallbackContent += centerText(`${item.quantity}x ${itemName}`) + "\n";
-      
+
       // Add category info in fallback format too
-      if (category && category !== 'main_course') {
+      if (category && category !== "main_course") {
         fallbackContent += centerText(`[${category.toUpperCase()}]`) + "\n";
       }
     });
