@@ -113,9 +113,29 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                         {draggedCategories.map((category, index) => (
                           <Draggable key={category.id} draggableId={category.id.toString()} index={index}>
                             {(provided, snapshot) => (
-                              <TableRow ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? "bg-muted/50" : ""}>
-                                <TableCell {...provided.dragHandleProps} className="w-10">
-                                  <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+                              <TableRow 
+                                ref={provided.innerRef} 
+                                {...provided.draggableProps} 
+                                className={`${
+                                  snapshot.isDragging 
+                                    ? "bg-primary/10 shadow-lg ring-2 ring-primary/30 z-50 rounded-md border-primary/20 relative" 
+                                    : "hover:bg-muted/30 transition-colors duration-200"
+                                }`}
+                                style={provided.draggableProps.style}
+                              >
+                                <TableCell 
+                                  {...provided.dragHandleProps} 
+                                  className={`w-10 transition-colors duration-200 ${
+                                    snapshot.isDragging ? "bg-primary/20" : ""
+                                  }`}
+                                >
+                                  <GripVertical 
+                                    className={`w-4 h-4 transition-all duration-200 ${
+                                      snapshot.isDragging 
+                                        ? "text-primary cursor-grabbing scale-110" 
+                                        : "text-muted-foreground cursor-grab hover:text-primary"
+                                    }`} 
+                                  />
                                 </TableCell>
                                 <TableCell className="font-medium">
                                   <div className="flex items-center gap-2">
@@ -183,13 +203,37 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                   {draggedCategories.map((category, index) => (
                     <Draggable key={category.id} draggableId={category.id.toString()} index={index}>
                       {(provided, snapshot) => (
-                        <div ref={provided.innerRef} {...provided.draggableProps} className={`border rounded-lg bg-card ${snapshot.isDragging ? "shadow-lg ring-2 ring-primary/20" : ""}`}>
+                        <div 
+                          ref={provided.innerRef} 
+                          {...provided.draggableProps} 
+                          className={`border rounded-lg bg-card ${
+                            snapshot.isDragging 
+                              ? "shadow-2xl ring-2 ring-primary/40 bg-primary/5 border-primary/30 z-50" 
+                              : "hover:shadow-md hover:border-primary/20 transition-all duration-200"
+                          }`}
+                          style={provided.draggableProps.style}
+                        >
                           <Collapsible>
-                            <div className="p-4">
+                            <div className={`p-4 transition-colors duration-200 ${
+                              snapshot.isDragging ? "bg-primary/5" : ""
+                            }`}>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                  <div {...provided.dragHandleProps} className="touch-none">
-                                    <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
+                                  <div 
+                                    {...provided.dragHandleProps} 
+                                    className={`touch-none p-1 rounded transition-all duration-200 ${
+                                      snapshot.isDragging 
+                                        ? "bg-primary/20 scale-110" 
+                                        : "hover:bg-muted/50"
+                                    }`}
+                                  >
+                                    <GripVertical 
+                                      className={`w-5 h-5 transition-all duration-200 ${
+                                        snapshot.isDragging 
+                                          ? "text-primary cursor-grabbing" 
+                                          : "text-muted-foreground cursor-grab hover:text-primary"
+                                      }`} 
+                                    />
                                   </div>
                                   <div className="flex flex-col">
                                     <div className="flex items-center gap-2">
