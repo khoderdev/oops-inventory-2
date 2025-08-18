@@ -1078,7 +1078,7 @@ const TanStackVirtualizedTable: React.FC<TanStackVirtualizedTableProps> = ({ tab
   });
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 border rounded-md">
+    <div className="flex flex-1 flex-col min-h-0 border rounded-md md:max-w-[calc(100vw-180px)]">
       <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
         <Table>
           <TableHeader>

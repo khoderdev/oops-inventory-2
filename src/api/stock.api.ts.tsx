@@ -20,10 +20,11 @@ interface PaginatedResponse<T> {
     requestTime: string;
     totalDataSize: number;
     negativeEntriesCount?: number;
+    categories?: string[];
   };
 }
 
-interface StockEntriesQueryParams {
+export interface StockEntriesQueryParams {
   page?: number;
   limit?: number;
   search?: string;
@@ -37,33 +38,59 @@ interface StockEntriesQueryParams {
   totalCost_from?: string;
   totalCost_to?: string;
   sortBy?: string;
-  sortOrder?: 'ASC' | 'DESC';
+  sortOrder?: "ASC" | "DESC";
   fields?: string;
-  includeMaterial?: 'true' | 'false';
+  includeMaterial?: "true" | "false";
+}
+
+export interface BeverageStockQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  materialId?: string;
+  isPOSItem?: string;
+  purchaseDate_from?: string;
+  purchaseDate_to?: string;
+  expiryDate_from?: string;
+  expiryDate_to?: string;
+  totalCost_from?: string;
+  totalCost_to?: string;
+  sortBy?: string;
+  sortOrder?: "ASC" | "DESC";
+  fields?: string;
+  includeMaterial?: "true" | "false";
+}
+
+export interface BeverageNamesResponse {
+  data: string[];
+  count: number;
+  meta: {
+    requestTime: string;
+  };
 }
 
 export const stockAPI = {
   // Get stock entries with pagination support
   getStockEntries: async (params?: StockEntriesQueryParams): Promise<StockEntryWithMaterial[]> => {
-    const config = params ? { params } as any : undefined;
+    const config = params ? ({ params } as any) : undefined;
     const response = await api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries", config);
     return response.data.data;
   },
-  
+
   // Get paginated stock entries (returns full response with pagination info)
   getStockEntriesPaginated: async (params?: StockEntriesQueryParams) => {
-    const config = params ? { params } as any : undefined;
+    const config = params ? ({ params } as any) : undefined;
     return api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries", config);
   },
-  
+
   // Legacy method for backward compatibility - gets all stock entries without pagination
   getAllStockEntries: async (): Promise<StockEntry[]> => {
-    const response = await api.get<PaginatedResponse<StockEntry>>("/stock-entries", { 
-      params: { limit: 1000, includeMaterial: 'false' } as any // Get a large number to simulate "all"
+    const response = await api.get<PaginatedResponse<StockEntry>>("/stock-entries", {
+      params: { limit: 1000, includeMaterial: "false" } as any // Get a large number to simulate "all"
     } as any);
     return response.data.data;
   },
-  
+
   getStockEntry: (id: string) => api.get<StockEntry>(`/stock-entries/${id}`),
   createStockEntry: (stockEntryData: CreateStockEntryData) => api.post<StockEntry, CreateStockEntryData>("/stock-entries", stockEntryData),
   addToStock: (addStockData: AddStockData) => api.post<AddStockResponse, AddStockData>("/stock-entries/add-stock", addStockData),
@@ -93,7 +120,7 @@ export const stockAPI = {
     >(`/stock-entries/${id}/waste-from-entry`, data),
 
   updateStockEntry: (id: string, stockEntryData: UpdateStockEntryData) => {
-    console.log('📡 stockAPI.updateStockEntry called with:', { id, stockEntryData });
+    console.log("📡 stockAPI.updateStockEntry called with:", { id, stockEntryData });
     return api.put<StockEntry, UpdateStockEntryData>(`/stock-entries/${id}`, stockEntryData);
   },
   updateStockEntryPOS: (id: string, posData: { isPOSItem: boolean }) => api.patch<StockEntry, { isPOSItem: boolean }>(`/stock-entries/${id}/pos`, posData),
@@ -101,14 +128,14 @@ export const stockAPI = {
 
   // Printer assignment methods
   getStockEntriesWithPrinters: async (params?: StockEntriesQueryParams): Promise<StockEntryWithMaterial[]> => {
-    const config = params ? { params } as any : undefined;
+    const config = params ? ({ params } as any) : undefined;
     const response = await api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries/with-printers", config);
     return response.data.data;
   },
-  
+
   // Get paginated stock entries with printers (returns full response with pagination info)
   getStockEntriesWithPrintersPaginated: async (params?: StockEntriesQueryParams) => {
-    const config = params ? { params } as any : undefined;
+    const config = params ? ({ params } as any) : undefined;
     return api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries/with-printers", config);
   },
   assignPrinter: (id: string | number, printerId: number | null) => api.patch<{ stockEntry: StockEntry }, { printerId: number | null }>(`/stock-entries/${id}/assign-printer`, { printerId }),
@@ -140,5 +167,31 @@ export const stockAPI = {
       headers: undefined
     });
     return response.data;
+  }
+};
+
+//--------------------------------------------------------
+
+export const beverageStockAPI = {
+  // Get beverage stock entries with pagination support
+  getBeverageStockEntries: async (params?: BeverageStockQueryParams): Promise<StockEntryWithMaterial[]> => {
+    const config = params ? ({ params } as any) : undefined;
+    const response = await api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries/beverage", config);
+    return response.data.data;
+  },
+
+  // Get paginated beverage stock entries (returns full response with pagination info)
+  getBeverageStockEntriesPaginated: async (params?: BeverageStockQueryParams) => {
+    const config = params ? ({ params } as any) : undefined;
+    return api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries/beverage", config);
+  },
+
+  // Get beverage stock entry by ID
+  getBeverageStockEntry: (id: string) => api.get<StockEntryWithMaterial>(`/stock-entries/beverage/${id}`),
+
+  // Get unique beverage names from stock entries
+  getUniqueBeverageNames: async (): Promise<string[]> => {
+    const response = await api.get<BeverageNamesResponse>("/stock-entries/beverage/names/unique");
+    return response.data.data;
   }
 };

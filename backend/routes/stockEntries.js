@@ -226,12 +226,12 @@ router.patch(
 );
 
 // Get all beverage stock entries with pagination and filtering
-router.get("/", beverageStockController.getBeverageStockEntries);
+router.get("/beverage", beverageStockController.getBeverageStockEntries);
 
 // Get unique beverage names from stock entries
-router.get("/names/unique", beverageStockController.getUniqueBeverageNames);
+router.get("/beverage/names/unique", beverageStockController.getUniqueBeverageNames);
 
 // Get beverage stock entry by ID
-router.get("/:id", beverageStockController.getBeverageStockEntryById);
+router.get("/beverage/:id", beverageStockController.getBeverageStockEntryById);
 
 export default router;
