@@ -734,11 +734,38 @@ export interface CategoryTabsProps {
 
 export type MenuItemCategory = "appetizers" | "burgers" | "sandwiches" | "plates" | "pasta" | "sushi" | "pizza" | "salads" | "desserts" | "cold" | "hot" | "alcohol" | "breakfast" | "shisha";
 
+export type BeverageItemCategory = "beverages" | "cold" | "hot" | "alcohol";
+
 export interface MenuItem {
   id: string;
   name: string;
   description?: string;
   category: MenuItemCategory | number | { id: number; name: string } | null;
+  price: number;
+  unit: string;
+  availableQuantity: number;
+  costPerUnit: number;
+  ingredients: MenuItemIngredient[];
+  menuItemIngredients: boolean;
+  isPOSItem?: boolean;
+  image?: string;
+  printerId?: number | null;
+  assignedPrinter?: {
+    id: number;
+    name: string;
+    type: string;
+    status: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BeverageItem {
+  beverageStockId: string;
+  id: string;
+  name: string;
+  description?: string;
+  category: BeverageItemCategory | number | { id: number; name: string } | null;
   price: number;
   unit: string;
   availableQuantity: number;

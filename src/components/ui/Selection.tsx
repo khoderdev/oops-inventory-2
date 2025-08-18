@@ -41,11 +41,12 @@ export interface SelectionProps<T extends SelectableItem> {
   width?: SelectionWidth;
 }
 
-export function Selection<T extends SelectableItem>({ label, id, errors = {}, errorField = "id", searchTerm, onSearchChange, onInputFocus, onInputBlur, onKeyDown, isLoading = false, showDropdown, items, onItemSelect, inputRef: externalInputRef, loadingText = "Loading...", placeholder = "Select...", noResultsText = "No results found", itemRenderer, getDisplayValue, getItemId, className = "", width = "md" }: SelectionProps<T>) {
+export function Selection<T extends SelectableItem>({ label, id, errors = {}, errorField = "id", searchTerm, onSearchChange, onInputFocus, onInputBlur, onKeyDown, isLoading = false, showDropdown: externalShowDropdown, items, onItemSelect, inputRef: externalInputRef, loadingText = "Loading...", placeholder = "Select...", noResultsText = "No results found", itemRenderer, getDisplayValue, getItemId, className = "", width = "md" }: SelectionProps<T>) {
   const inputId = id || `selection-${Math.random().toString(36).substring(2, 9)}`;
   const errorId = `${inputId}-error`;
   const errorMessage = errorField && errors[errorField];
-  const [isSearchMode, setIsSearchMode] = React.useState(false);
+  const [internalShowDropdown, setInternalShowDropdown] = React.useState(false);
+  const showDropdown = externalShowDropdown !== undefined ? externalShowDropdown : internalShowDropdown;
   const internalInputRef = React.useRef<HTMLInputElement>(null);
   const inputRef = externalInputRef || internalInputRef;
 
@@ -83,31 +84,27 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
   };
 
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    setIsSearchMode(true);
+    setInternalShowDropdown(true);
     onInputFocus?.(e);
   };
 
   const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     setTimeout(() => {
-      setIsSearchMode(false);
+      setInternalShowDropdown(false);
     }, 200);
     onInputBlur?.(e);
   };
 
-  // Toggle dropdown when clicking the chevron
   const handleChevronClick = (e: React.MouseEvent<SVGSVGElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    // If dropdown is already open, close it
-    if (showDropdown) {
-      setIsSearchMode(false);
-      inputRef?.current?.blur();
-      onInputBlur?.(new FocusEvent('blur') as unknown as React.FocusEvent<HTMLInputElement>);
-    } else {
-      // Open the dropdown
-      setIsSearchMode(true);
+    if (externalShowDropdown === undefined) {
+      setInternalShowDropdown(!showDropdown);
+    }
+    if (!showDropdown) {
       inputRef?.current?.focus();
+    } else {
+      inputRef?.current?.blur();
     }
   };
 
@@ -132,7 +129,7 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
             onBlur={handleInputBlur}
             onKeyDown={onKeyDown}
             placeholder={isLoading ? loadingText : placeholder}
-            className={cn("border-0 focus-visible:ring-0 focus-visible:ring-offset-0", selectedItem && !isSearchMode ? "text-foreground" : "text-muted-foreground")}
+            className={cn("border-0 focus-visible:ring-0 focus-visible:ring-offset-0", selectedItem ? "text-foreground" : "text-muted-foreground")}
             disabled={isLoading}
             aria-invalid={!!errorMessage}
             aria-describedby={errorMessage ? errorId : undefined}
@@ -147,7 +144,14 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
               <X size={14} className="text-muted-foreground" />
             </button>
           )}
-          <ChevronDown onClick={handleChevronClick} size={16} className={cn("text-muted-foreground transition-transform duration-200", showDropdown ? "transform rotate-180" : "")} />
+          <ChevronDown 
+            onClick={handleChevronClick} 
+            size={16} 
+            className={cn(
+              "text-muted-foreground transition-transform duration-200 cursor-pointer", 
+              showDropdown ? "transform rotate-180" : ""
+            )} 
+          />
         </div>
       </div>
 

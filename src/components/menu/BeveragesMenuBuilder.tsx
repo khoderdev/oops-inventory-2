@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { MenuItem, Material, StockEntry, MenuItemCategory, Section } from "@/types/inventory";
+import { BeverageItem, Material, StockEntry, BeverageItemCategory, Section } from "@/types/inventory";
 import { Category } from "@/types/categories";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
-import { MenuItemForm } from "./MenuItemForm";
+import { BeverageItemForm } from "./BeverageItemForm";
 import { Plus, Search, Check, X, Square, CheckSquare } from "lucide-react";
 import { toast } from "../ui/use-toast";
 import { menuAPI, CreateBeverageVariantsRequest } from "@/api/menu.api.ts.tsx";
@@ -17,23 +17,23 @@ import { menuAPI, CreateBeverageVariantsRequest } from "@/api/menu.api.ts.tsx";
 interface BeveragesMenuBuilderProps {
   stockEntries: StockEntry[];
   materials: Material[];
-  menuItems: MenuItem[];
+  menuItems: BeverageItem[];
   categories: Category[];
   sections: Section[];
-  onCreateMenuItem: (data: MenuItem) => void | Promise<void>;
-  onUpdateMenuItem: (id: string, data: MenuItem) => void | Promise<void>;
-  onDeleteMenuItem: (id: string) => void | Promise<void>;
+  onCreateBeverageItem: (data: BeverageItem) => void | Promise<void>;
+  onUpdateBeverageItem: (id: string, data: BeverageItem) => void | Promise<void>;
+  onDeleteBeverageItem: (id: string) => void | Promise<void>;
 }
 
-const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntries, materials, menuItems, categories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
+const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntries, materials, menuItems, categories, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
-  const [showMenuItemForm, setShowMenuItemForm] = useState(false);
-  const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<BeverageItemCategory | "all">("all");
+  const [showBeverageItemForm, setShowBeverageItemForm] = useState(false);
+  const [editingBeverageItem, setEditingBeverageItem] = useState<BeverageItem | null>(null);
   const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
-  const [selectedMenuItems, setSelectedMenuItems] = useState<Set<string>>(new Set());
+  const [selectedBeverageItems, setSelectedBeverageItems] = useState<Set<string>>(new Set());
   const [showVariantDialog, setShowVariantDialog] = useState(false);
-  const [currentVariantItem, setCurrentVariantItem] = useState<MenuItem | null>(null);
+  const [currentVariantItem, setCurrentVariantItem] = useState<BeverageItem | null>(null);
   const [variantSizes, setVariantSizes] = useState<string[]>(["small", "medium", "large", "glass", "shot"]);
   const [selectedVariants, setSelectedVariants] = useState<string[]>(["small", "large"]);
   const [customVariant, setCustomVariant] = useState<string>("");
@@ -44,7 +44,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
     return categories.filter(cat => ["beverages", "cold", "hot", "alcohol"].includes(cat.value.toLowerCase()));
   }, [categories]);
 
-  const beverageMenuItems = useMemo(() => {
+  const beverageBeverageItems = useMemo(() => {
     return menuItems.filter(item => {
       const isBeverageCategory = (() => {
         if (typeof item.category === "string") {
@@ -62,8 +62,8 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
     });
   }, [menuItems, categories]);
 
-  const filteredMenuItems = useMemo(() => {
-    return beverageMenuItems.filter(item => {
+  const filteredBeverageItems = useMemo(() => {
+    return beverageBeverageItems.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesCategory =
         selectedCategory === "all" ||
@@ -81,9 +81,9 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
 
       return matchesSearch && matchesCategory;
     });
-  }, [beverageMenuItems, searchTerm, selectedCategory, categories]);
+  }, [beverageBeverageItems, searchTerm, selectedCategory, categories]);
 
-  const columnHelper = createColumnHelper<MenuItem>();
+  const columnHelper = createColumnHelper<BeverageItem>();
 
   const columns = useMemo(
     () => [
@@ -132,7 +132,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
         id: "variants",
         header: "Variants",
         cell: ({ row }) => {
-          const variants = beverageMenuItems.filter(item => item.name.includes(row.original.name) && item.id !== row.original.id);
+          const variants = beverageBeverageItems.filter(item => item.name.includes(row.original.name) && item.id !== row.original.id);
           return (
             <div className="flex flex-wrap gap-1">
               {variants.length > 0 ? (
@@ -156,7 +156,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => handleEditMenuItem(row.original)} className="h-8 w-8 p-0">
+            <Button variant="ghost" size="sm" onClick={() => handleEditBeverageItem(row.original)} className="h-8 w-8 p-0">
               <span className="sr-only">Edit</span>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -172,7 +172,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                 <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
               </svg>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleDeleteMenuItem(row.original.id)} className="h-8 w-8 p-0 text-red-500">
+            <Button variant="ghost" size="sm" onClick={() => handleDeleteBeverageItem(row.original.id)} className="h-8 w-8 p-0 text-red-500">
               <span className="sr-only">Delete</span>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
                 <path d="M3 6h18"></path>
@@ -185,59 +185,59 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
         size: 120
       })
     ],
-    [categories, beverageMenuItems, bulkSelectionMode]
+    [categories, beverageBeverageItems, bulkSelectionMode]
   );
 
   // Set up table
   const table = useReactTable({
-    data: filteredMenuItems,
+    data: filteredBeverageItems,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     enableRowSelection: true,
     state: {
-      rowSelection: Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))
+      rowSelection: Object.fromEntries(Array.from(selectedBeverageItems).map(id => [filteredBeverageItems.findIndex(item => item.id === id), true]))
     },
     onRowSelectionChange: updater => {
-      const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))) : updater;
+      const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedBeverageItems).map(id => [filteredBeverageItems.findIndex(item => item.id === id), true]))) : updater;
 
-      const newSelectedMenuItems = new Set<string>();
+      const newSelectedBeverageItems = new Set<string>();
       Object.entries(newSelection).forEach(([index, isSelected]) => {
-        if (isSelected && filteredMenuItems[Number(index)]) {
-          newSelectedMenuItems.add(filteredMenuItems[Number(index)].id);
+        if (isSelected && filteredBeverageItems[Number(index)]) {
+          newSelectedBeverageItems.add(filteredBeverageItems[Number(index)].id);
         }
       });
 
-      setSelectedMenuItems(newSelectedMenuItems);
+      setSelectedBeverageItems(newSelectedBeverageItems);
     }
   });
 
   // Handlers
-  const handleEditMenuItem = useCallback((menuItem: MenuItem) => {
-    setEditingMenuItem(menuItem);
-    setShowMenuItemForm(true);
+  const handleEditBeverageItem = useCallback((menuItem: BeverageItem) => {
+    setEditingBeverageItem(menuItem);
+    setShowBeverageItemForm(true);
   }, []);
 
-  const handleAddMenuItem = useCallback(() => {
-    setEditingMenuItem(null);
-    setShowMenuItemForm(true);
+  const handleAddBeverageItem = useCallback(() => {
+    setEditingBeverageItem(null);
+    setShowBeverageItemForm(true);
   }, []);
 
   const handleCloseModal = useCallback(() => {
-    setShowMenuItemForm(false);
-    setEditingMenuItem(null);
+    setShowBeverageItemForm(false);
+    setEditingBeverageItem(null);
   }, []);
 
-  const handleDeleteMenuItem = useCallback(
+  const handleDeleteBeverageItem = useCallback(
     (id: string) => {
       if (confirm("Are you sure you want to delete this beverage menu item?")) {
-        onDeleteMenuItem(id);
+        onDeleteBeverageItem(id);
       }
     },
-    [onDeleteMenuItem]
+    [onDeleteBeverageItem]
   );
 
-  const handleCreateVariants = useCallback((menuItem: MenuItem) => {
+  const handleCreateVariants = useCallback((menuItem: BeverageItem) => {
     setCurrentVariantItem(menuItem);
     setShowVariantDialog(true);
   }, []);
@@ -263,7 +263,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
     }));
   }, []);
 
-  const handleCreateMenuItemVariants = useCallback(
+  const handleCreateBeverageItemVariants = useCallback(
     async (sizes: string[]) => {
       if (!currentVariantItem) return;
       try {
@@ -275,7 +275,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
         };
         const response = await menuAPI.createBeverageVariants(variantRequest);
         if (response.data && response.data.variants && response.data.variants.length > 0) {
-          await onCreateMenuItem(response.data.variants[0]);
+          await onCreateBeverageItem(response.data.variants[0]);
         }
         toast({
           title: "Success",
@@ -293,23 +293,23 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
         });
       }
     },
-    [currentVariantItem, nameFormat, variantPriceAdjustments, onCreateMenuItem]
+    [currentVariantItem, nameFormat, variantPriceAdjustments, onCreateBeverageItem]
   );
 
   const handleToggleBulkSelection = useCallback(() => {
     setBulkSelectionMode(prev => !prev);
     if (bulkSelectionMode) {
-      setSelectedMenuItems(new Set());
+      setSelectedBeverageItems(new Set());
     }
   }, [bulkSelectionMode]);
 
-  const handleSelectAllMenuItems = useCallback(() => {
-    if (selectedMenuItems.size === filteredMenuItems.length) {
-      setSelectedMenuItems(new Set());
+  const handleSelectAllBeverageItems = useCallback(() => {
+    if (selectedBeverageItems.size === filteredBeverageItems.length) {
+      setSelectedBeverageItems(new Set());
     } else {
-      setSelectedMenuItems(new Set(filteredMenuItems.map(item => item.id)));
+      setSelectedBeverageItems(new Set(filteredBeverageItems.map(item => item.id)));
     }
-  }, [filteredMenuItems, selectedMenuItems]);
+  }, [filteredBeverageItems, selectedBeverageItems]);
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
@@ -324,7 +324,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input type="search" placeholder="Search beverages..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 h-10" />
                 </div>
-                <Select value={selectedCategory} onValueChange={value => setSelectedCategory(value as MenuItemCategory | "all")}>
+                <Select value={selectedCategory} onValueChange={value => setSelectedCategory(value as BeverageItemCategory | "all")}>
                   <SelectTrigger className="w-full sm:w-[180px] lg:w-[200px] h-10">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
@@ -342,7 +342,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
 
             {(searchTerm || selectedCategory !== "all") && (
               <div className="mt-3 text-xs sm:text-sm text-muted-foreground px-1">
-                Showing <span className="font-medium">{filteredMenuItems.length}</span> of <span className="font-medium">{beverageMenuItems.length}</span> beverage items
+                Showing <span className="font-medium">{filteredBeverageItems.length}</span> of <span className="font-medium">{beverageBeverageItems.length}</span> beverage items
                 {searchTerm && (
                   <span className="block sm:inline">
                     {" "}
@@ -359,35 +359,32 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
             )}
           </CardHeader>
           <CardContent className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4 lg:p-6">
-            <Dialog open={showMenuItemForm} onOpenChange={handleCloseModal} modal={true}>
+            <Dialog open={showBeverageItemForm} onOpenChange={handleCloseModal} modal={true}>
               <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
                 <DialogHeader>
-                  <DialogTitle className="text-lg sm:text-xl">{editingMenuItem ? "Edit Beverage Item" : "Create New Beverage Item"}</DialogTitle>
+                  <DialogTitle className="text-lg sm:text-xl">{editingBeverageItem ? "Edit Beverage Item" : "Create New Beverage Item"}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm
-                  menuItem={editingMenuItem}
-                  materials={materials}
+                <BeverageItemForm
+                  menuItem={editingBeverageItem}
                   categories={beverageCategories}
                   onSubmit={
-                    editingMenuItem
+                    editingBeverageItem
                       ? data => {
-                          // Preserve required MenuItem properties from the original item
-                          const updatedItem: MenuItem = {
+                          const updatedItem: BeverageItem = {
                             ...data,
-                            id: editingMenuItem.id,
-                            createdAt: editingMenuItem.createdAt,
-                            updatedAt: editingMenuItem.updatedAt
+                            id: editingBeverageItem.id,
+                            createdAt: editingBeverageItem.createdAt,
+                            updatedAt: editingBeverageItem.updatedAt
                           };
-                          onUpdateMenuItem(editingMenuItem.id, updatedItem);
+                          onUpdateBeverageItem(editingBeverageItem.id, updatedItem);
                           handleCloseModal();
                         }
                       : data => {
-                          onCreateMenuItem(data as MenuItem);
+                          onCreateBeverageItem(data as BeverageItem);
                           handleCloseModal();
                         }
                   }
                   onCancel={handleCloseModal}
-                  stockEntries={stockEntries}
                 />
               </DialogContent>
             </Dialog>
@@ -485,7 +482,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                     <Button variant="outline" onClick={() => setShowVariantDialog(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={() => handleCreateMenuItemVariants(selectedVariants)} disabled={selectedVariants.length === 0}>
+                    <Button onClick={() => handleCreateBeverageItemVariants(selectedVariants)} disabled={selectedVariants.length === 0}>
                       Create {selectedVariants.length} Variants
                     </Button>
                   </div>
@@ -539,13 +536,13 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
               <div className="flex flex-col gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-blue-500" onClick={handleSelectAllMenuItems} disabled={filteredMenuItems.length === 0}>
-                      {selectedMenuItems.size === filteredMenuItems.length ? <CheckSquare className="h-3.5 w-3.5 mr-1.5" /> : <Square className="h-3.5 w-3.5 mr-1.5" />}
-                      {selectedMenuItems.size === filteredMenuItems.length ? "Deselect All" : "Select All"}
+                    <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-blue-500" onClick={handleSelectAllBeverageItems} disabled={filteredBeverageItems.length === 0}>
+                      {selectedBeverageItems.size === filteredBeverageItems.length ? <CheckSquare className="h-3.5 w-3.5 mr-1.5" /> : <Square className="h-3.5 w-3.5 mr-1.5" />}
+                      {selectedBeverageItems.size === filteredBeverageItems.length ? "Deselect All" : "Select All"}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{selectedMenuItems.size === filteredMenuItems.length ? "Deselect all beverage items" : "Select all visible beverage items"}</p>
+                    <p>{selectedBeverageItems.size === filteredBeverageItems.length ? "Deselect all beverage items" : "Select all visible beverage items"}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -567,7 +564,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button className="h-14 w-14 rounded-full bg-primary hover:bg-teal-600 text-white shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 relative" onClick={handleAddMenuItem} aria-label="Add new beverage item">
+              <Button className="h-14 w-14 rounded-full bg-primary hover:bg-teal-600 text-white shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 relative" onClick={handleAddBeverageItem} aria-label="Add new beverage item">
                 <Plus className="h-6 w-6" />
               </Button>
             </TooltipTrigger>

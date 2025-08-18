@@ -9,13 +9,11 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Selection, StockEntryItemRenderer } from "../ui/Selection";
+import { Selection } from "../ui/Selection";
 import { Switch } from "../ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { ImageUpload } from "../ui/image-upload";
 import { toast } from "../ui/use-toast";
-import { beverageStockAPI } from "@/api/stock.api.ts";
 
 interface MenuItemFormProps {
   menuItem?: MenuItem & { beverageStockId?: string | null };
@@ -86,46 +84,13 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
   }, [menuItem?.category, categories]);
 
-  useEffect(() => {
-    // Check if this is a beverage category
-    const beverageCategories = ["beverages", "cold", "hot", "alcohol", "shisha"];
-    const categoryLower = typeof category === "string" ? category.toLowerCase() : "";
-    const isBeverageCategory = !menuItem && categoryLower && beverageCategories.includes(categoryLower);
-
-    if (isBeverageCategory && beverageStockEntries.length === 0) {
-      const fetchBeverageStock = async () => {
-        try {
-          setIsBeverageLoading(true);
-          // Use the correct endpoint without an ID parameter
-          const entries = await beverageStockAPI.getBeverageStockEntries({
-            limit: 10000,
-            includeMaterial: "true"
-          });
-          setBeverageStockEntries(entries);
-          console.log("🍹 Fetched beverage stock entries:", entries.length);
-        } catch (error) {
-          console.error("Error fetching beverage stock:", error);
-          toast({
-            title: "Error",
-            description: "Failed to load beverage stock entries. Please try again.",
-            variant: "destructive"
-          });
-        } finally {
-          setIsBeverageLoading(false);
-        }
-      };
-
-      fetchBeverageStock();
-    }
-  }, [category, menuItem, beverageStockEntries.length]);
-
   const ingredientsInputSectionRef = useRef<HTMLDivElement>(null);
 
   const availableMaterials = useMemo(() => {
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
     const excludedCategories = ["beverages", "cold", "hot", "alcohol"];
     return materials.filter(m => !usedMaterialIds.has(m.id) && !excludedCategories.includes(m.category?.toLowerCase() || ""));
-  }, [materials, ingredients, stockEntries]);
+  }, [materials, ingredients]);
 
   const filteredBeverageStock = useMemo(() => {
     if (!beverageSearchTerm.trim()) {
@@ -240,16 +205,14 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     if (!name.trim()) newErrors.name = "required";
     if (!category) newErrors.category = "required";
     if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) newErrors.price = "required";
-    const beverageCategories = ["beverages", "cold", "hot", "alcohol", "shisha"];
-    const isBeverageCategory = beverageCategories.includes(category.toLowerCase());
 
     // For new beverage items, require a beverage selection
-    if (isBeverageCategory && !menuItem && !selectedBeverageId) {
+    if (!menuItem && !selectedBeverageId) {
       newErrors.beverageId = "Please select a beverage from stock";
     }
 
     // For non-beverage items, require ingredients
-    if (!isBeverageCategory && ingredients.length === 0) {
+    if (ingredients.length === 0) {
       newErrors.ingredients = "At least one ingredient is required";
     }
     setErrors(newErrors);
@@ -380,33 +343,10 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         return;
       }
 
-      const beverageCategories = ["beverages", "cold", "hot", "alcohol", "shisha"];
-      // Safely check if category is a string before using toLowerCase
-      const categoryLower = typeof category === "string" ? category.toLowerCase() : "";
-      const isBeverageCategory = beverageCategories.includes(categoryLower);
-
       let submitData;
-
-      // For new beverage items, use the selected beverage data
-      if (isBeverageCategory && !menuItem) {
-        const selectedBeverage = beverageStockEntries.find(entry => String(entry.id) === selectedBeverageId);
-
-        if (!selectedBeverage) {
-          toast({
-            title: "Error",
-            description: "Please select a valid beverage from stock",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        // Get available quantity safely - it might be on the material object or added dynamically
-        const availableQty = selectedBeverage.purchasedIndividualQuantity || selectedBeverage.purchasedQuantity || (selectedBeverage as any).availableQuantity || 0;
-
-        const costPerUnit = typeof selectedBeverage.costPerPurchasedUnit === "number" ? selectedBeverage.costPerPurchasedUnit : (selectedBeverage as any).costPerPurchasedUnit || 0;
-
+      if (!menuItem) {
         submitData = {
-          name: selectedBeverage.material?.name || name.trim(),
+          name: name.trim(),
           category: categoryToSubmit,
           price: parseFloat(price),
           ingredients: [],
@@ -414,10 +354,10 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
           image,
           imageFile,
           menuItemIngredients: false,
-          unit: selectedBeverage.purchasedUnit || "",
-          availableQuantity: availableQty,
-          costPerUnit: costPerUnit,
-          beverageStockId: selectedBeverageId
+          unit: "",
+          availableQuantity: 0,
+          costPerUnit: 0,
+          beverageStockId: null
         };
       } else {
         // For regular menu items or editing existing beverage items
@@ -433,7 +373,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
           unit: "",
           availableQuantity: 0,
           costPerUnit: 0,
-          // Keep the existing beverageStockId if editing a beverage item
           beverageStockId: menuItem?.beverageStockId || null
         };
       }
@@ -446,8 +385,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       setImage(undefined);
       setImageFile(undefined);
       setIngredients([]);
-      setSelectedBeverageId("");
-      setBeverageSearchTerm("");
       setErrors({});
       onCancel();
     } catch (error) {
@@ -485,28 +422,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const handleMaterialInputBlur = useCallback(() => {
     // Delay hiding dropdown to allow for clicks
     setTimeout(() => setShowMaterialDropdown(false), 150);
-  }, []);
-
-  // Beverage selection handlers
-  const handleBeverageSearchChange = useCallback((value: string) => {
-    setBeverageSearchTerm(value);
-    setSelectedBeverageId("");
-    setShowBeverageDropdown(value.length > 0);
-  }, []);
-
-  const handleBeverageSelect = useCallback((beverageId: string, beverageName?: string) => {
-    setSelectedBeverageId(beverageId);
-    setBeverageSearchTerm(beverageName || "");
-    setShowBeverageDropdown(false);
-  }, []);
-
-  const handleBeverageInputFocus = useCallback(() => {
-    setShowBeverageDropdown(beverageSearchTerm.length > 0 || filteredBeverageStock.length > 0);
-  }, [beverageSearchTerm, filteredBeverageStock]);
-
-  const handleBeverageInputBlur = useCallback(() => {
-    // Delay hiding dropdown to allow for clicks
-    setTimeout(() => setShowBeverageDropdown(false), 150);
   }, []);
 
   const handleCancel = useCallback(() => {
@@ -625,55 +540,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       </div>
 
       <div className="border-t pt-4">
-        {(() => {
-          const beverageCategories = ["beverages", "cold", "hot", "alcohol", "shisha"];
-          const isBeverageCategory = beverageCategories.includes(category.toLowerCase());
-          if (isBeverageCategory && !menuItem) {
-            return (
-              <>
-                <Selection<StockEntryWithMaterial>
-                  label="Stock Beverages"
-                  id="beverage"
-                  width="sm"
-                  errors={errors}
-                  errorField="beverageId"
-                  searchTerm={beverageSearchTerm}
-                  onSearchChange={handleBeverageSearchChange}
-                  onInputFocus={handleBeverageInputFocus}
-                  onInputBlur={handleBeverageInputBlur}
-                  onKeyDown={handleKeyDown}
-                  isLoading={isBeverageLoading}
-                  showDropdown={showBeverageDropdown}
-                  items={filteredBeverageStock}
-                  onItemSelect={handleBeverageSelect}
-                  inputRef={beverageSelectRef}
-                  placeholder="Search beverages..."
-                  loadingText="Loading beverages..."
-                  noResultsText="No beverages found matching"
-                  itemRenderer={StockEntryItemRenderer}
-                  getDisplayValue={item => item.material?.name || ""}
-                  getItemId={item => String(item.id)}
-                />
-              </>
-            );
-          }
-
-          // For regular menu items, show ingredients section
-          return (
-            <>
-              <h3 className="text-lg font-medium mb-4">
-                Ingredients {!isBeverageCategory && <span className="text-red-500">*</span>}
-                {isBeverageCategory && <span className="text-sm text-muted-foreground font-normal ml-2">(Optional for {category} items)</span>}
-              </h3>
-              {errors.ingredients && (
-                <p id="ingredients-error" className="text-sm text-red-500 mb-2">
-                  {errors.ingredients}
-                </p>
-              )}
-            </>
-          );
-        })()}
-
         <TanStackVirtualizedIngredientsTable ingredients={ingredients} materials={materials} menuItem={menuItem} calculateIngredientCost={calculateIngredientCost} getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit} formatNumber={formatNumber} formatCurrency={formatCurrency} handleRemoveIngredient={handleRemoveIngredient} totalIngredientsCost={totalIngredientsCost} price={price} />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
@@ -692,16 +558,10 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
             inputRef={materialSelectRef}
             placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."}
             noResultsText="No materials found matching"
-            getDisplayValue={(material) => material.name}
-            getItemId={(material) => String(material.id)}
+            getDisplayValue={material => material.name}
+            getItemId={material => String(material.id)}
             itemRenderer={({ item, onSelect }) => (
-              <button
-                key={item.id}
-                type="button"
-                className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0"
-                onClick={() => onSelect(String(item.id), item.name)}
-                onMouseDown={e => e.preventDefault()}
-              >
+              <button key={item.id} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(String(item.id), item.name)} onMouseDown={e => e.preventDefault()}>
                 <div className="font-medium">{item.name}</div>
                 <div className="text-sm text-muted-foreground">Base unit: {item.baseUnit}</div>
               </button>
@@ -755,19 +615,8 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         <Button
           onClick={handleSubmit}
           disabled={(() => {
-            const beverageCategories = ["beverages", "cold", "hot", "alcohol", "shisha"];
-            const isBeverageCategory = beverageCategories.includes(category.toLowerCase());
-
-            // Basic validation for all items
             const basicValidation = !!Object.keys(errors).length || !name.trim() || !category || !price || parseFloat(price) <= 0;
-
-            // For new beverage items, we no longer require beverage selection
-            if (isBeverageCategory && !menuItem) {
-              return basicValidation; // Only check basic validation
-            }
-
-            // For non-beverage items, require ingredients
-            return basicValidation || (!isBeverageCategory && ingredients.length === 0);
+            return basicValidation || ingredients.length === 0;
           })()}
           aria-label={menuItem ? "Update menu item" : "Create menu item"}
         >

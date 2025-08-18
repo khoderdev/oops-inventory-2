@@ -1,9 +1,9 @@
 import api from "@/lib/http";
-import { CreateMenuItemData, MenuItem, UpdateMenuItemData } from "@/types/inventory";
+import { BeverageItem, CreateMenuItemData, MenuItem, UpdateMenuItemData } from "@/types/inventory";
 
 // Interface for beverage variant creation request
 export interface CreateBeverageVariantsRequest {
-  baseMenuItem: MenuItem;
+  baseMenuItem: BeverageItem;
   selectedVariants: string[];
   priceAdjustments: Record<string, number>;
   nameFormat: "prefix" | "suffix";
@@ -79,7 +79,7 @@ export const menuAPI = {
   
   // Beverage variant creation method
   createBeverageVariants: (variantData: CreateBeverageVariantsRequest) => 
-    api.post<{ message: string; variants: MenuItem[] }, CreateBeverageVariantsRequest>(
+    api.post<{ message: string; variants: BeverageItem[] }, CreateBeverageVariantsRequest>(
       "/menu-items/beverage-variants", 
       variantData
     )
