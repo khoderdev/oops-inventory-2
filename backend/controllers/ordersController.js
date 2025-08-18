@@ -4,148 +4,82 @@ import { Assignment, Material, MenuItem, MenuItemIngredient, Order, OrderItem, s
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 
-// Helper function to deduct ingredient stock when menu items are sold
 const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => {
   const deductionId = Math.random().toString(36).substr(2, 9);
   try {
     console.log(`🔍 [${deductionId}] Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
-
-    // Get menu item with its ingredients
     const menuItem = await MenuItem.findByPk(menuItemId, {
-      include: [
-        {
-          model: MenuItemIngredient,
-          as: "menuItemIngredients",
-          include: [
-            {
-              model: Material,
-              as: "material"
-            }
-          ]
-        }
-      ],
+      include: [ { model: MenuItemIngredient, as: "menuItemIngredients", include: [ { model: Material, as: "material" } ] } ],
       transaction
     });
-
     if (!menuItem) {
       console.log(`❌ Menu item not found: ${menuItemId}`);
       return;
     }
-
-    // Check if menu item has ingredients
     if (!menuItem.menuItemIngredients || menuItem.menuItemIngredients.length === 0) {
       console.log(`🍾 No ingredients found for menu item "${menuItem.name}" - treating as direct material consumption`);
-
-      // For menu items without ingredients (like beverages), try to find a material with the same name
       const matchingMaterial = await Material.findOne({
         where: {
           name: { [Op.iLike]: `%${menuItem.name}%` }
         },
         transaction
       });
-
       if (matchingMaterial) {
         console.log(`🎯 Found matching material: ${matchingMaterial.name} (ID: ${matchingMaterial.id}) for menu item "${menuItem.name}"`);
-
-        // Deduct stock directly from this material
         await deductStockFromMaterial(matchingMaterial.id, orderQuantity, menuItem.name, transaction);
       } else {
         console.log(`⚠️ No matching material found for menu item "${menuItem.name}" - skipping stock deduction`);
       }
       return;
     }
-
     console.log(`📋 [${deductionId}] Found ${menuItem.menuItemIngredients.length} ingredients for "${menuItem.name}"`);
-
-    // Process each ingredient
     for (const ingredient of menuItem.menuItemIngredients) {
       const materialId = ingredient.materialId;
       const requiredQuantity = ingredient.quantity * orderQuantity;
       const unit = ingredient.unit;
-
       console.log(`🥄 [${deductionId}] Processing ingredient: ${ingredient.material?.name || "Unknown"} - Required: ${requiredQuantity} ${unit}`);
       console.log(`📊 [${deductionId}] Ingredient details: materialId=${materialId}, quantity=${ingredient.quantity}, unit=${ingredient.unit}, orderQuantity=${orderQuantity}`);
       console.log(`🔍 [${deductionId}] About to search for stock entries for material ID: ${materialId}`);
-
-      // Find available stock entries for this material (FIFO - oldest first)
       const stockEntries = await StockEntry.findAll({
         where: {
           materialId: materialId,
-          [Op.or]: [
-            {
-              purchasedIndividualQuantity: {
-                [Op.gt]: 0 // Only positive individual quantities
-              }
-            },
-            {
-              purchasedIndividualQuantity: null,
-              purchasedQuantity: {
-                [Op.gt]: 0 // Only positive purchased quantities when individual is null
-              }
-            }
-          ]
+          [Op.or]: [ { purchasedIndividualQuantity: { [Op.gt]: 0 } }, { purchasedIndividualQuantity: null, purchasedQuantity: { [Op.gt]: 0 } } ]
         },
-        order: [["purchaseDate", "ASC"]], // FIFO ordering
+        order: [["purchaseDate", "ASC"]],
         transaction
       });
-
       console.log(`📦 [${deductionId}] Stock query result: Found ${stockEntries.length} stock entries for material ID: ${materialId}`);
-      
       if (stockEntries.length === 0) {
         console.log(`⚠️ [${deductionId}] No stock available for material ID: ${materialId} (${ingredient.material?.name})`);
         continue;
       }
-
       let remainingToDeduct = requiredQuantity;
       console.log(`📦 [${deductionId}] Processing ${stockEntries.length} stock entries for material ID: ${materialId}`);
-
-      // Deduct from stock entries using FIFO
       for (const stockEntry of stockEntries) {
         if (remainingToDeduct <= 0) break;
-
         const availableQuantity = stockEntry.purchasedIndividualQuantity || stockEntry.purchasedQuantity || 0;
         const deductAmount = Math.min(remainingToDeduct, availableQuantity);
-
         console.log(`📊 Stock Entry Details: ID=${stockEntry.id}, purchasedQuantity=${stockEntry.purchasedQuantity}, purchasedUnit=${stockEntry.purchasedUnit}, purchasedIndividualQuantity=${stockEntry.purchasedIndividualQuantity}, purchasedIndividualUnit=${stockEntry.purchasedIndividualUnit}`);
-
         if (deductAmount <= 0) {
           console.log(`⚠️ No quantity to deduct from stock entry ID: ${stockEntry.id}`);
           continue;
         }
-
         console.log(`📉 [${deductionId}] Deducting ${deductAmount} ${unit} from stock entry ID: ${stockEntry.id} (Available: ${availableQuantity})`);
-
-        // Update stock entry quantity
-        const newQuantity = Math.max(0, availableQuantity - deductAmount); // Ensure non-negative
-
+        const newQuantity = Math.max(0, availableQuantity - deductAmount);
         if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
-          await stockEntry.update(
-            {
-              purchasedIndividualQuantity: newQuantity
-            },
-            { transaction }
-          );
+          await stockEntry.update( { purchasedIndividualQuantity: newQuantity }, { transaction } );
         } else {
-          await stockEntry.update(
-            {
-              purchasedQuantity: newQuantity
-            },
-            { transaction }
-          );
+          await stockEntry.update( { purchasedQuantity: newQuantity }, { transaction } );
         }
-
         remainingToDeduct -= deductAmount;
         console.log(`✅ Updated stock entry ID: ${stockEntry.id} - New quantity: ${newQuantity}, Remaining to deduct: ${remainingToDeduct}`);
       }
-
       if (remainingToDeduct > 0) {
         console.log(`⚠️ Insufficient stock for ${ingredient.material?.name}. Short by: ${remainingToDeduct} ${unit}`);
-        // Note: We continue processing rather than throwing an error to allow partial fulfillment
       } else {
         console.log(`✅ Successfully deducted all required stock for ${ingredient.material?.name}`);
       }
     }
-
     console.log(`🎉 Stock deduction completed for menu item: ${menuItem.name}`);
   } catch (error) {
     console.error(`❌ Error deducting ingredient stock for menu item ID ${menuItemId}:`, error);
@@ -157,79 +91,41 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
 const deductStockFromMaterial = async (materialId, requiredQuantity, itemName, transaction) => {
   try {
     console.log(`🥤 Deducting ${requiredQuantity} units directly from material ID: ${materialId} for "${itemName}"`);
-
-    // Find available stock entries for this material (FIFO - oldest first)
     const stockEntries = await StockEntry.findAll({
       where: {
         materialId: materialId,
-        [Op.or]: [
-          {
-            purchasedIndividualQuantity: {
-              [Op.gt]: 0 // Only positive individual quantities
-            }
-          },
-          {
-            purchasedIndividualQuantity: null,
-            purchasedQuantity: {
-              [Op.gt]: 0 // Only positive purchased quantities when individual is null
-            }
-          }
-        ]
+        [Op.or]: [ { purchasedIndividualQuantity: { [Op.gt]: 0 } }, { purchasedIndividualQuantity: null, purchasedQuantity: { [Op.gt]: 0 } } ]
       },
-      order: [["purchaseDate", "ASC"]], // FIFO ordering
+      order: [["purchaseDate", "ASC"]],
       transaction
     });
-
     if (stockEntries.length === 0) {
       console.log(`⚠️ No stock available for material ID: ${materialId} (${itemName})`);
       return;
     }
-
     let remainingToDeduct = requiredQuantity;
     console.log(`📦 Found ${stockEntries.length} stock entries for material ID: ${materialId}`);
-
-    // Deduct from stock entries using FIFO
     for (const stockEntry of stockEntries) {
       if (remainingToDeduct <= 0) break;
-
       const availableQuantity = stockEntry.purchasedIndividualQuantity || stockEntry.purchasedQuantity || 0;
       const deductAmount = Math.min(remainingToDeduct, availableQuantity);
-
       console.log(`📊 Stock Entry Details: ID=${stockEntry.id}, purchasedQuantity=${stockEntry.purchasedQuantity}, purchasedUnit=${stockEntry.purchasedUnit}, purchasedIndividualQuantity=${stockEntry.purchasedIndividualQuantity}, purchasedIndividualUnit=${stockEntry.purchasedIndividualUnit}`);
-
       if (deductAmount <= 0) {
         console.log(`⚠️ No quantity to deduct from stock entry ID: ${stockEntry.id}`);
         continue;
       }
-
       console.log(`📉 Deducting ${deductAmount} from stock entry ID: ${stockEntry.id} (Available: ${availableQuantity})`);
-
-      // Update stock entry quantity
-      const newQuantity = Math.max(0, availableQuantity - deductAmount); // Ensure non-negative
-
+      const newQuantity = Math.max(0, availableQuantity - deductAmount);
       if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
-        await stockEntry.update(
-          {
-            purchasedIndividualQuantity: newQuantity
-          },
-          { transaction }
-        );
+        await stockEntry.update( { purchasedIndividualQuantity: newQuantity }, { transaction } );
       } else {
-        await stockEntry.update(
-          {
-            purchasedQuantity: newQuantity
-          },
-          { transaction }
-        );
+        await stockEntry.update( { purchasedQuantity: newQuantity }, { transaction } );
       }
-
       remainingToDeduct -= deductAmount;
       console.log(`✅ Updated stock entry ID: ${stockEntry.id} - New quantity: ${newQuantity}, Remaining to deduct: ${remainingToDeduct}`);
     }
-
     if (remainingToDeduct > 0) {
       console.log(`⚠️ Insufficient stock for ${itemName}. Short by: ${remainingToDeduct} units`);
-      // Note: We continue processing rather than throwing an error to allow partial fulfillment
     } else {
       console.log(`✅ Successfully deducted all required stock for ${itemName}`);
     }
@@ -251,16 +147,11 @@ export const ordersController = {
           finalOrderNumber = await generateSequentialOrderNumber();
         } catch (error) {
           console.error("Error generating order number:", error);
-          // Better fallback - use timestamp to avoid duplicates
           const timestamp = Date.now().toString().slice(-4);
           finalOrderNumber = `ORD-${timestamp}`;
         }
       }
-
-      // Check for duplicate orders within the last 10 seconds to prevent multiple API calls
       const tenSecondsAgo = new Date(Date.now() - 10000);
-      
-      // Create a more comprehensive duplicate check
       const duplicateCheckWhere = {
         createdBy: userId,
         orderType: orderType || "takeaway",
@@ -268,14 +159,11 @@ export const ordersController = {
           [Op.gte]: tenSecondsAgo
         }
       };
-      
-      // Only add tableId to where clause if it's not null
       if (tableId !== null && tableId !== undefined) {
         duplicateCheckWhere.tableId = tableId;
       } else {
         duplicateCheckWhere.tableId = null;
       }
-
       const recentOrder = await Order.findOne({
         where: duplicateCheckWhere,
         include: [{
@@ -285,8 +173,6 @@ export const ordersController = {
         order: [['createdAt', 'DESC']],
         transaction
       });
-
-      // If we found a recent order with the same items, return it instead of creating duplicate
       if (recentOrder && items.length > 0 && recentOrder.items.length === items.length) {
         const itemsMatch = items.every(item => 
           recentOrder.items.some(orderItem => 
@@ -297,7 +183,6 @@ export const ordersController = {
             Math.abs(parseFloat(orderItem.unitPrice) - parseFloat(item.unitPrice)) < 0.01
           )
         );
-
         if (itemsMatch) {
           console.log(`🔄 Duplicate order detected - returning existing order ${recentOrder.orderNumber} (ID: ${recentOrder.id}) instead of creating new one`);
           console.log(`🔄 Duplicate check details: userId=${userId}, orderType=${orderType}, tableId=${tableId}, itemsCount=${items.length}`);
@@ -309,8 +194,6 @@ export const ordersController = {
           });
         }
       }
-
-      // Add a small delay to prevent race conditions
       await new Promise(resolve => setTimeout(resolve, 100));
       const order = await Order.create(
         {
@@ -352,8 +235,6 @@ export const ordersController = {
               notes: item.notes
             };
             const orderItem = await OrderItem.create(orderItemData, { transaction });
-
-            // Deduct ingredient stock for menu items
             if (item.type === "menu_item" && item.menuItemId) {
               console.log(`🍽️ Processing menu item for stock deduction: ${item.name} (ID: ${item.menuItemId}), Quantity: ${item.quantity}`);
               try {
@@ -361,34 +242,20 @@ export const ordersController = {
                 console.log(`✅ Stock deduction completed for menu item: ${item.name}`);
               } catch (stockError) {
                 console.error(`❌ Stock deduction failed for menu item ${item.name}:`, stockError);
-                // Don't throw error to prevent order creation failure
               }
             }
-
             return orderItem;
           })
         );
         const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
-        const tax = 0; // No tax for now - can be configured later
+        const tax = 0;
         const discountAmountValue = parseFloat(discountAmount) || 0;
         const total = Math.max(0, subtotal - discountAmountValue);
         await order.update({ subtotal, tax, total }, { transaction });
       }
       await transaction.commit();
       const completeOrder = await Order.findByPk(order.id, {
-        include: [
-          {
-            model: OrderItem,
-            as: "items",
-            include: [
-              { model: Material, as: "material" },
-              { model: MenuItem, as: "menuItem" },
-              { model: Assignment, as: "assignment" }
-            ]
-          },
-          { model: Table, as: "table" },
-          { model: User, as: "creator" }
-        ]
+        include: [ { model: OrderItem, as: "items", include: [ { model: Material, as: "material" }, { model: MenuItem, as: "menuItem" }, { model: Assignment, as: "assignment" } ] }, { model: Table, as: "table" }, { model: User, as: "creator" } ]
       });
       if (userId) {
         await auditOrderOperation(userId, "CREATE", completeOrder.toJSON(), null, req);
@@ -406,16 +273,13 @@ export const ordersController = {
       const { status, orderType, tableId, startDate, endDate, limit = 50, offset = 0, orderBy = "createdAt", order = "DESC" } = req.query;
       const whereClause = {};
       if (status) whereClause.status = status;
-      // Always exclude staff/employee order types from general listing
       const excludedTypes = ["employees", "staff"];
       if (orderType) {
-        // If client explicitly asks for excluded types, return empty list
         if (excludedTypes.includes(String(orderType).toLowerCase())) {
           return res.json({ data: [] });
         }
         whereClause.orderType = orderType;
       } else {
-        // Postgres enum-safe filter: cast enum to text then NOT IN
         whereClause[Op.and] = [...(whereClause[Op.and] || []), sequelize.where(sequelize.cast(sequelize.col("orderType"), "text"), { [Op.notIn]: excludedTypes })];
       }
       if (tableId) whereClause.tableId = tableId;
@@ -489,7 +353,6 @@ export const ordersController = {
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-      // Exclude staff/employee orders from this endpoint
       if (["employees", "staff"].includes(String(order.orderType).toLowerCase())) {
         return res.status(404).json({ message: "Order not found" });
       }
@@ -578,7 +441,6 @@ export const ordersController = {
             }
             return false;
           });
-
           if (!stillExists) {
             const removedItem = {
               ...existingItem.toJSON(),
@@ -663,23 +525,16 @@ export const ordersController = {
       const { orderId } = req.params;
       const { items } = req.body;
       const userId = req.user?.id;
-
-      // Find the existing order
       const order = await Order.findByPk(orderId, { transaction });
       if (!order) {
         await transaction.rollback();
         return res.status(404).json({ message: "Order not found" });
       }
-
-      // Validate that items array is provided and not empty
       if (!items || !Array.isArray(items) || items.length === 0) {
         await transaction.rollback();
         return res.status(400).json({ message: "Items array is required and cannot be empty" });
       }
-
       console.log(`📋 Adding ${items.length} items to order ${orderId}`);
-
-      // Create new order items
       const newOrderItems = await Promise.all(
         items.map(async item => {
           return await OrderItem.create(
@@ -699,18 +554,14 @@ export const ordersController = {
           );
         })
       );
-
-      // Recalculate order totals
       const allOrderItems = await OrderItem.findAll({
         where: { orderId: order.id },
         transaction
       });
-
       const subtotal = allOrderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
-      const tax = 0; // No tax for now - can be configured later
+      const tax = 0;
       const discountAmountValue = parseFloat(order.discountAmount) || 0;
       const total = Math.max(0, subtotal - discountAmountValue);
-
       await order.update(
         {
           subtotal,
@@ -720,10 +571,7 @@ export const ordersController = {
         },
         { transaction }
       );
-
       await transaction.commit();
-
-      // Fetch updated order with all items
       const updatedOrder = await Order.findByPk(orderId, {
         include: [
           {
@@ -738,14 +586,10 @@ export const ordersController = {
           { model: Table, as: "table" }
         ]
       });
-
       console.log(`✅ Successfully added ${newOrderItems.length} items to order ${orderId}`);
-
-      // Log successful operation
       if (userId) {
         await auditOrderOperation(userId, "ADD_ITEMS", updatedOrder.toJSON(), null, req);
       }
-
       res.json({
         message: `Successfully added ${newOrderItems.length} items to order`,
         order: updatedOrder
@@ -764,37 +608,26 @@ export const ordersController = {
       const { orderId } = req.params;
       const { itemIds } = req.body || {};
       const userId = req.user?.id;
-
-      // Validate
       if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
         await transaction.rollback();
         return res.status(400).json({ message: "itemIds array is required and cannot be empty" });
       }
-
       const order = await Order.findByPk(orderId, { transaction });
       if (!order) {
         await transaction.rollback();
         return res.status(404).json({ message: "Order not found" });
       }
-
-      // Delete requested items limited to this orderId
       const deletedCount = await OrderItem.destroy({
         where: { orderId, id: itemIds },
         transaction
       });
-
-      // Recalculate totals from remaining items
       const remainingItems = await OrderItem.findAll({ where: { orderId }, transaction });
       const subtotal = remainingItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
-      const tax = 0; // configurable later
+      const tax = 0; 
       const discountAmountValue = parseFloat(order.discountAmount) || 0;
       const total = Math.max(0, subtotal - discountAmountValue);
-
       await order.update({ subtotal, tax, total, updatedBy: userId }, { transaction });
-
       await transaction.commit();
-
-      // Return updated order with relations
       const updatedOrder = await Order.findByPk(orderId, {
         include: [
           {
@@ -809,11 +642,9 @@ export const ordersController = {
           { model: Table, as: "table" }
         ]
       });
-
       if (userId) {
         await auditOrderOperation(userId, "REMOVE_ITEMS", updatedOrder.toJSON(), null, req);
       }
-
       return res.json({
         message: `Successfully removed ${deletedCount} item(s) from order`,
         order: updatedOrder
@@ -831,27 +662,21 @@ export const ordersController = {
       const { orderId } = req.params;
       const { status } = req.body;
       const userId = req.user?.id;
-
       const order = await Order.findByPk(orderId);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-
       const updateData = { status, updatedBy: userId };
-
       if (status === "cancelled") {
         updateData.cancelledAt = new Date();
       }
-
       await order.update(updateData);
-
       const updatedOrder = await Order.findByPk(orderId, {
         include: [
           { model: OrderItem, as: "items" },
           { model: Table, as: "table" }
         ]
       });
-
       res.json({ message: "Order status updated successfully", order: updatedOrder });
     } catch (error) {
       console.error("Update order status error:", error);
@@ -862,7 +687,6 @@ export const ordersController = {
   // Complete order (convert to sale)
   completeOrder: async (req, res) => {
     const transaction = await sequelize.transaction();
-
     try {
       const { orderId } = req.params;
       const { paymentData } = req.body;
@@ -876,8 +700,6 @@ export const ordersController = {
         await transaction.rollback();
         return res.status(404).json({ message: "Order not found" });
       }
-
-      // Check if order is already completed
       if (order.status === "paid") {
         await transaction.rollback();
         return res.status(400).json({
@@ -887,8 +709,6 @@ export const ordersController = {
           saleId: order.saleId
         });
       }
-
-      // Check if order is in a completable state
       const completableStatuses = ["draft", "confirmed", "preparing", "ready", "served"];
       if (!completableStatuses.includes(order.status)) {
         await transaction.rollback();
@@ -898,10 +718,8 @@ export const ordersController = {
           allowedStatuses: completableStatuses
         });
       }
-      // Convert order to sale format
       const saleData = {
         saleDate: new Date().toISOString(),
-        // sectionId will be handled automatically by the sales controller
         items: order.items
           .filter(item => item.type === "material")
           .map(item => ({
@@ -925,16 +743,12 @@ export const ordersController = {
         paymentAmount: paymentData.paymentAmount,
         paymentMethod: paymentData.paymentMethod || "cash"
       };
-
-      // Create sale using existing sales controller
-      // Add flag to indicate this sale comes from an existing order (stock already deducted)
       saleData.fromExistingOrder = true;
       const mockReq = { body: saleData, user: { id: userId } };
       const mockRes = {
         status: code => mockRes,
         json: data => data
       };
-
       const saleResult = await new Promise((resolve, reject) => {
         mockRes.json = data => {
           if (data.error || data.message?.includes("failed")) {
@@ -943,7 +757,6 @@ export const ordersController = {
             resolve(data);
           }
         };
-
         salesController.createSales(mockReq, mockRes).catch(error => {
           reject(error);
         });
@@ -965,13 +778,11 @@ export const ordersController = {
         {
           where: {
             id: orderId,
-            status: { [Op.ne]: "paid" } // Only update if not already paid
+            status: { [Op.ne]: "paid" }
           },
           transaction
         }
       );
-
-      // Check if the update actually happened
       if (updateResult[0] === 0) {
         await transaction.rollback();
         return res.status(400).json({
@@ -979,12 +790,9 @@ export const ordersController = {
           note: "This can happen if multiple completion requests are made simultaneously"
         });
       }
-
-      // Free up table when order is completed
       if (order.tableId) {
         const table = await Table.findByPk(order.tableId, { transaction });
         if (table) {
-          // Check if there are other active orders for this table
           const otherActiveOrders = await Order.count({
             where: {
               tableId: order.tableId,
@@ -999,13 +807,10 @@ export const ordersController = {
           }
         }
       }
-
       await transaction.commit();
-
       const completedOrder = await Order.findByPk(orderId, {
         include: [{ model: OrderItem, as: "items" }]
       });
-
       res.json({
         message: "Order completed successfully",
         order: completedOrder,
@@ -1024,24 +829,19 @@ export const ordersController = {
       const { orderId } = req.params;
       const { reason } = req.body;
       const userId = req.user?.id;
-
       const order = await Order.findByPk(orderId);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-
       await order.update({
         status: "cancelled",
         cancelReason: reason,
         cancelledAt: new Date(),
         updatedBy: userId
       });
-
-      // Free up table when order is cancelled
       if (order.tableId) {
         const table = await Table.findByPk(order.tableId);
         if (table) {
-          // Check if there are other active orders for this table
           const otherActiveOrders = await Order.count({
             where: {
               tableId: order.tableId,
@@ -1049,17 +849,14 @@ export const ordersController = {
               status: { [Op.in]: ["draft", "confirmed", "preparing", "ready"] }
             }
           });
-
           if (otherActiveOrders === 0) {
             await table.update({ status: "available" });
           }
         }
       }
-
       const cancelledOrder = await Order.findByPk(orderId, {
         include: [{ model: OrderItem, as: "items" }]
       });
-
       res.json({ message: "Order cancelled successfully", order: cancelledOrder });
     } catch (error) {
       console.error("Cancel order error:", error);
@@ -1079,30 +876,22 @@ export const ordersController = {
         include: [{ model: OrderItem, as: "items" }],
         transaction
       });
-
       if (!order) {
         await transaction.rollback();
         return res.status(404).json({ message: "Order not found" });
       }
-
-      // Check if order can be voided
       if (order.status === "cancelled") {
         await transaction.rollback();
         return res.status(400).json({ message: "Order is already cancelled/voided" });
       }
-
       if (order.status === "paid") {
         await transaction.rollback();
         return res.status(400).json({ message: "Cannot void a paid order. Use refund instead." });
       }
-
-      // Restore stock if requested and order had consumed stock
       const stockRestorations = [];
       if (restoreStock && order.items && order.items.length > 0) {
         const { MenuItem, MenuItemIngredient, StockEntry, Material } = await import("../models/index.js");
-
         for (const item of order.items) {
-          // Handle direct material items
           if (item.materialId && item.type === "material") {
             try {
               const material = await Material.findByPk(item.materialId, { transaction });
@@ -1110,24 +899,18 @@ export const ordersController = {
                 console.warn(`Material ${item.materialId} not found during void`);
                 continue;
               }
-
-              // Calculate restoration quantities
               let restorationQuantity = item.quantity;
               if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
                 if (item.unit !== material.baseUnit) {
                   restorationQuantity = item.quantity * material.packageQuantity;
                 }
               }
-
-              // Find stock entries for this material (LIFO - most recent first)
               const stockEntries = await StockEntry.findAll({
                 where: { materialId: item.materialId },
                 order: [["createdAt", "DESC"]],
                 transaction
               });
-
               if (stockEntries.length === 0) {
-                // Create new stock entry if none exist
                 const newStockEntry = await StockEntry.create({
                   materialId: material.id,
                   supplier: "RESTORED - From Order Void",
@@ -1140,7 +923,6 @@ export const ordersController = {
                   purchaseDate: new Date(),
                   expiryDate: null
                 }, { transaction });
-
                 stockRestorations.push({
                   type: "material_item",
                   materialId: material.id,
@@ -1153,15 +935,12 @@ export const ordersController = {
                   newStockQuantity: restorationQuantity
                 });
               } else {
-                // Restore to most recent stock entry
                 const stockEntry = stockEntries[0];
                 const oldQuantity = stockEntry.purchasedIndividualQuantity || 0;
                 const newQuantity = Math.round(oldQuantity + restorationQuantity);
-
                 await stockEntry.update({
                   purchasedIndividualQuantity: newQuantity
                 }, { transaction });
-
                 stockRestorations.push({
                   type: "material_item",
                   materialId: material.id,
@@ -1177,10 +956,8 @@ export const ordersController = {
               console.warn(`⚠️ Could not restore stock for material item ${item.name}:`, stockError.message);
             }
           }
-          // Handle menu items with ingredients
           else if (item.menuItemId && item.type === "menu_item") {
             try {
-              // Find the menu item with its ingredients
               const menuItem = await MenuItem.findByPk(item.menuItemId, {
                 include: [{
                   model: MenuItemIngredient,
@@ -1189,21 +966,15 @@ export const ordersController = {
                 }],
                 transaction
               });
-
               if (!menuItem) {
                 console.warn(`Menu item ${item.menuItemId} not found during void`);
                 continue;
               }
-
               console.log(`🔄 Restoring stock for menu item "${item.name}" with ${menuItem.menuItemIngredients?.length || 0} ingredients`);
-
-              // Restore each ingredient
               if (menuItem.menuItemIngredients && menuItem.menuItemIngredients.length > 0) {
                 for (const ingredient of menuItem.menuItemIngredients) {
                   const material = ingredient.material;
                   const totalIngredientQuantity = ingredient.quantity * item.quantity;
-
-                  // Convert ingredient quantity to base units if needed
                   let restorationQuantityInBaseUnits = totalIngredientQuantity;
                   if (ingredient.unit !== material.baseUnit) {
                     if (material.unitType === "mass") {
@@ -1214,16 +985,12 @@ export const ordersController = {
                       }
                     }
                   }
-
-                  // Find stock entries for this material (LIFO - most recent first)
                   const stockEntries = await StockEntry.findAll({
                     where: { materialId: material.id },
                     order: [["createdAt", "DESC"]],
                     transaction
                   });
-
                   if (stockEntries.length === 0) {
-                    // Create new stock entry if none exist
                     const newStockEntry = await StockEntry.create({
                       materialId: material.id,
                       supplier: "RESTORED - From Order Void",
@@ -1236,7 +1003,6 @@ export const ordersController = {
                       purchaseDate: new Date(),
                       expiryDate: null
                     }, { transaction });
-
                     stockRestorations.push({
                       type: "menu_item_ingredient",
                       materialId: material.id,
@@ -1251,15 +1017,12 @@ export const ordersController = {
                       newStockQuantity: restorationQuantityInBaseUnits
                     });
                   } else {
-                    // Restore to most recent stock entry
                     const stockEntry = stockEntries[0];
                     const oldQuantity = stockEntry.purchasedIndividualQuantity || 0;
                     const newQuantity = Math.round(oldQuantity + restorationQuantityInBaseUnits);
-
                     await stockEntry.update({
                       purchasedIndividualQuantity: newQuantity
                     }, { transaction });
-
                     stockRestorations.push({
                       type: "menu_item_ingredient",
                       materialId: material.id,
@@ -1273,7 +1036,6 @@ export const ordersController = {
                       newStockQuantity: newQuantity
                     });
                   }
-
                   console.log(`✅ Restored ${restorationQuantityInBaseUnits} units of ${material.name} for ${menuItem.name}`);
                 }
               }
@@ -1283,8 +1045,6 @@ export const ordersController = {
           }
         }
       }
-
-      // Update order status to cancelled (voided)
       await order.update(
         {
           status: "cancelled",
@@ -1294,12 +1054,9 @@ export const ordersController = {
         },
         { transaction }
       );
-
-      // Free up table when order is voided
       if (order.tableId) {
         const table = await Table.findByPk(order.tableId, { transaction });
         if (table) {
-          // Check if there are other active orders for this table
           const otherActiveOrders = await Order.count({
             where: {
               tableId: order.tableId,
@@ -1308,19 +1065,15 @@ export const ordersController = {
             },
             transaction
           });
-
           if (otherActiveOrders === 0) {
             await table.update({ status: "available" }, { transaction });
           }
         }
       }
-      // Commit the transaction
       await transaction.commit();
-      // Get the updated order with items
       const voidedOrder = await Order.findByPk(orderId, {
         include: [{ model: OrderItem, as: "items" }]
       });
-
       res.json({
         message: "Order voided successfully",
         order: voidedOrder,
@@ -1372,7 +1125,6 @@ export const ordersController = {
         ],
         order: [["updatedAt", "DESC"]]
       });
-
       res.json({ data: orders });
     } catch (error) {
       console.error("Get draft orders error:", error);
@@ -1392,9 +1144,7 @@ export const ordersController = {
         if (startDate) whereClause.createdAt[Op.gte] = new Date(startDate);
         if (endDate) whereClause.createdAt[Op.lte] = new Date(endDate);
       }
-      // Postgres enum-safe filter: cast enum to text then IN
       whereClause[Op.and] = [...(whereClause[Op.and] || []), sequelize.where(sequelize.cast(sequelize.col("orderType"), "text"), { [Op.in]: ["employees", "staff"] })];
-
       const orders = await Order.findAll({
         where: whereClause,
         include: [
@@ -1413,7 +1163,6 @@ export const ordersController = {
         limit: parseInt(limit),
         offset: parseInt(offset)
       });
-
       res.json({ data: orders });
     } catch (error) {
       console.error("Get staff orders error:", error);
@@ -1427,44 +1176,31 @@ export const ordersController = {
       const { orderId } = req.params;
       const updateData = req.body;
       const userId = req.user?.id;
-
       const order = await Order.findByPk(orderId);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-
-      // Only auto-save draft orders
       if (order.status !== "draft") {
         return res.status(400).json({ message: "Can only auto-save draft orders" });
       }
-
-      // Extract discount fields if present
       const { discountType, discountValue, discountAmount, discountReason, ...otherData } = updateData;
-
       const updateFields = {
         ...otherData,
         updatedBy: userId
       };
-
-      // Add discount fields if they exist
       if (discountType !== undefined) updateFields.discountType = discountType;
       if (discountValue !== undefined) updateFields.discountValue = discountValue;
       if (discountAmount !== undefined) updateFields.discountAmount = discountAmount;
       if (discountReason !== undefined) updateFields.discountReason = discountReason;
-
       await order.update(updateFields);
-
-      // Recalculate total if discount was updated
       if (discountAmount !== undefined) {
         const orderItems = await OrderItem.findAll({ where: { orderId } });
         const subtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
-        const tax = 0; // No tax for now
+        const tax = 0;
         const discountAmountValue = parseFloat(discountAmount) || 0;
         const total = Math.max(0, subtotal - discountAmountValue);
-
         await order.update({ subtotal, tax, total });
       }
-
       res.json({ message: "Order auto-saved successfully" });
     } catch (error) {
       console.error("Auto-save order error:", error);
@@ -1480,19 +1216,12 @@ export const ordersController = {
 async function processVoidPrintJobs(removedItems, order, userId) {
   try {
     console.log(`🔄 Processing void print jobs for ${removedItems.length} removed items`);
-
-    // Group removed items by their assigned printer
     const itemsByPrinter = new Map();
     const printerAssignmentCache = new Map();
-
     for (const item of removedItems) {
       let printerId = null;
-
-      // Determine printer assignment based on item type with comprehensive fallback
       printerId = await determinePrinterAssignment(item, printerAssignmentCache);
-
       if (printerId) {
-        // Group items by printer
         if (!itemsByPrinter.has(printerId)) {
           itemsByPrinter.set(printerId, []);
         }
@@ -1502,34 +1231,23 @@ async function processVoidPrintJobs(removedItems, order, userId) {
         console.warn(`⚠️ No printer assignment found for item: ${getItemDisplayName(item)}`);
       }
     }
-
-    // Create void print jobs for each printer group
     const printJobs = [];
     console.log(`📄 Creating void print jobs for ${itemsByPrinter.size} printer(s)`);
-
     for (const [printerId, printerItems] of itemsByPrinter) {
       try {
-        // Get printer details with enhanced error handling
         const printer = await Printer.findByPk(printerId, {
           include: [{ model: PrinterChannel, as: "channel" }]
         });
-
         if (!printer) {
           console.error(`❌ Printer not found: ID ${printerId}`);
           continue;
         }
-
         if (!printer.isActive) {
           console.warn(`⚠️ Printer inactive: ${printer.name} (ID: ${printerId})`);
           continue;
         }
-
         console.log(`🖨️ Processing void print job for printer: ${printer.name} (${printerItems.length} items)`);
-
-        // Format void items for thermal printer with enhanced formatting
         const voidContent = await formatVoidItemsForThermalPrinter(printerItems, order, printer);
-
-        // Create print job with enhanced metadata
         const printJob = await PrintJob.create({
           printerId: printer.id,
           channelId: printer.channelId,
@@ -1543,7 +1261,7 @@ async function processVoidPrintJobs(removedItems, order, userId) {
           },
           settings: {
             copies: 1,
-            priority: "high" // High priority for void items
+            priority: "high"
           },
           maxAttempts: 3,
           attempts: 0,
@@ -1579,14 +1297,12 @@ async function processVoidPrintJobs(removedItems, order, userId) {
             }))
           }
         });
-
         printJobs.push(printJob);
         console.log(`✅ Void print job created for printer: ${printer.name}`);
       } catch (printerError) {
         console.error(`❌ Failed to create void print job for printer ${printerId}:`, printerError);
       }
     }
-
     console.log(`📋 Total void print jobs created: ${printJobs.length}`);
     return printJobs;
   } catch (error) {
