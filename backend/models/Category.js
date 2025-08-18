@@ -20,7 +20,6 @@ const Category = sequelize.define(
     value: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
       validate: {
         notEmpty: { msg: "Category value cannot be empty" },
         len: { args: [1, 50], msg: "Category value must be between 1 and 50 characters" },
@@ -28,12 +27,12 @@ const Category = sequelize.define(
       }
     },
     type: {
-      type: DataTypes.ENUM("materials", "menu_items"),
+      type: DataTypes.ENUM("materials", "menu_items", "beverages"),
       allowNull: false,
       validate: {
         isIn: {
-          args: [["materials", "menu_items"]],
-          msg: "Category type must be either 'materials' or 'menu_items'"
+          args: [["materials", "menu_items", "beverages"]],
+          msg: "Category type must be 'materials', 'menu_items', or 'beverages'"
         }
       }
     },
@@ -61,7 +60,7 @@ const Category = sequelize.define(
     indexes: [
       {
         unique: true,
-        fields: ["value"]
+        fields: ["value", "type"]
       },
       {
         fields: ["type"]

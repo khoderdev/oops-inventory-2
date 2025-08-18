@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { BeverageItem, Material, StockEntry, BeverageItemCategory, Section } from "@/types/inventory";
+import { MenuItem, Material, StockEntry, MenuItemCategory, Section } from "@/types/inventory";
 import { Category } from "@/types/categories";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
@@ -16,28 +16,46 @@ import { toast } from "../ui/use-toast";
 interface BeveragesMenuBuilderProps {
   stockEntries: StockEntry[];
   materials: Material[];
-  menuItems: BeverageItem[];
+  menuItems: MenuItem[];
   categories: Category[];
   sections: Section[];
-  onCreateBeverageItem: (data: BeverageItem) => void | Promise<void>;
-  onUpdateBeverageItem: (id: string, data: BeverageItem) => void | Promise<void>;
+  onCreateBeverageItem: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt">) => void | Promise<void>;
+  onUpdateBeverageItem: (id: string, data: Partial<MenuItem>) => void | Promise<void>;
   onDeleteBeverageItem: (id: string) => void | Promise<void>;
 }
 
 const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntries, materials, menuItems, categories, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<BeverageItemCategory | "all">("all");
+  const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
   const [showBeverageItemForm, setShowBeverageItemForm] = useState(false);
-  const [editingBeverageItem, setEditingBeverageItem] = useState<BeverageItem | null>(null);
+  const [editingBeverageItem, setEditingBeverageItem] = useState<MenuItem | null>(null);
   const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
   const [selectedBeverageItems, setSelectedBeverageItems] = useState<Set<string>>(new Set());
   const [showVariantDialog, setShowVariantDialog] = useState(false);
-  const [currentVariantItem, setCurrentVariantItem] = useState<BeverageItem | null>(null);
+  const [currentVariantItem, setCurrentVariantItem] = useState<MenuItem | null>(null);
 
-  const beverageCategories = useMemo(() => {
-    return categories.filter(cat => ["beverages", "cold", "hot", "alcohol"].includes(cat.value.toLowerCase()));
+  // Filter categories for beverages
+  const beverageCategoriesRaw = useMemo(() => {
+    // Check if category type is 'beverages' OR if value matches specific beverage types
+    const filtered = categories.filter(cat => 
+      cat.type === 'beverages' || 
+      ["beverages", "cold", "hot", "alcohol"].includes(cat.value.toLowerCase())
+    );
+    console.log('Filtered beverageCategoriesRaw:', filtered);
+    return filtered;
   }, [categories]);
+  
+  // Convert Category[] to CategoryOption[] with string IDs for BeverageItemForm
+  const beverageCategories = useMemo(() => {
+    const converted = beverageCategoriesRaw.map(cat => ({
+      ...cat,
+      id: String(cat.id) // Convert number id to string
+    }));
+    console.log('Converted beverageCategories with string IDs:', converted);
+    return converted;
+  }, [beverageCategoriesRaw]);
 
+  // Filter menu items for beverages
   const beverageBeverageItems = useMemo(() => {
     return menuItems.filter(item => {
       const isBeverageCategory = (() => {
@@ -77,7 +95,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
     });
   }, [beverageBeverageItems, searchTerm, selectedCategory, categories]);
 
-  const columnHelper = createColumnHelper<BeverageItem>();
+  const columnHelper = createColumnHelper<MenuItem>();
 
   const columns = useMemo(
     () => [
@@ -184,7 +202,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
   });
 
   // Handlers
-  const handleEditBeverageItem = useCallback((menuItem: BeverageItem) => {
+  const handleEditBeverageItem = useCallback((menuItem: MenuItem) => {
     setEditingBeverageItem(menuItem);
     setShowBeverageItemForm(true);
   }, []);
@@ -208,7 +226,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
     [onDeleteBeverageItem]
   );
 
-  const handleCreateVariants = useCallback((menuItem: BeverageItem) => {
+  const handleCreateVariants = useCallback((menuItem: MenuItem) => {
     setCurrentVariantItem(menuItem);
     setShowVariantDialog(true);
   }, []);
@@ -241,7 +259,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input type="search" placeholder="Search beverages..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 h-10" />
                 </div>
-                <Select value={selectedCategory} onValueChange={value => setSelectedCategory(value as BeverageItemCategory | "all")}>
+                <Select value={selectedCategory} onValueChange={value => setSelectedCategory(value as MenuItemCategory | "all")}>
                   <SelectTrigger className="w-full sm:w-[180px] lg:w-[200px] h-10">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
@@ -269,7 +287,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                 {selectedCategory !== "all" && (
                   <span className="block sm:inline">
                     {" "}
-                    in <span className="font-medium">{beverageCategories.find(c => c.value === selectedCategory)?.name}</span>
+                    in <span className="font-medium">{beverageCategoriesRaw.find(c => c.value === selectedCategory)?.name}</span>
                   </span>
                 )}
               </div>
@@ -311,7 +329,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
             
             {/* Beverage Item Form Dialog */}
             <Dialog open={showBeverageItemForm} onOpenChange={handleCloseModal} modal={true}>
-              <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
+              <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
                 <DialogHeader>
                   <DialogTitle className="text-lg sm:text-xl">{editingBeverageItem ? "Edit Beverage Item" : "Create New Beverage Item"}</DialogTitle>
                 </DialogHeader>
@@ -321,17 +339,11 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                   onSubmit={
                     editingBeverageItem
                       ? data => {
-                          const updatedItem: BeverageItem = {
-                            ...data,
-                            id: editingBeverageItem.id,
-                            createdAt: editingBeverageItem.createdAt,
-                            updatedAt: editingBeverageItem.updatedAt
-                          };
-                          onUpdateBeverageItem(editingBeverageItem.id, updatedItem);
+                          onUpdateBeverageItem(editingBeverageItem.id, data);
                           handleCloseModal();
                         }
                       : data => {
-                          onCreateBeverageItem(data as BeverageItem);
+                          onCreateBeverageItem(data);
                           handleCloseModal();
                         }
                   }
@@ -354,7 +366,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                     onSubmit={(data: any) => {
                       if (data.variants) {
                         // Handle the variants creation through the form
-                        // Create a properly typed BeverageItem by ensuring category is properly formatted
                         const processedCategory = (() => {
                           // If it's already a string or number, use it directly
                           if (typeof data.category === 'string' || typeof data.category === 'number') {
@@ -368,20 +379,14 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                           return null;
                         })();
                         
-                        // Ensure menuItemIngredients is boolean as required by BeverageItem interface
-                        const menuItemIngredients = Array.isArray(data.menuItemIngredients) ? 
-                          data.menuItemIngredients.length > 0 : 
-                          Boolean(data.menuItemIngredients);
-                        
-                        // Create a properly typed BeverageItem
-                        const updatedItem: Partial<BeverageItem> = {
+                        // Create a properly typed MenuItem
+                        const updatedItem = {
                           ...currentVariantItem,
                           ...data,
-                          category: processedCategory,
-                          menuItemIngredients: menuItemIngredients
+                          category: processedCategory
                         };
                         
-                        onCreateBeverageItem(updatedItem as BeverageItem);
+                        onCreateBeverageItem(updatedItem);
                         toast({
                           title: "Success",
                           description: `Created variants for ${currentVariantItem.name}`,

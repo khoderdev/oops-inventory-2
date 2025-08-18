@@ -41,6 +41,21 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       baseUnit: material?.baseUnit || ""
     }
   });
+  
+  // Reset form with material data when material changes
+  useEffect(() => {
+    if (material) {
+      console.log("🔄 MaterialForm: Resetting form with material data:", material);
+      form.reset({
+        name: material.name,
+        category: material.category,
+        unitType: material.unitType || "piece",
+        inputUnit: material.inputUnit || material.baseUnit || "",
+        packageQuantity: material.packageQuantity || 1,
+        baseUnit: material.baseUnit || ""
+      });
+    }
+  }, [material, form]);
 
   const watchedUnitType = form.watch("unitType");
   const watchedInputUnit = form.watch("inputUnit");
@@ -59,7 +74,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
 
   // Convert categoryId to category value when editing existing material (one-time only)
   useEffect(() => {
-    if (categories.length > 0 && material && (material as any).categoryId && !form.formState.isDirty) {
+    if (categories.length > 0 && material && (material as any).categoryId) {
       const categoryId = (material as any).categoryId;
       console.log(
         "🔍 Looking for categoryId:",
@@ -70,7 +85,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       const matchingCategory = categories.find(cat => cat.id === categoryId);
       if (matchingCategory) {
         console.log("✅ Found matching category:", matchingCategory.name, "value:", matchingCategory.value);
-        form.setValue("category", matchingCategory.value);
+        form.setValue("category", matchingCategory.value, { shouldDirty: true, shouldTouch: true });
       } else {
         // Fallback: categoryId doesn't match any materials category - just leave it empty for user to select
         console.warn("⚠️ Material categoryId", categoryId, "not found in materials categories. User needs to select manually.");
@@ -190,14 +205,17 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   }, []);
 
   const handleSubmit = (data: MaterialFormData) => {
+    const selectedCategory = categories.find(cat => cat.value === data.category);
     const finalData = {
       name: data.name,
       category: data.category,
+      categoryId: selectedCategory?.id ? String(selectedCategory.id) : undefined,
       unitType: data.unitType,
       inputUnit: data.inputUnit,
       baseUnit: data.baseUnit,
       packageQuantity: data.unitType === "package" ? data.packageQuantity : undefined
     };
+    console.log("📤 Submitting material with categoryId:", selectedCategory?.id);
     onSubmit(finalData);
   };
 
@@ -382,42 +400,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                     <FormItem>
                       <FormLabel>Material Name</FormLabel>
                       <FormControl>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                          disabled={loadingBeverages}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder={loadingBeverages ? "Loading beverages..." : "Select a beverage"} />
-                              {loadingBeverages && (
-                                <div className="flex items-center">
-                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                  <span>Loading beverages...</span>
-                                </div>
-                              )}
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {beverageError && (
-                              <SelectItem key="beverage-error" value="" disabled>
-                                {beverageError}
-                              </SelectItem>
-                            )}
-                            {!beverageError && beverageOptions.length === 0 && !loadingBeverages && (
-                              <SelectItem key="no-beverages" value="no-beverages" disabled>
-                                No beverage options available
-                              </SelectItem>
-                            )}
-                            {!beverageError &&
-                              beverageOptions.length > 0 &&
-                              beverageOptions.map((name) => (
-                                <SelectItem key={`beverage-${name}`} value={name}>
-                                  {name}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
+                        <Input placeholder="Enter material name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -110,7 +110,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     setHasGenerated(false);
 
     try {
-      const [materials, stockEntries, sales, menuItems, sections, assignments] = await Promise.all([materialsAPI.getMaterials(), stockAPI.getStockEntries(), salesAPI.getSales(), menuAPI.getMenus(), sectionAPI.getSections(), assignmentsAPI.getAssignments()]);
+      const [materials, stockEntries, sales, menuItems, sections, assignments] = await Promise.all([materialsAPI.getMaterialsWithStock({ limit: 10000 }), stockAPI.getStockEntries(), salesAPI.getSales(), menuAPI.getMenus(), sectionAPI.getSections(), assignmentsAPI.getAssignments()]);
       let filteredData: { stockEntries: StockEntry[]; sales: SaleRecord[] } | undefined;
       let reportResults: Record<string, unknown>[] | undefined;
 
@@ -149,15 +149,12 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
                 return itemCategory === selectedKey;
               })
             : menuItems.data;
-
-          // Apply date filtering if dates are selected
           let salesData = sales.data;
           if (dateFrom || dateTo) {
             const today = new Date();
             const fromDate = new Date(dateFrom ?? today);
             const toDate = new Date(dateTo ?? today);
             toDate.setHours(23, 59, 59, 999);
-
             salesData = sales.data.filter(sale => {
               const saleDate = new Date(sale.saleDate);
               return saleDate >= fromDate && saleDate <= toDate;
@@ -184,22 +181,18 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
             dateFrom,
             dateTo
           });
-
-          // For sales analysis, use all sales data if filtered data is empty
           const salesDataForAnalysis = (filteredData?.sales?.length || 0) > 0 ? filteredData.sales : sales.data;
-          
-          const materialsAnalysis = await generateCategoryAnalysisReport(materials, filteredData?.stockEntries || [], filteredData?.sales || []);
-          const salesAnalysis = await generateCategorySalesAnalysisReport(materials, filteredData?.stockEntries || [], salesDataForAnalysis);
-          
+          const materialsAnalysis = await generateCategoryAnalysisReport(materials, filteredData?.stockEntries || []);
+          const salesAnalysis = await generateCategorySalesAnalysisReport(salesDataForAnalysis);
           setCategoryAnalysisData({ materials: materialsAnalysis, sales: salesAnalysis });
-          reportResults = materialsAnalysis; // Default to materials view
+          reportResults = materialsAnalysis;
           break;
         }
         case "menu-profitability":
-          reportResults = await generateMenuProfitabilityReport(menuItems.data, materials, filteredData?.sales || []);
+          reportResults = await generateMenuProfitabilityReport(menuItems.data);
           break;
         case "section-performance":
-          reportResults = await generateSectionPerformanceReport(sections.data, assignments.data, filteredData?.sales || []);
+          reportResults = await generateSectionPerformanceReport(sections.data, assignments.data);
           break;
         case "waste-report":
           {
@@ -442,12 +435,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
 
                 {/* Category Analysis Toggle Button */}
                 {selectedReportType === "category-analysis" && hasGenerated && categoryAnalysisData.materials.length > 0 && (
-                  <Button 
-                    variant="outline" 
-                    onClick={toggleCategoryAnalysisView}
-                    disabled={isChangingReportType || isLoading}
-                    className="flex items-center justify-center gap-2 h-10 min-w-[180px] bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 text-blue-700 hover:text-blue-800 transition-all duration-200"
-                  >
+                  <Button variant="outline" onClick={toggleCategoryAnalysisView} disabled={isChangingReportType || isLoading} className="flex items-center justify-center gap-2 h-10 min-w-[180px] bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 text-blue-700 hover:text-blue-800 transition-all duration-200">
                     {categoryAnalysisView === "materials" ? (
                       <>
                         <span className="font-medium">Show Sales</span>

@@ -1,6 +1,6 @@
 import { stockAPI } from "@/api/stock.api.ts";
 import { Material, MenuItem, MenuItemSale, SaleRecord, Section, SectionAssignment, SoldItem, StockEntry, WasteRecord } from "@/types/inventory";
-import { getTableHeaders } from "@/utils/getTableHeaders";
+import { getCategoryName } from "@/utils/getCategoryLabel";
 import { reportGenerator } from "@/utils/inventoryReports";
 import { format, isValid, parse } from "date-fns";
 
@@ -10,7 +10,6 @@ export async function generateInventorySummaryReport(materials: Material[], stoc
 
   return materials.map(material => {
     const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
-
     const totalQuantity = materialStockEntries.reduce((sum, entry) => {
       if (entry.purchasedIndividualQuantity !== undefined) {
         return sum + entry.purchasedIndividualQuantity;
@@ -36,10 +35,9 @@ export async function generateInventorySummaryReport(materials: Material[], stoc
     } else {
       status = "Good";
     }
-
     return {
       Material: material.name,
-      Category: material.category,
+      Category: getCategoryName(material),
       "Available Qty": totalQuantity,
       Unit: material.baseUnit,
       "Avg Cost": avgCost,
@@ -52,29 +50,25 @@ export async function generateInventorySummaryReport(materials: Material[], stoc
 }
 
 export async function generateStockPurchasesReport(stockEntries: StockEntry[], materials: Material[]) {
-  return stockEntries
-    .map(entry => {
-      const material = materials.find(m => m.id === entry.materialId);
-      return {
-        Date: entry.purchaseDate,
-        Material: material?.name || "Unknown",
-        Supplier: entry.supplier,
-        Quantity: entry.purchasedQuantity,
-        Unit: entry.purchasedUnit,
-        "Cost per Unit": entry.costPerPurchasedUnit,
-        "Total Cost": entry.totalCost,
-        Batch: entry.batchNumber || "-"
-      };
-    });
+  return stockEntries.map(entry => {
+    const material = materials.find(m => m.id === entry.materialId);
+    return {
+      Date: entry.purchaseDate,
+      Material: material?.name || "Unknown",
+      Supplier: entry.supplier,
+      Quantity: entry.purchasedQuantity,
+      Unit: entry.purchasedUnit,
+      "Cost per Unit": entry.costPerPurchasedUnit,
+      "Total Cost": entry.totalCost,
+      Batch: entry.batchNumber || "-"
+    };
+  });
 }
 
 export async function generateSalesPerformanceReport(sales: SaleRecord[], menuItems: MenuItem[]) {
   const salesWithItems: any[] = [];
-  // Create a Set of menu item IDs for faster lookup
   const menuItemIds = new Set(menuItems.map(mi => mi.id));
-  
   sales.forEach(sale => {
-    // If no items in the sale, show the sale record itself
     if (sale.items.length === 0 && sale.menuItems.length === 0) {
       salesWithItems.push({
         Date: new Date(sale.saleDate),
@@ -86,8 +80,6 @@ export async function generateSalesPerformanceReport(sales: SaleRecord[], menuIt
       });
       return;
     }
-    
-    // Add material items (these are not filtered by category)
     sale.items.forEach(item => {
       const itemName = item.materialName || `Material ID: ${item.materialId}`;
       salesWithItems.push({
@@ -99,21 +91,15 @@ export async function generateSalesPerformanceReport(sales: SaleRecord[], menuIt
         "Made By": sale.creator?.username || "-"
       });
     });
-    
-    // Add menu items - only include items that match the filtered menu items
     sale.menuItems.forEach(menuItem => {
-      // Check if this menu item is in our filtered list
       if (!menuItemIds.has(menuItem.menuItemId)) {
         return;
       }
-      
-      // Try to find the menu item name from the menuItems array if not in the sale record
       let itemName = menuItem.menuItemName;
       if (!itemName) {
         const foundMenuItem = menuItems.find(mi => mi.id === menuItem.menuItemId);
         itemName = foundMenuItem?.name || `Menu Item ID: ${menuItem.menuItemId}`;
       }
-      
       salesWithItems.push({
         Date: new Date(sale.saleDate),
         "Item Name": itemName,
@@ -124,7 +110,6 @@ export async function generateSalesPerformanceReport(sales: SaleRecord[], menuIt
       });
     });
   });
-  
   return salesWithItems;
 }
 
@@ -167,44 +152,39 @@ export async function generateExpiryAlertsReport(stockEntries: StockEntry[], mat
   }));
 }
 
-export async function generateCategoryAnalysisReport(materials: Material[], stockEntries: StockEntry[], sales: SaleRecord[]) {
+export async function generateCategoryAnalysisReport(materials: Material[], stockEntries: StockEntry[]) {
   const report = reportGenerator.generateInventoryReport(materials, stockEntries);
   return report.categoryBreakdown.map(category => ({
-    "Category": category.category,
+    Category: category.category,
     "Materials Count": category.materialCount,
     "Total Value": category.totalValue,
     "Avg Value": category.averageValue,
-    "Percentage": category.percentage,
+    Percentage: category.percentage,
     "Purchase Volume": Math.floor(Math.random() * 1000),
     "Sales Volume": Math.floor(Math.random() * 800)
   }));
 }
 
-export async function generateCategorySalesAnalysisReport(materials: Material[], stockEntries: StockEntry[], sales: SaleRecord[]) {
+export async function generateCategorySalesAnalysisReport(sales: SaleRecord[]) {
   console.log("Sales Analysis Debug:", {
     salesCount: sales.length,
     sampleSale: sales[0]
   });
+  const categoryMap = new Map<
+    string,
+    {
+      salesCount: number;
+      totalRevenue: number;
+      totalQuantity: number;
+      menuItems: Set<string>;
+    }
+  >();
 
-  // Group sales by menu item category
-  const categoryMap = new Map<string, {
-    salesCount: number;
-    totalRevenue: number;
-    totalQuantity: number;
-    menuItems: Set<string>;
-  }>();
-
-  // Process sales data - iterate through sale records and their menu items
   sales.forEach(sale => {
-    console.log("Processing sale:", sale.id, "menuItems:", sale.menuItems?.length || 0);
-    
     if (sale.menuItems && sale.menuItems.length > 0) {
       sale.menuItems.forEach(menuItemSale => {
-        // Extract category from menu item (you can customize this logic)
         const itemName = menuItemSale.menuItemName || "Unknown";
         let category = "Other";
-        
-        // Categorize menu items based on their names
         if (itemName.toLowerCase().includes("shake") || itemName.toLowerCase().includes("drink")) {
           category = "Beverages";
         } else if (itemName.toLowerCase().includes("cake") || itemName.toLowerCase().includes("crookie") || itemName.toLowerCase().includes("sweet")) {
@@ -216,7 +196,6 @@ export async function generateCategorySalesAnalysisReport(materials: Material[],
         } else if (itemName.toLowerCase().includes("arguileh") || itemName.toLowerCase().includes("shisha")) {
           category = "Shisha";
         }
-
         if (!categoryMap.has(category)) {
           categoryMap.set(category, {
             salesCount: 0,
@@ -225,39 +204,34 @@ export async function generateCategorySalesAnalysisReport(materials: Material[],
             menuItems: new Set()
           });
         }
-
         const categoryData = categoryMap.get(category)!;
         categoryData.salesCount += 1;
         categoryData.totalRevenue += menuItemSale.totalPrice || 0;
         categoryData.totalQuantity += menuItemSale.quantity || 0;
         categoryData.menuItems.add(itemName);
-        
-        console.log(`Menu item: ${itemName} → Category: ${category}, Price: ${menuItemSale.totalPrice}, Qty: ${menuItemSale.quantity}`);
       });
     }
   });
 
-  console.log("Category map after processing:", Array.from(categoryMap.entries()));
-
-  // Calculate percentages
   const totalRevenue = Array.from(categoryMap.values()).reduce((sum, cat) => sum + cat.totalRevenue, 0);
-  const totalSales = Array.from(categoryMap.values()).reduce((sum, cat) => sum + cat.salesCount, 0);
 
-  const result = Array.from(categoryMap.entries()).map(([category, data]) => ({
-    "Category": category,
-    "Materials Count": data.menuItems.size, // Number of unique menu items
-    "Total Value": data.totalRevenue,
-    "Avg Value": data.salesCount > 0 ? data.totalRevenue / data.salesCount : 0,
-    "Percentage": totalRevenue > 0 ? (data.totalRevenue / totalRevenue) * 100 : 0,
-    "Purchase Volume": data.totalQuantity, // Total quantity sold
-    "Sales Volume": data.salesCount // Total number of sales
-  })).filter(item => item["Sales Volume"] > 0); // Only show categories with sales
+  const result = Array.from(categoryMap.entries())
+    .map(([category, data]) => ({
+      Category: category,
+      "Materials Count": data.menuItems.size,
+      "Total Value": data.totalRevenue,
+      "Avg Value": data.salesCount > 0 ? data.totalRevenue / data.salesCount : 0,
+      Percentage: totalRevenue > 0 ? (data.totalRevenue / totalRevenue) * 100 : 0,
+      "Purchase Volume": data.totalQuantity, // Total quantity sold
+      "Sales Volume": data.salesCount // Total number of sales
+    }))
+    .filter(item => item["Sales Volume"] > 0); // Only show categories with sales
 
   console.log("Sales analysis result:", result);
   return result;
 }
 
-export async function generateMenuProfitabilityReport(menuItems: MenuItem[], materials: Material[], sales: SaleRecord[]) {
+export async function generateMenuProfitabilityReport(menuItems: MenuItem[]) {
   return menuItems.map(item => {
     const totalCost = item.ingredients.reduce((sum, ingredient) => sum + ingredient.cost, 0);
     const profit = item.price - totalCost;
@@ -265,7 +239,7 @@ export async function generateMenuProfitabilityReport(menuItems: MenuItem[], mat
 
     return {
       "Menu Item": item.name,
-      Category: item.category,
+      Category: getCategoryName(item.category),
       Price: item.price,
       Cost: totalCost,
       Profit: profit,
@@ -276,7 +250,7 @@ export async function generateMenuProfitabilityReport(menuItems: MenuItem[], mat
   });
 }
 
-export async function generateSectionPerformanceReport(sections: Section[], assignments: SectionAssignment[], sales: SaleRecord[]) {
+export async function generateSectionPerformanceReport(sections: Section[], assignments: SectionAssignment[]) {
   // Import the dayOperations API to get actual daily report data
   const { dayOperationsAPI } = await import("@/api/dayOperations.api.ts");
 
@@ -353,7 +327,6 @@ export async function generateSectionPerformanceReport(sections: Section[], assi
 }
 
 export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
-  // Parse and validate dates
   const parseDate = (dateStr?: string): string | null => {
     if (!dateStr) return null;
     const parsed = parse(dateStr, "yyyy-MM-dd", new Date());
@@ -363,11 +336,8 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     }
     return format(parsed, "yyyy-MM-dd");
   };
-
   const formattedDateFrom = parseDate(dateFrom);
   const formattedDateTo = parseDate(dateTo);
-
-  // Call the wastage API with date range
   let response;
   try {
     response = await stockAPI.getWastageReport({
@@ -378,14 +348,10 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     console.error("Error fetching wastage report:", error);
     return [];
   }
-
-  // Check if response.data is an array
   if (!Array.isArray(response.data)) {
     console.warn("Wastage report data is not an array:", response.data);
     return [];
   }
-
-  // Calculate total waste metrics for percentage calculations
   const totalWasteQuantity = response.data.reduce((sum, record: WasteRecord) => {
     return sum + (record.quantity || 0);
   }, 0);
@@ -399,19 +365,13 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     return sum + Number(cost);
   }, 0);
 
-
-  // Aggregate waste by material
   const wasteByMaterial = response.data.reduce(
     (acc, record: WasteRecord) => {
-      // Skip invalid records
       if (!record.materialName || record.quantity === undefined || record.quantity === null || isNaN(record.quantity)) {
         console.warn("Skipping invalid waste record:", record);
         return acc;
       }
-
-      // Extract reason from supplier if wasteReason is not available
       const reason = record.reason || "Unknown";
-      // Calculate total cost for waste
       const recordTotalCost = Number(record.totalCost) || 0;
       const recordCostPerUnit = Number(record.costPerBaseUnit) || 0;
       const recordQuantity = Math.abs(Number(record.quantity) || 0);
@@ -471,15 +431,10 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     };
   });
 
-  // Sort by total cost descending for better insights
   const sortedData = formattedData.sort((a, b) => b.totalcost - a.totalcost);
-
-  // Format the aggregated data for the final report display
   const formattedReport = sortedData
     .map(item => {
-      // Ensure proper number formatting
       const totalCost = Number(item.totalcost) || 0;
-
       return {
         Material: item.material,
         "Waste Quantity": Math.abs(item.wastequantity),
@@ -491,7 +446,6 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     })
     .filter(waste => waste["Cost"] !== "$0.00");
 
-  // Calculate summary totals for frontend performance
   const reportSummary = {
     totalMaterials: formattedReport.length,
     totalWasteQuantity: Number(totalWasteQuantity),
@@ -505,16 +459,12 @@ export async function generateWasteReport(dateFrom?: string, dateTo?: string) {
     topWasteMaterial: formattedReport.length > 0 ? formattedReport[0].Material : null,
     topWasteCost: formattedReport.length > 0 ? formattedReport[0]["Total Cost"] : "$0.00"
   };
-
-  // Add summary as metadata to the report array for frontend access
   const reportWithSummary = formattedReport as typeof formattedReport & { summary: typeof reportSummary };
   reportWithSummary.summary = reportSummary;
-
   return reportWithSummary;
 }
 
 export async function generateVarianceAnalysisReport(materials: Material[], stockEntries: StockEntry[], sales: SaleRecord[], dateFrom?: string, dateTo?: string) {
-  // Parse and validate dates
   const parseDate = (dateStr?: string): Date | null => {
     if (!dateStr) return null;
     const parsed = parse(dateStr, "yyyy-MM-dd", new Date());
@@ -524,26 +474,20 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
     }
     return parsed;
   };
-
   const fromDate = parseDate(dateFrom);
   const toDate = parseDate(dateTo) || new Date();
   toDate.setHours(23, 59, 59, 999);
-
-  // Get waste data for the period
   let wasteData: WasteRecord[] = [];
   try {
     const wasteResponse = await stockAPI.getWastageReport({
       startDate: fromDate ? format(fromDate, "yyyy-MM-dd") : undefined,
       endDate: format(toDate, "yyyy-MM-dd")
     });
-    // Type assertion since we know the API structure
     const response = wasteResponse as { data: WasteRecord[] };
     wasteData = Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     console.error("Error fetching waste data:", error);
   }
-
-  // Filter data by date range
   const filteredStockEntries = fromDate
     ? stockEntries.filter(entry => {
         const entryDate = new Date(entry.purchaseDate);
@@ -557,24 +501,17 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
         return saleDate >= fromDate && saleDate <= toDate;
       })
     : sales;
-  // Calculate variance for each material
   const varianceAnalysis = materials.map(material => {
-    // Get stock entries for this material
     const materialStockEntries = filteredStockEntries.filter(entry => entry.materialId === material.id);
     const allMaterialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
-
-    // Calculate expected stock (opening stock + purchases - theoretical consumption)
     let openingStock = 0;
     let purchases = 0;
     let actualCurrentStock = 0;
-
-    // Calculate opening stock (stock before the date range)
     if (fromDate) {
       const openingStockEntries = stockEntries.filter(entry => {
         const entryDate = new Date(entry.purchaseDate);
         return entry.materialId === material.id && entryDate < fromDate;
       });
-
       openingStock = openingStockEntries.reduce((sum, entry) => {
         if (entry.purchasedIndividualQuantity !== undefined) {
           return sum + entry.purchasedIndividualQuantity;
@@ -585,8 +522,6 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
         return sum + entry.purchasedQuantity;
       }, 0);
     }
-
-    // Calculate purchases during the period
     purchases = materialStockEntries.reduce((sum, entry) => {
       if (entry.purchasedIndividualQuantity !== undefined) {
         return sum + entry.purchasedIndividualQuantity;
@@ -597,7 +532,6 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
       return sum + entry.purchasedQuantity;
     }, 0);
 
-    // Calculate actual current stock
     actualCurrentStock = allMaterialStockEntries.reduce((sum, entry) => {
       if (entry.purchasedIndividualQuantity !== undefined) {
         return sum + entry.purchasedIndividualQuantity;
@@ -608,12 +542,10 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
       return sum + entry.purchasedQuantity;
     }, 0);
 
-    // Calculate sales impact (quantity sold)
     let salesImpact = 0;
     let salesValue = 0;
 
     filteredSales.forEach(sale => {
-      // Individual items sold
       if (sale.items && Array.isArray(sale.items)) {
         sale.items.forEach((item: SoldItem) => {
           if (item.materialId === material.id) {
@@ -660,8 +592,6 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
     // Calculate variance
     const varianceQuantity = actualCurrentStock - expectedStock;
     const variancePercentage = expectedStock !== 0 ? (varianceQuantity / expectedStock) * 100 : 0;
-    
-
 
     // Calculate cost variance
     const avgCostPerUnit =
@@ -722,8 +652,6 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
   const totalCostVariance = sortedVariances.reduce((sum, v) => sum + Math.abs(v.costVariance), 0);
   const avgVariancePercentage = totalMaterials > 0 ? sortedVariances.reduce((sum, v) => sum + Math.abs(v.variancePercentage), 0) / totalMaterials : 0;
 
-
-
   const reportSummary = {
     totalMaterials,
     totalCostVariance: Number(totalCostVariance.toFixed(2)),
@@ -744,8 +672,6 @@ export async function generateVarianceAnalysisReport(materials: Material[], stoc
     totalSalesValue: sortedVariances.reduce((sum, v) => sum + v.salesValue, 0),
     totalWasteCost: sortedVariances.reduce((sum, v) => sum + v.wasteCost, 0)
   };
-
-
 
   // Add summary as metadata
   const reportWithSummary = formattedReport as typeof formattedReport & { summary: typeof reportSummary };

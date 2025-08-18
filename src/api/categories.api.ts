@@ -18,7 +18,7 @@ export const getCategories = async (filters: CategoryFilters = {}): Promise<Cate
 };
 
 // Get categories by type (materials or menu_items)
-export const getCategoriesByType = async (type: "materials" | "menu_items", isActive: boolean = true): Promise<CategoriesResponse> => {
+export const getCategoriesByType = async (type: "materials" | "menu_items" | "beverages", isActive: boolean = true): Promise<CategoriesResponse> => {
   const params = new URLSearchParams();
   if (isActive !== undefined) params.append("isActive", isActive.toString());
 

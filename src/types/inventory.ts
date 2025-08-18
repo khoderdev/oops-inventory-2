@@ -25,8 +25,6 @@ export interface PaginationInfo {
   };
 }
 
-
-
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco" | "hot" | "cold";
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
@@ -131,6 +129,7 @@ export interface MaterialFormData extends z.infer<typeof materialSchema> {
   inputUnit: string;
   packageQuantity?: number;
   description?: string;
+  categoryId?: string;
 }
 
 export interface MaterialFormProps {
@@ -153,6 +152,7 @@ export interface CreateMaterialData {
 export interface UpdateMaterialData {
   name?: string;
   category?: MaterialCategory;
+  categoryId?: string;
   baseUnit?: string;
   unitType?: UnitType;
   inputUnit?: string;
@@ -781,9 +781,33 @@ export interface BeverageItem {
     type: string;
     status: string;
   };
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+export interface CategoryOption {
+  id: string;
+  value: string;
+  name: string;
+}
+
+export interface BeverageItemFormProps {
+  menuItem?: MenuItem;
+  categories: CategoryOption[];
+  onSubmit: (
+    data: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
+      beverageStockId?: string | null;
+      variants?: {
+        selectedVariants: string[];
+        priceAdjustments: Record<string, number>;
+        nameFormat: "prefix" | "suffix";
+      };
+    }
+  ) => void;
+  onCancel: () => void;
+  enableVariants?: boolean;
+}
+
 
 export interface MenuItemIngredient {
   materialId: string;
@@ -820,6 +844,7 @@ export interface MenuItemBuilderProps {
   onDeleteMenuItem?: (id: string) => void;
 }
 
+
 //-----------------------------------------------------------------------------
 
 export interface Printer {
@@ -834,22 +859,6 @@ export interface Printer {
   createdAt: string;
   updatedAt: string;
 }
-
-export const MATERIAL_CATEGORIES: ReadonlyArray<{ value: MaterialCategory; label: string }> = [
-  { value: "meat", label: "Meat & Poultry" },
-  { value: "dairy", label: "Dairy Products" },
-  { value: "vegetables", label: "Vegetables & Fruits" },
-  { value: "sweets", label: "Sweets" },
-  { value: "grains", label: "Grains & Cereals" },
-  { value: "spices", label: "Spices & Seasonings" },
-  { value: "beverages", label: "Beverages" },
-  { value: "alcohol", label: "Alcohol" },
-  { value: "cold", label: "Cold" },
-  { value: "hot", label: "Hot" },
-  { value: "tobacco", label: "Tobacco" },
-  { value: "packaging", label: "Packaging" },
-  { value: "other", label: "Other" }
-];
 
 export const UNIT_OPTIONS: Readonly<Record<UnitType, ReadonlyArray<string>>> = {
   mass: ["kg", "g", "lb", "oz"],

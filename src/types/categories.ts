@@ -1,8 +1,10 @@
+export type CategoryType = "materials" | "menu_items" | "beverages";
+
 export interface Category {
   id: number;
   name: string;
   value: string;
-  type: 'materials' | 'menu_items';
+  type: CategoryType;
   description?: string;
   isActive: boolean;
   sortOrder: number;
@@ -13,20 +15,20 @@ export interface Category {
 export interface CategoryFormData {
   name: string;
   value: string;
-  type: 'materials' | 'menu_items';
+  type: CategoryType;
   description?: string;
   isActive?: boolean;
   sortOrder?: number;
 }
 
 export interface CategoryFilters {
-  type?: 'materials' | 'menu_items';
+  type?: CategoryType;
   isActive?: boolean;
   search?: string;
   page?: number;
   limit?: number;
   sortBy?: string;
-  sortOrder?: 'ASC' | 'DESC';
+  sortOrder?: "ASC" | "DESC";
 }
 
 export interface CategoriesTableProps {
@@ -48,35 +50,35 @@ export interface CategoryFormProps {
 export interface CategoryManagementProps {
   onCategoryChange?: () => void;
 }
-  
-  export interface CategoriesResponse {
-    currentPage: number;
-    totalPages: number | null;
-    totalItems: Category[];
-    endIndex: number | null;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-    itemsPerPage: {
-      page: number;
-      limit: number;
-      offset: number;
-      sortBy: string;
-      sortOrder: string;
-    };
+
+export interface CategoriesResponse {
+  currentPage: number;
+  totalPages: number | null;
+  totalItems: Category[];
+  endIndex: number | null;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  itemsPerPage: {
+    page: number;
     limit: number;
     offset: number;
-    page: number;
     sortBy: string;
     sortOrder: string;
-    startIndex: number | null;
-  }
-  
-  export interface CategoryResponse {
-    success: boolean;
-    data: Category;
-  }
-  
-  export interface SortOrderUpdate {
-    id: number;
-    sortOrder: number;
-  }
+  };
+  limit: number;
+  offset: number;
+  page: number;
+  sortBy: string;
+  sortOrder: string;
+  startIndex: number | null;
+}
+
+export interface CategoryResponse {
+  success: boolean;
+  data: Category;
+}
+
+export interface SortOrderUpdate {
+  id: number;
+  sortOrder: number;
+}

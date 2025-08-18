@@ -111,7 +111,8 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       toast({
         title: "Error",
         description: error.response?.data?.error || "Failed to update category status",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 1000
       });
     }
   };

@@ -35,11 +35,27 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
       const searchLower = searchTerm.toLowerCase();
       const matchesName = material.name.toLowerCase().includes(searchLower);
       const matchesSearch = searchTerm === "" || matchesName;
-      const matchesCategory = categoryFilter === "all" || material.category === categoryFilter;
       
+      // Handle category filtering with different data formats
+      const matchesCategory = categoryFilter === "all" || (() => {
+        const materialCategoryId = (material as any).categoryId;
+        const categoryInfo = categories.find(c => c.id === materialCategoryId || c.value === material.category);
+        
+        // Check if category matches by value
+        if (typeof material.category === 'string') {
+          return material.category === categoryFilter;
+        } else if (typeof material.category === 'object' && material.category !== null && 'value' in material.category) {
+          return (material.category as any).value === categoryFilter;
+        } else if (categoryInfo) {
+          return categoryInfo.value === categoryFilter;
+        }
+        
+        return false;
+      })();
+
       return matchesSearch && matchesCategory;
     });
-  }, [filteredMaterials, searchTerm, categoryFilter]);
+  }, [filteredMaterials, searchTerm, categoryFilter, categories]);
 
   const sortedMaterials = useMemo(() => {
     const arr = [...visibleMaterials];
@@ -65,7 +81,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     const totalPages = Math.ceil(totalItems / pageSize);
     const startIndex = (currentPage - 1) * pageSize + 1;
     const endIndex = Math.min(currentPage * pageSize, totalItems);
-    
+
     return {
       currentPage,
       totalPages,
@@ -82,10 +98,10 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     const fetchCategories = async () => {
       try {
         setLoadingCategories(true);
-        const response = await getCategoriesByType('materials', true);
+        const response = await getCategoriesByType("materials", true);
         setCategories(response.totalItems || []);
       } catch (error) {
-        console.error('Failed to fetch categories:', error);
+        console.error("Failed to fetch categories:", error);
         setCategories([]);
       } finally {
         setLoadingCategories(false);
@@ -117,14 +133,11 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     setCurrentPage(paginationInfo.totalPages);
   }, [paginationInfo.totalPages]);
 
-  const handlePageSizeChange = useCallback(
-    (newSize: string) => {
-      const size = Number(newSize);
-      setPageSize(size);
-      setCurrentPage(1);
-    },
-    []
-  );
+  const handlePageSizeChange = useCallback((newSize: string) => {
+    const size = Number(newSize);
+    setPageSize(size);
+    setCurrentPage(1);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -184,21 +197,22 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
             <span className="ml-2 text-xs">{sortBy === "category" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const category = getValue();
-          const categoryInfo = categories.find(c => c.value === category);
+          const materialCategoryId = (row.original as any).categoryId;
+          const categoryInfo = categories.find(c => c.id === materialCategoryId || c.value === category);
           
           // If no category value, show a placeholder
-          if (!category) {
+          if (!category && !materialCategoryId) {
             return (
               <Badge variant="outline" className="text-xs font-medium bg-gray-100 text-gray-500 border-gray-200">
                 No Category
               </Badge>
             );
           }
-          
+
           return (
-            <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(category)}`}>
+            <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryInfo?.value || category)}`}>
               {categoryInfo?.name || category}
             </Badge>
           );
@@ -268,18 +282,18 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                   <Edit className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="!z-[9999]">
                 <p>Edit {row.original.name}</p>
               </TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={() => onAddStock(row.original.id)} className="h-8 w-8 p-0 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700">
+                <Button variant="outline" size="sm" onClick={() => onAddStock(row.original.id)} className={`h-8 w-8 p-0 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 ${row.original.stockEntries && row.original.stockEntries.length > 0 ? "bg-teal-300/25 border-teal-300" : "bg-red-500/25 border-red-300 hover:bg-red-300 hover:border-red-500"}`}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                <p>Add stock for {row.original.name}</p>
+              <TooltipContent className="!z-[9999] relative" side="top" sideOffset={5}>
+                <p>{row.original.stockEntries && row.original.stockEntries.length > 0 ? `Add more stock for ${row.original.name} (${row.original.stockEntries.length} entries)` : `No stock entries - Add initial stock for ${row.original.name}`}</p>
               </TooltipContent>
             </Tooltip>
             <AlertDialog>
@@ -291,7 +305,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                     </Button>
                   </TooltipTrigger>
                 </AlertDialogTrigger>
-                <TooltipContent>
+                <TooltipContent className="!z-[9999]">
                   <p>Delete {row.original.name}</p>
                 </TooltipContent>
               </Tooltip>
@@ -393,7 +407,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
             {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-              <Input type="search" placeholder="Search by material name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem]" />
+              <Input type="search" placeholder="Search by material name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem]" />
             </div>
 
             {/* Category Filter */}
@@ -463,9 +477,10 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
 
           {/* Mobile Card View */}
           {paginatedMaterials.length > 0 && (
-            <div className="lg:hidden space-y-4">
+            <div className="lg:hidden space-y-4 mt-3">
               {paginatedMaterials.map(material => {
-                const categoryInfo = categories.find(c => c.value === material.category);
+                const materialCategoryId = (material as any).categoryId;
+                const categoryInfo = categories.find(c => c.id === materialCategoryId || c.value === material.category);
                 return (
                   <div key={material.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-3">
@@ -509,19 +524,19 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                             Edit
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent className="z-[9999]">
                           <p>Edit {material.name}</p>
                         </TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)} className="flex-1 h-8 text-xs hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700">
+                          <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)} className={`flex-1 h-8 text-xs hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 ${material.stockEntries && material.stockEntries.length > 0 ? "bg-teal-500/25 border-teal-300" : "bg-red-500/25 border-red-300"}`}>
                             <Plus className="h-3 w-3 mr-1" />
                             Stock
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Add stock for {material.name}</p>
+                        <TooltipContent className="z-[9999]">
+                          <p>{material.stockEntries && material.stockEntries.length > 0 ? `Add more stock for ${material.name} (${material.stockEntries.length} entries)` : `No stock entries - Add initial stock for ${material.name}`}</p>
                         </TooltipContent>
                       </Tooltip>
                       <AlertDialog>
@@ -533,7 +548,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                               </Button>
                             </TooltipTrigger>
                           </AlertDialogTrigger>
-                          <TooltipContent>
+                          <TooltipContent className="z-[9999]">
                             <p>Delete {material.name}</p>
                           </TooltipContent>
                         </Tooltip>
@@ -559,9 +574,9 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
 
           {/* Desktop Table View - TanStack Virtualized */}
           {paginatedMaterials.length > 0 && (
-            <div className="hidden lg:block px-2 mt-10">
-              <div className="h-[calc(100vh-260px)] overflow-y-hidden">
-                <TanStackTable table={table} virtualized={true} customHeaderAlignment={{ actions: "center" }} customCellAlignment={{ actions: "center" }} estimatedRowSize={60} overscan={10} loading={false} emptyMessage="No materials found" maxHeight="calc(100vh-260px)" />
+            <div className="hidden lg:block px-2">
+              <div className="h-[calc(100vh-192px)] overflow-y-hidden mt-1">
+                <TanStackTable table={table} virtualized={true} customHeaderAlignment={{ actions: "center" }} customCellAlignment={{ actions: "center" }} estimatedRowSize={60} overscan={10} loading={false} emptyMessage="No materials found" maxHeight="calc(100vh-192px)" />
               </div>
             </div>
           )}

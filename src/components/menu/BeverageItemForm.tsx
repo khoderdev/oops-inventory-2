@@ -4,73 +4,21 @@ import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { ImageUpload } from "../ui/image-upload";
 import { Selection, StockEntryItemRenderer } from "../ui/Selection";
-import { ChevronDown, X, Plus, Check } from "lucide-react";
+import { Plus } from "lucide-react";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { cn } from "@/lib/utils";
 import { toast } from "../ui/use-toast";
 import { beverageStockAPI } from "@/api/stock.api.ts";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Card, CardContent } from "../ui/card";
-import { Badge } from "../ui/badge";
-import { Separator } from "../ui/separator";
-import { StockEntryWithMaterial } from "@/types/inventory";
-
-interface CategoryOption {
-  id: string;
-  value: string;
-  name: string;
-}
-
-interface BeverageItemCategory {
-  id: string;
-  name: string;
-  value?: string;
-}
-
-interface BeverageVariant {
-  name: string;
-  price: number;
-  size: string;
-}
-
-interface BeverageItem {
-  id?: string;
-  name: string;
-  category: BeverageItemCategory;
-  price: number;
-  isPOSItem: boolean;
-  image?: string;
-  unit?: string;
-  availableQuantity?: number;
-  costPerUnit?: number;
-  ingredients?: any[];
-  menuItemIngredients?: any[];
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface BeverageItemFormProps {
-  menuItem?: BeverageItem;
-  categories: CategoryOption[];
-  onSubmit: (
-    data: Omit<BeverageItem, "id" | "createdAt" | "updatedAt"> & {
-      beverageStockId?: string | null;
-      variants?: {
-        selectedVariants: string[];
-        priceAdjustments: Record<string, number>;
-        nameFormat: "prefix" | "suffix";
-      };
-    }
-  ) => void;
-  onCancel: () => void;
-  enableVariants?: boolean;
-}
+import { BeverageItemFormProps, StockEntryWithMaterial } from "@/types/inventory";
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, onSubmit, onCancel, enableVariants = false }) => {
+  // Debug categories
+  console.log('BeverageItemForm received categories:', categories);
   const [name, setName] = useState(menuItem?.name || "");
-  const [categoryId, setCategoryId] = useState<string>(menuItem?.category?.id || "");
+  const [categoryId, setCategoryId] = useState<string>(typeof menuItem?.category === "object" && menuItem.category !== null && "id" in menuItem.category ? String(menuItem.category.id) : "");
   const [price, setPrice] = useState(menuItem?.price?.toString() || "");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
@@ -81,9 +29,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [isBeverageLoading, setIsBeverageLoading] = useState(false);
   const [selectedBeverageStock, setSelectedBeverageStock] = useState<StockEntryWithMaterial | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Variants state
-  // Always show variants section when enableVariants is true
   const [showVariantsSection, setShowVariantsSection] = useState(true);
   const [variantSizes, setVariantSizes] = useState<string[]>(["small", "medium", "large", "glass", "shot"]);
   const [selectedVariants, setSelectedVariants] = useState<string[]>(["small", "large"]);
@@ -92,7 +37,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [nameFormat, setNameFormat] = useState<"prefix" | "suffix">("suffix");
   const beverageSelectRef = useRef<HTMLInputElement>(null);
 
-  // Load beverage stock entries when component mounts
   useEffect(() => {
     const fetchBeverageStock = async () => {
       try {
@@ -117,26 +61,27 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     fetchBeverageStock();
   }, []);
 
-  // Initialize category from menuItem if editing
   useEffect(() => {
     if (categories.length === 0 || !menuItem?.category) {
       setCategoryId("");
       return;
     }
-
     if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
-      // If category is an object with id property
-      setCategoryId(menuItem.category.id);
+      setCategoryId(String(menuItem.category.id));
     } else if (typeof menuItem.category === "string") {
-      // If category is a string (name), find matching category by name
-      const categoryObj = categories.find(cat => cat.name === (menuItem.category as string));
+      const categoryObj = categories.find(cat => cat.name === menuItem.category);
       if (categoryObj) {
-        setCategoryId(categoryObj.id);
+        setCategoryId(String(categoryObj.id));
       }
     }
   }, [menuItem?.category, categories]);
 
-  // Filter beverage stock based on search term
+  useEffect(() => {
+    if (selectedBeverageStock?.costPerBaseUnit && !menuItem) {
+      setPrice(parseFloat(selectedBeverageStock.costPerBaseUnit.toString()).toFixed(2));
+    }
+  }, [selectedBeverageStock, menuItem]);
+
   const filteredBeverageStock = useMemo(() => {
     if (!beverageSearchTerm.trim()) {
       return beverageStockEntries;
@@ -144,7 +89,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     return beverageStockEntries.filter(entry => entry.material?.name?.toLowerCase().includes(beverageSearchTerm.toLowerCase()));
   }, [beverageStockEntries, beverageSearchTerm]);
 
-  // Form validation
   const validateForm = useCallback(() => {
     const newErrors: typeof errors = {};
     if (!name.trim()) newErrors.name = "required";
@@ -157,12 +101,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     return Object.keys(newErrors).length === 0;
   }, [name, categoryId, price, selectedBeverageStock, menuItem]);
 
-  // Validate form on input changes
   useEffect(() => {
     validateForm();
   }, [name, categoryId, price, validateForm]);
 
-  // Beverage selection handlers
   const handleBeverageSearchChange = useCallback((value: string) => {
     setBeverageSearchTerm(value);
     setSelectedBeverageStock(null);
@@ -179,6 +121,9 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           setSelectedBeverageStock(selectedBeverage);
           if (selectedBeverage.material?.name) {
             setName(selectedBeverage.material.name);
+          }
+          if (selectedBeverage.costPerBaseUnit) {
+            setPrice(parseFloat(selectedBeverage.costPerBaseUnit.toString()).toFixed(2));
           }
         }
       }
@@ -213,15 +158,12 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     }
   };
 
-  // Preview variants
   const variantPreviews = useMemo(() => {
     if (!name || !price || isNaN(parseFloat(price))) return [];
-
     return selectedVariants.map(size => {
       const priceAdjustment = variantPriceAdjustments[size] || 1.0;
       const variantName = nameFormat === "prefix" ? `${size} ${name}` : `${name} (${size})`;
       const variantPrice = parseFloat(price) * priceAdjustment;
-
       return {
         name: variantName,
         price: variantPrice,
@@ -232,8 +174,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
 
   const handleSubmit = useCallback(() => {
     if (!validateForm()) return;
-
-    // Find the selected category object by ID
     const selectedCategoryObj = categories.find(cat => cat.id === categoryId);
     if (!selectedCategoryObj && categoryId) {
       toast({
@@ -243,23 +183,32 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       });
       return;
     }
-
     const formData = {
       name,
-      category: selectedCategoryObj || { id: "", name: "" },
-      price: parseFloat(price),
-      isPOSItem,
-      image,
-      beverageStockId: selectedBeverageStock?.id || null,
-      variants: showVariantsSection
+      category: selectedCategoryObj
         ? {
-            selectedVariants,
-            priceAdjustments: variantPriceAdjustments,
-            nameFormat
+            id: parseInt(selectedCategoryObj.id),
+            name: selectedCategoryObj.name
           }
-        : undefined
+        : null,
+      price: parseFloat(price),
+      unit: selectedBeverageStock?.purchasedUnit || "piece",
+      availableQuantity: selectedBeverageStock?.purchasedQuantity || 0,
+      costPerUnit: selectedBeverageStock?.costPerPurchasedUnit || 0,
+      ingredients: [],
+      menuItemIngredients: false,
+      isPOSItem,
+      image: image || "",
+      beverageStockId: selectedBeverageStock?.id || "",
+      variants:
+        showVariantsSection && selectedVariants.length > 0
+          ? {
+              selectedVariants,
+              priceAdjustments: variantPriceAdjustments,
+              nameFormat
+            }
+          : undefined
     };
-
     onSubmit(formData);
     setName("");
     setCategoryId("");
@@ -293,11 +242,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       [size]: numValue
     }));
   }, []);
-
-  // Get selected category object
-  const selectedCategory = useMemo(() => {
-    return categories.find(cat => cat.id === categoryId) || null;
-  }, [categoryId, categories]);
 
   return (
     <div className="space-y-6 p-4">
@@ -416,7 +360,9 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                       }}
                       className="h-5 w-5"
                     />
-                    <Label htmlFor={`variant-${size}`} className="font-medium">{size}</Label>
+                    <Label htmlFor={`variant-${size}`} className="font-medium">
+                      {size}
+                    </Label>
                   </div>
                 ))}
               </div>
@@ -426,19 +372,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
               <h4 className="font-medium mb-3 text-gray-700">Add Custom Size</h4>
               <div className="flex items-center gap-3">
-                <Input 
-                  placeholder="Custom size name" 
-                  value={customVariant} 
-                  onChange={e => setCustomVariant(e.target.value)} 
-                  className="max-w-xs bg-white" 
-                />
-                <Button 
-                  type="button" 
-                  size="sm" 
-                  onClick={handleAddCustomVariant} 
-                  disabled={!customVariant.trim() || variantSizes.includes(customVariant)}
-                  className="px-4"
-                >
+                <Input placeholder="Custom size name" value={customVariant} onChange={e => setCustomVariant(e.target.value)} className="max-w-xs bg-white" />
+                <Button type="button" size="sm" onClick={handleAddCustomVariant} disabled={!customVariant.trim() || variantSizes.includes(customVariant)} className="px-4">
                   <Plus className="h-4 w-4 mr-2" /> Add Size
                 </Button>
               </div>
@@ -454,15 +389,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                       <Label htmlFor={`price-${size}`} className="w-20 font-medium">
                         {size}:
                       </Label>
-                      <Input 
-                        id={`price-${size}`} 
-                        type="number" 
-                        value={variantPriceAdjustments[size] || "1.0"} 
-                        onChange={e => handlePriceAdjustmentChange(size, e.target.value)} 
-                        min="0.1" 
-                        step="0.1" 
-                        className="max-w-[100px]" 
-                      />
+                      <Input id={`price-${size}`} type="number" value={variantPriceAdjustments[size] || "1.0"} onChange={e => handlePriceAdjustmentChange(size, e.target.value)} min="0.1" step="0.1" className="max-w-[100px]" />
                       <span className="text-sm text-gray-600">× base price</span>
                     </div>
                   ))}
@@ -476,11 +403,15 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
               <RadioGroup value={nameFormat} onValueChange={value => setNameFormat(value as "prefix" | "suffix")}>
                 <div className="flex items-center space-x-2 mb-2 bg-white p-3 rounded-md shadow-sm">
                   <RadioGroupItem value="prefix" id="name-prefix" className="h-5 w-5" />
-                  <Label htmlFor="name-prefix" className="font-medium">Size first (e.g., "Small Coffee")</Label>
+                  <Label htmlFor="name-prefix" className="font-medium">
+                    Size first (e.g., "Small Coffee")
+                  </Label>
                 </div>
                 <div className="flex items-center space-x-2 bg-white p-3 rounded-md shadow-sm">
                   <RadioGroupItem value="suffix" id="name-suffix" className="h-5 w-5" />
-                  <Label htmlFor="name-suffix" className="font-medium">Name first (e.g., "Coffee (Small)")</Label>
+                  <Label htmlFor="name-suffix" className="font-medium">
+                    Name first (e.g., "Coffee (Small)")
+                  </Label>
                 </div>
               </RadioGroup>
             </div>

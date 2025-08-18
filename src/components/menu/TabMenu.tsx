@@ -54,9 +54,9 @@ export const TabMenu: React.FC<TabMenuProps> = ({
           materials={materials}
           categories={categories}
           sections={sections}
-          onCreateMenuItem={onCreateMenuItem}
-          onUpdateMenuItem={onUpdateMenuItem}
-          onDeleteMenuItem={onDeleteMenuItem}
+          onCreateBeverageItem={onCreateMenuItem}
+          onUpdateBeverageItem={onUpdateMenuItem}
+          onDeleteBeverageItem={onDeleteMenuItem}
         />
       </TabsContent>
     </Tabs>
