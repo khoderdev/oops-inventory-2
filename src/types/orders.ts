@@ -78,10 +78,21 @@ export interface CreateOrderData {
   orderNumber?: string;
   orderType: OrderType;
   tableId?: string;
+  employeeId?: number;
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;
-  items: Omit<OrderItem, "id">[];
+  items: {
+    materialId?: string;
+    menuItemId?: string;
+    assignmentId?: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    type: "material" | "menu_item";
+    notes?: string;
+  }[];
   notes?: string;
   sectionId?: string;
   discountType?: "percentage" | "fixed";
@@ -157,13 +168,5 @@ export interface TransferTableModalProps {
   onTransferComplete: () => void;
   tables: Table[];
   sourceTable: Table | null;
-  sourceOrder?: any; // Order details if available
-}
-
-export interface OrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: string;
-  total: string;
+  sourceOrder?: Order; // Order details if available
 }

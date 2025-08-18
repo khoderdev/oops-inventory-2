@@ -840,8 +840,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           categoryId = 0;
         } else if (typeof category === "number") {
           categoryId = category;
-        } else if (typeof category === "object" && "id" in category) {
-          categoryId = (category as any).id;
+        } else if (typeof category === "object" && category && "id" in category) {
+          categoryId = (category as { id: number }).id;
         } else {
           console.warn("⚠️ Invalid category type for stock entry:", stockEntry.material.name, category);
           categoryId = 0;
@@ -925,10 +925,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         setIsLoading(false);
       }
     };
-    if (!status.isLoading && menu.length > 0 && stock.length > 0) {
+    if (!isLoading && menu.length > 0 && stock.length > 0) {
       fetchAdditionalData();
     }
-  }, [status.isLoading, menu.length, stock.length, showError]);
+  }, [menu.length, stock.length, showError]);
 
   useEffect(() => {
     const loadSavedOrder = async () => {
@@ -1667,7 +1667,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         }
         if (itemsToAdd.length > 0) {
           console.log("➕ Adding/Updating order items:", { count: itemsToAdd.length });
-          const respAdd = await ordersAPI.addOrderItems(currentOrder.id, itemsToAdd);
+          // Map properties to match API expectations (price/total as strings instead of unitPrice/totalPrice)
+          const mappedItemsToAdd = itemsToAdd.map(item => ({
+            ...item,
+            price: item.unitPrice.toString(),
+            total: item.totalPrice.toString()
+          }));
+          const respAdd = await ordersAPI.addOrderItems(currentOrder.id, mappedItemsToAdd);
           savedOrder = respAdd.data;
         }
         const updateData = {
@@ -1694,8 +1700,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               unitPrice: item.price,
               totalPrice: item.price * item.quantity,
               type: item.type as "material" | "menu_item",
-              notes: item.notes || undefined,
-              menuItem: item.type === "menu_item"
+              notes: item.notes || undefined
             };
           }),
           notes: orderNotes || undefined,
