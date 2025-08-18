@@ -5,12 +5,16 @@ import { convertVolume, convertMass, isVolumeUnit, isMassUnit, formatCurrency } 
 
 interface CostBreakdownProps {
   selectedBeverageStock: StockEntryWithMaterial;
-  price: string;
+  price: string; // This will be deprecated in favor of individual variant prices
   variantData: VariantData;
 }
 
 // Helper function to calculate cost per serving unit using cl-based formula
-const calculateCostPerServing = (stock: StockEntryWithMaterial, servingUnit: string): number => {
+const calculateCostPerServing = (
+  stock: StockEntryWithMaterial, 
+  servingUnit: string, 
+  customVolume?: number
+): number => {
   const baseCost = Number(stock.costPerBaseUnit || 0);
   const stockUnit = stock.purchasedUnit || "piece";
 
@@ -18,16 +22,6 @@ const calculateCostPerServing = (stock: StockEntryWithMaterial, servingUnit: str
   if (stockUnit.toLowerCase() === servingUnit.toLowerCase()) {
     return baseCost;
   }
-
-  // Standard serving volumes in cl (centiliters)
-  const servingVolumes: Record<string, number> = {
-    glass: 3, // 3cl glass (standard whisky/spirits serving)
-    shot: 3, // 3cl shot (30ml)
-    small: 2, // 2cl small serving
-    medium: 3, // 3cl medium serving
-    large: 5, // 5cl large serving
-    cup: 25 // 25cl cup (250ml)
-  };
 
   // Stock unit volumes in cl
   const stockVolumes: Record<string, number> = {
@@ -38,7 +32,6 @@ const calculateCostPerServing = (stock: StockEntryWithMaterial, servingUnit: str
   };
 
   const stockUnitLower = stockUnit.toLowerCase();
-  const servingUnitLower = servingUnit.toLowerCase();
 
   // Get stock volume in cl
   let stockVolumeInCl = stockVolumes[stockUnitLower];
@@ -55,26 +48,19 @@ const calculateCostPerServing = (stock: StockEntryWithMaterial, servingUnit: str
     }
   }
 
-  // Get serving volume in cl
-  const servingVolumeInCl = servingVolumes[servingUnitLower];
-
-  if (!servingVolumeInCl) {
-    // Fallback: return base cost
-    return baseCost;
-  }
+  // Use custom volume if provided, otherwise use default fallback
+  const servingVolumeInCl = customVolume || 3; // Default to 3cl if no custom volume
 
   // Apply the formula: Price per cl = Bottle Price / Bottle Volume (cl)
   const pricePerCl = baseCost / stockVolumeInCl;
 
-  // Glass Price = Price per cl × Glass Volume (cl)
+  // Serving Price = Price per cl × Serving Volume (cl)
   const servingPrice = pricePerCl * servingVolumeInCl;
 
   return servingPrice;
 };
 
 export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageStock, price, variantData }) => {
-  // Calculate cost per glass (standard serving unit for beverages)
-  const costPerGlass = calculateCostPerServing(selectedBeverageStock, "glass");
   const baseCost = Number(selectedBeverageStock.costPerBaseUnit || 0);
 
   // Calculate price per cl for display
@@ -93,6 +79,14 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
   }
 
   const pricePerCl = stockVolumeInCl ? baseCost / stockVolumeInCl : 0;
+
+  // Get the primary variant for base display (glass if selected, otherwise first selected variant)
+  const primaryVariant = variantData.selectedVariants.includes("glass") 
+    ? "glass" 
+    : variantData.selectedVariants[0] || "glass";
+  const primaryVariantVolume = variantData.variantVolumes[primaryVariant] || 3;
+  const primaryVariantCost = calculateCostPerServing(selectedBeverageStock, primaryVariant, primaryVariantVolume);
+  const primaryVariantPrice = variantData.variantPrices[primaryVariant] || 0;
   return (
     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
       <h3 className="text-lg font-semibold text-blue-800 mb-3">Cost Breakdown</h3>
@@ -130,22 +124,22 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
             </span>
           </div>
           <div>
-            <span className="text-gray-600">Glass Cost (3cl):</span>
+            <span className="text-gray-600">{primaryVariant} Cost ({primaryVariantVolume}cl):</span>
             <span className="ml-2 font-medium text-orange-600">
-              {formatCurrency(costPerGlass)} ({formatCurrency(pricePerCl)} × 3cl)
+              {formatCurrency(primaryVariantCost)} ({formatCurrency(pricePerCl)} × {primaryVariantVolume}cl)
             </span>
           </div>
           <div>
             <span className="text-gray-600">Selling Price:</span>
-            <span className="ml-2 font-medium text-green-600">${price || "0.00"}</span>
+            <span className="ml-2 font-medium text-green-600">${primaryVariantPrice.toFixed(2)}</span>
           </div>
           <div>
             <span className="text-gray-600">Profit Margin:</span>
-            <span className="ml-2 font-medium text-green-600">{price && costPerGlass ? `${formatCurrency(parseFloat(price) - costPerGlass)} (${(((parseFloat(price) - costPerGlass) / parseFloat(price)) * 100).toFixed(1)}%)` : "$0.00 (0.0%)"}</span>
+            <span className="ml-2 font-medium text-green-600">{primaryVariantPrice && primaryVariantCost ? `${formatCurrency(primaryVariantPrice - primaryVariantCost)} (${(((primaryVariantPrice - primaryVariantCost) / primaryVariantPrice) * 100).toFixed(1)}%)` : "$0.00 (0.0%)"}</span>
           </div>
           <div>
             <span className="text-gray-600">Servings per Stock:</span>
-            <span className="ml-2 font-medium text-blue-600">{stockVolumeInCl ? Math.floor(stockVolumeInCl / 3) : "N/A"} glasses</span>
+            <span className="ml-2 font-medium text-blue-600">{stockVolumeInCl ? Math.floor(stockVolumeInCl / primaryVariantVolume) : "N/A"} {primaryVariant}s</span>
           </div>
           <div></div>
         </div>
@@ -157,11 +151,11 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
           <h4 className="font-medium text-gray-700 mb-2">Variant Pricing</h4>
           <div className="space-y-2">
             {variantData.selectedVariants.map(variant => {
-              const adjustment = variantData.priceAdjustments[variant] || 1.0;
-              const variantPrice = price ? parseFloat(price) * adjustment : 0;
+              const variantPrice = variantData.variantPrices[variant] || 0;
+              const variantVolume = variantData.variantVolumes[variant] || 3;
 
-              // Calculate cost per variant serving unit
-              const variantCost = calculateCostPerServing(selectedBeverageStock, variant);
+              // Calculate cost per variant serving unit using dynamic volume
+              const variantCost = calculateCostPerServing(selectedBeverageStock, variant, variantVolume);
               const variantProfit = variantPrice - variantCost;
               const profitMargin = variantPrice > 0 ? (variantProfit / variantPrice) * 100 : 0;
 
@@ -169,10 +163,10 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
                 <div key={variant} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
                   <div className="flex items-center gap-4">
                     <span className="font-medium capitalize">{variant}</span>
-                    <span className="text-sm text-gray-600">({adjustment}× base)</span>
+                    <span className="text-sm text-gray-600">({variantVolume}cl)</span>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
-                    <span className="text-green-600 font-medium">{formatCurrency(variantPrice)}</span>
+                    <span className="text-green-600 font-medium">${variantPrice.toFixed(2)}</span>
                     <span className="text-gray-600">Cost: {formatCurrency(variantCost)}</span>
                     <span className="text-gray-600">
                       Profit: {formatCurrency(variantProfit)} ({profitMargin.toFixed(1)}%)

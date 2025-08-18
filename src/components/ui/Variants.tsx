@@ -7,28 +7,25 @@ import { Plus } from "lucide-react";
 
 export interface VariantData {
   selectedVariants: string[];
-  priceAdjustments: Record<string, number>;
+  variantVolumes: Record<string, number>; // Volume in cl for each variant
+  variantPrices: Record<string, number>; // Individual selling price for each variant
 }
 
 interface VariantsProps {
-  /** Initial variant sizes available */
   initialVariantSizes?: string[];
-  /** Initial selected variants */
   initialSelectedVariants?: string[];
-  /** Initial price adjustments */
-  initialPriceAdjustments?: Record<string, number>;
-  /** Callback when variant data changes */
+  initialVariantVolumes?: Record<string, number>;
+  initialVariantPrices?: Record<string, number>;
   onChange?: (data: VariantData) => void;
-  /** Custom title for the variants section */
   title?: string;
-  /** Custom description for the variants section */
   description?: string;
 }
 
 export const Variants: React.FC<VariantsProps> = ({
   initialVariantSizes = ["small", "medium", "large", "glass", "shot"],
   initialSelectedVariants = [],
-  initialPriceAdjustments = { small: 0.8, medium: 1.0, large: 1.2, glass: 0.9, shot: 0.5 },
+  initialVariantVolumes = { small: 2, medium: 3, large: 5, glass: 3, shot: 3 },
+  initialVariantPrices = { small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0 },
   onChange,
   title = "Item Variants",
   description = "Select variant sizes or add custom size"
@@ -36,17 +33,19 @@ export const Variants: React.FC<VariantsProps> = ({
   const [variantSizes, setVariantSizes] = useState<string[]>(initialVariantSizes);
   const [selectedVariants, setSelectedVariants] = useState<string[]>(initialSelectedVariants);
   const [customVariant, setCustomVariant] = useState<string>("");
-  const [variantPriceAdjustments, setVariantPriceAdjustments] = useState<Record<string, number>>(initialPriceAdjustments);
+  const [variantVolumes, setVariantVolumes] = useState<Record<string, number>>(initialVariantVolumes);
+  const [variantPrices, setVariantPrices] = useState<Record<string, number>>(initialVariantPrices);
 
   // Notify parent component of changes
   const notifyChange = useCallback(() => {
     if (onChange) {
       onChange({
         selectedVariants,
-        priceAdjustments: variantPriceAdjustments
+        variantVolumes,
+        variantPrices
       });
     }
-  }, [selectedVariants, variantPriceAdjustments, onChange]);
+  }, [selectedVariants, variantVolumes, variantPrices, onChange]);
 
   // Call notifyChange whenever relevant state changes
   React.useEffect(() => {
@@ -58,18 +57,33 @@ export const Variants: React.FC<VariantsProps> = ({
     
     setVariantSizes(prev => [...prev, customVariant]);
     setSelectedVariants(prev => [...prev, customVariant]);
-    setVariantPriceAdjustments(prev => ({
+    setVariantVolumes(prev => ({
       ...prev,
-      [customVariant]: 1.0
+      [customVariant]: 3 // Default 3cl volume
+    }));
+    setVariantPrices(prev => ({
+      ...prev,
+      [customVariant]: 3.0 // Default $3.00 price
     }));
     setCustomVariant("");
   }, [customVariant, selectedVariants]);
 
-  const handlePriceAdjustmentChange = useCallback((size: string, value: string) => {
+
+  const handleVolumeChange = useCallback((size: string, value: string) => {
     const numValue = parseFloat(value);
     if (isNaN(numValue) || numValue <= 0) return;
 
-    setVariantPriceAdjustments(prev => ({
+    setVariantVolumes(prev => ({
+      ...prev,
+      [size]: numValue
+    }));
+  }, []);
+
+  const handleVariantPriceChange = useCallback((size: string, value: string) => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue <= 0) return;
+
+    setVariantPrices(prev => ({
       ...prev,
       [size]: numValue
     }));
@@ -130,26 +144,53 @@ export const Variants: React.FC<VariantsProps> = ({
           </div>
         </div>
 
-        {/* Price Adjustments Section */}
+
+        {/* Volume Configuration Section */}
         {selectedVariants.length > 0 && (
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 mt-4">
-            <h4 className="font-medium mb-3 text-gray-700">Price Adjustments</h4>
+            <h4 className="font-medium mb-3 text-gray-700">Volume Configuration (cl)</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {selectedVariants.map(size => (
-                <div key={`price-${size}`} className="flex items-center gap-3 bg-white p-3 rounded-md shadow-sm">
-                  <Label htmlFor={`price-${size}`} className="w-20 font-medium">
+                <div key={`volume-${size}`} className="flex items-center gap-3 bg-white p-3 rounded-md shadow-sm">
+                  <Label htmlFor={`volume-${size}`} className="w-20 font-medium">
                     {size}:
                   </Label>
                   <Input 
-                    id={`price-${size}`} 
+                    id={`volume-${size}`} 
                     type="number" 
-                    value={variantPriceAdjustments[size] || "1.0"} 
-                    onChange={e => handlePriceAdjustmentChange(size, e.target.value)} 
+                    value={variantVolumes[size] || "3"} 
+                    onChange={e => handleVolumeChange(size, e.target.value)} 
                     min="0.1" 
                     step="0.1" 
                     className="max-w-[100px]" 
                   />
-                  <span className="text-sm text-gray-600">× base price</span>
+                  <span className="text-sm text-gray-600">cl</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Individual Variant Pricing Section */}
+        {selectedVariants.length > 0 && (
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 mt-4">
+            <h4 className="font-medium mb-3 text-gray-700">Individual Variant Prices</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {selectedVariants.map(size => (
+                <div key={`variant-price-${size}`} className="flex items-center gap-3 bg-white p-3 rounded-md shadow-sm">
+                  <Label htmlFor={`variant-price-${size}`} className="w-20 font-medium">
+                    {size}:
+                  </Label>
+                  <span className="text-sm text-gray-600">$</span>
+                  <Input 
+                    id={`variant-price-${size}`} 
+                    type="number" 
+                    value={variantPrices[size] || "3.00"} 
+                    onChange={e => handleVariantPriceChange(size, e.target.value)} 
+                    min="0.01" 
+                    step="0.01" 
+                    className="max-w-[100px]" 
+                  />
                 </div>
               ))}
             </div>

@@ -758,6 +758,12 @@ export interface MenuItem {
     type: string;
     status: string;
   };
+  variants?: {
+    selectedVariants: string[];
+    variantVolumes: Record<string, number>;
+    variantPrices: Record<string, number>;
+    nameFormat?: "prefix" | "suffix";
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -801,8 +807,9 @@ export interface BeverageItemFormProps {
       beverageStockId?: string | null;
       variants?: {
         selectedVariants: string[];
-        priceAdjustments: Record<string, number>;
-        nameFormat: "prefix" | "suffix";
+        variantVolumes: Record<string, number>;
+        variantPrices: Record<string, number>;
+        nameFormat?: "prefix" | "suffix";
       };
     }
   ) => void;

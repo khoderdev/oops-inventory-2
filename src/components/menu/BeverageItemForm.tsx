@@ -26,7 +26,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [showVariantsSection, setShowVariantsSection] = useState(true);
   const [variantData, setVariantData] = useState<VariantData>({
     selectedVariants: [],
-    priceAdjustments: { small: 0.8, medium: 1.0, large: 1.2, glass: 0.9, shot: 0.5 }
+    variantVolumes: { small: 2, medium: 3, large: 5, glass: 3, shot: 1 },
+    variantPrices: { small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0 }
   });
   const beverageSelectRef = useRef<HTMLInputElement>(null);
 
@@ -86,17 +87,44 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     const newErrors: typeof errors = {};
     if (!name.trim()) newErrors.name = "required";
     if (!categoryId) newErrors.category = "required";
-    if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) newErrors.price = "required";
+
+    // Only require price if no variants are selected
+    if (variantData.selectedVariants.length === 0) {
+      if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+        newErrors.price = "required";
+      }
+    }
+
     if (!menuItem && !selectedBeverageStock) {
       newErrors.beverageId = "Please select a beverage from stock";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, categoryId, price, selectedBeverageStock, menuItem]);
+  }, [name, categoryId, price, selectedBeverageStock, menuItem, variantData.selectedVariants]);
 
   useEffect(() => {
     validateForm();
   }, [name, categoryId, price, validateForm]);
+
+  // Initialize form data when editing existing menu item
+  useEffect(() => {
+    if (menuItem) {
+      setName(menuItem.name || "");
+      setPrice(menuItem.price?.toString() || "");
+      setIsPOSItem(menuItem.isPOSItem ?? true);
+      setImage(menuItem.image);
+      
+      // Initialize variant data if menu item has variants
+      if (menuItem.variants) {
+        setVariantData({
+          selectedVariants: menuItem.variants.selectedVariants || [],
+          variantVolumes: menuItem.variants.variantVolumes || {},
+          variantPrices: menuItem.variants.variantPrices || {}
+        });
+        setShowVariantsSection(true);
+      }
+    }
+  }, [menuItem]);
 
   const handleBeverageSearchChange = useCallback((value: string) => {
     setBeverageSearchTerm(value);
@@ -172,7 +200,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         ? {
             id: parseInt(selectedCategoryObj.id),
             name: selectedCategoryObj.name,
-            value: true 
+            value: true
           }
         : null,
       price: parseFloat(price),
@@ -189,7 +217,9 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         showVariantsSection && variantData.selectedVariants.length > 0
           ? {
               selectedVariants: variantData.selectedVariants,
-              priceAdjustments: variantData.priceAdjustments
+              variantVolumes: variantData.variantVolumes,
+              variantPrices: variantData.variantPrices,
+              nameFormat: "prefix" as const
             }
           : undefined
     };
@@ -267,19 +297,22 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           )}
         </div>
 
-        <div className="md:col-span-1 lg:col-span-1">
-          <label htmlFor="price" className="block text-sm font-medium mb-1">
-            Price <span className="text-red-500">*</span>
-          </label>
-          <Input id="price" type="number" value={price} onChange={e => setPrice(e.target.value)} onKeyDown={handleKeyDown} placeholder="0.00" min="0" step="0.01" aria-invalid={!!errors.price} aria-describedby={errors.price ? "price-error" : undefined} />
-          {errors.price ? (
-            <p id="price-error" className="text-sm text-red-500 mt-1">
-              {errors.price}
-            </p>
-          ) : (
-            <p className="text-sm text-gray-500 mt-1">Price is required</p>
-          )}
-        </div>
+        {/* Only show price input when no variants are selected */}
+        {variantData.selectedVariants.length === 0 && (
+          <div className="md:col-span-1 lg:col-span-1">
+            <label htmlFor="price" className="block text-sm font-medium mb-1">
+              Price <span className="text-red-500">*</span>
+            </label>
+            <Input id="price" type="number" value={price} onChange={e => setPrice(e.target.value)} onKeyDown={handleKeyDown} placeholder="0.00" min="0" step="0.01" aria-invalid={!!errors.price} aria-describedby={errors.price ? "price-error" : undefined} />
+            {errors.price ? (
+              <p id="price-error" className="text-sm text-red-500 mt-1">
+                {errors.price}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-500 mt-1">Price is required</p>
+            )}
+          </div>
+        )}
 
         <div className="md:col-span-1 lg:col-span-1">
           <label htmlFor="isPOSItem" className="block text-sm font-medium mb-1">
@@ -292,25 +325,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       </div>
 
       {/* Variants Section */}
-      {enableVariants && (
-        <Variants
-          initialVariantSizes={["small", "medium", "large", "glass", "shot"]}
-          initialSelectedVariants={variantData.selectedVariants}
-          initialPriceAdjustments={variantData.priceAdjustments}
-          onChange={handleVariantChange}
-          title="Beverage Variants"
-          description="Select variant sizes or add custom size"
-        />
-      )}
+      {enableVariants && <Variants initialVariantSizes={["small", "medium", "large", "glass", "shot"]} initialSelectedVariants={variantData.selectedVariants} initialVariantPrices={variantData.variantPrices} onChange={handleVariantChange} title="Beverage Variants" description="Select variant sizes or add custom size" />}
 
       {/* Cost Breakdown Section */}
-      {selectedBeverageStock && (
-        <CostBreakdown
-          selectedBeverageStock={selectedBeverageStock}
-          price={price}
-          variantData={variantData}
-        />
-      )}
+      {selectedBeverageStock && <CostBreakdown selectedBeverageStock={selectedBeverageStock} price={price} variantData={variantData} />}
 
       {/* Image Upload Section */}
       <div className="border-t pt-4">
