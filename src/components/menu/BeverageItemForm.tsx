@@ -16,7 +16,7 @@ import { BeverageItemFormProps, StockEntryWithMaterial } from "@/types/inventory
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, onSubmit, onCancel, enableVariants = false }) => {
   // Debug categories
-  console.log('BeverageItemForm received categories:', categories);
+  console.log("BeverageItemForm received categories:", categories);
   const [name, setName] = useState(menuItem?.name || "");
   const [categoryId, setCategoryId] = useState<string>(typeof menuItem?.category === "object" && menuItem.category !== null && "id" in menuItem.category ? String(menuItem.category.id) : "");
   const [price, setPrice] = useState(menuItem?.price?.toString() || "");
@@ -328,23 +328,23 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           </div>
         </div>
       </div>
-      {/* Image Upload Section */}
-      <div className="border-t pt-4">
-        <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
-      </div>
 
       {/* Variants Section */}
       {enableVariants && (
-        <div className="border-t border-gray-200 pt-6 mt-6">
-          <div className="mb-5">
-            <h3 className="text-xl font-semibold text-gray-800">Beverage Variants</h3>
-            <p className="text-sm text-gray-500 mt-1">Create size variations with custom pricing</p>
-          </div>
-
+        <div className="">
+          <h3 className="text-xl font-semibold text-gray-800">Beverage Variants</h3>
           <div className="space-y-6">
             {/* Size Selection Section */}
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-              <h4 className="font-medium mb-3 text-gray-700">Select Variant Sizes</h4>
+              <div className="flex items-end gap-4 mb-3 w-fit">
+                <h4 className="font-medium  text-gray-700">Select variant sizes or add custom size</h4>
+                <div className="flex items-center gap-3">
+                  <Input placeholder="Custom variant name" value={customVariant} onChange={e => setCustomVariant(e.target.value)} className="max-w-xs bg-white h-6" />
+                  <Button variant="outline" type="button" size="sm" onClick={handleAddCustomVariant} disabled={!customVariant.trim() || variantSizes.includes(customVariant)} className="px-4 h-6">
+                    <Plus className="h-4 w-4" /> Add
+                  </Button>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-4">
                 {variantSizes.map(size => (
                   <div key={size} className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm">
@@ -368,17 +368,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
               </div>
             </div>
 
-            {/* Custom Size Section */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-              <h4 className="font-medium mb-3 text-gray-700">Add Custom Size</h4>
-              <div className="flex items-center gap-3">
-                <Input placeholder="Custom size name" value={customVariant} onChange={e => setCustomVariant(e.target.value)} className="max-w-xs bg-white" />
-                <Button type="button" size="sm" onClick={handleAddCustomVariant} disabled={!customVariant.trim() || variantSizes.includes(customVariant)} className="px-4">
-                  <Plus className="h-4 w-4 mr-2" /> Add Size
-                </Button>
-              </div>
-            </div>
-
             {/* Price Adjustments Section */}
             {selectedVariants.length > 0 && (
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
@@ -396,45 +385,14 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                 </div>
               </div>
             )}
-
-            {/* Name Format Section */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-              <h4 className="font-medium mb-3 text-gray-700">Name Format</h4>
-              <RadioGroup value={nameFormat} onValueChange={value => setNameFormat(value as "prefix" | "suffix")}>
-                <div className="flex items-center space-x-2 mb-2 bg-white p-3 rounded-md shadow-sm">
-                  <RadioGroupItem value="prefix" id="name-prefix" className="h-5 w-5" />
-                  <Label htmlFor="name-prefix" className="font-medium">
-                    Size first (e.g., "Small Coffee")
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 bg-white p-3 rounded-md shadow-sm">
-                  <RadioGroupItem value="suffix" id="name-suffix" className="h-5 w-5" />
-                  <Label htmlFor="name-suffix" className="font-medium">
-                    Name first (e.g., "Coffee (Small)")
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {/* Preview Section */}
-            {variantPreviews.length > 0 && (
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <h4 className="font-medium mb-3 text-gray-700">Preview</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {variantPreviews.map((variant, index) => (
-                    <Card key={`preview-${index}`} className="overflow-hidden border-2 border-green-100 shadow-sm">
-                      <CardContent className="p-4 bg-white">
-                        <div className="font-medium text-gray-800">{variant.name}</div>
-                        <div className="text-sm font-semibold text-green-600 mt-1">{formatCurrency(variant.price)}</div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
+
+      {/* Image Upload Section */}
+      <div className="border-t pt-4">
+        <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
+      </div>
 
       <div className="flex justify-end gap-2 pt-4">
         <Button variant="outline" onClick={onCancel} aria-label="Cancel form">

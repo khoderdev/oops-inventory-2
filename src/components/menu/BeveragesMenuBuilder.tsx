@@ -89,8 +89,8 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
       
       if (typeof item.category === "string") {
         categoryValue = item.category;
-      } else if (typeof item.category === "object" && item.category?.value) {
-        categoryValue = item.category.value;
+      } else if (typeof item.category === "object" && item.category?.value !== undefined) {
+        categoryValue = String(item.category.value);
       } else if (typeof item.category === "object" && item.category?.name) {
         // Try to find the category by name
         const matchingCategory = beverageCategoriesRaw.find(c => 
