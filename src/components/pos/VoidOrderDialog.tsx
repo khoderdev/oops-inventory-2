@@ -32,16 +32,11 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
     onClose();
   };
 
-  // Count material items that would have stock restored (only if order exists)
   const materialItemsCount = order?.items?.filter(item => item.type === "material").length || 0;
   const menuItemsCount = order?.items?.filter(item => item.type === "menu_item").length || 0;
-
-  // Only show restore stock option for orders that have actually consumed stock
-  // Draft orders haven't consumed stock yet, so there's nothing to restore
   const hasConsumedStock = order && order.status !== "draft" && order.status !== "cancelled";
   const shouldShowRestoreStock = hasConsumedStock && materialItemsCount > 0;
 
-  // Set default restoreStock value based on whether stock restoration is applicable
   useEffect(() => {
     setRestoreStock(shouldShowRestoreStock);
   }, [shouldShowRestoreStock]);
@@ -108,7 +103,7 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
                   <p className="text-xs text-green-600 mt-1">
                     {shouldShowRestoreStock 
                       ? `Add consumed materials back to inventory (${materialItemsCount} item(s))`
-                      : "Restore stock levels if applicable"
+                      : ""
                     }
                   </p>
                 </div>
