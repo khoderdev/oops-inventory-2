@@ -5,18 +5,13 @@ import { Switch } from "../ui/switch";
 import { ImageUpload } from "../ui/image-upload";
 import { Selection, StockEntryItemRenderer } from "../ui/Selection";
 import { Plus } from "lucide-react";
-import { formatCurrency } from "@/utils/conversionLogic";
 import { toast } from "../ui/use-toast";
 import { beverageStockAPI } from "@/api/stock.api.ts";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Card, CardContent } from "../ui/card";
 import { BeverageItemFormProps, StockEntryWithMaterial } from "@/types/inventory";
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, onSubmit, onCancel, enableVariants = false }) => {
-  // Debug categories
-  console.log("BeverageItemForm received categories:", categories);
   const [name, setName] = useState(menuItem?.name || "");
   const [categoryId, setCategoryId] = useState<string>(typeof menuItem?.category === "object" && menuItem.category !== null && "id" in menuItem.category ? String(menuItem.category.id) : "");
   const [price, setPrice] = useState(menuItem?.price?.toString() || "");
@@ -31,7 +26,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showVariantsSection, setShowVariantsSection] = useState(true);
   const [variantSizes, setVariantSizes] = useState<string[]>(["small", "medium", "large", "glass", "shot"]);
-  const [selectedVariants, setSelectedVariants] = useState<string[]>(["small", "large"]);
+  const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
   const [customVariant, setCustomVariant] = useState<string>("");
   const [variantPriceAdjustments, setVariantPriceAdjustments] = useState<Record<string, number>>({ small: 0.8, medium: 1.0, large: 1.2, glass: 0.9, shot: 0.5 });
   const [nameFormat, setNameFormat] = useState<"prefix" | "suffix">("suffix");
@@ -188,7 +183,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       category: selectedCategoryObj
         ? {
             id: parseInt(selectedCategoryObj.id),
-            name: selectedCategoryObj.name
+            name: selectedCategoryObj.name,
+            value: true 
           }
         : null,
       price: parseFloat(price),
