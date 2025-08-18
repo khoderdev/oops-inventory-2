@@ -18,8 +18,8 @@ import { CategoryModal } from "../categories/CategoryModal";
 export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [categoriesError, setCategoriesError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [categoriesError] = useState<string | null>(null);
+  const [, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | undefined>();
   const [formLoading, setFormLoading] = useState(false);
@@ -228,7 +228,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     loadCategories();
   }, [loadCategories]);
 
-
   const handleFormSubmit = async (formData: CategoryFormData) => {
     try {
       setFormLoading(true);
@@ -249,25 +248,18 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
         savedCategory = unwrapped as unknown as Category;
       }
       console.log("savedCategory 1111 (unwrapped)", savedCategory);
-      // Track the final value we intend to keep selected (handles any re-mounts)
       let finalSelectedValue: string | undefined;
-
       if (savedCategory) {
-        // Normalize to ensure "value" exists (fallback to name) and update state immediately
         console.log("savedCategory 2222", savedCategory);
         const normalized: Category = {
           ...savedCategory,
           value: (savedCategory as any)?.value ?? (savedCategory as any)?.name
         } as Category;
-
-        // 1) Optimistic local update so UI shows item immediately
         setCategories(prev => {
           const exists = prev.some(c => c.id === normalized.id);
           const next = exists ? prev.map(c => (c.id === normalized.id ? normalized : c)) : [...prev, normalized];
           return next.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         });
-
-        // 2) Immediately select using optimistic value
         const optimisticValue = (normalized as any).value ?? (normalized as any).name ?? "";
         finalSelectedValue = optimisticValue;
         console.log("🔧 Optimistically selecting category:", optimisticValue);
@@ -276,13 +268,9 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
           shouldTouch: true
         });
         await form.trigger("category");
-
-        // 3) Fetch latest categories and, if server normalized value differs (e.g., slug), select exact server value
         try {
           const fetched = await loadCategories();
-          const match = fetched.find(
-            c => c.id === normalized.id || c.value === normalized.value || c.name === normalized.name
-          );
+          const match = fetched.find(c => c.id === normalized.id || c.value === normalized.value || c.name === normalized.name);
           if (match && match.value) {
             console.log("🔁 Server-confirmed category value:", match.value);
             form.setValue("category", match.value, {
@@ -300,7 +288,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       setShowForm(false);
       setSelectedCategory(undefined);
 
-      // Re-assert selection after the modal closes in case any remount wiped the value
       if (finalSelectedValue) {
         setTimeout(() => {
           const current = form.getValues("category");
@@ -309,7 +296,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
             form.setValue("category", finalSelectedValue!, { shouldDirty: true, shouldTouch: true });
             form.trigger("category");
           }
-          // Final hard reset to defeat any Select internal caching
           const all = form.getValues();
           if (all.category !== finalSelectedValue) {
             form.reset({ ...all, category: finalSelectedValue });

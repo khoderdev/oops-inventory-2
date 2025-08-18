@@ -1,6 +1,7 @@
 import sequelize from "../config/database.js";
 import { Material, MenuItem, MenuItemIngredient, Printer, Category } from "../models/index.js";
 import { isValidCategory, getMenuItemCategories } from "../utils/categoryHelpers.js";
+import { v4 as uuidv4 } from "uuid";
 
 const menuItemsController = {
   // Get all menu items with ingredients
@@ -779,6 +780,159 @@ const menuItemsController = {
       });
     } catch (err) {
       next(err);
+    }
+  },
+
+  // Create beverage variants with custom sizes, price adjustments, and naming formats
+  createBeverageVariants: async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { 
+        baseMenuItem,       // The base menu item to create variants from
+        selectedVariants,  // Array of selected variant sizes to create
+        priceAdjustments,  // Object mapping size to price multiplier
+        nameFormat         // "prefix" or "suffix"
+      } = req.body;
+
+      // Validate required fields
+      if (!baseMenuItem || !baseMenuItem.id) {
+        await transaction.rollback();
+        return res.status(400).json({ error: "Base menu item is required" });
+      }
+
+      if (!Array.isArray(selectedVariants) || selectedVariants.length === 0) {
+        await transaction.rollback();
+        return res.status(400).json({ error: "At least one variant size must be selected" });
+      }
+
+      if (!priceAdjustments || typeof priceAdjustments !== "object") {
+        await transaction.rollback();
+        return res.status(400).json({ error: "Price adjustments are required" });
+      }
+
+      if (!nameFormat || (nameFormat !== "prefix" && nameFormat !== "suffix")) {
+        await transaction.rollback();
+        return res.status(400).json({ error: "Valid name format (prefix or suffix) is required" });
+      }
+
+      // Fetch the base menu item to create variants from
+      const menuItem = await MenuItem.findByPk(baseMenuItem.id, {
+        include: [
+          {
+            model: Category,
+            as: "category",
+            attributes: ["id", "name", "value", "type"],
+            required: false
+          },
+          {
+            model: MenuItemIngredient,
+            as: "menuItemIngredients",
+            include: [{ model: Material, as: "material" }]
+          }
+        ],
+        transaction
+      });
+
+      if (!menuItem) {
+        await transaction.rollback();
+        return res.status(404).json({ error: "Base menu item not found" });
+      }
+
+      // Create variants for each selected size
+      const createdVariants = [];
+      
+      for (const size of selectedVariants) {
+        // Get price adjustment multiplier for this size (default to 1.0 if not specified)
+        const priceMultiplier = priceAdjustments[size] !== undefined ? parseFloat(priceAdjustments[size]) : 1.0;
+        
+        if (isNaN(priceMultiplier)) {
+          await transaction.rollback();
+          return res.status(400).json({ error: `Invalid price multiplier for size ${size}` });
+        }
+        
+        // Format the variant name based on the selected format
+        let variantName;
+        if (nameFormat === "prefix") {
+          // Format: "Small Coffee"
+          variantName = `${size.charAt(0).toUpperCase() + size.slice(1)} ${menuItem.name}`;
+        } else {
+          // Format: "Coffee (Small)"
+          variantName = `${menuItem.name} (${size.charAt(0).toUpperCase() + size.slice(1)})`;
+        }
+        
+        // Calculate the adjusted price
+        const adjustedPrice = parseFloat((menuItem.price * priceMultiplier).toFixed(2));
+        
+        // Create the variant
+        const newVariant = await MenuItem.create(
+          {
+            name: variantName,
+            price: adjustedPrice,
+            categoryId: menuItem.categoryId,
+            description: `${size.charAt(0).toUpperCase() + size.slice(1)} variant of ${menuItem.name}`,
+            isPOSItem: menuItem.isPOSItem,
+            image: menuItem.image,
+            // Add a reference to the parent item
+            parentItemId: menuItem.id,
+            variantSize: size,
+            variantId: uuidv4() // Generate a unique ID for this variant group
+          },
+          { transaction }
+        );
+        
+        // Copy ingredients if any
+        if (menuItem.menuItemIngredients && menuItem.menuItemIngredients.length > 0) {
+          const ingredientData = menuItem.menuItemIngredients.map(ingredient => ({
+            menuItemId: newVariant.id,
+            materialId: ingredient.materialId,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            cost: ingredient.cost
+          }));
+          
+          await MenuItemIngredient.bulkCreate(ingredientData, { transaction });
+        }
+        
+        // Fetch the complete variant with associations
+        const completeVariant = await MenuItem.findByPk(newVariant.id, {
+          include: [
+            {
+              model: Category,
+              as: "category",
+              attributes: ["id", "name", "value", "type"],
+              required: false
+            },
+            {
+              model: MenuItemIngredient,
+              as: "menuItemIngredients",
+              include: [{ model: Material, as: "material" }]
+            }
+          ],
+          transaction
+        });
+        
+        const formattedVariant = {
+          ...completeVariant.get(),
+          ingredients: completeVariant.menuItemIngredients.map(ingredient => ({
+            materialId: ingredient.materialId,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            cost: ingredient.cost
+          }))
+        };
+        
+        createdVariants.push(formattedVariant);
+      }
+      
+      await transaction.commit();
+      res.status(201).json({
+        message: `Successfully created ${createdVariants.length} variants for ${menuItem.name}`,
+        variants: createdVariants
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Error creating beverage variants:", error);
+      next(error);
     }
   }
 };

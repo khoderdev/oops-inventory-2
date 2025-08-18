@@ -15,6 +15,7 @@ router.patch("/bulk-update-category", menuItemsController.bulkUpdateCategory);
 // Printer assignment routes
 router.patch("/:id/assign-printer", menuItemsController.assignPrinter);
 router.patch("/bulk-assign-printer", menuItemsController.bulkAssignPrinter);
-
+// Beverage variant creation route
+router.post("/beverage-variants", menuItemsController.createBeverageVariants);
 
 export default router;

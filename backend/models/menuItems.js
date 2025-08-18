@@ -60,6 +60,32 @@ const MenuItem = sequelize.define(
       },
       comment: "Assigned printer for this menu item when ordered in POS"
     },
+    // Variant-related fields
+    isVariant: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false,
+      comment: "Indicates if this item is a variant of another menu item"
+    },
+    parentItemId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'menuItems',
+        key: 'id'
+      },
+      comment: "Reference to the parent menu item if this is a variant"
+    },
+    variantId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "UUID to group variants created in the same batch"
+    },
+    variantSize: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Size of the variant (e.g., small, medium, large, custom sizes)"
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,

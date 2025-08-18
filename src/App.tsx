@@ -1,7 +1,11 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { TabMenu } from "./components/menu/TabMenu";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
+import { getCategoriesByType } from "@/api/categories.api";
+import { Category } from "@/types/categories";
+import { useEffect, useState } from "react";
 import { employeeFormModeAtom, employeeFormOpenAtom, employeesAtom, selectedEmployeeAtom } from "@/store/employeeAtoms";
 import { PERMISSIONS } from "@/types/auth";
 import { InventoryManagementPanelProps } from "@/types/inventory";
@@ -42,9 +46,41 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
   const [, setFormOpen] = useAtom(employeeFormOpenAtom);
   const [, setFormMode] = useAtom(employeeFormModeAtom);
   const [, setSelectedEmployee] = useAtom(selectedEmployeeAtom);
+  const [categories, setCategories] = useState<Category[]>([]);
+  
+  // Fetch categories for menu items
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await getCategoriesByType("menu_items");
+        setCategories(response.totalItems || []);
+      } catch (error) {
+        console.error("Failed to fetch menu categories:", error);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+  
   const handleCreateMenuItem = onCreateMenuItem || storeCreateMenuItem;
   const handleUpdateMenuItem = onUpdateMenuItem || storeUpdateMenuItem;
   const handleDeleteMenuItem = onDeleteMenuItem || storeDeleteMenuItem;
+  
+  // Convert handler functions to return Promises to match TabMenu prop types
+  const handleCreateMenuItemAsync = async (data: any) => {
+    await handleCreateMenuItem(data);
+    return Promise.resolve();
+  };
+  
+  const handleUpdateMenuItemAsync = async (id: string, data: any) => {
+    await handleUpdateMenuItem(id, data);
+    return Promise.resolve();
+  };
+  
+  const handleDeleteMenuItemAsync = async (id: string) => {
+    await handleDeleteMenuItem(id);
+    return Promise.resolve();
+  };
 
   const handleEditEmployee = (employee: Employee) => {
     setSelectedEmployee(employee);
@@ -151,7 +187,16 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 element={
                   <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
                     <AuthenticatedLayout>
-                      <MenuItemBuilder stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} sections={sections} />
+                      <TabMenu 
+                        stockEntries={stockEntries} 
+                        materials={materialsWithStock} 
+                        menuItems={menuItems} 
+                        categories={categories} 
+                        sections={sections} 
+                        onCreateMenuItem={handleCreateMenuItemAsync} 
+                        onUpdateMenuItem={handleUpdateMenuItemAsync} 
+                        onDeleteMenuItem={handleDeleteMenuItemAsync} 
+                      />
                     </AuthenticatedLayout>
                   </ProtectedRoute>
                 }

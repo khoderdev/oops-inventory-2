@@ -1,6 +1,14 @@
 import api from "@/lib/http";
 import { CreateMenuItemData, MenuItem, UpdateMenuItemData } from "@/types/inventory";
 
+// Interface for beverage variant creation request
+export interface CreateBeverageVariantsRequest {
+  baseMenuItem: MenuItem;
+  selectedVariants: string[];
+  priceAdjustments: Record<string, number>;
+  nameFormat: "prefix" | "suffix";
+}
+
 // Helper function to create FormData for menu item with image
 const createFormData = (menuItemData: CreateMenuItemData | UpdateMenuItemData, imageFile?: File): FormData | CreateMenuItemData | UpdateMenuItemData => {
 
@@ -67,5 +75,12 @@ export const menuAPI = {
   bulkAssignPrinter: (menuItemIds: (string | number)[], printerId: number | null) => api.patch<{ updatedCount: number; menuItems: MenuItem[] }, { menuItemIds: (string | number)[]; printerId: number | null }>("/menu-items/bulk-assign-printer", { menuItemIds, printerId }),
   
   // Bulk category update method
-  bulkUpdateCategory: (menuItemIds: (string | number)[], category: string) => api.patch<{ updatedCount: number; menuItems: MenuItem[]; message: string }, { menuItemIds: (string | number)[]; category: string }>("/menu-items/bulk-update-category", { menuItemIds, category })
+  bulkUpdateCategory: (menuItemIds: (string | number)[], category: string) => api.patch<{ updatedCount: number; menuItems: MenuItem[]; message: string }, { menuItemIds: (string | number)[]; category: string }>("/menu-items/bulk-update-category", { menuItemIds, category }),
+  
+  // Beverage variant creation method
+  createBeverageVariants: (variantData: CreateBeverageVariantsRequest) => 
+    api.post<{ message: string; variants: MenuItem[] }, CreateBeverageVariantsRequest>(
+      "/menu-items/beverage-variants", 
+      variantData
+    )
 };

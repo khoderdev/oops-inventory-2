@@ -28,8 +28,6 @@ import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterA
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
-
-  // Use store menu items if available, fallback to props
   const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems;
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
@@ -61,7 +59,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     validateData();
   }, [materials, stockEntries, lastValidationTime, dataValidationEnabled]);
 
-  // Fetch menu categories from backend
   useEffect(() => {
     const fetchCategories = async () => {
       try {
