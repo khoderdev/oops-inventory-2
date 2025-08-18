@@ -2,8 +2,9 @@ import { ordersAPI } from "@/api/orders.api";
 import { printerAPI } from "@/api/printer.api";
 import { tablesAPI } from "@/api/tables.api";
 import { getCategoriesByType } from "@/api/categories.api";
-import { usePrefetch } from "@/hooks/usePrefetch";
-import { useOrdersPrefetch } from "@/hooks/useOrdersPrefetch";
+import { materialsAPI } from "@/api/matierials.api.ts";
+import { menuAPI } from "@/api/menu.api.ts";
+import { stockAPI } from "@/api/stock.api.ts";
 import PrinterSelector from "@/components/common/PrinterSelector";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -35,12 +36,10 @@ import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
-  const { stock, menu, status, refresh: refreshInventory } = usePrefetch({ autoFetch: true, parallel: true, onError: error => console.error("❌ Failed to load inventory data:", error) });
-  const handleOrdersError = useCallback((error: Error) => {
-    console.error("❌ Failed to load orders data:", error);
-  }, []);
-  const orderDataTypes = useMemo(() => ["orderSummaries"] as ("orderSummaries" | "orders")[], []);
-  const { refresh: refreshOrders } = useOrdersPrefetch({ autoFetch: true, dataTypes: orderDataTypes, onError: handleOrdersError });
+  // Direct API state management instead of usePrefetch hooks
+  const [stock, setStock] = useState<StockEntryWithMaterial[]>([]);
+  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -79,6 +78,43 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [incompleteOrdersCount, setIncompleteOrdersCount] = useState<number>(0);
   const [tableOrders, setTableOrders] = useState<{ [tableId: string]: number }>({});
   const [incompleteTableOrdersCount, setIncompleteTableOrdersCount] = useState<number>(0);
+
+  // Direct API data fetching with cache-busting
+  const fetchInventoryData = useCallback(async () => {
+    try {
+      setIsLoadingData(true);
+      console.log('🔄 POSClient: Fetching inventory data with cache-busting...');
+      
+      const [stockData, menuData] = await Promise.all([
+        stockAPI.getStockEntries({ limit: 10000, _t: Date.now() }),
+        menuAPI.getMenuItems({ limit: 10000, _t: Date.now() })
+      ]);
+      
+      console.log('✅ POSClient: Received stock data:', stockData.length, 'items');
+      console.log('✅ POSClient: Received menu data:', menuData.length, 'items');
+      
+      setStock(stockData);
+      setMenu(menuData);
+      setMenuItems(menuData);
+      setStockEntries(stockData);
+      
+    } catch (error) {
+      console.error("❌ POSClient: Failed to load inventory data:", error);
+      setError("Failed to load inventory data");
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, []);
+
+  // Refresh function to replace refreshInventory
+  const refreshInventory = useCallback(async () => {
+    await fetchInventoryData();
+  }, [fetchInventoryData]);
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchInventoryData();
+  }, [fetchInventoryData]);
   const [incompleteDeliveryTakeawayCount, setIncompleteDeliveryTakeawayCount] = useState<number>(0);
   const [, setIncompleteDeliveryCount] = useState<number>(0);
   const [, setIncompleteTakeawayCount] = useState<number>(0);
@@ -969,9 +1005,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, []);
 
   const refreshAllCounts = useCallback(async () => {
-    console.log("🔄 Refreshing all counts (orders, inventory, tables)");
-    await Promise.all([refreshOrders(), refreshInventory(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
-  }, [refreshOrders, refreshInventory, fetchTablesData, refreshCountsRef]);
+    console.log("🔄 Refreshing all counts (inventory, tables)");
+    await Promise.all([refreshInventory(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
+  }, [refreshInventory, fetchTablesData, refreshCountsRef]);
 
   const availablePosItems = posItems.filter(posItem => {
     const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || posItem.category?.toLowerCase().includes(searchTerm.toLowerCase());

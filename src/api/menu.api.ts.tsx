@@ -1,6 +1,17 @@
 import api from "@/lib/http";
 import { BeverageItem, CreateMenuItemData, MenuItem, UpdateMenuItemData } from "@/types/inventory";
 
+// Query parameters interface for menu items
+interface MenuItemsQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+  _t?: number; // Cache-busting timestamp
+}
+
 // Interface for beverage variant creation request
 export interface CreateBeverageVariantsRequest {
   baseMenuItem: BeverageItem;
@@ -58,6 +69,16 @@ const createFormData = (menuItemData: CreateMenuItemData | UpdateMenuItemData, i
 
 export const menuAPI = {
   getMenus: () => api.get<MenuItem[]>("/menu-items"),
+  getMenuItems: async (params?: MenuItemsQueryParams): Promise<MenuItem[]> => {
+    const config = params ? { params } as any : undefined;
+    const response = await api.get<{ data: MenuItem[] } | MenuItem[]>("/menu-items", config);
+    // Handle both paginated response format and direct array format
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else {
+      return (response.data as { data: MenuItem[] }).data;
+    }
+  },
   getMenuItem: (id: string) => api.get<MenuItem>(`/menu-items/${id}`),
   createMenuItem: (menuItemData: CreateMenuItemData, imageFile?: File) => {
     const data = createFormData(menuItemData, imageFile);
