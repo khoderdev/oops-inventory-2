@@ -91,76 +91,84 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
         <CardDescription>Manage categories for materials and menu items. Drag to reorder.</CardDescription>
       </CardHeader>
       <CardContent>
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="categories">
-            {provided => (
-              <div {...provided.droppableProps} ref={provided.innerRef}>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Sort Order</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {draggedCategories.map((category, index) => (
-                      <Draggable key={category.id} draggableId={category.id.toString()} index={index}>
-                        {(provided, snapshot) => (
-                          <TableRow ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? "bg-muted/50" : ""}>
-                            <TableCell {...provided.dragHandleProps}>
-                              <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                {getTypeIcon(category.type)}
-                                {category.name}
-                              </div>
-                            </TableCell>
-                            <TableCell>{getTypeBadge(category.type)}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{category.sortOrder}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Switch checked={category.isActive} onCheckedChange={checked => onToggleActive(category.id, checked)} />
-                                <Button variant="ghost" size="sm" onClick={() => onEdit(category)}>
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete Category</AlertDialogTitle>
-                                      <AlertDialogDescription>Are you sure you want to delete the category "{category.name}"? This action cannot be undone and may affect existing materials or menu items.</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => onDelete(category.id)} className="bg-red-600 hover:bg-red-700">
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+        <div className="h-[calc(100vh-235px)] flex flex-col">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="categories">
+              {provided => (
+                <div {...provided.droppableProps} ref={provided.innerRef} className="flex flex-col h-full">
+                  <div className="rounded-md border flex flex-col h-full">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background z-10 border-b">
+                        <TableRow>
+                          <TableHead className="w-12"></TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Sort Order</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                    </Table>
+                    <div className="flex-1 overflow-y-auto">
+                      <Table>
+                        <TableBody>
+                          {draggedCategories.map((category, index) => (
+                            <Draggable key={category.id} draggableId={category.id.toString()} index={index}>
+                              {(provided, snapshot) => (
+                                <TableRow ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? "bg-muted/50" : ""}>
+                                  <TableCell {...provided.dragHandleProps} className="w-12">
+                                    <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+                                  </TableCell>
+                                  <TableCell className="font-medium">
+                                    <div className="flex items-center gap-2">
+                                      {getTypeIcon(category.type)}
+                                      {category.name}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>{getTypeBadge(category.type)}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{category.sortOrder}</Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Switch checked={category.isActive} onCheckedChange={checked => onToggleActive(category.id, checked)} />
+                                      <Button variant="ghost" size="sm" onClick={() => onEdit(category)}>
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Category</AlertDialogTitle>
+                                            <AlertDialogDescription>Are you sure you want to delete the category "{category.name}"? This action cannot be undone and may affect existing materials or menu items.</AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => onDelete(category.id)} className="bg-red-600 hover:bg-red-700">
+                                              Delete
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </div>
       </CardContent>
     </Card>
   );
