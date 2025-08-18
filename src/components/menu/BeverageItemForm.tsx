@@ -9,7 +9,7 @@ import { CostBreakdown } from "./CostBreakdown";
 import { Ingredients } from "./Ingredients";
 import { toast } from "../ui/use-toast";
 import { beverageStockAPI } from "@/api/stock.api.ts";
-import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient, Material, StockEntry } from "@/types/inventory";
+import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient } from "@/types/inventory";
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, materials = [], stockEntries = [], onSubmit, onCancel, enableVariants = false }) => {
   const [name, setName] = useState(menuItem?.name || "");
@@ -26,6 +26,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(menuItem?.ingredients?.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) || []);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showVariantsSection, setShowVariantsSection] = useState(true);
+  const [showIngredientsSection, setShowIngredientsSection] = useState(false);
   const [variantData, setVariantData] = useState<VariantData>({
     selectedVariants: [],
     variantVolumes: { small: 2, medium: 3, large: 5, glass: 3, shot: 1 },
@@ -219,15 +220,22 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       beverageStockId: selectedBeverageStock?.id || "",
       variants:
         showVariantsSection && variantData.selectedVariants.length > 0
-          ? {
-              selectedVariants: variantData.selectedVariants,
-              variantVolumes: variantData.variantVolumes,
-              variantVolumeUnits: variantData.variantVolumeUnits,
-              variantPrices: variantData.variantPrices,
-              nameFormat: "prefix" as const
-            }
+          ? Object.fromEntries(
+              variantData.selectedVariants.map(variant => [
+                variant,
+                {
+                  volume: variantData.variantVolumes[variant],
+                  unit: variantData.variantVolumeUnits[variant],
+                  price: variantData.variantPrices[variant]
+                }
+              ])
+            )
           : undefined
     };
+
+    // Simple beverage form data logging
+    console.log("Beverage Form Data:", formData);
+
     onSubmit(formData);
     setName("");
     setCategoryId("");
@@ -336,12 +344,37 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       {/* Cost Breakdown Section */}
       {selectedBeverageStock && <CostBreakdown selectedBeverageStock={selectedBeverageStock} price={price} variantData={variantData} />}
 
-      {/* Ingredients Section */}
-      {materials && stockEntries && (
+      {/* Ingredients Toggle Button */}
+      {materials && stockEntries && materials.length > 0 && stockEntries.length > 0 && (
+        <div className="border-t pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowIngredientsSection(!showIngredientsSection)}
+            className="mb-4"
+          >
+            {showIngredientsSection ? "Hide" : "Add"} Ingredients
+          </Button>
+        </div>
+      )}
+
+      {/* Ingredients Section - Optional */}
+      {showIngredientsSection && materials && stockEntries && materials.length > 0 && stockEntries.length > 0 && (
         <Ingredients
           ingredients={ingredients}
-          materials={materials}
-          stockEntries={stockEntries}
+          materials={materials.map(material => ({
+            ...material,
+            availableQuantity: 0,
+            stockEntries: [],
+            totalQuantityInBaseUnit: 0,
+            totalValue: 0,
+            averageCostPerBaseUnit: 0
+          }))}
+          stockEntries={stockEntries.map(entry => ({
+            ...entry,
+            material: entry.material || { id: '', name: '', unitType: 'piece', packageQuantity: 1 }
+          }))}
           menuItem={menuItem}
           category={categories.find(cat => cat.id === categoryId)?.name || ""}
           price={price}
@@ -368,7 +401,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         <Button variant="outline" onClick={onCancel} aria-label="Cancel form">
           Cancel
         </Button>
-        <Button onClick={handleSubmit} disabled={!!Object.keys(errors).length || !name.trim() || !categoryId || !price || parseFloat(price) <= 0}>
+        <Button onClick={handleSubmit} disabled={!!Object.keys(errors).length || !name.trim() || !categoryId || (variantData.selectedVariants.length === 0 && (!price || parseFloat(price) <= 0))}>
           {menuItem ? "Update" : "Create"} Beverage Item
         </Button>
       </div>

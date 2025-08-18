@@ -24,7 +24,7 @@ interface BeveragesMenuBuilderProps {
   onDeleteBeverageItem: (id: string) => void | Promise<void>;
 }
 
-const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
+const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, stockEntries, materials, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
   const [showBeverageItemForm, setShowBeverageItemForm] = useState(false);
@@ -348,6 +348,8 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                 <BeverageItemForm
                   menuItem={editingBeverageItem}
                   categories={beverageCategories}
+                  materials={materials}
+                  stockEntries={stockEntries}
                   onSubmit={
                     editingBeverageItem
                       ? data => {
@@ -377,6 +379,8 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                   <BeverageItemForm
                     menuItem={currentVariantItem as any}
                     categories={beverageCategories}
+                    materials={materials}
+                    stockEntries={stockEntries}
                     onSubmit={(data: any) => {
                       if (data.variants) {
                         const processedCategory = (() => {

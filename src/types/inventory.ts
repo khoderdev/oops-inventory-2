@@ -803,6 +803,8 @@ export interface CategoryOption {
 export interface BeverageItemFormProps {
   menuItem?: MenuItem;
   categories: CategoryOption[];
+  materials?: Material[];
+  stockEntries?: StockEntry[];
   onSubmit: (
     data: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
       beverageStockId?: string | null;
