@@ -19,7 +19,7 @@ import { activeTabAtom, showMaterialFormAtom, showStockFormAtom, selectedMateria
 
 export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManagementPanelProps = {}) {
   const { materials, stock, status, refresh, isCacheValid } = usePrefetch({
-    autoFetch: true,
+    autoFetch: false,
     parallel: true,
     onError: error => {
       toast({
@@ -534,8 +534,6 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
 
         <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden ">
           <StockEntriesTable
-            stockEntries={stock}
-            materials={materials}
             onRefresh={handleRefreshAll}
             onDeleteStockEntry={handleDeleteStockEntry}
             onTogglePOSVisibility={handleTogglePOSVisibility}

@@ -17,7 +17,7 @@ router.get("/with-stock",
 
 router.get("/", 
   requirePermission("materials.read"), 
-  cacheMiddleware(300, (req) => `materials:${JSON.stringify(req.query)}`), // 5 min cache
+  cacheMiddleware(60, (req) => `materials:${JSON.stringify(req.query)}`), // 1 min cache
   materialController.getAllMaterials
 );
 

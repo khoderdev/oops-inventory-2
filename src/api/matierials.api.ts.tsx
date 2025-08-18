@@ -32,6 +32,7 @@ interface MaterialsQueryParams {
   fields?: string;
   createdAt_from?: string;
   createdAt_to?: string;
+  _t?: number; // Cache-busting timestamp
 }
 
 interface MaterialsWithStockQueryParams extends MaterialsQueryParams {

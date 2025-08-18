@@ -32,7 +32,7 @@ export interface UsePrefetchReturn {
 
 
 export const usePrefetch = (options: UsePrefetchOptions = {}): UsePrefetchReturn => {
-  const { autoFetch = true, parallel = true, force = false, dataTypes = ["materials", "stock", "menu"], onSuccess, onError } = options;
+  const { autoFetch = false, parallel = true, force = false, dataTypes = ["materials", "stock", "menu"], onSuccess, onError } = options;
 
   // Atoms
   const materials = useAtomValue(cachedMaterialsAtom);

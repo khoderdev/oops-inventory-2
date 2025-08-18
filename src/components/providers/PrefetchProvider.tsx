@@ -81,7 +81,7 @@ export interface PrefetchProviderProps {
 
 export const PrefetchProvider: React.FC<PrefetchProviderProps> = ({
   children,
-  autoFetch = true,
+  autoFetch = false,
   parallel = true,
   refreshInterval = 0,
   refreshOnFocus = true,

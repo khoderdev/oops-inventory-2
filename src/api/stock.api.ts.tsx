@@ -41,6 +41,7 @@ export interface StockEntriesQueryParams {
   sortOrder?: "ASC" | "DESC";
   fields?: string;
   includeMaterial?: "true" | "false";
+  _t?: number; // Cache-busting timestamp
 }
 
 export interface BeverageStockQueryParams {

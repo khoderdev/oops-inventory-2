@@ -18,12 +18,10 @@ import { useAtom } from "jotai";
 import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from "@/store/inventoryAtoms";
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import { stockAPI } from "@/api/stock.api.ts";
-import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
+import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 import { salesAPI } from "@/api/sales.api.ts";
 
 type StockEntriesTableProps = {
-  stockEntries: StockEntry[];
-  materials: Material[] | MaterialWithStock[];
   onRefresh?: () => Promise<void> | void;
   onDeleteStockEntry?: (stockEntryId: string | number) => Promise<void> | void;
   onTogglePOSVisibility?: (entry: StockEntry & { material?: Material }) => Promise<void> | void;
@@ -39,8 +37,12 @@ const isVirtualEntry = (entry: StockEntryWithMaterial) => {
   return entry.supplier === "-";
 };
 
-export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, onRefresh, onDeleteStockEntry, onTogglePOSVisibility, onAssign, onBulkAssign }: StockEntriesTableProps) {
-  const stockEntries = stockEntriesProp as (StockEntry | StockEntryWithMaterial)[];
+export function StockEntriesTable({ onRefresh, onDeleteStockEntry, onTogglePOSVisibility, onAssign, onBulkAssign }: StockEntriesTableProps) {
+  // Internal state for data fetching
+  const [stockEntries, setStockEntries] = useState<(StockEntry | StockEntryWithMaterial)[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [materialFilter, setMaterialFilter] = useState<string>("all");
@@ -51,6 +53,76 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
   const [showFloatingButton, setShowFloatingButton] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Data fetching functions
+  const fetchStockEntries = useCallback(async () => {
+    try {
+      console.log('🔄 StockEntriesTable: Fetching stock entries from stockAPI...');
+      setLoading(true);
+      setError(null);
+      const response = await stockAPI.getStockEntries({ limit: 10000, _t: Date.now() });
+      console.log('✅ StockEntriesTable: Received stock entries from API:', response.length, 'entries');
+      console.log('📋 StockEntriesTable: Stock entries data:', response.map(entry => ({
+        id: entry.id,
+        materialId: entry.materialId,
+        supplier: entry.supplier,
+        purchasedIndividualQuantity: entry.purchasedIndividualQuantity,
+        purchasedQuantity: entry.purchasedQuantity,
+        purchasedUnit: entry.purchasedUnit,
+        totalCost: entry.totalCost,
+        purchaseDate: entry.purchaseDate
+      })));
+      setStockEntries(response);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch stock entries';
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 3000
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchMaterials = useCallback(async () => {
+    try {
+      console.log('🔄 StockEntriesTable: Fetching materials from materialsAPI...');
+      const response = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
+      console.log('✅ StockEntriesTable: Received materials from API:', response.length, 'materials');
+      console.log('🏷️ StockEntriesTable: Materials data:', response.map(material => ({
+        id: material.id,
+        name: material.name,
+        category: material.category,
+        unitType: material.unitType
+      })));
+      setMaterials(response);
+    } catch (err) {
+      console.error('Failed to fetch materials:', err);
+    }
+  }, []);
+
+  // Initial data fetch
+  useEffect(() => {
+    console.log('🚀 StockEntriesTable: Component mounted - starting initial data fetch');
+    Promise.all([
+      fetchStockEntries(),
+      fetchMaterials()
+    ]);
+  }, [fetchStockEntries, fetchMaterials]);
+
+  // Refresh function
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([
+      fetchStockEntries(),
+      fetchMaterials()
+    ]);
+    if (onRefresh) {
+      await onRefresh();
+    }
+  }, [fetchStockEntries, fetchMaterials, onRefresh]);
   const [negativeStockReport, setNegativeStockReport] = useState<NegativeStockReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -189,6 +261,7 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
 
   // Client-side filtering like MenuBuilder - instant search without API calls
   const filteredStockEntries = useMemo(() => {
+    console.log('🔍 StockEntriesTable: Filtering stock entries. Raw entries:', optimisticStockEntries.length, 'Materials map size:', materialsMap.size);
     // First create stockEntriesWithMaterial structure
     const stockEntriesWithMaterial = optimisticStockEntries
       .filter(entry => {
@@ -203,9 +276,10 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
           material: material!
         } as StockEntryWithMaterial;
       });
+    console.log('📊 StockEntriesTable: Created stockEntriesWithMaterial:', stockEntriesWithMaterial.length, 'entries');
 
     // Then apply search and filter logic
-    return stockEntriesWithMaterial.filter(entry => {
+    const finalFiltered = stockEntriesWithMaterial.filter(entry => {
       const searchLower = searchTerm.toLowerCase();
       
       // Search in material name
@@ -231,6 +305,8 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
       
       return matchesSearch && matchesMaterialFilter;
     });
+    console.log('🎯 StockEntriesTable: Final filtered entries:', finalFiltered.length, 'Search term:', searchTerm, 'Material filter:', materialFilter);
+    return finalFiltered;
   }, [optimisticStockEntries, materialsMap, searchTerm, materialFilter]);
 
   // Sort client-side based on sortBy/sortOrder
@@ -271,7 +347,17 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
   // Paginate client-side
   const paginatedStockEntries = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return sortedStockEntries.slice(start, start + pageSize);
+    const paginated = sortedStockEntries.slice(start, start + pageSize);
+    console.log('📄 StockEntriesTable: Paginated entries for rendering:', paginated.length, 'Page:', currentPage, 'of', Math.ceil(sortedStockEntries.length / pageSize));
+    console.log('🎨 StockEntriesTable: Rendering entries:', paginated.map(entry => ({
+      id: entry.id,
+      materialName: entry.material?.name,
+      supplier: entry.supplier,
+      remainingQty: entry.purchasedQuantity,
+      unit: entry.purchasedUnit,
+      totalCost: entry.totalCost
+    })));
+    return paginated;
   }, [sortedStockEntries, currentPage, pageSize]);
 
   // Build local pagination info for UI
@@ -396,7 +482,7 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
       if (onDeleteStockEntry) {
         await onDeleteStockEntry(stockEntryId);
       } else {
-        await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId.toString());
+        await stockAPI.deleteStockEntry(stockEntryId.toString());
         await refreshData();
       }
       toast({
@@ -688,14 +774,14 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
   const handleStockSubmit = async (data: StockFormData) => {
     try {
       if (selectedStockEntry) {
-        await inventoryAPIWithPrefetch.stock.updateStockEntryWithCache(selectedStockEntry.id, data);
+        await stockAPI.updateStockEntry(selectedStockEntry.id, data);
         toast({
           title: "Stock Entry Updated",
           description: "Stock entry has been updated successfully.",
           variant: "default"
         });
       } else {
-        await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(data);
+        await stockAPI.createStockEntry(data);
         toast({
           title: "Stock Entry Created",
           description: "New stock entry has been created successfully.",
@@ -723,7 +809,7 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
 
   const handleAddStockOperation = async (data: AddStockData) => {
     try {
-      await inventoryAPIWithPrefetch.stock.addToStockWithCache(data);
+      await stockAPI.addToStock(data);
       await refreshData();
       toast({
         title: "Stock Added",
@@ -742,7 +828,7 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
 
   const handleRecordWasteOperation = async (data: RecordWasteData) => {
     try {
-      await inventoryAPIWithPrefetch.stock.recordWasteWithCache(data);
+      await stockAPI.recordWaste(data);
       await refreshData();
       toast({
         title: "Waste Recorded",
@@ -783,7 +869,7 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
         wasteDate: new Date(),
         notes: data.notes
       };
-      await inventoryAPIWithPrefetch.stock.wasteFromSpecificEntryWithCache(data.stockEntryId, wasteData);
+      await stockAPI.wasteFromSpecificEntry(data.stockEntryId, wasteData);
       await refreshData();
       setShowStockForm(false);
       toast({
@@ -825,7 +911,7 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
         additionDate: new Date(),
         notes: data.notes
       };
-      await inventoryAPIWithPrefetch.stock.addToSpecificEntryWithCache(data.stockEntryId, addData);
+      await stockAPI.addToSpecificEntry(data.stockEntryId, addData);
       await refreshData();
       setShowStockForm(false);
       toast({
@@ -1100,7 +1186,7 @@ const uniqueMaterials = useMemo(() =>
                     <span className="lg:hidden">{bulkSelectionMode ? "Cancel" : "Select"}</span>
                   </Button>
 
-                  <Button variant="outline" size="sm" onClick={refreshData} className="border-gray-200 hover:border-gray-300">
+                  <Button variant="outline" size="sm" onClick={handleRefresh} className="border-gray-200 hover:border-gray-300" disabled={loading}>
                     <RefreshCw className="h-4 w-4 mr-1.5" />
                     <span className="hidden lg:inline">Refresh</span>
                     <span className="lg:hidden">Refresh</span>
@@ -1180,7 +1266,7 @@ const uniqueMaterials = useMemo(() =>
               <h3 className="text-lg font-medium text-gray-900 mb-2">{searchTerm || materialFilter !== "all" ? "No matching stock entries" : "No stock entries found"}</h3>
               <p className="text-gray-500 mb-4">{searchTerm || materialFilter !== "all" ? "Try adjusting your search or filter criteria" : "Get started by adding your first stock entry"}</p>
               {!searchTerm && materialFilter === "all" && (
-                <Button onClick={handleAddStock} className="bg-primary hover:bg-primary/80">
+                <Button onClick={() => {}} className="bg-primary hover:bg-primary/80" disabled>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Stock Entry
                 </Button>

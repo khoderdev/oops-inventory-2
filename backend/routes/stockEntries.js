@@ -15,7 +15,7 @@ router.use(checkDayOperationStatus);
 router.get(
   "/",
   requirePermission("stock.read"),
-  cacheMiddleware(120, req => `stock-entries:${JSON.stringify(req.query)}`),
+  cacheMiddleware(30, req => `stock-entries:${JSON.stringify(req.query)}`),
   stockEntriesController.getAllStockEntries
 );
 
