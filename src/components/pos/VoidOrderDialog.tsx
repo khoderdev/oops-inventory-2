@@ -18,17 +18,17 @@ interface VoidOrderDialogProps {
 
 export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClose, onConfirm, order, isLoading = false }) => {
   const [reason, setReason] = useState("");
-  const [restoreStock, setRestoreStock] = useState(false);
+  const [restoreStock, setRestoreStock] = useState(true);
 
   const handleConfirm = () => {
     onConfirm(reason || "Order voided by user", restoreStock);
     setReason("");
-    setRestoreStock(false);
+    setRestoreStock(true);
   };
 
   const handleClose = () => {
     setReason("");
-    setRestoreStock(false);
+    setRestoreStock(true);
     onClose();
   };
 
@@ -99,18 +99,21 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
                 </div>
               )}
 
-              {/* Stock Restoration Option */}
-              {shouldShowRestoreStock && (
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <div className="flex-1">
-                    <Label htmlFor="restore-stock" className="text-sm font-medium text-green-800">
-                      Restore Stock
-                    </Label>
-                    <p className="text-xs text-green-600 mt-1">Add consumed materials back to inventory ({materialItemsCount} item(s))</p>
-                  </div>
-                  <Switch id="restore-stock" checked={restoreStock} onCheckedChange={setRestoreStock} />
+              {/* Stock Restoration Option - Always show */}
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div className="flex-1">
+                  <Label htmlFor="restore-stock" className="text-sm font-medium text-green-800">
+                    Restore Stock
+                  </Label>
+                  <p className="text-xs text-green-600 mt-1">
+                    {shouldShowRestoreStock 
+                      ? `Add consumed materials back to inventory (${materialItemsCount} item(s))`
+                      : "Restore stock levels if applicable"
+                    }
+                  </p>
                 </div>
-              )}
+                <Switch id="restore-stock" checked={restoreStock} onCheckedChange={setRestoreStock} />
+              </div>
 
               {/* Void Reason */}
               <div className="space-y-2">
@@ -142,14 +145,6 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
                 {isLoading ? "Voiding..." : "Void Order"}
               </Button>
             </div>
-            {/* <DialogFooter className="flex-shrink-0 flex space-x-2 p-6 border-t bg-red-300">
-              <Button variant="outline" onClick={handleClose} disabled={isLoading}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={handleConfirm} disabled={isLoading}>
-                {isLoading ? "Voiding..." : "Void Order"}
-              </Button>
-            </DialogFooter> */}
           </div>
         </div>
       </DialogContent>

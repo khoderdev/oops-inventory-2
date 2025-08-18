@@ -37,13 +37,11 @@ const isVirtualEntry = (entry: StockEntryWithMaterial) => {
   return entry.supplier === "-";
 };
 
-export function StockEntriesTable({ onRefresh, onDeleteStockEntry, onTogglePOSVisibility, onAssign, onBulkAssign }: StockEntriesTableProps) {
-  // Internal state for data fetching
+export function StockEntriesTable({ onRefresh, onDeleteStockEntry, onTogglePOSVisibility,}: StockEntriesTableProps) {
   const [stockEntries, setStockEntries] = useState<(StockEntry | StockEntryWithMaterial)[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [materialFilter, setMaterialFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);

@@ -1070,7 +1070,6 @@ export const ordersController = {
   // Void order - Enhanced cancellation with stock restoration
   voidOrder: async (req, res) => {
     const transaction = await sequelize.transaction();
-
     try {
       const { orderId } = req.params;
       const { reason, restoreStock = true } = req.body;
@@ -1100,38 +1099,186 @@ export const ordersController = {
       // Restore stock if requested and order had consumed stock
       const stockRestorations = [];
       if (restoreStock && order.items && order.items.length > 0) {
+        const { MenuItem, MenuItemIngredient, StockEntry, Material } = await import("../models/index.js");
+
         for (const item of order.items) {
+          // Handle direct material items
           if (item.materialId && item.type === "material") {
             try {
-              // Find the material's stock entries to restore stock
-              const { StockEntry } = await import("../models/index.js");
+              const material = await Material.findByPk(item.materialId, { transaction });
+              if (!material) {
+                console.warn(`Material ${item.materialId} not found during void`);
+                continue;
+              }
 
-              // Find the most recent stock entry for this material
-              const stockEntry = await StockEntry.findOne({
+              // Calculate restoration quantities
+              let restorationQuantity = item.quantity;
+              if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+                if (item.unit !== material.baseUnit) {
+                  restorationQuantity = item.quantity * material.packageQuantity;
+                }
+              }
+
+              // Find stock entries for this material (LIFO - most recent first)
+              const stockEntries = await StockEntry.findAll({
                 where: { materialId: item.materialId },
                 order: [["createdAt", "DESC"]],
                 transaction
               });
 
-              if (stockEntry) {
-                // Restore the quantity that was consumed
-                const restoredQuantity = stockEntry.purchasedIndividualQuantity + item.quantity;
-                await stockEntry.update(
-                  {
-                    purchasedIndividualQuantity: restoredQuantity
-                  },
-                  { transaction }
-                );
+              if (stockEntries.length === 0) {
+                // Create new stock entry if none exist
+                const newStockEntry = await StockEntry.create({
+                  materialId: material.id,
+                  supplier: "RESTORED - From Order Void",
+                  purchasedQuantity: 0,
+                  purchasedUnit: material.baseUnit,
+                  purchasedIndividualQuantity: restorationQuantity,
+                  purchasedIndividualUnit: material.baseUnit,
+                  costPerPurchasedUnit: 0,
+                  totalCost: 0,
+                  purchaseDate: new Date(),
+                  expiryDate: null
+                }, { transaction });
 
                 stockRestorations.push({
-                  materialId: item.materialId,
-                  itemName: item.name,
-                  quantityRestored: item.quantity,
-                  newStockLevel: restoredQuantity
+                  type: "material_item",
+                  materialId: material.id,
+                  materialName: material.name,
+                  stockEntryId: newStockEntry.id,
+                  quantityRestored: restorationQuantity,
+                  unit: material.baseUnit,
+                  action: "Created new stock entry",
+                  oldStockQuantity: 0,
+                  newStockQuantity: restorationQuantity
+                });
+              } else {
+                // Restore to most recent stock entry
+                const stockEntry = stockEntries[0];
+                const oldQuantity = stockEntry.purchasedIndividualQuantity || 0;
+                const newQuantity = Math.round(oldQuantity + restorationQuantity);
+
+                await stockEntry.update({
+                  purchasedIndividualQuantity: newQuantity
+                }, { transaction });
+
+                stockRestorations.push({
+                  type: "material_item",
+                  materialId: material.id,
+                  materialName: material.name,
+                  stockEntryId: stockEntry.id,
+                  quantityRestored: restorationQuantity,
+                  unit: material.baseUnit,
+                  oldStockQuantity: oldQuantity,
+                  newStockQuantity: newQuantity
                 });
               }
             } catch (stockError) {
-              console.warn(`⚠️ Could not restore stock for item ${item.name}:`, stockError.message);
+              console.warn(`⚠️ Could not restore stock for material item ${item.name}:`, stockError.message);
+            }
+          }
+          // Handle menu items with ingredients
+          else if (item.menuItemId && item.type === "menu_item") {
+            try {
+              // Find the menu item with its ingredients
+              const menuItem = await MenuItem.findByPk(item.menuItemId, {
+                include: [{
+                  model: MenuItemIngredient,
+                  as: "menuItemIngredients",
+                  include: [{ model: Material, as: "material" }]
+                }],
+                transaction
+              });
+
+              if (!menuItem) {
+                console.warn(`Menu item ${item.menuItemId} not found during void`);
+                continue;
+              }
+
+              console.log(`🔄 Restoring stock for menu item "${item.name}" with ${menuItem.menuItemIngredients?.length || 0} ingredients`);
+
+              // Restore each ingredient
+              if (menuItem.menuItemIngredients && menuItem.menuItemIngredients.length > 0) {
+                for (const ingredient of menuItem.menuItemIngredients) {
+                  const material = ingredient.material;
+                  const totalIngredientQuantity = ingredient.quantity * item.quantity;
+
+                  // Convert ingredient quantity to base units if needed
+                  let restorationQuantityInBaseUnits = totalIngredientQuantity;
+                  if (ingredient.unit !== material.baseUnit) {
+                    if (material.unitType === "mass") {
+                      if (ingredient.unit === "kg" && material.baseUnit === "g") {
+                        restorationQuantityInBaseUnits = totalIngredientQuantity * 1000;
+                      } else if (ingredient.unit === "g" && material.baseUnit === "kg") {
+                        restorationQuantityInBaseUnits = totalIngredientQuantity / 1000;
+                      }
+                    }
+                  }
+
+                  // Find stock entries for this material (LIFO - most recent first)
+                  const stockEntries = await StockEntry.findAll({
+                    where: { materialId: material.id },
+                    order: [["createdAt", "DESC"]],
+                    transaction
+                  });
+
+                  if (stockEntries.length === 0) {
+                    // Create new stock entry if none exist
+                    const newStockEntry = await StockEntry.create({
+                      materialId: material.id,
+                      supplier: "RESTORED - From Order Void",
+                      purchasedQuantity: 0,
+                      purchasedUnit: material.baseUnit,
+                      purchasedIndividualQuantity: restorationQuantityInBaseUnits,
+                      purchasedIndividualUnit: material.baseUnit,
+                      costPerPurchasedUnit: 0,
+                      totalCost: 0,
+                      purchaseDate: new Date(),
+                      expiryDate: null
+                    }, { transaction });
+
+                    stockRestorations.push({
+                      type: "menu_item_ingredient",
+                      materialId: material.id,
+                      materialName: material.name,
+                      menuItemId: menuItem.id,
+                      menuItemName: menuItem.name,
+                      stockEntryId: newStockEntry.id,
+                      quantityRestored: restorationQuantityInBaseUnits,
+                      unit: material.baseUnit,
+                      action: "Created new stock entry",
+                      oldStockQuantity: 0,
+                      newStockQuantity: restorationQuantityInBaseUnits
+                    });
+                  } else {
+                    // Restore to most recent stock entry
+                    const stockEntry = stockEntries[0];
+                    const oldQuantity = stockEntry.purchasedIndividualQuantity || 0;
+                    const newQuantity = Math.round(oldQuantity + restorationQuantityInBaseUnits);
+
+                    await stockEntry.update({
+                      purchasedIndividualQuantity: newQuantity
+                    }, { transaction });
+
+                    stockRestorations.push({
+                      type: "menu_item_ingredient",
+                      materialId: material.id,
+                      materialName: material.name,
+                      menuItemId: menuItem.id,
+                      menuItemName: menuItem.name,
+                      stockEntryId: stockEntry.id,
+                      quantityRestored: restorationQuantityInBaseUnits,
+                      unit: material.baseUnit,
+                      oldStockQuantity: oldQuantity,
+                      newStockQuantity: newQuantity
+                    });
+                  }
+
+                  console.log(`✅ Restored ${restorationQuantityInBaseUnits} units of ${material.name} for ${menuItem.name}`);
+                }
+              }
+            } catch (menuItemError) {
+              console.warn(`⚠️ Could not restore stock for menu item ${item.name}:`, menuItemError.message);
             }
           }
         }
