@@ -9,6 +9,8 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Selection, StockEntryItemRenderer } from "../ui/Selection";
 import { Switch } from "../ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { ImageUpload } from "../ui/image-upload";
@@ -16,11 +18,14 @@ import { toast } from "../ui/use-toast";
 import { beverageStockAPI } from "@/api/stock.api.ts";
 
 interface MenuItemFormProps {
-  menuItem?: MenuItem;
+  menuItem?: MenuItem & { beverageStockId?: string | null };
   materials: Material[];
   stockEntries: StockEntry[];
   categories: Category[];
-  onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;
+  onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { 
+    ingredients: MenuItemIngredient[],
+    beverageStockId?: string | null 
+  }) => void;
   onCancel: () => void;
 }
 
@@ -37,8 +42,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const [ingredientQuantity, setIngredientQuantity] = useState("");
   const [ingredientUnit, setIngredientUnit] = useState("");
-
-  // Beverage stock states
   const [beverageStockEntries, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
   const [selectedBeverageId, setSelectedBeverageId] = useState("");
   const [beverageSearchTerm, setBeverageSearchTerm] = useState("");
@@ -56,7 +59,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const materialSelectRef = useRef<HTMLInputElement>(null);
   const beverageSelectRef = useRef<HTMLInputElement>(null);
 
-  // Initialize category when menuItem or categories change
   useEffect(() => {
     if (categories.length === 0) {
       setCategory("");
@@ -68,42 +70,42 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       return;
     }
 
-    // Handle different category formats from MenuItem
     if (typeof menuItem.category === "number") {
-      // If category is a number (categoryId), find the corresponding category value
       const categoryObj = categories.find(cat => cat.id === menuItem.category);
       setCategory((categoryObj?.value || "") as MenuItemCategory | "");
     } else if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
-      // If category is an object, find the corresponding category value by ID
       const categoryId = (menuItem.category as { id: number }).id;
       const categoryObj = categories.find(cat => cat.id === categoryId);
       setCategory((categoryObj?.value || "") as MenuItemCategory | "");
     } else if (typeof menuItem.category === "string") {
-      // If category is a string, use it directly
       setCategory(menuItem.category as MenuItemCategory | "");
     } else {
-      // Fallback for any other format
       setCategory("");
     }
   }, [menuItem?.category, categories]);
 
-  // Fetch beverage stock entries when creating a new beverage item
   useEffect(() => {
-    const isBeverageCategory = !menuItem && category && ["beverages", "cold", "hot", "alcohol"].includes(category.toLowerCase());
+    // Check if this is a beverage category
+    const beverageCategories = ["beverages", "cold", "hot", "alcohol", "shisha"];
+    const categoryLower = typeof category === "string" ? category.toLowerCase() : "";
+    const isBeverageCategory = !menuItem && categoryLower && beverageCategories.includes(categoryLower);
 
     if (isBeverageCategory && beverageStockEntries.length === 0) {
       const fetchBeverageStock = async () => {
         try {
           setIsBeverageLoading(true);
-          // Fetch all beverage stock entries with a high limit to ensure we get everything
-          const entries = await beverageStockAPI.getBeverageStockEntries({ limit: 10000, includeMaterial: "true" });
+          // Use the correct endpoint without an ID parameter
+          const entries = await beverageStockAPI.getBeverageStockEntries({ 
+            limit: 10000, 
+            includeMaterial: "true"
+          });
           setBeverageStockEntries(entries);
           console.log("🍹 Fetched beverage stock entries:", entries.length);
         } catch (error) {
           console.error("Error fetching beverage stock:", error);
           toast({
             title: "Error",
-            description: "Failed to load beverage stock entries",
+            description: "Failed to load beverage stock entries. Please try again.",
             variant: "destructive"
           });
         } finally {
@@ -114,16 +116,15 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       fetchBeverageStock();
     }
   }, [category, menuItem, beverageStockEntries.length]);
+  
   const ingredientsInputSectionRef = useRef<HTMLDivElement>(null);
 
   const availableMaterials = useMemo(() => {
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
     const excludedCategories = ["beverages", "cold", "hot", "alcohol"];
-
     return materials.filter(m => !usedMaterialIds.has(m.id) && !excludedCategories.includes(m.category?.toLowerCase() || ""));
   }, [materials, ingredients, stockEntries]);
 
-  // Filter beverage stock entries based on search term
   const filteredBeverageStock = useMemo(() => {
     if (!beverageSearchTerm.trim()) {
       return beverageStockEntries;
@@ -145,64 +146,41 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         console.warn(`Material not found for ID: ${ingredient.materialId}`);
         return 0;
       }
-
-      // Get all stock entries for this material
       const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(ingredient.materialId));
-
       if (allStockEntries.length === 0) {
         return 0;
       }
-
       let costPerUnit = 0;
       let totalWeightedCost = 0;
       let totalQuantity = 0;
-
-      // Calculate weighted average cost per base unit from all stock entries
       for (const entry of allStockEntries) {
-        // Use purchasedIndividualQuantity if available, otherwise use purchasedQuantity converted to base units
         let quantity = entry.purchasedIndividualQuantity || 0;
         if (quantity <= 0 && entry.purchasedQuantity) {
-          // Convert purchased quantity to base units
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
         }
-
         if (quantity <= 0) {
           continue;
         }
-
         let unitCost = 0;
-
-        // First try to use costPerBaseUnit if available
         if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
           unitCost = entry.costPerBaseUnit;
-        }
-        // Otherwise calculate from totalCost and quantity (in base units)
-        else if (entry.totalCost && entry.totalCost > 0) {
+        } else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
-        }
-        // Fallback to costPerPurchasedUnit with conversion
-        else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          // Convert from purchased unit cost to base unit cost
+        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           unitCost = parseFloat(String(entry.costPerPurchasedUnit)) * conversionFactor;
         }
-
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
           totalQuantity += quantity;
         }
       }
-
-      // Calculate average cost per base unit
       if (totalQuantity > 0) {
         costPerUnit = totalWeightedCost / totalQuantity;
       }
-
-      // Convert ingredient quantity to base unit and calculate final cost
       const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
       const finalCost = ingredient.quantity * conversionFactor * costPerUnit;
-
       return finalCost;
     },
     [materials, stockEntries]
@@ -214,50 +192,33 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       if (!material) {
         return 0;
       }
-
       const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(materialId));
-
       if (allStockEntries.length === 0) {
         return 0;
       }
-
       let totalWeightedCost = 0;
       let totalQuantity = 0;
-
-      // Calculate weighted average cost per base unit from all stock entries
       for (const entry of allStockEntries) {
-        // Use purchasedIndividualQuantity if available, otherwise use purchasedQuantity converted to base units
         let quantity = entry.purchasedIndividualQuantity || 0;
         if (quantity <= 0 && entry.purchasedQuantity) {
-          // Convert purchased quantity to base units
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
         }
         if (quantity <= 0) continue;
-
         let unitCost = 0;
-
-        // First try to use costPerBaseUnit if available
         if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
           unitCost = entry.costPerBaseUnit;
-        }
-        // Otherwise calculate from totalCost and quantity (in base units)
-        else if (entry.totalCost && entry.totalCost > 0) {
+        } else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
-        }
-        // Fallback to costPerPurchasedUnit with conversion
-        else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          // Convert from purchased unit cost to base unit cost
+        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           unitCost = parseFloat(String(entry.costPerPurchasedUnit)) * conversionFactor;
         }
-
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
           totalQuantity += quantity;
         }
       }
-
       return totalQuantity > 0 ? totalWeightedCost / totalQuantity : 0;
     },
     [stockEntries, materials]
@@ -265,7 +226,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   const totalIngredientsCost = useMemo(() => {
     const total = ingredients.reduce((total, ingredient) => {
-      // Use stored cost if available (for existing menu items), otherwise calculate
       const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
       const cost = storedCost || calculateIngredientCost(ingredient);
       return total + cost;
@@ -278,21 +238,18 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     if (!name.trim()) newErrors.name = "required";
     if (!category) newErrors.category = "required";
     if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) newErrors.price = "required";
-
-    // Check if this is a beverage category
     const beverageCategories = ["beverages", "cold", "hot", "alcohol", "shisha"];
     const isBeverageCategory = beverageCategories.includes(category.toLowerCase());
-
+    
     // For new beverage items, require a beverage selection
     if (isBeverageCategory && !menuItem && !selectedBeverageId) {
       newErrors.beverageId = "Please select a beverage from stock";
     }
-
+    
     // For non-beverage items, require ingredients
     if (!isBeverageCategory && ingredients.length === 0) {
       newErrors.ingredients = "At least one ingredient is required";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [name, category, price, ingredients, selectedBeverageId, menuItem]);
@@ -304,16 +261,12 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   useEffect(() => {
     if (menuItem) {
       setName(menuItem.name || "");
-      // Handle different category formats: object, string, or number
       let categoryValue: MenuItemCategory | "" = "";
       if (typeof menuItem.category === "object" && menuItem.category !== null) {
-        // Category is an object with id and name
         categoryValue = (menuItem.category.name || "") as MenuItemCategory | "";
       } else if (typeof menuItem.category === "string") {
-        // Category is already a string
         categoryValue = menuItem.category as MenuItemCategory | "";
       } else if (typeof menuItem.category === "number") {
-        // Category is a number ID - find matching category from backend
         const matchingCategory = categories.find(cat => cat.id === menuItem.category);
         categoryValue = (matchingCategory?.name || "") as MenuItemCategory | "";
       }
@@ -370,8 +323,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     setIngredientQuantity("");
     setIngredientUnit("");
     setErrors(prev => ({ ...prev, ingredientQuantity: undefined, ingredients: undefined }));
-
-    // Scroll to the ingredients input section and focus on Material Selection
     setTimeout(() => {
       if (ingredientsInputSectionRef.current) {
         ingredientsInputSectionRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -397,72 +348,81 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
 
     try {
-      // Calculate costs for all ingredients before submitting
       const ingredientsWithCosts = ingredients.map(ingredient => ({
         ...ingredient,
         cost: calculateIngredientCost(ingredient)
       }));
-
-      // Find the selected category to validate it exists
+      
+      // Handle category normalization
+      let categoryToSubmit: string = "";
+      if (typeof category === "object" && category !== null) {
+        // For object categories with id and name properties
+        const categoryObj = category as { id?: number; name?: string };
+        if (categoryObj.name) {
+          categoryToSubmit = categoryObj.name;
+        }
+      } else if (typeof category === "string") {
+        // For string categories, use directly
+        categoryToSubmit = category;
+      }
+      
+      // Check if category is valid
       const selectedCategory = categories.find(cat => cat.value === category);
-
-      // Validate that we found a valid category
       if (!selectedCategory && category) {
         console.error("Invalid category selected:", category);
         toast({
           title: "Error",
-          description: "Selected category is not valid. Please select a valid category.",
+          description: "Please select a valid category",
           variant: "destructive"
         });
         return;
       }
-
-      // Convert category to the expected format
-      let categoryToSubmit: number | MenuItemCategory | { id: number; name: string } | null = null;
-
-      if (selectedCategory) {
-        // Send category object with id and name for backend processing
-        categoryToSubmit = {
-          id: selectedCategory.id,
-          name: selectedCategory.name
-        };
-      } else if (category && category !== "") {
-        // Fallback to string value if it's a valid MenuItemCategory
-        categoryToSubmit = category as MenuItemCategory;
-      }
-
-      // Check if this is a beverage item
-      const isBeverageCategory = category && ["beverages", "cold", "hot", "alcohol"].includes(category.toLowerCase());
-
+      
+      const beverageCategories = ["beverages", "cold", "hot", "alcohol", "shisha"];
+      // Safely check if category is a string before using toLowerCase
+      const categoryLower = typeof category === "string" ? category.toLowerCase() : "";
+      const isBeverageCategory = beverageCategories.includes(categoryLower);
+      
       let submitData;
-
-      if (isBeverageCategory && !menuItem && selectedBeverageId) {
-        // For new beverage items, use the selected beverage stock entry
+      
+      // For new beverage items, use the selected beverage data
+      if (isBeverageCategory && !menuItem) {
         const selectedBeverage = beverageStockEntries.find(entry => String(entry.id) === selectedBeverageId);
-
+        
+        if (!selectedBeverage) {
+          toast({
+            title: "Error",
+            description: "Please select a valid beverage from stock",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Get available quantity safely - it might be on the material object or added dynamically
+        const availableQty = selectedBeverage.purchasedIndividualQuantity || 
+          selectedBeverage.purchasedQuantity || 
+          (selectedBeverage as any).availableQuantity || 0;
+          
+        const costPerUnit = typeof selectedBeverage.costPerPurchasedUnit === 'number' ? 
+          selectedBeverage.costPerPurchasedUnit : 
+          (selectedBeverage as any).costPerPurchasedUnit || 0;
+        
         submitData = {
-          name: name.trim(),
+          name: selectedBeverage.material?.name || name.trim(),
           category: categoryToSubmit,
           price: parseFloat(price),
-          ingredients: [], // Beverages don't need ingredients
+          ingredients: [],
           isPOSItem,
           image,
           imageFile,
           menuItemIngredients: false,
-          unit: selectedBeverage?.purchasedUnit || "",
-          availableQuantity: selectedBeverage?.availableQuantity || 0,
-          costPerUnit: selectedBeverage?.costPerPurchasedUnit || 0,
-          beverageStockId: selectedBeverageId // Link to the beverage stock entry
+          unit: selectedBeverage.purchasedUnit || "",
+          availableQuantity: availableQty,
+          costPerUnit: costPerUnit,
+          beverageStockId: selectedBeverageId
         };
-
-        console.log("🍹 Submitting beverage item with stock ID:", selectedBeverageId);
       } else {
-        // For regular menu items or edited items, calculate ingredient costs
-        const ingredientsWithCosts = ingredients.map(ingredient => ({
-          ...ingredient,
-          cost: calculateIngredientCost(ingredient)
-        }));
-
+        // For regular menu items or editing existing beverage items
         submitData = {
           name: name.trim(),
           category: categoryToSubmit,
@@ -470,11 +430,13 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
           ingredients: ingredientsWithCosts,
           isPOSItem,
           image,
-          imageFile, // Include the File object for API
+          imageFile,
           menuItemIngredients: false,
           unit: "",
           availableQuantity: 0,
-          costPerUnit: 0
+          costPerUnit: 0,
+          // Keep the existing beverageStockId if editing a beverage item
+          beverageStockId: menuItem?.beverageStockId || null
         };
       }
 
@@ -494,7 +456,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       console.error("Error submitting form:", error);
       onCancel();
     }
-  }, [name, category, price, isPOSItem, image, ingredients, selectedBeverageId, beverageStockEntries, onSubmit, onCancel, validateForm, calculateIngredientCost, menuItem]);
+  }, [name, category, price, isPOSItem, image, imageFile, ingredients, selectedBeverageId, beverageStockEntries, categories, menuItem, onSubmit, onCancel, validateForm, calculateIngredientCost]);
 
   const handleMaterialSelect = useCallback(
     (materialId: string, materialName?: string) => {
@@ -668,52 +630,31 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         {(() => {
           const beverageCategories = ["beverages", "cold", "hot", "alcohol", "shisha"];
           const isBeverageCategory = beverageCategories.includes(category.toLowerCase());
-
-          // For new beverage items, show beverage selection instead of ingredients
           if (isBeverageCategory && !menuItem) {
             return (
               <>
-                <h3 className="text-lg font-medium mb-4">
-                  Select Beverage <span className="text-red-500">*</span>
-                </h3>
-                {errors.beverageId && (
-                  <p id="beverage-error" className="text-sm text-red-500 mb-2">
-                    {errors.beverageId}
-                  </p>
-                )}
-                <div className="relative mb-6">
-                  <label htmlFor="beverage" className="block text-sm font-medium mb-1">
-                    Beverage
-                  </label>
-                  <Input id="beverage" type="text" value={beverageSearchTerm} onChange={e => handleBeverageSearchChange(e.target.value)} onFocus={handleBeverageInputFocus} onBlur={handleBeverageInputBlur} onKeyDown={handleKeyDown} placeholder={isBeverageLoading ? "Loading beverages..." : "Search beverages..."} disabled={isBeverageLoading} aria-describedby="beverage-description" ref={beverageSelectRef} autoComplete="off" />
-                  {showBeverageDropdown && filteredBeverageStock.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-input rounded-md shadow-lg max-h-60 overflow-y-auto">
-                      {filteredBeverageStock.map(entry => (
-                        <button
-                          key={entry.id}
-                          type="button"
-                          className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0"
-                          onClick={() => handleBeverageSelect(String(entry.id), entry.material?.name)}
-                          onMouseDown={e => e.preventDefault()} // Prevent blur on click
-                        >
-                          <div className="font-medium">{entry.material?.name || "Unknown Beverage"}</div>
-                          <div className="text-sm text-muted-foreground flex justify-between">
-                            <span>Unit: {entry.purchasedUnit}</span>
-                            <span>Cost: {formatCurrency(entry.costPerPurchasedUnit || 0)}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {showBeverageDropdown && filteredBeverageStock.length === 0 && beverageSearchTerm && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-input rounded-md shadow-lg">
-                      <div className="px-3 py-2 text-muted-foreground text-center">No beverages found matching "{beverageSearchTerm}"</div>
-                    </div>
-                  )}
-                  <p id="beverage-description" className="text-sm text-muted-foreground mt-1">
-                    {isBeverageLoading ? "Loading beverage stock..." : "Select a beverage from stock"}
-                  </p>
-                </div>
+                <Selection<StockEntryWithMaterial>
+                  label="Search Beverage Stock"
+                  id="beverage"
+                  errors={errors}
+                  errorField="beverageId"
+                  searchTerm={beverageSearchTerm}
+                  onSearchChange={handleBeverageSearchChange}
+                  onInputFocus={handleBeverageInputFocus}
+                  onInputBlur={handleBeverageInputBlur}
+                  onKeyDown={handleKeyDown}
+                  isLoading={isBeverageLoading}
+                  showDropdown={showBeverageDropdown}
+                  items={filteredBeverageStock}
+                  onItemSelect={handleBeverageSelect}
+                  inputRef={beverageSelectRef}
+                  placeholder="Search beverages..."
+                  loadingText="Loading beverages..."
+                  noResultsText="No beverages found matching"
+                  itemRenderer={StockEntryItemRenderer}
+                  getDisplayValue={(item) => item.material?.name || ''}
+                  getItemId={(item) => String(item.id)}
+                />
               </>
             );
           }
@@ -820,9 +761,9 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
             // Basic validation for all items
             const basicValidation = !!Object.keys(errors).length || !name.trim() || !category || !price || parseFloat(price) <= 0;
 
-            // For new beverage items, require beverage selection
+            // For new beverage items, we no longer require beverage selection
             if (isBeverageCategory && !menuItem) {
-              return basicValidation || !selectedBeverageId;
+              return basicValidation; // Only check basic validation
             }
 
             // For non-beverage items, require ingredients

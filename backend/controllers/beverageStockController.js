@@ -35,7 +35,7 @@ const beverageStockController = {
         attributes: selectedFields
       };
 
-      // Always include material data with category for filtering
+      // Include material data with category for filtering
       queryOptions.include = [
         {
           model: Material,
@@ -45,14 +45,16 @@ const beverageStockController = {
             {
               model: Category,
               as: "category",
-              attributes: ["id", "name", "value", "type"]
+              attributes: ["id", "name", "value", "type"],
+              where: {
+                type: "materials",
+                value: {
+                  [Op.in]: ["beverages", "cold", "hot", "drinks", "alcohol", "shisha"]
+                }
+              },
+              required: true
             }
           ],
-          where: {
-            category: {
-              [Op.in]: ["beverages", "cold", "hot", "drinks", "alcohol"]
-            }
-          },
           required: true
         }
       ];
@@ -83,7 +85,7 @@ const beverageStockController = {
         meta: {
           requestTime: new Date().toISOString(),
           totalDataSize: stockEntries.length,
-          categories: ["beverages", "cold", "hot", "drinks", "alcohol"]
+          categories: ["beverages", "cold", "hot", "drinks", "alcohol", "shisha"]
         }
       });
     } catch (error) {
@@ -108,14 +110,16 @@ const beverageStockController = {
             {
               model: Category,
               as: "category",
-              attributes: ["id", "name", "value", "type"]
+              attributes: ["id", "name", "value", "type"],
+              where: {
+                type: "materials",
+                value: {
+                  [Op.in]: ["beverages", "cold", "hot", "drinks", "alcohol", "shisha"]
+                }
+              },
+              required: true
             }
           ],
-          where: {
-            category: {
-              [Op.in]: ["beverages", "cold", "hot", "drinks", "alcohol"]
-            }
-          },
           required: true
         }
       });
@@ -139,11 +143,20 @@ const beverageStockController = {
           model: Material,
           as: "material",
           attributes: ["id", "name"],
-          where: {
-            category: {
-              [Op.in]: ["beverages", "cold", "hot", "drinks", "alcohol"]
+          include: [
+            {
+              model: Category,
+              as: "category",
+              attributes: ["id", "name", "value", "type"],
+              where: {
+                type: "materials",
+                value: {
+                  [Op.in]: ["beverages", "cold", "hot", "drinks", "alcohol", "shisha"]
+                }
+              },
+              required: true
             }
-          },
+          ],
           required: true
         },
         attributes: []
