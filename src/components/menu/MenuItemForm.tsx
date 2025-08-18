@@ -1,31 +1,25 @@
-import { Material, MenuItem, MenuItemCategory, MenuItemIngredient, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
+import { Material, MenuItem, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
 import { Category } from "@/types/categories";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState } from '@tanstack/react-table';
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Selection } from "../ui/Selection";
 import { Switch } from "../ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { ImageUpload } from "../ui/image-upload";
 import { toast } from "../ui/use-toast";
 
 interface MenuItemFormProps {
-  menuItem?: MenuItem & { beverageStockId?: string | null };
+  menuItem?: MenuItem;
   materials: Material[];
   stockEntries: StockEntry[];
   categories: Category[];
-  onSubmit: (
-    data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & {
-      ingredients: MenuItemIngredient[];
-      beverageStockId?: string | null;
-    }
-  ) => void;
+  onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;
   onCancel: () => void;
 }
 
@@ -42,23 +36,16 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const [ingredientQuantity, setIngredientQuantity] = useState("");
   const [ingredientUnit, setIngredientUnit] = useState("");
-  const [beverageStockEntries, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
-  const [selectedBeverageId, setSelectedBeverageId] = useState("");
-  const [beverageSearchTerm, setBeverageSearchTerm] = useState("");
-  const [showBeverageDropdown, setShowBeverageDropdown] = useState(false);
-  const [isBeverageLoading, setIsBeverageLoading] = useState(false);
-
   const [errors, setErrors] = useState<{
     name?: string;
     category?: string;
     price?: string;
     ingredients?: string;
     ingredientQuantity?: string;
-    beverageId?: string;
   }>({});
   const materialSelectRef = useRef<HTMLInputElement>(null);
-  const beverageSelectRef = useRef<HTMLInputElement>(null);
 
+  // Initialize category when menuItem or categories change
   useEffect(() => {
     if (categories.length === 0) {
       setCategory("");
@@ -69,41 +56,44 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       setCategory("");
       return;
     }
-
-    if (typeof menuItem.category === "number") {
+    
+    // Handle different category formats from MenuItem
+    if (typeof menuItem.category === 'number') {
+      // If category is a number (categoryId), find the corresponding category value
       const categoryObj = categories.find(cat => cat.id === menuItem.category);
       setCategory((categoryObj?.value || "") as MenuItemCategory | "");
-    } else if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
-      const categoryId = (menuItem.category as { id: number }).id;
+    } else if (typeof menuItem.category === 'object' && menuItem.category !== null && 'id' in menuItem.category) {
+      // If category is an object, find the corresponding category value by ID
+      const categoryId = (menuItem.category as {id: number}).id;
       const categoryObj = categories.find(cat => cat.id === categoryId);
       setCategory((categoryObj?.value || "") as MenuItemCategory | "");
-    } else if (typeof menuItem.category === "string") {
+    } else if (typeof menuItem.category === 'string') {
+      // If category is a string, use it directly
       setCategory(menuItem.category as MenuItemCategory | "");
     } else {
+      // Fallback for any other format
       setCategory("");
     }
   }, [menuItem?.category, categories]);
-
   const ingredientsInputSectionRef = useRef<HTMLDivElement>(null);
 
   const availableMaterials = useMemo(() => {
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
-    const excludedCategories = ["beverages", "cold", "hot", "alcohol"];
-    return materials.filter(m => !usedMaterialIds.has(m.id) && !excludedCategories.includes(m.category?.toLowerCase() || ""));
-  }, [materials, ingredients]);
-
-  const filteredBeverageStock = useMemo(() => {
-    if (!beverageSearchTerm.trim()) {
-      return beverageStockEntries;
-    }
-    return beverageStockEntries.filter(entry => entry.material?.name?.toLowerCase().includes(beverageSearchTerm.toLowerCase()));
-  }, [beverageStockEntries, beverageSearchTerm]);
+    const excludedCategories = ['beverages', 'cold', 'hot', 'alcohol'];
+    
+    return materials.filter(m => 
+      !usedMaterialIds.has(m.id) && 
+      !excludedCategories.includes(m.category?.toLowerCase() || '')
+    );
+  }, [materials, ingredients, stockEntries]);
 
   const filteredMaterials = useMemo(() => {
     if (!materialSearchTerm.trim()) {
       return availableMaterials;
     }
-    return availableMaterials.filter(material => material.name.toLowerCase().includes(materialSearchTerm.toLowerCase()));
+    return availableMaterials.filter(material =>
+      material.name.toLowerCase().includes(materialSearchTerm.toLowerCase())
+    );
   }, [availableMaterials, materialSearchTerm]);
 
   const calculateIngredientCost = useCallback(
@@ -113,41 +103,64 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         console.warn(`Material not found for ID: ${ingredient.materialId}`);
         return 0;
       }
+
+      // Get all stock entries for this material
       const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(ingredient.materialId));
+      
       if (allStockEntries.length === 0) {
         return 0;
       }
+
       let costPerUnit = 0;
       let totalWeightedCost = 0;
       let totalQuantity = 0;
+
+      // Calculate weighted average cost per base unit from all stock entries
       for (const entry of allStockEntries) {
+        // Use purchasedIndividualQuantity if available, otherwise use purchasedQuantity converted to base units
         let quantity = entry.purchasedIndividualQuantity || 0;
         if (quantity <= 0 && entry.purchasedQuantity) {
+          // Convert purchased quantity to base units
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
         }
+        
         if (quantity <= 0) {
           continue;
         }
+
         let unitCost = 0;
+        
+        // First try to use costPerBaseUnit if available
         if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
           unitCost = entry.costPerBaseUnit;
-        } else if (entry.totalCost && entry.totalCost > 0) {
+        } 
+        // Otherwise calculate from totalCost and quantity (in base units)
+        else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
-        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+        }
+        // Fallback to costPerPurchasedUnit with conversion
+        else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+          // Convert from purchased unit cost to base unit cost
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           unitCost = parseFloat(String(entry.costPerPurchasedUnit)) * conversionFactor;
         }
+
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
           totalQuantity += quantity;
         }
       }
+
+      // Calculate average cost per base unit
       if (totalQuantity > 0) {
         costPerUnit = totalWeightedCost / totalQuantity;
       }
+
+      // Convert ingredient quantity to base unit and calculate final cost
       const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
       const finalCost = ingredient.quantity * conversionFactor * costPerUnit;
+
       return finalCost;
     },
     [materials, stockEntries]
@@ -159,33 +172,50 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       if (!material) {
         return 0;
       }
+
       const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(materialId));
+      
       if (allStockEntries.length === 0) {
         return 0;
       }
+
       let totalWeightedCost = 0;
       let totalQuantity = 0;
+
+      // Calculate weighted average cost per base unit from all stock entries
       for (const entry of allStockEntries) {
+        // Use purchasedIndividualQuantity if available, otherwise use purchasedQuantity converted to base units
         let quantity = entry.purchasedIndividualQuantity || 0;
         if (quantity <= 0 && entry.purchasedQuantity) {
+          // Convert purchased quantity to base units
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
         }
         if (quantity <= 0) continue;
+
         let unitCost = 0;
+        
+        // First try to use costPerBaseUnit if available
         if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
           unitCost = entry.costPerBaseUnit;
-        } else if (entry.totalCost && entry.totalCost > 0) {
+        } 
+        // Otherwise calculate from totalCost and quantity (in base units)
+        else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
-        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+        }
+        // Fallback to costPerPurchasedUnit with conversion
+        else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+          // Convert from purchased unit cost to base unit cost
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           unitCost = parseFloat(String(entry.costPerPurchasedUnit)) * conversionFactor;
         }
+
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
           totalQuantity += quantity;
         }
       }
+
       return totalQuantity > 0 ? totalWeightedCost / totalQuantity : 0;
     },
     [stockEntries, materials]
@@ -193,6 +223,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   const totalIngredientsCost = useMemo(() => {
     const total = ingredients.reduce((total, ingredient) => {
+      // Use stored cost if available (for existing menu items), otherwise calculate
       const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
       const cost = storedCost || calculateIngredientCost(ingredient);
       return total + cost;
@@ -205,19 +236,18 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     if (!name.trim()) newErrors.name = "required";
     if (!category) newErrors.category = "required";
     if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) newErrors.price = "required";
-
-    // For new beverage items, require a beverage selection
-    if (!menuItem && !selectedBeverageId) {
-      newErrors.beverageId = "Please select a beverage from stock";
-    }
-
-    // For non-beverage items, require ingredients
-    if (ingredients.length === 0) {
+    
+    // Check if ingredients are required for this category
+    const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+    const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
+    
+    if (requiresIngredients && ingredients.length === 0) {
       newErrors.ingredients = "At least one ingredient is required";
     }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, category, price, ingredients, selectedBeverageId, menuItem]);
+  }, [name, category, price, ingredients]);
 
   useEffect(() => {
     validateForm();
@@ -226,12 +256,16 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   useEffect(() => {
     if (menuItem) {
       setName(menuItem.name || "");
+      // Handle different category formats: object, string, or number
       let categoryValue: MenuItemCategory | "" = "";
       if (typeof menuItem.category === "object" && menuItem.category !== null) {
+        // Category is an object with id and name
         categoryValue = (menuItem.category.name || "") as MenuItemCategory | "";
       } else if (typeof menuItem.category === "string") {
+        // Category is already a string
         categoryValue = menuItem.category as MenuItemCategory | "";
       } else if (typeof menuItem.category === "number") {
+        // Category is a number ID - find matching category from backend
         const matchingCategory = categories.find(cat => cat.id === menuItem.category);
         categoryValue = (matchingCategory?.name || "") as MenuItemCategory | "";
       }
@@ -273,7 +307,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
     const material = materials.find(m => String(m.id) === selectedMaterialId);
     const cost = material ? calculateIngredientCost({ materialId: selectedMaterialId, quantity, unit: ingredientUnit }) : 0;
-
+    
     const newIngredient: MenuItemIngredient = {
       materialId: selectedMaterialId,
       quantity,
@@ -288,6 +322,8 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     setIngredientQuantity("");
     setIngredientUnit("");
     setErrors(prev => ({ ...prev, ingredientQuantity: undefined, ingredients: undefined }));
+
+    // Scroll to the ingredients input section and focus on Material Selection
     setTimeout(() => {
       if (ingredientsInputSectionRef.current) {
         ingredientsInputSectionRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -313,70 +349,56 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
 
     try {
+      // Calculate costs for all ingredients before submitting
       const ingredientsWithCosts = ingredients.map(ingredient => ({
         ...ingredient,
         cost: calculateIngredientCost(ingredient)
       }));
-
-      // Handle category normalization
-      let categoryToSubmit: string = "";
-      if (typeof category === "object" && category !== null) {
-        // For object categories with id and name properties
-        const categoryObj = category as { id?: number; name?: string };
-        if (categoryObj.name) {
-          categoryToSubmit = categoryObj.name;
-        }
-      } else if (typeof category === "string") {
-        // For string categories, use directly
-        categoryToSubmit = category;
-      }
-
-      // Check if category is valid
+      
+      // Find the selected category to validate it exists
       const selectedCategory = categories.find(cat => cat.value === category);
+      
+      // Validate that we found a valid category
       if (!selectedCategory && category) {
         console.error("Invalid category selected:", category);
         toast({
           title: "Error",
-          description: "Please select a valid category",
+          description: "Selected category is not valid. Please select a valid category.",
           variant: "destructive"
         });
         return;
       }
 
-      let submitData;
-      if (!menuItem) {
-        submitData = {
-          name: name.trim(),
-          category: categoryToSubmit,
-          price: parseFloat(price),
-          ingredients: [],
-          isPOSItem,
-          image,
-          imageFile,
-          menuItemIngredients: false,
-          unit: "",
-          availableQuantity: 0,
-          costPerUnit: 0,
-          beverageStockId: null
+      // Convert category to the expected format
+      let categoryToSubmit: number | MenuItemCategory | { id: number; name: string; } | null = null;
+      
+      if (selectedCategory) {
+        // Send category object with id and name for backend processing
+        categoryToSubmit = {
+          id: selectedCategory.id,
+          name: selectedCategory.name
         };
-      } else {
-        // For regular menu items or editing existing beverage items
-        submitData = {
-          name: name.trim(),
-          category: categoryToSubmit,
-          price: parseFloat(price),
-          ingredients: ingredientsWithCosts,
-          isPOSItem,
-          image,
-          imageFile,
-          menuItemIngredients: false,
-          unit: "",
-          availableQuantity: 0,
-          costPerUnit: 0,
-          beverageStockId: menuItem?.beverageStockId || null
-        };
+      } else if (category && category !== "") {
+        // Fallback to string value if it's a valid MenuItemCategory
+        categoryToSubmit = category as MenuItemCategory;
       }
 
+      const submitData = {
+        name: name.trim(),
+        category: categoryToSubmit,
+        price: parseFloat(price),
+        ingredients: ingredientsWithCosts,
+        isPOSItem,
+        image,
+        imageFile, // Include the File object for API
+        menuItemIngredients: false,
+        unit: "",
+        availableQuantity: 0,
+        costPerUnit: 0
+      };
+      
+
+      
       onSubmit(submitData);
       setName("");
       setCategory("");
@@ -391,7 +413,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       console.error("Error submitting form:", error);
       onCancel();
     }
-  }, [name, category, price, isPOSItem, image, imageFile, ingredients, selectedBeverageId, beverageStockEntries, categories, menuItem, onSubmit, onCancel, validateForm, calculateIngredientCost]);
+  }, [name, category, price, isPOSItem, image, ingredients, onSubmit, onCancel, validateForm, calculateIngredientCost]);
 
   const handleMaterialSelect = useCallback(
     (materialId: string, materialName?: string) => {
@@ -440,7 +462,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         const hasName = !!(name && name.trim());
         const hasCategory = !!category;
         const hasValidPrice = !!(price && !isNaN(parseFloat(price)) && parseFloat(price) > 0);
-        const noIngredientsCategories = ["alcohol", "cold", "hot", "shisha"];
+        const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
         const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
         const hasIngredients = ingredients.length > 0;
         const hasNoErrors = Object.keys(errors).length === 0;
@@ -453,23 +475,27 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
   };
 
+  
   // CRITICAL FIX: Normalize category value to match dropdown options
   const normalizedCategory = useMemo(() => {
     if (!category || !categories.length) return category;
-
+    
     // If category state doesn't match any dropdown option, try to find the correct value
     const hasExactMatch = categories.some(c => c.value === category);
     if (hasExactMatch) return category;
-
+    
     // Try to find by name (case-insensitive)
-    const matchByName = categories.find(c => c.name.toLowerCase() === category.toLowerCase() || c.value.toLowerCase() === category.toLowerCase());
-
+    const matchByName = categories.find(c => 
+      c.name.toLowerCase() === category.toLowerCase() || 
+      c.value.toLowerCase() === category.toLowerCase()
+    );
+    
     if (matchByName) {
       // Update the state to the correct value
       setTimeout(() => setCategory(matchByName.value as MenuItemCategory | ""), 0);
       return matchByName.value;
     }
-
+    
     return category;
   }, [category, categories]);
 
@@ -536,38 +562,97 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
       {/* Image Upload Section */}
       <div className="border-t pt-4">
-        <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
+        <ImageUpload
+          value={image}
+          onChange={handleImageChange}
+          maxSizeInMB={5}
+          acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]}
+        />
       </div>
 
       <div className="border-t pt-4">
-        <TanStackVirtualizedIngredientsTable ingredients={ingredients} materials={materials} menuItem={menuItem} calculateIngredientCost={calculateIngredientCost} getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit} formatNumber={formatNumber} formatCurrency={formatCurrency} handleRemoveIngredient={handleRemoveIngredient} totalIngredientsCost={totalIngredientsCost} price={price} />
+        {(() => {
+          const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+          const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
+          
+          return (
+            <>
+              <h3 className="text-lg font-medium mb-4">
+                Ingredients {requiresIngredients && <span className="text-red-500">*</span>}
+                {!requiresIngredients && (
+                  <span className="text-sm text-muted-foreground font-normal ml-2">
+                    (Optional for {category} items)
+                  </span>
+                )}
+              </h3>
+              {errors.ingredients && (
+                <p id="ingredients-error" className="text-sm text-red-500 mb-2">
+                  {errors.ingredients}
+                </p>
+              )}
+            </>
+          );
+        })()}
+
+        <TanStackVirtualizedIngredientsTable
+          ingredients={ingredients}
+          materials={materials}
+          menuItem={menuItem}
+          calculateIngredientCost={calculateIngredientCost}
+          getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit}
+          formatNumber={formatNumber}
+          formatCurrency={formatCurrency}
+          handleRemoveIngredient={handleRemoveIngredient}
+          totalIngredientsCost={totalIngredientsCost}
+          price={price}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
-          <Selection
-            label="Material"
-            id="material"
-            searchTerm={materialSearchTerm}
-            onSearchChange={handleMaterialSearchChange}
-            onInputFocus={handleMaterialInputFocus}
-            onInputBlur={handleMaterialInputBlur}
-            onKeyDown={handleKeyDown}
-            isLoading={false}
-            showDropdown={showMaterialDropdown}
-            items={filteredMaterials}
-            onItemSelect={handleMaterialSelect}
-            inputRef={materialSelectRef}
-            placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."}
-            noResultsText="No materials found matching"
-            getDisplayValue={material => material.name}
-            getItemId={material => String(material.id)}
-            itemRenderer={({ item, onSelect }) => (
-              <button key={item.id} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(String(item.id), item.name)} onMouseDown={e => e.preventDefault()}>
-                <div className="font-medium">{item.name}</div>
-                <div className="text-sm text-muted-foreground">Base unit: {item.baseUnit}</div>
-              </button>
+          <div className="relative">
+            <label htmlFor="material" className="block text-sm font-medium mb-1">
+              Material
+            </label>
+            <Input
+              id="material"
+              type="text"
+              value={materialSearchTerm}
+              onChange={e => handleMaterialSearchChange(e.target.value)}
+              onFocus={handleMaterialInputFocus}
+              onBlur={handleMaterialInputBlur}
+              onKeyDown={handleKeyDown}
+              placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."}
+              disabled={availableMaterials.length === 0}
+              aria-describedby="material-description"
+              ref={materialSelectRef}
+              autoComplete="off"
+            />
+            {showMaterialDropdown && filteredMaterials.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-input rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {filteredMaterials.map(material => (
+                  <button
+                    key={material.id}
+                    type="button"
+                    className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0"
+                    onClick={() => handleMaterialSelect(material.id, material.name)}
+                    onMouseDown={e => e.preventDefault()} // Prevent blur on click
+                  >
+                    <div className="font-medium">{material.name}</div>
+                    <div className="text-sm text-muted-foreground">Base unit: {material.baseUnit}</div>
+                  </button>
+                ))}
+              </div>
             )}
-            width="full"
-          />
+            {showMaterialDropdown && filteredMaterials.length === 0 && materialSearchTerm && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-input rounded-md shadow-lg">
+                <div className="px-3 py-2 text-muted-foreground text-center">
+                  No materials found matching "{materialSearchTerm}"
+                </div>
+              </div>
+            )}
+            <p id="material-description" className="text-sm text-muted-foreground mt-1">
+              {availableMaterials.length === 0 ? "All materials are already used" : "Type to search and select a material"}
+            </p>
+          </div>
           <div>
             <label htmlFor="quantity" className="block text-sm font-medium mb-1">
               Quantity
@@ -612,12 +697,21 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         <Button variant="outline" onClick={handleCancel} aria-label="Cancel form">
           Cancel
         </Button>
-        <Button
-          onClick={handleSubmit}
+        <Button 
+          onClick={handleSubmit} 
           disabled={(() => {
-            const basicValidation = !!Object.keys(errors).length || !name.trim() || !category || !price || parseFloat(price) <= 0;
-            return basicValidation || ingredients.length === 0;
-          })()}
+            const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+            const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
+            
+            return (
+              !!Object.keys(errors).length || 
+              !name.trim() || 
+              !category || 
+              !price || 
+              parseFloat(price) <= 0 || 
+              (requiresIngredients && ingredients.length === 0)
+            );
+          })()} 
           aria-label={menuItem ? "Update menu item" : "Create menu item"}
         >
           {menuItem ? "Update" : "Create"} Menu Item
@@ -641,7 +735,18 @@ interface TanStackVirtualizedIngredientsTableProps {
   price: string;
 }
 
-const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ ingredients, materials, menuItem, calculateIngredientCost, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost, price }) => {
+const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({
+  ingredients,
+  materials,
+  menuItem,
+  calculateIngredientCost,
+  getMaterialCostPerBaseUnit,
+  formatNumber,
+  formatCurrency,
+  handleRemoveIngredient,
+  totalIngredientsCost,
+  price,
+}) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -684,8 +789,16 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
           // Use stored cost if available (for existing menu items), otherwise calculate
           const storedCost = menuItem?.ingredients?.find(i => i.materialId === row.original.materialId)?.cost;
           const ingredientCost = storedCost || calculateIngredientCost(row.original);
-
-          return <div className="text-right font-medium">{ingredientCost > 0 ? <span className="text-foreground">{formatCurrency(ingredientCost)}</span> : <span className="text-red-500 text-xs">No cost data</span>}</div>;
+          
+          return (
+            <div className="text-right font-medium">
+              {ingredientCost > 0 ? (
+                <span className="text-foreground">{formatCurrency(ingredientCost)}</span>
+              ) : (
+                <span className="text-red-500 text-xs">No cost data</span>
+              )}
+            </div>
+          );
         },
         size: 120
       }),
@@ -698,7 +811,13 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
           const material = materials.find(m => String(m.id) === String(row.original.materialId));
           return (
             <div className="text-right">
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600" onClick={() => handleRemoveIngredient(row.original.index)} aria-label={`Remove ${material?.name || "ingredient"}`}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                onClick={() => handleRemoveIngredient(row.original.index)}
+                aria-label={`Remove ${material?.name || "ingredient"}`}
+              >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -712,7 +831,10 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
   );
 
   // Prepare data with index for removal functionality
-  const tableData = useMemo(() => ingredients.map((ingredient, index) => ({ ...ingredient, index })), [ingredients]);
+  const tableData = useMemo(() => 
+    ingredients.map((ingredient, index) => ({ ...ingredient, index })),
+    [ingredients]
+  );
 
   // TanStack Table instance
   const table = useReactTable({
@@ -746,10 +868,15 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
         <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
           <Table>
             <TableHeader>
-              {table.getHeaderGroups().map(headerGroup => (
+              {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map(header => (
-                    <TableHead key={header.id} style={{ width: header.getSize() }} className={header.column.getCanSort() ? "cursor-pointer select-none" : ""} onClick={header.column.getToggleSortingHandler()}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead 
+                      key={header.id} 
+                      style={{ width: header.getSize() }}
+                      className={header.column.getCanSort() ? "cursor-pointer select-none" : ""}
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
                       {header.isPlaceholder ? null : (
                         <div className="flex items-center gap-2">
                           {flexRender(header.column.columnDef.header, header.getContext())}
@@ -772,7 +899,11 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
         </div>
 
         {/* Virtualized Table Body */}
-        <div className="flex-1 overflow-auto max-h-96" ref={parentRef} style={{ height: Math.min(rows.length * 52, 384) }}>
+        <div 
+          className="flex-1 overflow-auto max-h-96" 
+          ref={parentRef}
+          style={{ height: Math.min(rows.length * 52, 384) }}
+        >
           <div
             style={{
               height: `${rowVirtualizer.getTotalSize()}px`,
@@ -799,7 +930,7 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
                   <Table>
                     <TableBody>
                       <TableRow>
-                        {row.getVisibleCells().map(cell => (
+                        {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
@@ -824,8 +955,17 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
           {parseFloat(price) > 0 && (
             <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
               <span>Profit Margin:</span>
-              <span className={parseFloat(price) - totalIngredientsCost >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                {formatCurrency(parseFloat(price) - totalIngredientsCost)} ({formatNumber(parseFloat(price) > 0 ? ((parseFloat(price) - totalIngredientsCost) / parseFloat(price)) * 100 : 0)}
+              <span
+                className={
+                  parseFloat(price) - totalIngredientsCost >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"
+                }
+              >
+                {formatCurrency(parseFloat(price) - totalIngredientsCost)} (
+                {formatNumber(
+                  parseFloat(price) > 0
+                    ? ((parseFloat(price) - totalIngredientsCost) / parseFloat(price)) * 100
+                    : 0
+                )}
                 %)
               </span>
             </div>
