@@ -398,8 +398,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           let categoryLabel;
 
           if (typeof category === "object" && category !== null) {
-            // Category is an object with name/value
-            categoryLabel = category.name || category.value || "Uncategorized";
+            // Category is an object with name property
+            categoryLabel = category.name || "Uncategorized";
           } else if (typeof category === "string") {
             // Category is a string - try to find matching category by value first, then by name
             const matchingCategory = categories.find(c => c.value === category) || categories.find(c => c.name?.toLowerCase() === category.toLowerCase());
@@ -578,7 +578,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           if (typeof item.category === "string") {
             // Support both stored category value and name (case-insensitive)
             if (item.category === selectedCategory) return true;
-            const categoryObj = categories.find(c => c.value === item.category) || categories.find(c => c.name?.toLowerCase() === item.category.toLowerCase());
+            const categoryObj = categories.find(c => c.value === item.category) || categories.find(c => c.name?.toLowerCase() === (typeof item.category === 'string' ? item.category.toLowerCase() : String(item.category).toLowerCase()));
             return categoryObj?.value === selectedCategory;
           } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
             // For category objects, we need to find the matching category by name and compare values
