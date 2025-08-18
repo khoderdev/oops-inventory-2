@@ -9,19 +9,14 @@ interface CostBreakdownProps {
   variantData: VariantData;
 }
 
-// Helper function to calculate cost per serving unit using cl-based formula
+// Helper function to calculate cost per serving unit with dynamic volume and unit support
 const calculateCostPerServing = (
   stock: StockEntryWithMaterial, 
-  servingUnit: string, 
-  customVolume?: number
+  servingVolume: number,
+  servingUnit: string
 ): number => {
   const baseCost = Number(stock.costPerBaseUnit || 0);
   const stockUnit = stock.purchasedUnit || "piece";
-
-  // If same unit, return base cost
-  if (stockUnit.toLowerCase() === servingUnit.toLowerCase()) {
-    return baseCost;
-  }
 
   // Stock unit volumes in cl
   const stockVolumes: Record<string, number> = {
@@ -48,16 +43,20 @@ const calculateCostPerServing = (
     }
   }
 
-  // Use custom volume if provided, otherwise use default fallback
-  const servingVolumeInCl = customVolume || 3; // Default to 3cl if no custom volume
+  // Apply the formula: cost_x_mL = price_per_unit × (x_mL / unit_volume_mL)
+  // First convert stock volume to mL for consistent calculation
+  const stockVolumeInMl = stockVolumeInCl * 10; // cl to ml (1cl = 10ml)
+  
+  // Convert serving volume to mL if needed
+  let servingVolumeInMl = servingVolume;
+  if (servingUnit === "cl") {
+    servingVolumeInMl = servingVolume * 10; // cl to ml
+  }
+  
+  // Calculate cost using the formula: cost_x_mL = price_per_unit × (x_mL / unit_volume_mL)
+  const servingCost = baseCost * (servingVolumeInMl / stockVolumeInMl);
 
-  // Apply the formula: Price per cl = Bottle Price / Bottle Volume (cl)
-  const pricePerCl = baseCost / stockVolumeInCl;
-
-  // Serving Price = Price per cl × Serving Volume (cl)
-  const servingPrice = pricePerCl * servingVolumeInCl;
-
-  return servingPrice;
+  return servingCost;
 };
 
 export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageStock, price, variantData }) => {
@@ -85,7 +84,8 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
     ? "glass" 
     : variantData.selectedVariants[0] || "glass";
   const primaryVariantVolume = variantData.variantVolumes[primaryVariant] || 3;
-  const primaryVariantCost = calculateCostPerServing(selectedBeverageStock, primaryVariant, primaryVariantVolume);
+  const primaryVariantUnit = variantData.variantVolumeUnits[primaryVariant] || "cl";
+  const primaryVariantCost = calculateCostPerServing(selectedBeverageStock, primaryVariantVolume, primaryVariantUnit);
   const primaryVariantPrice = variantData.variantPrices[primaryVariant] || 0;
   return (
     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
@@ -124,9 +124,9 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
             </span>
           </div>
           <div>
-            <span className="text-gray-600">{primaryVariant} Cost ({primaryVariantVolume}cl):</span>
+            <span className="text-gray-600">{primaryVariant} Cost ({primaryVariantVolume}{primaryVariantUnit}):</span>
             <span className="ml-2 font-medium text-orange-600">
-              {formatCurrency(primaryVariantCost)} ({formatCurrency(pricePerCl)} × {primaryVariantVolume}cl)
+              {formatCurrency(primaryVariantCost)} ({formatCurrency(baseCost)} × {primaryVariantUnit === "ml" ? primaryVariantVolume : (primaryVariantVolume * 10)}mL/{stockVolumeInCl * 10}mL)
             </span>
           </div>
           <div>
@@ -139,7 +139,7 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
           </div>
           <div>
             <span className="text-gray-600">Servings per Stock:</span>
-            <span className="ml-2 font-medium text-blue-600">{stockVolumeInCl ? Math.floor(stockVolumeInCl / primaryVariantVolume) : "N/A"} {primaryVariant}s</span>
+            <span className="ml-2 font-medium text-blue-600">{stockVolumeInCl ? Math.floor((stockVolumeInCl * 10) / (primaryVariantUnit === "ml" ? primaryVariantVolume : (primaryVariantVolume * 10))) : "N/A"} {primaryVariant}s</span>
           </div>
           <div></div>
         </div>
@@ -153,17 +153,25 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
             {variantData.selectedVariants.map(variant => {
               const variantPrice = variantData.variantPrices[variant] || 0;
               const variantVolume = variantData.variantVolumes[variant] || 3;
+              const variantUnit = variantData.variantVolumeUnits[variant] || "cl";
 
-              // Calculate cost per variant serving unit using dynamic volume
-              const variantCost = calculateCostPerServing(selectedBeverageStock, variant, variantVolume);
+              // Calculate cost per variant serving unit using dynamic volume and unit
+              const variantCost = calculateCostPerServing(selectedBeverageStock, variantVolume, variantUnit);
               const variantProfit = variantPrice - variantCost;
               const profitMargin = variantPrice > 0 ? (variantProfit / variantPrice) * 100 : 0;
 
+              // Calculate servings per stock for this variant
+              // Calculate servings per stock: stock_volume_mL / serving_mL
+              const stockTotalMl = stockVolumeInCl * 10; // total stock in ml
+              const servingMl = variantUnit === "ml" ? variantVolume : (variantVolume * 10);
+              const servingsPerStock = stockTotalMl ? Math.floor(stockTotalMl / servingMl) : 0;
+
               return (
-                <div key={variant} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
+                <div key={variant} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                   <div className="flex items-center gap-4">
                     <span className="font-medium capitalize">{variant}</span>
-                    <span className="text-sm text-gray-600">({variantVolume}cl)</span>
+                    <span className="text-sm text-gray-600">({variantVolume}{variantUnit})</span>
+                    <span className="text-xs text-blue-600">{servingsPerStock} servings/stock</span>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
                     <span className="text-green-600 font-medium">${variantPrice.toFixed(2)}</span>

@@ -27,6 +27,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [variantData, setVariantData] = useState<VariantData>({
     selectedVariants: [],
     variantVolumes: { small: 2, medium: 3, large: 5, glass: 3, shot: 1 },
+    variantVolumeUnits: { small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl" },
     variantPrices: { small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0 }
   });
   const beverageSelectRef = useRef<HTMLInputElement>(null);
@@ -119,6 +120,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         setVariantData({
           selectedVariants: menuItem.variants.selectedVariants || [],
           variantVolumes: menuItem.variants.variantVolumes || {},
+          variantVolumeUnits: menuItem.variants.variantVolumeUnits || {},
           variantPrices: menuItem.variants.variantPrices || {}
         });
         setShowVariantsSection(true);
@@ -218,6 +220,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           ? {
               selectedVariants: variantData.selectedVariants,
               variantVolumes: variantData.variantVolumes,
+              variantVolumeUnits: variantData.variantVolumeUnits,
               variantPrices: variantData.variantPrices,
               nameFormat: "prefix" as const
             }
