@@ -494,7 +494,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
             </Dialog>
 
             {/* Table */}
-            <div className="flex-1 overflow-auto border rounded-md">
+            <div className="flex-1 overflow-auto border rounded-md sm:max-w-[calc(100vw-170px)] w-full">
               <Table>
                 <TableHeader>
                   {table.getHeaderGroups().map(headerGroup => (

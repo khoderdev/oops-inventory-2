@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MaterialFormData, MaterialFormProps } from "@/types/inventory";
+import { MaterialFormData, MaterialFormProps, StockEntryWithMaterial } from "@/types/inventory";
 import { UNIT_DEFINITIONS } from "@/utils/enhancedConversions";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +14,7 @@ import { createCategory, getCategoriesByType, updateCategory } from "@/api/categ
 import { Category, CategoryFormData } from "@/types/categories";
 import { Loader2 } from "lucide-react";
 import { CategoryModal } from "../categories/CategoryModal";
+import { stockAPI } from "@/api/stock.api.ts.tsx";
 
 export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps) {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -23,6 +24,11 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   const [showForm, setShowForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | undefined>();
   const [formLoading, setFormLoading] = useState(false);
+  
+  // State for beverage stock entries
+  const [beverageStockEntries, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
+  const [loadingBeverages, setLoadingBeverages] = useState(false);
+  const [beverageError, setBeverageError] = useState<string | null>(null);
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
@@ -226,7 +232,57 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
 
   useEffect(() => {
     loadCategories();
+    loadBeverageStockEntries();
   }, [loadCategories]);
+  
+  // Function to load beverage stock entries
+  const loadBeverageStockEntries = async () => {
+    try {
+      setLoadingBeverages(true);
+      setBeverageError(null);
+      
+      // Fetch stock entries with material information
+      const stockEntries = await stockAPI.getStockEntries({
+        includeMaterial: 'true',
+        limit: 1000 // Fetch a large number to ensure we get all relevant entries
+      });
+      
+      // Filter stock entries by beverage-related categories
+      const beverageCategories = ['beverages', 'cold', 'hot', 'drinks', 'alcohol'];
+      
+      const filteredEntries = stockEntries.filter(entry => 
+        entry.material && 
+        beverageCategories.includes(entry.material.category)
+      );
+      
+      // Sort by material name for better user experience
+      const sortedEntries = filteredEntries.sort((a, b) => {
+        const nameA = a.material?.name || '';
+        const nameB = b.material?.name || '';
+        return nameA.localeCompare(nameB);
+      });
+      
+      setBeverageStockEntries(sortedEntries);
+    } catch (error) {
+      console.error('Error loading beverage stock entries:', error);
+      setBeverageError('Failed to load beverage options');
+    } finally {
+      setLoadingBeverages(false);
+    }
+  };
+  
+  // Transform stock entries into unique beverage options
+  const beverageOptions = useMemo(() => {
+    const uniqueNames = new Map();
+    
+    beverageStockEntries.forEach(entry => {
+      if (entry.material?.name) {
+        uniqueNames.set(entry.material.name, entry.material.name);
+      }
+    });
+    
+    return Array.from(uniqueNames.values()).sort();
+  }, [beverageStockEntries]);
 
   const handleFormSubmit = async (formData: CategoryFormData) => {
     try {
@@ -326,7 +382,42 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                     <FormItem>
                       <FormLabel>Material Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Ground Beef" {...field} />
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={loadingBeverages}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={loadingBeverages ? "Loading beverages..." : "Select a beverage"} />
+                              {loadingBeverages && (
+                                <div className="flex items-center">
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  <span>Loading beverages...</span>
+                                </div>
+                              )}
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {beverageError && (
+                              <SelectItem key="beverage-error" value="" disabled>
+                                {beverageError}
+                              </SelectItem>
+                            )}
+                            {!beverageError && beverageOptions.length === 0 && !loadingBeverages && (
+                              <SelectItem key="no-beverages" value="no-beverages" disabled>
+                                No beverage options available
+                              </SelectItem>
+                            )}
+                            {!beverageError &&
+                              beverageOptions.length > 0 &&
+                              beverageOptions.map((name) => (
+                                <SelectItem key={`beverage-${name}`} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

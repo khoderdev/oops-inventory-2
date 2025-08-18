@@ -740,7 +740,6 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
   materials,
   menuItem,
   calculateIngredientCost,
-  getMaterialCostPerBaseUnit,
   formatNumber,
   formatCurrency,
   handleRemoveIngredient,
