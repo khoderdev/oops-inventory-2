@@ -145,7 +145,7 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
           </div>
           <div>
             <span className="text-gray-600">Servings per Stock:</span>
-            <span className="ml-2 font-medium text-blue-600">{stockVolumeInCl ? (stockVolumeInCl / 3).toFixed(1) : "N/A"} glasses</span>
+            <span className="ml-2 font-medium text-blue-600">{stockVolumeInCl ? Math.floor(stockVolumeInCl / 3) : "N/A"} glasses</span>
           </div>
           <div></div>
         </div>
@@ -184,15 +184,6 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({ selectedBeverageSt
           </div>
         </div>
       )}
-
-      {/* Summary */}
-      <div className="bg-gray-100 p-3 rounded-md mt-3">
-        <div className="flex justify-center items-center">
-          <span className="text-sm text-gray-600">
-            Stock Available: {selectedBeverageStock.purchasedQuantity || 0} {selectedBeverageStock.purchasedUnit || "units"}
-          </span>
-        </div>
-      </div>
     </div>
   );
 };
