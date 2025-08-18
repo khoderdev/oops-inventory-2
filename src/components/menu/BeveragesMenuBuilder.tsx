@@ -12,7 +12,6 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/
 import { BeverageItemForm } from "./BeverageItemForm";
 import { Plus, Search, Check, X, Square, CheckSquare } from "lucide-react";
 import { toast } from "../ui/use-toast";
-import { menuAPI, CreateBeverageVariantsRequest } from "@/api/menu.api.ts.tsx";
 
 interface BeveragesMenuBuilderProps {
   stockEntries: StockEntry[];
@@ -34,11 +33,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
   const [selectedBeverageItems, setSelectedBeverageItems] = useState<Set<string>>(new Set());
   const [showVariantDialog, setShowVariantDialog] = useState(false);
   const [currentVariantItem, setCurrentVariantItem] = useState<BeverageItem | null>(null);
-  const [variantSizes, setVariantSizes] = useState<string[]>(["small", "medium", "large", "glass", "shot"]);
-  const [selectedVariants, setSelectedVariants] = useState<string[]>(["small", "large"]);
-  const [customVariant, setCustomVariant] = useState<string>("");
-  const [variantPriceAdjustments, setVariantPriceAdjustments] = useState<Record<string, number>>({ small: 0.8, medium: 1.0, large: 1.2, glass: 0.9, shot: 0.5 });
-  const [nameFormat, setNameFormat] = useState<"prefix" | "suffix">("suffix");
 
   const beverageCategories = useMemo(() => {
     return categories.filter(cat => ["beverages", "cold", "hot", "alcohol"].includes(cat.value.toLowerCase()));
@@ -125,29 +119,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
         header: "Price",
         cell: info => <div>${info.getValue().toFixed(2)}</div>,
         size: 100
-      }),
-
-      // Variants column
-      columnHelper.display({
-        id: "variants",
-        header: "Variants",
-        cell: ({ row }) => {
-          const variants = beverageBeverageItems.filter(item => item.name.includes(row.original.name) && item.id !== row.original.id);
-          return (
-            <div className="flex flex-wrap gap-1">
-              {variants.length > 0 ? (
-                variants.map(variant => (
-                  <span key={variant.id} className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    {variant.name.replace(row.original.name, "").trim()}
-                  </span>
-                ))
-              ) : (
-                <span className="text-gray-400 text-xs">No variants</span>
-              )}
-            </div>
-          );
-        },
-        size: 150
       }),
 
       // Actions column
@@ -242,67 +213,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
     setShowVariantDialog(true);
   }, []);
 
-  const handleAddCustomVariant = useCallback(() => {
-    if (!customVariant || selectedVariants.includes(customVariant)) return;
-    setVariantSizes(prev => [...prev, customVariant]);
-    setSelectedVariants(prev => [...prev, customVariant]);
-    setVariantPriceAdjustments(prev => ({
-      ...prev,
-      [customVariant]: 1.0
-    }));
-    setCustomVariant("");
-  }, [customVariant, selectedVariants]);
-
-  const handlePriceAdjustmentChange = useCallback((size: string, value: string) => {
-    const numValue = parseFloat(value);
-    if (isNaN(numValue) || numValue <= 0) return;
-
-    setVariantPriceAdjustments(prev => ({
-      ...prev,
-      [size]: numValue
-    }));
-  }, []);
-
-  const handleCreateBeverageItemVariants = useCallback(
-    async (sizes: string[]) => {
-      if (!currentVariantItem) return;
-      try {
-        const variantRequest: CreateBeverageVariantsRequest = {
-          baseMenuItem: currentVariantItem,
-          selectedVariants: sizes,
-          priceAdjustments: variantPriceAdjustments,
-          nameFormat: nameFormat
-        };
-        const response = await menuAPI.createBeverageVariants(variantRequest);
-        if (response.data && response.data.variants && response.data.variants.length > 0) {
-          await onCreateBeverageItem(response.data.variants[0]);
-        }
-        toast({
-          title: "Success",
-          description: `Created ${sizes.length} variants for ${currentVariantItem.name}`,
-          variant: "default",
-          duration: 1000
-        });
-      } catch (error) {
-        console.error("Error creating variants:", error);
-        toast({
-          title: "Error",
-          description: "Failed to create beverage variants",
-          variant: "destructive",
-          duration: 1000
-        });
-      }
-    },
-    [currentVariantItem, nameFormat, variantPriceAdjustments, onCreateBeverageItem]
-  );
-
-  const handleToggleBulkSelection = useCallback(() => {
-    setBulkSelectionMode(prev => !prev);
-    if (bulkSelectionMode) {
-      setSelectedBeverageItems(new Set());
-    }
-  }, [bulkSelectionMode]);
-
   const handleSelectAllBeverageItems = useCallback(() => {
     if (selectedBeverageItems.size === filteredBeverageItems.length) {
       setSelectedBeverageItems(new Set());
@@ -310,6 +220,13 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
       setSelectedBeverageItems(new Set(filteredBeverageItems.map(item => item.id)));
     }
   }, [filteredBeverageItems, selectedBeverageItems]);
+
+  const handleToggleBulkSelection = useCallback(() => {
+    setBulkSelectionMode(prev => !prev);
+    if (bulkSelectionMode) {
+      setSelectedBeverageItems(new Set());
+    }
+  }, [bulkSelectionMode]);
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
@@ -359,6 +276,40 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
             )}
           </CardHeader>
           <CardContent className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4 lg:p-6">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map(headerGroup => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map(header => (
+                      <TableHead key={header.id} style={{ width: header.getSize() }}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.length > 0 ? (
+                  table.getRowModel().rows.map(row => (
+                    <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined} className={row.getIsSelected() ? "bg-blue-50" : undefined}>
+                      {row.getVisibleCells().map(cell => (
+                        <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      No beverage items found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+            
+            {/* Beverage Item Form Dialog */}
             <Dialog open={showBeverageItemForm} onOpenChange={handleCloseModal} modal={true}>
               <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
                 <DialogHeader>
@@ -385,193 +336,114 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                         }
                   }
                   onCancel={handleCloseModal}
+                  enableVariants={true}
                 />
               </DialogContent>
             </Dialog>
-
+            
             {/* Variant Creation Dialog */}
             <Dialog open={showVariantDialog} onOpenChange={setShowVariantDialog}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Create Variants for {currentVariantItem?.name}</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-6 py-4">
-                  {/* Variant name format */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Naming Format</p>
-                    <div className="flex gap-4">
-                      <label className="flex items-center space-x-2">
-                        <input type="radio" checked={nameFormat === "prefix"} onChange={() => setNameFormat("prefix")} className="h-4 w-4" />
-                        <span>Size First (e.g., Small Coffee)</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input type="radio" checked={nameFormat === "suffix"} onChange={() => setNameFormat("suffix")} className="h-4 w-4" />
-                        <span>Size Last (e.g., Coffee (Small))</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Variant selection */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Select Variants</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {variantSizes.map(size => (
-                        <label key={size} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedVariants.includes(size)}
-                            onChange={() => {
-                              // Toggle selection
-                              setSelectedVariants(prev => (prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]));
-                            }}
-                            className="h-4 w-4"
-                          />
-                          <span className="capitalize">{size}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Add custom variant */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Add Custom Variant</p>
-                    <div className="flex gap-2">
-                      <Input value={customVariant} onChange={e => setCustomVariant(e.target.value)} placeholder="Enter custom size (e.g., XL)" className="flex-1" />
-                      <Button onClick={handleAddCustomVariant} type="button" size="sm">
-                        Add
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Price adjustments */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Price Adjustments</p>
-                    <p className="text-xs text-muted-foreground">Set price multipliers for each variant (e.g., 0.8 = 80% of base price)</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {selectedVariants.map(size => (
-                        <div key={size} className="flex items-center gap-2">
-                          <span className="capitalize w-16">{size}:</span>
-                          <Input type="number" value={variantPriceAdjustments[size] || 1.0} onChange={e => handlePriceAdjustmentChange(size, e.target.value)} min="0.1" step="0.1" className="w-24" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Preview */}
-                  {currentVariantItem && selectedVariants.length > 0 && (
-                    <div className="space-y-2 border-t pt-4">
-                      <p className="text-sm font-medium">Preview</p>
-                      <div className="text-sm space-y-1">
-                        {selectedVariants.map(size => {
-                          const priceAdjustment = variantPriceAdjustments[size] || 1.0;
-                          const variantName = nameFormat === "prefix" ? `${size} ${currentVariantItem.name}` : `${currentVariantItem.name} (${size})`;
-                          const variantPrice = currentVariantItem.price * priceAdjustment;
-
-                          return (
-                            <div key={size} className="flex justify-between">
-                              <span>{variantName}</span>
-                              <span>${variantPrice.toFixed(2)}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="outline" onClick={() => setShowVariantDialog(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={() => handleCreateBeverageItemVariants(selectedVariants)} disabled={selectedVariants.length === 0}>
-                      Create {selectedVariants.length} Variants
-                    </Button>
-                  </div>
-                </div>
+                {currentVariantItem && (
+                  <BeverageItemForm
+                    menuItem={currentVariantItem as any}
+                    categories={beverageCategories}
+                    onSubmit={(data: any) => {
+                      if (data.variants) {
+                        // Handle the variants creation through the form
+                        // Create a properly typed BeverageItem by ensuring category is properly formatted
+                        const processedCategory = (() => {
+                          // If it's already a string or number, use it directly
+                          if (typeof data.category === 'string' || typeof data.category === 'number') {
+                            return data.category;
+                          }
+                          // If it's an object with id property, use that format
+                          if (data.category && typeof data.category === 'object' && 'id' in data.category) {
+                            return { id: Number(data.category.id), name: data.category.name };
+                          }
+                          // Fallback to null if we can't determine the type
+                          return null;
+                        })();
+                        
+                        // Ensure menuItemIngredients is boolean as required by BeverageItem interface
+                        const menuItemIngredients = Array.isArray(data.menuItemIngredients) ? 
+                          data.menuItemIngredients.length > 0 : 
+                          Boolean(data.menuItemIngredients);
+                        
+                        // Create a properly typed BeverageItem
+                        const updatedItem: Partial<BeverageItem> = {
+                          ...currentVariantItem,
+                          ...data,
+                          category: processedCategory,
+                          menuItemIngredients: menuItemIngredients
+                        };
+                        
+                        onCreateBeverageItem(updatedItem as BeverageItem);
+                        toast({
+                          title: "Success",
+                          description: `Created variants for ${currentVariantItem.name}`,
+                          variant: "default",
+                          duration: 1000
+                        });
+                      }
+                      setShowVariantDialog(false);
+                    }}
+                    onCancel={() => setShowVariantDialog(false)}
+                    enableVariants={true}
+                  />
+                )}
               </DialogContent>
             </Dialog>
-
-            {/* Table */}
-            <div className="flex-1 overflow-auto border rounded-md sm:max-w-[calc(100vw-170px)] w-full">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map(headerGroup => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map(header => (
-                        <TableHead key={header.id} style={{ width: header.getSize() }}>
-                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows.length > 0 ? (
-                    table.getRowModel().rows.map(row => (
-                      <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined} className={row.getIsSelected() ? "bg-blue-50" : undefined}>
-                        {row.getVisibleCells().map(cell => (
-                          <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} className="h-24 text-center">
-                        No beverage items found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
           </CardContent>
         </Card>
-      </div>
-
-      <div className="fixed bottom-6 right-6 z-50">
-        <div className="flex flex-col items-end gap-3">
-          {bulkSelectionMode && (
-            <div className="flex flex-col items-end gap-2 mb-2">
-              <div className="flex flex-col gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-blue-500" onClick={handleSelectAllBeverageItems} disabled={filteredBeverageItems.length === 0}>
-                      {selectedBeverageItems.size === filteredBeverageItems.length ? <CheckSquare className="h-3.5 w-3.5 mr-1.5" /> : <Square className="h-3.5 w-3.5 mr-1.5" />}
-                      {selectedBeverageItems.size === filteredBeverageItems.length ? "Deselect All" : "Select All"}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{selectedBeverageItems.size === filteredBeverageItems.length ? "Deselect all beverage items" : "Select all visible beverage items"}</p>
-                  </TooltipContent>
-                </Tooltip>
+      
+        <div className="fixed bottom-6 right-6 z-50">
+          <div className="flex flex-col items-end gap-3">
+            {bulkSelectionMode && (
+              <div className="flex flex-col items-end gap-2 mb-2">
+                <div className="flex flex-col gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-blue-500" onClick={handleSelectAllBeverageItems} disabled={filteredBeverageItems.length === 0}>
+                        {selectedBeverageItems.size === filteredBeverageItems.length ? <CheckSquare className="h-3.5 w-3.5 mr-1.5" /> : <Square className="h-3.5 w-3.5 mr-1.5" />}
+                        {selectedBeverageItems.size === filteredBeverageItems.length ? "Deselect All" : "Select All"}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{selectedBeverageItems.size === filteredBeverageItems.length ? "Deselect all beverage items" : "Select all visible beverage items"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${bulkSelectionMode ? "bg-red-500 hover:bg-red-600 text-white" : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"}`} onClick={handleToggleBulkSelection} aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}>
+                    {bulkSelectionMode ? <X className="h-5 w-5" /> : <Check className="h-5 w-5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button className={`h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 ${bulkSelectionMode ? "bg-red-500 hover:bg-red-600 text-white" : "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200"}`} onClick={handleToggleBulkSelection} aria-label={bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}>
-                  {bulkSelectionMode ? <X className="h-5 w-5" /> : <Check className="h-5 w-5" />}
+                <Button className="h-14 w-14 rounded-full bg-primary hover:bg-teal-600 text-white shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 relative" onClick={handleAddBeverageItem} aria-label="Add new beverage item">
+                  <Plus className="h-6 w-6" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{bulkSelectionMode ? "Exit bulk selection" : "Enter bulk selection mode"}</p>
+                <p>Add new beverage item</p>
               </TooltipContent>
             </Tooltip>
           </div>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button className="h-14 w-14 rounded-full bg-primary hover:bg-teal-600 text-white shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-110 relative" onClick={handleAddBeverageItem} aria-label="Add new beverage item">
-                <Plus className="h-6 w-6" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Add new beverage item</p>
-            </TooltipContent>
-          </Tooltip>
         </div>
       </div>
     </TooltipProvider>

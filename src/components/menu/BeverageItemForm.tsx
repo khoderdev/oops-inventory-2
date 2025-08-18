@@ -1,38 +1,95 @@
-import { BeverageItem, BeverageItemCategory, MenuItem, MenuItemCategory, StockEntryWithMaterial } from "@/types/inventory";
-import { Category } from "@/types/categories";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "../ui/button";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Input } from "../ui/input";
-import { Selection, StockEntryItemRenderer } from "../ui/Selection";
+import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { ImageUpload } from "../ui/image-upload";
+import { Selection, StockEntryItemRenderer } from "../ui/Selection";
+import { ChevronDown, X, Plus, Check } from "lucide-react";
+import { formatCurrency } from "@/utils/conversionLogic";
+import { cn } from "@/lib/utils";
 import { toast } from "../ui/use-toast";
 import { beverageStockAPI } from "@/api/stock.api.ts";
+import { Checkbox } from "../ui/checkbox";
+import { Label } from "../ui/label";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Card, CardContent } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Separator } from "../ui/separator";
+import { StockEntryWithMaterial } from "@/types/inventory";
+
+interface CategoryOption {
+  id: string;
+  value: string;
+  name: string;
+}
+
+interface BeverageItemCategory {
+  id: string;
+  name: string;
+  value?: string;
+}
+
+interface BeverageVariant {
+  name: string;
+  price: number;
+  size: string;
+}
+
+interface BeverageItem {
+  id?: string;
+  name: string;
+  category: BeverageItemCategory;
+  price: number;
+  isPOSItem: boolean;
+  image?: string;
+  unit?: string;
+  availableQuantity?: number;
+  costPerUnit?: number;
+  ingredients?: any[];
+  menuItemIngredients?: any[];
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 interface BeverageItemFormProps {
   menuItem?: BeverageItem;
-  categories: Category[];
+  categories: CategoryOption[];
   onSubmit: (
     data: Omit<BeverageItem, "id" | "createdAt" | "updatedAt"> & {
       beverageStockId?: string | null;
+      variants?: {
+        selectedVariants: string[];
+        priceAdjustments: Record<string, number>;
+        nameFormat: "prefix" | "suffix";
+      };
     }
   ) => void;
   onCancel: () => void;
+  enableVariants?: boolean;
 }
 
-export function BeverageItemForm({ menuItem, categories, onSubmit, onCancel }: BeverageItemFormProps) {
+export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, onSubmit, onCancel, enableVariants = false }) => {
   const [name, setName] = useState(menuItem?.name || "");
-  const [category, setCategory] = useState<BeverageItemCategory | "">("");
+  const [categoryId, setCategoryId] = useState<string>(menuItem?.category?.id || "");
   const [price, setPrice] = useState(menuItem?.price?.toString() || "");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
   const [beverageStockEntries, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
-  const [selectedBeverageId, setSelectedBeverageId] = useState(menuItem?.beverageStockId || "");
   const [beverageSearchTerm, setBeverageSearchTerm] = useState("");
   const [showBeverageDropdown, setShowBeverageDropdown] = useState(false);
   const [isBeverageLoading, setIsBeverageLoading] = useState(false);
-  const [errors, setErrors] = useState<{ name?: string; category?: string; price?: string; beverageId?: string }>({});
+  const [selectedBeverageStock, setSelectedBeverageStock] = useState<StockEntryWithMaterial | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Variants state
+  // Always show variants section when enableVariants is true
+  const [showVariantsSection, setShowVariantsSection] = useState(true);
+  const [variantSizes, setVariantSizes] = useState<string[]>(["small", "medium", "large", "glass", "shot"]);
+  const [selectedVariants, setSelectedVariants] = useState<string[]>(["small", "large"]);
+  const [customVariant, setCustomVariant] = useState<string>("");
+  const [variantPriceAdjustments, setVariantPriceAdjustments] = useState<Record<string, number>>({ small: 0.8, medium: 1.0, large: 1.2, glass: 0.9, shot: 0.5 });
+  const [nameFormat, setNameFormat] = useState<"prefix" | "suffix">("suffix");
   const beverageSelectRef = useRef<HTMLInputElement>(null);
 
   // Load beverage stock entries when component mounts
@@ -62,25 +119,20 @@ export function BeverageItemForm({ menuItem, categories, onSubmit, onCancel }: B
 
   // Initialize category from menuItem if editing
   useEffect(() => {
-    if (categories.length === 0) {
-      setCategory("");
+    if (categories.length === 0 || !menuItem?.category) {
+      setCategoryId("");
       return;
     }
-    if (!menuItem?.category) {
-      setCategory("");
-      return;
-    }
-    if (typeof menuItem.category === "number") {
-      const categoryObj = categories.find(cat => cat.id === menuItem.category);
-      setCategory((categoryObj?.value || "") as BeverageItemCategory | "");
-    } else if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
-      const categoryId = (menuItem.category as { id: number }).id;
-      const categoryObj = categories.find(cat => cat.id === categoryId);
-      setCategory((categoryObj?.value || "") as BeverageItemCategory | "");
+
+    if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
+      // If category is an object with id property
+      setCategoryId(menuItem.category.id);
     } else if (typeof menuItem.category === "string") {
-      setCategory(menuItem.category as BeverageItemCategory | "");
-    } else {
-      setCategory("");
+      // If category is a string (name), find matching category by name
+      const categoryObj = categories.find(cat => cat.name === (menuItem.category as string));
+      if (categoryObj) {
+        setCategoryId(categoryObj.id);
+      }
     }
   }, [menuItem?.category, categories]);
 
@@ -96,36 +148,38 @@ export function BeverageItemForm({ menuItem, categories, onSubmit, onCancel }: B
   const validateForm = useCallback(() => {
     const newErrors: typeof errors = {};
     if (!name.trim()) newErrors.name = "required";
-    if (!category) newErrors.category = "required";
+    if (!categoryId) newErrors.category = "required";
     if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) newErrors.price = "required";
-    if (!menuItem && !selectedBeverageId) {
+    if (!menuItem && !selectedBeverageStock) {
       newErrors.beverageId = "Please select a beverage from stock";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, category, price, selectedBeverageId, menuItem]);
+  }, [name, categoryId, price, selectedBeverageStock, menuItem]);
 
   // Validate form on input changes
   useEffect(() => {
     validateForm();
-  }, [name, category, price, validateForm]);
+  }, [name, categoryId, price, validateForm]);
 
   // Beverage selection handlers
   const handleBeverageSearchChange = useCallback((value: string) => {
     setBeverageSearchTerm(value);
-    setSelectedBeverageId("");
+    setSelectedBeverageStock(null);
     setShowBeverageDropdown(value.length > 0);
   }, []);
 
   const handleBeverageSelect = useCallback(
     (beverageId: string, beverageName?: string) => {
-      setSelectedBeverageId(beverageId);
       setBeverageSearchTerm(beverageName || "");
       setShowBeverageDropdown(false);
       if (beverageId) {
         const selectedBeverage = beverageStockEntries.find(entry => String(entry.id) === beverageId);
-        if (selectedBeverage?.material?.name) {
-          setName(selectedBeverage.material.name);
+        if (selectedBeverage) {
+          setSelectedBeverageStock(selectedBeverage);
+          if (selectedBeverage.material?.name) {
+            setName(selectedBeverage.material.name);
+          }
         }
       }
     },
@@ -149,7 +203,7 @@ export function BeverageItemForm({ menuItem, categories, onSubmit, onCancel }: B
     if (e.key === "Enter") {
       e.preventDefault();
       const hasName = !!(name && name.trim());
-      const hasCategory = !!category;
+      const hasCategory = !!categoryId;
       const hasValidPrice = !!(price && !isNaN(parseFloat(price)) && parseFloat(price) > 0);
       const hasNoErrors = Object.keys(errors).length === 0;
       const isFormValid = hasNoErrors && hasName && hasCategory && hasValidPrice;
@@ -159,89 +213,91 @@ export function BeverageItemForm({ menuItem, categories, onSubmit, onCancel }: B
     }
   };
 
+  // Preview variants
+  const variantPreviews = useMemo(() => {
+    if (!name || !price || isNaN(parseFloat(price))) return [];
+
+    return selectedVariants.map(size => {
+      const priceAdjustment = variantPriceAdjustments[size] || 1.0;
+      const variantName = nameFormat === "prefix" ? `${size} ${name}` : `${name} (${size})`;
+      const variantPrice = parseFloat(price) * priceAdjustment;
+
+      return {
+        name: variantName,
+        price: variantPrice,
+        size
+      };
+    });
+  }, [name, price, selectedVariants, variantPriceAdjustments, nameFormat]);
+
   const handleSubmit = useCallback(() => {
-    if (!validateForm()) {
+    if (!validateForm()) return;
+
+    // Find the selected category object by ID
+    const selectedCategoryObj = categories.find(cat => cat.id === categoryId);
+    if (!selectedCategoryObj && categoryId) {
+      toast({
+        title: "Error",
+        description: "Invalid category selected",
+        variant: "destructive"
+      });
       return;
     }
 
-    try {
-      let categoryToSubmit: string = "";
-      if (typeof category === "object" && category !== null) {
-        const categoryObj = category as { id?: number; name?: string };
-        if (categoryObj.name) {
-          categoryToSubmit = categoryObj.name;
-        }
-      } else if (typeof category === "string") {
-        categoryToSubmit = category;
-      }
+    const formData = {
+      name,
+      category: selectedCategoryObj || { id: "", name: "" },
+      price: parseFloat(price),
+      isPOSItem,
+      image,
+      beverageStockId: selectedBeverageStock?.id || null,
+      variants: showVariantsSection
+        ? {
+            selectedVariants,
+            priceAdjustments: variantPriceAdjustments,
+            nameFormat
+          }
+        : undefined
+    };
 
-      const selectedCategory = categories.find(cat => cat.value === category);
-      if (!selectedCategory && category) {
-        toast({
-          title: "Error",
-          description: "Please select a valid category",
-          variant: "destructive"
-        });
-        return;
-      }
-      const selectedBeverage = beverageStockEntries.find(entry => String(entry.id) === selectedBeverageId);
+    onSubmit(formData);
+    setName("");
+    setCategoryId("");
+    setPrice("");
+    setIsPOSItem(true);
+    setImage(undefined);
+    setImageFile(undefined);
+    setSelectedBeverageStock(null);
+    setBeverageSearchTerm("");
+    setErrors({});
+  }, [name, categoryId, price, isPOSItem, image, selectedBeverageStock, showVariantsSection, selectedVariants, variantPriceAdjustments, nameFormat, categories, validateForm, onSubmit]);
 
-      if (!selectedBeverage && !menuItem) {
-        toast({
-          title: "Error",
-          description: "Please select a valid beverage from stock",
-          variant: "destructive"
-        });
-        return;
-      }
+  // Variant handlers
+  const handleAddCustomVariant = useCallback(() => {
+    if (!customVariant || selectedVariants.includes(customVariant)) return;
+    setVariantSizes(prev => [...prev, customVariant]);
+    setSelectedVariants(prev => [...prev, customVariant]);
+    setVariantPriceAdjustments(prev => ({
+      ...prev,
+      [customVariant]: 1.0
+    }));
+    setCustomVariant("");
+  }, [customVariant, selectedVariants]);
 
-      const availableQty = selectedBeverage?.purchasedIndividualQuantity || selectedBeverage?.purchasedQuantity || (selectedBeverage as any)?.availableQuantity || 0;
+  const handlePriceAdjustmentChange = useCallback((size: string, value: string) => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue <= 0) return;
 
-      const costPerUnit = typeof selectedBeverage?.costPerPurchasedUnit === "number" ? selectedBeverage.costPerPurchasedUnit : (selectedBeverage as any)?.costPerPurchasedUnit || 0;
+    setVariantPriceAdjustments(prev => ({
+      ...prev,
+      [size]: numValue
+    }));
+  }, []);
 
-      const submitData = {
-        name: name.trim(),
-        category: categoryToSubmit as BeverageItemCategory,
-        price: parseFloat(price),
-        ingredients: [],
-        isPOSItem,
-        image,
-        imageFile,
-        menuItemIngredients: false,
-        unit: selectedBeverage?.purchasedUnit || "",
-        availableQuantity: availableQty,
-        costPerUnit: costPerUnit,
-        beverageStockId: selectedBeverageId || menuItem?.beverageStockId || null
-      };
-
-      onSubmit(submitData);
-      setName("");
-      setCategory("");
-      setPrice("");
-      setIsPOSItem(true);
-      setImage(undefined);
-      setImageFile(undefined);
-      setSelectedBeverageId("");
-      setBeverageSearchTerm("");
-      setErrors({});
-      onCancel();
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      onCancel();
-    }
-  }, [name, category, price, isPOSItem, image, imageFile, selectedBeverageId, beverageStockEntries, categories, menuItem, onSubmit, onCancel, validateForm]);
-
-  const normalizedCategory = useMemo(() => {
-    if (!category || !categories.length) return category;
-    const hasExactMatch = categories.some(c => c.value === category);
-    if (hasExactMatch) return category;
-    const matchByName = categories.find(c => c.name.toLowerCase() === category.toLowerCase() || c.value.toLowerCase() === category.toLowerCase());
-    if (matchByName) {
-      setTimeout(() => setCategory(matchByName.value as BeverageItemCategory | ""), 0);
-      return matchByName.value;
-    }
-    return category;
-  }, [category, categories]);
+  // Get selected category object
+  const selectedCategory = useMemo(() => {
+    return categories.find(cat => cat.id === categoryId) || null;
+  }, [categoryId, categories]);
 
   return (
     <div className="space-y-6 p-4">
@@ -278,9 +334,9 @@ export function BeverageItemForm({ menuItem, categories, onSubmit, onCancel }: B
           </label>
           <select
             id="category"
-            value={normalizedCategory}
+            value={categoryId}
             onChange={e => {
-              setCategory(e.target.value as BeverageItemCategory | "");
+              setCategoryId(e.target.value);
             }}
             onKeyDown={handleKeyDown}
             className="w-full px-3 py-2 border border-input bg-background rounded-md"
@@ -290,7 +346,7 @@ export function BeverageItemForm({ menuItem, categories, onSubmit, onCancel }: B
             <option value="">Select a category</option>
             {categories.map(cat => {
               return (
-                <option key={cat.id || cat.value} value={cat.value}>
+                <option key={cat.id} value={cat.id}>
                   {cat.name}
                 </option>
               );
@@ -333,14 +389,103 @@ export function BeverageItemForm({ menuItem, categories, onSubmit, onCancel }: B
         <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
       </div>
 
+      {/* Variants Section */}
+      {enableVariants && (
+        <div className="border-t pt-4">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium">Beverage Variants</h3>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-medium mb-2">Select Variant Sizes</h4>
+              <div className="flex flex-wrap gap-2">
+                {variantSizes.map(size => (
+                  <div key={size} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`variant-${size}`}
+                      checked={selectedVariants.includes(size)}
+                      onCheckedChange={checked => {
+                        if (checked) {
+                          setSelectedVariants(prev => [...prev, size]);
+                        } else {
+                          setSelectedVariants(prev => prev.filter(s => s !== size));
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`variant-${size}`}>{size}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-2">Add Custom Size</h4>
+              <div className="flex items-center gap-2">
+                <Input placeholder="Custom size name" value={customVariant} onChange={e => setCustomVariant(e.target.value)} className="max-w-xs" />
+                <Button type="button" size="sm" onClick={handleAddCustomVariant} disabled={!customVariant.trim() || variantSizes.includes(customVariant)}>
+                  <Plus className="h-4 w-4 mr-1" /> Add
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-2">Price Adjustments</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {selectedVariants.map(size => (
+                  <div key={`price-${size}`} className="flex items-center gap-2">
+                    <Label htmlFor={`price-${size}`} className="w-20">
+                      {size}:
+                    </Label>
+                    <Input id={`price-${size}`} type="number" value={variantPriceAdjustments[size] || "1.0"} onChange={e => handlePriceAdjustmentChange(size, e.target.value)} min="0.1" step="0.1" className="max-w-[100px]" />
+                    <span className="text-sm text-gray-500">× base price</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-2">Name Format</h4>
+              <RadioGroup value={nameFormat} onValueChange={value => setNameFormat(value as "prefix" | "suffix")}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="prefix" id="name-prefix" />
+                  <Label htmlFor="name-prefix">Size first (e.g., "Small Coffee")</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="suffix" id="name-suffix" />
+                  <Label htmlFor="name-suffix">Name first (e.g., "Coffee (Small)")</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Preview Section */}
+            {variantPreviews.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Preview</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {variantPreviews.map((variant, index) => (
+                    <Card key={`preview-${index}`} className="overflow-hidden">
+                      <CardContent className="p-3">
+                        <div className="font-medium">{variant.name}</div>
+                        <div className="text-sm text-gray-500">{formatCurrency(variant.price)}</div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end gap-2 pt-4">
         <Button variant="outline" onClick={onCancel} aria-label="Cancel form">
           Cancel
         </Button>
-        <Button onClick={handleSubmit} disabled={!!Object.keys(errors).length || !name.trim() || !category || !price || parseFloat(price) <= 0}>
+        <Button onClick={handleSubmit} disabled={!!Object.keys(errors).length || !name.trim() || !categoryId || !price || parseFloat(price) <= 0}>
           {menuItem ? "Update" : "Create"} Beverage Item
         </Button>
       </div>
     </div>
   );
-}
+};
