@@ -740,7 +740,9 @@ export interface MenuItem {
   id: string;
   name: string;
   description?: string;
-  category: MenuItemCategory | number | { id: number; name: string } | null;
+  category: MenuItemCategory | number | {
+    value: boolean; id: number; name: string 
+} | null;
   price: number;
   unit: string;
   availableQuantity: number;

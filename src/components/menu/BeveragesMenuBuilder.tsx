@@ -24,7 +24,7 @@ interface BeveragesMenuBuilderProps {
   onDeleteBeverageItem: (id: string) => void | Promise<void>;
 }
 
-const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntries, materials, menuItems, categories, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
+const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
   const [showBeverageItemForm, setShowBeverageItemForm] = useState(false);
@@ -76,24 +76,36 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
 
   const filteredBeverageItems = useMemo(() => {
     return beverageBeverageItems.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesCategory =
-        selectedCategory === "all" ||
-        (() => {
-          if (typeof item.category === "string") {
-            return item.category === selectedCategory;
-          } else if (typeof item.category === "object" && item.category?.name) {
-            return item.category.name === selectedCategory;
-          } else if (typeof item.category === "number") {
-            const categoryObj = categories.find(c => c.id === item.category);
-            return categoryObj?.value === selectedCategory;
-          }
-          return false;
-        })();
-
-      return matchesSearch && matchesCategory;
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      // If "all" is selected, don't filter by category
+      if (selectedCategory === "all") {
+        return matchesSearch;
+      }
+      
+      // Get the category value for comparison
+      let categoryValue: string | undefined;
+      
+      if (typeof item.category === "string") {
+        categoryValue = item.category;
+      } else if (typeof item.category === "object" && item.category?.value) {
+        categoryValue = item.category.value;
+      } else if (typeof item.category === "object" && item.category?.name) {
+        // Try to find the category by name
+        const matchingCategory = beverageCategoriesRaw.find(c => 
+          c.name.toLowerCase() === item.category.name.toLowerCase());
+        categoryValue = matchingCategory?.value;
+      } else if (typeof item.category === "number") {
+        const categoryObj = categories.find(c => c.id === item.category);
+        categoryValue = categoryObj?.value;
+      }
+      
+      console.log(`Item: ${item.name}, Category: ${JSON.stringify(item.category)}, CategoryValue: ${categoryValue}, Selected: ${selectedCategory}, Match: ${categoryValue === selectedCategory}`);
+      
+      return matchesSearch && categoryValue === selectedCategory;
     });
-  }, [beverageBeverageItems, searchTerm, selectedCategory, categories]);
+  }, [beverageBeverageItems, searchTerm, selectedCategory, categories, beverageCategoriesRaw]);
 
   const columnHelper = createColumnHelper<MenuItem>();
 
@@ -365,27 +377,20 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ stockEntrie
                     categories={beverageCategories}
                     onSubmit={(data: any) => {
                       if (data.variants) {
-                        // Handle the variants creation through the form
                         const processedCategory = (() => {
-                          // If it's already a string or number, use it directly
                           if (typeof data.category === 'string' || typeof data.category === 'number') {
                             return data.category;
                           }
-                          // If it's an object with id property, use that format
                           if (data.category && typeof data.category === 'object' && 'id' in data.category) {
                             return { id: Number(data.category.id), name: data.category.name };
                           }
-                          // Fallback to null if we can't determine the type
                           return null;
                         })();
-                        
-                        // Create a properly typed MenuItem
                         const updatedItem = {
                           ...currentVariantItem,
                           ...data,
                           category: processedCategory
                         };
-                        
                         onCreateBeverageItem(updatedItem);
                         toast({
                           title: "Success",
