@@ -351,10 +351,12 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                   onSubmit={
                     editingBeverageItem
                       ? data => {
+                          // Pass data including imageFile to the update handler
                           onUpdateBeverageItem(editingBeverageItem.id, data);
                           handleCloseModal();
                         }
                       : data => {
+                          // Pass data including imageFile to the create handler
                           onCreateBeverageItem(data);
                           handleCloseModal();
                         }
@@ -389,7 +391,9 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                         const updatedItem = {
                           ...currentVariantItem,
                           ...data,
-                          category: processedCategory
+                          category: processedCategory,
+                          // Ensure imageFile is passed through
+                          imageFile: data.imageFile
                         };
                         onCreateBeverageItem(updatedItem);
                         toast({

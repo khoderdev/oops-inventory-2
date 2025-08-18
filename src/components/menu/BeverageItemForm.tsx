@@ -195,6 +195,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       menuItemIngredients: false,
       isPOSItem,
       image: image || "",
+      imageFile: imageFile, // Include imageFile in the form data
       beverageStockId: selectedBeverageStock?.id || "",
       variants:
         showVariantsSection && selectedVariants.length > 0
@@ -215,7 +216,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     setSelectedBeverageStock(null);
     setBeverageSearchTerm("");
     setErrors({});
-  }, [name, categoryId, price, isPOSItem, image, selectedBeverageStock, showVariantsSection, selectedVariants, variantPriceAdjustments, nameFormat, categories, validateForm, onSubmit]);
+  }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, showVariantsSection, selectedVariants, variantPriceAdjustments, nameFormat, categories, validateForm, onSubmit]);
 
   // Variant handlers
   const handleAddCustomVariant = useCallback(() => {
