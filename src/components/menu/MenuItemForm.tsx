@@ -677,36 +677,37 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         <TanStackVirtualizedIngredientsTable ingredients={ingredients} materials={materials} menuItem={menuItem} calculateIngredientCost={calculateIngredientCost} getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit} formatNumber={formatNumber} formatCurrency={formatCurrency} handleRemoveIngredient={handleRemoveIngredient} totalIngredientsCost={totalIngredientsCost} price={price} />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
-          <div className="relative">
-            <label htmlFor="material" className="block text-sm font-medium mb-1">
-              Material
-            </label>
-            <Input id="material" type="text" value={materialSearchTerm} onChange={e => handleMaterialSearchChange(e.target.value)} onFocus={handleMaterialInputFocus} onBlur={handleMaterialInputBlur} onKeyDown={handleKeyDown} placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."} disabled={availableMaterials.length === 0} aria-describedby="material-description" ref={materialSelectRef} autoComplete="off" />
-            {showMaterialDropdown && filteredMaterials.length > 0 && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-input rounded-md shadow-lg max-h-60 overflow-y-auto">
-                {filteredMaterials.map(material => (
-                  <button
-                    key={material.id}
-                    type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0"
-                    onClick={() => handleMaterialSelect(material.id, material.name)}
-                    onMouseDown={e => e.preventDefault()} // Prevent blur on click
-                  >
-                    <div className="font-medium">{material.name}</div>
-                    <div className="text-sm text-muted-foreground">Base unit: {material.baseUnit}</div>
-                  </button>
-                ))}
-              </div>
+          <Selection
+            label="Material"
+            id="material"
+            searchTerm={materialSearchTerm}
+            onSearchChange={handleMaterialSearchChange}
+            onInputFocus={handleMaterialInputFocus}
+            onInputBlur={handleMaterialInputBlur}
+            onKeyDown={handleKeyDown}
+            isLoading={false}
+            showDropdown={showMaterialDropdown}
+            items={filteredMaterials}
+            onItemSelect={handleMaterialSelect}
+            inputRef={materialSelectRef}
+            placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."}
+            noResultsText="No materials found matching"
+            getDisplayValue={(material) => material.name}
+            getItemId={(material) => String(material.id)}
+            itemRenderer={({ item, onSelect }) => (
+              <button
+                key={item.id}
+                type="button"
+                className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0"
+                onClick={() => onSelect(String(item.id), item.name)}
+                onMouseDown={e => e.preventDefault()}
+              >
+                <div className="font-medium">{item.name}</div>
+                <div className="text-sm text-muted-foreground">Base unit: {item.baseUnit}</div>
+              </button>
             )}
-            {showMaterialDropdown && filteredMaterials.length === 0 && materialSearchTerm && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-input rounded-md shadow-lg">
-                <div className="px-3 py-2 text-muted-foreground text-center">No materials found matching "{materialSearchTerm}"</div>
-              </div>
-            )}
-            <p id="material-description" className="text-sm text-muted-foreground mt-1">
-              {availableMaterials.length === 0 ? "All materials are already used" : "Type to search and select a material"}
-            </p>
-          </div>
+            width="full"
+          />
           <div>
             <label htmlFor="quantity" className="block text-sm font-medium mb-1">
               Quantity
