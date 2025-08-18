@@ -20,7 +20,6 @@ import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable, 
 import { stockAPI } from "@/api/stock.api.ts";
 import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
 import { salesAPI } from "@/api/sales.api.ts";
-// Note: This component now relies on parent-provided data and handlers for instant UI updates.
 
 type StockEntriesTableProps = {
   stockEntries: StockEntry[];
@@ -41,10 +40,8 @@ const isVirtualEntry = (entry: StockEntryWithMaterial) => {
 };
 
 export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, onRefresh, onDeleteStockEntry, onTogglePOSVisibility, onAssign, onBulkAssign }: StockEntriesTableProps) {
-  // Props-driven data for instant UI updates
   const stockEntries = stockEntriesProp as (StockEntry | StockEntryWithMaterial)[];
 
-  // Local UI state only (no fetching/caching/loading here)
   const [searchTerm, setSearchTerm] = useState("");
   const [materialFilter, setMaterialFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,16 +63,14 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
   const [reportSorting, setReportSorting] = useState<SortingState>([]);
   const materialsMap = useMemo(() => {
     const map = new Map();
-    // Add materials from the parent-provided data
     (materials as Material[]).forEach(m => {
       map.set(m.id, m);
       map.set(m.id.toString(), m);
       map.set(parseInt(m.id), m);
     });
     
-    // Also add materials that come with stock entries (for materials not in parent list)
     stockEntries.forEach(entry => {
-      if (entry.material && !map.has(entry.materialId)) {
+      if ('material' in entry && entry.material && !map.has(entry.materialId)) {
         const material = entry.material;
         map.set(material.id, material);
         map.set(material.id.toString(), material);
@@ -86,7 +81,6 @@ export function StockEntriesTable({ stockEntries: stockEntriesProp, materials, o
     return map;
   }, [materials, stockEntries]);
 
-  // Negative stock report table columns
   const negativeStockColumns = useMemo(
     () => [
       {

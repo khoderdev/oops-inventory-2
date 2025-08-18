@@ -9,7 +9,6 @@ import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { getTypeBadge, getTypeIcon } from "./constants";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, onUpdateSortOrder, loading = false }: CategoriesTableProps) {
   const [draggedCategories, setDraggedCategories] = useState(categories);
@@ -17,22 +16,6 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
   useEffect(() => {
     setDraggedCategories(categories);
   }, [categories]);
-
-  // Wrapper functions to prevent scroll jumps
-  const handleToggleActive = (e: React.MouseEvent | React.SyntheticEvent | null, id: number, checked: boolean) => {
-    if (e) e.preventDefault();
-    onToggleActive(id, checked);
-  };
-
-  const handleEdit = (e: React.MouseEvent, category: any) => {
-    e.preventDefault();
-    onEdit(category);
-  };
-
-  const handleDelete = (e: React.MouseEvent, id: number) => {
-    e.preventDefault();
-    onDelete(id);
-  };
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -85,50 +68,47 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
   }
 
   return (
-    <Card>
+    <Card className="bg-background">
       <CardHeader>
-        <CardTitle>Categories ({draggedCategories.length})</CardTitle>
-        <CardDescription>Manage categories for materials and menu items. Drag to reorder.</CardDescription>
+        <h1 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-gray-900">Categories ({draggedCategories.length})</h1>
       </CardHeader>
-      <CardContent>
-        <div className="h-[calc(100vh-235px)] flex flex-col">
+      <CardContent className="flex justify-center">
+        <div className="h-[calc(100vh-220px)] md:w-[calc(100vw-250px)] flex flex-col overflow-y-hidden">
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="categories">
               {provided => (
                 <div {...provided.droppableProps} ref={provided.innerRef} className="flex flex-col h-full">
-                  <div className="rounded-md border flex flex-col h-full">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-background z-10 border-b">
-                        <TableRow>
-                          <TableHead className="w-12"></TableHead>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Sort Order</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                    </Table>
+                  <div className="rounded-md border flex flex-col h-full overflow-hidden">
                     <div className="flex-1 overflow-y-auto">
                       <Table>
+                        <TableHeader className="sticky top-0 border-b bg-gray-100 z-10">
+                          <TableRow>
+                            <TableHead className="w-[60px]"></TableHead>
+                            <TableHead className="w-[30%]">Name</TableHead>
+                            <TableHead className="w-[20%]">Type</TableHead>
+                            <TableHead className="w-[15%]">Sort Order</TableHead>
+                            <TableHead className="w-[35%]">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
                         <TableBody>
                           {draggedCategories.map((category, index) => (
                             <Draggable key={category.id} draggableId={category.id.toString()} index={index}>
                               {(provided, snapshot) => (
                                 <TableRow ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? "bg-muted/50" : ""}>
-                                  <TableCell {...provided.dragHandleProps} className="w-12">
+                                  <TableCell {...provided.dragHandleProps} className="w-[60px]">
                                     <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
                                   </TableCell>
-                                  <TableCell className="font-medium">
+                                  <TableCell className="font-medium w-[30%]">
                                     <div className="flex items-center gap-2">
                                       {getTypeIcon(category.type)}
                                       {category.name}
                                     </div>
                                   </TableCell>
-                                  <TableCell>{getTypeBadge(category.type)}</TableCell>
-                                  <TableCell>
+                                  <TableCell className="w-[20%]">{getTypeBadge(category.type)}</TableCell>
+                                  <TableCell className="w-[15%]">
                                     <Badge variant="outline">{category.sortOrder}</Badge>
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell className="w-[35%]">
                                     <div className="flex items-center gap-2">
                                       <Switch checked={category.isActive} onCheckedChange={checked => onToggleActive(category.id, checked)} />
                                       <Button variant="ghost" size="sm" onClick={() => onEdit(category)}>

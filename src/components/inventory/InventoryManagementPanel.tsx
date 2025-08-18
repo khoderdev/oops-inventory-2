@@ -119,9 +119,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
             duration: 1000
           });
         }
-
         await refresh("materials");
-
         setShowMaterialForm(false);
         setSelectedMaterial(null);
       } catch (error) {
@@ -362,13 +360,10 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           additionDate: new Date(),
           notes: data.notes
         };
-
         await inventoryAPIWithPrefetch.stock.addToSpecificEntryWithCache(data.stockEntryId, addData);
-
         await refresh("stock");
         await refresh("materials");
         setShowStockForm(false);
-
         toast({
           title: "Added",
           description: "Stock added",
@@ -387,7 +382,6 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
     [refresh, setShowStockForm]
   );
 
-  // Handlers passed down to StockEntriesTable for centralized mutations and instant UI updates
   const handleRefreshAll = useCallback(async () => {
     await refresh("stock");
     await refresh("materials");
@@ -405,28 +399,23 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   const handleTogglePOSVisibility = useCallback(
     async (entry: StockEntry & { material?: Material }) => {
       await stockAPI.updateStockEntryPOS(entry.id.toString(), { isPOSItem: !entry.isPOSItem });
-      // Table handles optimistic UI; ensure caches refresh quickly
       await refresh("stock");
     },
     [refresh]
   );
 
-  // Assign a printer to a single stock entry
   const handleAssignPrinter = useCallback(
     async (id: string | number, printerId: number | null) => {
       const res: any = await stockAPI.assignPrinter(id, printerId);
-      // Refresh stock to keep cache in sync; table applies optimistic update immediately
       await refresh("stock");
       return res?.data?.stockEntry || res?.stockEntry;
     },
     [refresh]
   );
 
-  // Bulk-assign a printer to multiple stock entries
   const handleBulkAssignPrinter = useCallback(
     async (ids: (string | number)[], printerId: number | null) => {
       const res: any = await stockAPI.bulkAssignPrinter(ids, printerId);
-      // Refresh stock to keep cache in sync; table applies optimistic update immediately
       await refresh("stock");
       return res?.data?.stockEntries || res?.stockEntries;
     },
@@ -538,7 +527,6 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           <div className="h-full overflow-auto">
             <CategoryManagement
               onCategoryChange={() => {
-                // Refresh materials and stock when categories change
                 refresh("materials");
                 refresh("stock");
               }}

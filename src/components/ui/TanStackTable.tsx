@@ -120,7 +120,7 @@ export const TanStackTable: React.FC<TanStackTableProps> = ({ table, virtualized
       <div className={`w-full h-[${maxHeight}] border rounded-lg overflow-hidden bg-white shadow-sm ${className}`}>
         <div className="flex flex-col h-full">
           {/* Table Header */}
-          <div className={`flex-shrink-0 border-b bg-gray-50 ${stickyHeader ? "sticky top-0" : ""} ${headerClassName}`}>
+          <div className={`flex-shrink-0 border-b bg-gray-100 ${stickyHeader ? "sticky top-0" : ""} ${headerClassName}`}>
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup: any) => (

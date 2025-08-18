@@ -2,10 +2,11 @@ import { Button } from "@/components/ui/button";
 import { CategoryTable } from "./CategoryTable";
 import { Category, CategoryFormData, CategoryManagementProps } from "@/types/categories";
 import { Plus } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { getCategories, createCategory, updateCategory, deleteCategory, updateSortOrders } from "@/api/categories.api";
 import { CategoryModal } from "./CategoryModal";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function CategoryManagement({ onCategoryChange }: CategoryManagementProps) {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -13,6 +14,28 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
   const [showForm, setShowForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | undefined>();
   const [formLoading, setFormLoading] = useState(false);
+  const [showFloatingButton, setShowFloatingButton] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollContainer = scrollContainerRef.current;
+      if (!scrollContainer) return;
+      const currentScrollY = scrollContainer.scrollTop;
+      if (currentScrollY < lastScrollY || currentScrollY < 50) {
+        setShowFloatingButton(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setShowFloatingButton(false);
+      }
+      setLastScrollY(currentScrollY);
+    };
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+      return () => scrollContainer.removeEventListener("scroll", handleScroll);
+    }
+  }, [lastScrollY]);
 
   // Load categorieshandleFormSubmit
   const loadCategories = useCallback(async () => {
@@ -167,11 +190,19 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       {/* Categories Table */}
       <CategoryTable categories={categories} onEdit={handleEdit} onDelete={handleDelete} onToggleActive={handleToggleActive} onUpdateSortOrder={handleUpdateSortOrder} loading={loading} />
 
-      {/* Floating Action Button */}
-      <Button onClick={handleCreateNew} className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50 md:h-16 md:w-16" size="lg">
-        <Plus className="h-6 w-6 md:h-7 md:w-7" />
-        <span className="sr-only">Add Category</span>
-      </Button>
+      {/* Floating Button */}
+      <div className={`fixed bottom-6 right-6 z-40 transition-all duration-300 ease-in-out transform ${showFloatingButton ? "translate-y-0 opacity-100 scale-100" : "translate-y-16 opacity-0 scale-95 pointer-events-none"}`}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button onClick={handleCreateNew} className="bg-primary hover:bg-primary/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group" size="lg">
+              <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Add new category</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
 
       {/* Form Dialog */}
       <CategoryModal showForm={showForm} setShowForm={setShowForm} selectedCategory={selectedCategory} handleFormSubmit={handleFormSubmit} handleFormCancel={handleFormCancel} formLoading={formLoading} />
