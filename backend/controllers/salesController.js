@@ -289,7 +289,7 @@ const salesController = {
     const transaction = await sequelize.transaction();
     let negativeStockWarnings = []; // Track ingredients with negative stock across all processing
     try {
-      const { saleDate, totalAmount, items, menuItems, sectionId, id, createdAt, updatedAt } = req.body;
+      const { saleDate, totalAmount, items, menuItems, sectionId, id, createdAt, updatedAt, fromExistingOrder } = req.body;
 
       if (!saleDate || totalAmount === undefined) {
         await transaction.rollback();
@@ -568,7 +568,14 @@ const salesController = {
       }
 
       // Process menu items and deduct ingredient quantities from stock entries
-      if (menuItems && menuItems.length > 0) {
+      // Skip ingredient deduction if this sale comes from an existing order (stock already deducted)
+      if (menuItems && menuItems.length > 0 && !fromExistingOrder) {
+        console.log("🍽️ Processing menu items for ingredient stock deduction...");
+      } else if (menuItems && menuItems.length > 0 && fromExistingOrder) {
+        console.log("⏭️ Skipping ingredient stock deduction - sale created from existing order (stock already deducted)");
+      }
+      
+      if (menuItems && menuItems.length > 0 && !fromExistingOrder) {
         for (const menuItemSale of menuItems) {
           // Fetch the menu item with its ingredients
           const menuItem = await MenuItem.findByPk(menuItemSale.menuItemId, {

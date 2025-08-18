@@ -262,7 +262,7 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
           logging: sql => {
             // Only log non-SELECT queries to reduce noise
             if (!sql.trim().toUpperCase().startsWith("SELECT")) {
-              console.log("📊 Database Query:", sql);
+              // console.log("📊 Database Query:", sql);
             }
           }
         });

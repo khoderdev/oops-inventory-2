@@ -6,8 +6,9 @@ import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js"
 
 // Helper function to deduct ingredient stock when menu items are sold
 const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => {
+  const deductionId = Math.random().toString(36).substr(2, 9);
   try {
-    console.log(`🔍 Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
+    console.log(`🔍 [${deductionId}] Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
 
     // Get menu item with its ingredients
     const menuItem = await MenuItem.findByPk(menuItemId, {
@@ -54,7 +55,7 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
       return;
     }
 
-    console.log(`📋 Found ${menuItem.menuItemIngredients.length} ingredients for "${menuItem.name}"`);
+    console.log(`📋 [${deductionId}] Found ${menuItem.menuItemIngredients.length} ingredients for "${menuItem.name}"`);
 
     // Process each ingredient
     for (const ingredient of menuItem.menuItemIngredients) {
@@ -62,8 +63,9 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
       const requiredQuantity = ingredient.quantity * orderQuantity;
       const unit = ingredient.unit;
 
-      console.log(`🥄 Processing ingredient: ${ingredient.material?.name || "Unknown"} - Required: ${requiredQuantity} ${unit}`);
-      console.log(`📊 Ingredient details: materialId=${materialId}, quantity=${ingredient.quantity}, unit=${ingredient.unit}, orderQuantity=${orderQuantity}`);
+      console.log(`🥄 [${deductionId}] Processing ingredient: ${ingredient.material?.name || "Unknown"} - Required: ${requiredQuantity} ${unit}`);
+      console.log(`📊 [${deductionId}] Ingredient details: materialId=${materialId}, quantity=${ingredient.quantity}, unit=${ingredient.unit}, orderQuantity=${orderQuantity}`);
+      console.log(`🔍 [${deductionId}] About to search for stock entries for material ID: ${materialId}`);
 
       // Find available stock entries for this material (FIFO - oldest first)
       const stockEntries = await StockEntry.findAll({
@@ -87,13 +89,15 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
         transaction
       });
 
+      console.log(`📦 [${deductionId}] Stock query result: Found ${stockEntries.length} stock entries for material ID: ${materialId}`);
+      
       if (stockEntries.length === 0) {
-        console.log(`⚠️ No stock available for material ID: ${materialId} (${ingredient.material?.name})`);
+        console.log(`⚠️ [${deductionId}] No stock available for material ID: ${materialId} (${ingredient.material?.name})`);
         continue;
       }
 
       let remainingToDeduct = requiredQuantity;
-      console.log(`📦 Found ${stockEntries.length} stock entries for material ID: ${materialId}`);
+      console.log(`📦 [${deductionId}] Processing ${stockEntries.length} stock entries for material ID: ${materialId}`);
 
       // Deduct from stock entries using FIFO
       for (const stockEntry of stockEntries) {
@@ -109,7 +113,7 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
           continue;
         }
 
-        console.log(`📉 Deducting ${deductAmount} ${unit} from stock entry ID: ${stockEntry.id} (Available: ${availableQuantity})`);
+        console.log(`📉 [${deductionId}] Deducting ${deductAmount} ${unit} from stock entry ID: ${stockEntry.id} (Available: ${availableQuantity})`);
 
         // Update stock entry quantity
         const newQuantity = Math.max(0, availableQuantity - deductAmount); // Ensure non-negative
@@ -252,6 +256,62 @@ export const ordersController = {
           finalOrderNumber = `ORD-${timestamp}`;
         }
       }
+
+      // Check for duplicate orders within the last 10 seconds to prevent multiple API calls
+      const tenSecondsAgo = new Date(Date.now() - 10000);
+      
+      // Create a more comprehensive duplicate check
+      const duplicateCheckWhere = {
+        createdBy: userId,
+        orderType: orderType || "takeaway",
+        createdAt: {
+          [Op.gte]: tenSecondsAgo
+        }
+      };
+      
+      // Only add tableId to where clause if it's not null
+      if (tableId !== null && tableId !== undefined) {
+        duplicateCheckWhere.tableId = tableId;
+      } else {
+        duplicateCheckWhere.tableId = null;
+      }
+
+      const recentOrder = await Order.findOne({
+        where: duplicateCheckWhere,
+        include: [{
+          model: OrderItem,
+          as: 'items'
+        }],
+        order: [['createdAt', 'DESC']],
+        transaction
+      });
+
+      // If we found a recent order with the same items, return it instead of creating duplicate
+      if (recentOrder && items.length > 0 && recentOrder.items.length === items.length) {
+        const itemsMatch = items.every(item => 
+          recentOrder.items.some(orderItem => 
+            orderItem.menuItemId === item.menuItemId &&
+            orderItem.materialId === item.materialId &&
+            orderItem.name === item.name &&
+            orderItem.quantity === item.quantity &&
+            Math.abs(parseFloat(orderItem.unitPrice) - parseFloat(item.unitPrice)) < 0.01
+          )
+        );
+
+        if (itemsMatch) {
+          console.log(`🔄 Duplicate order detected - returning existing order ${recentOrder.orderNumber} (ID: ${recentOrder.id}) instead of creating new one`);
+          console.log(`🔄 Duplicate check details: userId=${userId}, orderType=${orderType}, tableId=${tableId}, itemsCount=${items.length}`);
+          await transaction.commit();
+          return res.status(200).json({
+            success: true,
+            data: recentOrder,
+            message: "Order already exists"
+          });
+        }
+      }
+
+      // Add a small delay to prevent race conditions
+      await new Promise(resolve => setTimeout(resolve, 100));
       const order = await Order.create(
         {
           orderNumber: finalOrderNumber,
@@ -296,7 +356,13 @@ export const ordersController = {
             // Deduct ingredient stock for menu items
             if (item.type === "menu_item" && item.menuItemId) {
               console.log(`🍽️ Processing menu item for stock deduction: ${item.name} (ID: ${item.menuItemId}), Quantity: ${item.quantity}`);
-              await deductIngredientStock(item.menuItemId, item.quantity, transaction);
+              try {
+                await deductIngredientStock(item.menuItemId, item.quantity, transaction);
+                console.log(`✅ Stock deduction completed for menu item: ${item.name}`);
+              } catch (stockError) {
+                console.error(`❌ Stock deduction failed for menu item ${item.name}:`, stockError);
+                // Don't throw error to prevent order creation failure
+              }
             }
 
             return orderItem;
@@ -861,6 +927,8 @@ export const ordersController = {
       };
 
       // Create sale using existing sales controller
+      // Add flag to indicate this sale comes from an existing order (stock already deducted)
+      saleData.fromExistingOrder = true;
       const mockReq = { body: saleData, user: { id: userId } };
       const mockRes = {
         status: code => mockRes,

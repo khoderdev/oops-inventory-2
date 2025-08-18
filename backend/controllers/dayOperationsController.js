@@ -661,7 +661,6 @@ const dayOperationsController = {
       const dayStart = new Date(currentDay.openedAt);
       const dayEnd = currentDay.status === "closed" ? new Date(currentDay.closedAt) : new Date();
       const saleAttributes = Object.keys(Sale.rawAttributes);
-      console.log("Sales model attributes:", saleAttributes);
       const paymentMethodExists = saleAttributes.includes("paymentMethod");
       const aggregateAttributes = [
         "userId",
