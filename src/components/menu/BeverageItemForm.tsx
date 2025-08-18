@@ -391,17 +391,19 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
 
       {/* Variants Section */}
       {enableVariants && (
-        <div className="border-t pt-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-medium">Beverage Variants</h3>
+        <div className="border-t border-gray-200 pt-6 mt-6">
+          <div className="mb-5">
+            <h3 className="text-xl font-semibold text-gray-800">Beverage Variants</h3>
+            <p className="text-sm text-gray-500 mt-1">Create size variations with custom pricing</p>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-medium mb-2">Select Variant Sizes</h4>
-              <div className="flex flex-wrap gap-2">
+          <div className="space-y-6">
+            {/* Size Selection Section */}
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+              <h4 className="font-medium mb-3 text-gray-700">Select Variant Sizes</h4>
+              <div className="flex flex-wrap gap-4">
                 {variantSizes.map(size => (
-                  <div key={size} className="flex items-center space-x-2">
+                  <div key={size} className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm">
                     <Checkbox
                       id={`variant-${size}`}
                       checked={selectedVariants.includes(size)}
@@ -412,62 +414,87 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                           setSelectedVariants(prev => prev.filter(s => s !== size));
                         }
                       }}
+                      className="h-5 w-5"
                     />
-                    <Label htmlFor={`variant-${size}`}>{size}</Label>
+                    <Label htmlFor={`variant-${size}`} className="font-medium">{size}</Label>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div>
-              <h4 className="font-medium mb-2">Add Custom Size</h4>
-              <div className="flex items-center gap-2">
-                <Input placeholder="Custom size name" value={customVariant} onChange={e => setCustomVariant(e.target.value)} className="max-w-xs" />
-                <Button type="button" size="sm" onClick={handleAddCustomVariant} disabled={!customVariant.trim() || variantSizes.includes(customVariant)}>
-                  <Plus className="h-4 w-4 mr-1" /> Add
+            {/* Custom Size Section */}
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+              <h4 className="font-medium mb-3 text-gray-700">Add Custom Size</h4>
+              <div className="flex items-center gap-3">
+                <Input 
+                  placeholder="Custom size name" 
+                  value={customVariant} 
+                  onChange={e => setCustomVariant(e.target.value)} 
+                  className="max-w-xs bg-white" 
+                />
+                <Button 
+                  type="button" 
+                  size="sm" 
+                  onClick={handleAddCustomVariant} 
+                  disabled={!customVariant.trim() || variantSizes.includes(customVariant)}
+                  className="px-4"
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Add Size
                 </Button>
               </div>
             </div>
 
-            <div>
-              <h4 className="font-medium mb-2">Price Adjustments</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {selectedVariants.map(size => (
-                  <div key={`price-${size}`} className="flex items-center gap-2">
-                    <Label htmlFor={`price-${size}`} className="w-20">
-                      {size}:
-                    </Label>
-                    <Input id={`price-${size}`} type="number" value={variantPriceAdjustments[size] || "1.0"} onChange={e => handlePriceAdjustmentChange(size, e.target.value)} min="0.1" step="0.1" className="max-w-[100px]" />
-                    <span className="text-sm text-gray-500">× base price</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-medium mb-2">Name Format</h4>
-              <RadioGroup value={nameFormat} onValueChange={value => setNameFormat(value as "prefix" | "suffix")}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="prefix" id="name-prefix" />
-                  <Label htmlFor="name-prefix">Size first (e.g., "Small Coffee")</Label>
+            {/* Price Adjustments Section */}
+            {selectedVariants.length > 0 && (
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <h4 className="font-medium mb-3 text-gray-700">Price Adjustments</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {selectedVariants.map(size => (
+                    <div key={`price-${size}`} className="flex items-center gap-3 bg-white p-3 rounded-md shadow-sm">
+                      <Label htmlFor={`price-${size}`} className="w-20 font-medium">
+                        {size}:
+                      </Label>
+                      <Input 
+                        id={`price-${size}`} 
+                        type="number" 
+                        value={variantPriceAdjustments[size] || "1.0"} 
+                        onChange={e => handlePriceAdjustmentChange(size, e.target.value)} 
+                        min="0.1" 
+                        step="0.1" 
+                        className="max-w-[100px]" 
+                      />
+                      <span className="text-sm text-gray-600">× base price</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="suffix" id="name-suffix" />
-                  <Label htmlFor="name-suffix">Name first (e.g., "Coffee (Small)")</Label>
+              </div>
+            )}
+
+            {/* Name Format Section */}
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+              <h4 className="font-medium mb-3 text-gray-700">Name Format</h4>
+              <RadioGroup value={nameFormat} onValueChange={value => setNameFormat(value as "prefix" | "suffix")}>
+                <div className="flex items-center space-x-2 mb-2 bg-white p-3 rounded-md shadow-sm">
+                  <RadioGroupItem value="prefix" id="name-prefix" className="h-5 w-5" />
+                  <Label htmlFor="name-prefix" className="font-medium">Size first (e.g., "Small Coffee")</Label>
+                </div>
+                <div className="flex items-center space-x-2 bg-white p-3 rounded-md shadow-sm">
+                  <RadioGroupItem value="suffix" id="name-suffix" className="h-5 w-5" />
+                  <Label htmlFor="name-suffix" className="font-medium">Name first (e.g., "Coffee (Small)")</Label>
                 </div>
               </RadioGroup>
             </div>
 
             {/* Preview Section */}
             {variantPreviews.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-2">Preview</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <h4 className="font-medium mb-3 text-gray-700">Preview</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {variantPreviews.map((variant, index) => (
-                    <Card key={`preview-${index}`} className="overflow-hidden">
-                      <CardContent className="p-3">
-                        <div className="font-medium">{variant.name}</div>
-                        <div className="text-sm text-gray-500">{formatCurrency(variant.price)}</div>
+                    <Card key={`preview-${index}`} className="overflow-hidden border-2 border-green-100 shadow-sm">
+                      <CardContent className="p-4 bg-white">
+                        <div className="font-medium text-gray-800">{variant.name}</div>
+                        <div className="text-sm font-semibold text-green-600 mt-1">{formatCurrency(variant.price)}</div>
                       </CardContent>
                     </Card>
                   ))}
