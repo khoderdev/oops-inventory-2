@@ -4,11 +4,10 @@ import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { ImageUpload } from "../ui/image-upload";
 import { Selection, StockEntryItemRenderer } from "../ui/Selection";
-import { Plus } from "lucide-react";
+import { Variants, VariantData } from "../ui/Variants";
+import { CostBreakdown } from "./CostBreakdown";
 import { toast } from "../ui/use-toast";
 import { beverageStockAPI } from "@/api/stock.api.ts";
-import { Checkbox } from "../ui/checkbox";
-import { Label } from "../ui/label";
 import { BeverageItemFormProps, StockEntryWithMaterial } from "@/types/inventory";
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, onSubmit, onCancel, enableVariants = false }) => {
@@ -25,11 +24,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [selectedBeverageStock, setSelectedBeverageStock] = useState<StockEntryWithMaterial | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showVariantsSection, setShowVariantsSection] = useState(true);
-  const [variantSizes, setVariantSizes] = useState<string[]>(["small", "medium", "large", "glass", "shot"]);
-  const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
-  const [customVariant, setCustomVariant] = useState<string>("");
-  const [variantPriceAdjustments, setVariantPriceAdjustments] = useState<Record<string, number>>({ small: 0.8, medium: 1.0, large: 1.2, glass: 0.9, shot: 0.5 });
-  const [nameFormat, setNameFormat] = useState<"prefix" | "suffix">("suffix");
+  const [variantData, setVariantData] = useState<VariantData>({
+    selectedVariants: [],
+    priceAdjustments: { small: 0.8, medium: 1.0, large: 1.2, glass: 0.9, shot: 0.5 }
+  });
   const beverageSelectRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -153,19 +151,9 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     }
   };
 
-  const variantPreviews = useMemo(() => {
-    if (!name || !price || isNaN(parseFloat(price))) return [];
-    return selectedVariants.map(size => {
-      const priceAdjustment = variantPriceAdjustments[size] || 1.0;
-      const variantName = nameFormat === "prefix" ? `${size} ${name}` : `${name} (${size})`;
-      const variantPrice = parseFloat(price) * priceAdjustment;
-      return {
-        name: variantName,
-        price: variantPrice,
-        size
-      };
-    });
-  }, [name, price, selectedVariants, variantPriceAdjustments, nameFormat]);
+  const handleVariantChange = useCallback((data: VariantData) => {
+    setVariantData(data);
+  }, []);
 
   const handleSubmit = useCallback(() => {
     if (!validateForm()) return;
@@ -198,11 +186,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       imageFile: imageFile, // Include imageFile in the form data
       beverageStockId: selectedBeverageStock?.id || "",
       variants:
-        showVariantsSection && selectedVariants.length > 0
+        showVariantsSection && variantData.selectedVariants.length > 0
           ? {
-              selectedVariants,
-              priceAdjustments: variantPriceAdjustments,
-              nameFormat
+              selectedVariants: variantData.selectedVariants,
+              priceAdjustments: variantData.priceAdjustments
             }
           : undefined
     };
@@ -216,29 +203,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     setSelectedBeverageStock(null);
     setBeverageSearchTerm("");
     setErrors({});
-  }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, showVariantsSection, selectedVariants, variantPriceAdjustments, nameFormat, categories, validateForm, onSubmit]);
-
-  // Variant handlers
-  const handleAddCustomVariant = useCallback(() => {
-    if (!customVariant || selectedVariants.includes(customVariant)) return;
-    setVariantSizes(prev => [...prev, customVariant]);
-    setSelectedVariants(prev => [...prev, customVariant]);
-    setVariantPriceAdjustments(prev => ({
-      ...prev,
-      [customVariant]: 1.0
-    }));
-    setCustomVariant("");
-  }, [customVariant, selectedVariants]);
-
-  const handlePriceAdjustmentChange = useCallback((size: string, value: string) => {
-    const numValue = parseFloat(value);
-    if (isNaN(numValue) || numValue <= 0) return;
-
-    setVariantPriceAdjustments(prev => ({
-      ...prev,
-      [size]: numValue
-    }));
-  }, []);
+  }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, showVariantsSection, variantData, categories, validateForm, onSubmit]);
 
   return (
     <div className="space-y-6 p-4">
@@ -328,62 +293,23 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
 
       {/* Variants Section */}
       {enableVariants && (
-        <div className="">
-          <h3 className="text-xl font-semibold text-gray-800">Beverage Variants</h3>
-          <div className="space-y-6">
-            {/* Size Selection Section */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-              <div className="flex items-end gap-4 mb-3 w-fit">
-                <h4 className="font-medium  text-gray-700">Select variant sizes or add custom size</h4>
-                <div className="flex items-center gap-3">
-                  <Input placeholder="Custom variant name" value={customVariant} onChange={e => setCustomVariant(e.target.value)} className="max-w-xs bg-white h-6" />
-                  <Button variant="outline" type="button" size="sm" onClick={handleAddCustomVariant} disabled={!customVariant.trim() || variantSizes.includes(customVariant)} className="px-4 h-6">
-                    <Plus className="h-4 w-4" /> Add
-                  </Button>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                {variantSizes.map(size => (
-                  <div key={size} className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm">
-                    <Checkbox
-                      id={`variant-${size}`}
-                      checked={selectedVariants.includes(size)}
-                      onCheckedChange={checked => {
-                        if (checked) {
-                          setSelectedVariants(prev => [...prev, size]);
-                        } else {
-                          setSelectedVariants(prev => prev.filter(s => s !== size));
-                        }
-                      }}
-                      className="h-5 w-5"
-                    />
-                    <Label htmlFor={`variant-${size}`} className="font-medium">
-                      {size}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
+        <Variants
+          initialVariantSizes={["small", "medium", "large", "glass", "shot"]}
+          initialSelectedVariants={variantData.selectedVariants}
+          initialPriceAdjustments={variantData.priceAdjustments}
+          onChange={handleVariantChange}
+          title="Beverage Variants"
+          description="Select variant sizes or add custom size"
+        />
+      )}
 
-            {/* Price Adjustments Section */}
-            {selectedVariants.length > 0 && (
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <h4 className="font-medium mb-3 text-gray-700">Price Adjustments</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {selectedVariants.map(size => (
-                    <div key={`price-${size}`} className="flex items-center gap-3 bg-white p-3 rounded-md shadow-sm">
-                      <Label htmlFor={`price-${size}`} className="w-20 font-medium">
-                        {size}:
-                      </Label>
-                      <Input id={`price-${size}`} type="number" value={variantPriceAdjustments[size] || "1.0"} onChange={e => handlePriceAdjustmentChange(size, e.target.value)} min="0.1" step="0.1" className="max-w-[100px]" />
-                      <span className="text-sm text-gray-600">× base price</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Cost Breakdown Section */}
+      {selectedBeverageStock && (
+        <CostBreakdown
+          selectedBeverageStock={selectedBeverageStock}
+          price={price}
+          variantData={variantData}
+        />
       )}
 
       {/* Image Upload Section */}
