@@ -155,6 +155,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
             duration: 1000
           });
         }
+        // Force fresh data fetch to ensure latest data
+        console.log('🔄 Forcing fresh stock data fetch after stock operation...');
         await refresh("stock");
         await refresh("materials");
         setShowStockForm(false);
@@ -253,6 +255,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
       setOperationLoading(prev => ({ ...prev, [`delete-material-${materialId}`]: true }));
       try {
         await inventoryAPIWithPrefetch.materials.deleteMaterialWithCache(materialId);
+        // Force fresh data fetch to ensure latest data
+        console.log('🔄 Forcing fresh data fetch after material deletion...');
         await refresh("materials");
         await refresh("stock");
         toast({
@@ -294,6 +298,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           notes: data.notes
         };
         await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(stockEntryData);
+        // Force fresh data fetch to ensure latest data
+        console.log('🔄 Forcing fresh stock data fetch after add stock operation...');
         await refresh("stock");
         await refresh("materials");
         toast({
@@ -317,6 +323,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
     async (data: RecordWasteData) => {
       try {
         await inventoryAPIWithPrefetch.stock.recordWasteWithCache(data);
+        // Force fresh data fetch to ensure latest data
+        console.log('🔄 Forcing fresh stock data fetch after waste operation...');
         await refresh("stock");
         await refresh("materials");
         toast({
@@ -361,6 +369,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           notes: data.notes
         };
         await inventoryAPIWithPrefetch.stock.addToSpecificEntryWithCache(data.stockEntryId, addData);
+        // Force fresh data fetch to ensure latest data
+        console.log('🔄 Forcing fresh stock data fetch after add to specific entry...');
         await refresh("stock");
         await refresh("materials");
         setShowStockForm(false);
@@ -383,6 +393,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   );
 
   const handleRefreshAll = useCallback(async () => {
+    console.log('🔄 Manual refresh - forcing fresh data fetch...');
     await refresh("stock");
     await refresh("materials");
   }, [refresh]);
@@ -390,6 +401,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   const handleDeleteStockEntry = useCallback(
     async (stockEntryId: string | number) => {
       await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId.toString());
+      // Force fresh data fetch to ensure latest data
+      console.log('🔄 Forcing fresh stock data fetch after stock entry deletion...');
       await refresh("stock");
       await refresh("materials");
     },
@@ -399,6 +412,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   const handleTogglePOSVisibility = useCallback(
     async (entry: StockEntry & { material?: Material }) => {
       await stockAPI.updateStockEntryPOS(entry.id.toString(), { isPOSItem: !entry.isPOSItem });
+      // Force fresh data fetch to ensure latest data
+      console.log('🔄 Forcing fresh stock data fetch after POS visibility toggle...');
       await refresh("stock");
     },
     [refresh]
@@ -407,6 +422,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   const handleAssignPrinter = useCallback(
     async (id: string | number, printerId: number | null) => {
       const res: any = await stockAPI.assignPrinter(id, printerId);
+      // Force fresh data fetch to ensure latest data
+      console.log('🔄 Forcing fresh stock data fetch after printer assignment...');
       await refresh("stock");
       return res?.data?.stockEntry || res?.stockEntry;
     },
@@ -416,6 +433,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   const handleBulkAssignPrinter = useCallback(
     async (ids: (string | number)[], printerId: number | null) => {
       const res: any = await stockAPI.bulkAssignPrinter(ids, printerId);
+      // Force fresh data fetch to ensure latest data
+      console.log('🔄 Forcing fresh stock data fetch after bulk printer assignment...');
       await refresh("stock");
       return res?.data?.stockEntries || res?.stockEntries;
     },
@@ -450,6 +469,8 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
 
         await inventoryAPIWithPrefetch.stock.wasteFromSpecificEntryWithCache(data.stockEntryId, wasteData);
 
+        // Force fresh data fetch to ensure latest data
+        console.log('🔄 Forcing fresh stock data fetch after waste from specific entry...');
         await refresh("stock");
         await refresh("materials");
         setShowStockForm(false);

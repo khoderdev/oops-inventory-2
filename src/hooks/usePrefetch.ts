@@ -3,51 +3,19 @@ import { useCallback, useEffect } from "react";
 import { prefetchAllInventoryAction, prefetchMaterialsAction, prefetchStockAction, prefetchMenuAction, refreshInventoryDataAction, invalidateCacheAction, overallPrefetchStatusAtom, cachedMaterialsAtom, cachedStockAtom, cachedMenuAtom, cacheMetadataAtom, CACHE_DURATION } from "@/store/prefetchAtoms";
 
 export interface UsePrefetchOptions {
-  /**
-   * Whether to automatically prefetch data on mount
-   * @default true
-   */
   autoFetch?: boolean;
-
-  /**
-   * Whether to prefetch data in parallel or sequentially
-   * @default true
-   */
   parallel?: boolean;
-
-  /**
-   * Whether to force refresh even if cache is valid
-   * @default false
-   */
   force?: boolean;
-
-  /**
-   * Which data types to prefetch
-   * @default ['materials', 'stock', 'menu']
-   */
   dataTypes?: ("materials" | "stock" | "menu")[];
-
-  /**
-   * Callback when prefetch completes successfully
-   */
   onSuccess?: (data: unknown) => void;
-
-  /**
-   * Callback when prefetch fails
-   */
   onError?: (error: Error) => void;
 }
 
 export interface UsePrefetchReturn {
-  // Data
   materials: ReturnType<typeof useAtomValue<typeof cachedMaterialsAtom>>;
   stock: ReturnType<typeof useAtomValue<typeof cachedStockAtom>>;
   menu: ReturnType<typeof useAtomValue<typeof cachedMenuAtom>>;
-
-  // Status
   status: ReturnType<typeof useAtomValue<typeof overallPrefetchStatusAtom>>;
-
-  // Actions
   prefetchAll: (options?: { force?: boolean; parallel?: boolean }) => Promise<{
     materials: unknown;
     stock: unknown;
@@ -58,15 +26,11 @@ export interface UsePrefetchReturn {
   prefetchMenu: (options?: { force?: boolean }) => Promise<unknown>;
   refresh: (cacheType?: "materials" | "stock" | "menu" | "all") => Promise<unknown>;
   invalidateCache: (cacheType?: "materials" | "stock" | "menu" | "all") => void;
-
-  // Utilities
   isCacheValid: (cacheType: "materials" | "stock" | "menu") => boolean;
   getCacheAge: (cacheType: "materials" | "stock" | "menu") => number;
 }
 
-/**
- * Hook for managing inventory data prefetching with caching
- */
+
 export const usePrefetch = (options: UsePrefetchOptions = {}): UsePrefetchReturn => {
   const { autoFetch = true, parallel = true, force = false, dataTypes = ["materials", "stock", "menu"], onSuccess, onError } = options;
 
@@ -241,30 +205,18 @@ export const usePrefetch = (options: UsePrefetchOptions = {}): UsePrefetchReturn
   };
 };
 
-/**
- * Hook for prefetching specific inventory data type
- */
 export const usePrefetchMaterials = (options?: Omit<UsePrefetchOptions, "dataTypes">) => {
   return usePrefetch({ ...options, dataTypes: ["materials"] });
 };
 
-/**
- * Hook for prefetching stock data
- */
 export const usePrefetchStock = (options?: Omit<UsePrefetchOptions, "dataTypes">) => {
   return usePrefetch({ ...options, dataTypes: ["stock"] });
 };
 
-/**
- * Hook for prefetching menu data
- */
 export const usePrefetchMenu = (options?: Omit<UsePrefetchOptions, "dataTypes">) => {
   return usePrefetch({ ...options, dataTypes: ["menu"] });
 };
 
-/**
- * Hook for accessing cached data without prefetching
- */
 export const useCachedInventoryData = () => {
   const materials = useAtomValue(cachedMaterialsAtom);
   const stock = useAtomValue(cachedStockAtom);

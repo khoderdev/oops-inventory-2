@@ -1458,9 +1458,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       setIsLoading(true);
       let savedOrder;
       if (currentOrder?.id) {
-        // Diff items: remove deleted/changed, add new/changed
         const existingOrderItems = (currentOrder.items || []) as any[];
-
         const keyForOrderItem = (oi: any) => {
           if (oi.menuItem) return `menu:${oi.menuItem.id}`;
           if (oi.menuItemId) return `menu:${oi.menuItemId}`;
@@ -1472,7 +1470,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           if (ci.type === "menu_item") return `menu:${(ci.originalItem as MenuItem).id}`;
           return `mat:${(ci.originalItem as StockEntryWithMaterial).materialId}`;
         };
-
         const existingMap = new Map<string, { qty: number; ids: string[]; unitPrice: number }>();
         existingOrderItems.forEach(oi => {
           const key = keyForOrderItem(oi);
@@ -1487,7 +1484,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             existingMap.set(key, { qty: oi.quantity || 0, ids: [idStr], unitPrice: unitPrice ?? 0 });
           }
         });
-
         const desiredMap = new Map<string, { qty: number; sample: POSCartItem }>();
         (cart || []).forEach(ci => {
           const key = keyForCartItem(ci);
@@ -1499,41 +1495,27 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }
         });
 
-        // Compute removals and additions
         const itemIdsToRemove: string[] = [];
         const removedItemsForVoidReceipt: POSCartItem[] = [];
         
         existingMap.forEach((val, key) => {
           const desired = desiredMap.get(key);
           if (!desired || desired.qty !== val.qty) {
-            // remove all existing instances for this key
             itemIdsToRemove.push(...val.ids);
-            // Track removed items for void receipt printing
-            // Find the corresponding order item that was removed/reduced
             const orderItem = existingOrderItems.find(oi => keyForOrderItem(oi) === key);
-            
             if (orderItem && (!desired || desired.qty < val.qty)) {
-              // Item was completely removed or quantity reduced
               const removedQuantity = val.qty - (desired?.qty || 0);
-              
-              // Create a POSCartItem from the order item for void receipt
-              // Find printer assignment from original menu item or material
               let printerId: number | undefined;
               let assignedPrinter: any;
-              
               if (orderItem.menuItem || orderItem.menuItemId) {
-                // For menu items, get printer from the original menu item
                 const menuItemId = orderItem.menuItemId || orderItem.menuItem?.id;
                 const originalMenuItem = menuItems.find(mi => mi.id === menuItemId);
                 printerId = originalMenuItem?.printerId;
                 assignedPrinter = originalMenuItem?.assignedPrinter;
-                
-                // Debug: Check if it's a type mismatch issue
                 const menuItemIdAsNumber = typeof menuItemId === 'string' ? parseInt(menuItemId) : menuItemId;
                 const menuItemIdAsString = String(menuItemId);
                 const foundByNumber = menuItems.find(mi => mi.id === menuItemIdAsNumber);
                 const foundByString = menuItems.find(mi => String(mi.id) === menuItemIdAsString);
-                
                 console.log("🗑️🔍 Menu item printer lookup:", {
                   menuItemId,
                   menuItemIdType: typeof menuItemId,
@@ -1548,8 +1530,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   printerId: printerId || foundByNumber?.printerId || foundByString?.printerId,
                   hasPrinter: !!(printerId || foundByNumber?.printerId || foundByString?.printerId)
                 });
-                
-                // Use the correct match if type conversion found it
                 if (!originalMenuItem && (foundByNumber || foundByString)) {
                   const correctMenuItem = foundByNumber || foundByString;
                   printerId = correctMenuItem?.printerId;
@@ -1562,7 +1542,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   });
                 }
               } else if (orderItem.material || orderItem.materialId) {
-                // For materials, get printer from the original stock entry
                 const materialId = orderItem.materialId || orderItem.material?.id;
                 const originalStockEntry = stockEntries.find(se => se.materialId === materialId);
                 printerId = originalStockEntry?.printerId;
@@ -1599,7 +1578,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             }
           }
         });
-
         const itemsToAdd: Array<{
           materialId?: string;
           menuItemId?: string;
@@ -1629,8 +1607,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             });
           }
         });
-
-        // Print void receipts BEFORE removing items from the order
         if (removedItemsForVoidReceipt.length > 0) {
           console.log("🗑️📋 Printing void receipts for removed items before API call:", { 
             count: removedItemsForVoidReceipt.length,
@@ -1648,8 +1624,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         } else {
           console.log("🗑️❌ No items added to void receipt - skipping void printing");
         }
-
-        // Execute API calls
         if (itemIdsToRemove.length > 0) {
           console.log("🗑️ Removing/voiding order items:", { count: itemIdsToRemove.length });
           const respRemove = await ordersAPI.removeOrderItems(currentOrder.id, itemIdsToRemove.map(String));
@@ -1660,8 +1634,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const respAdd = await ordersAPI.addOrderItems(currentOrder.id, itemsToAdd);
           savedOrder = respAdd.data;
         }
-
-        // Always update metadata if provided
         const updateData = {
           discountType: appliedDiscount?.type,
           discountValue: appliedDiscount?.value,
@@ -1702,29 +1674,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       const orderIdentifier = savedOrder?.orderNumber || savedOrder?.id || savedOrder?.order?.orderNumber || savedOrder?.order?.id || currentOrder?.orderNumber || currentOrder?.id || "New Order";
       console.log("📋 Order saved:", { orderIdentifier });
       await printItemsToAssignedPrinters(cart);
-
-      // Ask parent to clear selection to avoid re-trigger
       if (onOrderProcessed) onOrderProcessed();
-
-      // Refresh orders count badges immediately after order creation
       console.log("🔄 Refreshing orders count after order creation");
       await refreshAllCounts();
-
-      // Briefly suppress selectedOrderForPOS effect
       justSavedRef.current = true;
       setTimeout(() => (justSavedRef.current = false), 1500);
-
-      // Show success animation for order save
       setShowSuccessCheckmark(true);
-      
-      // Clear cart and reset summary/context to fully reset the order-cart summary
       setTimeout(() => {
         clearCartWithAnimation();
         setAppliedDiscount(null);
         setDiscountAmount(0);
         setPaymentAmount("");
         setOrderNotes("");
-        // Keep unsaved flag true so currentOrder effect won't repopulate the cart immediately
         setHasUnsavedChanges(true);
         setOrderType("takeaway");
         setSelectedTable(undefined);
@@ -1732,8 +1693,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         OrderPersistence.clearCurrentOrder();
         setShowTablesLayout(false);
         if (clearOrder) clearOrder();
-        
-        // Hide success animation after clearing cart
         setTimeout(() => {
           setShowSuccessCheckmark(false);
         }, 2000);
