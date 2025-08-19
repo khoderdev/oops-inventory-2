@@ -18,13 +18,28 @@ interface MenuItemFormProps {
 }
 
 export function MenuItemForm({ menuItem, materials, stockEntries, categories, onSubmit, onCancel }: MenuItemFormProps) {
+  console.log('[MenuItemForm] Initialization with props:', { 
+    menuItem: menuItem ? 'exists' : 'undefined', 
+    materialsCount: materials ? materials.length : 'undefined', 
+    stockEntriesCount: stockEntries ? stockEntries.length : 'undefined',
+    categories: categories,
+    categoriesType: typeof categories,
+    categoriesIsArray: Array.isArray(categories)
+  });
   const [name, setName] = useState(menuItem?.name || "");
   const [category, setCategory] = useState<MenuItemCategory | "">("");
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
-  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(menuItem?.ingredients?.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) || []);
+  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(
+    // Check both menuItem.ingredients and menuItem.menuItemIngredients
+    menuItem && menuItem.ingredients && Array.isArray(menuItem.ingredients)
+      ? menuItem.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost }))
+      : menuItem && menuItem.menuItemIngredients && Array.isArray(menuItem.menuItemIngredients)
+      ? menuItem.menuItemIngredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost }))
+      : []
+  );
   const [errors, setErrors] = useState<{
     name?: string;
     category?: string;
@@ -35,7 +50,14 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   // Initialize category when menuItem or categories change
   useEffect(() => {
-    if (categories.length === 0) {
+    console.log('[MenuItemForm] useEffect for category initialization:', { 
+      categories, 
+      categoriesType: typeof categories,
+      categoriesIsArray: Array.isArray(categories),
+      menuItemCategory: menuItem?.category,
+      menuItemCategoryType: menuItem?.category ? typeof menuItem.category : 'undefined'
+    });
+    if (!Array.isArray(categories) || categories.length === 0) {
       setCategory("");
       return;
     }
@@ -106,13 +128,23 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       setCategory(categoryValue);
       setPrice(menuItem.price.toString() || "");
       setIsPOSItem(menuItem.isPOSItem || false);
+      // Check both menuItem.ingredients and menuItem.menuItemIngredients
       setIngredients(
-        menuItem.ingredients.map(i => ({
-          materialId: i.materialId,
-          quantity: i.quantity,
-          unit: i.unit,
-          cost: i.cost
-        })) || []
+        menuItem.ingredients && Array.isArray(menuItem.ingredients)
+          ? menuItem.ingredients.map(i => ({
+              materialId: i.materialId,
+              quantity: i.quantity,
+              unit: i.unit,
+              cost: i.cost
+            }))
+          : menuItem.menuItemIngredients && Array.isArray(menuItem.menuItemIngredients)
+          ? menuItem.menuItemIngredients.map(i => ({
+              materialId: i.materialId,
+              quantity: i.quantity,
+              unit: i.unit,
+              cost: i.cost
+            }))
+          : []
       );
     } else {
       setName("");
@@ -140,7 +172,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       const ingredientsWithCosts = ingredients;
 
       // Find the selected category to validate it exists
-      const selectedCategory = categories.find(cat => cat.value === category);
+      const selectedCategory = Array.isArray(categories) ? categories.find(cat => cat.value === category) : undefined;
 
       // Validate that we found a valid category
       if (!selectedCategory && category) {
@@ -223,7 +255,14 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   // CRITICAL FIX: Normalize category value to match dropdown options
   const normalizedCategory = useMemo(() => {
-    if (!category || !categories.length) return category;
+    console.log('[MenuItemForm] normalizedCategory calculation:', { 
+      category, 
+      categories,
+      categoriesType: typeof categories,
+      categoriesIsArray: Array.isArray(categories),
+      categoriesLength: Array.isArray(categories) ? categories.length : 'not an array'
+    });
+    if (!category || !Array.isArray(categories) || !categories.length) return category;
 
     // If category state doesn't match any dropdown option, try to find the correct value
     const hasExactMatch = categories.some(c => c.value === category);
@@ -240,6 +279,15 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
     return category;
   }, [category, categories]);
+
+  console.log('[MenuItemForm] Before render:', { 
+    categories,
+    categoriesType: typeof categories,
+    categoriesIsArray: Array.isArray(categories),
+    normalizedCategory
+  });
+
+
 
   return (
     <div className="space-y-6 p-4">
@@ -264,7 +312,14 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
           </label>
           <select id="category" value={normalizedCategory} onChange={e => setCategory(e.target.value as MenuItemCategory | "")} onKeyDown={handleKeyDown} className="w-full px-3 py-2 border border-input bg-background rounded-md" aria-invalid={!!errors.category} aria-describedby={errors.category ? "category-error" : undefined}>
             <option value="">Select a category</option>
-            {categories.map(cat => (
+            {Array.isArray(categories) && categories.map(cat => (
+              // console.log('[MenuItemForm] Category option:', { 
+              //   cat,
+              //   catType: typeof cat,
+              //   catIsObject: typeof cat === 'object',
+              //   catValue: cat.value,
+              //   catName: cat.name
+              // }),
               <option key={cat.value} value={cat.value}>
                 {cat.name}
               </option>

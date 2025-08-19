@@ -745,7 +745,7 @@ export interface MenuItem {
 } | null;
   price: number;
   ingredients: MenuItemIngredient[];
-  menuItemIngredients: boolean;
+  menuItemIngredients?: MenuItemIngredient[];
   isPOSItem?: boolean;
   image?: string;
   printerId?: number | null;

@@ -123,7 +123,7 @@ const MenuItemIngredient = sequelize.define(
       }
     },
     quantity: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.DECIMAL(10, 0),
       allowNull: false,
       validate: {
         min: { args: [0], msg: "Quantity must be non-negative" }
@@ -137,7 +137,7 @@ const MenuItemIngredient = sequelize.define(
       }
     },
     cost: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.DECIMAL(10, 6),
       allowNull: false,
       validate: {
         min: { args: [0], msg: "Cost cannot be negative" }

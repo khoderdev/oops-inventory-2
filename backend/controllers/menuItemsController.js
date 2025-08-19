@@ -356,13 +356,25 @@ const menuItemsController = {
 
       // Create ingredients if provided
       if (parsedIngredients && parsedIngredients.length > 0) {
-        const ingredientData = parsedIngredients.map(ingredient => ({
-          menuItemId: menuItem.id,
-          materialId: ingredient.materialId,
-          quantity: ingredient.quantity,
-          unit: ingredient.unit,
-          cost: ingredient.cost
-        }));
+        const ingredientData = parsedIngredients.map(ingredient => {
+          // Ensure cost is properly formatted as a decimal number with fixed precision
+          const cost = typeof ingredient.cost === 'string' 
+            ? parseFloat(ingredient.cost).toFixed(6) 
+            : parseFloat(ingredient.cost).toFixed(6);
+          
+          // Ensure quantity is properly formatted as a decimal number with fixed precision
+          const quantity = typeof ingredient.quantity === 'string'
+            ? parseFloat(ingredient.quantity).toFixed(6)
+            : parseFloat(ingredient.quantity).toFixed(6);
+            
+          return {
+            menuItemId: menuItem.id,
+            materialId: ingredient.materialId,
+            quantity: quantity,
+            unit: ingredient.unit,
+            cost: cost
+          };
+        });
         await MenuItemIngredient.bulkCreate(ingredientData, { transaction });
       }
 
@@ -648,13 +660,25 @@ const menuItemsController = {
 
         // Create new ingredients if any
         if (parsedIngredients.length > 0) {
-          const ingredientData = parsedIngredients.map(ingredient => ({
-            menuItemId: id,
-            materialId: ingredient.materialId,
-            quantity: ingredient.quantity,
-            unit: ingredient.unit,
-            cost: ingredient.cost
-          }));
+          const ingredientData = parsedIngredients.map(ingredient => {
+            // Ensure cost is properly formatted as a decimal number with fixed precision
+            const cost = typeof ingredient.cost === 'string' 
+              ? parseFloat(ingredient.cost).toFixed(6) 
+              : parseFloat(ingredient.cost).toFixed(6);
+            
+            // Ensure quantity is properly formatted as a decimal number with fixed precision
+            const quantity = typeof ingredient.quantity === 'string'
+              ? parseFloat(ingredient.quantity).toFixed(6)
+              : parseFloat(ingredient.quantity).toFixed(6);
+              
+            return {
+              menuItemId: id,
+              materialId: ingredient.materialId,
+              quantity: quantity,
+              unit: ingredient.unit,
+              cost: cost
+            };
+          });
           await MenuItemIngredient.bulkCreate(ingredientData, { transaction });
         }
       }
