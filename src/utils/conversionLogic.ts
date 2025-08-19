@@ -136,11 +136,11 @@ export function convertVolume(value: number, fromUnit: string | undefined, toUni
 }
 
 export function calculateCostPerUnit(totalCost: number, totalQuantity: number): number {
-  return totalCost / totalQuantity;
+  return parseFloat((totalCost / totalQuantity).toFixed(6));
 }
 
 export function calculateTotalCost(quantity: number, costPerUnit: number): number {
-  return quantity * costPerUnit;
+  return parseFloat((quantity * costPerUnit).toFixed(6));
 }
 
 export function calculateIngredientCost(material: Material, quantity: number, unit: string): number {

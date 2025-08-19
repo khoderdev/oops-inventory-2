@@ -85,8 +85,8 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
   useEffect(() => {
     const quantity = parseFloat(watchedQuantity) || 0;
     const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
-    const totalCost = quantity * costPerUnit;
-    form.setValue("totalCost", isNaN(totalCost) ? "0.00" : totalCost.toFixed(2));
+    const totalCost = parseFloat((quantity * costPerUnit).toFixed(6));
+    form.setValue("totalCost", isNaN(totalCost) ? "0.000000" : totalCost.toFixed(6));
   }, [watchedQuantity, watchedCostPerUnit, watchedPurchasedUnit, form, stockEntry, selectedMaterial]);
 
   const handleSubmit = async () => {

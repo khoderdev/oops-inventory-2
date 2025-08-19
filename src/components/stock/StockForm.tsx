@@ -209,8 +209,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       const numCostPerUnit = typeof watchedCostPerUnit === "string" ? parseFloat(watchedCostPerUnit) : watchedCostPerUnit;
 
       if (!isNaN(numQuantity) && !isNaN(numCostPerUnit)) {
-        const totalCost = numQuantity * numCostPerUnit;
-        form.setValue("totalCost", parseFloat(totalCost.toFixed(4)).toString());
+        const totalCost = parseFloat((numQuantity * numCostPerUnit).toFixed(6));
+        form.setValue("totalCost", totalCost.toFixed(6));
       }
     }
   }, [watchedQuantity, watchedCostPerUnit, form]);

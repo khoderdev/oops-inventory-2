@@ -56,7 +56,7 @@ const StockEntry = sequelize.define(
       allowNull: true
     },
     totalCost: {
-      type: DataTypes.DECIMAL(10, 2),
+      type: DataTypes.DECIMAL(10, 6),
       allowNull: true
     },
     printerId: {

@@ -282,7 +282,7 @@ const stockEntriesController = {
       } else if (numericCostPerPurchasedUnit !== undefined && numericPurchasedQuantity !== undefined) {
         // CostPerUnit and quantity provided - calculate totalCost
         finalCostPerPurchasedUnit = numericCostPerPurchasedUnit;
-        finalTotalCost = parseFloat((numericCostPerPurchasedUnit * finalPurchasedQuantity).toFixed(2));
+        finalTotalCost = parseFloat((numericCostPerPurchasedUnit * finalPurchasedQuantity).toFixed(6));
       } else if (numericTotalCost !== undefined) {
         // Only totalCost provided - recalculate costPerPurchasedUnit
         finalTotalCost = numericTotalCost;
@@ -290,7 +290,7 @@ const stockEntriesController = {
       } else if (numericCostPerPurchasedUnit !== undefined) {
         // Only costPerUnit provided - recalculate totalCost
         finalCostPerPurchasedUnit = numericCostPerPurchasedUnit;
-        finalTotalCost = parseFloat((numericCostPerPurchasedUnit * finalPurchasedQuantity).toFixed(2));
+        finalTotalCost = parseFloat((numericCostPerPurchasedUnit * finalPurchasedQuantity).toFixed(6));
       } else {
         // No cost changes - keep existing values
         finalCostPerPurchasedUnit = stockEntry.costPerPurchasedUnit;
@@ -517,7 +517,7 @@ const stockEntriesController = {
         newIndividualUnit = stockEntry.purchasedIndividualUnit || stockEntry.purchasedUnit;
       }
       const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit;
-      const newTotalCost = newPurchasedQuantity * finalCostPerPurchasedUnit;
+      const newTotalCost = parseFloat((newPurchasedQuantity * finalCostPerPurchasedUnit).toFixed(6));
       const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
       let newPurchasedConvertedQuantity = newPurchasedQuantity;
       let newPurchasedConvertedUnit = stockEntry.purchasedUnit;
@@ -730,7 +730,7 @@ const stockEntriesController = {
         newPurchasedConvertedUnit = stockEntry.purchasedUnit;
       }
       const costReduction = wasteInOriginalUnit * parseFloat(stockEntry.costPerPurchasedUnit);
-      const newTotalCost = Math.max(0, parseFloat(stockEntry.totalCost) - costReduction);
+      const newTotalCost = Math.max(0, parseFloat((parseFloat(stockEntry.totalCost) - costReduction).toFixed(6)));
       const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
       await stockEntry.update({
         purchasedQuantity: newPurchasedQuantity,
@@ -928,7 +928,7 @@ const stockEntriesController = {
         }
         const newIndividualQuantity = entryAvailableQuantity - quantityToReduce;
         const costReduction = (quantityToReduce / entry.purchasedIndividualQuantity) * entry.totalCost;
-        const newTotalCost = Math.max(0, entry.totalCost - costReduction);
+        const newTotalCost = Math.max(0, parseFloat((entry.totalCost - costReduction).toFixed(6)));
         const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
         await entry.update({
           purchasedQuantity: newPurchasedQuantity,

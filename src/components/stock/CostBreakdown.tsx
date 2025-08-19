@@ -12,7 +12,7 @@ const formatCurrency = (value: number): string => {
     return `$${value}`;
   } else {
     // Has decimals - show with appropriate decimal places
-    return `$${value.toFixed(4)}`;
+    return `$${value.toFixed(6)}`;
   }
 };
 

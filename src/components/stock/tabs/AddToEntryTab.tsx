@@ -59,8 +59,8 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
     const quantity = parseFloat(watchedQuantity) || 0;
     if (selectedMaterial && !isNaN(currentCost) && !isNaN(quantity)) {
       // Calculate total cost
-      const totalCost = (currentCost * quantity).toFixed(4);
-      form.setValue("totalCost", totalCost);
+      const totalCost = parseFloat((currentCost * quantity).toFixed(6));
+      form.setValue("totalCost", totalCost.toFixed(6));
 
       // Validate cost for non-piece/non-bottle units
       if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && watchedUnit !== "bottle" && selectedMaterial.inputUnit === watchedUnit) {
