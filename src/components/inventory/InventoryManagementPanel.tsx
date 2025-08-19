@@ -62,7 +62,12 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
     setLoading(prev => ({ ...prev, stock: true }));
     try {
       // Add cache-busting parameter to prevent stale data
-      const response = await stockAPI.getStockEntries({ limit: 10000, _t: Date.now() });
+      const response = await stockAPI.getStockEntries({ 
+        limit: 10000, 
+        _t: Date.now(),
+        sortBy: 'purchaseDate',
+        sortOrder: 'DESC'
+      });
       // Handle both response formats: direct array or nested in data property
       if (response) {
         if (Array.isArray(response)) {

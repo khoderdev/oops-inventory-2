@@ -68,7 +68,12 @@ export function StockEntriesTable({
       console.log('🔄 StockEntriesTable: Fetching stock entries from stockAPI...');
       setLoading(true);
       setError(null);
-      const response = await stockAPI.getStockEntries({ limit: 10000, _t: Date.now() });
+      const response = await stockAPI.getStockEntries({ 
+        limit: 10000, 
+        _t: Date.now(),
+        sortBy: 'purchaseDate',
+        sortOrder: 'DESC'
+      });
       console.log('✅ StockEntriesTable: Received stock entries from API:', response.length, 'entries');
       console.log('📋 StockEntriesTable: Stock entries data:', response.map(entry => ({
         id: entry.id,
@@ -344,7 +349,7 @@ export function StockEntriesTable({
     return finalFiltered;
   }, [optimisticStockEntries, materialsMap, searchTerm, materialFilter]);
 
-  // Sort client-side based on sortBy/sortOrder
+  // Sort client-side based on sortBy/sortOrder - newest entries first
   const sortedStockEntries = useMemo(() => {
     const sorted = [...filteredStockEntries];
     sorted.sort((a, b) => {
@@ -353,17 +358,39 @@ export function StockEntriesTable({
         case "materialName": {
           const an = (a.material?.name || "").toLowerCase();
           const bn = (b.material?.name || "").toLowerCase();
-          return an.localeCompare(bn) * dir;
+          const nameComparison = an.localeCompare(bn) * dir;
+          // Secondary sort by ID (newest first) for same material names
+          if (nameComparison === 0) {
+            return (Number(b.id) - Number(a.id));
+          }
+          return nameComparison;
         }
-        case "costPerPurchasedUnit":
-          return ((a.costPerPurchasedUnit || 0) - (b.costPerPurchasedUnit || 0)) * dir;
-        case "totalCost":
-          return ((a.totalCost || 0) - (b.totalCost || 0)) * dir;
+        case "costPerPurchasedUnit": {
+          const costComparison = ((a.costPerPurchasedUnit || 0) - (b.costPerPurchasedUnit || 0)) * dir;
+          // Secondary sort by ID (newest first) for same costs
+          if (costComparison === 0) {
+            return (Number(b.id) - Number(a.id));
+          }
+          return costComparison;
+        }
+        case "totalCost": {
+          const totalComparison = ((a.totalCost || 0) - (b.totalCost || 0)) * dir;
+          // Secondary sort by ID (newest first) for same total costs
+          if (totalComparison === 0) {
+            return (Number(b.id) - Number(a.id));
+          }
+          return totalComparison;
+        }
         case "purchaseDate":
         default: {
           const ad = new Date(a.purchaseDate as any).getTime();
           const bd = new Date(b.purchaseDate as any).getTime();
-          return (ad - bd) * dir;
+          const dateComparison = (ad - bd) * dir;
+          // Secondary sort by ID (newest first) for same purchase dates
+          if (dateComparison === 0) {
+            return (Number(b.id) - Number(a.id));
+          }
+          return dateComparison;
         }
       }
     });
@@ -980,7 +1007,7 @@ const uniqueMaterials = useMemo(() =>
   [materials]
 );
   const table = useReactTable({
-    data: filteredStockEntries,
+    data: sortedStockEntries,
     columns,
     state: {
       sorting,
@@ -1293,7 +1320,7 @@ const uniqueMaterials = useMemo(() =>
         </div>
 
         <div ref={scrollContainerRef} className="px-4 sm:px-6 pb-4 sm:pb-6 flex-1 overflow-hidden overflow-y-auto relative">
-          {filteredStockEntries.length === 0 && (
+          {sortedStockEntries.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="bg-gray-100 rounded-full p-3 mb-4">
                 <Search className="h-8 w-8 text-gray-400" />
@@ -1308,7 +1335,7 @@ const uniqueMaterials = useMemo(() =>
               )}
             </div>
           )}
-          {filteredStockEntries.length > 0 && (
+          {sortedStockEntries.length > 0 && (
             <div className="lg:hidden space-y-4">
               {paginatedStockEntries.map(entry => {
                 const material = materialsMap.get(entry.materialId);
@@ -1459,7 +1486,7 @@ const uniqueMaterials = useMemo(() =>
           )}
 
           {/* Desktop Table View - TanStack Virtualized */}
-          {filteredStockEntries.length > 0 && (
+          {sortedStockEntries.length > 0 && (
             <div className="hidden lg:block px-2">
               <div className="h-[calc(100vh-225px)] overflow-y-hidden">
                 <TanStackTable
