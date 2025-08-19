@@ -40,8 +40,8 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
       if (response) {
         if (Array.isArray(response)) {
           setMaterials(response);
-        } else if (response.data && Array.isArray(response.data)) {
-          setMaterials(response.data);
+        } else if ((response as any).data && Array.isArray((response as any).data)) {
+          setMaterials((response as any).data);
         }
       }
     } catch (error) {
@@ -624,6 +624,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
 
         <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden ">
           <StockEntriesTable
+            stockEntries={stock}
+            materials={materials}
+            loading={loading.stock}
             onRefresh={handleRefreshAll}
             onDeleteStockEntry={handleDeleteStockEntry}
             onTogglePOSVisibility={handleTogglePOSVisibility}

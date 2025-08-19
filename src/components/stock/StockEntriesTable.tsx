@@ -22,6 +22,9 @@ import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 import { salesAPI } from "@/api/sales.api.ts";
 
 type StockEntriesTableProps = {
+  stockEntries?: StockEntry[];
+  materials?: Material[];
+  loading?: boolean;
   onRefresh?: () => Promise<void> | void;
   onDeleteStockEntry?: (stockEntryId: string | number) => Promise<void> | void;
   onTogglePOSVisibility?: (entry: StockEntry & { material?: Material }) => Promise<void> | void;
@@ -37,7 +40,14 @@ const isVirtualEntry = (entry: StockEntryWithMaterial) => {
   return entry.supplier === "-";
 };
 
-export function StockEntriesTable({ onRefresh, onDeleteStockEntry, onTogglePOSVisibility,}: StockEntriesTableProps) {
+export function StockEntriesTable({ 
+  stockEntries: prefetchedStockEntries, 
+  materials: prefetchedMaterials, 
+  loading: prefetchedLoading = false,
+  onRefresh, 
+  onDeleteStockEntry, 
+  onTogglePOSVisibility,
+}: StockEntriesTableProps) {
   const [stockEntries, setStockEntries] = useState<(StockEntry | StockEntryWithMaterial)[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,14 +112,41 @@ export function StockEntriesTable({ onRefresh, onDeleteStockEntry, onTogglePOSVi
     }
   }, []);
 
-  // Initial data fetch
+  // Sync prefetched data with internal state for instant rendering
   useEffect(() => {
-    console.log('🚀 StockEntriesTable: Component mounted - starting initial data fetch');
-    Promise.all([
-      fetchStockEntries(),
-      fetchMaterials()
-    ]);
-  }, [fetchStockEntries, fetchMaterials]);
+    if (prefetchedStockEntries && prefetchedStockEntries.length > 0) {
+      console.log('🔄 StockEntriesTable: Using prefetched stock entries for instant rendering:', prefetchedStockEntries.length, 'entries');
+      setStockEntries(prefetchedStockEntries);
+      setLoading(false);
+    }
+  }, [prefetchedStockEntries]);
+
+  useEffect(() => {
+    if (prefetchedMaterials && prefetchedMaterials.length > 0) {
+      console.log('🔄 StockEntriesTable: Using prefetched materials for instant rendering:', prefetchedMaterials.length, 'materials');
+      setMaterials(prefetchedMaterials);
+    }
+  }, [prefetchedMaterials]);
+
+  // Set loading state based on prefetched loading
+  useEffect(() => {
+    if (prefetchedLoading !== undefined) {
+      setLoading(prefetchedLoading);
+    }
+  }, [prefetchedLoading]);
+
+  // Initial data fetch - only if no prefetched data available
+  useEffect(() => {
+    if (!prefetchedStockEntries || !prefetchedMaterials) {
+      console.log('🚀 StockEntriesTable: No prefetched data available - starting API fetch');
+      Promise.all([
+        fetchStockEntries(),
+        fetchMaterials()
+      ]);
+    } else {
+      console.log('✅ StockEntriesTable: Using prefetched data - skipping API calls for instant rendering');
+    }
+  }, [fetchStockEntries, fetchMaterials, prefetchedStockEntries, prefetchedMaterials]);
 
   // Refresh function
   const handleRefresh = useCallback(async () => {
