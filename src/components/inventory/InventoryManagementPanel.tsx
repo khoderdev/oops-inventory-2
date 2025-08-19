@@ -67,8 +67,8 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
       if (response) {
         if (Array.isArray(response)) {
           setStock(response);
-        } else if (response.data && Array.isArray(response.data)) {
-          setStock(response.data);
+        } else if ((response as any).data && Array.isArray((response as any).data)) {
+          setStock((response as any).data);
         }
       }
     } catch (error) {
