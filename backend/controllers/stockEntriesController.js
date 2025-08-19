@@ -114,14 +114,14 @@ const stockEntriesController = {
   createStockEntries: async (req, res, next) => {
     try {
       const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
-      if (!materialId || !supplier || !purchasedQuantity || !purchasedUnit || !costPerPurchasedUnit || !totalCost || !purchaseDate) {
+      if (!materialId || !supplier || !purchasedQuantity || !purchasedUnit || !totalCost || !purchaseDate) {
         return res.status(400).json({ error: "Missing required fields" });
       }
       const numericPurchasedQuantity = parseFloat(purchasedQuantity);
       const numericCostPerPurchasedUnit = parseFloat(costPerPurchasedUnit);
       const numericTotalCost = parseFloat(totalCost);
       const numericCostPerBaseUnit = costPerBaseUnit ? parseFloat(costPerBaseUnit) : undefined;
-      if (isNaN(numericPurchasedQuantity) || numericPurchasedQuantity <= 0 || numericCostPerPurchasedUnit < 0 || numericTotalCost < 0) {
+      if (isNaN(numericPurchasedQuantity) || numericPurchasedQuantity <= 0 || numericTotalCost < 0) {
         return res.status(400).json({ error: "Invalid numeric values" });
       }
       if (purchasedUnit.trim() === "") {
@@ -184,7 +184,22 @@ const stockEntriesController = {
         }
       }
 
+      // FIXED: Use frontend-calculated values instead of backend recalculation
+      // Frontend handles all conversions and calculations for UI consistency
+      const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit || 0;
+      
       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : purchasedIndividualQuantity > 0 ? parseFloat((numericTotalCost / purchasedIndividualQuantity).toFixed(6)) : 0;
+
+      console.log(`📊 [createStockEntries] Using frontend values for ${material.name}:`, {
+        purchasedQuantity: numericPurchasedQuantity,
+        costPerPurchasedUnit: numericCostPerPurchasedUnit,
+        purchasedUnit,
+        totalCost: numericTotalCost,
+        frontendCostPerPurchasedUnit: numericCostPerPurchasedUnit,
+        finalCostPerPurchasedUnit,
+        purchasedIndividualQuantity,
+        finalCostPerBaseUnit
+      });
 
       const stockEntry = await StockEntry.create({
         materialId,
@@ -195,7 +210,7 @@ const stockEntriesController = {
         purchasedIndividualUnit,
         purchasedConvertedQuantity: purchasedIndividualQuantity,
         purchasedConvertedUnit: purchasedIndividualUnit,
-        costPerPurchasedUnit: numericCostPerPurchasedUnit,
+        costPerPurchasedUnit: finalCostPerPurchasedUnit,
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: numericTotalCost,
         purchaseDate,
@@ -256,8 +271,31 @@ const stockEntriesController = {
       }
       const finalPurchasedQuantity = numericPurchasedQuantity ?? stockEntry.purchasedQuantity;
       const finalPurchasedUnit = purchasedUnit ?? stockEntry.purchasedUnit;
-      const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit;
-      const finalTotalCost = numericTotalCost ?? stockEntry.totalCost;
+      // Recalculate costPerPurchasedUnit if totalCost or purchasedQuantity changed
+      let finalCostPerPurchasedUnit;
+      let finalTotalCost;
+      
+      if (numericTotalCost !== undefined && numericPurchasedQuantity !== undefined) {
+        // Both totalCost and quantity provided - calculate costPerPurchasedUnit
+        finalTotalCost = numericTotalCost;
+        finalCostPerPurchasedUnit = finalPurchasedQuantity > 0 ? parseFloat((numericTotalCost / finalPurchasedQuantity).toFixed(6)) : 0;
+      } else if (numericCostPerPurchasedUnit !== undefined && numericPurchasedQuantity !== undefined) {
+        // CostPerUnit and quantity provided - calculate totalCost
+        finalCostPerPurchasedUnit = numericCostPerPurchasedUnit;
+        finalTotalCost = parseFloat((numericCostPerPurchasedUnit * finalPurchasedQuantity).toFixed(2));
+      } else if (numericTotalCost !== undefined) {
+        // Only totalCost provided - recalculate costPerPurchasedUnit
+        finalTotalCost = numericTotalCost;
+        finalCostPerPurchasedUnit = finalPurchasedQuantity > 0 ? parseFloat((numericTotalCost / finalPurchasedQuantity).toFixed(6)) : 0;
+      } else if (numericCostPerPurchasedUnit !== undefined) {
+        // Only costPerUnit provided - recalculate totalCost
+        finalCostPerPurchasedUnit = numericCostPerPurchasedUnit;
+        finalTotalCost = parseFloat((numericCostPerPurchasedUnit * finalPurchasedQuantity).toFixed(2));
+      } else {
+        // No cost changes - keep existing values
+        finalCostPerPurchasedUnit = stockEntry.costPerPurchasedUnit;
+        finalTotalCost = stockEntry.totalCost;
+      }
       let updatedIndividualQuantity = stockEntry.purchasedIndividualQuantity;
       let updatedIndividualUnit = stockEntry.purchasedIndividualUnit;
       if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
@@ -302,6 +340,18 @@ const stockEntriesController = {
       }
 
       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : updatedIndividualQuantity > 0 ? parseFloat((finalTotalCost / updatedIndividualQuantity).toFixed(6)) : 0;
+
+      console.log(`📊 [updateStockEntries] Cost calculations for ${material.name}:`, {
+        originalPurchasedQuantity: stockEntry.purchasedQuantity,
+        finalPurchasedQuantity,
+        finalPurchasedUnit,
+        originalTotalCost: stockEntry.totalCost,
+        finalTotalCost,
+        originalCostPerPurchasedUnit: stockEntry.costPerPurchasedUnit,
+        finalCostPerPurchasedUnit,
+        updatedIndividualQuantity,
+        finalCostPerBaseUnit
+      });
 
       await stockEntry.update({
         materialId: materialId ?? stockEntry.materialId,
@@ -352,7 +402,8 @@ const stockEntriesController = {
         return res.status(404).json({ error: "Stock entry not found" });
       }
       const deletedStockEntry = stockEntry.toJSON();
-      await stockEntry.destroy();
+      
+      // Log deletion BEFORE destroying the stock entry to avoid foreign key constraint violation
       try {
         const user = req.user || { id: null, fullName: "System", username: "system" };
         await StockEntryAuditHelperSimple.logStockDeletion(deletedStockEntry, user, "Manual deletion via API", req);
@@ -360,6 +411,9 @@ const stockEntriesController = {
       } catch (loggingError) {
         console.error("❌ Failed to log stock entry deletion:", loggingError);
       }
+      
+      // Now safely destroy the stock entry
+      await stockEntry.destroy();
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting stock entry:", error);

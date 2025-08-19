@@ -48,7 +48,7 @@ const StockEntry = sequelize.define(
       allowNull: true
     },
     costPerPurchasedUnit: {
-      type: DataTypes.DECIMAL(10, 2),
+      type: DataTypes.DECIMAL(10, 6),
       allowNull: true
     },
     costPerBaseUnit: {
