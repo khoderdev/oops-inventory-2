@@ -37,21 +37,18 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   // Filter categories for beverages
   const beverageCategoriesRaw = useMemo(() => {
     // Check if category type is 'beverages' OR if value matches specific beverage types
-    const filtered = categories.filter(cat => 
-      cat.type === 'beverages' || 
-      ["beverages", "cold", "hot", "alcohol"].includes(cat.value.toLowerCase())
-    );
-    console.log('Filtered beverageCategoriesRaw:', filtered);
+    const filtered = categories.filter(cat => cat.type === "beverages" || ["beverages", "cold", "hot", "alcohol"].includes(cat.value.toLowerCase()));
+    console.log("Filtered beverageCategoriesRaw:", filtered);
     return filtered;
   }, [categories]);
-  
+
   // Convert Category[] to CategoryOption[] with string IDs for BeverageItemForm
   const beverageCategories = useMemo(() => {
     const converted = beverageCategoriesRaw.map(cat => ({
       ...cat,
       id: String(cat.id) // Convert number id to string
     }));
-    console.log('Converted beverageCategories with string IDs:', converted);
+    console.log("Converted beverageCategories with string IDs:", converted);
     return converted;
   }, [beverageCategoriesRaw]);
 
@@ -76,31 +73,29 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
 
   const filteredBeverageItems = useMemo(() => {
     return beverageBeverageItems.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
       if (selectedCategory === "all") {
         return matchesSearch;
       }
-      
+
       // Get the category value for comparison
       let categoryValue: string | undefined;
-      
+
       if (typeof item.category === "string") {
         categoryValue = item.category;
       } else if (typeof item.category === "object" && item.category?.value !== undefined) {
         categoryValue = String(item.category.value);
       } else if (typeof item.category === "object" && item.category?.name) {
         // Try to find the category by name
-        const matchingCategory = beverageCategoriesRaw.find(c => 
-          c.name.toLowerCase() === item.category.name.toLowerCase());
+        const matchingCategory = beverageCategoriesRaw.find(c => c.name.toLowerCase() === item.category.name.toLowerCase());
         categoryValue = matchingCategory?.value;
       } else if (typeof item.category === "number") {
         const categoryObj = categories.find(c => c.id === item.category);
         categoryValue = categoryObj?.value;
       }
-      
+
       console.log(`Item: ${item.name}, Category: ${JSON.stringify(item.category)}, CategoryValue: ${categoryValue}, Selected: ${selectedCategory}, Match: ${categoryValue === selectedCategory}`);
-      
+
       return matchesSearch && categoryValue === selectedCategory;
     });
   }, [beverageBeverageItems, searchTerm, selectedCategory, categories, beverageCategoriesRaw]);
@@ -336,7 +331,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                 )}
               </TableBody>
             </Table>
-            
+
             {/* Beverage Item Form Dialog */}
             <Dialog open={showBeverageItemForm} onOpenChange={handleCloseModal} modal={true}>
               <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
@@ -351,27 +346,10 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                   onSubmit={
                     editingBeverageItem
                       ? (data, imageFile) => {
-                          // Pass data including imageFile to the update handler
                           onUpdateBeverageItem(editingBeverageItem.id, data);
                           handleCloseModal();
                         }
                       : (data, imageFile) => {
-                          // Debug logging to track data flow
-                          console.log("🔍 BeveragesMenuBuilder - Received data from BeverageItemForm:", data);
-                          console.log("🔍 BeveragesMenuBuilder - Received imageFile from BeverageItemForm:", imageFile);
-                          console.log("🔍 BeveragesMenuBuilder - About to call onCreateBeverageItem with:", {
-                            data,
-                            imageFile,
-                            beverageFields: {
-                              beverageStockId: (data as any).beverageStockId,
-                              unit: (data as any).unit,
-                              availableQuantity: (data as any).availableQuantity,
-                              costPerUnit: (data as any).costPerUnit,
-                              variants: (data as any).variants
-                            }
-                          });
-                          
-                          // Pass data including imageFile to the create handler
                           onCreateBeverageItem(data, imageFile);
                           handleCloseModal();
                         }
@@ -381,56 +359,9 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                 />
               </DialogContent>
             </Dialog>
-            
-            {/* Variant Creation Dialog */}
-            <Dialog open={showVariantDialog} onOpenChange={setShowVariantDialog}>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Create Variants for {currentVariantItem?.name}</DialogTitle>
-                </DialogHeader>
-                {currentVariantItem && (
-                  <BeverageItemForm
-                    menuItem={currentVariantItem as any}
-                    categories={beverageCategories}
-                    materials={materials}
-                    stockEntries={stockEntries}
-                    onSubmit={(data: any) => {
-                      if (data.variants) {
-                        const processedCategory = (() => {
-                          if (typeof data.category === 'string' || typeof data.category === 'number') {
-                            return data.category;
-                          }
-                          if (data.category && typeof data.category === 'object' && 'id' in data.category) {
-                            return { id: Number(data.category.id), name: data.category.name };
-                          }
-                          return null;
-                        })();
-                        const updatedItem = {
-                          ...currentVariantItem,
-                          ...data,
-                          category: processedCategory,
-                          // Ensure imageFile is passed through
-                          imageFile: data.imageFile
-                        };
-                        onCreateBeverageItem(updatedItem);
-                        toast({
-                          title: "Success",
-                          description: `Created variants for ${currentVariantItem.name}`,
-                          variant: "default",
-                          duration: 1000
-                        });
-                      }
-                      setShowVariantDialog(false);
-                    }}
-                    onCancel={() => setShowVariantDialog(false)}
-                    enableVariants={true}
-                  />
-                )}
-              </DialogContent>
-            </Dialog>
           </CardContent>
         </Card>
-      
+
         <div className="fixed bottom-6 right-6 z-50">
           <div className="flex flex-col items-end gap-3">
             {bulkSelectionMode && (

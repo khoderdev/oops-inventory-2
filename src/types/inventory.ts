@@ -817,6 +817,7 @@ export interface BeverageItemFormProps {
         variantPrices: Record<string, number>;
         nameFormat?: "prefix" | "suffix";
       };
+      imageFile?: File;
     }
   ) => void;
   onCancel: () => void;

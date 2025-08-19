@@ -19,7 +19,7 @@ interface AddToEntryTabProps {
   selectedMaterial: Material | undefined;
   watchedQuantity: string;
   watchedCostPerUnit: string;
-  stockEntry: StockEntry;
+  stockEntry: StockEntry | undefined;
   onAddToSpecificEntry: (data: StockFormData & { stockEntryId: string }) => void;
   onCancel: () => void;
 }
@@ -144,6 +144,15 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       return;
     }
     
+    if (!stockEntry?.id) {
+      console.error("❌ No stock entry ID available");
+      form.setError("materialId", {
+        type: "manual",
+        message: "Stock entry is required"
+      });
+      return;
+    }
+
     const specificEntryData = {
       ...formData,
       stockEntryId: stockEntry.id,
@@ -165,6 +174,30 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   console.log("📌 Stock Entry:", stockEntry);
   console.log("📌 Selected Material:", selectedMaterial);
   
+  // Guard clause: If no stock entry, show error message
+  if (!stockEntry) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <TrendingUp className="h-5 w-5 text-red-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-red-800">No Stock Entry Selected</h3>
+          </div>
+          <p className="text-sm text-red-700 mb-4">
+            Please select a stock entry from the table to add additional quantity to it.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="space-y-6">
       <div className="bg-green-50 border border-green-200 rounded-xl p-4">
@@ -175,7 +208,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
           <h3 className="text-lg font-semibold text-green-800">Add Quantity to This Entry</h3>
         </div>
         <p className="text-sm text-green-700 mb-4">
-          Current stock: <strong>{stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}` : `${stockEntry?.purchasedQuantity} ${stockEntry.purchasedUnit}`}</strong>. Add additional quantity to this specific entry.
+          Current stock: <strong>{stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}` : `${stockEntry?.purchasedQuantity || 0} ${stockEntry?.purchasedUnit || 'units'}`}</strong>. Add additional quantity to this specific entry.
           {selectedMaterial?.unitType === "package" && selectedMaterial?.packageQuantity && (
             <span className="block text-xs text-green-600 mt-1">
               ({selectedMaterial.packageQuantity} {selectedMaterial.baseUnit} per {selectedMaterial.inputUnit})
@@ -276,7 +309,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     </div>
                   </FormControl>
                   <p className="text-xs text-green-600 mt-1">
-                    This will be added to the existing {stockEntry?.purchasedQuantity} {stockEntry?.purchasedUnit}
+                    This will be added to the existing {stockEntry?.purchasedQuantity || 0} {stockEntry?.purchasedUnit || 'units'}
                     {selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && <span className="block text-xs text-green-600 mt-1">Individual {watchedUnit} quantities are allowed</span>}
                   </p>
                   <FormMessage />
