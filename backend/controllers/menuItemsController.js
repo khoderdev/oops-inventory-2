@@ -441,7 +441,8 @@ const menuItemsController = {
         availableQuantity: formattedMenuItem.availableQuantity,
         costPerUnit: formattedMenuItem.costPerUnit,
         variants: formattedMenuItem.variants,
-        category: formattedMenuItem.category
+        category: formattedMenuItem.category,
+        image: formattedMenuItem.image
       });
 
       await transaction.commit();

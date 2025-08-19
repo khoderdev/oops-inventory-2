@@ -839,6 +839,7 @@ export interface CreateMenuItemData {
   price: number;
   ingredients: MenuItemIngredient[];
   isPOSItem?: boolean;
+  image?: string;
   // Beverage-specific fields
   beverageStockId?: number;
   unit?: string;
@@ -860,6 +861,7 @@ export interface UpdateMenuItemData {
   price?: number;
   ingredients?: MenuItemIngredient[];
   isPOSItem?: boolean;
+  image?: string;
   // Beverage-specific fields
   beverageStockId?: number;
   unit?: string;

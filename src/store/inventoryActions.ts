@@ -1,8 +1,28 @@
-import { inventoryAPI } from "@/api/inventory.api";
+import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
-import { AddStockData, CreateMenuItemData, Material, MaterialWithStock, MenuItem, MenuItemCategory, RecordWasteData, Section, SectionAssignment, StockEntry, StockEntryWithMaterial, UpdateMenuItemData } from "@/types/inventory";
+import { menuAPI } from "@/api/menu.api.ts.tsx";
+import { inventoryAPI } from "@/api/inventory.api";
+import { stockEntriesAtom, materialsAtom, menuItemsAtom, optimisticStockEntriesAtom } from "./inventoryAtoms";
+import type { StockEntry, Material, MenuItem, CreateMenuItemData, UpdateMenuItemData } from "@/types/inventory";
 import { atom } from "jotai";
-import { materialsAtom, menuItemsAtom, optimisticAssignmentsAtom, optimisticMaterialsAtom, optimisticSectionsAtom, optimisticStockEntriesAtom, sectionAssignmentsAtom, sectionsAtom, stockEntriesAtom, tabErrorAtom, tabLoadingAtom } from "./inventoryAtoms";
+import {
+  optimisticAssignmentsAtom,
+  optimisticMaterialsAtom,
+  optimisticSectionsAtom,
+  sectionAssignmentsAtom,
+  sectionsAtom,
+  tabErrorAtom,
+  tabLoadingAtom,
+} from "./inventoryAtoms";
+import type {
+  MaterialWithStock,
+  StockEntryWithMaterial,
+  Section,
+  SectionAssignment,
+  MenuItemCategory,
+  AddStockData,
+  RecordWasteData,
+} from "@/types/inventory";
 
 // Data fetching actions
 export const fetchMaterialsAction = atom(null, async (get, set) => {
@@ -107,7 +127,14 @@ export const fetchMenuItemsAction = atom(null, async (get, set) => {
       ...item,
       id: item.id.toString(),
       createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-      updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date()
+      updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+      // Transform menuItemIngredients to ingredients array for frontend compatibility
+      ingredients: item.menuItemIngredients?.map(ingredient => ({
+        materialId: ingredient.materialId.toString(),
+        quantity: ingredient.quantity,
+        unit: ingredient.unit,
+        cost: ingredient.cost
+      })) || []
     }));
 
     set(menuItemsAtom, transformedMenuItems);
@@ -406,6 +433,7 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
       price: data.price,
       ingredients: data.ingredients,
       isPOSItem: data.isPOSItem,
+      image: data.image, // Include base64 image data
       // Preserve all beverage-specific fields
       beverageStockId: (data as any).beverageStockId,
       unit: (data as any).unit,
@@ -426,11 +454,8 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
       }
     });
 
-    // Extract imageFile from data
-    const imageFile = data.imageFile;
-
-    // Make API call with imageFile
-    const response = await inventoryAPI.menu.createMenuItem(createData, imageFile);
+    // Make API call with base64 image data - no imageFile needed
+    const response = await menuAPI.createMenuItem(createData);
 
     // Update with server response and keep it at the top
     const transformedMenuItem: MenuItem = {
@@ -467,19 +492,15 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
     const updateData: UpdateMenuItemData = {
       name: data.name,
       description: data.description,
-      category: typeof data.category === 'string' ? data.category as MenuItemCategory : 
-                typeof data.category === 'object' && data.category?.name ? data.category.name as MenuItemCategory :
-                undefined, // let backend handle if undefined
+      category: data.category,
       price: data.price,
       ingredients: data.ingredients,
       isPOSItem: data.isPOSItem,
-      image: data.image // Include the base64 image data
+      image: data.image // Include base64 image data
     };
 
-    // Extract imageFile from data
-    const imageFile = data.imageFile;
-    // Make API call with imageFile
-    const response = await inventoryAPI.menu.updateMenuItem(id, updateData, imageFile);
+    // Make API call with base64 image data - no imageFile needed
+    const response = await inventoryAPI.menu.updateMenuItem(id, updateData);
 
     const transformedMenuItem: MenuItem = {
       ...response.data,
