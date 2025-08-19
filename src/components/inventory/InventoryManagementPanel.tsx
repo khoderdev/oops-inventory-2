@@ -6,29 +6,21 @@ import { CategoryManagement } from "@/components/categories/CategoryManagement";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePrefetch } from "@/hooks/usePrefetch";
-import { inventoryAPIWithPrefetch } from "@/api/inventory.api";
 import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, MaterialFormData, StockFormData, RecordWasteData, CreateStockEntryData, MaterialCategory, Material } from "@/types/inventory";
 import { Package, Warehouse, Loader2, Tags } from "lucide-react";
 import { useAtom } from "jotai";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { activeTabAtom, showMaterialFormAtom, showStockFormAtom, selectedMaterialAtom, selectedStockEntryAtom } from "@/store/inventoryAtoms";
 
-export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManagementPanelProps = {}) {
-  const { materials, stock, status, refresh, isCacheValid } = usePrefetch({
-    autoFetch: false,
-    parallel: true,
-    onError: error => {
-      toast({
-        title: "Loading Error",
-        description: "Failed to load data",
-        variant: "destructive",
-        duration: 1000
-      });
-    }
+export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry }: InventoryManagementPanelProps = {}) {
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [stock, setStock] = useState<StockEntry[]>([]);
+  const [loading, setLoading] = useState({
+    materials: false,
+    stock: false
   });
 
   const [activeTab, setActiveTab] = useAtom(activeTabAtom);
@@ -36,7 +28,86 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
-  const [, setOperationLoading] = useState<Record<string, boolean>>({});
+  const [operationLoading, setOperationLoading] = useState<Record<string, boolean>>({});
+
+  // Fetch materials function
+  const fetchMaterials = useCallback(async () => {
+    setLoading(prev => ({ ...prev, materials: true }));
+    try {
+      // Add cache-busting parameter to prevent stale data
+      const response = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
+      // Handle both response formats: direct array or nested in data property
+      if (response) {
+        if (Array.isArray(response)) {
+          setMaterials(response);
+        } else if (response.data && Array.isArray(response.data)) {
+          setMaterials(response.data);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error fetching materials:", error);
+      toast({
+        title: "Loading Error",
+        description: "Failed to load materials data",
+        variant: "destructive",
+        duration: 1000
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, materials: false }));
+    }
+  }, []);
+
+  // Fetch stock entries function
+  const fetchStock = useCallback(async () => {
+    setLoading(prev => ({ ...prev, stock: true }));
+    try {
+      // Add cache-busting parameter to prevent stale data
+      const response = await stockAPI.getStockEntries({ limit: 10000, _t: Date.now() });
+      // Handle both response formats: direct array or nested in data property
+      if (response) {
+        if (Array.isArray(response)) {
+          setStock(response);
+        } else if (response.data && Array.isArray(response.data)) {
+          setStock(response.data);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error fetching stock entries:", error);
+      toast({
+        title: "Loading Error",
+        description: "Failed to load stock data",
+        variant: "destructive",
+        duration: 1000
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, stock: false }));
+    }
+  }, []);
+
+  const refresh = useCallback(async (type?: "materials" | "stock") => {
+    console.log('🔄 Manual refresh - fetching fresh data...', type || 'all');
+    if (!type || type === "materials") {
+      await fetchMaterials();
+    }
+    if (!type || type === "stock") {
+      await fetchStock();
+    }
+  }, [fetchMaterials, fetchStock]);
+
+  // Initial data loading
+  useEffect(() => {
+    const loadInitialData = async () => {
+      if (activeTab === "material" || activeTab === "stock") {
+        await refresh();
+      } else if (activeTab === "material") {
+        await fetchMaterials();
+      } else if (activeTab === "stock") {
+        await fetchStock();
+      }
+    };
+    
+    loadInitialData();
+  }, []);
 
   const materialsWithStock = useMemo(() => {
     const baseMaterials = materials.map(material => {
@@ -70,26 +141,22 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   }, [materials, stock, selectedMaterial]);
 
   const tabLoading = {
-    material: status.individual.materials.loading && materials.length === 0,
-    stock: status.individual.stock.loading && stock.length === 0
+    material: loading.materials && materials.length === 0,
+    stock: loading.stock && stock.length === 0
   };
   const handleTabChange = useCallback(
     async (value: string) => {
       setActiveTab(value);
       switch (value) {
         case "material":
-          if (!isCacheValid("materials")) {
-            await refresh("materials");
-          }
+          await fetchMaterials();
           break;
         case "stock":
-          if (!isCacheValid("stock")) {
-            await refresh("stock");
-          }
+          await fetchStock();
           break;
       }
     },
-    [setActiveTab, isCacheValid, refresh]
+    [setActiveTab, fetchMaterials, fetchStock]
   );
 
   const handleMaterialSubmit = useCallback(
@@ -97,7 +164,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
       setOperationLoading(prev => ({ ...prev, material: true }));
       try {
         if (selectedMaterial) {
-          await inventoryAPIWithPrefetch.materials.updateMaterialWithCache(selectedMaterial.id, {
+          await materialsAPI.updateMaterial(selectedMaterial.id, {
             ...data,
             category: selectedMaterial.category,
             isPOSItem: selectedMaterial.isPOSItem
@@ -108,7 +175,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
             duration: 1000
           });
         } else {
-          await inventoryAPIWithPrefetch.materials.createMaterialWithCache({
+          await materialsAPI.createMaterial({
             ...data,
             category: data.category as MaterialCategory,
             isPOSItem: false
@@ -141,14 +208,14 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
       setOperationLoading(prev => ({ ...prev, stock: true }));
       try {
         if (selectedStockEntry) {
-          await inventoryAPIWithPrefetch.stock.updateStockEntryWithCache(selectedStockEntry.id, data);
+          await stockAPI.updateStockEntry(selectedStockEntry.id, data);
           toast({
             title: "Updated",
             description: "Stock entry updated",
             duration: 1000
           });
         } else {
-          await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(data);
+          await stockAPI.createStockEntry(data);
           toast({
             title: "Created",
             description: "Stock entry created",
@@ -254,7 +321,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
     async (materialId: string) => {
       setOperationLoading(prev => ({ ...prev, [`delete-material-${materialId}`]: true }));
       try {
-        await inventoryAPIWithPrefetch.materials.deleteMaterialWithCache(materialId);
+        await materialsAPI.deleteMaterial(materialId);
         // Force fresh data fetch to ensure latest data
         console.log('🔄 Forcing fresh data fetch after material deletion...');
         await refresh("materials");
@@ -281,6 +348,38 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
     [onDeleteMaterial, refresh]
   );
 
+  const handleDeleteStockEntry = useCallback(
+    async (stockEntryId: string) => {
+      setOperationLoading(prev => ({ ...prev, [`delete-stock-${stockEntryId}`]: true }));
+      try {
+        await stockAPI.deleteStockEntry(stockEntryId);
+        // Force fresh data fetch to ensure latest data
+        console.log('🔄 Forcing fresh data fetch after stock entry deletion...');
+        await refresh("stock");
+        await refresh("materials");
+        toast({
+          title: "Deleted",
+          description: "Stock entry deleted",
+          duration: 1000
+        });
+        // Only call the callback if it exists
+        if (onDeleteStockEntry) {
+          onDeleteStockEntry(stockEntryId);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete stock entry",
+          variant: "destructive",
+          duration: 1000
+        });
+      } finally {
+        setOperationLoading(prev => ({ ...prev, [`delete-stock-${stockEntryId}`]: false }));
+      }
+    },
+    [onDeleteStockEntry, refresh]
+  );
+
   const handleAddStockOperation = useCallback(
     async (data: Partial<CreateStockEntryData> & { wasteQuantity?: number; wasteReason?: string }) => {
       try {
@@ -297,7 +396,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           batchNumber: data.batchNumber,
           notes: data.notes
         };
-        await inventoryAPIWithPrefetch.stock.createStockEntryWithCache(stockEntryData);
+        await stockAPI.createStockEntry(stockEntryData);
         // Force fresh data fetch to ensure latest data
         console.log('🔄 Forcing fresh stock data fetch after add stock operation...');
         await refresh("stock");
@@ -322,7 +421,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
   const handleRecordWasteOperation = useCallback(
     async (data: RecordWasteData) => {
       try {
-        await inventoryAPIWithPrefetch.stock.recordWasteWithCache(data);
+        await stockAPI.recordWaste(data);
         // Force fresh data fetch to ensure latest data
         console.log('🔄 Forcing fresh stock data fetch after waste operation...');
         await refresh("stock");
@@ -368,7 +467,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           additionDate: new Date(),
           notes: data.notes
         };
-        await inventoryAPIWithPrefetch.stock.addToSpecificEntryWithCache(data.stockEntryId, addData);
+        await stockAPI.addToSpecificEntry(data.stockEntryId, addData);
         // Force fresh data fetch to ensure latest data
         console.log('🔄 Forcing fresh stock data fetch after add to specific entry...');
         await refresh("stock");
@@ -398,16 +497,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
     await refresh("materials");
   }, [refresh]);
 
-  const handleDeleteStockEntry = useCallback(
-    async (stockEntryId: string | number) => {
-      await inventoryAPIWithPrefetch.stock.deleteStockEntryWithCache(stockEntryId.toString());
-      // Force fresh data fetch to ensure latest data
-      console.log('🔄 Forcing fresh stock data fetch after stock entry deletion...');
-      await refresh("stock");
-      await refresh("materials");
-    },
-    [refresh]
-  );
+  // This function is already defined above with more complete implementation
 
   const handleTogglePOSVisibility = useCallback(
     async (entry: StockEntry & { material?: Material }) => {
@@ -467,7 +557,7 @@ export function InventoryManagementPanel({ onDeleteMaterial }: InventoryManageme
           notes: data.notes
         };
 
-        await inventoryAPIWithPrefetch.stock.wasteFromSpecificEntryWithCache(data.stockEntryId, wasteData);
+        await stockAPI.wasteFromSpecificEntry(data.stockEntryId, wasteData);
 
         // Force fresh data fetch to ensure latest data
         console.log('🔄 Forcing fresh stock data fetch after waste from specific entry...');

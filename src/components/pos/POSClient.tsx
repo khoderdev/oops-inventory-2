@@ -36,7 +36,6 @@ import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
-  // Direct API state management instead of usePrefetch hooks
   const [stock, setStock] = useState<StockEntryWithMaterial[]>([]);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);

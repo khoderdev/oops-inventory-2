@@ -563,10 +563,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     return currentMenuItems.filter(item => {
       const searchLower = searchTerm.toLowerCase();
       const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
-      const matchesIngredients = item.ingredients.some(ingredient => {
+      const matchesIngredients = item.ingredients && Array.isArray(item.ingredients) ? item.ingredients.some(ingredient => {
         const materialName = getMaterialName(ingredient.materialId);
         return materialName.toLowerCase().includes(searchLower);
-      });
+      }) : false;
       const matchesSearch = matchesNameOrDescription || matchesIngredients;
       // Handle different category formats: string, object, or number
       const matchesCategory =
