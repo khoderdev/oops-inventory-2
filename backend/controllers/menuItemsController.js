@@ -2,14 +2,9 @@ import sequelize from "../config/database.js";
 import { MenuItem, MenuItemIngredient, Variants } from "../models/index.js";
 import Category from "../models/Category.js";
 import Material from "../models/materials.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
-import multer from "multer";
 
 const menuItemsController = {
-  // Get all menu items with ingredients
   getAllMenuItems: async (req, res, next) => {
     try {
       const menuItems = await MenuItem.findAll({
@@ -35,7 +30,6 @@ const menuItemsController = {
           }
         ]
       });
-
       const formattedMenuItems = menuItems.map(item => ({
         ...item.get(),
         ingredients: item.menuItemIngredients.map(ingredient => ({
@@ -46,7 +40,6 @@ const menuItemsController = {
         })),
         variants: item.variants || []
       }));
-
       res.status(200).json(formattedMenuItems);
     } catch (error) {
       next(error);
@@ -84,7 +77,6 @@ const menuItemsController = {
       if (!menuItem) {
         return res.status(404).json({ error: "Menu item not found" });
       }
-
       const formattedMenuItem = {
         ...menuItem.get(),
         ingredients: menuItem.menuItemIngredients.map(ingredient => ({
@@ -95,7 +87,6 @@ const menuItemsController = {
         })),
         variants: menuItem.variants || []
       };
-
       res.status(200).json(formattedMenuItem);
     } catch (error) {
       next(error);
@@ -121,55 +112,29 @@ const menuItemsController = {
         costPerUnit,
         variants
       } = req.body;
-
-      // Debug logging to see what backend receives
-      console.log('📥 Backend: Full req.body:', req.body);
-      console.log('📥 Backend: Extracted beverage fields:', {
-        name,
-        category: typeof category === 'string' ? category : category,
-        beverageStockId,
-        unit,
-        availableQuantity,
-        costPerUnit,
-        variants: typeof variants === 'string' ? 'JSON string' : variants,
-        hasImageFile: !!req.file
-      });
-
-      // Validate and convert price
       const priceValue = typeof price === "string" ? parseFloat(price) : price;
       if (isNaN(priceValue)) {
         await transaction.rollback();
         return res.status(400).json({ error: "Price must be a valid number" });
       }
-
-      // Validate required fields
       if (!name || price === undefined || !category) {
         await transaction.rollback();
         return res.status(400).json({ error: "Name, price, and category are required" });
       }
-
-      // Validate name is not empty
       if (name.trim() === "") {
         await transaction.rollback();
         return res.status(400).json({ error: "Name cannot be empty" });
       }
-
-      // Validate price is non-negative
       if (priceValue < 0) {
         await transaction.rollback();
         return res.status(400).json({ error: "Price cannot be negative" });
       }
-
-      // Extract categoryId from category object or use category directly
       let categoryId = null;
       let categoryValue = null;
-
       if (typeof category === "object" && category !== null && category.id) {
-        // Category is an object with id and name
         categoryId = category.id;
         categoryValue = category.name || category.value;
       } else if (typeof category === "string") {
-        // Try to parse as JSON first (for FormData submissions)
         try {
           const parsedCategory = JSON.parse(category);
           if (parsedCategory && typeof parsedCategory === "object" && parsedCategory.id) {
@@ -178,26 +143,20 @@ const menuItemsController = {
           } else {
           }
         } catch (e) {
-          // If JSON parsing fails, treat as regular string value
-          // Try to find by value first, then by name
           let categoryRecord = await Category.findOne({
             where: { value: category, type: "menu_items", isActive: true }
           });
-
           if (!categoryRecord) {
-            // If not found by value, try to find by name
             categoryRecord = await Category.findOne({
               where: { name: category, type: "menu_items", isActive: true }
             });
           }
-
           if (categoryRecord) {
             categoryId = categoryRecord.id;
             categoryValue = categoryRecord.value;
           }
         }
       } else if (typeof category === "number") {
-        // Category is already an ID
         categoryId = category;
         const categoryRecord = await Category.findByPk(categoryId);
         if (categoryRecord && categoryRecord.type === "menu_items" && categoryRecord.isActive) {
@@ -205,28 +164,21 @@ const menuItemsController = {
         } else {
         }
       }
-
-      // Validate that we have a valid categoryId
       if (!categoryId) {
         await transaction.rollback();
         return res.status(400).json({
           error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.`
         });
       }
-
-      // Verify the category exists and is active
       const categoryRecord = await Category.findOne({
         where: { id: categoryId, type: "menu_items", isActive: true }
       });
-
       if (!categoryRecord) {
         await transaction.rollback();
         return res.status(400).json({
           error: `Category with ID ${categoryId} not found or inactive.`
         });
       }
-
-      // Parse ingredients if they exist
       let parsedIngredients = null;
       if (ingredients) {
         if (typeof ingredients === "string") {
@@ -240,12 +192,8 @@ const menuItemsController = {
           parsedIngredients = ingredients;
         }
       }
-
-      // Check if ingredients are required for this category
       const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
       const requiresIngredients = !noIngredientsCategories.includes(categoryValue?.toLowerCase());
-
-      // Parse and validate beverage-specific fields
       let beverageData = {};
       if (beverageStockId !== undefined) {
         const stockId = typeof beverageStockId === "string" ? parseInt(beverageStockId) : beverageStockId;
@@ -255,11 +203,9 @@ const menuItemsController = {
         }
         beverageData.beverageStockId = stockId;
       }
-
       if (unit !== undefined) {
         beverageData.unit = unit;
       }
-
       if (availableQuantity !== undefined) {
         const quantity = typeof availableQuantity === "string" ? parseFloat(availableQuantity) : availableQuantity;
         if (isNaN(quantity) || quantity < 0) {
@@ -268,7 +214,6 @@ const menuItemsController = {
         }
         beverageData.availableQuantity = quantity;
       }
-
       if (costPerUnit !== undefined) {
         const cost = typeof costPerUnit === "string" ? parseFloat(costPerUnit) : costPerUnit;
         if (isNaN(cost) || cost < 0) {
@@ -277,8 +222,6 @@ const menuItemsController = {
         }
         beverageData.costPerUnit = cost;
       }
-
-      // Parse variants if they exist
       let parsedVariants = null;
       if (variants) {
         if (typeof variants === "string") {
@@ -292,8 +235,6 @@ const menuItemsController = {
           parsedVariants = variants;
         }
       }
-
-      // Validate ingredients if any are provided
       if (parsedIngredients && parsedIngredients.length > 0) {
         for (const ingredient of parsedIngredients) {
           if (!ingredient.materialId || ingredient.quantity === undefined || !ingredient.unit || ingredient.cost === undefined) {
@@ -314,33 +255,22 @@ const menuItemsController = {
           }
         }
       } else {
-        // No ingredients provided - check if they're required for this category
         if (requiresIngredients) {
           await transaction.rollback();
           return res.status(400).json({ 
             error: `Ingredients are required for ${categoryValue} items. Please add at least one ingredient.` 
           });
         }
-        // Set empty array for categories that don't require ingredients
         parsedIngredients = [];
       }
-
-      // Handle image (either from file upload or base64)
       let imageUrl = null;
-
-      // Priority order: 1. File upload, 2. Base64 data, 3. Legacy image field
       if (req.file) {
-        // File upload via multer (highest priority)
         imageUrl = `/uploads/menu/${req.file.filename}`;
       } else if (imageBase64 && typeof imageBase64 === "string" && imageBase64.startsWith("data:image/")) {
-        // Base64 image data (second priority)
         imageUrl = imageBase64;
       } else if (image) {
-        // Legacy image field (third priority)
         imageUrl = image;
       }
-
-      // Create menu item with properly converted price, categoryId, and beverage data
       const menuItem = await MenuItem.create(
         {
           name,
@@ -353,20 +283,14 @@ const menuItemsController = {
         },
         { transaction }
       );
-
-      // Create ingredients if provided
       if (parsedIngredients && parsedIngredients.length > 0) {
         const ingredientData = parsedIngredients.map(ingredient => {
-          // Ensure cost is properly formatted as a decimal number with fixed precision
           const cost = typeof ingredient.cost === 'string' 
             ? parseFloat(ingredient.cost).toFixed(6) 
             : parseFloat(ingredient.cost).toFixed(6);
-          
-          // Ensure quantity is properly formatted as a decimal number with fixed precision
           const quantity = typeof ingredient.quantity === 'string'
             ? parseFloat(ingredient.quantity).toFixed(6)
             : parseFloat(ingredient.quantity).toFixed(6);
-            
           return {
             menuItemId: menuItem.id,
             materialId: ingredient.materialId,
@@ -377,27 +301,21 @@ const menuItemsController = {
         });
         await MenuItemIngredient.bulkCreate(ingredientData, { transaction });
       }
-
-      // Create variants if provided
       if (parsedVariants && typeof parsedVariants === "object") {
         const variantEntries = Object.entries(parsedVariants);
         if (variantEntries.length > 0) {
           const variantData = variantEntries.map(([variantName, variantInfo], index) => {
-            // Validate variant data
             if (!variantInfo.volume || !variantInfo.unit || variantInfo.price === undefined) {
               throw new Error(`Variant "${variantName}" is missing required fields (volume, unit, price)`);
             }
-
             const volume = typeof variantInfo.volume === "string" ? parseFloat(variantInfo.volume) : variantInfo.volume;
             const price = typeof variantInfo.price === "string" ? parseFloat(variantInfo.price) : variantInfo.price;
-
             if (isNaN(volume) || volume <= 0) {
               throw new Error(`Variant "${variantName}" has invalid volume`);
             }
             if (isNaN(price) || price < 0) {
               throw new Error(`Variant "${variantName}" has invalid price`);
             }
-
             return {
               menuItemId: menuItem.id,
               name: variantName,
@@ -408,12 +326,9 @@ const menuItemsController = {
               sortOrder: index
             };
           });
-
           await Variants.bulkCreate(variantData, { transaction });
         }
       }
-
-      // Fetch the created menu item with ingredients, variants, and category
       const createdMenuItem = await MenuItem.findByPk(menuItem.id, {
         include: [
           {
@@ -443,20 +358,6 @@ const menuItemsController = {
         ...createdMenuItem.get(),
         variants: createdMenuItem.variants || []
       };
-
-      // Debug logging to see what's being returned
-      console.log('🔍 Backend: Created beverage item response:', {
-        id: formattedMenuItem.id,
-        name: formattedMenuItem.name,
-        beverageStockId: formattedMenuItem.beverageStockId,
-        unit: formattedMenuItem.unit,
-        availableQuantity: formattedMenuItem.availableQuantity,
-        costPerUnit: formattedMenuItem.costPerUnit,
-        variants: formattedMenuItem.variants,
-        category: formattedMenuItem.category,
-        image: formattedMenuItem.image
-      });
-
       await transaction.commit();
       res.status(201).json(formattedMenuItem);
     } catch (error) {
@@ -471,14 +372,11 @@ const menuItemsController = {
     try {
       const { id } = req.params;
       const { name, price, category, description, ingredients, isPOSItem, image, imageBase64 } = req.body;
-
       const menuItem = await MenuItem.findByPk(id, { transaction });
       if (!menuItem) {
         await transaction.rollback();
         return res.status(404).json({ error: "Menu item not found" });
       }
-
-      // Handle price conversion if provided
       let priceValue = price;
       if (price !== undefined) {
         priceValue = typeof price === "string" ? parseFloat(price) : price;
@@ -487,29 +385,21 @@ const menuItemsController = {
           return res.status(400).json({ error: "Price must be a valid number" });
         }
       }
-
-      // Validate name if provided
       if (name !== undefined && name.trim() === "") {
         await transaction.rollback();
         return res.status(400).json({ error: "Name cannot be empty" });
       }
-
-      // Validate price if provided
       if (price !== undefined && priceValue < 0) {
         await transaction.rollback();
         return res.status(400).json({ error: "Price cannot be negative" });
       }
-
-      // Handle category update if provided
       let categoryId = undefined;
       let categoryValue = null;
-
       if (category !== undefined) {
         if (typeof category === "object" && category !== null && category.id) {
           categoryId = category.id;
           categoryValue = category.name || category.value;
         } else if (typeof category === "string") {
-          // Try to parse as JSON first (for FormData submissions)
           try {
             const parsedCategory = JSON.parse(category);
             if (parsedCategory && typeof parsedCategory === "object" && parsedCategory.id) {
@@ -518,19 +408,14 @@ const menuItemsController = {
             } else {
             }
           } catch (e) {
-            // If JSON parsing fails, treat as regular string value
-            // Try to find by value first, then by name
             let categoryRecord = await Category.findOne({
               where: { value: category, type: "menu_items", isActive: true }
             });
-
             if (!categoryRecord) {
-              // If not found by value, try to find by name
               categoryRecord = await Category.findOne({
                 where: { name: category, type: "menu_items", isActive: true }
               });
             }
-
             if (categoryRecord) {
               categoryId = categoryRecord.id;
               categoryValue = categoryRecord.value;
@@ -538,22 +423,18 @@ const menuItemsController = {
             }
           }
         } else if (typeof category === "number") {
-          // Category is already an ID
           categoryId = category;
           const categoryRecord = await Category.findByPk(categoryId);
           if (categoryRecord && categoryRecord.type === "menu_items" && categoryRecord.isActive) {
             categoryValue = categoryRecord.value;
           }
         }
-
         if (!categoryId) {
           await transaction.rollback();
           return res.status(400).json({
             error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.`
           });
         }
-
-        // Verify the category exists and is active
         const categoryRecord = await Category.findOne({
           where: { id: categoryId, type: "menu_items", isActive: true }
         });
@@ -564,11 +445,8 @@ const menuItemsController = {
           });
         }
       }
-
-      // Parse and validate ingredients if provided
       let parsedIngredients = ingredients;
       if (ingredients !== undefined) {
-        // Handle case where ingredients come as JSON string (from FormData)
         if (typeof ingredients === "string") {
           try {
             parsedIngredients = JSON.parse(ingredients);
@@ -577,7 +455,6 @@ const menuItemsController = {
             return res.status(400).json({ error: "Invalid ingredients format - must be valid JSON array" });
           }
         }
-
         if (!Array.isArray(parsedIngredients)) {
           await transaction.rollback();
           return res.status(400).json({ error: "Ingredients must be an array" });
@@ -603,25 +480,17 @@ const menuItemsController = {
           }
         }
       }
-
-      // Handle image update (either from file upload or base64)
-      let imageUrl = menuItem.image; // Keep existing image by default
-      // Priority order: 1. File upload, 2. Base64 data, 3. Legacy image field
+      let imageUrl = menuItem.image;
       if (req.file) {
-        // File upload via multer (highest priority)
         imageUrl = `/uploads/menu/${req.file.filename}`;
       } else if (imageBase64 !== undefined && typeof imageBase64 === "string" && imageBase64.startsWith("data:image/")) {
-        // Base64 image data (second priority)
         imageUrl = imageBase64;
       } else if (image !== undefined) {
-        // Base64 image data or null to remove image
-
         if (typeof image === "string") {
-          // Handle case where image comes as JSON string (from FormData)
           if (image.startsWith("[") || image.startsWith("{")) {
             try {
               const parsedImage = JSON.parse(image);
-              imageUrl = null; // Don't use parsed JSON as image
+              imageUrl = null;
             } catch (e) {
               imageUrl = image;
             }
@@ -629,15 +498,11 @@ const menuItemsController = {
             imageUrl = image;
           }
         } else if (typeof image === "object") {
-          // Handle case where image comes as empty object from FormData
-          // Keep existing image when object is passed (don't update)
           imageUrl = menuItem.image;
         } else {
           imageUrl = image;
         }
       }
-
-      // Update menu item with proper price and categoryId handling
       await menuItem.update(
         {
           name: name !== undefined ? name : menuItem.name,
@@ -649,28 +514,19 @@ const menuItemsController = {
         },
         { transaction }
       );
-
-      // Update ingredients if provided
       if (ingredients !== undefined) {
-        // Delete existing ingredients
         await MenuItemIngredient.destroy({
           where: { menuItemId: id },
           transaction
         });
-
-        // Create new ingredients if any
         if (parsedIngredients.length > 0) {
           const ingredientData = parsedIngredients.map(ingredient => {
-            // Ensure cost is properly formatted as a decimal number with fixed precision
             const cost = typeof ingredient.cost === 'string' 
               ? parseFloat(ingredient.cost).toFixed(6) 
               : parseFloat(ingredient.cost).toFixed(6);
-            
-            // Ensure quantity is properly formatted as a decimal number with fixed precision
             const quantity = typeof ingredient.quantity === 'string'
               ? parseFloat(ingredient.quantity).toFixed(6)
               : parseFloat(ingredient.quantity).toFixed(6);
-              
             return {
               menuItemId: id,
               materialId: ingredient.materialId,
@@ -682,8 +538,6 @@ const menuItemsController = {
           await MenuItemIngredient.bulkCreate(ingredientData, { transaction });
         }
       }
-
-      // Fetch the updated menu item with ingredients and category
       const updatedMenuItem = await MenuItem.findByPk(id, {
         include: [
           {
@@ -700,7 +554,6 @@ const menuItemsController = {
         ],
         transaction
       });
-
       const formattedMenuItem = {
         ...updatedMenuItem.get(),
         ingredients: updatedMenuItem.menuItemIngredients.map(ingredient => ({
@@ -710,7 +563,6 @@ const menuItemsController = {
           cost: ingredient.cost
         }))
       };
-
       await transaction.commit();
       res.status(200).json(formattedMenuItem);
     } catch (error) {
@@ -725,21 +577,15 @@ const menuItemsController = {
     try {
       const { id } = req.params;
       const menuItem = await MenuItem.findByPk(id, { transaction });
-
       if (!menuItem) {
         await transaction.rollback();
         return res.status(404).json({ error: "Menu item not found" });
       }
-
-      // Delete associated ingredients
       await MenuItemIngredient.destroy({
         where: { menuItemId: id },
         transaction
       });
-
-      // Delete menu item
       await menuItem.destroy({ transaction });
-
       await transaction.commit();
       res.status(204).send();
     } catch (error) {
@@ -748,28 +594,20 @@ const menuItemsController = {
     }
   },
 
-  // Assign printer to menu item
   assignPrinter: async (req, res, next) => {
     try {
       const { id } = req.params;
       const { printerId } = req.body;
-
-      // Validate printer exists if printerId is provided
       if (printerId) {
         const printer = await Printer.findByPk(printerId);
         if (!printer) {
           return res.status(404).json({ error: "Printer not found" });
         }
       }
-
-      // Update menu item with printer assignment
       const [updatedRowsCount] = await MenuItem.update({ printerId: printerId || null }, { where: { id } });
-
       if (updatedRowsCount === 0) {
         return res.status(404).json({ error: "Menu item not found" });
       }
-
-      // Fetch updated menu item with printer info
       const updatedMenuItem = await MenuItem.findByPk(id, {
         include: [
           {
@@ -784,7 +622,6 @@ const menuItemsController = {
           }
         ]
       });
-
       res.status(200).json({
         message: printerId ? "Printer assigned successfully" : "Printer assignment removed",
         menuItem: updatedMenuItem
@@ -809,12 +646,11 @@ const menuItemsController = {
             model: Printer,
             as: "assignedPrinter",
             attributes: ["id", "name", "type", "status", "location"],
-            required: false // LEFT JOIN to include items without printers
+            required: false
           }
         ],
         order: [["id", "ASC"]]
       });
-
       const formattedMenuItems = menuItems.map(item => ({
         ...item.get(),
         ingredients: item.menuItemIngredients.map(ingredient => ({
@@ -824,7 +660,6 @@ const menuItemsController = {
           cost: ingredient.cost
         }))
       }));
-
       res.status(200).json(formattedMenuItems);
     } catch (error) {
       console.error("Error fetching menu items with printers:", error);
@@ -836,22 +671,16 @@ const menuItemsController = {
   bulkAssignPrinter: async (req, res, next) => {
     try {
       const { menuItemIds, printerId } = req.body;
-
       if (!Array.isArray(menuItemIds) || menuItemIds.length === 0) {
         return res.status(400).json({ error: "Menu item IDs array is required" });
       }
-
-      // Validate printer exists if printerId is provided
       if (printerId) {
         const printer = await Printer.findByPk(printerId);
         if (!printer) {
           return res.status(404).json({ error: "Printer not found" });
         }
       }
-
-      // Update multiple menu items
       const [updatedRowsCount] = await MenuItem.update({ printerId: printerId || null }, { where: { id: menuItemIds } });
-
       res.status(200).json({
         message: `${updatedRowsCount} menu items updated`,
         updatedCount: updatedRowsCount
@@ -866,31 +695,21 @@ const menuItemsController = {
   bulkUpdateCategory: async (req, res, next) => {
     try {
       const { menuItemIds, category } = req.body;
-
-      // Validate input
       if (!Array.isArray(menuItemIds) || menuItemIds.length === 0) {
         return res.status(400).json({ error: "Menu item IDs array is required" });
       }
-
       if (!category || typeof category !== "string") {
         return res.status(400).json({ error: "Category is required and must be a string" });
       }
-
-      // Validate category
       if (!(await isValidCategory(category, "menu_items"))) {
         return res.status(400).json({
           error: `Invalid menu item category: ${category}. Please use a valid category from the database.`
         });
       }
-
-      // Update multiple menu items
       const [updatedRowsCount] = await MenuItem.update({ category }, { where: { id: menuItemIds } });
-
       if (updatedRowsCount === 0) {
         return res.status(404).json({ error: "No menu items found with the provided IDs" });
       }
-
-      // Fetch updated menu items to return them
       const updatedMenuItems = await MenuItem.findAll({
         where: { id: menuItemIds },
         include: [
@@ -906,7 +725,6 @@ const menuItemsController = {
           }
         ]
       });
-
       const formattedMenuItems = updatedMenuItems.map(item => ({
         ...item.get(),
         ingredients: item.menuItemIngredients.map(ingredient => ({
@@ -916,7 +734,6 @@ const menuItemsController = {
           cost: ingredient.cost
         }))
       }));
-
       res.status(200).json({
         message: `${updatedRowsCount} menu items updated to category: ${category}`,
         updatedCount: updatedRowsCount,
@@ -947,34 +764,27 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { 
-        baseMenuItem,       // The base menu item to create variants from
-        selectedVariants,  // Array of selected variant sizes to create
-        priceAdjustments,  // Object mapping size to price multiplier
-        nameFormat         // "prefix" or "suffix"
+        baseMenuItem,
+        selectedVariants,
+        priceAdjustments,
+        nameFormat
       } = req.body;
-
-      // Validate required fields
       if (!baseMenuItem || !baseMenuItem.id) {
         await transaction.rollback();
         return res.status(400).json({ error: "Base menu item is required" });
       }
-
       if (!Array.isArray(selectedVariants) || selectedVariants.length === 0) {
         await transaction.rollback();
         return res.status(400).json({ error: "At least one variant size must be selected" });
       }
-
       if (!priceAdjustments || typeof priceAdjustments !== "object") {
         await transaction.rollback();
         return res.status(400).json({ error: "Price adjustments are required" });
       }
-
       if (!nameFormat || (nameFormat !== "prefix" && nameFormat !== "suffix")) {
         await transaction.rollback();
         return res.status(400).json({ error: "Valid name format (prefix or suffix) is required" });
       }
-
-      // Fetch the base menu item to create variants from
       const menuItem = await MenuItem.findByPk(baseMenuItem.id, {
         include: [
           {
@@ -996,33 +806,20 @@ const menuItemsController = {
         await transaction.rollback();
         return res.status(404).json({ error: "Base menu item not found" });
       }
-
-      // Create variants for each selected size
       const createdVariants = [];
-      
       for (const size of selectedVariants) {
-        // Get price adjustment multiplier for this size (default to 1.0 if not specified)
         const priceMultiplier = priceAdjustments[size] !== undefined ? parseFloat(priceAdjustments[size]) : 1.0;
-        
         if (isNaN(priceMultiplier)) {
           await transaction.rollback();
           return res.status(400).json({ error: `Invalid price multiplier for size ${size}` });
         }
-        
-        // Format the variant name based on the selected format
         let variantName;
         if (nameFormat === "prefix") {
-          // Format: "Small Coffee"
           variantName = `${size.charAt(0).toUpperCase() + size.slice(1)} ${menuItem.name}`;
         } else {
-          // Format: "Coffee (Small)"
           variantName = `${menuItem.name} (${size.charAt(0).toUpperCase() + size.slice(1)})`;
         }
-        
-        // Calculate the adjusted price
         const adjustedPrice = parseFloat((menuItem.price * priceMultiplier).toFixed(2));
-        
-        // Create the variant
         const newVariant = await MenuItem.create(
           {
             name: variantName,
@@ -1031,15 +828,12 @@ const menuItemsController = {
             description: `${size.charAt(0).toUpperCase() + size.slice(1)} variant of ${menuItem.name}`,
             isPOSItem: menuItem.isPOSItem,
             image: menuItem.image,
-            // Add a reference to the parent item
             parentItemId: menuItem.id,
             variantSize: size,
-            variantId: uuidv4() // Generate a unique ID for this variant group
+            variantId: uuidv4()
           },
           { transaction }
         );
-        
-        // Copy ingredients if any
         if (menuItem.menuItemIngredients && menuItem.menuItemIngredients.length > 0) {
           const ingredientData = menuItem.menuItemIngredients.map(ingredient => ({
             menuItemId: newVariant.id,
@@ -1048,11 +842,8 @@ const menuItemsController = {
             unit: ingredient.unit,
             cost: ingredient.cost
           }));
-          
           await MenuItemIngredient.bulkCreate(ingredientData, { transaction });
         }
-        
-        // Fetch the complete variant with associations
         const completeVariant = await MenuItem.findByPk(newVariant.id, {
           include: [
             {
@@ -1069,7 +860,6 @@ const menuItemsController = {
           ],
           transaction
         });
-        
         const formattedVariant = {
           ...completeVariant.get(),
           ingredients: completeVariant.menuItemIngredients.map(ingredient => ({
@@ -1079,10 +869,8 @@ const menuItemsController = {
             cost: ingredient.cost
           }))
         };
-        
         createdVariants.push(formattedVariant);
       }
-      
       await transaction.commit();
       res.status(201).json({
         message: `Successfully created ${createdVariants.length} variants for ${menuItem.name}`,

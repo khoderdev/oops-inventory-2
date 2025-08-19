@@ -451,11 +451,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         cell: ({ row }) => {
           const totalCost = calculateMenuItemCost(row.original.ingredients || []);
           const profit = row.original.price - totalCost;
-          const profitMargin = row.original.price ? (profit / row.original.price) * 100 : 0;
+          // Ensure we have valid numbers for the profit margin calculation
+          const profitMargin = (row.original.price && row.original.price > 0) ? 
+            (profit / row.original.price) * 100 : 0;
           return (
             <div className={`text-right font-medium ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
               <div>{formatCurrency(profit)}</div>
-              <div className="text-xs">({formatNumber(profitMargin)}%)</div>
+              <div className="text-xs">({formatNumber(isNaN(profitMargin) ? 0 : profitMargin)}%)</div>
             </div>
           );
         },

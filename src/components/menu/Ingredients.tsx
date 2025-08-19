@@ -9,6 +9,7 @@ import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, use
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { Selection } from "../ui/Selection";
 
 interface IngredientsProps {
   ingredients: MenuItemIngredient[];
@@ -26,18 +27,7 @@ interface IngredientsProps {
   onErrorsChange?: (errors: { ingredients?: string; ingredientQuantity?: string }) => void;
 }
 
-export function Ingredients({
-  ingredients,
-  materials,
-  stockEntries,
-  menuItem,
-  category,
-  price,
-  onIngredientsChange,
-  onValidationChange,
-  errors = {},
-  onErrorsChange
-}: IngredientsProps) {
+export function Ingredients({ ingredients, materials, stockEntries, menuItem, category, price, onIngredientsChange, onValidationChange, errors = {}, onErrorsChange }: IngredientsProps) {
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
@@ -62,16 +52,22 @@ export function Ingredients({
 
   const calculateIngredientCost = useCallback(
     (ingredient: Omit<MenuItemIngredient, "cost">) => {
+      // Add debugging to trace calculation
+      console.log(`Calculating cost for ingredient:`, ingredient);
+
       const material = materials.find(m => String(m.id) === String(ingredient.materialId));
       if (!material) {
         console.warn(`Material not found for ID: ${ingredient.materialId}`);
         return 0;
       }
+      console.log(`Found material:`, material);
 
       // Get all stock entries for this material
       const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(ingredient.materialId));
+      console.log(`Found ${allStockEntries.length} stock entries for material ${material.name}`);
 
       if (allStockEntries.length === 0) {
+        console.warn(`No stock entries found for material ${material.name}`);
         return 0;
       }
 
@@ -81,15 +77,24 @@ export function Ingredients({
 
       // Calculate weighted average cost per base unit from all stock entries
       for (const entry of allStockEntries) {
+        console.log(`Processing stock entry:`, entry);
+
         // Use purchasedIndividualQuantity if available, otherwise use purchasedQuantity converted to base units
         let quantity = entry.purchasedIndividualQuantity || 0;
         if (quantity <= 0 && entry.purchasedQuantity) {
-          // Convert purchased quantity to base units
-          const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
-          quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
+          try {
+            // Convert purchased quantity to base units
+            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+            quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
+            console.log(`Converted quantity: ${entry.purchasedQuantity} ${entry.purchasedUnit} = ${quantity} ${material.baseUnit}`);
+          } catch (error) {
+            console.error(`Error converting units for ${material.name}:`, error);
+            continue;
+          }
         }
 
         if (quantity <= 0) {
+          console.warn(`Invalid quantity for stock entry:`, entry);
           continue;
         }
 
@@ -98,34 +103,56 @@ export function Ingredients({
         // First try to use costPerBaseUnit if available
         if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
           unitCost = entry.costPerBaseUnit;
+          console.log(`Using costPerBaseUnit: ${unitCost} per ${material.baseUnit}`);
         }
         // Otherwise calculate from totalCost and quantity (in base units)
         else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
+          console.log(`Calculated from totalCost: ${entry.totalCost} / ${quantity} = ${unitCost} per ${material.baseUnit}`);
         }
         // Fallback to costPerPurchasedUnit with conversion
         else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          // Convert from purchased unit cost to base unit cost
-          const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
-          unitCost = parseFloat(String(entry.costPerPurchasedUnit)) * conversionFactor;
+          try {
+            // Convert from purchased unit cost to base unit cost
+            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+            unitCost = parseFloat(String(entry.costPerPurchasedUnit)) / conversionFactor;
+            console.log(`Converted costPerPurchasedUnit: ${entry.costPerPurchasedUnit} per ${entry.purchasedUnit} = ${unitCost} per ${material.baseUnit}`);
+          } catch (error) {
+            console.error(`Error converting cost units for ${material.name}:`, error);
+            continue;
+          }
         }
 
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
           totalQuantity += quantity;
+          console.log(`Added to weighted cost: ${unitCost} * ${quantity} = ${unitCost * quantity}`);
+        } else {
+          console.warn(`Could not determine unit cost for stock entry:`, entry);
         }
       }
 
       // Calculate average cost per base unit
       if (totalQuantity > 0) {
         costPerUnit = totalWeightedCost / totalQuantity;
+        console.log(`Calculated average cost per base unit: ${totalWeightedCost} / ${totalQuantity} = ${costPerUnit} per ${material.baseUnit}`);
+      } else {
+        console.warn(`No valid quantity data for material ${material.name}`);
+        return 0;
       }
 
-      // Convert ingredient quantity to base unit and calculate final cost
-      const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
-      const finalCost = ingredient.quantity * conversionFactor * costPerUnit;
+      try {
+        // Convert ingredient quantity to base unit and calculate final cost
+        const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
+        const finalCost = ingredient.quantity * costPerUnit * conversionFactor;
+        console.log(`Final cost calculation: ${ingredient.quantity} ${ingredient.unit} * ${costPerUnit} per ${material.baseUnit} * ${conversionFactor} = ${finalCost}`);
 
-      return finalCost;
+        // Ensure we return a valid number, not NaN
+        return isNaN(finalCost) ? 0 : finalCost;
+      } catch (error) {
+        console.error(`Error calculating final cost for ${material.name}:`, error);
+        return 0;
+      }
     },
     [materials, stockEntries]
   );
@@ -186,13 +213,25 @@ export function Ingredients({
   );
 
   const totalIngredientsCost = useMemo(() => {
-    const total = ingredients.reduce((total, ingredient) => {
+    console.log("Calculating total ingredients cost for", ingredients.length, "ingredients");
+
+    // Initialize total as a number to ensure proper addition
+    let total = 0;
+
+    // Process each ingredient
+    ingredients.forEach(ingredient => {
       // Use stored cost if available (for existing menu items), otherwise calculate
       const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
       const cost = storedCost || calculateIngredientCost(ingredient);
-      return total + cost;
-    }, 0);
-    return total;
+
+      // Convert to number and add to total
+      const costValue = isNaN(parseFloat(String(cost))) ? 0 : parseFloat(String(cost));
+      console.log(`Ingredient ${ingredient.materialId}: cost = ${costValue}`);
+      total += costValue;
+    });
+
+    console.log("Total ingredients cost calculated:", total);
+    return isNaN(total) ? 0 : total;
   }, [ingredients, calculateIngredientCost, menuItem]);
 
   const handleAddIngredient = useCallback(() => {
@@ -224,13 +263,13 @@ export function Ingredients({
 
     const newIngredients = [...ingredients, newIngredient];
     onIngredientsChange(newIngredients);
-    
+
     setSelectedMaterialId("");
     setMaterialSearchTerm("");
     setShowMaterialDropdown(false);
     setIngredientQuantity("");
     setIngredientUnit("");
-    
+
     const newErrors = { ...errors, ingredientQuantity: undefined, ingredients: undefined };
     onErrorsChange?.(newErrors);
 
@@ -245,10 +284,13 @@ export function Ingredients({
     }, 0);
   }, [selectedMaterialId, ingredientQuantity, ingredientUnit, ingredients, onIngredientsChange, materials, calculateIngredientCost, errors, onErrorsChange]);
 
-  const handleRemoveIngredient = useCallback((index: number) => {
-    const newIngredients = ingredients.filter((_, i) => i !== index);
-    onIngredientsChange(newIngredients);
-  }, [ingredients, onIngredientsChange]);
+  const handleRemoveIngredient = useCallback(
+    (index: number) => {
+      const newIngredients = ingredients.filter((_, i) => i !== index);
+      onIngredientsChange(newIngredients);
+    },
+    [ingredients, onIngredientsChange]
+  );
 
   const handleMaterialSelect = useCallback(
     (materialId: string, materialName?: string) => {
@@ -307,48 +349,18 @@ export function Ingredients({
         </p>
       )}
 
-      <TanStackVirtualizedIngredientsTable 
-        ingredients={ingredients}
-        materials={materials}
-        menuItem={menuItem}
-        calculateIngredientCost={calculateIngredientCost}
-        getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit}
-        formatNumber={formatNumber}
-        formatCurrency={formatCurrency}
-        handleRemoveIngredient={handleRemoveIngredient}
-        totalIngredientsCost={totalIngredientsCost}
-        price={price}
-      />
+      <TanStackVirtualizedIngredientsTable ingredients={ingredients} materials={materials} menuItem={menuItem} calculateIngredientCost={calculateIngredientCost} getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit} formatNumber={formatNumber} formatCurrency={formatCurrency} handleRemoveIngredient={handleRemoveIngredient} totalIngredientsCost={totalIngredientsCost} price={price} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
         <div className="relative">
           <label htmlFor="material" className="block text-sm font-medium mb-1">
             Material
           </label>
-          <Input 
-            id="material" 
-            type="text" 
-            value={materialSearchTerm} 
-            onChange={e => handleMaterialSearchChange(e.target.value)} 
-            onFocus={handleMaterialInputFocus} 
-            onBlur={handleMaterialInputBlur} 
-            onKeyDown={handleKeyDown} 
-            placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."} 
-            disabled={availableMaterials.length === 0} 
-            aria-describedby="material-description" 
-            ref={materialSelectRef} 
-            autoComplete="off" 
-          />
+          <Input id="material" type="text" value={materialSearchTerm} onChange={e => handleMaterialSearchChange(e.target.value)} onFocus={handleMaterialInputFocus} onBlur={handleMaterialInputBlur} onKeyDown={handleKeyDown} placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."} disabled={availableMaterials.length === 0} aria-describedby="material-description" ref={materialSelectRef} autoComplete="off" />
           {showMaterialDropdown && filteredMaterials.length > 0 && (
             <div className="absolute z-50 w-full mt-1 bg-white border border-input rounded-md shadow-lg max-h-60 overflow-y-auto">
               {filteredMaterials.map(material => (
-                <button 
-                  key={material.id} 
-                  type="button" 
-                  className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" 
-                  onClick={() => handleMaterialSelect(material.id, material.name)} 
-                  onMouseDown={e => e.preventDefault()}
-                >
+                <button key={material.id} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => handleMaterialSelect(material.id, material.name)} onMouseDown={e => e.preventDefault()}>
                   <div className="font-medium">{material.name}</div>
                   <div className="text-sm text-muted-foreground">Base unit: {material.baseUnit}</div>
                 </button>
@@ -364,23 +376,14 @@ export function Ingredients({
             {availableMaterials.length === 0 ? "All materials are already used" : "Type to search and select a material"}
           </p>
         </div>
+
+
+
         <div>
           <label htmlFor="quantity" className="block text-sm font-medium mb-1">
             Quantity
           </label>
-          <Input 
-            id="quantity" 
-            type="number" 
-            value={ingredientQuantity} 
-            onChange={e => setIngredientQuantity(e.target.value)} 
-            onKeyDown={handleKeyDown} 
-            placeholder="0" 
-            min="0" 
-            step="0.01" 
-            disabled={!selectedMaterialId} 
-            aria-invalid={!!errors.ingredientQuantity} 
-            aria-describedby={errors.ingredientQuantity ? "quantity-error" : undefined} 
-          />
+          <Input id="quantity" type="number" value={ingredientQuantity} onChange={e => setIngredientQuantity(e.target.value)} onKeyDown={handleKeyDown} placeholder="0" min="0" step="0.01" disabled={!selectedMaterialId} aria-invalid={!!errors.ingredientQuantity} aria-describedby={errors.ingredientQuantity ? "quantity-error" : undefined} />
           {errors.ingredientQuantity && (
             <p id="quantity-error" className="text-sm text-red-500 mt-1">
               {errors.ingredientQuantity}
@@ -391,14 +394,7 @@ export function Ingredients({
           <label htmlFor="unit" className="block text-sm font-medium mb-1">
             Unit
           </label>
-          <select 
-            id="unit" 
-            value={ingredientUnit} 
-            onChange={e => setIngredientUnit(e.target.value)} 
-            onKeyDown={handleKeyDown} 
-            className="w-full px-3 py-2 border border-input bg-background rounded-md" 
-            disabled={!selectedMaterialId}
-          >
+          <select id="unit" value={ingredientUnit} onChange={e => setIngredientUnit(e.target.value)} onKeyDown={handleKeyDown} className="w-full px-3 py-2 border border-input bg-background rounded-md" disabled={!selectedMaterialId}>
             {selectedMaterialId ? (
               (() => {
                 const availableUnits = getAvailableUnits(selectedMaterialId, materials);
@@ -416,11 +412,7 @@ export function Ingredients({
       </div>
 
       <div className="flex justify-end mt-4">
-        <Button 
-          onClick={handleAddIngredient} 
-          disabled={!selectedMaterialId || !ingredientQuantity || !ingredientUnit} 
-          aria-label="Add ingredient"
-        >
+        <Button onClick={handleAddIngredient} disabled={!selectedMaterialId || !ingredientQuantity || !ingredientUnit} aria-label="Add ingredient">
           <Plus className="h-4 w-4 mr-2" />
           Add Ingredient
         </Button>
@@ -443,25 +435,11 @@ interface TanStackVirtualizedIngredientsTableProps {
   price: string;
 }
 
-const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ 
-  ingredients, 
-  materials, 
-  menuItem, 
-  calculateIngredientCost, 
-  getMaterialCostPerBaseUnit, 
-  formatNumber, 
-  formatCurrency, 
-  handleRemoveIngredient, 
-  totalIngredientsCost, 
-  price 
-}) => {
+const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ ingredients, materials, menuItem, calculateIngredientCost, getMaterialCostPerBaseUnit, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost, price }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-
-  // Column helper for TanStack Table
   const columnHelper = createColumnHelper<MenuItemIngredient & { index: number }>();
 
-  // Column definitions
   const columns = useMemo<ColumnDef<MenuItemIngredient & { index: number }>[]>(
     () => [
       // Material name column
@@ -494,19 +472,9 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
         id: "cost",
         header: "Cost",
         cell: ({ row }) => {
-          // Use stored cost if available (for existing menu items), otherwise calculate
           const storedCost = menuItem?.ingredients?.find(i => i.materialId === row.original.materialId)?.cost;
           const ingredientCost = storedCost || calculateIngredientCost(row.original);
-
-          return (
-            <div className="text-right font-medium">
-              {ingredientCost > 0 ? (
-                <span className="text-foreground">{formatCurrency(ingredientCost)}</span>
-              ) : (
-                <span className="text-red-500 text-xs">No cost data</span>
-              )}
-            </div>
-          );
+          return <div className="text-right font-medium">{ingredientCost > 0 ? <span className="text-foreground">{formatCurrency(ingredientCost)}</span> : <span className="text-red-500 text-xs">No cost data</span>}</div>;
         },
         size: 120
       }),
@@ -519,13 +487,7 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
           const material = materials.find(m => String(m.id) === String(row.original.materialId));
           return (
             <div className="text-right">
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600" 
-                onClick={() => handleRemoveIngredient(row.original.index)} 
-                aria-label={`Remove ${material?.name || "ingredient"}`}
-              >
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600" onClick={() => handleRemoveIngredient(row.original.index)} aria-label={`Remove ${material?.name || "ingredient"}`}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -537,8 +499,6 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
     ],
     [materials, menuItem, calculateIngredientCost, formatNumber, formatCurrency, handleRemoveIngredient]
   );
-
-  // Prepare data with index for removal functionality
   const tableData = useMemo(() => ingredients.map((ingredient, index) => ({ ...ingredient, index })), [ingredients]);
 
   // TanStack Table instance
@@ -562,13 +522,9 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
     overscan: 5
   });
 
-  if (ingredients.length === 0) {
-    return <div className="text-center py-4 text-muted-foreground">No ingredients added yet</div>;
-  }
-
   return (
     <div className="mb-4 border rounded-md overflow-hidden">
-      <div className="flex flex-1 flex-col min-h-0">
+      <div className="flex flex-1 flex-col min-h-0 h-[250px]">
         {/* Table Header */}
         <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
           <Table>
@@ -576,12 +532,7 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
               {table.getHeaderGroups().map(headerGroup => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map(header => (
-                    <TableHead 
-                      key={header.id} 
-                      style={{ width: header.getSize() }} 
-                      className={header.column.getCanSort() ? "cursor-pointer select-none" : ""} 
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
+                    <TableHead key={header.id} style={{ width: header.getSize() }} className={header.column.getCanSort() ? "cursor-pointer select-none" : ""} onClick={header.column.getToggleSortingHandler()}>
                       {header.isPlaceholder ? null : (
                         <div className="flex items-center gap-2">
                           {flexRender(header.column.columnDef.header, header.getContext())}
@@ -646,23 +597,44 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
         </div>
       </div>
 
-      {/* Footer with totals */}
-      {ingredients.length > 0 && (
-        <div className="px-4 py-3 bg-muted/50 border-t">
-          <div className="flex justify-between items-center font-medium">
-            <span>Total Ingredients Cost:</span>
-            <span className="text-lg font-semibold">{formatCurrency(totalIngredientsCost)}</span>
-          </div>
-          {parseFloat(price) > 0 && (
-            <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
-              <span>Profit Margin:</span>
-              <span className={parseFloat(price) - totalIngredientsCost >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                {formatCurrency(parseFloat(price) - totalIngredientsCost)} ({formatNumber(parseFloat(price) > 0 ? ((parseFloat(price) - totalIngredientsCost) / parseFloat(price)) * 100 : 0)}%)
-              </span>
-            </div>
-          )}
+      {/* Footer with totals - always render regardless of ingredients count */}
+      <div className="px-4 py-3 bg-muted/50 border-t">
+        <div className="flex justify-between items-center font-medium">
+          <span>Total Ingredients Cost:</span>
+          <span className="text-lg font-semibold">{formatCurrency(totalIngredientsCost || 0)}</span>
         </div>
-      )}
+        <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
+          <span>Profit Margin:</span>
+          <span
+            className={(() => {
+              const priceValue = parseFloat(price || "0");
+              const ingredientsCost = parseFloat(String(totalIngredientsCost || 0));
+              const profit = priceValue - ingredientsCost;
+              return profit >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium";
+            })()}
+          >
+            {(() => {
+              // Ensure we have valid numbers
+              const priceValue = parseFloat(price || "0");
+              const ingredientsCost = parseFloat(String(totalIngredientsCost || 0));
+
+              // Calculate profit
+              const profit = priceValue - ingredientsCost;
+              const profitDisplay = formatCurrency(profit);
+
+              // Calculate percentage
+              let percentageDisplay = "0%";
+              if (priceValue > 0) {
+                const percentage = (profit / priceValue) * 100;
+                percentageDisplay = `${formatNumber(isNaN(percentage) ? 0 : percentage)}%`;
+              }
+
+              console.log(`Profit calculation: ${priceValue} - ${ingredientsCost} = ${profit} (${percentageDisplay})`);
+              return `${profitDisplay} (${percentageDisplay})`;
+            })()}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

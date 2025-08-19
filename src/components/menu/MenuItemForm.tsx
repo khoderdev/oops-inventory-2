@@ -18,10 +18,10 @@ interface MenuItemFormProps {
 }
 
 export function MenuItemForm({ menuItem, materials, stockEntries, categories, onSubmit, onCancel }: MenuItemFormProps) {
-  console.log('[MenuItemForm] Initialization with props:', { 
-    menuItem: menuItem ? 'exists' : 'undefined', 
-    materialsCount: materials ? materials.length : 'undefined', 
-    stockEntriesCount: stockEntries ? stockEntries.length : 'undefined',
+  console.log("[MenuItemForm] Initialization with props:", {
+    menuItem: menuItem ? "exists" : "undefined",
+    materialsCount: materials ? materials.length : "undefined",
+    stockEntriesCount: stockEntries ? stockEntries.length : "undefined",
     categories: categories,
     categoriesType: typeof categories,
     categoriesIsArray: Array.isArray(categories)
@@ -34,11 +34,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
   const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(
     // Check both menuItem.ingredients and menuItem.menuItemIngredients
-    menuItem && menuItem.ingredients && Array.isArray(menuItem.ingredients)
-      ? menuItem.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost }))
-      : menuItem && menuItem.menuItemIngredients && Array.isArray(menuItem.menuItemIngredients)
-      ? menuItem.menuItemIngredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost }))
-      : []
+    menuItem && menuItem.ingredients && Array.isArray(menuItem.ingredients) ? menuItem.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) : menuItem && menuItem.menuItemIngredients && Array.isArray(menuItem.menuItemIngredients) ? menuItem.menuItemIngredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) : []
   );
   const [errors, setErrors] = useState<{
     name?: string;
@@ -50,12 +46,12 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   // Initialize category when menuItem or categories change
   useEffect(() => {
-    console.log('[MenuItemForm] useEffect for category initialization:', { 
-      categories, 
+    console.log("[MenuItemForm] useEffect for category initialization:", {
+      categories,
       categoriesType: typeof categories,
       categoriesIsArray: Array.isArray(categories),
       menuItemCategory: menuItem?.category,
-      menuItemCategoryType: menuItem?.category ? typeof menuItem.category : 'undefined'
+      menuItemCategoryType: menuItem?.category ? typeof menuItem.category : "undefined"
     });
     if (!Array.isArray(categories) || categories.length === 0) {
       setCategory("");
@@ -85,7 +81,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
       setCategory("");
     }
   }, [menuItem?.category, categories]);
-
 
   const validateForm = useCallback(() => {
     const newErrors: typeof errors = {};
@@ -138,13 +133,13 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
               cost: i.cost
             }))
           : menuItem.menuItemIngredients && Array.isArray(menuItem.menuItemIngredients)
-          ? menuItem.menuItemIngredients.map(i => ({
-              materialId: i.materialId,
-              quantity: i.quantity,
-              unit: i.unit,
-              cost: i.cost
-            }))
-          : []
+            ? menuItem.menuItemIngredients.map(i => ({
+                materialId: i.materialId,
+                quantity: i.quantity,
+                unit: i.unit,
+                cost: i.cost
+              }))
+            : []
       );
     } else {
       setName("");
@@ -155,7 +150,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
     setErrors({});
   }, [menuItem]);
-
 
   const handleImageChange = useCallback((imageValue: string | undefined, file?: File) => {
     setImage(imageValue);
@@ -230,7 +224,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
   }, [name, category, price, isPOSItem, image, ingredients, onSubmit, onCancel, validateForm]);
 
-
   const handleCancel = useCallback(() => {
     onCancel();
   }, [onCancel]);
@@ -255,13 +248,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   // CRITICAL FIX: Normalize category value to match dropdown options
   const normalizedCategory = useMemo(() => {
-    console.log('[MenuItemForm] normalizedCategory calculation:', { 
-      category, 
-      categories,
-      categoriesType: typeof categories,
-      categoriesIsArray: Array.isArray(categories),
-      categoriesLength: Array.isArray(categories) ? categories.length : 'not an array'
-    });
     if (!category || !Array.isArray(categories) || !categories.length) return category;
 
     // If category state doesn't match any dropdown option, try to find the correct value
@@ -279,15 +265,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
     return category;
   }, [category, categories]);
-
-  console.log('[MenuItemForm] Before render:', { 
-    categories,
-    categoriesType: typeof categories,
-    categoriesIsArray: Array.isArray(categories),
-    normalizedCategory
-  });
-
-
 
   return (
     <div className="space-y-6 p-4">
@@ -312,18 +289,19 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
           </label>
           <select id="category" value={normalizedCategory} onChange={e => setCategory(e.target.value as MenuItemCategory | "")} onKeyDown={handleKeyDown} className="w-full px-3 py-2 border border-input bg-background rounded-md" aria-invalid={!!errors.category} aria-describedby={errors.category ? "category-error" : undefined}>
             <option value="">Select a category</option>
-            {Array.isArray(categories) && categories.map(cat => (
-              // console.log('[MenuItemForm] Category option:', { 
-              //   cat,
-              //   catType: typeof cat,
-              //   catIsObject: typeof cat === 'object',
-              //   catValue: cat.value,
-              //   catName: cat.name
-              // }),
-              <option key={cat.value} value={cat.value}>
-                {cat.name}
-              </option>
-            ))}
+            {Array.isArray(categories) &&
+              categories.map(cat => (
+                // console.log('[MenuItemForm] Category option:', {
+                //   cat,
+                //   catType: typeof cat,
+                //   catIsObject: typeof cat === 'object',
+                //   catValue: cat.value,
+                //   catName: cat.name
+                // }),
+                <option key={cat.value} value={cat.value}>
+                  {cat.name}
+                </option>
+              ))}
           </select>
           {errors.category ? (
             <p id="category-error" className="text-sm text-red-500 mt-1">
@@ -357,11 +335,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         </div>
       </div>
 
-      {/* Image Upload Section */}
-      <div className="border-t pt-4">
-        <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
-      </div>
-
       <Ingredients
         ingredients={ingredients}
         materials={materials}
@@ -374,13 +347,18 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
           ingredients: errors.ingredients,
           ingredientQuantity: errors.ingredientQuantity
         }}
-        onErrorsChange={(ingredientErrors) => {
+        onErrorsChange={ingredientErrors => {
           setErrors(prev => ({
             ...prev,
             ...ingredientErrors
           }));
         }}
       />
+
+      {/* Image Upload Section */}
+      <div className="border-t pt-4">
+        <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
+      </div>
 
       <div className="flex justify-end gap-2 pt-4">
         <Button variant="outline" onClick={handleCancel} aria-label="Cancel form">
