@@ -247,6 +247,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {
+      if (!ingredients || !Array.isArray(ingredients)) {
+        return 0;
+      }
       return ingredients.reduce((sum, ingredient) => {
         if (ingredient.cost && ingredient.cost > 0) {
           return sum + ingredient.cost;
@@ -418,7 +421,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       columnHelper.display({
         id: "ingredients",
         header: "Ingredients",
-        cell: ({ row }) => <div className="text-center font-medium">{row.original.ingredients.length}</div>,
+        cell: ({ row }) => <div className="text-center font-medium">{row.original.ingredients?.length || 0}</div>,
         enableSorting: false,
         size: 100
       }),
@@ -428,7 +431,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         id: "cost",
         header: "Cost",
         cell: ({ row }) => {
-          const totalCost = calculateMenuItemCost(row.original.ingredients);
+          const totalCost = calculateMenuItemCost(row.original.ingredients || []);
           return <div className="text-right font-medium">{formatCurrency(totalCost)}</div>;
         },
         size: 96
@@ -446,7 +449,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         id: "profit",
         header: "Profit",
         cell: ({ row }) => {
-          const totalCost = calculateMenuItemCost(row.original.ingredients);
+          const totalCost = calculateMenuItemCost(row.original.ingredients || []);
           const profit = row.original.price - totalCost;
           const profitMargin = row.original.price ? (profit / row.original.price) * 100 : 0;
           return (

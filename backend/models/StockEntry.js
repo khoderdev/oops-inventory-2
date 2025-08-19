@@ -24,7 +24,7 @@ const StockEntry = sequelize.define(
       allowNull: true
     },
     purchasedQuantity: {
-      type: DataTypes.DECIMAL(10, 3),
+      type: DataTypes.DECIMAL(10, 0),
       allowNull: true
     },
     purchasedUnit: {

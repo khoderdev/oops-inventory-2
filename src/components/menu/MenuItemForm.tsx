@@ -24,7 +24,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
-  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(menuItem?.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) || []);
+  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(menuItem?.ingredients?.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) || []);
   const [errors, setErrors] = useState<{
     name?: string;
     category?: string;
