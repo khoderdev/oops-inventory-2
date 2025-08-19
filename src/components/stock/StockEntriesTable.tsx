@@ -40,14 +40,7 @@ const isVirtualEntry = (entry: StockEntryWithMaterial) => {
   return entry.supplier === "-";
 };
 
-export function StockEntriesTable({ 
-  stockEntries: prefetchedStockEntries, 
-  materials: prefetchedMaterials, 
-  loading: prefetchedLoading = false,
-  onRefresh, 
-  onDeleteStockEntry, 
-  onTogglePOSVisibility,
-}: StockEntriesTableProps) {
+export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materials: prefetchedMaterials, loading: prefetchedLoading = false, onRefresh, onDeleteStockEntry, onTogglePOSVisibility }: StockEntriesTableProps) {
   const [stockEntries, setStockEntries] = useState<(StockEntry | StockEntryWithMaterial)[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,29 +58,32 @@ export function StockEntriesTable({
   // Data fetching functions
   const fetchStockEntries = useCallback(async () => {
     try {
-      console.log('🔄 StockEntriesTable: Fetching stock entries from stockAPI...');
+      console.log("🔄 StockEntriesTable: Fetching stock entries from stockAPI...");
       setLoading(true);
       setError(null);
-      const response = await stockAPI.getStockEntries({ 
-        limit: 10000, 
+      const response = await stockAPI.getStockEntries({
+        limit: 10000,
         _t: Date.now(),
-        sortBy: 'purchaseDate',
-        sortOrder: 'DESC'
+        sortBy: "purchaseDate",
+        sortOrder: "DESC"
       });
-      console.log('✅ StockEntriesTable: Received stock entries from API:', response.length, 'entries');
-      console.log('📋 StockEntriesTable: Stock entries data:', response.map(entry => ({
-        id: entry.id,
-        materialId: entry.materialId,
-        supplier: entry.supplier,
-        purchasedIndividualQuantity: entry.purchasedIndividualQuantity,
-        purchasedQuantity: entry.purchasedQuantity,
-        purchasedUnit: entry.purchasedUnit,
-        totalCost: entry.totalCost,
-        purchaseDate: entry.purchaseDate
-      })));
+      console.log("✅ StockEntriesTable: Received stock entries from API:", response.length, "entries");
+      console.log(
+        "📋 StockEntriesTable: Stock entries data:",
+        response.map(entry => ({
+          id: entry.id,
+          materialId: entry.materialId,
+          supplier: entry.supplier,
+          purchasedIndividualQuantity: entry.purchasedIndividualQuantity,
+          purchasedQuantity: entry.purchasedQuantity,
+          purchasedUnit: entry.purchasedUnit,
+          totalCost: entry.totalCost,
+          purchaseDate: entry.purchaseDate
+        }))
+      );
       setStockEntries(response);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch stock entries';
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch stock entries";
       setError(errorMessage);
       toast({
         title: "Error",
@@ -102,25 +98,28 @@ export function StockEntriesTable({
 
   const fetchMaterials = useCallback(async () => {
     try {
-      console.log('🔄 StockEntriesTable: Fetching materials from materialsAPI...');
+      console.log("🔄 StockEntriesTable: Fetching materials from materialsAPI...");
       const response = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
-      console.log('✅ StockEntriesTable: Received materials from API:', response.length, 'materials');
-      console.log('🏷️ StockEntriesTable: Materials data:', response.map(material => ({
-        id: material.id,
-        name: material.name,
-        category: material.category,
-        unitType: material.unitType
-      })));
+      console.log("✅ StockEntriesTable: Received materials from API:", response.length, "materials");
+      console.log(
+        "🏷️ StockEntriesTable: Materials data:",
+        response.map(material => ({
+          id: material.id,
+          name: material.name,
+          category: material.category,
+          unitType: material.unitType
+        }))
+      );
       setMaterials(response);
     } catch (err) {
-      console.error('Failed to fetch materials:', err);
+      console.error("Failed to fetch materials:", err);
     }
   }, []);
 
   // Sync prefetched data with internal state for instant rendering
   useEffect(() => {
     if (prefetchedStockEntries && prefetchedStockEntries.length > 0) {
-      console.log('🔄 StockEntriesTable: Using prefetched stock entries for instant rendering:', prefetchedStockEntries.length, 'entries');
+      console.log("🔄 StockEntriesTable: Using prefetched stock entries for instant rendering:", prefetchedStockEntries.length, "entries");
       setStockEntries(prefetchedStockEntries);
       setLoading(false);
     }
@@ -128,7 +127,7 @@ export function StockEntriesTable({
 
   useEffect(() => {
     if (prefetchedMaterials && prefetchedMaterials.length > 0) {
-      console.log('🔄 StockEntriesTable: Using prefetched materials for instant rendering:', prefetchedMaterials.length, 'materials');
+      console.log("🔄 StockEntriesTable: Using prefetched materials for instant rendering:", prefetchedMaterials.length, "materials");
       setMaterials(prefetchedMaterials);
     }
   }, [prefetchedMaterials]);
@@ -143,22 +142,16 @@ export function StockEntriesTable({
   // Initial data fetch - only if no prefetched data available
   useEffect(() => {
     if (!prefetchedStockEntries || !prefetchedMaterials) {
-      console.log('🚀 StockEntriesTable: No prefetched data available - starting API fetch');
-      Promise.all([
-        fetchStockEntries(),
-        fetchMaterials()
-      ]);
+      console.log("🚀 StockEntriesTable: No prefetched data available - starting API fetch");
+      Promise.all([fetchStockEntries(), fetchMaterials()]);
     } else {
-      console.log('✅ StockEntriesTable: Using prefetched data - skipping API calls for instant rendering');
+      console.log("✅ StockEntriesTable: Using prefetched data - skipping API calls for instant rendering");
     }
   }, [fetchStockEntries, fetchMaterials, prefetchedStockEntries, prefetchedMaterials]);
 
   // Refresh function
   const handleRefresh = useCallback(async () => {
-    await Promise.all([
-      fetchStockEntries(),
-      fetchMaterials()
-    ]);
+    await Promise.all([fetchStockEntries(), fetchMaterials()]);
     if (onRefresh) {
       await onRefresh();
     }
@@ -180,16 +173,16 @@ export function StockEntriesTable({
       map.set(m.id.toString(), m);
       map.set(parseInt(m.id), m);
     });
-    
+
     stockEntries.forEach(entry => {
-      if ('material' in entry && entry.material && !map.has(entry.materialId)) {
+      if ("material" in entry && entry.material && !map.has(entry.materialId)) {
         const material = entry.material;
         map.set(material.id, material);
         map.set(material.id.toString(), material);
         map.set(parseInt(material.id), material);
       }
     });
-    
+
     return map;
   }, [materials, stockEntries]);
 
@@ -297,11 +290,9 @@ export function StockEntriesTable({
     });
   }, [stockEntries, updateCounter]);
 
-
-
   // Client-side filtering like MenuBuilder - instant search without API calls
   const filteredStockEntries = useMemo(() => {
-    console.log('🔍 StockEntriesTable: Filtering stock entries. Raw entries:', optimisticStockEntries.length, 'Materials map size:', materialsMap.size);
+    console.log("🔍 StockEntriesTable: Filtering stock entries. Raw entries:", optimisticStockEntries.length, "Materials map size:", materialsMap.size);
     // First create stockEntriesWithMaterial structure
     const stockEntriesWithMaterial = optimisticStockEntries
       .filter(entry => {
@@ -316,36 +307,36 @@ export function StockEntriesTable({
           material: material!
         } as StockEntryWithMaterial;
       });
-    console.log('📊 StockEntriesTable: Created stockEntriesWithMaterial:', stockEntriesWithMaterial.length, 'entries');
+    console.log("📊 StockEntriesTable: Created stockEntriesWithMaterial:", stockEntriesWithMaterial.length, "entries");
 
     // Then apply search and filter logic
     const finalFiltered = stockEntriesWithMaterial.filter(entry => {
       const searchLower = searchTerm.toLowerCase();
-      
+
       // Search in material name
-      const materialName = entry.material?.name?.toLowerCase() || '';
+      const materialName = entry.material?.name?.toLowerCase() || "";
       const matchesMaterialName = materialName.includes(searchLower);
-      
+
       // Search in supplier
-      const supplier = entry.supplier?.toLowerCase() || '';
+      const supplier = entry.supplier?.toLowerCase() || "";
       const matchesSupplier = supplier.includes(searchLower);
-      
+
       // Search in batch number
-      const batchNumber = entry.batchNumber?.toLowerCase() || '';
+      const batchNumber = entry.batchNumber?.toLowerCase() || "";
       const matchesBatchNumber = batchNumber.includes(searchLower);
-      
+
       // Search in notes
-      const notes = entry.notes?.toLowerCase() || '';
+      const notes = entry.notes?.toLowerCase() || "";
       const matchesNotes = notes.includes(searchLower);
-      
+
       const matchesSearch = searchTerm === "" || matchesMaterialName || matchesSupplier || matchesBatchNumber || matchesNotes;
-      
+
       // Material filter - now using material IDs correctly
       const matchesMaterialFilter = materialFilter === "all" || entry.materialId === materialFilter;
-      
+
       return matchesSearch && matchesMaterialFilter;
     });
-    console.log('🎯 StockEntriesTable: Final filtered entries:', finalFiltered.length, 'Search term:', searchTerm, 'Material filter:', materialFilter);
+    console.log("🎯 StockEntriesTable: Final filtered entries:", finalFiltered.length, "Search term:", searchTerm, "Material filter:", materialFilter);
     return finalFiltered;
   }, [optimisticStockEntries, materialsMap, searchTerm, materialFilter]);
 
@@ -361,7 +352,7 @@ export function StockEntriesTable({
           const nameComparison = an.localeCompare(bn) * dir;
           // Secondary sort by ID (newest first) for same material names
           if (nameComparison === 0) {
-            return (Number(b.id) - Number(a.id));
+            return Number(b.id) - Number(a.id);
           }
           return nameComparison;
         }
@@ -369,7 +360,7 @@ export function StockEntriesTable({
           const costComparison = ((a.costPerPurchasedUnit || 0) - (b.costPerPurchasedUnit || 0)) * dir;
           // Secondary sort by ID (newest first) for same costs
           if (costComparison === 0) {
-            return (Number(b.id) - Number(a.id));
+            return Number(b.id) - Number(a.id);
           }
           return costComparison;
         }
@@ -377,7 +368,7 @@ export function StockEntriesTable({
           const totalComparison = ((a.totalCost || 0) - (b.totalCost || 0)) * dir;
           // Secondary sort by ID (newest first) for same total costs
           if (totalComparison === 0) {
-            return (Number(b.id) - Number(a.id));
+            return Number(b.id) - Number(a.id);
           }
           return totalComparison;
         }
@@ -388,7 +379,7 @@ export function StockEntriesTable({
           const dateComparison = (ad - bd) * dir;
           // Secondary sort by ID (newest first) for same purchase dates
           if (dateComparison === 0) {
-            return (Number(b.id) - Number(a.id));
+            return Number(b.id) - Number(a.id);
           }
           return dateComparison;
         }
@@ -410,15 +401,18 @@ export function StockEntriesTable({
   const paginatedStockEntries = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     const paginated = sortedStockEntries.slice(start, start + pageSize);
-    console.log('📄 StockEntriesTable: Paginated entries for rendering:', paginated.length, 'Page:', currentPage, 'of', Math.ceil(sortedStockEntries.length / pageSize));
-    console.log('🎨 StockEntriesTable: Rendering entries:', paginated.map(entry => ({
-      id: entry.id,
-      materialName: entry.material?.name,
-      supplier: entry.supplier,
-      remainingQty: entry.purchasedQuantity,
-      unit: entry.purchasedUnit,
-      totalCost: entry.totalCost
-    })));
+    console.log("📄 StockEntriesTable: Paginated entries for rendering:", paginated.length, "Page:", currentPage, "of", Math.ceil(sortedStockEntries.length / pageSize));
+    console.log(
+      "🎨 StockEntriesTable: Rendering entries:",
+      paginated.map(entry => ({
+        id: entry.id,
+        materialName: entry.material?.name,
+        supplier: entry.supplier,
+        remainingQty: entry.purchasedQuantity,
+        unit: entry.purchasedUnit,
+        totalCost: entry.totalCost
+      }))
+    );
     return paginated;
   }, [sortedStockEntries, currentPage, pageSize]);
 
@@ -434,7 +428,7 @@ export function StockEntriesTable({
       hasPreviousPage: currentPage > 1,
       hasNextPage: currentPage < totalPages,
       startIndex: start,
-      endIndex: end,
+      endIndex: end
     } as PaginationInfo;
   }, [currentPage, pageSize, totalItems, totalPages]);
 
@@ -474,18 +468,18 @@ export function StockEntriesTable({
   const isAllowedPOSCategory = (material: Material | undefined) => {
     if (!material || !material.category) return false;
     const allowedCategories = ["beverages", "cold", "hot", "alcohol"];
-    
+
     // Handle different category formats
     let categoryName: string;
-    if (typeof material.category === 'string') {
+    if (typeof material.category === "string") {
       categoryName = material.category;
-    } else if (typeof material.category === 'object' && material.category !== null && 'name' in material.category) {
+    } else if (typeof material.category === "object" && material.category !== null && "name" in material.category) {
       // Handle category objects from API responses
       categoryName = (material.category as any).name;
     } else {
       return false;
     }
-    
+
     return allowedCategories.includes(categoryName.toLowerCase());
   };
 
@@ -598,7 +592,7 @@ export function StockEntriesTable({
           return (
             <div className="flex items-center gap-2 w-full">
               {isNegativeStock && <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />}
-              <span className="truncate">{materialName ? highlightText(materialName, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}</span>
+              <span className="truncate font-medium">{materialName ? highlightText(materialName, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}</span>
             </div>
           );
         },
@@ -833,179 +827,15 @@ export function StockEntriesTable({
     setShowStockForm(true);
   };
 
-  const handleStockSubmit = async (data: StockFormData) => {
-    try {
-      if (selectedStockEntry) {
-        await stockAPI.updateStockEntry(selectedStockEntry.id, data);
-        toast({
-          title: "Stock Entry Updated",
-          description: "Stock entry has been updated successfully.",
-          variant: "default"
-        });
-      } else {
-        await stockAPI.createStockEntry(data);
-        toast({
-          title: "Stock Entry Created",
-          description: "New stock entry has been created successfully.",
-          variant: "default"
-        });
-      }
-      setShowStockForm(false);
-      setSelectedStockEntry(null);
-      setSelectedMaterial(null);
-      await refreshData();
-    } catch (error) {
-      console.error("❌ Error submitting stock form:", error);
-      console.error("❌ Error details:", {
-        message: error.message,
-        stack: error.stack,
-        response: error.response?.data
-      });
-      toast({
-        title: "Error",
-        description: `Failed to ${selectedStockEntry ? "update" : "create"} stock entry: ${error.message}`,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleAddStockOperation = async (data: AddStockData) => {
-    try {
-      await stockAPI.addToStock(data);
-      await refreshData();
-      toast({
-        title: "Stock Added",
-        description: "Stock has been added successfully",
-        variant: "default"
-      });
-    } catch (error) {
-      console.error("Error adding stock:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add stock",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleRecordWasteOperation = async (data: RecordWasteData) => {
-    try {
-      await stockAPI.recordWaste(data);
-      await refreshData();
-      toast({
-        title: "Waste Recorded",
-        description: "Waste has been recorded successfully",
-        variant: "default"
-      });
-    } catch (error) {
-      console.error("Error recording waste:", error);
-      toast({
-        title: "Error",
-        description: "Failed to record waste",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleWasteFromSpecificEntryOperation = async (
-    data: {
-      materialId?: string;
-      supplier?: string;
-      purchasedQuantity?: number;
-      costPerPurchasedUnit?: number;
-      totalCost?: number;
-      purchasedUnit?: string;
-      wasteQuantity?: number;
-      purchaseDate?: Date;
-      expiryDate?: Date;
-      batchNumber?: string;
-      notes?: string;
-      wasteReason?: string;
-    } & { stockEntryId: string }
-  ) => {
-    try {
-      const wasteData = {
-        wasteQuantity: data.wasteQuantity || data.purchasedQuantity || 0,
-        unit: data.purchasedUnit || "g",
-        wasteReason: data.wasteReason || "unspecified",
-        wasteDate: new Date(),
-        notes: data.notes
-      };
-      await stockAPI.wasteFromSpecificEntry(data.stockEntryId, wasteData);
-      await refreshData();
-      setShowStockForm(false);
-      toast({
-        title: "Recorded",
-        description: "Waste recorded",
-        duration: 1500
-      });
-    } catch (error) {
-      console.error("❌ Error recording waste from specific entry:", error);
-      toast({
-        title: "Error",
-        description: "Failed to record waste",
-        variant: "destructive",
-        duration: 2000
-      });
-    }
-  };
-
-  const handleAddToSpecificEntryOperation = async (
-    data: {
-      materialId?: string;
-      supplier?: string;
-      purchasedQuantity?: number;
-      costPerPurchasedUnit?: number;
-      totalCost?: number;
-      purchasedUnit?: string;
-      wasteQuantity?: number;
-      purchaseDate?: Date;
-      expiryDate?: Date;
-      batchNumber?: string;
-      notes?: string;
-      wasteReason?: string;
-    } & { stockEntryId: string }
-  ) => {
-    try {
-      const addData = {
-        additionalQuantity: data.purchasedQuantity || 0,
-        unit: data.purchasedUnit || "g",
-        additionDate: new Date(),
-        notes: data.notes
-      };
-      await stockAPI.addToSpecificEntry(data.stockEntryId, addData);
-      await refreshData();
-      setShowStockForm(false);
-      toast({
-        title: "Added",
-        description: "Stock added",
-        duration: 1500
-      });
-    } catch (error) {
-      console.error("❌ Error adding to specific entry:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add stock",
-        variant: "destructive",
-        duration: 2000
-      });
-    }
-  };
-
   // Create a map of material IDs to material objects for lookup
-const materialsById = useMemo(() => {
-  const map = new Map<string, Material>();
-  materials.forEach(m => map.set(m.id, m));
-  return map;
-}, [materials]);
+  const materialsById = useMemo(() => {
+    const map = new Map<string, Material>();
+    materials.forEach(m => map.set(m.id, m));
+    return map;
+  }, [materials]);
 
-// Create a sorted array of material objects for the dropdown
-const uniqueMaterials = useMemo(() => 
-  materials
-    .map(m => ({ id: m.id, name: m.name }))
-    .sort((a, b) => a.name.localeCompare(b.name)), 
-  [materials]
-);
+  // Create a sorted array of material objects for the dropdown
+  const uniqueMaterials = useMemo(() => materials.map(m => ({ id: m.id, name: m.name })).sort((a, b) => a.name.localeCompare(b.name)), [materials]);
   const table = useReactTable({
     data: sortedStockEntries,
     columns,
@@ -1191,57 +1021,25 @@ const uniqueMaterials = useMemo(() =>
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
       <div className="h-full flex flex-col">
-        <div className="p-4 px-4 sm:px-6 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="p-2 px-4 sm:px-8 space-y-4">
+          <div className="flex justify-between gap-4">
             <div className="space-y-1">
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Stock Entries</h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                 <>
                   <span>Total: {pagination.totalItems} entries</span>
-                  <span className="text-blue-600 font-medium">
+                  {/* <span className="text-blue-600 font-medium">
                     Showing {pagination.startIndex}-{pagination.endIndex} of {pagination.totalItems}
                     {(searchTerm || materialFilter !== "all") && " (filtered)"}
                     {materialFilter !== "all" && materialsById.get(materialFilter) && ` by ${materialsById.get(materialFilter)?.name}`}
-                  </span>
+                  </span> */}
                 </>
               </div>
             </div>
 
-            <div className="flex flex-col gap-y-3">
-              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-                    <Input 
-                      key="stock-search-input"
-                      type="search" 
-                      placeholder="Search by material name or supplier..." 
-                      value={searchTerm} 
-                      onChange={handleSearchChange} 
-                      className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-64 lg:w-80" 
-                    />
-                  </div>
-
-                  <div className="w-fit shrink-0">
-                    <Select value={materialFilter} onValueChange={setMaterialFilter}>
-                      <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-48">
-                        <SelectValue placeholder="All Materials">
-                          {materialFilter === "all" ? "All Materials" : materialsById.get(materialFilter)?.name || "All Materials"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Materials</SelectItem>
-                        {uniqueMaterials.map(material => (
-                          <SelectItem key={material.id} value={material.id}>
-                            {material.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
+            <div className="flex gap-3">
+              <div className="flex flex-col lg:flex-row-reverse items-center gap-3 lg:flex-shrink-0">
+                <div className="flex justify-end  items-center gap-2">
                   <Button size="sm" variant={bulkSelectionMode ? "default" : "outline"} onClick={handleToggleBulkSelection} className={`${bulkSelectionMode ? "bg-red-600 hover:bg-red-700" : "border-gray-200 hover:border-gray-300"}`}>
                     <Check className="h-4 w-4 mr-1.5" />
                     <span className="hidden lg:inline">{bulkSelectionMode ? "Cancel" : "Bulk Select"}</span>
@@ -1261,6 +1059,29 @@ const uniqueMaterials = useMemo(() =>
                       <span className="lg:hidden">Report</span>
                     </Button>
                   )}
+                </div>
+
+                <div className="flex justify-end items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                    <Input key="stock-search-input" type="search" placeholder="Search by material name or supplier..." value={searchTerm} onChange={handleSearchChange} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-32 sm:w-52" />
+                  </div>
+
+                  <div className="w-fit shrink-0">
+                    <Select value={materialFilter} onValueChange={setMaterialFilter}>
+                      <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-28 sm:w-32">
+                        <SelectValue placeholder="All Materials">{materialFilter === "all" ? "All Materials" : materialsById.get(materialFilter)?.name || "All Materials"}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Materials</SelectItem>
+                        {uniqueMaterials.map(material => (
+                          <SelectItem key={material.id} value={material.id}>
+                            {material.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
               {pagination && pagination.totalPages > 1 && (

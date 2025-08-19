@@ -380,14 +380,14 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                 <>
                   <span>Total: {paginationInfo.totalItems} materials</span>
-                  <span>•</span>
+                  {/* <span>•</span>
                   <span>
                     Showing {paginationInfo.startIndex}-{paginationInfo.endIndex} of {paginationInfo.totalItems}
                   </span>
                   <span>•</span>
                   <span>
                     Page {paginationInfo.currentPage} of {paginationInfo.totalPages}
-                  </span>
+                  </span> */}
                 </>
                 {(searchTerm || categoryFilter !== "all") && (
                   <>
