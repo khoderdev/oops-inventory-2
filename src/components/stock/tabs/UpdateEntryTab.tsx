@@ -15,6 +15,14 @@ import { useWatch } from "react-hook-form";
 export function UpdateEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: UpdateEntryTabProps) {
   const [lastChangedField, setLastChangedField] = useState<string | null>(null);
   
+  // Ensure materialId is always a string
+  useEffect(() => {
+    const currentMaterialId = form.getValues("materialId");
+    if (currentMaterialId !== undefined && typeof currentMaterialId === "number") {
+      form.setValue("materialId", String(currentMaterialId));
+    }
+  }, [form]);
+  
   useEffect(() => {
     const quantity = parseFloat(watchedQuantity) || 0;
     const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
@@ -73,7 +81,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                       {materials.map(material => {
                         const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
                         return (
-                          <SelectItem key={material.id} value={material.id}>
+                          <SelectItem key={material.id} value={String(material.id)}>
                             {material.name} ({displayUnit})
                           </SelectItem>
                         );

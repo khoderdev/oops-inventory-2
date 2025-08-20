@@ -587,7 +587,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                       <SelectContent>
                         <SelectItem value="all">All Materials</SelectItem>
                         {uniqueMaterials.map(material => (
-                          <SelectItem key={material.id} value={material.id}>
+                          <SelectItem key={material.id} value={String(material.id)}>
                             {material.name}
                           </SelectItem>
                         ))}

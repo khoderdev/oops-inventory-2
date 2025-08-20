@@ -20,6 +20,14 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   const watchedPurchasedUnit = useWatch({ control: form.control, name: "purchasedUnit" });
   const [lastChangedField, setLastChangedField] = useState<string | null>(null);
 
+  // Ensure materialId is always a string
+  useEffect(() => {
+    const currentMaterialId = form.getValues("materialId");
+    if (currentMaterialId !== undefined && typeof currentMaterialId === "number") {
+      form.setValue("materialId", String(currentMaterialId));
+    }
+  }, [form]);
+
   useEffect(() => {
     if (selectedMaterial && stockEntry && watchedUnit) {
       // Use the same calculation method as WasteFromEntryTab
@@ -219,7 +227,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                       {materials.map(material => {
                         const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
                         return (
-                          <SelectItem key={material.id} value={material.id}>
+                          <SelectItem key={material.id} value={String(material.id)}>
                             {material.name} ({displayUnit})
                           </SelectItem>
                         );
@@ -382,6 +390,35 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                 </p>
               </FormItem>
             )}
+
+            <FormField
+              control={form.control}
+              name="totalCost"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Package className="h-4 w-4 text-green-600" />
+                    Total Cost
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0" 
+                      {...field} 
+                      onChange={e => {
+                        field.onChange(e.target.value);
+                        setLastChangedField("totalCost");
+                      }}
+                      className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                    />
+                  </FormControl>
+                  <p className="text-xs text-green-600 mt-1">Total cost for all units</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

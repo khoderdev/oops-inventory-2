@@ -195,7 +195,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
                       {materials.map(material => {
                         const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
                         return (
-                          <SelectItem key={material.id} value={material.id}>
+                          <SelectItem key={material.id} value={String(material.id)}>
                             {material.name} ({displayUnit})
                           </SelectItem>
                         );
@@ -366,6 +366,35 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
                       <SelectItem value="other">❓ Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="totalCost"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Package className="h-4 w-4 text-red-600" />
+                    Total Cost
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0" 
+                      {...field} 
+                      onChange={e => {
+                        field.onChange(e.target.value);
+                        setLastChangedField("totalCost");
+                      }}
+                      className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                    />
+                  </FormControl>
+                  <p className="text-xs text-red-600 mt-1">Total cost for all wasted units</p>
                   <FormMessage />
                 </FormItem>
               )}

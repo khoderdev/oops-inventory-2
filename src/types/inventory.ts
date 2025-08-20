@@ -76,11 +76,11 @@ export interface NegativeStockReport {
 
 export interface StockRestorationItem {
   type: "individual_item" | "menu_item_ingredient";
-  materialId: number;
+  materialId: string;
   materialName: string;
   assignmentId?: number;
-  stockEntryId: number;
-  menuItemId?: number;
+  stockEntryId: string;
+  menuItemId?: string;
   menuItemName?: string;
   quantityRestored: number;
   unit: string;
@@ -126,15 +126,17 @@ export interface Material {
 }
 
 // Form data interfaces
-export interface MaterialFormData extends z.infer<typeof materialSchema> {
+export interface MaterialFormData {
   name: string;
-  category: string | Category;
+  category: string; // Match materialSchema which expects string
   baseUnit: string;
   unitType: UnitType;
   inputUnit: string;
   packageQuantity?: number;
   description?: string;
   categoryId?: number | string;
+  // For internal use after form processing
+  _categoryObject?: MaterialCategoryType;
 }
 
 export interface MaterialFormProps {
@@ -452,8 +454,8 @@ export type CartItem = {
   totalPrice: number;
   unit?: string;
   assignmentId?: string;
-  menuItemId?: number;
-  ingredients?: { materialId: number; quantity: number; unit: string }[];
+  menuItemId?: string;
+  ingredients?: { materialId: string; quantity: number; unit: string }[];
 };
 
 export interface ItemSale {
@@ -531,8 +533,8 @@ export interface POSCartItem {
   type: "material" | "menu_item";
   originalItem: StockEntryWithMaterial | MenuItem;
   posItem?: POSItem;
-  stockEntryId?: number;
-  menuItemId?: number;
+  stockEntryId?: string;
+  menuItemId?: string;
   printerId?: number | null;
   assignedPrinter?: {
     id: number;
@@ -575,18 +577,18 @@ export interface POSItem {
   unit: string;
   availableQuantity: number;
   costPerUnit: number;
-  materialId?: number;
+  materialId?: string;
   menuItemId?: number | string;
   material?: Material;
   ingredients?: Array<{
-    materialId: number;
+    materialId: string;
     materialName: string;
     quantity: number;
     unit: string;
     cost: number;
   }>;
   stockEntries?: Array<{
-    id: number;
+    id: string;
     supplier: string;
     purchasedQuantity: number;
     purchasedUnit: string;
@@ -781,7 +783,7 @@ export interface MenuItem {
     status: string;
   };
   // Beverage-specific fields (optional to match backend)
-  beverageStockId?: number | null;
+  beverageStockId?: string | null;
   unit?: string | null;
   availableQuantity?: number | null;
   costPerUnit?: number | null;
@@ -867,7 +869,7 @@ export interface CreateMenuItemData {
   isPOSItem?: boolean;
   image?: string;
   // Beverage-specific fields
-  beverageStockId?: number;
+  beverageStockId?: string;
   unit?: string;
   availableQuantity?: number;
   costPerUnit?: number;
@@ -892,7 +894,7 @@ export interface UpdateMenuItemData {
   isPOSItem?: boolean;
   image?: string;
   // Beverage-specific fields
-  beverageStockId?: number;
+  beverageStockId?: string;
   unit?: string;
   availableQuantity?: number;
   costPerUnit?: number;
@@ -980,7 +982,7 @@ export interface RecordWasteResponse {
   reason: string;
 }
 export interface WasteRecord {
-  materialId: number;
+  materialId: string;
   materialName: string;
   quantity: number;
   category?: string;
@@ -1153,8 +1155,8 @@ export interface ReportTableProps {
 // Day Operations Types
 
 export interface StockSnapshot {
-  stockEntryId: number;
-  materialId: number;
+  stockEntryId: string;
+  materialId: string;
   materialName: string;
   materialCategory: string;
   quantity: number;
@@ -1166,8 +1168,8 @@ export interface StockSnapshot {
 
 export interface StockVariance {
   cost: number;
-  stockEntryId: number;
-  materialId: number;
+  stockEntryId: string;
+  materialId: string;
   materialName: string;
   openingQuantity: number;
   closingQuantity: number;
@@ -1395,7 +1397,7 @@ export interface DayOperationReport {
     }
   >;
   stockMovements: Array<{
-    materialId: number;
+    materialId: string;
     materialName: string;
     startQuantity: number;
     endQuantity: number;
