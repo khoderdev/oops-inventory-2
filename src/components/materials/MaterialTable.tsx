@@ -30,26 +30,54 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
+  const categoriesById = useMemo(() => {
+    const map = new Map<number, Category>();
+    categories.forEach(category => {
+      map.set(category.id, category);
+    });
+    return map;
+  }, [categories]);
+
+  const categoriesByValue = useMemo(() => {
+    const map = new Map<string, Category>();
+    categories.forEach(category => {
+      map.set(category.value, category);
+    });
+    return map;
+  }, [categories]);
+
   const visibleMaterials = useMemo(() => {
     return filteredMaterials.filter(material => {
       const searchLower = searchTerm.toLowerCase();
       const matchesName = material.name.toLowerCase().includes(searchLower);
       const matchesSearch = searchTerm === "" || matchesName;
-      const matchesCategory = categoryFilter === "all" || (() => {
-        const materialCategoryId = (material as any).categoryId;
-        const categoryInfo = categories.find(c => c.id === materialCategoryId || c.value === material.category);
-        if (typeof material.category === 'string') {
-          return material.category === categoryFilter;
-        } else if (typeof material.category === 'object' && material.category !== null && 'value' in material.category) {
-          return (material.category as any).value === categoryFilter;
-        } else if (categoryInfo) {
-          return categoryInfo.value === categoryFilter;
-        }
-        return false;
-      })();
+
+      const matchesCategory =
+        categoryFilter === "all" ||
+        (() => {
+          const materialCategoryId = (material as any).categoryId;
+          if (materialCategoryId && categoriesById.has(materialCategoryId)) {
+            return categoriesById.get(materialCategoryId)?.value === categoryFilter;
+          }
+          if (typeof material.category === "string" && material.category) {
+            if (material.category === categoryFilter) return true;
+            return categoriesByValue.get(material.category)?.value === categoryFilter;
+          }
+          if (typeof material.category === "object" && material.category !== null) {
+            const categoryAsAny = material.category as any;
+            if ("value" in categoryAsAny && categoryAsAny.value === categoryFilter) return true;
+            if ("id" in categoryAsAny && 
+                categoryAsAny.id !== null && 
+                categoryAsAny.id !== undefined && 
+                categoriesById.has(categoryAsAny.id)) {
+              return categoriesById.get(categoryAsAny.id)?.value === categoryFilter;
+            }
+          }
+          return false;
+        })();
       return matchesSearch && matchesCategory;
     });
-  }, [filteredMaterials, searchTerm, categoryFilter, categories]);
+  }, [filteredMaterials, searchTerm, categoryFilter, categoriesById, categoriesByValue]);
 
   const sortedMaterials = useMemo(() => {
     const arr = [...visibleMaterials];
@@ -93,7 +121,10 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
       try {
         setLoadingCategories(true);
         const response = await getCategoriesByType("materials", true);
-        setCategories(response.totalItems || []);
+        const sortedCategories = [...(response.totalItems || [])];
+        sortedCategories.sort((a, b) => a.name.localeCompare(b.name));
+        setCategories(sortedCategories);
+        console.log("Categories loaded:", sortedCategories.length);
       } catch (error) {
         console.error("Failed to fetch categories:", error);
         setCategories([]);
@@ -193,7 +224,19 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
         cell: ({ getValue, row }) => {
           const category = getValue();
           const materialCategoryId = (row.original as any).categoryId;
-          const categoryInfo = categories.find(c => c.id === materialCategoryId || c.value === category);
+          let categoryInfo: Category | undefined;
+          if (materialCategoryId && categoriesById.has(materialCategoryId)) {
+            categoryInfo = categoriesById.get(materialCategoryId);
+          }
+          else if (typeof category === "string" && category && categoriesByValue.has(category)) {
+            categoryInfo = categoriesByValue.get(category);
+          }
+          else if (typeof category === "object" && category !== null && "id" in (category as Record<string, any>) && (category as Record<string, any>).id !== null && categoriesById.has((category as Record<string, any>).id)) {
+            categoryInfo = categoriesById.get((category as any).id);
+          }
+          else if (typeof category === "object" && category !== null && "value" in (category as Record<string, any>) && categoriesByValue.has((category as any).value)) {
+            categoryInfo = categoriesByValue.get((category as any).value);
+          }
           if (!category && !materialCategoryId) {
             return (
               <Badge variant="outline" className="text-xs font-medium bg-gray-100 text-gray-500 border-gray-200">
@@ -201,9 +244,11 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
               </Badge>
             );
           }
+          const displayName = categoryInfo?.name || (typeof category === "string" ? category : typeof category === "object" && category !== null && "name" in category ? (category as any).name : "Unknown");
+          const categoryValue = categoryInfo?.value || (typeof category === "string" ? category : typeof category === "object" && category !== null && "value" in category ? (category as any).value : "unknown");
           return (
-            <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryInfo?.value || category)}`}>
-              {categoryInfo?.name || category}
+            <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
+              {displayName}
             </Badge>
           );
         },
@@ -332,7 +377,9 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
     manualFiltering: true,
-    manualPagination: true
+    manualPagination: true,
+    // Force table to re-render when categories change
+    meta: { categoriesVersion: categories.length }
   });
 
   const getCategoryColor = useCallback((category: string) => {
@@ -462,15 +509,40 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
             <div className="lg:hidden space-y-4 mt-3">
               {paginatedMaterials.map(material => {
                 const materialCategoryId = (material as any).categoryId;
-                const categoryInfo = categories.find(c => c.id === materialCategoryId || c.value === material.category);
+
+                // Use the memoized category maps for instant lookup
+                let categoryInfo: Category | undefined;
+
+                // Try by ID first (fastest)
+                if (materialCategoryId && categoriesById.has(materialCategoryId)) {
+                  categoryInfo = categoriesById.get(materialCategoryId);
+                }
+                // Then try by value if category is a string
+                else if (typeof material.category === "string" && material.category && categoriesByValue.has(material.category)) {
+                  categoryInfo = categoriesByValue.get(material.category);
+                }
+                // Then try by object with id
+                else if (typeof material.category === "object" && material.category !== null && "id" in (material.category as Record<string, any>) && (material.category as Record<string, any>).id !== null && categoriesById.has((material.category as Record<string, any>).id)) {
+                  categoryInfo = categoriesById.get((material.category as Record<string, any>).id);
+                }
+                // Then try by object with value
+                else if (typeof material.category === "object" && material.category !== null && "value" in (material.category as Record<string, any>) && categoriesByValue.has((material.category as Record<string, any>).value)) {
+                  categoryInfo = categoriesByValue.get((material.category as Record<string, any>).value);
+                }
+
+                // Get display name and value for the badge
+                const displayName = categoryInfo?.name || (typeof material.category === "string" ? material.category : typeof material.category === "object" && material.category !== null && "name" in material.category ? (material.category as any).name : "Unknown");
+
+                const categoryValue = categoryInfo?.value || (typeof material.category === "string" ? material.category : typeof material.category === "object" && material.category !== null && "value" in material.category ? (material.category as any).value : "unknown");
+
                 return (
                   <div key={material.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-900 text-base mb-1 truncate">{highlightText(material.name, searchTerm)}</h3>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(material.category)}`}>
-                            {categoryInfo?.name || material.category}
+                          <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
+                            {displayName}
                           </Badge>
                           {material.isPOSItem && (
                             <Badge variant="secondary" className="text-xs font-medium">
