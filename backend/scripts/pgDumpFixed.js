@@ -1,59 +1,115 @@
 import { exec } from "child_process";
-import fs from "fs";
-import path from "path";
+import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from "url";
+import { dirname } from 'path';
 import { promisify } from "util";
 import os from "os";
 import sequelize from "../config/database.js";
+import { findPostgreSQLPath } from './pgPathFinder.js';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
 console.log("🗄️  PostgreSQL pg_dump Compatible Backup");
 console.log("========================================");
 
 // Cross-platform PostgreSQL detection
-function findPostgreSQLPath() {
-  const platform = os.platform();
-  console.log(`🖥️  Detected OS: ${platform}`);
-
-  if (platform === "win32") {
-    // Windows paths
-    const possiblePaths = ["C:\\Program Files\\PostgreSQL\\17\\bin", "C:\\Program Files\\PostgreSQL\\16\\bin", "C:\\Program Files\\PostgreSQL\\15\\bin", "C:\\Program Files\\PostgreSQL\\14\\bin", "C:\\Program Files\\PostgreSQL\\13\\bin", "C:\\Program Files (x86)\\PostgreSQL\\17\\bin", "C:\\Program Files (x86)\\PostgreSQL\\16\\bin", "C:\\Program Files (x86)\\PostgreSQL\\15\\bin"];
-
-    for (const pgPath of possiblePaths) {
-      const pgDumpPath = path.join(pgPath, "pg_dump.exe");
-      if (fs.existsSync(pgDumpPath)) {
-        console.log(`   ✓ Found PostgreSQL at: ${pgPath}`);
-        return { binPath: pgPath, executable: "pg_dump.exe" };
+async function findPostgreSQLBinPath() {
+  try {
+    // Check if we have a saved configuration
+    const configPath = path.join(__dirname, '..', 'config', 'pgPath.json');
+    let pgInfo;
+    
+    if (fs.existsSync(configPath)) {
+      try {
+        const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        console.log('📋 Using saved PostgreSQL configuration');
+        
+        // Verify the saved path still works
+        if (configData.inPath || (configData.binPath && fs.existsSync(configData.binPath))) {
+          pgInfo = configData;
+        } else {
+          console.log('⚠️ Saved PostgreSQL path is no longer valid, detecting again...');
+          pgInfo = await findPostgreSQLPath();
+        }
+      } catch (error) {
+        console.log(`⚠️ Error reading saved configuration: ${error.message}`);
+        pgInfo = await findPostgreSQLPath();
       }
+    } else {
+      // No saved configuration, detect PostgreSQL
+      console.log('🔍 Detecting PostgreSQL installation...');
+      pgInfo = await findPostgreSQLPath();
     }
-  } else {
-    // Linux/macOS paths
-    const possiblePaths = ["/usr/bin", "/usr/local/bin", "/usr/local/pgsql/bin", "/opt/postgresql/bin", "/usr/lib/postgresql/17/bin", "/usr/lib/postgresql/16/bin", "/usr/lib/postgresql/15/bin", "/usr/lib/postgresql/14/bin", "/usr/lib/postgresql/13/bin"];
-
-    for (const pgPath of possiblePaths) {
-      const pgDumpPath = path.join(pgPath, "pg_dump");
-      if (fs.existsSync(pgDumpPath)) {
-        console.log(`   ✓ Found PostgreSQL at: ${pgPath}`);
-        return { binPath: pgPath, executable: "pg_dump" };
-      }
+    
+    if (pgInfo.notFound) {
+      throw new Error('PostgreSQL not found. Please install PostgreSQL and ensure pg_dump is available.');
     }
+    
+    return { 
+      pgDumpPath: pgInfo.binPath, 
+      pgDumpExecutable: pgInfo.executable 
+    };
+  } catch (error) {
+    console.error(`❌ Error finding PostgreSQL: ${error.message}`);
+    throw error;
   }
-
-  // Try to find pg_dump in PATH
-  console.log("   🔍 Checking if pg_dump is in PATH...");
-  return { binPath: "", executable: platform === "win32" ? "pg_dump.exe" : "pg_dump" };
 }
 
-// Function to test pg_dump availability
-async function testPgDumpAvailability(pgDumpCommand) {
+// Test if pg_dump is available
+async function testPgDump(pgDumpPath, pgDumpExecutable) {
+  const pgDumpFullPath = pgDumpPath ? path.join(pgDumpPath, pgDumpExecutable) : pgDumpExecutable;
+  
   try {
-    await execAsync(`${pgDumpCommand} --version`);
+    const { stdout } = await execAsync(`"${pgDumpFullPath}" --version`);
+    console.log(`pg_dump version: ${stdout.trim()}`);
     return true;
   } catch (error) {
-    return false;
+    console.error(`Error testing pg_dump: ${error.message}`);
+    
+    // Provide detailed troubleshooting steps based on platform
+    const platform = os.platform();
+    let troubleshootingSteps = '';
+    
+    if (platform === 'win32') {
+      troubleshootingSteps = `
+        Windows Troubleshooting Steps:
+        1. Make sure PostgreSQL is installed with the "Command Line Tools" option
+        2. Verify that pg_dump.exe exists at: ${pgDumpFullPath}
+        3. Add the PostgreSQL bin directory to your PATH environment variable:
+           - Right-click on "This PC" > Properties > Advanced system settings > Environment Variables
+           - Edit the PATH variable and add: ${pgDumpPath || 'C:\\Program Files\\PostgreSQL\\[VERSION]\\bin'}
+        4. Restart your terminal or command prompt
+        5. Test by running: pg_dump --version
+        
+        If using the API, make sure the PGPASSWORD environment variable is set correctly.
+        
+        You can also run the pgPathFinder.js script to automatically detect PostgreSQL:
+        node --experimental-modules backend/scripts/pgPathFinder.js
+      `;
+    } else {
+      troubleshootingSteps = `
+        Unix/Linux/macOS Troubleshooting Steps:
+        1. Make sure PostgreSQL client tools are installed:
+           - Debian/Ubuntu: sudo apt-get install postgresql-client
+           - RHEL/CentOS: sudo yum install postgresql
+           - macOS (Homebrew): brew install postgresql
+        2. Verify that pg_dump exists at: ${pgDumpFullPath}
+        3. Add the PostgreSQL bin directory to your PATH:
+           - Add to ~/.bashrc or ~/.zshrc: export PATH="${pgDumpPath || '/usr/bin'}:$PATH"
+        4. Restart your terminal
+        5. Test by running: pg_dump --version
+        
+        If using the API, make sure the PGPASSWORD environment variable is set correctly.
+        
+        You can also run the pgPathFinder.js script to automatically detect PostgreSQL:
+        node --experimental-modules backend/scripts/pgPathFinder.js
+      `;
+    }
+    
+    throw new Error(`pg_dump not found or not working. ${error.message}\n${troubleshootingSteps}`);
   }
 }
 
@@ -94,24 +150,12 @@ try {
 
   // Find PostgreSQL installation
   console.log("🔍 Locating PostgreSQL installation...");
-  const pgInfo = findPostgreSQLPath();
+  const { pgDumpPath, pgDumpExecutable } = await findPostgreSQLBinPath();
+  console.log(`PostgreSQL bin path: ${pgDumpPath || 'Using PATH'}`);
+  console.log(`pg_dump executable: ${pgDumpExecutable}`);
 
-  let pgDumpCommand;
-  if (pgInfo.binPath) {
-    pgDumpCommand = path.join(pgInfo.binPath, pgInfo.executable);
-  } else {
-    pgDumpCommand = pgInfo.executable;
-  }
-
-  // Test pg_dump availability
-  console.log(`🧪 Testing pg_dump command: ${pgDumpCommand}`);
-  const isAvailable = await testPgDumpAvailability(pgDumpCommand);
-
-  if (!isAvailable) {
-    throw new Error(`pg_dump command not found or not working: ${pgDumpCommand}`);
-  }
-
-  console.log("   ✓ pg_dump command is available");
+  // Test if pg_dump is available
+  await testPgDump(pgDumpPath, pgDumpExecutable);
 
   // Create backup directory structure
   const baseBackupDir = path.join(__dirname, "..", "backups");
@@ -164,9 +208,9 @@ try {
     const baseOptions = `--host=${DB_CONFIG.host} --port=${DB_CONFIG.port} --username=${DB_CONFIG.username} --dbname=${DB_CONFIG.database} --verbose --clean --create --if-exists --no-owner --no-privileges`;
 
     if (os.platform() === "win32") {
-      return `"${pgDumpCommand}" ${baseOptions} --format=${format} ${additionalOptions} --file="${outputFile}"`;
+      return `"${pgDumpExecutable}" ${baseOptions} --format=${format} ${additionalOptions} --file="${outputFile}"`;
     } else {
-      return `"${pgDumpCommand}" ${baseOptions} --format=${format} ${additionalOptions} --file="${outputFile}"`;
+      return `"${pgDumpExecutable}" ${baseOptions} --format=${format} ${additionalOptions} --file="${outputFile}"`;
     }
   }
 

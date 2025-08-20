@@ -28,7 +28,7 @@ import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterA
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
-  const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems;
+  const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems || [];
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
@@ -43,7 +43,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       if (!materials || !stockEntries || materials.length === 0) return;
       const now = Date.now();
       if (now - lastValidationTime < 30000) return;
-
       try {
         const result = dataValidator.validateData(materials, stockEntries);
         setValidationResults(result);
@@ -55,14 +54,12 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         console.error("Validation error:", error);
       }
     };
-
     validateData();
   }, [materials, stockEntries, lastValidationTime, dataValidationEnabled]);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        setCategoriesLoading(true);
         const response = await getCategoriesByType("menu_items");
         setCategories(response.totalItems || []);
       } catch (error) {
@@ -73,16 +70,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           variant: "destructive",
           duration: 1000
         });
-      } finally {
-        setCategoriesLoading(false);
       }
     };
-
     fetchCategories();
   }, []);
 
-  // Ensure menu items are loaded when this component mounts
   useEffect(() => {
+    console.log('🔄 MenuBuilder: Fetching fresh menu data');
     fetchTabData("menu");
   }, [fetchTabData]);
 
@@ -242,8 +236,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  // Remove loading state for instant rendering
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {
@@ -293,7 +287,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           await onDeleteMenuItem(id);
         }
 
-        // Refresh store data for instant rendering
+        // Refresh store data for instant rendering with force=true to bypass cache
+        console.log('🔄 MenuBuilder: Fetching fresh menu data after delete');
         await fetchTabData("menu");
 
         toast({
@@ -648,7 +643,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           onCreateMenuItem(menuItemToCreate);
         }
 
-        // Refresh store data for instant rendering
+        // Refresh store data for instant rendering with force=true to bypass cache
+        console.log('🔄 MenuBuilder: Fetching fresh menu data after create');
         await fetchTabData("menu");
 
         setShowMenuItemForm(false);
@@ -694,7 +690,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           onUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
         }
 
-        // Refresh store data for instant rendering
+        // Refresh store data for instant rendering with force=true to bypass cache
+        console.log('🔄 MenuBuilder: Fetching fresh menu data after update');
         await fetchTabData("menu");
 
         setShowMenuItemForm(false);
@@ -740,6 +737,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, []);
 
   const handlePrinterAssignmentComplete = useCallback(async () => {
+    console.log('🔄 MenuBuilder: Fetching fresh menu data after printer assignment');
     await fetchTabData("menu");
     handleClosePrinterDialog();
   }, [fetchTabData, handleClosePrinterDialog]);
@@ -768,6 +766,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, []);
 
   const handleBulkPrinterAssignmentComplete = useCallback(async () => {
+    console.log('🔄 MenuBuilder: Fetching fresh menu data after bulk printer assignment');
     await fetchTabData("menu");
     setSelectedMenuItems(new Set());
     setBulkSelectionMode(false);
@@ -817,6 +816,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         variant: "default",
         duration: 1000
       });
+      console.log('🔄 MenuBuilder: Fetching fresh menu data after bulk category update');
       await fetchTabData("menu");
       setSelectedMenuItems(new Set());
       setBulkSelectionMode(false);
@@ -1072,14 +1072,19 @@ interface TanStackVirtualizedTableProps {
   table: any;
 }
 
+// Optimized for instant rendering without loading states
 const TanStackVirtualizedTable: React.FC<TanStackVirtualizedTableProps> = ({ table }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const rows = table.getRowModel().rows;
+  
+  // Enhanced virtualizer configuration for instant rendering
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 60,
-    overscan: 10
+    overscan: 20, // Increased overscan for smoother scrolling
+    measureElement: typeof window !== 'undefined' ? 
+      (element) => element?.getBoundingClientRect().height || 60 : undefined
   });
 
   return (

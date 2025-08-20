@@ -179,18 +179,13 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         });
         return;
       }
-
-      // Convert category to the expected format
       let categoryToSubmit: number | MenuItemCategory | { id: number; name: string } | null = null;
-
       if (selectedCategory) {
-        // Send category object with id and name for backend processing
         categoryToSubmit = {
           id: selectedCategory.id,
           name: selectedCategory.name
         };
       } else if (category && category !== "") {
-        // Fallback to string value if it's a valid MenuItemCategory
         categoryToSubmit = category as MenuItemCategory;
       }
 
@@ -246,23 +241,15 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
   };
 
-  // CRITICAL FIX: Normalize category value to match dropdown options
   const normalizedCategory = useMemo(() => {
     if (!category || !Array.isArray(categories) || !categories.length) return category;
-
-    // If category state doesn't match any dropdown option, try to find the correct value
     const hasExactMatch = categories.some(c => c.value === category);
     if (hasExactMatch) return category;
-
-    // Try to find by name (case-insensitive)
     const matchByName = categories.find(c => c.name.toLowerCase() === category.toLowerCase() || c.value.toLowerCase() === category.toLowerCase());
-
     if (matchByName) {
-      // Update the state to the correct value
       setTimeout(() => setCategory(matchByName.value as MenuItemCategory | ""), 0);
       return matchByName.value;
     }
-
     return category;
   }, [category, categories]);
 
@@ -291,13 +278,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
             <option value="">Select a category</option>
             {Array.isArray(categories) &&
               categories.map(cat => (
-                // console.log('[MenuItemForm] Category option:', {
-                //   cat,
-                //   catType: typeof cat,
-                //   catIsObject: typeof cat === 'object',
-                //   catValue: cat.value,
-                //   catName: cat.name
-                // }),
                 <option key={cat.value} value={cat.value}>
                   {cat.name}
                 </option>

@@ -269,7 +269,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       price: 0,
       ingredients: [],
       category: 0,
-      menuItemIngredients: false
+      menuItemIngredients: []
     });
     
     setName("");
