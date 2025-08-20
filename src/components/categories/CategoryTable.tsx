@@ -24,14 +24,8 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
     if (!category.categoryTypes || category.categoryTypes.length === 0) {
       return <Badge variant="outline">No types</Badge>;
     }
-    
-    return (
-      <div className="flex flex-wrap gap-1">
-        {category.categoryTypes.map((categoryType: CategoryTypeEntity) => 
-          getTypeBadge(categoryType.type)
-        )}
-      </div>
-    );
+
+    return <div className="flex flex-wrap gap-1">{category.categoryTypes.map((categoryType: CategoryTypeEntity) => getTypeBadge(categoryType.type))}</div>;
   };
 
   // Helper function to get the primary type icon (first type)
@@ -62,7 +56,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
     }));
     onUpdateSortOrder(sortOrderUpdates);
   };
-  
+
   if (draggedCategories.length === 0) {
     return (
       <Card>
@@ -87,11 +81,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="categories-mobile" direction="vertical">
             {provided => (
-              <div 
-                {...provided.droppableProps} 
-                ref={provided.innerRef} 
-                className="space-y-4 pb-4 h-full overflow-y-auto"
-              >
+              <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4 pb-4 h-full overflow-y-auto">
                 {draggedCategories.map((category, index) => (
                   <Draggable key={category.id} draggableId={category.id.toString()} index={index}>
                     {(provided, snapshot) => (
@@ -165,7 +155,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
       <div className="h-[calc(100vh-220px)] w-full flex flex-col overflow-y-hidden">
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="categories">
-            {(provided) => (
+            {provided => (
               <div {...provided.droppableProps} ref={provided.innerRef} className="flex flex-col h-full">
                 <div className="rounded-md border flex flex-col h-full overflow-hidden">
                   <div className="flex-1 overflow-y-auto">
@@ -183,7 +173,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                         </thead>
                       </table>
                     </div>
-                    
+
                     {/* Table body with draggable rows */}
                     <div className="w-full">
                       <table className="w-full">
@@ -191,11 +181,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                           {draggedCategories.map((category, index) => (
                             <Draggable key={category.id} draggableId={category.id.toString()} index={index}>
                               {(provided, snapshot) => (
-                                <tr
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  className={`border-b hover:bg-gray-50 ${snapshot.isDragging ? "bg-muted/50 shadow-md" : ""}`}
-                                >
+                                <tr ref={provided.innerRef} {...provided.draggableProps} className={`border-b hover:bg-gray-50 ${snapshot.isDragging ? "bg-muted/50 shadow-md" : ""}`}>
                                   <td className="w-[60px] px-4 py-3" {...provided.dragHandleProps}>
                                     <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
                                   </td>
@@ -211,10 +197,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                                   </td>
                                   <td className="w-[35%] px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                      <Switch 
-                                        checked={category.isActive} 
-                                        onCheckedChange={checked => onToggleActive(category.id, checked)} 
-                                      />
+                                      <Switch checked={category.isActive} onCheckedChange={checked => onToggleActive(category.id, checked)} />
                                       <Button variant="ghost" size="sm" onClick={() => onEdit(category)}>
                                         <Edit className="w-4 h-4" />
                                       </Button>
@@ -227,9 +210,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                                         <AlertDialogContent>
                                           <AlertDialogHeader>
                                             <AlertDialogTitle>Delete Category</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Are you sure you want to delete the category "{category.name}"? This action cannot be undone and may affect existing materials or menu items.
-                                            </AlertDialogDescription>
+                                            <AlertDialogDescription>Are you sure you want to delete the category "{category.name}"? This action cannot be undone and may affect existing materials or menu items.</AlertDialogDescription>
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
