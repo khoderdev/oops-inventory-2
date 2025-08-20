@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { AddToEntryTabProps, StockFormInputs } from "@/types/inventory";
+import { AddToEntryTabProps } from "@/types/inventory";
 import { format } from "date-fns";
 import { CalendarIcon, Minus, Package, Plus, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -25,19 +25,15 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         const kgCost = stockEntryCost > 0 ? stockEntryCost : packageCost;
         defaultCost = kgCost / 1000;
         form.clearErrors("costPerPurchasedUnit");
-      }
-      else if (selectedMaterial.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && selectedMaterial.packageQuantity) {
+      } else if (selectedMaterial.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && selectedMaterial.packageQuantity) {
         defaultCost = stockEntryCost > 0 ? stockEntryCost / selectedMaterial.packageQuantity : packageCost / selectedMaterial.packageQuantity;
         form.clearErrors("costPerPurchasedUnit");
-      } 
-      else if (selectedMaterial.unitType === "package" && watchedUnit === selectedMaterial.inputUnit) {
+      } else if (selectedMaterial.unitType === "package" && watchedUnit === selectedMaterial.inputUnit) {
         defaultCost = stockEntryCost || packageCost;
-      } 
-      else {
+      } else {
         defaultCost = stockEntryCost || packageCost || 0;
       }
       if (defaultCost > 0) {
-        // Store exact value for backend
         form.setValue("costPerPurchasedUnit", defaultCost.toString());
       } else {
         form.setValue("costPerPurchasedUnit", "0");
@@ -77,12 +73,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
     setIsSubmitting(true);
     try {
       const data = form.getValues();
-      const formErrors = form.formState.errors;
-      if (typeof data.materialId === 'number') {
+      if (typeof data.materialId === "number") {
         form.setValue("materialId", String(data.materialId));
       }
-      const fieldsToValidate = ["materialId", "supplier", "purchasedQuantity", "purchasedUnit", "costPerPurchasedUnit", "totalCost"];
-      const isValid = await form.trigger(fieldsToValidate as (keyof StockFormInputs)[]);
       const additionalQuantity = parseFloat(data.purchasedQuantity);
       const costPerPurchasedUnit = parseFloat(data.costPerPurchasedUnit);
       const totalCost = parseFloat(data.totalCost);
@@ -111,13 +104,11 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         return;
       }
       const specificEntryData = {
-        // Convert materialId to string to match schema expectation
         materialId: String(data.materialId),
         supplier: data.supplier,
         purchasedQuantity: additionalQuantity,
         purchasedUnit: data.purchasedUnit,
         costPerPurchasedUnit: isNaN(costPerPurchasedUnit) ? 0 : costPerPurchasedUnit,
-        // Convert to string then back to number to ensure proper type
         totalCost: isNaN(totalCost) ? 0 : Number(totalCost),
         purchaseDate: data.purchaseDate,
         expiryDate: data.expiryDate,

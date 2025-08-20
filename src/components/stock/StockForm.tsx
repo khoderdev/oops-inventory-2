@@ -64,7 +64,10 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
             const volumeUnits = ["l", "ml"];
             return volumeUnits.filter(unit => unit === stockEntryUnit || volumeUnits.includes(stockEntryUnit));
           } else if (selectedMaterial.unitType === "package") {
-            if (stockEntryUnit === selectedMaterial.inputUnit) {
+            // For bag/pack materials, always allow piece-level operations
+            if (stockEntryUnit === "bag" || stockEntryUnit === "pack" || stockEntryUnit === "box") {
+              return [stockEntryUnit, "piece"];
+            } else if (stockEntryUnit === selectedMaterial.inputUnit) {
               return [stockEntryUnit, "piece", "bottle"];
             } else {
               return [stockEntryUnit];
