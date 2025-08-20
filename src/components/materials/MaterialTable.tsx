@@ -275,7 +275,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
         enableSorting: false,
         header: ({ column }) => <div className="flex justify-center w-full">Actions</div>,
         cell: ({ row }) => (
-          <div className="flex items-center justify-center gap-2 -mr-6">
+          <div className="flex items-center justify-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="sm" onClick={() => onEditMaterial(row.original)} className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700">
@@ -380,14 +380,6 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                 <>
                   <span>Total: {paginationInfo.totalItems} materials</span>
-                  {/* <span>•</span>
-                  <span>
-                    Showing {paginationInfo.startIndex}-{paginationInfo.endIndex} of {paginationInfo.totalItems}
-                  </span>
-                  <span>•</span>
-                  <span>
-                    Page {paginationInfo.currentPage} of {paginationInfo.totalPages}
-                  </span> */}
                 </>
                 {(searchTerm || categoryFilter !== "all") && (
                   <>
