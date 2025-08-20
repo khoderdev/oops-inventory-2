@@ -11,13 +11,13 @@ import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, Ch
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
-import { getCategoriesByType } from "@/api/categories.api";
+import { getCategories } from "@/api/categories.api";
 import { Category } from "@/types/categories";
 
 export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
   const { setShowMaterialForm } = useInventoryStore();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [, setLoadingCategories] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -120,7 +120,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     const fetchCategories = async () => {
       try {
         setLoadingCategories(true);
-        const response = await getCategoriesByType("materials", true);
+        const response = await getCategories({ isActive: true });
         const sortedCategories = [...(response.totalItems || [])];
         sortedCategories.sort((a, b) => a.name.localeCompare(b.name));
         setCategories(sortedCategories);
@@ -224,28 +224,44 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
         cell: ({ getValue, row }) => {
           const category = getValue();
           const materialCategoryId = (row.original as any).categoryId;
+          
+          // Find category by ID first (most reliable)
           let categoryInfo: Category | undefined;
           if (materialCategoryId && categoriesById.has(materialCategoryId)) {
             categoryInfo = categoriesById.get(materialCategoryId);
           }
+          // Fallback to category object if present
+          else if (typeof category === "object" && category !== null) {
+            const categoryObj = category as any;
+            if (categoryObj.id && categoriesById.has(categoryObj.id)) {
+              categoryInfo = categoriesById.get(categoryObj.id);
+            } else if (categoryObj.value && categoriesByValue.has(categoryObj.value)) {
+              categoryInfo = categoriesByValue.get(categoryObj.value);
+            }
+          }
+          // Fallback to string category value
           else if (typeof category === "string" && category && categoriesByValue.has(category)) {
             categoryInfo = categoriesByValue.get(category);
           }
-          else if (typeof category === "object" && category !== null && "id" in (category as Record<string, any>) && (category as Record<string, any>).id !== null && categoriesById.has((category as Record<string, any>).id)) {
-            categoryInfo = categoriesById.get((category as any).id);
-          }
-          else if (typeof category === "object" && category !== null && "value" in (category as Record<string, any>) && categoriesByValue.has((category as any).value)) {
-            categoryInfo = categoriesByValue.get((category as any).value);
-          }
-          if (!category && !materialCategoryId) {
+
+          // Handle no category case
+          if (!categoryInfo && !category && !materialCategoryId) {
             return (
               <Badge variant="outline" className="text-xs font-medium bg-gray-100 text-gray-500 border-gray-200">
                 No Category
               </Badge>
             );
           }
-          const displayName = categoryInfo?.name || (typeof category === "string" ? category : typeof category === "object" && category !== null && "name" in category ? (category as any).name : "Unknown");
-          const categoryValue = categoryInfo?.value || (typeof category === "string" ? category : typeof category === "object" && category !== null && "value" in category ? (category as any).value : "unknown");
+
+          // Get display values
+          const displayName = categoryInfo?.name || 
+            (typeof category === "object" && category !== null && (category as any).name) || 
+            (typeof category === "string" ? category : "Unknown");
+          
+          const categoryValue = categoryInfo?.value || 
+            (typeof category === "object" && category !== null && (category as any).value) || 
+            (typeof category === "string" ? category : "unknown");
+
           return (
             <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
               {displayName}
@@ -510,30 +526,33 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
               {paginatedMaterials.map(material => {
                 const materialCategoryId = (material as any).categoryId;
 
-                // Use the memoized category maps for instant lookup
+                // Find category by ID first (most reliable)
                 let categoryInfo: Category | undefined;
-
-                // Try by ID first (fastest)
                 if (materialCategoryId && categoriesById.has(materialCategoryId)) {
                   categoryInfo = categoriesById.get(materialCategoryId);
                 }
-                // Then try by value if category is a string
+                // Fallback to category object if present
+                else if (typeof material.category === "object" && material.category !== null) {
+                  const categoryObj = material.category as any;
+                  if (categoryObj.id && categoriesById.has(categoryObj.id)) {
+                    categoryInfo = categoriesById.get(categoryObj.id);
+                  } else if (categoryObj.value && categoriesByValue.has(categoryObj.value)) {
+                    categoryInfo = categoriesByValue.get(categoryObj.value);
+                  }
+                }
+                // Fallback to string category value
                 else if (typeof material.category === "string" && material.category && categoriesByValue.has(material.category)) {
                   categoryInfo = categoriesByValue.get(material.category);
                 }
-                // Then try by object with id
-                else if (typeof material.category === "object" && material.category !== null && "id" in (material.category as Record<string, any>) && (material.category as Record<string, any>).id !== null && categoriesById.has((material.category as Record<string, any>).id)) {
-                  categoryInfo = categoriesById.get((material.category as Record<string, any>).id);
-                }
-                // Then try by object with value
-                else if (typeof material.category === "object" && material.category !== null && "value" in (material.category as Record<string, any>) && categoriesByValue.has((material.category as Record<string, any>).value)) {
-                  categoryInfo = categoriesByValue.get((material.category as Record<string, any>).value);
-                }
 
-                // Get display name and value for the badge
-                const displayName = categoryInfo?.name || (typeof material.category === "string" ? material.category : typeof material.category === "object" && material.category !== null && "name" in material.category ? (material.category as any).name : "Unknown");
+                // Get display values
+                const displayName = categoryInfo?.name || 
+                  (typeof material.category === "object" && material.category !== null && (material.category as any).name) || 
+                  (typeof material.category === "string" ? material.category : "Unknown");
 
-                const categoryValue = categoryInfo?.value || (typeof material.category === "string" ? material.category : typeof material.category === "object" && material.category !== null && "value" in material.category ? (material.category as any).value : "unknown");
+                const categoryValue = categoryInfo?.value || 
+                  (typeof material.category === "object" && material.category !== null && (material.category as any).value) || 
+                  (typeof material.category === "string" ? material.category : "unknown");
 
                 return (
                   <div key={material.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">

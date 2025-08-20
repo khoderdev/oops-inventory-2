@@ -259,11 +259,14 @@ const materialController = {
       // Validate categoryId if provided
       if (finalCategoryId) {
         const categoryExists = await Category.findOne({ 
-          where: { id: finalCategoryId, type: 'materials', isActive: true } 
+          where: { 
+            id: finalCategoryId, 
+            isActive: true
+          } 
         });
         if (!categoryExists) {
           return res.status(400).json({ 
-            error: `Invalid category ID: ${finalCategoryId}. Please use a valid material category ID.` 
+            error: `Invalid category ID: ${finalCategoryId}. Please use a valid category ID.` 
           });
         }
       }
@@ -325,11 +328,14 @@ const materialController = {
       // Validate categoryId if provided
       if (finalCategoryId !== undefined && finalCategoryId) {
         const categoryExists = await Category.findOne({ 
-          where: { id: finalCategoryId, type: 'materials', isActive: true } 
+          where: { 
+            id: finalCategoryId, 
+            isActive: true
+          } 
         });
         if (!categoryExists) {
           return res.status(400).json({ 
-            error: `Invalid category ID: ${finalCategoryId}. Please use a valid material category ID.` 
+            error: `Invalid category ID: ${finalCategoryId}. Please use a valid category ID.` 
           });
         }
       }

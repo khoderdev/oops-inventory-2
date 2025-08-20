@@ -64,7 +64,7 @@ export const deleteCategory = async (id: number): Promise<{ success: boolean; me
 
 // Bulk update sort orders
 export const updateSortOrders = async (categories: SortOrderUpdate[]): Promise<{ success: boolean; message: string }> => {
-  const response = await api.put('/categories/sort-order', { categories });
+  const response = await api.put('/categories/sort-orders', { categories });
   return response.data as { success: boolean; message: string };
 };
 
