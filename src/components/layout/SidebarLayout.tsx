@@ -28,7 +28,7 @@ export function SidebarLayout({ children, showSearch = true, showNotifications =
   };
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={true}>
       <AppSidebar />
       <SidebarInset className="flex flex-col min-h-screen transition-all duration-300 ease-in-out">
         <header className="flex h-12 shrink-0 items-center gap-2 sm:gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 safe-area-top">
