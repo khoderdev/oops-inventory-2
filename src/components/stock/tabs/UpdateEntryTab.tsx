@@ -31,11 +31,19 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     if (lastChangedField === "totalCost" && quantity > 0) {
       // Calculate cost per unit from total cost
       const calculatedCostPerUnit = totalCost / quantity;
-      form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString());
-    } else if ((lastChangedField === "purchasedQuantity" || lastChangedField === "costPerPurchasedUnit") || !lastChangedField) {
-      // Calculate total cost from quantity and cost per unit
+      form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString(), { shouldValidate: true });
+    } else if (lastChangedField === "purchasedQuantity" && costPerUnit > 0) {
+      // When quantity changes, update total cost
       const calculatedTotal = quantity * costPerUnit;
-      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString());
+      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
+    } else if (lastChangedField === "costPerPurchasedUnit" && quantity > 0) {
+      // When cost per unit changes, update total cost
+      const calculatedTotal = quantity * costPerUnit;
+      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
+    } else if (!lastChangedField && quantity > 0 && costPerUnit > 0) {
+      // Initial calculation or when no specific field was changed
+      const calculatedTotal = quantity * costPerUnit;
+      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
     }
   }, [watchedQuantity, watchedCostPerUnit, watchedTotalCost, form, lastChangedField]);
   const handleSubmit = (data: StockFormInputs) => {
