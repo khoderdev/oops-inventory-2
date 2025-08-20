@@ -64,7 +64,7 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "materialName" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("materialName", newOrder);
             }}
-            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[180px] bg-green-400 flex items-center"
+            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[180px] flex items-center"
           >
             Material Name
             <span className="text-xs ml-1">{sortBy === "materialName" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
@@ -87,14 +87,14 @@ export function useStockEntriesTableColumns({
       columnHelper.display({
         id: "remainingQty",
         size: 100,
-        header: ({ column }) => <div className="text-left w-[100px] font-semibold bg-teal-400 px-2 flex items-center h-8">Current Qty</div>,
+        header: ({ column }) => <div className="text-left w-[100px] font-semibold px-2 flex items-center h-8">Current Qty</div>,
         cell: ({ row }) => <div className="text-left w-[100px] h-8 px-2 flex items-center">{renderQuantityDisplay(row.original)}</div>
       }),
 
       columnHelper.display({
         id: "unit",
         size: 80,
-        header: ({ column }) => <div className="text-left w-[80px] font-semibold bg-orange-400 px-2 flex items-center h-8">Base Unit</div>,
+        header: ({ column }) => <div className="text-left w-[80px] font-semibold px-2 flex items-center h-8">Base Unit</div>,
         cell: ({ row }) => <div className="text-left w-[80px] h-8 px-2 flex items-center">{renderUnitDisplay(row.original)}</div>
       }),
 
@@ -108,7 +108,7 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "costPerPurchasedUnit" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("costPerPurchasedUnit", newOrder);
             }}
-            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[110px] bg-blue-400 flex items-center"
+            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[110px] flex items-center"
           >
             Unit Cost
             <span className="text-xs ml-1">{sortBy === "costPerPurchasedUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
@@ -139,7 +139,7 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "totalCost" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("totalCost", newOrder);
             }}
-            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[90px] bg-yellow-400 flex items-center"
+            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[90px] flex items-center"
           >
             Total Cost
             <span className="text-xs ml-1">{sortBy === "totalCost" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
@@ -163,14 +163,14 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "purchaseDate" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("purchaseDate", newOrder);
             }}
-            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[110px] bg-purple-400 flex items-center"
+            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[110px] flex items-center"
           >
             Purchase Date
             <span className="text-xs ml-1">{sortBy === "purchaseDate" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
         cell: ({ getValue }) => (
-          <div className="text-left w-[110px] h-8 px-2 flex items-center bg-purple-400">
+          <div className="text-left w-[110px] h-8 -mr-5 px-2 flex items-center">
             <span className="font-medium">{new Date(getValue()).toLocaleDateString()}</span>
           </div>
         ),
@@ -181,11 +181,11 @@ export function useStockEntriesTableColumns({
         id: "actions",
         size: 130,
         enableSorting: false,
-        header: ({ column }) => <div className="text-left font-semibold bg-red-400 px-2 w-[130px] flex items-center h-8">Actions</div>,
+        header: ({ column }) => <div className="text-left font-semibold px-2 w-[130px] flex items-center h-8">Actions</div>,
         cell: ({ row }) => {
           const entry = row.original;
           return (
-            <div className="flex items-center gap-1 h-8 px-2 w-[130px] bg-red-400">
+            <div className="flex items-center gap-1 h-8 px-2 w-fit -mr-6">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

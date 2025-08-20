@@ -84,7 +84,7 @@ export const renderUnitDisplay = (entry: StockEntryWithMaterial) => {
   return (
     <div className="flex items-center gap-1">
       <div className="space-y-1 text-center">
-        <Badge variant="default" className="font-bold bg-primary/25 text-teal-700 hover:bg-primary/25">{formatUnit(entry.purchasedUnit)}</Badge>
+        <div className="font-medium">{formatUnit(entry.purchasedUnit.toUpperCase())}</div>
         {(() => {
           if (material?.unitType === "package" && entry.purchasedIndividualUnit) {
             // return <div className="text-xs text-muted-foreground">{formatUnit(entry.purchasedIndividualUnit)}</div>;

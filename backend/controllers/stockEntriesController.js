@@ -705,9 +705,8 @@ const stockEntriesController = {
         });
       }
       const isWastingAll = wasteInOriginalUnit >= stockEntry.purchasedQuantity;
-      // If wasting all, set everything to 0 immediately
       let newPurchasedQuantity = isWastingAll ? 0 : Math.max(0, parseFloat(stockEntry.purchasedQuantity) - wasteInOriginalUnit);
-      let newIndividualQuantity = isWastingAll ? 0 : 0; // Start at 0, will be calculated below if not wasting all
+      let newIndividualQuantity = isWastingAll ? 0 : 0;
       let newIndividualUnit = isWastingAll ? material.baseUnit : stockEntry.purchasedIndividualUnit || material.baseUnit;
       if (isWastingAll) {
         newIndividualQuantity = 0;
@@ -732,17 +731,11 @@ const stockEntriesController = {
       const costReduction = wasteInOriginalUnit * parseFloat(stockEntry.costPerPurchasedUnit);
       const newTotalCost = Math.max(0, parseFloat((parseFloat(stockEntry.totalCost) - costReduction).toFixed(6)));
       const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
-      // CRITICAL FIX: Ensure proper synchronization between quantities for mass units
       let newPurchasedConvertedQuantity;
       let newPurchasedConvertedUnit;
-      
       if (material.unitType === "mass") {
-        // For mass units, ensure converted quantity matches the individual quantity in base units
         newPurchasedConvertedQuantity = newIndividualQuantity;
         newPurchasedConvertedUnit = material.baseUnit;
-        
-        // CRITICAL FIX: For mass units, ensure individual quantity is properly calculated from purchased quantity
-        // This ensures purchasedIndividualQuantity is exactly 1000 * purchasedQuantity for kg->g conversions
         if (stockEntry.purchasedUnit === "kg" && material.baseUnit === "g") {
           newIndividualQuantity = Math.round(newPurchasedQuantity * 1000);
         }
@@ -753,8 +746,6 @@ const stockEntriesController = {
         newPurchasedConvertedQuantity = newIndividualQuantity;
         newPurchasedConvertedUnit = newIndividualUnit;
       }
-      
-      // isWastingAll is already handled above, just ensure converted quantity is also 0 if wasting all
       if (isWastingAll) {
         newPurchasedConvertedQuantity = 0;
         newIndividualQuantity = 0;
