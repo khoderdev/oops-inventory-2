@@ -119,7 +119,6 @@ class BackupApiClient {
     options: {
       name?: string;
       formats?: ("custom" | "directory" | "sql")[];
-      type?: "custom" | "directory" | "sql"; // Deprecated: use formats instead
       includeData?: boolean;
       includeSchema?: boolean;
     } = {}
@@ -127,11 +126,6 @@ class BackupApiClient {
     this.clearCache(); // Clear cache when creating new backup
 
     try {
-      // Handle backward compatibility: if type is provided but not formats, use type
-      if (options.type && !options.formats) {
-        options.formats = [options.type];
-      }
-      
       // Default to all formats if none specified
       if (!options.formats || options.formats.length === 0) {
         options.formats = ["custom", "directory", "sql"];

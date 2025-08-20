@@ -195,8 +195,12 @@ const getBackupMetadata = async (backupPath, type) => {
 // Helper function to run backup script
 const runBackupScript = async (format = 'custom') => {
   try {
+    // Map 'sql' to 'plain' for pg_dump compatibility
+    const pgDumpFormat = format === 'sql' ? 'sql' : format;
+    
     const scriptPath = path.join(__dirname, "..", "scripts", "pgDumpFixed.js");
-    const result = await execAsync(`node "${scriptPath}" --format=${format}`, {
+    console.log(`Running backup with format: ${pgDumpFormat}`);
+    const result = await execAsync(`node "${scriptPath}" --format=${pgDumpFormat}`, {
       cwd: path.join(__dirname, ".."),
       env: { ...process.env }
     });
@@ -263,13 +267,18 @@ initPostgreSQLPaths();
 // Create a new backup
 router.post("/create", async (req, res) => {
   try {
-    const { name, type = "custom", includeData = true, includeSchema = true } = req.body;
+    // Extract format from the formats array if provided, otherwise default to custom
+    const { name, formats, includeData = true, includeSchema = true } = req.body;
+    const type = formats && formats.length > 0 ? formats[0] : "custom";
+    
+    console.log(`Creating backup with name: ${name}, format: ${type}`);
+    
 
     // Generate backup name if not provided
     const backupName = name || `backup_${new Date().toISOString().replace(/[:.]/g, "-")}`;
 
-    // Run the backup script
-    const result = await runBackupScript();
+    // Run the backup script with the specified format
+    const result = await runBackupScript(type);
 
     // Find the created backup directory
     const backupDirs = await fsPromises.readdir(BACKUP_DIR);
@@ -308,8 +317,11 @@ router.post("/create", async (req, res) => {
     const backupPath = path.join(backupDir, mainFile);
     const metadata = await getBackupMetadata(backupPath, type);
 
+    // Create a backup ID that includes the format
+    const backupId = `${latestBackup}_${type}`;
+    
     const backupInfo = {
-      id: latestBackup,
+      id: backupId,
       name: backupName,
       type,
       path: backupPath,
@@ -520,28 +532,50 @@ router.get("/download/:backupId", async (req, res) => {
     // Parse backup ID to get directory and type
     const parts = backupId.split("_");
     const type = parts[parts.length - 1];
-    const dirName = parts.slice(0, -1).join("_");
+    
+    // The directory name is the full backup ID without the type suffix
+    // For example: pgdump_2025-08-20_5-41-51-AM
+    const dirName = backupId.substring(0, backupId.length - type.length - 1);
+    
+    console.log(`📥 Downloading backup: ${backupId}, type: ${type}, dirName: ${dirName}`);
 
     const backupDir = path.join(BACKUP_DIR, dirName);
 
     let filePath;
     let fileName;
 
+    // Log directory contents to help diagnose issues
+    console.log(`📂 Checking backup directory: ${backupDir}`);
+    try {
+      const allFiles = await fsPromises.readdir(backupDir);
+      console.log(`📄 Available files in backup directory:`, allFiles);
+    } catch (dirError) {
+      console.error(`❌ Error reading backup directory: ${dirError.message}`);
+    }
+    
     switch (type) {
       case "custom":
-        const customFiles = await fs.readdir(backupDir);
+        console.log(`🔍 Looking for custom format backup file`);
+        const customFiles = await fsPromises.readdir(backupDir);
         const customFile = customFiles.find(f => f.endsWith(".custom"));
         if (!customFile) throw new Error("Custom backup file not found");
         filePath = path.join(backupDir, customFile);
         fileName = `${dirName}.custom`;
+        console.log(`✅ Found custom backup file: ${customFile}`);
         break;
 
       case "sql":
-        const sqlFiles = await fs.readdir(backupDir);
+        console.log(`🔍 Looking for SQL format backup file`);
+        const sqlFiles = await fsPromises.readdir(backupDir);
+        console.log(`📄 SQL search - Found files:`, sqlFiles);
         const sqlFile = sqlFiles.find(f => f.endsWith(".sql"));
-        if (!sqlFile) throw new Error("SQL backup file not found");
+        if (!sqlFile) {
+          console.error(`❌ SQL backup file not found in directory`);
+          throw new Error("SQL backup file not found");
+        }
         filePath = path.join(backupDir, sqlFile);
         fileName = `${dirName}.sql`;
+        console.log(`✅ Found SQL backup file: ${sqlFile}`);
         break;
 
       case "directory":
@@ -729,7 +763,7 @@ router.post("/restore/:backupId", async (req, res) => {
           }
           
           // Write modified content to temp file
-          await fs.writeFile(tempFilePath, modifiedContent);
+          await fsPromises.writeFile(tempFilePath, modifiedContent);
           filePath = tempFilePath;
           
           // Determine connection database based on dropExisting and database commands
@@ -763,7 +797,7 @@ router.post("/restore/:backupId", async (req, res) => {
             );
             
             // Write modified content to temp file
-            await fs.writeFile(tempFilePath, modifiedContent);
+            await fsPromises.writeFile(tempFilePath, modifiedContent);
             filePath = tempFilePath;
           }
           
@@ -800,7 +834,7 @@ router.post("/restore/:backupId", async (req, res) => {
     // Cleanup temp file if created
     if (typeof tempFilePath !== 'undefined' && tempFilePath) {
       try {
-        await fs.unlink(tempFilePath);
+        await fsPromises.unlink(tempFilePath);
         console.log(`🗑️ Cleaned up temp file: ${tempFilePath}`);
       } catch (cleanupError) {
         console.warn(`⚠️ Failed to cleanup temp file: ${cleanupError.message}`);
@@ -857,7 +891,7 @@ router.post("/restore/:backupId", async (req, res) => {
     // Cleanup temp file if created
     if (typeof tempFilePath !== 'undefined' && tempFilePath) {
       try {
-        await fs.unlink(tempFilePath);
+        await fsPromises.unlink(tempFilePath);
         console.log(`🗑️ Cleaned up temp file after error: ${tempFilePath}`);
       } catch (cleanupError) {
         console.warn(`⚠️ Failed to cleanup temp file after error: ${cleanupError.message}`);
@@ -897,12 +931,12 @@ router.post("/upload", upload.single("backup"), async (req, res) => {
     // Create backup directory
     const backupName = name || `uploaded_${Date.now()}`;
     const backupDir = path.join(BACKUP_DIR, backupName);
-    await fs.mkdir(backupDir, { recursive: true });
+    await fsPromises.mkdir(backupDir, { recursive: true });
 
     // Move uploaded file to backup directory
     const targetFileName = type === "sql" ? "backup.sql" : "backup.custom";
     const targetPath = path.join(backupDir, targetFileName);
-    await fs.rename(uploadedFile.path, targetPath);
+    await fsPromises.rename(uploadedFile.path, targetPath);
 
     // Get metadata
     const metadata = await getBackupMetadata(targetPath, type);
@@ -929,7 +963,7 @@ router.post("/upload", upload.single("backup"), async (req, res) => {
 
     // Clean up uploaded file if it exists
     if (req.file && req.file.path) {
-      await fs.unlink(req.file.path).catch(() => {});
+      await fsPromises.unlink(req.file.path).catch(() => {});
     }
 
     res.status(500).json({

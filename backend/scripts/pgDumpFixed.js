@@ -5,8 +5,7 @@ import { fileURLToPath } from "url";
 import { dirname } from 'path';
 import { promisify } from "util";
 import os from "os";
-import sequelize from "../config/database.js";
-import { findPostgreSQLPath, testPgDump } from './pgPathFinder.js';
+import { findPostgreSQLPath } from './pgPathFinder.js';
 
 // Set this to false to prevent writing config file during server startup
 const WRITE_CONFIG_ON_STARTUP = false;
@@ -129,9 +128,11 @@ async function findPostgreSQLBinPath() {
 // Parse command line arguments for format selection
 const args = process.argv.slice(2);
 const formatArgs = args.filter(arg => arg.startsWith('--format='));
+
+// If format is specified, use only that format; otherwise default to custom only
 const selectedFormats = formatArgs.length > 0 
   ? formatArgs[0].replace('--format=', '').split(',').map(f => f.trim())
-  : ['custom', 'directory', 'sql']; // Default to all formats
+  : ['custom']; // Default to custom format only
 
 // Validate format selection
 const validFormats = ['custom', 'directory', 'sql'];
@@ -265,6 +266,7 @@ try {
   if (selectedFormats.includes('sql')) {
     console.log("   📄 Creating plain SQL backup...");
     const sqlBackupFile = path.join(backupDir, "backup.sql");
+    // Use 'plain' format for pg_dump when 'sql' is requested
     const sqlCommand = buildPgDumpCommand("plain", sqlBackupFile, "--column-inserts");
 
     await execAsync(sqlCommand, { env });
