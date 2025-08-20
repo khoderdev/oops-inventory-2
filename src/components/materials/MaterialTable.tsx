@@ -63,10 +63,7 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
           if (typeof material.category === "object" && material.category !== null) {
             const categoryAsAny = material.category as any;
             if ("value" in categoryAsAny && categoryAsAny.value === categoryFilter) return true;
-            if ("id" in categoryAsAny && 
-                categoryAsAny.id !== null && 
-                categoryAsAny.id !== undefined && 
-                categoriesById.has(categoryAsAny.id)) {
+            if ("id" in categoryAsAny && categoryAsAny.id !== null && categoryAsAny.id !== undefined && categoriesById.has(categoryAsAny.id)) {
               return categoriesById.get(categoryAsAny.id)?.value === categoryFilter;
             }
           }
@@ -112,7 +109,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
       hasNextPage: currentPage < totalPages
     };
   }, [visibleMaterials.length, currentPage, pageSize]);
-
 
   const handleSortChange = useCallback((newSortBy: string, newSortOrder: "ASC" | "DESC") => {
     setSortBy(newSortBy);
@@ -202,31 +198,24 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
         cell: ({ getValue, row }) => {
           const category = getValue();
           const materialCategoryId = (row.original as any).categoryId;
-          
-          // Debug logging for category resolution
-          console.log(`Material ${row.original.name}: categoryId=${materialCategoryId}, category=`, category);
-          
+
           // Find category by ID first (most reliable for materials)
           let categoryInfo: Category | undefined;
-          if (materialCategoryId && typeof materialCategoryId === 'number' && categoriesById.has(materialCategoryId)) {
+          if (materialCategoryId && categoriesById.has(materialCategoryId)) {
             categoryInfo = categoriesById.get(materialCategoryId);
-            console.log(`Found category by ID ${materialCategoryId}:`, categoryInfo);
           }
           // Fallback to category object if present
           else if (typeof category === "object" && category !== null) {
             const categoryObj = category as any;
-            if (categoryObj.id && typeof categoryObj.id === 'number' && categoriesById.has(categoryObj.id)) {
+            if (categoryObj.id && categoriesById.has(categoryObj.id)) {
               categoryInfo = categoriesById.get(categoryObj.id);
-              console.log(`Found category by object ID ${categoryObj.id}:`, categoryInfo);
-            } else if (categoryObj.value && typeof categoryObj.value === 'string' && categoriesByValue.has(categoryObj.value)) {
+            } else if (categoryObj.value && categoriesByValue.has(categoryObj.value)) {
               categoryInfo = categoriesByValue.get(categoryObj.value);
-              console.log(`Found category by object value ${categoryObj.value}:`, categoryInfo);
             }
           }
           // Fallback to string category value
           else if (typeof category === "string" && category && categoriesByValue.has(category)) {
             categoryInfo = categoriesByValue.get(category);
-            console.log(`Found category by string value ${category}:`, categoryInfo);
           }
 
           // Handle no category case
@@ -239,22 +228,9 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
           }
 
           // Get display values with better fallback logic
-          const displayName = categoryInfo?.name || 
-            (typeof category === "object" && category !== null && (category as any).name) || 
-            (typeof category === "string" && category ? category : "Unknown Category");
-          
-          const categoryValue = categoryInfo?.value || 
-            (typeof category === "object" && category !== null && (category as any).value) || 
-            (typeof category === "string" && category ? category : "unknown");
+          const displayName = categoryInfo?.name || (typeof category === "object" && category !== null && (category as any).name) || (typeof category === "string" && category ? category : "Unknown Category");
 
-          // Show debug info if category couldn't be resolved properly
-          if (!categoryInfo && (materialCategoryId || category)) {
-            console.warn(`Could not resolve category for material ${row.original.name}:`, {
-              materialCategoryId,
-              category,
-              availableCategories: categories.map(c => ({ id: c.id, name: c.name, value: c.value }))
-            });
-          }
+          const categoryValue = categoryInfo?.value || (typeof category === "object" && category !== null && (category as any).value) || (typeof category === "string" && category ? category : "unknown");
 
           return (
             <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
@@ -392,6 +368,16 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
     meta: { categoriesVersion: categories.length }
   });
 
+  useEffect(() => {
+    if (categories.length > 0) {
+      // Force re-render of the table when categories change
+      table.setOptions(prev => ({
+        ...prev,
+        meta: { categoriesVersion: categories.length + Math.random() }
+      }));
+    }
+  }, [categories, table]);
+
   const getCategoryColor = useCallback((category: string) => {
     switch (category) {
       case "meat":
@@ -522,15 +508,15 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
 
                 // Find category by ID first (most reliable for materials)
                 let categoryInfo: Category | undefined;
-                if (materialCategoryId && typeof materialCategoryId === 'number' && categoriesById.has(materialCategoryId)) {
+                if (materialCategoryId && categoriesById.has(materialCategoryId)) {
                   categoryInfo = categoriesById.get(materialCategoryId);
                 }
                 // Fallback to category object if present
                 else if (typeof material.category === "object" && material.category !== null) {
                   const categoryObj = material.category as any;
-                  if (categoryObj.id && typeof categoryObj.id === 'number' && categoriesById.has(categoryObj.id)) {
+                  if (categoryObj.id && categoriesById.has(categoryObj.id)) {
                     categoryInfo = categoriesById.get(categoryObj.id);
-                  } else if (categoryObj.value && typeof categoryObj.value === 'string' && categoriesByValue.has(categoryObj.value)) {
+                  } else if (categoryObj.value && categoriesByValue.has(categoryObj.value)) {
                     categoryInfo = categoriesByValue.get(categoryObj.value);
                   }
                 }
@@ -540,13 +526,9 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
                 }
 
                 // Get display values with better fallback logic
-                const displayName = categoryInfo?.name || 
-                  (typeof material.category === "object" && material.category !== null && (material.category as any).name) || 
-                  (typeof material.category === "string" ? material.category : "Unknown Category");
+                const displayName = categoryInfo?.name || (typeof material.category === "object" && material.category !== null && (material.category as any).name) || (typeof material.category === "string" ? material.category : "Unknown Category");
 
-                const categoryValue = categoryInfo?.value || 
-                  (typeof material.category === "object" && material.category !== null && (material.category as any).value) || 
-                  (typeof material.category === "string" ? material.category : "unknown");
+                const categoryValue = categoryInfo?.value || (typeof material.category === "object" && material.category !== null && (material.category as any).value) || (typeof material.category === "string" ? material.category : "unknown");
 
                 return (
                   <div key={material.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">

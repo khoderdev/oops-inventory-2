@@ -203,7 +203,7 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
         {/* Name */}
         <div className="space-y-2">
           <Label htmlFor="name">Name *</Label>
-          <Input id="name" value={formData.name || ""} onChange={e => handleNameChange(e.target.value)} placeholder="e.g., Meat & Poultry" className={errors.name ? "border-red-500" : ""} />
+          <Input id="name" value={formData.name || ""} onChange={e => handleNameChange(e.target.value)} placeholder="e.g., Meat, Dairy, Cold, Alcohol, Burgers.." className={errors.name ? "border-red-500" : ""} />
           {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
         </div>
       </div>
