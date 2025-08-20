@@ -536,8 +536,11 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     [searchTerm, categories, getMaterialName, calculateMenuItemCost, handleTogglePOSVisibility, handleOpenPrinterDialog, handleDeleteMenuItem]
   );
 
+  // Filter menu items by search term, selected category, and exclude items with beverageStockId
   const filteredMenuItems = useMemo(() => {
     return currentMenuItems.filter(item => {
+      // Exclude items with beverageStockId (these are beverage items)
+      if (item.beverageStockId) return false;
       const searchLower = searchTerm.toLowerCase();
       const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
       const matchesIngredients =
@@ -548,6 +551,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
             })
           : false;
       const matchesSearch = matchesNameOrDescription || matchesIngredients;
+      
       // Handle different category formats: string, object, or number
       const matchesCategory =
         selectedCategory === "all" ||

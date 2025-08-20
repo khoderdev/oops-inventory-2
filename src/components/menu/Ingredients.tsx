@@ -631,8 +631,6 @@ const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredien
                 const percentage = (profit / priceValue) * 100;
                 percentageDisplay = `${formatNumber(isNaN(percentage) ? 0 : percentage)}%`;
               }
-
-              console.log(`Profit calculation: ${priceValue} - ${ingredientsCost} = ${profit} (${percentageDisplay})`);
               return `${profitDisplay} (${percentageDisplay})`;
             })()}
           </span>
