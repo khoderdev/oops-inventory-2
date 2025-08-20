@@ -304,7 +304,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           onClick={() => {
                             const currentValue = field.value === "" ? 0 : parseFloat(field.value);
                             const newValue = currentValue + 0.01;
-                            field.onChange(newValue.toFixed(2));
+                            field.onChange(newValue.toFixed(6));
                             setLastChangedField("costPerPurchasedUnit");
                           }}
                         >
