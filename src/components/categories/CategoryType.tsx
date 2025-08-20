@@ -101,11 +101,8 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
   const loadCategoryTypes = async () => {
     try {
       setLoading(true);
-      const filters: CategoryTypeFilters = {};
-      if (searchTerm.trim()) {
-        filters.type = searchTerm.trim();
-      }
-      const response = await getCategoryTypes(filters);
+      // Fetch all category types without search filters for client-side filtering
+      const response = await getCategoryTypes({});
       setCategoryTypes(response.totalItems);
     } catch (error: any) {
       console.error("Error loading category types:", error);
@@ -122,7 +119,7 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
 
   useEffect(() => {
     loadCategoryTypes();
-  }, [searchTerm]);
+  }, []); // Remove searchTerm dependency for client-side search
 
   // Handle category type creation/update
   const handleSave = async (formData: CategoryTypeFormData) => {
@@ -239,7 +236,7 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
   // Handle select all
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedItems(new Set(categoryTypes.map(ct => ct.id)));
+      setSelectedItems(new Set(filteredCategoryTypes.map(ct => ct.id)));
     } else {
       setSelectedItems(new Set());
     }
@@ -266,146 +263,146 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <CardTitle className="flex items-center gap-2">
-            <Package2 className="h-5 w-5" />
-            Category Types ({filteredCategoryTypes.length})
-          </CardTitle>
+    <div className="h-[calc(100vh-160px)] flex flex-col">
+      <Card className="h-full flex flex-col">
+        <CardHeader className="sticky top-0 z-10 bg-background border-b p-2 px-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+                Category Types ({filteredCategoryTypes.length})
+              </h1>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:flex-none">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input placeholder="Search types..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 w-full sm:w-64" />
+              <div className="flex flex-row gap-2 w-full sm:w-auto">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input placeholder="Search types..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 w-full sm:w-64" />
+                </div>
+
+                {selectedItems.size > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete ({selectedItems.size})
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Category Types</AlertDialogTitle>
+                        <AlertDialogDescription>Are you sure you want to delete {selectedItems.size} category type(s)? This action cannot be undone and may affect existing categories.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600 hover:bg-red-700">
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+
+                <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={handleCreateNew}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Type
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingCategoryType ? "Edit Category Type" : "Create Category Type"}</DialogTitle>
+                      <DialogDescription>{editingCategoryType ? "Update the category type information below." : "Create a new category type to organize your categories."}</DialogDescription>
+                    </DialogHeader>
+                    <CategoryTypeForm categoryType={editingCategoryType} onSave={handleSave} onCancel={handleFormCancel} isLoading={formLoading} />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
-            {selectedItems.size > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete ({selectedItems.size})
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Category Types</AlertDialogTitle>
-                    <AlertDialogDescription>Are you sure you want to delete {selectedItems.size} category type(s)? This action cannot be undone and may affect existing categories.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600 hover:bg-red-700">
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-
-            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={handleCreateNew}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Type
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingCategoryType ? "Edit Category Type" : "Create Category Type"}</DialogTitle>
-                  <DialogDescription>{editingCategoryType ? "Update the category type information below." : "Create a new category type to organize your categories."}</DialogDescription>
-                </DialogHeader>
-                <CategoryTypeForm categoryType={editingCategoryType} onSave={handleSave} onCancel={handleFormCancel} isLoading={formLoading} />
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        {filteredCategoryTypes.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Package2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>{searchTerm ? "No category types found matching your search." : "No category types available. Create your first category type to get started."}</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Select All Header */}
-            <div className="flex items-center gap-2 pb-2 border-b">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                ref={el => {
-                  if (el) el.indeterminate = someSelected;
-                }}
-                onChange={e => handleSelectAll(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm font-medium">{selectedItems.size > 0 ? `${selectedItems.size} selected` : "Select all"}</span>
-            </div>
-
-            {/* Category Types List */}
-            <div className="grid gap-3">
-              {filteredCategoryTypes.map(categoryType => (
-                <div
-                  key={categoryType.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={e => {
-                    // Don't trigger selection if clicking on action buttons
-                    if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest('[role="dialog"]')) {
-                      return;
-                    }
-                    handleItemSelect(categoryType.id, !selectedItems.has(categoryType.id));
+            {/* Select All Checkbox - Below search and buttons */}
+            {filteredCategoryTypes.length > 0 && (
+              <div className="flex items-center gap-2 px-2 py-2 border-t">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={el => {
+                    if (el) el.indeterminate = someSelected;
                   }}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedItems.has(categoryType.id)}
-                      onChange={e => handleItemSelect(categoryType.id, e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="font-mono">
-                          {categoryType.type}
-                        </Badge>
+                  onChange={e => handleSelectAll(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm font-medium">{selectedItems.size > 0 ? `${selectedItems.size} selected` : "Select all"}</span>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+
+        <CardContent className="flex-1 overflow-y-auto p-4">
+          {filteredCategoryTypes.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Package2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>{searchTerm ? "No category types found matching your search." : "No category types available. Create your first category type to get started."}</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Category Types List */}
+              <div className="grid gap-3">
+                {filteredCategoryTypes.map(categoryType => (
+                  <div
+                    key={categoryType.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={e => {
+                      // Don't trigger selection if clicking on action buttons
+                      if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest('[role="dialog"]')) {
+                        return;
+                      }
+                      handleItemSelect(categoryType.id, !selectedItems.has(categoryType.id));
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input type="checkbox" checked={selectedItems.has(categoryType.id)} onChange={e => handleItemSelect(categoryType.id, e.target.checked)} className="w-4 h-4" />
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="font-bold text-md">
+                            {categoryType.type}
+                          </Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground ml-1 mt-1">Created: {new Date(categoryType.createdAt).toLocaleDateString()}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground mt-1">Created: {new Date(categoryType.createdAt).toLocaleDateString()}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(categoryType)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Category Type</AlertDialogTitle>
+                            <AlertDialogDescription>Are you sure you want to delete the category type "{categoryType.type}"? This action cannot be undone and may affect existing categories using this type.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(categoryType.id)} className="bg-red-600 hover:bg-red-700">
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(categoryType)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Category Type</AlertDialogTitle>
-                          <AlertDialogDescription>Are you sure you want to delete the category type "{categoryType.type}"? This action cannot be undone and may affect existing categories using this type.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(categoryType.id)} className="bg-red-600 hover:bg-red-700">
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };

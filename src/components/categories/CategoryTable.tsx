@@ -243,7 +243,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
   return (
     <Card className="bg-background">
       <CardHeader>
-        <h1 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-gray-900">Categories ({draggedCategories.length})</h1>
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Categories ({draggedCategories.length})</h1>
       </CardHeader>
       <CardContent className="flex justify-center w-full">{isMobile ? renderMobileCardView() : renderDesktopTableView()}</CardContent>
     </Card>
