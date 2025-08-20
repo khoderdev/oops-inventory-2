@@ -1,6 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RecordWasteData, StockFormData, StockFormInputs, StockFormProps } from "@/types/inventory";
+import {  StockFormData, StockFormInputs, StockFormProps } from "@/types/inventory";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Package, Plus, Trash2, TrendingUp } from "lucide-react";
@@ -29,7 +28,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
       expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
       batchNumber: stockEntry?.batchNumber || "",
-      // Waste-related fields - only set if this is a waste operation
       wasteQuantity: undefined,
       wasteReason: undefined,
       wasteDate: undefined
@@ -40,26 +38,13 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   const watchedQuantity = form.watch("purchasedQuantity");
   const watchedCostPerUnit = form.watch("costPerPurchasedUnit");
 
-  // Update form when selectedMaterialId changes (when clicking "Add Stock" from MaterialTable)
   useEffect(() => {
-    console.log('🔍 StockForm Debug:', {
-      selectedMaterialId,
-      watchedMaterialId,
-      materialsCount: materials.length,
-      materialIds: materials.map(m => ({ id: m.id, name: m.name, idType: typeof m.id }))
-    });
-    
     if (selectedMaterialId && selectedMaterialId !== watchedMaterialId) {
-      console.log('🔄 StockForm: Updating materialId from', watchedMaterialId, 'to', selectedMaterialId);
       form.setValue("materialId", selectedMaterialId);
-      
-      // Verify the material exists in the materials array
-      const foundMaterial = materials.find(m => m.id.toString() === selectedMaterialId);
-      console.log('🎯 Found material in array:', foundMaterial);
+      materials.find(m => m.id.toString() === selectedMaterialId);
     }
   }, [selectedMaterialId, watchedMaterialId, form, materials]);
 
-  // Wrapper function to handle waste from specific entry with proper data conversion
   const handleWasteFromEntry = (data: StockFormData & { stockEntryId: string }) => {
     if (onWasteFromSpecificEntry) {
       onWasteFromSpecificEntry(data);
@@ -69,67 +54,41 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   };
   const selectedMaterial = materials.find(m => m.id.toString() === watchedMaterialId?.toString());
 
-  // Debug: Log material selection and units calculation
-  console.log('🔍 StockForm Units Debug:', {
-    watchedMaterialId,
-    selectedMaterial: selectedMaterial ? {
-      id: selectedMaterial.id,
-      name: selectedMaterial.name,
-      unitType: selectedMaterial.unitType,
-      baseUnit: selectedMaterial.baseUnit,
-      inputUnit: selectedMaterial.inputUnit
-    } : null,
-    materialsCount: materials.length
-  });
-
-  // Get available units based on the active tab and context
   const availableUnits = selectedMaterial
     ? (() => {
         const suggestedUnits = getSuggestedUnits(selectedMaterial.unitType);
-        console.log('🔍 Suggested units for', selectedMaterial.unitType, ':', suggestedUnits);
-
-        // For add-to-entry and waste-from-entry tabs, only allow units compatible with the existing stock entry
         if ((activeTab === "add-to-entry" || activeTab === "waste-from-entry") && stockEntry) {
           const stockEntryUnit = stockEntry.purchasedUnit;
-          
           if (selectedMaterial.unitType === "mass") {
-            // For mass materials, only allow mass units (kg, g, lb, oz)
             const massUnits = ["kg", "g", "lb", "oz"];
             return massUnits.filter(unit => 
-              unit === stockEntryUnit || // Same unit as stock entry
-              massUnits.includes(stockEntryUnit) // Stock entry is also a mass unit
+              unit === stockEntryUnit ||
+              massUnits.includes(stockEntryUnit)
             );
           } else if (selectedMaterial.unitType === "volume") {
-            // For volume materials, only allow volume units (l, ml)
             const volumeUnits = ["l", "ml"];
             return volumeUnits.filter(unit => 
-              unit === stockEntryUnit || // Same unit as stock entry
-              volumeUnits.includes(stockEntryUnit) // Stock entry is also a volume unit
+              unit === stockEntryUnit ||
+              volumeUnits.includes(stockEntryUnit)
             );
           } else if (selectedMaterial.unitType === "package") {
-            // For package materials, allow package units and piece/bottle conversions
             if (stockEntryUnit === selectedMaterial.inputUnit) {
               return [stockEntryUnit, "piece", "bottle"];
             } else {
               return [stockEntryUnit];
             }
           } else {
-            // For piece materials, only allow the same unit
             return [stockEntryUnit];
           }
         }
-
-        // For other tabs, use the original logic
         if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit) {
           const filteredUnits = suggestedUnits.filter(unit => unit !== selectedMaterial.inputUnit);
           return [selectedMaterial.inputUnit, ...filteredUnits];
         }
-
         return suggestedUnits;
       })()
     : [];
 
-  console.log('🔍 Final availableUnits:', availableUnits);
 
   React.useEffect(() => {
     const isAddToEntry = activeTab === "add-to-entry";
@@ -146,7 +105,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
       expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
       batchNumber: stockEntry?.batchNumber || "",
-      // Waste-related fields - only set if this is a waste operation
       wasteQuantity: undefined,
       wasteReason: undefined,
       wasteDate: undefined
@@ -209,8 +167,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       const numCostPerUnit = typeof watchedCostPerUnit === "string" ? parseFloat(watchedCostPerUnit) : watchedCostPerUnit;
 
       if (!isNaN(numQuantity) && !isNaN(numCostPerUnit)) {
-        const totalCost = parseFloat((numQuantity * numCostPerUnit).toFixed(6));
-        form.setValue("totalCost", totalCost.toFixed(6));
+        const totalCost = parseFloat((numQuantity * numCostPerUnit).toFixed(2));
+        form.setValue("totalCost", totalCost.toString());
       }
     }
   }, [watchedQuantity, watchedCostPerUnit, form]);
@@ -390,7 +348,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
             </div>
           </div>
         </Tabs>
-      {/* </div> */}
     </div>
   );
 }

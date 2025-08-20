@@ -18,25 +18,18 @@ import { activeTabAtom, showMaterialFormAtom, showStockFormAtom, selectedMateria
 export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry }: InventoryManagementPanelProps = {}) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [stock, setStock] = useState<StockEntry[]>([]);
-  const [loading, setLoading] = useState({
-    materials: false,
-    stock: false
-  });
-
+  const [loading, setLoading] = useState({ materials: false, stock: false });
   const [activeTab, setActiveTab] = useAtom(activeTabAtom);
   const [showMaterialForm, setShowMaterialForm] = useAtom(showMaterialFormAtom);
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
-  const [operationLoading, setOperationLoading] = useState<Record<string, boolean>>({});
+  const [, setOperationLoading] = useState<Record<string, boolean>>({});
 
-  // Fetch materials function
   const fetchMaterials = useCallback(async () => {
     setLoading(prev => ({ ...prev, materials: true }));
     try {
-      // Add cache-busting parameter to prevent stale data
       const response = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
-      // Handle both response formats: direct array or nested in data property
       if (response) {
         if (Array.isArray(response)) {
           setMaterials(response);
@@ -57,18 +50,15 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
     }
   }, []);
 
-  // Fetch stock entries function
   const fetchStock = useCallback(async () => {
     setLoading(prev => ({ ...prev, stock: true }));
     try {
-      // Add cache-busting parameter to prevent stale data
-      const response = await stockAPI.getStockEntries({ 
-        limit: 10000, 
+      const response = await stockAPI.getStockEntries({
+        limit: 10000,
         _t: Date.now(),
-        sortBy: 'purchaseDate',
-        sortOrder: 'DESC'
+        sortBy: "purchaseDate",
+        sortOrder: "DESC"
       });
-      // Handle both response formats: direct array or nested in data property
       if (response) {
         if (Array.isArray(response)) {
           setStock(response);
@@ -89,17 +79,18 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
     }
   }, []);
 
-  const refresh = useCallback(async (type?: "materials" | "stock") => {
-    console.log('🔄 Manual refresh - fetching fresh data...', type || 'all');
-    if (!type || type === "materials") {
-      await fetchMaterials();
-    }
-    if (!type || type === "stock") {
-      await fetchStock();
-    }
-  }, [fetchMaterials, fetchStock]);
+  const refresh = useCallback(
+    async (type?: "materials" | "stock") => {
+      if (!type || type === "materials") {
+        await fetchMaterials();
+      }
+      if (!type || type === "stock") {
+        await fetchStock();
+      }
+    },
+    [fetchMaterials, fetchStock]
+  );
 
-  // Initial data loading
   useEffect(() => {
     const loadInitialData = async () => {
       if (activeTab === "material" || activeTab === "stock") {
@@ -110,24 +101,19 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
         await fetchStock();
       }
     };
-    
     loadInitialData();
   }, []);
 
   const materialsWithStock = useMemo(() => {
     const baseMaterials = materials.map(material => {
       const materialStockEntries = stock.filter(entry => entry.materialId === material.id);
-
       const totalQuantityInBaseUnit = materialStockEntries.reduce((sum, entry) => {
         return sum + (entry.purchasedConvertedQuantity || entry.purchasedQuantity);
       }, 0);
-
       const totalValue = materialStockEntries.reduce((sum, entry) => {
         return sum + entry.totalCost;
       }, 0);
-
       const averageCostPerBaseUnit = totalQuantityInBaseUnit > 0 ? totalValue / totalQuantityInBaseUnit : 0;
-
       return {
         ...material,
         stockEntries: materialStockEntries,
@@ -137,11 +123,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
         availableQuantity: totalQuantityInBaseUnit
       } as MaterialWithStock;
     });
-
     if (selectedMaterial && !baseMaterials.find(m => m.id.toString() === selectedMaterial.id.toString())) {
       baseMaterials.push(selectedMaterial);
     }
-
     return baseMaterials;
   }, [materials, stock, selectedMaterial]);
 
@@ -227,8 +211,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
             duration: 1000
           });
         }
-        // Force fresh data fetch to ensure latest data
-        console.log('🔄 Forcing fresh stock data fetch after stock operation...');
         await refresh("stock");
         await refresh("materials");
         setShowStockForm(false);
@@ -261,12 +243,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
       const idToFind = materialId.toString();
       let material = materialsWithStock.find(m => m.id.toString() === idToFind);
       if (!material) {
-        console.log("🔄 Material not in current data, fetching directly from MaterialTable API...", materialId);
         try {
           await refresh("materials");
           material = materialsWithStock.find(m => m.id.toString() === idToFind);
           if (!material) {
-            console.log("🔍 Fetching material directly from materialsAPI...", materialId);
             const materialResponse = await materialsAPI.getMaterial(idToFind);
             if (materialResponse && materialResponse.data) {
               const fetchedMaterial = materialResponse.data;
@@ -278,8 +258,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
                 averageCostPerBaseUnit: 0,
                 availableQuantity: 0
               };
-              console.log("✅ Successfully fetched material from API:", material.name);
-              console.log("🔄 Adding fetched material to cache for StockForm availability...");
               await refresh("materials");
             }
           }
@@ -293,7 +271,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
               variant: "destructive",
               duration: 1000
             });
-            console.log("🔄 Forcing materials refresh to sync with backend...");
             await refresh("materials");
             return;
           }
@@ -301,15 +278,12 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
       }
 
       if (material) {
-        console.log("🎯 Loading material for stock entry:", material.name, "ID:", materialId);
         setSelectedMaterial(material);
         setSelectedStockEntry(null);
         setShowStockForm(true);
         setActiveTab("stock");
-      
       } else {
         console.error("❌ Material not found with ID:", materialId, "Even after direct API fetch. This material may not exist.");
-        console.log("🔄 Forcing complete data refresh due to material not found...");
         await refresh("materials");
         toast({
           title: "Material Not Found",
@@ -327,8 +301,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
       setOperationLoading(prev => ({ ...prev, [`delete-material-${materialId}`]: true }));
       try {
         await materialsAPI.deleteMaterial(materialId);
-        // Force fresh data fetch to ensure latest data
-        console.log('🔄 Forcing fresh data fetch after material deletion...');
         await refresh("materials");
         await refresh("stock");
         toast({
@@ -358,8 +330,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
       setOperationLoading(prev => ({ ...prev, [`delete-stock-${stockEntryId}`]: true }));
       try {
         await stockAPI.deleteStockEntry(stockEntryId);
-        // Force fresh data fetch to ensure latest data
-        console.log('🔄 Forcing fresh data fetch after stock entry deletion...');
         await refresh("stock");
         await refresh("materials");
         toast({
@@ -367,7 +337,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
           description: "Stock entry deleted",
           duration: 1000
         });
-        // Only call the callback if it exists
         if (onDeleteStockEntry) {
           onDeleteStockEntry(stockEntryId);
         }
@@ -388,7 +357,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
   const handleAddStockOperation = useCallback(
     async (data: Partial<CreateStockEntryData> & { wasteQuantity?: number; wasteReason?: string }) => {
       try {
-        // Convert the data to CreateStockEntryData format
         const stockEntryData = {
           materialId: data.materialId!,
           supplier: data.supplier!,
@@ -402,8 +370,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
           notes: data.notes
         };
         await stockAPI.createStockEntry(stockEntryData);
-        // Force fresh data fetch to ensure latest data
-        console.log('🔄 Forcing fresh stock data fetch after add stock operation...');
         await refresh("stock");
         await refresh("materials");
         toast({
@@ -427,8 +393,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
     async (data: RecordWasteData) => {
       try {
         await stockAPI.recordWaste(data);
-        // Force fresh data fetch to ensure latest data
-        console.log('🔄 Forcing fresh stock data fetch after waste operation...');
         await refresh("stock");
         await refresh("materials");
         toast({
@@ -473,8 +437,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
           notes: data.notes
         };
         await stockAPI.addToSpecificEntry(data.stockEntryId, addData);
-        // Force fresh data fetch to ensure latest data
-        console.log('🔄 Forcing fresh stock data fetch after add to specific entry...');
         await refresh("stock");
         await refresh("materials");
         setShowStockForm(false);
@@ -497,18 +459,13 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
   );
 
   const handleRefreshAll = useCallback(async () => {
-    console.log('🔄 Manual refresh - forcing fresh data fetch...');
     await refresh("stock");
     await refresh("materials");
   }, [refresh]);
 
-  // This function is already defined above with more complete implementation
-
   const handleTogglePOSVisibility = useCallback(
     async (entry: StockEntry & { material?: Material }) => {
       await stockAPI.updateStockEntryPOS(entry.id.toString(), { isPOSItem: !entry.isPOSItem });
-      // Force fresh data fetch to ensure latest data
-      console.log('🔄 Forcing fresh stock data fetch after POS visibility toggle...');
       await refresh("stock");
     },
     [refresh]
@@ -517,8 +474,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
   const handleAssignPrinter = useCallback(
     async (id: string | number, printerId: number | null) => {
       const res: any = await stockAPI.assignPrinter(id, printerId);
-      // Force fresh data fetch to ensure latest data
-      console.log('🔄 Forcing fresh stock data fetch after printer assignment...');
       await refresh("stock");
       return res?.data?.stockEntry || res?.stockEntry;
     },
@@ -528,8 +483,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
   const handleBulkAssignPrinter = useCallback(
     async (ids: (string | number)[], printerId: number | null) => {
       const res: any = await stockAPI.bulkAssignPrinter(ids, printerId);
-      // Force fresh data fetch to ensure latest data
-      console.log('🔄 Forcing fresh stock data fetch after bulk printer assignment...');
       await refresh("stock");
       return res?.data?.stockEntries || res?.stockEntries;
     },
@@ -561,15 +514,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
           wasteReason: data.wasteReason || "Unknown",
           notes: data.notes
         };
-
         await stockAPI.wasteFromSpecificEntry(data.stockEntryId, wasteData);
-
-        // Force fresh data fetch to ensure latest data
-        console.log('🔄 Forcing fresh stock data fetch after waste from specific entry...');
         await refresh("stock");
         await refresh("materials");
         setShowStockForm(false);
-
         toast({
           title: "Recorded",
           description: "Waste recorded",
@@ -619,25 +567,11 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
         </TabsList>
 
         <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden ">
-          <MaterialTable
-            filteredMaterials={materialsWithStock}
-            onEditMaterial={handleEditMaterial}
-            onAddStock={handleAddStock}
-            onDeleteMaterial={handleDeleteMaterial}
-          />
+          <MaterialTable filteredMaterials={materialsWithStock} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
         </TabsContent>
 
         <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden ">
-          <StockEntriesTable
-            stockEntries={stock}
-            materials={materials}
-            loading={loading.stock}
-            onRefresh={handleRefreshAll}
-            onDeleteStockEntry={handleDeleteStockEntry}
-            onTogglePOSVisibility={handleTogglePOSVisibility}
-            onAssign={handleAssignPrinter}
-            onBulkAssign={handleBulkAssignPrinter}
-          />
+          <StockEntriesTable stockEntries={stock} materials={materials} loading={loading.stock} onRefresh={handleRefreshAll} onDeleteStockEntry={handleDeleteStockEntry} onTogglePOSVisibility={handleTogglePOSVisibility} onAssign={handleAssignPrinter} onBulkAssign={handleBulkAssignPrinter} />
         </TabsContent>
 
         <TabsContent value="categories" className="flex-1 focus-visible:outline-none overflow-hidden">

@@ -274,6 +274,17 @@ export interface ConversionData {
   conversionFactor: number;
 }
 
+export type StockEntriesTableProps = {
+  stockEntries?: StockEntry[];
+  materials?: Material[];
+  loading?: boolean;
+  onRefresh?: () => Promise<void> | void;
+  onDeleteStockEntry?: (stockEntryId: string | number) => Promise<void> | void;
+  onTogglePOSVisibility?: (entry: StockEntry & { material?: Material }) => Promise<void> | void;
+  onAssign?: (id: string | number, printerId: number | null) => Promise<StockEntry | void>;
+  onBulkAssign?: (ids: (string | number)[], printerId: number | null) => Promise<StockEntry[] | void>;
+};
+
 //-----------------------------------------------------------------------------
 
 export interface Section {
