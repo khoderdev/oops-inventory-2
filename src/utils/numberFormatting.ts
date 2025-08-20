@@ -26,8 +26,22 @@ export function formatCleanNumber(value: number | string, maxDecimals: number = 
  * - 8.0000 -> "$8"
  * - 8.5000 -> "$8.5"
  * - 8.12 -> "$8.12"
+ * - 0.008 -> "$0.008" (when maxDecimals > 2)
  */
 export function formatCleanCurrency(value: number | string, maxDecimals: number = 2): string {
+  // For very small values like gram costs, we need to preserve more decimal places
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  
+  if (isNaN(num)) {
+    return "$0";
+  }
+  
+  // For very small values (< 0.01), ensure we show enough decimal places
+  // but don't round up to 0.01 when the actual value is smaller
+  if (num < 0.01 && num > 0 && maxDecimals <= 2) {
+    maxDecimals = 6;
+  }
+  
   const cleanNumber = formatCleanNumber(value, maxDecimals);
   return `$${cleanNumber}`;
 }

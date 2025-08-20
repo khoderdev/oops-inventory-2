@@ -21,29 +21,21 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       const packageCost = typeof selectedMaterial.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial.costPerUnit || 0;
       const stockEntryCost = typeof stockEntry.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry.costPerPurchasedUnit || 0;
       let defaultCost: number;
-      
-      // Handle gram to kilogram conversion
       if (watchedUnit === "g" && selectedMaterial.inputUnit === "kg") {
-        // Convert kg cost to g cost (divide by 1000)
         const kgCost = stockEntryCost > 0 ? stockEntryCost : packageCost;
         defaultCost = kgCost / 1000;
-        console.log("🔄 Converting kg cost to g cost:", { kgCost, gCost: defaultCost });
         form.clearErrors("costPerPurchasedUnit");
       }
-      // Handle piece or bottle in package
       else if (selectedMaterial.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && selectedMaterial.packageQuantity) {
         defaultCost = stockEntryCost > 0 ? stockEntryCost / selectedMaterial.packageQuantity : packageCost / selectedMaterial.packageQuantity;
         form.clearErrors("costPerPurchasedUnit");
       } 
-      // Handle same unit as material input unit
       else if (selectedMaterial.unitType === "package" && watchedUnit === selectedMaterial.inputUnit) {
         defaultCost = stockEntryCost || packageCost;
       } 
-      // Default case
       else {
         defaultCost = stockEntryCost || packageCost || 0;
       }
-      
       if (defaultCost > 0) {
         form.setValue("costPerPurchasedUnit", formatCleanNumber(defaultCost));
       } else {
@@ -56,7 +48,6 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
     const currentCost = parseFloat(watchedCostPerUnit) || 0;
     const quantity = parseFloat(watchedQuantity) || 0;
     if (selectedMaterial && !isNaN(currentCost) && !isNaN(quantity)) {
-      // Calculate total cost and format as string with 2 decimal places
       const calculatedTotal = currentCost * quantity;
       form.setValue("totalCost", calculatedTotal.toString());
       if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && watchedUnit !== "bottle" && selectedMaterial.inputUnit === watchedUnit) {
@@ -80,54 +71,19 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
 
   const handleSubmit = async () => {
     if (isSubmitting) {
-      console.log("⏳ Already submitting, ignoring duplicate request");
       return;
     }
     setIsSubmitting(true);
     try {
       const data = form.getValues();
-      console.log("📝 Current form values:", data);
-      console.log("🔍 Form value types:", {
-        materialId: typeof data.materialId,
-        supplier: typeof data.supplier,
-        purchasedQuantity: typeof data.purchasedQuantity,
-        purchasedUnit: typeof data.purchasedUnit,
-        costPerPurchasedUnit: typeof data.costPerPurchasedUnit,
-        totalCost: typeof data.totalCost,
-        totalCostValue: data.totalCost
-      });
-      
-      // Get form errors before validation
       const formErrors = form.formState.errors;
-      console.log("⚠️ Current form errors before validation:", formErrors);
-      
-      // Convert materialId to string before validation
       if (typeof data.materialId === 'number') {
         form.setValue("materialId", String(data.materialId));
       }
-      
       const fieldsToValidate = ["materialId", "supplier", "purchasedQuantity", "purchasedUnit", "costPerPurchasedUnit", "totalCost"];
       const isValid = await form.trigger(fieldsToValidate as (keyof StockFormInputs)[]);
-      
-      // Get form errors after validation
-      const formErrorsAfter = form.formState.errors;
-      console.log("⚠️ Form errors after validation:", formErrorsAfter);
-      
-      if (!isValid) {
-        console.log("❌ Validation failed, not submitting");
-        console.log("🧪 Schema validation details:", { 
-          totalCost: {
-            value: data.totalCost,
-            type: typeof data.totalCost,
-            parsed: parseFloat(data.totalCost),
-            isNaN: isNaN(parseFloat(data.totalCost))
-          }
-        });
-        return;
-      }
       const additionalQuantity = parseFloat(data.purchasedQuantity);
       const costPerPurchasedUnit = parseFloat(data.costPerPurchasedUnit);
-      // Always parse totalCost as a number for consistency
       const totalCost = parseFloat(data.totalCost);
       if (isNaN(additionalQuantity) || additionalQuantity <= 0) {
         console.error("❌ Invalid additional quantity:", { purchasedQuantity: data.purchasedQuantity, additionalQuantity });
@@ -153,15 +109,6 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         });
         return;
       }
-      // Log the parsed values for debugging
-      console.log("🔢 Parsed numeric values:", {
-        additionalQuantity,
-        costPerPurchasedUnit,
-        totalCost,
-        isNaN_totalCost: isNaN(totalCost)
-      });
-      
-      // Create a properly typed object for submission
       const specificEntryData = {
         // Convert materialId to string to match schema expectation
         materialId: String(data.materialId),
@@ -177,17 +124,6 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         notes: data.notes,
         stockEntryId: stockEntry.id
       };
-      
-      console.log("🧩 Final submission object types:", {
-        materialId: typeof specificEntryData.materialId,
-        supplier: typeof specificEntryData.supplier,
-        purchasedQuantity: typeof specificEntryData.purchasedQuantity,
-        purchasedUnit: typeof specificEntryData.purchasedUnit,
-        costPerPurchasedUnit: typeof specificEntryData.costPerPurchasedUnit,
-        totalCost: typeof specificEntryData.totalCost,
-        totalCostValue: specificEntryData.totalCost
-      });
-      console.log("📤 Calling onAddToSpecificEntry with:", JSON.stringify(specificEntryData, null, 2));
       await onAddToSpecificEntry(specificEntryData);
     } catch (error) {
       console.error("❌ Error adding to specific entry:", error);

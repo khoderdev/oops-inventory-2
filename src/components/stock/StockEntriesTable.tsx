@@ -427,7 +427,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     isAllowedPOSCategory,
     hasNegativeStock,
     renderQuantityDisplay,
-    renderUnitDisplay
+    // renderUnitDisplay
   });
 
   useEffect(() => {

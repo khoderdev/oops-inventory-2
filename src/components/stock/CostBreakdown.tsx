@@ -2,7 +2,7 @@ import { PackageUnit, PackagedGood } from "@/types/conversion";
 import { Material } from "@/types/inventory";
 import { calculatePackagedGoodCost } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
-import { formatCleanCurrency, formatCleanNumber } from "@/utils/numberFormatting";
+import { formatCleanCurrency } from "@/utils/numberFormatting";
 import { Calculator, DollarSign, Package } from "lucide-react";
 import { Badge } from "../ui/badge";
 
@@ -81,20 +81,11 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
     calculatedTotalCost = costBreakdown.totalCost;
   } else {
     if (purchasedUnit && selectedMaterial?.baseUnit) {
-      // Special handling for g/kg conversion
       if (purchasedUnit === "g" && selectedMaterial.baseUnit === "kg") {
-        // Convert g cost to kg cost (multiply by 1000)
         costPerBaseUnit = numCostPerUnit * 1000;
-        console.log("🔄 CostBreakdown: Converting g cost to kg cost:", { gCost: numCostPerUnit, kgCost: costPerBaseUnit });
-      } 
-      // Special handling for kg/g conversion
-      else if (purchasedUnit === "kg" && selectedMaterial.baseUnit === "g") {
-        // Convert kg cost to g cost (divide by 1000)
+      } else if (purchasedUnit === "kg" && selectedMaterial.baseUnit === "g") {
         costPerBaseUnit = numCostPerUnit / 1000;
-        console.log("🔄 CostBreakdown: Converting kg cost to g cost:", { kgCost: numCostPerUnit, gCost: costPerBaseUnit });
-      }
-      // Standard conversion for other units
-      else {
+      } else {
         const conversionFactor = getConversionFactor(purchasedUnit, selectedMaterial.baseUnit, selectedMaterial.unitType, selectedMaterial);
         if (conversionFactor > 0) {
           costPerBaseUnit = numCostPerUnit / conversionFactor;
@@ -124,9 +115,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
             <DollarSign className="h-4 w-4 text-green-600" />
             <span className="text-sm font-medium text-gray-600">Cost per {purchasedUnit}</span>
           </div>
-          <p className="text-xl font-bold text-gray-800">
-            {formatCurrency(numCostPerUnit, purchasedUnit === "g" ? 6 : 2)}
-          </p>
+          <p className="text-xl font-bold text-gray-800">{formatCurrency(numCostPerUnit, purchasedUnit === "g" ? 6 : 2)}</p>
         </div>
 
         <div className="bg-white rounded-lg p-3 border border-blue-100">
@@ -144,9 +133,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
             <DollarSign className="h-4 w-4 text-purple-600" />
             <span className="text-sm font-medium text-gray-600">Total Cost</span>
           </div>
-          <p className="text-xl font-bold text-gray-800">
-            {formatCurrency(numQuantity * numCostPerUnit, purchasedUnit === "g" ? 6 : 2)}
-          </p>
+          <p className="text-xl font-bold text-gray-800">{formatCurrency(numQuantity * numCostPerUnit, purchasedUnit === "g" ? 6 : 2)}</p>
         </div>
 
         {costPerBaseUnit > 0 && purchasedUnit !== selectedMaterial?.baseUnit && selectedMaterial?.baseUnit && (
@@ -155,9 +142,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
               <DollarSign className="h-4 w-4 text-orange-600" />
               <span className="text-sm font-medium text-gray-600">Cost per {selectedMaterial.baseUnit}</span>
             </div>
-            <p className="text-xl font-bold text-gray-800">
-              {formatCurrency(costPerBaseUnit, selectedMaterial.baseUnit === "g" || purchasedUnit === "g" ? 6 : 2)}
-            </p>
+            <p className="text-xl font-bold text-gray-800">{formatCurrency(costPerBaseUnit, selectedMaterial.baseUnit === "g" || purchasedUnit === "g" ? 6 : 2)}</p>
           </div>
         )}
       </div>

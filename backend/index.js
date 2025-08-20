@@ -204,6 +204,34 @@ async function initializeAdminUser() {
     throw error;
   }
 }
+async function initializeCashier() {
+  try {
+    console.log("👤 Checking cashier user...");
+    const cashierUser = await User.findOne({ where: { role: "staff" } });
+    if (!cashierUser) {
+      console.log("👤 No cashier user found. Creating default cashier user...");
+      await User.create({
+        username: "Cashier",
+        firstName: "Cashier",
+        lastName: "User",
+        password: "Cashier@123",
+        pin: "333333",
+        role: "staff",
+        isActive: true,
+        createdBy: null,
+        updatedBy: null
+      });
+      console.log("✅ Cashier user created successfully.");
+      return { created: 1, existing: 0 };
+    } else {
+      console.log("✅ Cashier user already exists.");
+      return { created: 0, existing: 1 };
+    }
+  } catch (error) {
+    console.error("❌ Error initializing cashier user:", error.message);
+    throw error;
+  }
+}
 
 const connectToDatabase = async (retries = 5, delay = 5000) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -223,6 +251,9 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
           console.log("👤 Initializing admin user...");
           const adminResult = await initializeAdminUser();
           console.log(`✅ Admin user initialized: ${adminResult.created} created, ${adminResult.existing} existing`);
+          console.log("👤 Initializing cashier user...");
+          const cashierResult = await initializeCashier();
+          console.log(`✅ Cashier user initialized: ${cashierResult.created} created, ${cashierResult.existing} existing`);
           console.log("✅ Essential initialization completed");
           console.log("ℹ️  For comprehensive data seeding, run: npm run seed");
         } catch (seedError) {

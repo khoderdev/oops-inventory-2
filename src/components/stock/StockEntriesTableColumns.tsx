@@ -2,8 +2,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Material, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
-import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
-import { formatCleanCurrency, formatCleanNumber } from "@/utils/numberFormatting";
+import { formatCleanCurrency } from "@/utils/numberFormatting";
 import { highlightText } from "@/utils/highlightText";
 import { AlertTriangle, Edit, Eye, EyeOff, Printer, Trash2 } from "lucide-react";
 import { useMemo } from "react";
@@ -22,7 +21,7 @@ type StockEntriesTableColumnsProps = {
   isAllowedPOSCategory: (material: Material | undefined) => boolean;
   hasNegativeStock: (entry: StockEntryWithMaterial) => boolean;
   renderQuantityDisplay: (entry: StockEntryWithMaterial) => JSX.Element;
-  renderUnitDisplay: (entry: StockEntryWithMaterial) => JSX.Element;
+  // renderUnitDisplay: (entry: StockEntryWithMaterial) => JSX.Element;
 };
 
 export function useStockEntriesTableColumns({
@@ -38,7 +37,7 @@ export function useStockEntriesTableColumns({
   isAllowedPOSCategory,
   hasNegativeStock,
   renderQuantityDisplay,
-  renderUnitDisplay,
+  // renderUnitDisplay,
 }: StockEntriesTableColumnsProps) {
   const columnHelper = createColumnHelper<StockEntryWithMaterial>();
 
@@ -88,16 +87,16 @@ export function useStockEntriesTableColumns({
       columnHelper.display({
         id: "remainingQty",
         size: 120,
-        header: ({ column }) => <div className="text-center w-full font-semibold">Remaining Qty</div>,
-        cell: ({ row }) => <div className="text-center w-full">{renderQuantityDisplay(row.original)}</div>
+        header: ({ column }) => <div className="text-center w-full font-semibold flex items-center justify-center">Current Qty</div>,
+        cell: ({ row }) => <div className="text-center w-full flex items-center justify-center -ml-2">{renderQuantityDisplay(row.original)}</div>
       }),
 
-      columnHelper.display({
-        id: "unit",
-        size: 80,
-        header: ({ column }) => <div className="text-center w-full font-semibold">Unit</div>,
-        cell: ({ row }) => <div className="text-center w-full">{renderUnitDisplay(row.original)}</div>
-      }),
+      // columnHelper.display({
+      //   id: "unit",
+      //   size: 80,
+      //   header: ({ column }) => <div className="text-center w-full font-semibold">Unit</div>,
+      //   cell: ({ row }) => <div className="text-center w-full">{renderUnitDisplay(row.original)}</div>
+      // }),
 
       columnHelper.accessor("costPerPurchasedUnit", {
         id: "costPerUnit",
@@ -168,7 +167,7 @@ export function useStockEntriesTableColumns({
           </Button>
         ),
         cell: ({ getValue }) => (
-          <div className="text-center w-full px-2">
+          <div className="text-right w-full px-2">
             <span className="font-medium">{new Date(getValue()).toLocaleDateString()}</span>
           </div>
         ),
@@ -293,7 +292,7 @@ export function useStockEntriesTableColumns({
       handleSortChange,
       hasNegativeStock,
       renderQuantityDisplay,
-      renderUnitDisplay,
+      // renderUnitDisplay,
     ]
   );
 
