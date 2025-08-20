@@ -194,14 +194,11 @@ export function formatCurrencyUI(amount: number): string {
     return "$0.00";
   }
   
-  // For very small recurring decimals (like 0.0833333...)
-  if (amount < 0.1 && amount > 0) {
-    // Check if the number has many decimal places
-    const decimalStr = amount.toString();
-    if (decimalStr.length > 6 && decimalStr.includes(".")) {
-      // Format with 3 decimal places and add ellipsis
-      return `$${amount.toFixed(3)}...`;
-    }
+  // Check if the number has many decimal places (recurring decimals)
+  const decimalStr = amount.toString();
+  if (decimalStr.length > 6 && decimalStr.includes(".")) {
+    // Format with 3 decimal places and add ellipsis for recurring decimals
+    return `$${amount.toFixed(3)}...`;
   }
   
   // Use standard formatting for normal amounts

@@ -11,39 +11,59 @@ import { CalendarIcon, Minus, Package, Plus, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { CostBreakdown } from "../CostBreakdown";
 import { Calendar } from "@/components/ui/calendar";
+import { useWatch } from "react-hook-form";
 
-export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
+export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const watchedUnit = form.watch("purchasedUnit");
+  const watchedQuantity = useWatch({ control: form.control, name: "purchasedQuantity" });
+  const watchedCostPerUnit = useWatch({ control: form.control, name: "costPerPurchasedUnit" });
+  const watchedPurchasedUnit = useWatch({ control: form.control, name: "purchasedUnit" });
 
   useEffect(() => {
-    if (selectedMaterial && stockEntry) {
-      const packageCost = typeof selectedMaterial.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial.costPerUnit || 0;
-      const stockEntryCost = typeof stockEntry.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry.costPerPurchasedUnit || 0;
+    if (selectedMaterial && stockEntry && watchedUnit) {
+      // Use the same calculation method as WasteFromEntryTab
+      const originalTotalCost = Number(stockEntry.totalCost) || 0;
+      const originalQuantity = Number(stockEntry.purchasedQuantity) || 0;
+      
+      if (originalTotalCost === 0 || originalQuantity === 0) {
+        form.setValue("costPerPurchasedUnit", "0", { shouldValidate: true });
+        return;
+      }
+      
+      const costPerOriginalUnit = originalTotalCost / originalQuantity;
       let defaultCost: number;
-      if (watchedUnit === "g" && selectedMaterial.inputUnit === "kg") {
-        const kgCost = stockEntryCost > 0 ? stockEntryCost : packageCost;
-        defaultCost = kgCost / 1000;
-        form.clearErrors("costPerPurchasedUnit");
-      } else if (selectedMaterial.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && selectedMaterial.packageQuantity) {
-        defaultCost = stockEntryCost > 0 ? stockEntryCost / selectedMaterial.packageQuantity : packageCost / selectedMaterial.packageQuantity;
-        form.clearErrors("costPerPurchasedUnit");
-      } else if (selectedMaterial.unitType === "package" && watchedUnit === selectedMaterial.inputUnit) {
-        defaultCost = stockEntryCost || packageCost;
+      
+      if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity) {
+        if (watchedUnit === selectedMaterial.baseUnit) {
+          // For piece/bottle units, calculate from the original unit cost
+          defaultCost = costPerOriginalUnit / selectedMaterial.packageQuantity;
+          console.log("Calculated piece cost:", defaultCost, "from original unit cost:", costPerOriginalUnit, "÷", selectedMaterial.packageQuantity);
+        } else if (watchedUnit === selectedMaterial.inputUnit) {
+          // For package units (bag, box, etc.)
+          defaultCost = costPerOriginalUnit;
+        } else {
+          defaultCost = costPerOriginalUnit;
+        }
+      } else if (watchedUnit === "g" && selectedMaterial.inputUnit === "kg") {
+        defaultCost = costPerOriginalUnit / 1000;
       } else {
-        defaultCost = stockEntryCost || packageCost || 0;
+        defaultCost = costPerOriginalUnit;
       }
-      if (defaultCost > 0) {
-        form.setValue("costPerPurchasedUnit", defaultCost.toString());
-      } else {
-        form.setValue("costPerPurchasedUnit", "0");
-      }
+      
+      form.setValue("costPerPurchasedUnit", defaultCost.toString(), {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true
+      });
+      form.clearErrors("costPerPurchasedUnit");
     }
   }, [watchedUnit, selectedMaterial, stockEntry, form]);
 
   useEffect(() => {
     const currentCost = parseFloat(watchedCostPerUnit) || 0;
     const quantity = parseFloat(watchedQuantity) || 0;
+    console.log("Second useEffect - currentCost:", currentCost, "quantity:", quantity, "watchedUnit:", watchedUnit);
     if (selectedMaterial && !isNaN(currentCost) && !isNaN(quantity)) {
       const calculatedTotal = currentCost * quantity;
       form.setValue("totalCost", calculatedTotal.toString());
@@ -321,19 +341,20 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
                     const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
                     const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-                    return formatNumberUI(boxCost / (selectedMaterial?.packageQuantity || 1));
+                    const costPerPiece = boxCost / (selectedMaterial?.packageQuantity || 1);
+                    return costPerPiece.toString();
                   })()}{" "}
-                  (fixed)
+                  (calculated)
                 </p>
                 <p className="text-xs text-green-600 mt-1">
-                  Fixed cost: $
+                  Calculated from: $
                   {(() => {
                     const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
                     const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
                     const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-                    return formatNumberUI(boxCost / (selectedMaterial?.packageQuantity || 1));
+                    return formatNumberUI(boxCost);
                   })()}{" "}
-                  per {watchedUnit}
+                  per {stockEntry?.purchasedUnit} ÷ {selectedMaterial?.packageQuantity || 1} {selectedMaterial?.baseUnit}
                 </p>
               </FormItem>
             )}
