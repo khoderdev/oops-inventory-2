@@ -1,4 +1,44 @@
-import { DayOperationReport } from "./inventory";
+import { ReactNode } from "react";
+import { ActivityLog, CloseDayRequest, DayOperation, DayOperationReport, OpenDayRequest } from "./inventory";
+
+export interface DayOperationsContextType {
+  // State
+  currentDay: DayOperation | null;
+  activities: ActivityLog[];
+  userOrderStats: UserOrderStats[];
+  loading: boolean;
+  error: string | null;
+  success: string | null;
+  actionLoading: boolean;
+  
+  // Actions
+  openDay: (data: OpenDayRequest) => Promise<void>;
+  closeDay: (data: CloseDayRequest) => Promise<void>;
+  refreshCurrentDay: () => Promise<void>;
+  refreshActivities: () => Promise<void>;
+  refreshUserStats: () => Promise<void>;
+  refreshAll: () => Promise<void>;
+  clearError: () => void;
+  clearSuccess: () => void;
+  setError: (error: string) => void;
+  setSuccess: (success: string) => void;
+  
+  // Computed values
+  isDayOpen: boolean;
+  isDayClosed: boolean;
+  hasActiveDay: boolean;
+  
+  // Real-time tracking
+  lastRefresh: Date | null;
+  autoRefreshEnabled: boolean;
+  setAutoRefreshEnabled: (enabled: boolean) => void;
+}
+
+export interface DayOperationsProviderProps {
+  children: ReactNode;
+  autoRefreshInterval?: number; // in milliseconds, default 30 seconds
+  enableAutoRefresh?: boolean; // default true
+}
 
 export interface DayOperationsFormData {
   openingCash?: number;

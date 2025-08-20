@@ -2,13 +2,13 @@ import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Plus, ToggleLeft, 
 import React, { useState, useEffect } from "react";
 import { dayOperationsAPI } from "../api/dayOperations.api";
 import { useAuth } from "../contexts/AuthContext";
+import { useDayOperations } from "../contexts/DayOperationsContext";
 import DayOperationsModal from "../components/DayOperationsModal/DayOperationsModal";
 import DailyReports from "../components/analytics/DailyReports";
 import ViewReportButton from "../components/ui/ViewReportButton";
 import { useDailyReports } from "../hooks/useDailyReports";
 import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
-import type { UserOrderStats } from "@/types/dayOperations";
-import { DayOperationsFormData } from "@/types/dayOperations";
+import type { UserOrderStats,DayOperationsFormData } from "@/types/dayOperations";
 import { formatCurrency, formatDate, formatDateTime, formatWeekday } from "@/utils/dayOperationsFormattings";
 
 // Destructure API methods for cleaner usage
@@ -16,14 +16,23 @@ const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openD
 
 const DayOperationsPage: React.FC = () => {
   const { user } = useAuth();
-  const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
+  
+  // Use day operations context for global state management
+  const {
+    currentDay,
+    userOrderStats,
+    loading,
+    error,
+    success,
+    actionLoading,
+    openDay: contextOpenDay,
+    closeDay: contextCloseDay,
+    clearError,
+    clearSuccess
+  } = useDayOperations();
+  
+  // Local state for page-specific data
   const [recentDays, setRecentDays] = useState<DayOperation[]>([]);
-  const [, setActivities] = useState<ActivityLog[]>([]);
-  const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [showTotalSales, setShowTotalSales] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
@@ -42,8 +51,19 @@ const DayOperationsPage: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Load recent days data (current day is handled by context)
+  const loadRecentDays = async () => {
+    try {
+      const recentResponse = await getDayOperations(1, 10);
+      console.log("🔍 DayOperationsPage: Loading recent days data:", recentResponse.dayOperations.length);
+      setRecentDays(recentResponse.dayOperations);
+    } catch (err) {
+      console.error("❌ DayOperationsPage: Failed to load recent days:", err);
+    }
+  };
+
   useEffect(() => {
-    loadData();
+    loadRecentDays();
   }, []);
 
   // Keyboard event handler for Enter key
@@ -86,110 +106,29 @@ const DayOperationsPage: React.FC = () => {
     }
   }, [user]);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      // Load current day
-      const currentResponse = await getCurrentDayOperation();
-      setCurrentDay(currentResponse.currentDay);
-      // Load recent days
-      const recentResponse = await getDayOperations(1, 10);
-      // Debug: Log the date values to understand the format
-      console.log(
-        "🔍 Debug - Recent days data:",
-        recentResponse.dayOperations.map(day => {
-          const dateStr = day.date;
-          let localDate: Date;
-          if (typeof dateStr === "string" && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            const [year, month, dayNum] = dateStr.split("-").map(Number);
-            localDate = new Date(year, month - 1, dayNum);
-          } else {
-            localDate = new Date(dateStr);
-          }
-          return {
-            id: day.id,
-            date: dateStr,
-            dateType: typeof dateStr,
-            openedAt: day.openedAt,
-            closedAt: day.closedAt,
-            parsedDate: new Date(dateStr),
-            localDate: localDate,
-            currentTime: new Date().toISOString(),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-          };
-        })
-      );
-      setRecentDays(recentResponse.dayOperations);
-      // Load current day activities if day is open
-      if (currentResponse.currentDay && currentResponse.currentDay.status === "opened") {
-        try {
-          const activitiesResponse = await getCurrentDayActivities();
-          setActivities(activitiesResponse.activities);
-          // Load user order statistics
-          try {
-            const statsResponse = await getUserOrderStats();
-            setUserOrderStats(statsResponse.userOrderStats || []);
-          } catch (statsError) {
-            console.warn("Could not load user order statistics:", statsError);
-            setUserOrderStats([]);
-          }
-        } catch (activityError) {
-          console.warn("Could not load activities:", activityError);
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load day operations");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleOpenDay = async () => {
     try {
-      setActionLoading(true);
-      setError(null);
-      // Ensure per-user open by including userId
-      const response = await openDay({ ...openDayForm, userId: user?.id as any });
-      // Immediately update the current day state with the response
-      if (response.dayOperation) {
-        setCurrentDay(response.dayOperation);
-      }
-      setSuccess(`Shift opened successfully! ${response.stockItemsCaptured} stock items captured.`);
+      // Use context's openDay function which handles all state management
+      await contextOpenDay({ ...openDayForm, userId: user?.id as any });
       setShowOpenModal(false);
       setOpenDayForm({ openingCash: 0, openedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-      // Add a small delay then refresh to ensure backend consistency
-      setTimeout(async () => {
-        await loadData();
-      }, 500);
+      // Refresh recent days to show the new day
+      loadRecentDays();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to open day");
-    } finally {
-      setActionLoading(false);
+      console.error("❌ DayOperationsPage: Failed to open day:", err);
     }
   };
 
   const handleCloseDay = async () => {
     try {
-      setActionLoading(true);
-      setError(null);
-      // Ensure per-user close by including userId
-      const response = await closeDay({ ...closeDayForm, userId: user?.id as any });
-      // Immediately update the current day state with the response
-      if (response.dayOperation) {
-        setCurrentDay(response.dayOperation);
-      }
-      setSuccess(`Shift closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
+      // Use context's closeDay function which handles all state management
+      await contextCloseDay({ ...closeDayForm, userId: user?.id as any });
       setShowCloseModal(false);
       setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-      // Add a small delay then refresh to ensure backend consistency
-      setTimeout(async () => {
-        await loadData();
-      }, 500);
+      // Refresh recent days to show the updated day
+      loadRecentDays();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to close day");
-    } finally {
-      setActionLoading(false);
+      console.error("❌ DayOperationsPage: Failed to close day:", err);
     }
   };
 
@@ -244,7 +183,7 @@ const DayOperationsPage: React.FC = () => {
         <div className="mb-4 sm:mb-6 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center">
           <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-2 sm:mr-3 mt-0.5 sm:mt-0 flex-shrink-0" />
           <span className="text-red-700 text-sm sm:text-base flex-1">{error}</span>
-          <button onClick={() => setError(null)} className="ml-2 sm:ml-auto text-red-500 hover:text-red-700 text-lg sm:text-xl">
+          <button onClick={clearError} className="ml-2 sm:ml-auto text-red-500 hover:text-red-700 text-lg sm:text-xl">
             ×
           </button>
         </div>
@@ -264,7 +203,7 @@ const DayOperationsPage: React.FC = () => {
         <div className="mb-4 sm:mb-6 bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center">
           <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2 sm:mr-3 mt-0.5 sm:mt-0 flex-shrink-0" />
           <span className="text-green-700 text-sm sm:text-base flex-1">{success}</span>
-          <button onClick={() => setSuccess(null)} className="ml-2 sm:ml-auto text-green-500 hover:text-green-700 text-lg sm:text-xl">
+          <button onClick={clearSuccess} className="ml-2 sm:ml-auto text-green-500 hover:text-green-700 text-lg sm:text-xl">
             ×
           </button>
         </div>

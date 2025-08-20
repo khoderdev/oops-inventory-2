@@ -17,6 +17,7 @@ import { POSClientOrders } from "./components/pos/POSClientOrders";
 import System from "./components/system";
 import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
+import { DayOperationsProvider } from "./contexts/DayOperationsContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
 import { EmployeeUsageView } from "./components/employees/EmployeeUsageView";
@@ -102,13 +103,17 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
           }}
         >
           <AuthProvider>
-            <Suspense
-              fallback={
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              }
+            <DayOperationsProvider 
+              autoRefreshInterval={30000} 
+              enableAutoRefresh={true}
             >
+              <Suspense
+                fallback={
+                  <div className="min-h-screen flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                }
+              >
               <Routes>
                 {/* Public routes */}
                 <Route path="/login" element={<LoginPage />} />
@@ -368,7 +373,8 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 {/* 404 */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </Suspense>
+              </Suspense>
+            </DayOperationsProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
