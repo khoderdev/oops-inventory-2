@@ -194,11 +194,31 @@ export function formatCurrencyUI(amount: number): string {
     return "$0.00";
   }
   
-  // Check if the number has many decimal places (recurring decimals)
-  const decimalStr = amount.toString();
-  if (decimalStr.length > 6 && decimalStr.includes(".")) {
-    // Format with 3 decimal places and add ellipsis for recurring decimals
-    return `$${amount.toFixed(3)}...`;
+  // Handle recurring decimals like 8.333333333333334
+  // Check if this is likely a recurring decimal by comparing rounded values
+  const decimalPart = Math.abs(amount - Math.round(amount));
+  
+  // If it has significant decimal places
+  if (decimalPart > 0.0001) {
+    // Check for common recurring decimal patterns
+    const decimalStr = amount.toString();
+    
+    // Pattern for 1/3 (0.3333...), 1/6 (0.1666...), 1/12 (0.0833...)
+    if ((decimalStr.includes("33333") || decimalStr.includes("66666") || 
+         decimalStr.includes("83333") || decimalStr.includes("16666") || 
+         decimalStr.includes("41666") || decimalStr.includes("58333") || 
+         decimalStr.includes("91666") || decimalStr.includes("08333") || 
+         decimalStr.includes("25") && decimalStr.length > 6) || 
+         (decimalStr.length > 8 && decimalStr.includes("."))) {
+      
+      // For recurring decimals, show 4 decimal places
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 4
+      }).format(amount);
+    }
   }
   
   // Use standard formatting for normal amounts
@@ -264,13 +284,26 @@ export function formatNumberUI(num: number | string | null | undefined, unit?: s
     return "0";
   }
   
-  // Get the string representation to check decimal length
-  const numStr = numValue.toString();
+  // Handle recurring decimals like 8.333333333333334
+  // Check if this is likely a recurring decimal by comparing rounded values
+  const decimalPart = Math.abs(numValue - Math.round(numValue));
   
-  // For recurring decimals (like 0.0833333...)
-  if (numStr.length > 6 && numStr.includes(".")) {
-    // Show 3 decimal places with ellipsis for long decimals
-    return `${numValue.toFixed(3)}...`;
+  // If it has significant decimal places
+  if (decimalPart > 0.0001) {
+    // Check for common recurring decimal patterns
+    const numStr = numValue.toString();
+    
+    // Pattern for 1/3 (0.3333...), 1/6 (0.1666...), 1/12 (0.0833...)
+    if ((numStr.includes("33333") || numStr.includes("66666") || 
+         numStr.includes("83333") || numStr.includes("16666") || 
+         numStr.includes("41666") || numStr.includes("58333") || 
+         numStr.includes("91666") || numStr.includes("08333") || 
+         numStr.includes("25") && numStr.length > 6) || 
+         (numStr.length > 8 && numStr.includes("."))) {
+      
+      // For recurring decimals, show 4 decimal places
+      return numValue.toFixed(4);
+    }
   }
   
   // Otherwise use standard formatting

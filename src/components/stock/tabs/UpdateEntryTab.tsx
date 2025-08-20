@@ -219,62 +219,6 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
 
             <FormField
               control={form.control}
-              name="costPerPurchasedUnit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cost per Unit ($)</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-blue-300 hover:border-blue-500 hover:bg-blue-50"
-                        onClick={() => {
-                          const currentValue = parseFloat(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 0.0001);
-                          // Store exact value for backend
-                          field.onChange(newValue.toString());
-                        }}
-                        disabled={parseFloat(field.value) <= 0}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <Input
-                        onWheel={e => e.preventDefault()}
-                        type="number"
-                        step="0.0001"
-                        min="0"
-                        placeholder="0.00"
-                        {...field}
-                        onChange={e => {
-                          field.onChange(e.target.value);
-                          setLastChangedField("costPerPurchasedUnit");
-                        }}
-                        className="h-11 border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-blue-300 hover:border-blue-500 hover:bg-blue-50"
-                        onClick={() => {
-                          const currentValue = parseFloat(field.value) || 0;
-                          const newValue = currentValue + 0.0001;
-                          // Store exact value for backend
-                          field.onChange(newValue.toString());
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="totalCost"
               render={({ field }) => (
                 <FormItem>
