@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { PackageUnit } from "@/types/conversion";
 import { StockEntry, StockFormData, WasteFromEntryTabProps } from "@/types/inventory";
 import { getConversionFactor } from "@/utils/getConversionFactor";
-import { formatCleanNumber, formatCleanCurrency } from "@/utils/numberFormatting";
+import { formatNumberUI, formatCurrencyUI } from "@/utils/conversionLogic";
 import { format } from "date-fns";
 import { CalendarIcon, FileText, Minus, Package, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -81,20 +81,24 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
       const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle"];
       if (purchasedUnit === selectedMaterial.baseUnit) {
         const costPerPiece = costPerOriginalUnit / selectedMaterial.packageQuantity;
-        form.setValue("costPerPurchasedUnit", isNaN(costPerPiece) ? "0" : formatCleanNumber(costPerPiece));
+        // Store exact value for backend
+        form.setValue("costPerPurchasedUnit", isNaN(costPerPiece) ? "0" : costPerPiece.toString());
       } else if (validPackageUnits.includes(purchasedUnit as PackageUnit) && purchasedUnit === selectedMaterial.inputUnit) {
-        form.setValue("costPerPurchasedUnit", formatCleanNumber(costPerOriginalUnit));
+        // Store exact value for backend
+        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toString());
       } else {
         form.setValue("costPerPurchasedUnit", "0");
       }
     } else {
       if (purchasedUnit === originalUnit) {
-        form.setValue("costPerPurchasedUnit", formatCleanNumber(costPerOriginalUnit));
+        // Store exact value for backend
+        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toString());
       } else {
         const conversionFactor = getConversionFactor(originalUnit, purchasedUnit, selectedMaterial.unitType, selectedMaterial);
         if (conversionFactor > 0) {
           const costPerWasteUnit = costPerOriginalUnit / conversionFactor;
-          form.setValue("costPerPurchasedUnit", isNaN(costPerWasteUnit) ? "0" : formatCleanNumber(costPerWasteUnit));
+          // Store exact value for backend
+          form.setValue("costPerPurchasedUnit", isNaN(costPerWasteUnit) ? "0" : costPerWasteUnit.toString());
         } else {
           form.setValue("costPerPurchasedUnit", "0");
         }
@@ -105,8 +109,10 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
   useEffect(() => {
     const quantity = parseFloat(watchedQuantity) || 0;
     const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
-    const totalCost = parseFloat((quantity * costPerUnit).toFixed(6));
-    form.setValue("totalCost", isNaN(totalCost) ? "0.000000" : totalCost.toFixed(6));
+    // Calculate exact value without rounding
+    const totalCost = quantity * costPerUnit;
+    // Store exact value for backend
+    form.setValue("totalCost", isNaN(totalCost) ? "0" : totalCost.toString());
   }, [watchedQuantity, watchedCostPerUnit, watchedPurchasedUnit, form, selectedStockEntry, selectedMaterial]);
 
   const handleSubmit = async () => {
@@ -389,7 +395,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-500">Original Total Cost:</span>
-                  <span className="ml-2 font-medium">{formatCleanCurrency(selectedStockEntry.totalCost || 0)}</span>
+                  <span className="ml-2 font-medium">{formatCurrencyUI(selectedStockEntry.totalCost || 0)}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Original Quantity:</span>
@@ -399,7 +405,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
                 </div>
                 <div>
                   <span className="text-gray-500">Cost per {selectedStockEntry.purchasedUnit}:</span>
-                  <span className="ml-2 font-medium">${formatCleanNumber(Number(selectedStockEntry.totalCost || 0) / Number(selectedStockEntry.purchasedQuantity || 1))}</span>
+                  <span className="ml-2 font-medium">${formatNumberUI(Number(selectedStockEntry.totalCost || 0) / Number(selectedStockEntry.purchasedQuantity || 1))}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Remaining Stock:</span>

@@ -1,5 +1,5 @@
 import { ConversionData, Material, MaterialWithStock, StockEntry } from "@/types/inventory";
-import { convertMass, convertVolume, formatCurrency, formatNumber, isMassUnit, isVolumeUnit } from "./conversionLogic";
+import { convertMass, convertVolume, formatNumber, formatNumberUI, formatCurrencyUI, isMassUnit, isVolumeUnit } from "./conversionLogic";
 
 // Calculate conversion data for stock entries
 export function calculateStockConversion(stockEntry: StockEntry, material: Material): ConversionData {
@@ -94,19 +94,22 @@ export function calculateCostForQuantity(material: Material, quantity: number, u
   // Convert to base unit if needed
   if (unit !== material.baseUnit) {
     if (isMassUnit(unit) && isMassUnit(material.baseUnit)) {
-      convertedQuantity = convertMass(quantity, unit, material.baseUnit);
-      steps.push(`Convert ${formatNumber(quantity)} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
+      const convertedValue = convertMass(convertedQuantity, unit, material.baseUnit);
+      convertedQuantity = convertedValue;
+      steps.push(`Convert ${formatNumberUI(quantity)} ${unit} to ${material.baseUnit}: ${formatNumberUI(convertedQuantity)} ${material.baseUnit}`);
     } else if (isVolumeUnit(unit) && isVolumeUnit(material.baseUnit)) {
-      convertedQuantity = convertVolume(quantity, unit, material.baseUnit);
-      steps.push(`Convert ${formatNumber(quantity)} ${unit} to ${material.baseUnit}: ${formatNumber(convertedQuantity)} ${material.baseUnit}`);
+      const convertedValue = convertVolume(convertedQuantity, unit, material.baseUnit);
+      convertedQuantity = convertedValue;
+      steps.push(`Convert ${formatNumberUI(quantity)} ${unit} to ${material.baseUnit}: ${formatNumberUI(convertedQuantity)} ${material.baseUnit}`);
     } else {
-      steps.push(`Using ${quantity} ${unit} directly (no conversion available)`);
+      steps.push(`Using ${formatNumberUI(quantity)} ${unit} directly (no conversion available)`);
       warning = warning || "Warning: Unit conversion not available - using direct quantity";
     }
   }
 
+  // Calculate exact cost without rounding for backend precision
   const cost = convertedQuantity * averageCostPerBaseUnit;
-  steps.push(`Cost calculation: ${formatNumber(convertedQuantity)} × ${formatCurrency(averageCostPerBaseUnit)} = ${formatCurrency(cost)}`);
+  steps.push(`Cost calculation: ${formatNumberUI(convertedQuantity)} × ${formatCurrencyUI(averageCostPerBaseUnit)} = ${formatCurrencyUI(cost)}`);
 
   return { cost, steps, warning };
 }

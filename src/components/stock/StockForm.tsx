@@ -145,8 +145,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
           }
         }
         if (suggestedCost >= 0 && !isNaN(suggestedCost)) {
-          const finalCost = parseFloat(suggestedCost.toFixed(4));
-          form.setValue("costPerPurchasedUnit", finalCost.toString());
+          // Preserve exact decimal value for backend precision
+          form.setValue("costPerPurchasedUnit", suggestedCost.toString());
         }
       }
     }
@@ -158,7 +158,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       const numCostPerUnit = typeof watchedCostPerUnit === "string" ? parseFloat(watchedCostPerUnit) : watchedCostPerUnit;
 
       if (!isNaN(numQuantity) && !isNaN(numCostPerUnit)) {
-        const totalCost = parseFloat((numQuantity * numCostPerUnit).toFixed(2));
+        // Calculate exact cost without rounding for backend precision
+        const totalCost = numQuantity * numCostPerUnit;
         form.setValue("totalCost", totalCost.toString());
       }
     }

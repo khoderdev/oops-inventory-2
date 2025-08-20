@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { formatCleanNumber } from "@/utils/numberFormatting";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -193,7 +192,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           onClick={() => {
                             const currentValue = parseFloat(field.value) || 0;
                             const newValue = Math.max(0, currentValue - 0.0001);
-                            field.onChange(formatCleanNumber(newValue));
+                            // Store exact value but display formatted
+                            field.onChange(newValue.toString());
                           }}
                           disabled={parseFloat(field.value) <= 0}
                         >
@@ -217,7 +217,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           onClick={() => {
                             const currentValue = parseFloat(field.value) || 0;
                             const newValue = currentValue + 0.0001;
-                            field.onChange(formatCleanNumber(newValue));
+                            // Store exact value but display formatted
+                            field.onChange(newValue.toString());
                           }}
                         >
                           <Plus className="h-4 w-4" />
@@ -246,7 +247,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
                           const newValue = Math.max(0, currentValue - 0.0001);
-                          field.onChange(newValue.toFixed(4));
+                          // Store exact value
+                          field.onChange(newValue.toString());
                         }}
                         disabled={parseFloat(field.value) <= 0}
                       >
@@ -261,7 +263,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
                           const newValue = currentValue + 0.0001;
-                          field.onChange(newValue.toFixed(4));
+                          // Store exact value
+                          field.onChange(newValue.toString());
                         }}
                       >
                         <Plus className="h-4 w-4" />

@@ -136,11 +136,13 @@ export function convertVolume(value: number, fromUnit: string | undefined, toUni
 }
 
 export function calculateCostPerUnit(totalCost: number, totalQuantity: number): number {
-  return parseFloat((totalCost / totalQuantity).toFixed(6));
+  // Return the exact calculation result without rounding for backend
+  return totalCost / totalQuantity;
 }
 
 export function calculateTotalCost(quantity: number, costPerUnit: number): number {
-  return parseFloat((quantity * costPerUnit).toFixed(6));
+  // Return the exact calculation result without rounding for backend
+  return quantity * costPerUnit;
 }
 
 export function calculateIngredientCost(material: Material, quantity: number, unit: string): number {
@@ -151,8 +153,13 @@ export function calculateIngredientCost(material: Material, quantity: number, un
     normalizedQuantity = convertMass(quantity, unit, baseUnit);
   } else if (isVolumeUnit(unit) && isVolumeUnit(baseUnit)) {
     normalizedQuantity = convertVolume(quantity, unit, baseUnit);
+  } else if (unit !== baseUnit) {
+    // If units don't match and aren't convertible, return 0 or handle error
+    console.warn(`Cannot convert between incompatible units: ${unit} and ${baseUnit}`);
+    return 0;
   }
 
+  // Calculate cost based on normalized quantity - preserve exact value for backend
   return normalizedQuantity * material.costPerUnit;
 }
 
@@ -179,6 +186,39 @@ export function formatCurrency(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount);
+}
+
+export function formatCurrencyUI(amount: number): string {
+  // Handle invalid inputs
+  if (amount == null || isNaN(amount) || !isFinite(amount)) {
+    return "$0.00";
+  }
+  
+  // For very small recurring decimals (like 0.0833333...)
+  if (amount < 0.1 && amount > 0) {
+    // Check if the number has many decimal places
+    const decimalStr = amount.toString();
+    if (decimalStr.length > 6 && decimalStr.includes(".")) {
+      // Format with 3 decimal places and add ellipsis
+      return `$${amount.toFixed(3)}...`;
+    }
+  }
+  
+  // Use standard formatting for normal amounts
+  return formatCurrency(amount);
+}
+
+// Helper functions for unit type checking
+export function isMassUnit(unit: string): boolean {
+  if (!unit) return false;
+  const normalized = unit.toLowerCase();
+  return ["kg", "g", "mg", "lb", "lbs", "oz", "gram", "grams", "kilogram", "kilograms", "pound", "pounds", "ounce", "ounces"].includes(normalized);
+}
+
+export function isVolumeUnit(unit: string): boolean {
+  if (!unit) return false;
+  const normalized = unit.toLowerCase();
+  return ["l", "ml", "gal", "qt", "pt", "liter", "liters", "milliliter", "milliliters", "gallon", "gallons", "quart", "quarts", "pint", "pints"].includes(normalized);
 }
 
 export function formatNumber(num: number | string | null | undefined, unit?: string): string {
@@ -215,65 +255,86 @@ export function formatNumber(num: number | string | null | undefined, unit?: str
   return num.toFixed(decimals).replace(/\.?0+$/, "");
 }
 
-// Helper functions (assuming these exist elsewhere in your code)
-export function isMassUnit(unit: string): boolean {
-  // Your implementation for mass units
-  return ["kg", "g", "mg", "lb", "oz"].includes(unit.toLowerCase());
-}
-
-export function isVolumeUnit(unit: string): boolean {
-  // Your implementation for volume units
-  return ["l", "ml", "gal", "qt", "pt"].includes(unit.toLowerCase());
+export function formatNumberUI(num: number | string | null | undefined, unit?: string): string {
+  // Handle invalid inputs
+  if (num === null || num === undefined) {
+    return "0";
+  }
+  
+  // Convert to number if needed
+  const numValue = typeof num === "string" ? parseFloat(num) : num;
+  if (typeof numValue !== "number" || isNaN(numValue)) {
+    return "0";
+  }
+  
+  // Get the string representation to check decimal length
+  const numStr = numValue.toString();
+  
+  // For recurring decimals (like 0.0833333...)
+  if (numStr.length > 6 && numStr.includes(".")) {
+    // Show 3 decimal places with ellipsis for long decimals
+    return `${numValue.toFixed(3)}...`;
+  }
+  
+  // Otherwise use standard formatting
+  return formatNumber(numValue, unit);
 }
 
 export function calculatePackagedGoodCost(packagedGood: PackagedGood, requestedQuantity: number, requestedUnit: string): CalculationBreakdown {
   const steps: string[] = [];
 
-  // Calculate cost per individual unit
+  // Calculate cost per individual unit - preserve exact value
   const costPerUnit = packagedGood.costPerPackage / packagedGood.unitsPerPackage;
-  steps.push(`Cost per ${packagedGood.baseUnit}: $${packagedGood.costPerPackage} ÷ ${packagedGood.unitsPerPackage} = $${costPerUnit.toFixed(4)}`);
+  steps.push(`Cost per ${packagedGood.baseUnit}: $${packagedGood.costPerPackage} ÷ ${packagedGood.unitsPerPackage} = $${formatCurrencyUI(costPerUnit)}`);
 
   // If requesting in same unit as base unit
-  if (requestedUnit.toLowerCase() === packagedGood.baseUnit.toLowerCase()) {
-    const totalCost = requestedQuantity * costPerUnit;
-    steps.push(`Total cost: ${requestedQuantity} × $${costPerUnit.toFixed(4)} = $${totalCost.toFixed(2)}`);
-
+  if (requestedUnit === packagedGood.baseUnit) {
+    const totalCost = costPerUnit * requestedQuantity;
+    steps.push(`Total cost: $${formatCurrencyUI(costPerUnit)} × ${requestedQuantity} ${requestedUnit} = $${formatCurrencyUI(totalCost)}`);
     return {
       originalValue: requestedQuantity,
       originalUnit: requestedUnit,
       convertedValue: requestedQuantity,
-      convertedUnit: requestedUnit,
-      costCalculation: `${requestedQuantity} × $${costPerUnit.toFixed(4)}`,
-      totalCost,
+      convertedUnit: packagedGood.baseUnit,
+      costCalculation: `${requestedQuantity} × ${formatCurrencyUI(costPerUnit)}`,
+      totalCost: totalCost, // Preserve exact value for backend
       steps
     };
   }
 
-  // Handle unit conversions if needed
-  let convertedQuantity = requestedQuantity;
-  let conversionUsed = false;
-
-  // Check if we need mass or volume conversion
-  if (isMassUnit(requestedUnit) && isMassUnit(packagedGood.baseUnit)) {
+  // If units need conversion
+  let convertedQuantity: number;
+  if (isMassUnit(packagedGood.baseUnit) && isMassUnit(requestedUnit)) {
     convertedQuantity = convertMass(requestedQuantity, requestedUnit, packagedGood.baseUnit);
-    conversionUsed = true;
-    steps.push(`Convert ${requestedQuantity} ${requestedUnit} to ${packagedGood.baseUnit}: ${convertedQuantity.toFixed(3)} ${packagedGood.baseUnit}`);
-  } else if (isVolumeUnit(requestedUnit) && isVolumeUnit(packagedGood.baseUnit)) {
+    steps.push(`Convert ${requestedQuantity} ${requestedUnit} to ${formatNumberUI(convertedQuantity)} ${packagedGood.baseUnit}`);
+  } else if (isVolumeUnit(packagedGood.baseUnit) && isVolumeUnit(requestedUnit)) {
     convertedQuantity = convertVolume(requestedQuantity, requestedUnit, packagedGood.baseUnit);
-    conversionUsed = true;
-    steps.push(`Convert ${requestedQuantity} ${requestedUnit} to ${packagedGood.baseUnit}: ${convertedQuantity.toFixed(3)} ${packagedGood.baseUnit}`);
+    steps.push(`Convert ${requestedQuantity} ${requestedUnit} to ${formatNumberUI(convertedQuantity)} ${packagedGood.baseUnit}`);
+  } else {
+    // If units are incompatible
+    steps.push(`Error: Cannot convert between ${requestedUnit} and ${packagedGood.baseUnit}`);
+    return {
+      originalValue: requestedQuantity,
+      originalUnit: requestedUnit,
+      convertedValue: 0,
+      convertedUnit: packagedGood.baseUnit,
+      costCalculation: "",
+      totalCost: 0,
+      steps
+    };
   }
 
-  const totalCost = convertedQuantity * costPerUnit;
-  steps.push(`Total cost: ${convertedQuantity.toFixed(3)} × $${costPerUnit.toFixed(4)} = $${totalCost.toFixed(2)}`);
+  const totalCost = costPerUnit * convertedQuantity;
+  const costCalculation = `${formatNumberUI(convertedQuantity)} × ${formatCurrencyUI(costPerUnit)}`;
+  steps.push(`Total cost: $${formatCurrencyUI(costPerUnit)} × ${formatNumberUI(convertedQuantity)} ${packagedGood.baseUnit} = $${formatCurrencyUI(totalCost)}`);
 
   return {
     originalValue: requestedQuantity,
     originalUnit: requestedUnit,
     convertedValue: convertedQuantity,
     convertedUnit: packagedGood.baseUnit,
-    costCalculation: `${convertedQuantity.toFixed(3)} × $${costPerUnit.toFixed(4)}`,
-    totalCost,
+    costCalculation,
+    totalCost: totalCost, // Preserve exact value for backend
     steps
   };
 }
@@ -281,17 +342,16 @@ export function calculatePackagedGoodCost(packagedGood: PackagedGood, requestedQ
 export function performConversion(input: ConversionInput): CalculationBreakdown {
   const steps: string[] = [];
   let convertedValue: number;
-  const conversionFactor: number = 1;
 
   if (isMassUnit(input.fromUnit) && isMassUnit(input.toUnit)) {
     convertedValue = convertMass(input.value, input.fromUnit, input.toUnit);
     if (input.fromUnit !== input.toUnit) {
-      steps.push(`Convert ${input.value} ${input.fromUnit} to ${input.toUnit}: ${formatNumber(convertedValue)} ${input.toUnit}`);
+      steps.push(`Convert ${input.value} ${input.fromUnit} to ${input.toUnit}: ${formatNumberUI(convertedValue)} ${input.toUnit}`);
     }
   } else if (isVolumeUnit(input.fromUnit) && isVolumeUnit(input.toUnit)) {
     convertedValue = convertVolume(input.value, input.fromUnit, input.toUnit);
     if (input.fromUnit !== input.toUnit) {
-      steps.push(`Convert ${input.value} ${input.fromUnit} to ${input.toUnit}: ${formatNumber(convertedValue)} ${input.toUnit}`);
+      steps.push(`Convert ${input.value} ${input.fromUnit} to ${input.toUnit}: ${formatNumberUI(convertedValue)} ${input.toUnit}`);
     }
   } else {
     // No conversion needed or unsupported conversion
@@ -299,18 +359,18 @@ export function performConversion(input: ConversionInput): CalculationBreakdown 
     steps.push(`No conversion needed: ${input.value} ${input.fromUnit}`);
   }
 
-  // Calculate cost if provided
+  // Calculate cost if provided - preserve exact values for backend
   let totalCost = 0;
   let costCalculation = "";
 
   if (input.costPer && input.costUnit) {
     if (input.costUnit === input.toUnit) {
-      // Direct cost calculation
+      // Direct cost calculation - preserve exact value
       totalCost = convertedValue * input.costPer;
-      costCalculation = `${formatNumber(convertedValue)} × ${formatCurrency(input.costPer)}`;
-      steps.push(`Cost calculation: ${costCalculation} = ${formatCurrency(totalCost)}`);
+      costCalculation = `${formatNumberUI(convertedValue)} × ${formatCurrencyUI(input.costPer)}`;
+      steps.push(`Cost calculation: ${costCalculation} = ${formatCurrencyUI(totalCost)}`);
     } else {
-      // Need to convert cost unit to target unit
+      // Need to convert cost unit to target unit - preserve exact values
       let costPerTargetUnit: number;
 
       if (isMassUnit(input.costUnit) && isMassUnit(input.toUnit)) {
@@ -324,19 +384,19 @@ export function performConversion(input: ConversionInput): CalculationBreakdown 
       }
 
       totalCost = convertedValue * costPerTargetUnit;
-      costCalculation = `${formatNumber(convertedValue)} × ${formatCurrency(costPerTargetUnit)}`;
-      steps.push(`Cost per ${input.toUnit}: ${formatCurrency(input.costPer)} per ${input.costUnit} = ${formatCurrency(costPerTargetUnit)} per ${input.toUnit}`);
-      steps.push(`Total cost: ${costCalculation} = ${formatCurrency(totalCost)}`);
+      costCalculation = `${formatNumberUI(convertedValue)} × ${formatCurrencyUI(costPerTargetUnit)}`;
+      steps.push(`Cost per ${input.toUnit}: ${formatCurrencyUI(input.costPer)} per ${input.costUnit} = ${formatCurrencyUI(costPerTargetUnit)} per ${input.toUnit}`);
+      steps.push(`Total cost: ${costCalculation} = ${formatCurrencyUI(totalCost)}`);
     }
   }
 
   return {
     originalValue: input.value,
     originalUnit: input.fromUnit,
-    convertedValue,
+    convertedValue, // Preserve exact value for backend
     convertedUnit: input.toUnit,
     costCalculation,
-    totalCost,
+    totalCost, // Preserve exact value for backend
     steps
   };
 }

@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { formatCleanNumber } from "@/utils/numberFormatting";
+import { formatNumberUI } from "@/utils/conversionLogic";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { AddToEntryTabProps, Material, StockFormData, StockFormInputs } from "@/types/inventory";
+import { AddToEntryTabProps, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { CalendarIcon, Minus, Package, Plus, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -37,7 +37,8 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         defaultCost = stockEntryCost || packageCost || 0;
       }
       if (defaultCost > 0) {
-        form.setValue("costPerPurchasedUnit", formatCleanNumber(defaultCost));
+        // Store exact value for backend
+        form.setValue("costPerPurchasedUnit", defaultCost.toString());
       } else {
         form.setValue("costPerPurchasedUnit", "0");
       }
@@ -55,7 +56,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         if (packageCost > 0 && Math.abs(currentCost - packageCost) / packageCost > 0.5) {
           form.setError("costPerPurchasedUnit", {
             type: "manual",
-            message: `Cost per ${watchedUnit} ($${formatCleanNumber(currentCost)}) deviates significantly from expected ($${formatCleanNumber(packageCost)})`
+            message: `Cost per ${watchedUnit} ($${formatNumberUI(currentCost)}) deviates significantly from expected ($${formatNumberUI(packageCost)})`
           });
         } else {
           form.clearErrors("costPerPurchasedUnit");
@@ -329,7 +330,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
                     const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
                     const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-                    return (boxCost / (selectedMaterial?.packageQuantity || 1)).toFixed(4);
+                    return formatNumberUI(boxCost / (selectedMaterial?.packageQuantity || 1));
                   })()}{" "}
                   (fixed)
                 </p>
@@ -339,7 +340,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
                     const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
                     const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-                    return (boxCost / (selectedMaterial?.packageQuantity || 1)).toFixed(4);
+                    return formatNumberUI(boxCost / (selectedMaterial?.packageQuantity || 1));
                   })()}{" "}
                   per {watchedUnit}
                 </p>
