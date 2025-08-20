@@ -8,6 +8,7 @@ import { promisify } from "util";
 import { v4 as uuidv4 } from "uuid";
 import BackupSchedule from "../models/BackupSchedule.js";
 import ScheduleExecution from "../models/ScheduleExecution.js";
+import sequelize from "../config/database.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -151,16 +152,47 @@ async function executeBackup(schedule) {
     // Ensure backup directory exists
     await fs.mkdir(backupDir, { recursive: true });
 
-    // Database connection details (should match your database.js configuration)
+    // Get database configuration from the main database.js file
     const dbConfig = {
-      host: process.env.DB_HOST || "localhost",
-      port: process.env.DB_PORT || 5432,
-      database: process.env.DB_NAME || "inventory_db",
-      username: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "postgres"
+      host: process.env.DB_HOST || sequelize.config.host,
+      port: process.env.DB_PORT || sequelize.config.port,
+      database: process.env.DB_NAME || sequelize.config.database,
+      username: process.env.DB_USER || sequelize.config.username,
+      password: process.env.DB_PASSWORD || sequelize.config.password
     };
+    
+    console.log(`Using database configuration: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database} (user: ${dbConfig.username})`);
 
-    const pgDumpPath = process.env.PG_DUMP_PATH || "C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe";
+    // Detect PostgreSQL binary path with better error handling
+    let pgDumpPath = process.env.PG_DUMP_PATH;
+    
+    if (!pgDumpPath) {
+      // Common PostgreSQL installation paths
+      const possiblePaths = [
+        "C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe",
+        "C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe",
+        "C:\\Program Files\\PostgreSQL\\15\\bin\\pg_dump.exe",
+        "C:\\Program Files\\PostgreSQL\\14\\bin\\pg_dump.exe",
+        "C:\\Program Files\\PostgreSQL\\13\\bin\\pg_dump.exe",
+        "C:\\Program Files\\PostgreSQL\\12\\bin\\pg_dump.exe"
+      ];
+      
+      // Try to find pg_dump in common paths
+      for (const path of possiblePaths) {
+        try {
+          await fs.access(path);
+          pgDumpPath = path;
+          console.log(`Found PostgreSQL binary at: ${pgDumpPath}`);
+          break;
+        } catch (err) {
+          // Path not found, continue to next path
+        }
+      }
+      
+      if (!pgDumpPath) {
+        throw new Error("PostgreSQL pg_dump binary not found. Please set PG_DUMP_PATH environment variable.");
+      }
+    }
 
     // Build pg_dump command based on schedule settings
     let command = `"${pgDumpPath}" -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d ${dbConfig.database}`;
@@ -192,8 +224,37 @@ async function executeBackup(schedule) {
         break;
     }
 
-    console.log(`Executing backup command for schedule: ${schedule.name}`);
-    await execAsync(command, { env });
+    console.log(`Executing backup command: ${command}`);
+    console.log(`Backup directory: ${backupDir}`);
+    console.log(`Backup format: ${schedule.backupType}`);
+    console.log(`Include schema: ${schedule.includeSchema ? 'Yes' : 'No'}`);
+    console.log(`Include data: ${schedule.includeData ? 'Yes' : 'No'}`);
+    const startTime = Date.now();
+    
+    // Create a promise that rejects after timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      const timeoutMs = 30 * 60 * 1000; // 30 minutes timeout
+      setTimeout(() => reject(new Error(`Backup operation timed out after ${timeoutMs/60000} minutes`)), timeoutMs);
+    });
+    
+    // Race between the backup execution and the timeout
+    console.log(`Starting backup execution with timeout of 30 minutes...`);
+    const { stdout, stderr } = await Promise.race([
+      execAsync(command, { env }),
+      timeoutPromise
+    ]);
+    
+    const endTime = Date.now();
+    const durationSeconds = Math.floor((endTime - startTime) / 1000);
+    console.log(`Backup execution completed in ${durationSeconds} seconds`);
+    
+    if (stderr && stderr.trim()) {
+      console.log(`Backup command stderr output: ${stderr}`);
+    }
+    
+    if (stdout && stdout.trim()) {
+      console.log(`Backup command stdout output: ${stdout}`);
+    }
 
     // Get backup file size
     let backupSize = 0;

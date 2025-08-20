@@ -11,7 +11,7 @@ const customLogger = (sql, timing) => {
 const sequelize = new Sequelize({
   dialect: "postgres",
   host: "localhost",
-  database: "inventory_db6",
+  database: "inventory_db",
   username: "postgres",
   password: "postgres",
   port: 5432,

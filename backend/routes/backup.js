@@ -1,16 +1,30 @@
 import archiver from "archiver";
 import { exec } from "child_process";
 import express from "express";
-import fs from "fs/promises";
+import fs from "fs";
+import fsPromises from "fs/promises";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import os from "os";
 import sequelize from "../config/database.js";
+import { findPostgreSQLPath } from "../scripts/pgPathFinder.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Define backup directory path
+const BACKUP_DIR = path.join(__dirname, '..', 'backups');
+
+// Ensure backup directory exists
+if (!fs.existsSync(BACKUP_DIR)) {
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+// Initialize PostgreSQL bin path and executable extension
+let PG_BIN_PATH = '';
+let PG_EXECUTABLE_EXT = os.platform() === 'win32' ? '.exe' : '';
 
 // Configure multer for file uploads
 const upload = multer({
@@ -20,68 +34,52 @@ const upload = multer({
   }
 });
 
-// Cross-platform PostgreSQL detection
-function findPostgreSQLPath() {
-  const platform = os.platform();
-  
-  if (platform === "win32") {
-    // Windows paths
-    const possiblePaths = [
-      "C:\\Program Files\\PostgreSQL\\17\\bin",
-      "C:\\Program Files\\PostgreSQL\\16\\bin",
-      "C:\\Program Files\\PostgreSQL\\15\\bin",
-      "C:\\Program Files\\PostgreSQL\\14\\bin",
-      "C:\\Program Files\\PostgreSQL\\13\\bin",
-      "C:\\Program Files (x86)\\PostgreSQL\\17\\bin",
-      "C:\\Program Files (x86)\\PostgreSQL\\16\\bin",
-      "C:\\Program Files (x86)\\PostgreSQL\\15\\bin"
-    ];
-
-    for (const pgPath of possiblePaths) {
-      const pgDumpPath = path.join(pgPath, "pg_dump.exe");
+// Helper function to find PostgreSQL bin path using the advanced path finder
+async function findPostgreSQLBinPath() {
+  try {
+    // Check if we have a saved configuration
+    const configPath = path.join(__dirname, '..', 'config', 'pgPath.json');
+    let pgInfo;
+    
+    if (fs.existsSync(configPath)) {
       try {
-        require('fs').accessSync(pgDumpPath);
-        return { binPath: pgPath, executable: ".exe" };
-      } catch (e) {
-        // Continue to next path
+        const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        console.log('📋 Using saved PostgreSQL configuration');
+        
+        // Verify the saved path still works
+        if (configData.inPath || (configData.binPath && fs.existsSync(configData.binPath))) {
+          pgInfo = configData;
+        } else {
+          console.log('⚠️ Saved PostgreSQL path is no longer valid, detecting again...');
+          pgInfo = await findPostgreSQLPath();
+        }
+      } catch (error) {
+        console.log(`⚠️ Error reading saved configuration: ${error.message}`);
+        pgInfo = await findPostgreSQLPath();
       }
+    } else {
+      // No saved configuration, detect PostgreSQL
+      console.log('🔍 Detecting PostgreSQL installation...');
+      pgInfo = await findPostgreSQLPath();
     }
-  } else {
-    // Linux/macOS paths
-    const possiblePaths = [
-      "/usr/bin",
-      "/usr/local/bin",
-      "/usr/local/pgsql/bin",
-      "/opt/postgresql/bin",
-      "/usr/lib/postgresql/17/bin",
-      "/usr/lib/postgresql/16/bin",
-      "/usr/lib/postgresql/15/bin",
-      "/usr/lib/postgresql/14/bin",
-      "/usr/lib/postgresql/13/bin"
-    ];
-
-    for (const pgPath of possiblePaths) {
-      const pgDumpPath = path.join(pgPath, "pg_dump");
-      try {
-        require('fs').accessSync(pgDumpPath);
-        return { binPath: pgPath, executable: "" };
-      } catch (e) {
-        // Continue to next path
-      }
-    }
+    
+    const platform = os.platform();
+    const executableExtension = platform === 'win32' ? '.exe' : '';
+    
+    return { 
+      pgDumpPath: pgInfo.binPath, 
+      executableExtension: executableExtension 
+    };
+  } catch (error) {
+    console.error(`❌ Error finding PostgreSQL: ${error.message}`);
+    // Fallback to default behavior
+    const platform = os.platform();
+    return { 
+      pgDumpPath: '', 
+      executableExtension: platform === 'win32' ? '.exe' : '' 
+    };
   }
-
-  // Fallback to PATH
-  return { binPath: "", executable: platform === "win32" ? ".exe" : "" };
 }
-
-const pgConfig = findPostgreSQLPath();
-const PG_BIN_PATH = pgConfig.binPath;
-const PG_EXECUTABLE_EXT = pgConfig.executable;
-const BACKUP_DIR = path.join(__dirname, "..", "backups");
-
-// Ensure backup directory exists
-await fs.mkdir(BACKUP_DIR, { recursive: true }).catch(() => {});
 
 // Helper function to execute shell commands
 const execAsync = (command, options = {}) => {
@@ -172,7 +170,7 @@ const getDatabaseStats = async () => {
 // Helper function to get backup metadata
 const getBackupMetadata = async (backupPath, type) => {
   try {
-    const stats = await fs.stat(backupPath);
+    const stats = await fsPromises.stat(backupPath);
     const dbStats = await getDatabaseStats();
 
     return {
@@ -195,10 +193,10 @@ const getBackupMetadata = async (backupPath, type) => {
 };
 
 // Helper function to run backup script
-const runBackupScript = async () => {
+const runBackupScript = async (format = 'custom') => {
   try {
     const scriptPath = path.join(__dirname, "..", "scripts", "pgDumpFixed.js");
-    const result = await execAsync(`node "${scriptPath}"`, {
+    const result = await execAsync(`node "${scriptPath}" --format=${format}`, {
       cwd: path.join(__dirname, ".."),
       env: { ...process.env }
     });
@@ -245,6 +243,23 @@ router.get("/database-info", async (req, res) => {
   }
 });
 
+// Initialize PostgreSQL paths before handling requests
+async function initPostgreSQLPaths() {
+  try {
+    const { pgDumpPath, executableExtension } = await findPostgreSQLBinPath();
+    PG_BIN_PATH = pgDumpPath;
+    PG_EXECUTABLE_EXT = executableExtension;
+    console.log(`🔍 PostgreSQL bin path initialized: ${PG_BIN_PATH || 'Using PATH'}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Error initializing PostgreSQL paths: ${error.message}`);
+    return false;
+  }
+}
+
+// Initialize paths on server startup
+initPostgreSQLPaths();
+
 // Create a new backup
 router.post("/create", async (req, res) => {
   try {
@@ -257,7 +272,7 @@ router.post("/create", async (req, res) => {
     const result = await runBackupScript();
 
     // Find the created backup directory
-    const backupDirs = await fs.readdir(BACKUP_DIR);
+    const backupDirs = await fsPromises.readdir(BACKUP_DIR);
     const latestBackup = backupDirs
       .filter(dir => dir.startsWith("pgdump_"))
       .sort()
@@ -348,7 +363,7 @@ router.get("/progress/:backupId", async (req, res) => {
 // List all backups
 router.get("/list", async (req, res) => {
   try {
-    const backupDirs = await fs.readdir(BACKUP_DIR);
+    const backupDirs = await fsPromises.readdir(BACKUP_DIR);
     // Include manual backups (pgdump_), scheduled backups (scheduled_), and uploaded backups (uploaded_)
     const allBackupDirs = backupDirs.filter(dir => dir.startsWith("pgdump_") || dir.startsWith("scheduled_") || dir.startsWith("uploaded_"));
 
@@ -356,7 +371,7 @@ router.get("/list", async (req, res) => {
 
     for (const dirName of allBackupDirs) {
       const backupDir = path.join(BACKUP_DIR, dirName);
-      const backupFiles = await fs.readdir(backupDir);
+      const backupFiles = await fsPromises.readdir(backupDir);
 
       // Check for different backup types
       const customFile = backupFiles.find(f => f.endsWith(".custom"));
@@ -472,7 +487,7 @@ router.delete("/:backupId", async (req, res) => {
 
     // Check if backup directory exists
     try {
-      await fs.access(backupDir);
+      await fsPromises.access(backupDir);
     } catch (error) {
       return res.status(404).json({
         success: false,
@@ -481,7 +496,7 @@ router.delete("/:backupId", async (req, res) => {
     }
 
     // Remove the entire backup directory
-    await fs.rm(backupDir, { recursive: true, force: true });
+    await fsPromises.rm(backupDir, { recursive: true, force: true });
 
     res.json({
       success: true,
@@ -569,14 +584,14 @@ router.get("/download/:backupId", async (req, res) => {
     }
 
     // Check if file exists
-    await fs.access(filePath);
+    await fsPromises.access(filePath);
 
     // Set appropriate headers
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     res.setHeader("Content-Type", "application/octet-stream");
 
     // Stream the file
-    const fileStream = await fs.readFile(filePath);
+    const fileStream = await fsPromises.readFile(filePath);
     res.send(fileStream);
   } catch (error) {
     console.error("Error downloading backup:", error);
@@ -641,7 +656,7 @@ router.post("/restore/:backupId", async (req, res) => {
         filePath = path.join(backupDir, sqlFile);
 
         // Read the SQL file to check for database-level commands
-        const sqlContent = await fs.readFile(filePath, 'utf8');
+        const sqlContent = await fsPromises.readFile(filePath, 'utf8');
         const hasDbCommands = sqlContent.includes('DROP DATABASE') || sqlContent.includes('CREATE DATABASE');
         
         if (hasDbCommands) {
