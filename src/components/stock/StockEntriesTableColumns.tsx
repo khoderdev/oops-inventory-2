@@ -170,7 +170,7 @@ export function useStockEntriesTableColumns({
           </Button>
         ),
         cell: ({ getValue }) => (
-          <div className="text-left w-[110px] h-8 px-2 flex items-center">
+          <div className="text-left w-[110px] h-8 px-2 flex items-center bg-purple-400">
             <span className="font-medium">{new Date(getValue()).toLocaleDateString()}</span>
           </div>
         ),
@@ -185,7 +185,7 @@ export function useStockEntriesTableColumns({
         cell: ({ row }) => {
           const entry = row.original;
           return (
-            <div className="flex items-center gap-1 h-8 px-2 w-[130px]">
+            <div className="flex items-center gap-1 h-8 px-2 w-[130px] bg-red-400">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

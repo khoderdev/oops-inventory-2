@@ -184,8 +184,6 @@ const stockEntriesController = {
         }
       }
 
-      // FIXED: Use frontend-calculated values instead of backend recalculation
-      // Frontend handles all conversions and calculations for UI consistency
       const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit || 0;
       
       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : purchasedIndividualQuantity > 0 ? parseFloat((numericTotalCost / purchasedIndividualQuantity).toFixed(6)) : 0;
