@@ -3,7 +3,7 @@ import { z } from "zod";
 // Base schema with all possible fields
 const baseStockSchema = {
   materialId: z.string().min(1, "Please select a material"),
-  supplier: z.string().min(1, "Please enter a supplier"),
+  supplier: z.string().optional(),
   purchasedQuantity: z.union([z.number(), z.string()])
     .pipe(z.coerce.number().refine(val => val > 0, "Quantity must be greater than 0"))
     .optional(),
@@ -44,7 +44,7 @@ export const addStockSchema = z.object({
 // Schema for adding to specific entry - requires quantity, excludes waste validation
 export const addToEntrySchema = z.object({
   materialId: z.string().min(1, "Please select a material"),
-  supplier: z.string().min(1, "Please enter a supplier"),
+  supplier: z.string().optional(),
   purchasedQuantity: z.union([z.number(), z.string()])
     .pipe(z.coerce.number().refine(val => val > 0, "Please enter a quantity to add")),
   costPerPurchasedUnit: z.union([z.number(), z.string()])
@@ -56,7 +56,6 @@ export const addToEntrySchema = z.object({
   expiryDate: z.date().optional(),
   batchNumber: z.string().optional(),
   notes: z.string().optional(),
-  // Explicitly exclude waste fields from validation
 });
 
 // Schema for waste operations - requires waste quantity and reason

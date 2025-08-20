@@ -1004,7 +1004,7 @@ export interface StockFormData extends z.infer<typeof stockSchema> {
 // Form interface with string types for inputs
 export interface StockFormInputs {
   materialId: string;
-  supplier: string;
+  supplier?: string;
   purchasedQuantity: string;
   purchasedUnit: string;
   costPerPurchasedUnit: string;
@@ -1028,6 +1028,18 @@ export interface StockFormProps {
   onRecordWaste?: (data: RecordWasteData) => void;
   onAddToSpecificEntry?: (data: StockFormData & { stockEntryId: string }) => void;
   onWasteFromSpecificEntry?: (data: StockFormData & { stockEntryId: string }) => void;
+  onCancel: () => void;
+}
+
+export interface NewStockTabProps {
+  form: UseFormReturn<StockFormInputs>;
+  materials: Material[];
+  availableUnits: string[];
+  selectedMaterial: Material | undefined;
+  watchedQuantity: string;
+  watchedCostPerUnit: string;
+  stockEntry?: StockEntry;
+  onSubmit: (data: StockFormData) => void;
   onCancel: () => void;
 }
 

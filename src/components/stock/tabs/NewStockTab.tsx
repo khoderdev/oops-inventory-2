@@ -5,30 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Material, StockEntry, StockFormData, StockFormInputs } from "@/types/inventory";
+import { NewStockTabProps, StockFormData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Minus, Plus } from "lucide-react";
-import { UseFormReturn } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
-
-interface NewStockTabProps {
-  form: UseFormReturn<StockFormInputs>;
-  materials: Material[];
-  availableUnits: string[];
-  selectedMaterial: Material | undefined;
-  watchedQuantity: string;
-  watchedCostPerUnit: string;
-  stockEntry?: StockEntry;
-  onSubmit: (data: StockFormData) => void;
-  onCancel: () => void;
-}
 
 export function NewStockTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onSubmit, onCancel }: NewStockTabProps) {
   const handleSubmit = async (data: StockFormInputs) => {
-    console.log("📋 NewStockTab handleSubmit - Raw form data:", data);
-
-    // Check for required fields and focus/scroll to first missing one
     const requiredFields = [
       { name: "materialId", element: document.querySelector('[name="materialId"]') },
       { name: "supplier", element: document.querySelector('[name="supplier"]') },
@@ -36,24 +20,17 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
       { name: "purchasedUnit", element: document.querySelector('[name="purchasedUnit"]') },
       { name: "costPerPurchasedUnit", element: document.querySelector('[name="costPerPurchasedUnit"]') }
     ];
-
     for (const field of requiredFields) {
       const value = form.getValues(field.name as keyof StockFormInputs);
       const isEmpty = !value || (typeof value === "string" && value.trim() === "") || (field.name === "purchasedQuantity" && parseFloat(value as string) <= 0) || (field.name === "costPerPurchasedUnit" && parseFloat(value as string) < 0);
-
       if (isEmpty && field.element) {
-        // Scroll to the field
         field.element.scrollIntoView({ behavior: "smooth", block: "center" });
-        // Focus the field
         (field.element as HTMLElement).focus();
-        // Trigger validation to show error
         form.trigger(field.name as keyof StockFormInputs);
-        return; // Stop at first missing field
+        return;
       }
     }
-
     const formData = data as unknown as StockFormData;
-    console.log("📋 NewStockTab handleSubmit - Converted form data:", formData);
     onSubmit(formData);
   };
 
