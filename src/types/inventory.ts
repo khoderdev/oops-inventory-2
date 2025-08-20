@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
 import { materialSchema } from "@/components/materials/materialsSchema";
+import { Category } from "./categories";
 
 // Interface for pagination metadata
 export interface PaginationInfo {
@@ -162,6 +163,7 @@ export interface UpdateMaterialData {
 
 export interface MaterialTableProps {
   filteredMaterials: MaterialWithStock[];
+  categories: Category[];
   onEditMaterial: (material: MaterialWithStock) => void;
   onAddStock: (materialId: string) => void;
   onDeleteMaterial: (materialId: string) => void;

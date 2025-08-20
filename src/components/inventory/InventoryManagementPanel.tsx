@@ -8,7 +8,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
+import { getCategoriesByType } from "@/api/categories.api";
 import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, MaterialFormData, StockFormData, RecordWasteData, CreateStockEntryData, MaterialCategory, Material } from "@/types/inventory";
+import { Category } from "@/types/categories";
 import { Package, Warehouse, Loader2, Tags } from "lucide-react";
 import { useAtom } from "jotai";
 import { useState, useCallback, useMemo, useEffect } from "react";
@@ -18,6 +20,7 @@ import { activeTabAtom, showMaterialFormAtom, showStockFormAtom, selectedMateria
 export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry }: InventoryManagementPanelProps = {}) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [stock, setStock] = useState<StockEntry[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState({ materials: false, stock: false });
   const [activeTab, setActiveTab] = useAtom(activeTabAtom);
   const [showMaterialForm, setShowMaterialForm] = useAtom(showMaterialFormAtom);
@@ -79,20 +82,39 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
     }
   }, []);
 
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await getCategoriesByType("materials", true);
+      const sortedCategories = [...(response.totalItems || [])];
+      sortedCategories.sort((a, b) => a.name.localeCompare(b.name));
+      setCategories(sortedCategories);
+      console.log("Material categories loaded:", sortedCategories.length);
+    } catch (error) {
+      console.error("❌ Error fetching material categories:", error);
+      setCategories([]);
+    }
+  }, []);
+
   const refresh = useCallback(
-    async (type?: "materials" | "stock") => {
+    async (type?: "materials" | "stock" | "categories") => {
       if (!type || type === "materials") {
         await fetchMaterials();
       }
       if (!type || type === "stock") {
         await fetchStock();
       }
+      if (!type || type === "categories") {
+        await fetchCategories();
+      }
     },
-    [fetchMaterials, fetchStock]
+    [fetchMaterials, fetchStock, fetchCategories]
   );
 
   useEffect(() => {
     const loadInitialData = async () => {
+      // Load categories first for instant rendering
+      await fetchCategories();
+      
       if (activeTab === "material" || activeTab === "stock") {
         await refresh();
       } else if (activeTab === "material") {
@@ -567,7 +589,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
         </TabsList>
 
         <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden ">
-          <MaterialTable filteredMaterials={materialsWithStock} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
+          <MaterialTable filteredMaterials={materialsWithStock} categories={categories} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
         </TabsContent>
 
         <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden ">

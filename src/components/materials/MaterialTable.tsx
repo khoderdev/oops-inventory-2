@@ -11,13 +11,10 @@ import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, Ch
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
-import { getCategoriesByType } from "@/api/categories.api";
 import { Category } from "@/types/categories";
 
-export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
+export function MaterialTable({ filteredMaterials, categories, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
   const { setShowMaterialForm } = useInventoryStore();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [, setLoadingCategories] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -116,26 +113,6 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     };
   }, [visibleMaterials.length, currentPage, pageSize]);
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setLoadingCategories(true);
-        // Fetch only material categories specifically
-        const response = await getCategoriesByType("materials", true);
-        const sortedCategories = [...(response.totalItems || [])];
-        sortedCategories.sort((a, b) => a.name.localeCompare(b.name));
-        setCategories(sortedCategories);
-        console.log("Material categories loaded:", sortedCategories.length);
-      } catch (error) {
-        console.error("Failed to fetch material categories:", error);
-        setCategories([]);
-      } finally {
-        setLoadingCategories(false);
-      }
-    };
-
-    fetchCategories();
-  }, []);
 
   const handleSortChange = useCallback((newSortBy: string, newSortOrder: "ASC" | "DESC") => {
     setSortBy(newSortBy);
@@ -264,11 +241,11 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
           // Get display values with better fallback logic
           const displayName = categoryInfo?.name || 
             (typeof category === "object" && category !== null && (category as any).name) || 
-            (typeof category === "string" && category !== "" ? category : "Unknown Category");
+            (typeof category === "string" && category ? category : "Unknown Category");
           
           const categoryValue = categoryInfo?.value || 
             (typeof category === "object" && category !== null && (category as any).value) || 
-            (typeof category === "string" && category !== "" ? category : "unknown");
+            (typeof category === "string" && category ? category : "unknown");
 
           // Show debug info if category couldn't be resolved properly
           if (!categoryInfo && (materialCategoryId || category)) {
@@ -565,11 +542,11 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                 // Get display values with better fallback logic
                 const displayName = categoryInfo?.name || 
                   (typeof material.category === "object" && material.category !== null && (material.category as any).name) || 
-                  (typeof material.category === "string" && material.category !== "" ? material.category : "Unknown Category");
+                  (typeof material.category === "string" ? material.category : "Unknown Category");
 
                 const categoryValue = categoryInfo?.value || 
                   (typeof material.category === "object" && material.category !== null && (material.category as any).value) || 
-                  (typeof material.category === "string" && material.category !== "" ? material.category : "unknown");
+                  (typeof material.category === "string" ? material.category : "unknown");
 
                 return (
                   <div key={material.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
