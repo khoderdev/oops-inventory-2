@@ -11,6 +11,9 @@ router.use(authenticate);
 // GET /api/categories - Get all categories with filtering and pagination
 router.get("/", categoryController.getAllCategories);
 
+// GET /api/categories/type/all - Get all categories regardless of type
+router.get("/type/all", categoryController.getAllCategoriesByType);
+
 // GET /api/categories/type/:type - Get categories by type (materials or menu_items)
 router.get("/type/:type", categoryController.getCategoriesByType);
 

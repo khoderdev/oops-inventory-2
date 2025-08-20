@@ -17,6 +17,64 @@ const generateValueFromName = (name) => {
 };
 
 const categoryController = {
+  // Get all categories regardless of type
+  getAllCategoriesByType: async (req, res, next) => {
+    try {
+      const { isActive = "true" } = req.query;
+      
+      // Build where clause for Category
+      const categoryWhere = {};
+      if (isActive !== "all") {
+        categoryWhere.isActive = isActive === "true";
+      }
+
+      const categories = await Category.findAll({
+        where: categoryWhere,
+        order: [
+          ["sortOrder", "ASC"],
+          ["name", "ASC"]
+        ]
+      });
+
+      // Manually populate categoryTypes for each category
+      for (const category of categories) {
+        if (category.categoryTypeIds && category.categoryTypeIds.length > 0) {
+          const categoryTypes = await CategoryType.findAll({
+            where: { id: category.categoryTypeIds },
+            attributes: ["id", "type", "createdAt", "updatedAt"]
+          });
+          category.dataValues.categoryTypes = categoryTypes;
+        } else {
+          category.dataValues.categoryTypes = [];
+        }
+      }
+
+      // Return structure consistent with CategoriesResponse interface
+      res.json({
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: categories,
+        endIndex: categories.length,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        itemsPerPage: {
+          page: 1,
+          limit: categories.length,
+          offset: 0,
+          sortBy: "sortOrder",
+          sortOrder: "ASC"
+        },
+        limit: categories.length,
+        offset: 0,
+        page: 1,
+        sortBy: "sortOrder",
+        sortOrder: "ASC",
+        startIndex: 1
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
   // Get all categories with filtering and pagination
   getAllCategories: async (req, res, next) => {
     try {

@@ -23,6 +23,14 @@ export const getCategoriesByType = async (type: string, isActive: boolean = true
   return response.data as CategoriesResponse;
 };
 
+// Get all categories regardless of type
+export const getAllCategoriesByType = async (isActive: boolean = true): Promise<CategoriesResponse> => {
+  const params = new URLSearchParams();
+  if (isActive !== undefined) params.append("isActive", isActive.toString());
+  const response = await api.get(`/categories/type/all?${params.toString()}`);
+  return response.data as CategoriesResponse;
+};
+
 // Get single category by ID
 export const getCategoryById = async (id: number): Promise<CategoryResponse> => {
   const response = await api.get(`/categories/${id}`);
@@ -157,6 +165,7 @@ export default {
   // Category functions
   getCategories,
   getCategoriesByType,
+  getAllCategoriesByType,
   getCategoryById,
   createCategory,
   updateCategory,
