@@ -231,7 +231,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         ? {
             id: parseInt(selectedCategoryObj.id),
             name: selectedCategoryObj.name,
-            value: selectedCategoryObj.value
+            value: true
           }
         : null,
       price: parseFloat(price),
@@ -264,7 +264,12 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
 
     onSubmit({
       ...cleanedFormData,
-      imageFile: imageFile
+      imageFile: imageFile,
+      name: "",
+      price: 0,
+      ingredients: [],
+      category: 0,
+      menuItemIngredients: []
     });
     
     setName("");

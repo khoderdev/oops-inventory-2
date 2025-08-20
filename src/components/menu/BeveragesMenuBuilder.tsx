@@ -10,7 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { BeverageItemForm } from "./BeverageItemForm";
-import { Plus, Search, Check, X, Square, CheckSquare } from "lucide-react";
+import { Plus, Search, Check, X, Square, CheckSquare, Eye, Edit, Trash2 } from "lucide-react";
+import { menuAPI } from "@/api/inventory.api";
+import { toast } from "../ui/use-toast";
+import { useInventoryStore } from "@/hooks/useInventoryStore";
+import { formatCurrency } from "@/utils/conversionLogic";
 
 interface BeveragesMenuBuilderProps {
   stockEntries: StockEntry[];
@@ -26,6 +30,7 @@ interface BeveragesMenuBuilderProps {
 }
 
 const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, categoriesLoading, categoriesError, stockEntries, materials, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
+  const { fetchTabData } = useInventoryStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
   const [showBeverageItemForm, setShowBeverageItemForm] = useState(false);
@@ -34,17 +39,16 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   const [selectedBeverageItems, setSelectedBeverageItems] = useState<Set<string>>(new Set());
   const [showVariantDialog, setShowVariantDialog] = useState(false);
   const [currentVariantItem, setCurrentVariantItem] = useState<MenuItem | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedBeverageDetails, setSelectedBeverageDetails] = useState<MenuItem | null>(null);
 
   // Categories are now pre-filtered by type in TabMenu
-  console.log('📥 BeveragesMenuBuilder: Received pre-filtered beverage categories:', {
+  console.log("📥 BeveragesMenuBuilder: Received pre-filtered beverage categories:", {
     count: categories?.length || 0,
     loading: categoriesLoading,
     error: categoriesError
   });
-  
-  // Use categories directly as they're already filtered for beverages
 
-  // Convert Category[] to CategoryOption[] with string IDs for BeverageItemForm
   const beverageCategories = useMemo(() => {
     const converted = categories.map(cat => ({
       ...cat,
@@ -97,6 +101,64 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
     });
   }, [beverageBeverageItems, searchTerm, selectedCategory, categories]);
 
+  const handleTogglePOSVisibility = useCallback(
+    async (item: MenuItem) => {
+      try {
+        const newPOSStatus = !item.isPOSItem;
+        const response = await menuAPI.updateMenuItem(item.id, {
+          isPOSItem: newPOSStatus
+        });
+        if (!response) {
+          throw new Error("Failed to update beverage item POS visibility");
+        }
+        toast({
+          title: "Success",
+          description: `${item.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
+          variant: "default",
+          duration: 1000
+        });
+        await fetchTabData("menu");
+        if (onUpdateBeverageItem) {
+          onUpdateBeverageItem(item.id, { ...item, isPOSItem: newPOSStatus });
+        }
+      } catch (error) {
+        console.error("Error updating beverage item POS visibility:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update POS visibility",
+          variant: "destructive",
+          duration: 1000
+        });
+      }
+    },
+    [onUpdateBeverageItem, fetchTabData]
+  );
+
+  // Handlers
+  const handleEditBeverageItem = useCallback((menuItem: MenuItem) => {
+    setEditingBeverageItem(menuItem);
+    setShowBeverageItemForm(true);
+  }, []);
+
+  const handleAddBeverageItem = useCallback(() => {
+    setEditingBeverageItem(null);
+    setShowBeverageItemForm(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setShowBeverageItemForm(false);
+    setEditingBeverageItem(null);
+  }, []);
+
+  const handleDeleteBeverageItem = useCallback(
+    (id: string) => {
+      if (confirm("Are you sure you want to delete this beverage menu item?")) {
+        onDeleteBeverageItem(id);
+      }
+    },
+    [onDeleteBeverageItem]
+  );
+
   const columnHelper = createColumnHelper<MenuItem>();
 
   const columns = useMemo(
@@ -137,7 +199,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
       // Price column
       columnHelper.accessor("price", {
         header: "Price",
-        cell: info => <div>${info.getValue().toFixed(2)}</div>,
+        cell: info => <div>{formatCurrency(info.getValue())}</div>,
         size: 100
       }),
 
@@ -147,36 +209,69 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => handleEditBeverageItem(row.original)} className="h-8 w-8 p-0">
-              <span className="sr-only">Edit</span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-              </svg>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleCreateVariants(row.original)} className="h-8 w-8 p-0">
-              <span className="sr-only">Create Variants</span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
-                <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
-                <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
-                <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
-              </svg>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleDeleteBeverageItem(row.original.id)} className="h-8 w-8 p-0 text-red-500">
-              <span className="sr-only">Delete</span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                <path d="M3 6h18"></path>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              </svg>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={row.original.isPOSItem ? "default" : "outline"}
+                  className={row.original.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleTogglePOSVisibility(row.original);
+                  }}
+                  aria-label={`${row.original.isPOSItem ? "Hide from" : "Show in"} POS`}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{row.original.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleEditBeverageItem(row.original);
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit {row.original.name}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleDeleteBeverageItem(row.original.id);
+                  }}
+                  className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete {row.original.name}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         ),
         size: 120
       })
     ],
-    [categories, beverageBeverageItems, bulkSelectionMode]
+    [categories, handleTogglePOSVisibility, handleEditBeverageItem, handleDeleteBeverageItem]
   );
 
   // Set up table
@@ -203,30 +298,15 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
     }
   });
 
-  // Handlers
-  const handleEditBeverageItem = useCallback((menuItem: MenuItem) => {
-    setEditingBeverageItem(menuItem);
-    setShowBeverageItemForm(true);
+  const handleShowDetails = useCallback((menuItem: MenuItem) => {
+    setSelectedBeverageDetails(menuItem);
+    setShowDetailsModal(true);
   }, []);
 
-  const handleAddBeverageItem = useCallback(() => {
-    setEditingBeverageItem(null);
-    setShowBeverageItemForm(true);
+  const handleCloseDetailsModal = useCallback(() => {
+    setShowDetailsModal(false);
+    setSelectedBeverageDetails(null);
   }, []);
-
-  const handleCloseModal = useCallback(() => {
-    setShowBeverageItemForm(false);
-    setEditingBeverageItem(null);
-  }, []);
-
-  const handleDeleteBeverageItem = useCallback(
-    (id: string) => {
-      if (confirm("Are you sure you want to delete this beverage menu item?")) {
-        onDeleteBeverageItem(id);
-      }
-    },
-    [onDeleteBeverageItem]
-  );
 
   const handleCreateVariants = useCallback((menuItem: MenuItem) => {
     setCurrentVariantItem(menuItem);
@@ -311,7 +391,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
               <TableBody>
                 {table.getRowModel().rows.length > 0 ? (
                   table.getRowModel().rows.map(row => (
-                    <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined} className={row.getIsSelected() ? "bg-blue-50" : undefined}>
+                    <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined} className={`${row.getIsSelected() ? "bg-blue-50" : ""} cursor-pointer hover:bg-gray-50`} onClick={() => handleShowDetails(row.original)}>
                       {row.getVisibleCells().map(cell => (
                         <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -342,11 +422,11 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                   stockEntries={stockEntries}
                   onSubmit={
                     editingBeverageItem
-                      ? (data) => {
+                      ? data => {
                           onUpdateBeverageItem(editingBeverageItem.id, data);
                           handleCloseModal();
                         }
-                      : (data) => {
+                      : data => {
                           onCreateBeverageItem(data);
                           handleCloseModal();
                         }
@@ -354,6 +434,131 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                   onCancel={handleCloseModal}
                   enableVariants={true}
                 />
+              </DialogContent>
+            </Dialog>
+
+            {/* Beverage Details Modal */}
+            <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+              <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[95vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="text-lg sm:text-xl">{selectedBeverageDetails?.name || "Beverage Details"}</DialogTitle>
+                </DialogHeader>
+                {selectedBeverageDetails && (
+                  <div className="grid gap-6 py-4">
+                    <div className="flex items-start gap-6">
+                      {selectedBeverageDetails.image ? (
+                        <img src={selectedBeverageDetails.image} alt={selectedBeverageDetails.name} className="w-32 h-32 object-cover rounded-md border" />
+                      ) : (
+                        <div className="w-32 h-32 bg-gray-100 rounded-md border flex items-center justify-center">
+                          <span className="text-gray-400">No Image</span>
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold">{selectedBeverageDetails.name}</h3>
+                        <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2">
+                          <div>
+                            <span className="text-sm text-gray-500">Category</span>
+                            <p className="font-medium">{typeof selectedBeverageDetails.category === "object" && selectedBeverageDetails.category?.name ? selectedBeverageDetails.category.name : typeof selectedBeverageDetails.category === "string" ? selectedBeverageDetails.category : "Uncategorized"}</p>
+                          </div>
+                          <div>
+                            <span className="text-sm text-gray-500">Price</span>
+                            <p className="font-medium">{formatCurrency(selectedBeverageDetails.price)}</p>
+                          </div>
+                          <div>
+                            <span className="text-sm text-gray-500">POS Status</span>
+                            <p className="font-medium flex items-center gap-1">
+                              {selectedBeverageDetails.isPOSItem ? (
+                                <>
+                                  <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+                                  Visible in POS
+                                </>
+                              ) : (
+                                <>
+                                  <span className="inline-block w-2 h-2 rounded-full bg-gray-300"></span>
+                                  Hidden from POS
+                                </>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedBeverageDetails.description && (
+                      <div>
+                        <h4 className="font-medium mb-1">Description</h4>
+                        <p className="text-gray-700">{selectedBeverageDetails.description}</p>
+                      </div>
+                    )}
+
+                    {selectedBeverageDetails.variants && Object.keys(selectedBeverageDetails.variants).length > 0 && (
+                      <div>
+                        <h4 className="font-medium mb-2">Variants</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {Object.entries(selectedBeverageDetails.variants).map(([key, variant]) => {
+                            // Create a properly typed variant object with fallbacks
+                            const typedVariant = {
+                              volume: typeof variant === 'object' && 'volume' in variant ? Number(variant.volume) : 0,
+                              unit: typeof variant === 'object' && 'unit' in variant ? String(variant.unit) : '',
+                              price: typeof variant === 'object' && 'price' in variant ? Number(variant.price) : 0
+                            };
+                            return (
+                              <div key={key} className="border rounded-md p-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-medium">{key}</span>
+                                  <span className="text-sm font-semibold">{formatCurrency(typedVariant.price)}</span>
+                                </div>
+                                <div className="text-sm text-gray-500 mt-1">
+                                  {typedVariant.volume} {typedVariant.unit}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedBeverageDetails.beverageStockId && (
+                      <div>
+                        <h4 className="font-medium mb-1">Inventory Information</h4>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                          <div>
+                            <span className="text-sm text-gray-500">Stock ID</span>
+                            <p className="font-medium">{selectedBeverageDetails.beverageStockId}</p>
+                          </div>
+                          {selectedBeverageDetails.availableQuantity !== undefined && (
+                            <div>
+                              <span className="text-sm text-gray-500">Available Quantity</span>
+                              <p className="font-medium">
+                                {selectedBeverageDetails.availableQuantity} {selectedBeverageDetails.unit || "units"}
+                              </p>
+                            </div>
+                          )}
+                          {selectedBeverageDetails.costPerUnit !== undefined && (
+                            <div>
+                              <span className="text-sm text-gray-500">Cost Per Unit</span>
+                              <p className="font-medium">{formatCurrency(selectedBeverageDetails.costPerUnit)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-3 mt-4">
+                      <Button variant="outline" onClick={handleCloseDetailsModal}>
+                        Close
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          handleCloseDetailsModal();
+                          handleEditBeverageItem(selectedBeverageDetails);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
           </CardContent>
