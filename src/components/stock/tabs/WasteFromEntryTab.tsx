@@ -102,7 +102,6 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
     const quantity = parseFloat(watchedWasteQuantity) || 0;
     const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
     const totalCost = parseFloat(watchedTotalCost) || 0;
-    
     if (lastChangedField === "totalCost" && quantity > 0) {
       // Calculate cost per unit from total cost
       const calculatedCostPerUnit = totalCost / quantity;
