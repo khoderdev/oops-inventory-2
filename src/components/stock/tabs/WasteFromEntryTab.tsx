@@ -20,26 +20,21 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
   const [selectedStockEntry, setSelectedStockEntry] = useState<StockEntry | null>(initialStockEntry || null);
   const [isLoading, setIsLoading] = useState(false);
-  
   const watchedMaterialId = useWatch({ control: form.control, name: "materialId" });
   const watchedQuantity = useWatch({ control: form.control, name: "wasteQuantity" });
   const watchedCostPerUnit = useWatch({ control: form.control, name: "costPerPurchasedUnit" });
   const watchedPurchasedUnit = useWatch({ control: form.control, name: "purchasedUnit" });
 
-  // Fetch stock entries when material changes
   useEffect(() => {
     if (watchedMaterialId) {
       setIsLoading(true);
       stockAPI.getStockEntries({ materialId: watchedMaterialId, _t: Date.now() })
         .then(entries => {
           const availableEntries = entries.filter(entry => 
-            // Only show entries that have stock remaining
             (entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualQuantity > 0) || 
             (entry.purchasedQuantity !== undefined && entry.purchasedQuantity > 0)
           );
           setStockEntries(availableEntries);
-          
-          // Auto-select the first available stock entry
           if (availableEntries.length > 0) {
             const firstEntry = availableEntries[0];
             setSelectedStockEntry(firstEntry);
@@ -48,7 +43,6 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
           } else {
             setSelectedStockEntry(null);
           }
-          
           setIsLoading(false);
         })
         .catch(err => {
@@ -78,26 +72,24 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
     }
     const costPerOriginalUnit = originalTotalCost / originalQuantity;
     if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity) {
-      const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle"];
+      const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle", "bag"];
       if (purchasedUnit === selectedMaterial.baseUnit) {
         const costPerPiece = costPerOriginalUnit / selectedMaterial.packageQuantity;
-        // Store exact value for backend
         form.setValue("costPerPurchasedUnit", isNaN(costPerPiece) ? "0" : costPerPiece.toString());
       } else if (validPackageUnits.includes(purchasedUnit as PackageUnit) && purchasedUnit === selectedMaterial.inputUnit) {
-        // Store exact value for backend
+        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toString());
+      } else if (purchasedUnit === originalUnit) {
         form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toString());
       } else {
         form.setValue("costPerPurchasedUnit", "0");
       }
     } else {
       if (purchasedUnit === originalUnit) {
-        // Store exact value for backend
         form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toString());
       } else {
         const conversionFactor = getConversionFactor(originalUnit, purchasedUnit, selectedMaterial.unitType, selectedMaterial);
         if (conversionFactor > 0) {
           const costPerWasteUnit = costPerOriginalUnit / conversionFactor;
-          // Store exact value for backend
           form.setValue("costPerPurchasedUnit", isNaN(costPerWasteUnit) ? "0" : costPerWasteUnit.toString());
         } else {
           form.setValue("costPerPurchasedUnit", "0");
@@ -109,9 +101,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
   useEffect(() => {
     const quantity = parseFloat(watchedQuantity) || 0;
     const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
-    // Calculate exact value without rounding
     const totalCost = quantity * costPerUnit;
-    // Store exact value for backend
     form.setValue("totalCost", isNaN(totalCost) ? "0" : totalCost.toString());
   }, [watchedQuantity, watchedCostPerUnit, watchedPurchasedUnit, form, selectedStockEntry, selectedMaterial]);
 
@@ -273,24 +263,24 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
                         size="icon"
                         className="h-11 w-11 border-gray-300 hover:border-red-500 hover:bg-red-50"
                         onClick={() => {
-                          const currentValue = parseInt(field.value) || 0;
+                          const currentValue = parseFloat(field.value) || 0;
                           const newValue = Math.max(0, currentValue - 1);
-                          field.onChange(newValue);
+                          field.onChange(newValue.toString());
                         }}
                         disabled={parseInt(field.value) <= 0}
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input type="number" step="1" min="0" placeholder="0" {...field} value={field.value || ""} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input type="number" step="1" min="0" placeholder="0" {...field} value={field.value || ""} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
                         className="h-11 w-11 border-gray-300 hover:border-red-500 hover:bg-red-50"
                         onClick={() => {
-                          const currentValue = parseInt(field.value) || 0;
+                          const currentValue = parseFloat(field.value) || 0;
                           const newValue = currentValue + 1;
-                          field.onChange(newValue);
+                          field.onChange(newValue.toString());
                         }}
                       >
                         <Plus className="h-4 w-4" />

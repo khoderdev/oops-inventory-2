@@ -1,6 +1,6 @@
 import { PackageUnit, PackagedGood } from "@/types/conversion";
 import { Material } from "@/types/inventory";
-import { calculatePackagedGoodCost, formatCurrencyUI, formatNumberUI } from "@/utils/conversionLogic";
+import { formatCurrencyUI, formatNumberUI } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Calculator, DollarSign, Package } from "lucide-react";
 import { Badge } from "../ui/badge";
@@ -8,7 +8,7 @@ import { Badge } from "../ui/badge";
 // Use the UI-friendly currency formatting utility
 const formatCurrency = formatCurrencyUI;
 
-export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costPerPurchasedUnit, totalCost }: { selectedMaterial: Material | null; quantity: string; purchasedUnit: string; costPerPurchasedUnit: string; totalCost?: string }) => {
+export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costPerPurchasedUnit }: { selectedMaterial: Material | null; quantity: string; purchasedUnit: string; costPerPurchasedUnit: string; totalCost?: string }) => {
   const numQuantity = parseFloat(quantity) || 0;
   const numCostPerUnit = parseFloat(costPerPurchasedUnit) || 0;
 
@@ -50,7 +50,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
     } else {
       costPerPackage = numCostPerUnit;
     }
-    const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle"];
+    const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle", "bag"];
     const packageType: PackageUnit = validPackageUnits.includes(selectedMaterial.inputUnit as PackageUnit) ? (selectedMaterial.inputUnit as PackageUnit) : "pack";
 
     const packagedGood: PackagedGood = {
@@ -75,9 +75,8 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
         </div>
       );
     }
-    const costBreakdown = calculatePackagedGoodCost(packagedGood, numQuantity, purchasedUnit);
     costPerBaseUnit = packagedGood.costPerPackage / packagedGood.unitsPerPackage;
-    calculatedTotalCost = costBreakdown.totalCost;
+    calculatedTotalCost = numQuantity * numCostPerUnit;
   } else {
     if (purchasedUnit && selectedMaterial?.baseUnit) {
       if (purchasedUnit === "g" && selectedMaterial.baseUnit === "kg") {
@@ -109,7 +108,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg p-3 border border-blue-100">
+        <div className="justify-between flex flex-col bg-white rounded-lg p-3 border border-blue-100">
           <div className="flex items-center gap-2 mb-1">
             <DollarSign className="h-4 w-4 text-green-600" />
             <span className="text-sm font-medium text-gray-600">Cost per {purchasedUnit}</span>
@@ -117,7 +116,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
           <p className="text-xl font-bold text-gray-800">{formatCurrency(numCostPerUnit)}</p>
         </div>
 
-        <div className="bg-white rounded-lg p-3 border border-blue-100">
+        <div className="justify-between flex flex-col bg-white rounded-lg p-3 border border-blue-100">
           <div className="flex items-center gap-2 mb-1">
             <Package className="h-4 w-4 text-blue-600" />
             <span className="text-sm font-medium text-gray-600">Quantity</span>
@@ -127,16 +126,16 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
           </p>
         </div>
 
-        <div className="bg-white rounded-lg p-3 border border-blue-100">
+        <div className="justify-between flex flex-col bg-white rounded-lg p-3 border border-blue-100">
           <div className="flex items-center gap-2 mb-1">
             <DollarSign className="h-4 w-4 text-purple-600" />
             <span className="text-sm font-medium text-gray-600">Total Cost</span>
           </div>
-          <p className="text-xl font-bold text-gray-800">{formatCurrency(numQuantity * numCostPerUnit)}</p>
+          <p className="text-xl font-bold text-gray-800">{formatCurrency(calculatedTotalCost)}</p>
         </div>
 
         {costPerBaseUnit > 0 && purchasedUnit !== selectedMaterial?.baseUnit && selectedMaterial?.baseUnit && (
-          <div className="bg-white rounded-lg p-3 border border-blue-100">
+          <div className="justify-between flex flex-col bg-white rounded-lg p-3 border border-blue-100">
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="h-4 w-4 text-orange-600" />
               <span className="text-sm font-medium text-gray-600">Cost per {selectedMaterial.baseUnit}</span>

@@ -2,7 +2,7 @@
 
 export type MassUnit = "kg" | "gram" | "lb";
 export type VolumeUnit = "l" | "ml" | "gallon";
-export type PackageUnit = "box" | "pack" | "case" | "piece" | "bottle";
+export type PackageUnit = "box" | "pack" | "case" | "piece" | "bottle" | "bag";
 
 export interface ConversionResult {
   steps: string[];
