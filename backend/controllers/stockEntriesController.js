@@ -185,7 +185,7 @@ const stockEntriesController = {
       }
 
       const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit || 0;
-      
+
       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : purchasedIndividualQuantity > 0 ? parseFloat((numericTotalCost / purchasedIndividualQuantity).toFixed(6)) : 0;
 
       console.log(`📊 [createStockEntries] Using frontend values for ${material.name}:`, {
@@ -206,8 +206,9 @@ const stockEntriesController = {
         purchasedUnit,
         purchasedIndividualQuantity,
         purchasedIndividualUnit,
-        purchasedConvertedQuantity: purchasedIndividualQuantity,
-        purchasedConvertedUnit: purchasedIndividualUnit,
+        // CRITICAL FIX: Ensure converted quantities are properly synchronized
+        purchasedConvertedQuantity: material.unitType === "mass" ? purchasedIndividualQuantity : material.unitType === "package" ? numericPurchasedQuantity : purchasedIndividualQuantity,
+        purchasedConvertedUnit: material.unitType === "mass" ? material.baseUnit : material.unitType === "package" ? purchasedUnit : purchasedIndividualUnit,
         costPerPurchasedUnit: finalCostPerPurchasedUnit,
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: numericTotalCost,
@@ -272,7 +273,7 @@ const stockEntriesController = {
       // Recalculate costPerPurchasedUnit if totalCost or purchasedQuantity changed
       let finalCostPerPurchasedUnit;
       let finalTotalCost;
-      
+
       if (numericTotalCost !== undefined && numericPurchasedQuantity !== undefined) {
         // Both totalCost and quantity provided - calculate costPerPurchasedUnit
         finalTotalCost = numericTotalCost;
@@ -358,8 +359,9 @@ const stockEntriesController = {
         purchasedUnit: finalPurchasedUnit,
         purchasedIndividualQuantity: updatedIndividualQuantity,
         purchasedIndividualUnit: updatedIndividualUnit,
-        purchasedConvertedQuantity: updatedIndividualQuantity,
-        purchasedConvertedUnit: updatedIndividualUnit,
+        // CRITICAL FIX: Ensure converted quantities are properly synchronized
+        purchasedConvertedQuantity: material.unitType === "mass" ? updatedIndividualQuantity : material.unitType === "package" ? finalPurchasedQuantity : updatedIndividualQuantity,
+        purchasedConvertedUnit: material.unitType === "mass" ? material.baseUnit : material.unitType === "package" ? finalPurchasedUnit : updatedIndividualUnit,
         costPerPurchasedUnit: finalCostPerPurchasedUnit,
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: finalTotalCost,
@@ -400,7 +402,7 @@ const stockEntriesController = {
         return res.status(404).json({ error: "Stock entry not found" });
       }
       const deletedStockEntry = stockEntry.toJSON();
-      
+
       // Log deletion BEFORE destroying the stock entry to avoid foreign key constraint violation
       try {
         const user = req.user || { id: null, fullName: "System", username: "system" };
@@ -409,7 +411,7 @@ const stockEntriesController = {
       } catch (loggingError) {
         console.error("❌ Failed to log stock entry deletion:", loggingError);
       }
-      
+
       // Now safely destroy the stock entry
       await stockEntry.destroy();
       res.status(204).send();
@@ -517,23 +519,26 @@ const stockEntriesController = {
       const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit ?? stockEntry.costPerPurchasedUnit;
       const newTotalCost = parseFloat((newPurchasedQuantity * finalCostPerPurchasedUnit).toFixed(6));
       const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
-      let newPurchasedConvertedQuantity = newPurchasedQuantity;
-      let newPurchasedConvertedUnit = stockEntry.purchasedUnit;
+
+      // CRITICAL FIX: Ensure converted quantities are synchronized with individual quantities
+      let finalConvertedQuantity, finalConvertedUnit;
       if (material.unitType === "mass") {
-        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
-        const conversionFactor = massConversions[stockEntry.purchasedUnit.toLowerCase()] || 1;
-        newPurchasedConvertedQuantity = Math.round(newPurchasedQuantity * conversionFactor);
-        newPurchasedConvertedUnit = material.baseUnit;
+        finalConvertedQuantity = newIndividualQuantity;
+        finalConvertedUnit = material.baseUnit;
       } else if (material.unitType === "package") {
-        newPurchasedConvertedQuantity = newPurchasedQuantity;
-        newPurchasedConvertedUnit = stockEntry.purchasedUnit;
+        finalConvertedQuantity = newPurchasedQuantity;
+        finalConvertedUnit = stockEntry.purchasedUnit;
+      } else {
+        finalConvertedQuantity = newIndividualQuantity;
+        finalConvertedUnit = newIndividualUnit;
       }
+
       await stockEntry.update({
         purchasedQuantity: newPurchasedQuantity,
         purchasedIndividualQuantity: newIndividualQuantity,
         purchasedIndividualUnit: newIndividualUnit,
-        purchasedConvertedQuantity: newPurchasedConvertedQuantity,
-        purchasedConvertedUnit: newPurchasedConvertedUnit,
+        purchasedConvertedQuantity: finalConvertedQuantity,
+        purchasedConvertedUnit: finalConvertedUnit,
         costPerPurchasedUnit: finalCostPerPurchasedUnit,
         costPerBaseUnit: newCostPerBaseUnit,
         totalCost: newTotalCost,
@@ -618,6 +623,9 @@ const stockEntriesController = {
         purchasedUnit: unit,
         purchasedIndividualQuantity: additionalIndividualQuantity,
         purchasedIndividualUnit: additionalIndividualUnit,
+        // CRITICAL FIX: Ensure converted quantities are properly synchronized
+        purchasedConvertedQuantity: material.unitType === "mass" ? additionalIndividualQuantity : material.unitType === "package" ? numericAdditionalQuantity : additionalIndividualQuantity,
+        purchasedConvertedUnit: material.unitType === "mass" ? material.baseUnit : material.unitType === "package" ? unit : additionalIndividualUnit,
         costPerPurchasedUnit: defaultCostPerUnit,
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: totalAdditionCost,
@@ -675,7 +683,7 @@ const stockEntriesController = {
           const wasteUnitFactor = massConversions[unit.toLowerCase()];
           if (originalUnitFactor && wasteUnitFactor) {
             wasteInOriginalUnit = numericWasteQuantity * (wasteUnitFactor / originalUnitFactor);
-            wasteInSmallerUnit = numericWasteQuantity * (wasteUnitFactor || 1);
+            wasteInSmallerUnit = numericWasteQuantity * wasteUnitFactor;
             wasteUnitForRecord = material.baseUnit;
           } else {
             return res.status(400).json({
@@ -696,10 +704,15 @@ const stockEntriesController = {
           error: `Insufficient stock in this entry. Available: ${stockEntry.purchasedQuantity} ${stockEntry.purchasedUnit}, Requested: ${wasteInOriginalUnit.toFixed(3)} ${stockEntry.purchasedUnit}`
         });
       }
-      const newPurchasedQuantity = Math.max(0, parseFloat(stockEntry.purchasedQuantity) - wasteInOriginalUnit);
-      let newIndividualQuantity = stockEntry.purchasedIndividualQuantity || 0;
-      let newIndividualUnit = stockEntry.purchasedIndividualUnit || material.baseUnit;
-      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
+      const isWastingAll = wasteInOriginalUnit >= stockEntry.purchasedQuantity;
+      // If wasting all, set everything to 0 immediately
+      let newPurchasedQuantity = isWastingAll ? 0 : Math.max(0, parseFloat(stockEntry.purchasedQuantity) - wasteInOriginalUnit);
+      let newIndividualQuantity = isWastingAll ? 0 : 0; // Start at 0, will be calculated below if not wasting all
+      let newIndividualUnit = isWastingAll ? material.baseUnit : (stockEntry.purchasedIndividualUnit || material.baseUnit);
+      if (isWastingAll) {
+        newIndividualQuantity = 0;
+        newIndividualUnit = material.baseUnit;
+      } else if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
         newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - wasteInSmallerUnit);
         newIndividualUnit = material.baseUnit;
       } else if (material.unitType === "mass") {
@@ -716,20 +729,36 @@ const stockEntriesController = {
       }
       const costPerSmallerUnit = parseFloat(stockEntry.costPerBaseUnit) || parseFloat(stockEntry.costPerPurchasedUnit) / material.packageQuantity || 0;
       const totalCostInSmallerUnit = wasteInSmallerUnit * costPerSmallerUnit;
-      let newPurchasedConvertedQuantity = newPurchasedQuantity;
-      let newPurchasedConvertedUnit = stockEntry.purchasedUnit;
+      const costReduction = wasteInOriginalUnit * parseFloat(stockEntry.costPerPurchasedUnit);
+      const newTotalCost = Math.max(0, parseFloat((parseFloat(stockEntry.totalCost) - costReduction).toFixed(6)));
+      const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
+      let newPurchasedConvertedQuantity;
+      let newPurchasedConvertedUnit;
       if (material.unitType === "mass") {
-        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
-        const conversionFactor = massConversions[stockEntry.purchasedUnit.toLowerCase()] || 1;
-        newPurchasedConvertedQuantity = Math.round(newPurchasedQuantity * conversionFactor);
+        newPurchasedConvertedQuantity = newIndividualQuantity;
         newPurchasedConvertedUnit = material.baseUnit;
       } else if (material.unitType === "package") {
         newPurchasedConvertedQuantity = newPurchasedQuantity;
         newPurchasedConvertedUnit = stockEntry.purchasedUnit;
+      } else {
+        newPurchasedConvertedQuantity = newIndividualQuantity;
+        newPurchasedConvertedUnit = newIndividualUnit;
       }
-      const costReduction = wasteInOriginalUnit * parseFloat(stockEntry.costPerPurchasedUnit);
-      const newTotalCost = Math.max(0, parseFloat((parseFloat(stockEntry.totalCost) - costReduction).toFixed(6)));
-      const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
+      if (isWastingAll) {
+        newPurchasedQuantity = 0;
+        newIndividualQuantity = 0;
+        newPurchasedConvertedQuantity = 0;
+      }
+      console.log(`📊 [wasteFromSpecificEntry] Waste calculations for ${material.name}:`, {
+        wasteInOriginalUnit,
+        wasteInSmallerUnit,
+        originalPurchasedQuantity: stockEntry.purchasedQuantity,
+        newPurchasedQuantity,
+        originalIndividualQuantity: stockEntry.purchasedIndividualQuantity,
+        newIndividualQuantity,
+        newPurchasedConvertedQuantity,
+        isWastingAll
+      });
       await stockEntry.update({
         purchasedQuantity: newPurchasedQuantity,
         purchasedIndividualQuantity: newIndividualQuantity,
@@ -745,7 +774,7 @@ const stockEntriesController = {
       const wasteRecord = await Wasting.create({
         stockEntryId: stockEntry.id,
         materialName: material.name,
-        category: material.category || material.categoryId || 'uncategorized',
+        category: material.category || material.categoryId || "uncategorized",
         quantity: wasteInSmallerUnit,
         unit: wasteUnitForRecord,
         costPerBaseUnit: costPerSmallerUnit,
@@ -914,6 +943,7 @@ const stockEntriesController = {
         if (remainingWasteQuantity <= 0) break;
         const entryAvailableQuantity = entry.purchasedIndividualQuantity;
         const quantityToReduce = Math.min(remainingWasteQuantity, entryAvailableQuantity);
+        const newIndividualQuantity = entryAvailableQuantity - quantityToReduce;
         let newPurchasedQuantity = entry.purchasedQuantity;
         if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
           newPurchasedQuantity = Math.max(0, newIndividualQuantity / material.packageQuantity);
@@ -924,13 +954,25 @@ const stockEntriesController = {
         } else {
           newPurchasedQuantity = newIndividualQuantity;
         }
-        const newIndividualQuantity = entryAvailableQuantity - quantityToReduce;
         const costReduction = (quantityToReduce / entry.purchasedIndividualQuantity) * entry.totalCost;
         const newTotalCost = Math.max(0, parseFloat((entry.totalCost - costReduction).toFixed(6)));
         const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
+        let finalConvertedQuantity, finalConvertedUnit;
+        if (material.unitType === "mass") {
+          finalConvertedQuantity = newIndividualQuantity;
+          finalConvertedUnit = material.baseUnit;
+        } else if (material.unitType === "package") {
+          finalConvertedQuantity = newPurchasedQuantity;
+          finalConvertedUnit = entry.purchasedUnit;
+        } else {
+          finalConvertedQuantity = newIndividualQuantity;
+          finalConvertedUnit = entry.purchasedIndividualUnit || entry.purchasedUnit;
+        }
         await entry.update({
           purchasedQuantity: newPurchasedQuantity,
           purchasedIndividualQuantity: newIndividualQuantity,
+          purchasedConvertedQuantity: finalConvertedQuantity,
+          purchasedConvertedUnit: finalConvertedUnit,
           totalCost: newTotalCost,
           costPerBaseUnit: newCostPerBaseUnit
         });
@@ -977,7 +1019,6 @@ const stockEntriesController = {
       const stockEntry = await StockEntry.findByPk(id, {
         include: { model: Material, as: "material" }
       });
-
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
       }
