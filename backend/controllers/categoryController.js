@@ -2,18 +2,21 @@ import Category from "../models/Category.js";
 import CategoryType from "../models/CategoryType.js";
 import { Op } from "sequelize";
 import { parsePaginationParams, buildPaginationResponse, buildFilterConditions, parseFieldSelection } from "../utils/paginationHelpers.js";
+import {  MenuItemIngredient } from "../models/index.js";
+import Material from "../models/materials.js";
+
 
 // Helper function to generate URL-friendly value from name
-const generateValueFromName = (name) => {
+const generateValueFromName = name => {
   if (!name) return "";
   return name
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
-    .replace(/\s+/g, '_') // Replace spaces with underscores
-    .replace(/-+/g, '_') // Replace hyphens with underscores
-    .replace(/_+/g, '_') // Replace multiple underscores with single
-    .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+    .replace(/[^a-z0-9\s-]/g, "") // Remove special characters except spaces and hyphens
+    .replace(/\s+/g, "_") // Replace spaces with underscores
+    .replace(/-+/g, "_") // Replace hyphens with underscores
+    .replace(/_+/g, "_") // Replace multiple underscores with single
+    .replace(/^_|_$/g, ""); // Remove leading/trailing underscores
 };
 
 const categoryController = {
@@ -21,7 +24,7 @@ const categoryController = {
   getAllCategoriesByType: async (req, res, next) => {
     try {
       const { isActive = "true" } = req.query;
-      
+
       // Build where clause for Category
       const categoryWhere = {};
       if (isActive !== "all") {
@@ -133,7 +136,7 @@ const categoryController = {
       const { type } = req.params;
       const { isActive = "true" } = req.query;
 
-      if (typeof type !== 'string' || type.trim().length === 0 || type.length > 50) {
+      if (typeof type !== "string" || type.trim().length === 0 || type.length > 50) {
         return res.status(400).json({
           error: "Type must be a non-empty string with maximum 50 characters"
         });
@@ -142,9 +145,9 @@ const categoryController = {
       // First find the category type by name to get its ID
       const categoryType = await CategoryType.findOne({
         where: { type },
-        attributes: ['id']
+        attributes: ["id"]
       });
-
+     
       if (!categoryType) {
         return res.json({
           currentPage: 1,
@@ -273,9 +276,7 @@ const categoryController = {
       }
 
       // Validate categoryTypeIds array
-      const invalidIds = categoryTypeIds.filter(id => 
-        typeof id !== 'number' || id <= 0 || !Number.isInteger(id)
-      );
+      const invalidIds = categoryTypeIds.filter(id => typeof id !== "number" || id <= 0 || !Number.isInteger(id));
       if (invalidIds.length > 0) {
         return res.status(400).json({
           error: "All categoryTypeIds must be positive integers"
@@ -285,14 +286,14 @@ const categoryController = {
       // Verify all category type IDs exist
       const existingCategoryTypes = await CategoryType.findAll({
         where: { id: categoryTypeIds },
-        attributes: ['id']
+        attributes: ["id"]
       });
 
       if (existingCategoryTypes.length !== categoryTypeIds.length) {
         const foundIds = existingCategoryTypes.map(ct => ct.id);
         const missingIds = categoryTypeIds.filter(id => !foundIds.includes(id));
         return res.status(400).json({
-          error: `Category type IDs not found: ${missingIds.join(', ')}` 
+          error: `Category type IDs not found: ${missingIds.join(", ")}`
         });
       }
 
@@ -307,7 +308,7 @@ const categoryController = {
 
       if (existingCategory) {
         return res.status(400).json({
-          error: `Category with name '${name}' or value '${categoryValue}' already exists. Please choose different values.` 
+          error: `Category with name '${name}' or value '${categoryValue}' already exists. Please choose different values.`
         });
       }
 
@@ -323,7 +324,7 @@ const categoryController = {
 
       // Fetch the created category and manually populate categoryTypes
       const createdCategory = await Category.findByPk(category.id);
-      
+
       // Manually fetch categoryTypes if categoryTypeIds exist
       if (categoryTypeIds && categoryTypeIds.length > 0) {
         const categoryTypes = await CategoryType.findAll({
@@ -339,20 +340,21 @@ const categoryController = {
         message: "Category created successfully",
         data: createdCategory
       });
-
     } catch (error) {
       console.error("Error creating category:", error);
-      
+
       if (error.name === "SequelizeValidationError" || error.name === "SequelizeUniqueConstraintError") {
         return res.status(400).json({
           error: error.message,
-          details: error.errors ? error.errors.map(e => ({
-            field: e.path,
-            message: e.message
-          })) : []
+          details: error.errors
+            ? error.errors.map(e => ({
+                field: e.path,
+                message: e.message
+              }))
+            : []
         });
       }
-      
+
       next(error);
     }
   },
@@ -362,15 +364,15 @@ const categoryController = {
     try {
       const { id } = req.params;
       const { name, value, categoryTypeIds, description, isActive, sortOrder } = req.body;
-      
+
       const category = await Category.findByPk(id);
-      
+
       if (!category) {
         return res.status(404).json({
           error: "Category not found"
         });
       }
-      
+
       // Auto-generate value from name if name changed, unless explicit value provided
       let categoryValue;
       if (value !== undefined) {
@@ -380,26 +382,23 @@ const categoryController = {
       } else {
         categoryValue = category.value;
       }
-      
+
       // Check for conflicts with name or value
       if ((name && name !== category.name) || (categoryValue && categoryValue !== category.value)) {
         const existingCategory = await Category.findOne({
           where: {
-            [Op.or]: [
-              { name: name || category.name },
-              { value: categoryValue }
-            ],
+            [Op.or]: [{ name: name || category.name }, { value: categoryValue }],
             id: { [Op.ne]: id }
           }
         });
-        
+
         if (existingCategory) {
           return res.status(400).json({
             error: `Category with name '${name || category.name}' or value '${categoryValue}' already exists. Please choose different values.`
           });
         }
       }
-      
+
       // Validate categoryTypeIds if provided
       if (categoryTypeIds) {
         if (!Array.isArray(categoryTypeIds) || categoryTypeIds.length === 0) {
@@ -407,10 +406,8 @@ const categoryController = {
             error: "CategoryTypeIds must be a non-empty array"
           });
         }
-        
-        const invalidIds = categoryTypeIds.filter(id => 
-          typeof id !== 'number' || id <= 0 || !Number.isInteger(id)
-        );
+
+        const invalidIds = categoryTypeIds.filter(id => typeof id !== "number" || id <= 0 || !Number.isInteger(id));
         if (invalidIds.length > 0) {
           return res.status(400).json({
             error: "All categoryTypeIds must be positive integers"
@@ -420,18 +417,18 @@ const categoryController = {
         // Verify all category type IDs exist
         const existingCategoryTypes = await CategoryType.findAll({
           where: { id: categoryTypeIds },
-          attributes: ['id']
+          attributes: ["id"]
         });
 
         if (existingCategoryTypes.length !== categoryTypeIds.length) {
           const foundIds = existingCategoryTypes.map(ct => ct.id);
           const missingIds = categoryTypeIds.filter(id => !foundIds.includes(id));
           return res.status(400).json({
-            error: `Category type IDs not found: ${missingIds.join(', ')}`
+            error: `Category type IDs not found: ${missingIds.join(", ")}`
           });
         }
       }
-      
+
       // Update category
       await category.update({
         ...(name !== undefined && { name }),
@@ -441,10 +438,10 @@ const categoryController = {
         ...(sortOrder !== undefined && { sortOrder }),
         ...(categoryTypeIds !== undefined && { categoryTypeIds })
       });
-      
+
       // Fetch updated category and manually populate categoryTypes
       const updatedCategory = await Category.findByPk(id);
-      
+
       // Manually fetch categoryTypes if categoryTypeIds exist
       if (updatedCategory.categoryTypeIds && updatedCategory.categoryTypeIds.length > 0) {
         const categoryTypes = await CategoryType.findAll({
@@ -454,7 +451,7 @@ const categoryController = {
       } else {
         updatedCategory.dataValues.categoryTypes = [];
       }
-      
+
       res.json({
         success: true,
         message: "Category updated successfully",
@@ -481,10 +478,10 @@ const categoryController = {
           error: "Category not found"
         });
       }
-      
+
       // Delete category (no need for transaction since CategoryType is now independent)
       await category.destroy();
-        
+
       res.json({
         success: true,
         message: "Category deleted successfully"

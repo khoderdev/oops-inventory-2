@@ -1,12 +1,26 @@
 import { cn } from "@/lib/utils";
 import { CategoryTabsProps } from "@/types/inventory";
+import { Category } from "@/types/categories";
 import React from "react";
 
 export const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCategory, onCategoryChange }) => {
+  // Process categories to ensure we have string values for display
+  const processedCategories = React.useMemo(() => {
+    return categories.map(category => {
+      if (typeof category === 'string') {
+        return category;
+      } else if (category && typeof category === 'object' && 'value' in category) {
+        // Using value instead of name for consistency with other components
+        return category.value;
+      }
+      return 'unknown';
+    });
+  }, [categories]);
+
   // Split categories into two rows for better distribution
-  const midpoint = Math.ceil(categories.length / 2);
-  const firstRow = categories.slice(0, midpoint);
-  const secondRow = categories.slice(midpoint);
+  const midpoint = Math.ceil(processedCategories.length / 2);
+  const firstRow = processedCategories.slice(0, midpoint);
+  const secondRow = processedCategories.slice(midpoint);
 
   const renderCategoryButton = (category: string, index: number) => {
     const isActive = activeCategory === category;

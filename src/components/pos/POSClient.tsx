@@ -141,13 +141,24 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const uniqueCategories = new Set<string>();
     uniqueCategories.add("all");
     posItems.forEach(item => {
-      if (item.category && typeof item.category === "string") {
-        uniqueCategories.add(item.category);
+      if (item.category) {
+        if (typeof item.category === "string") {
+          uniqueCategories.add(item.category);
+        } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
+          // Handle Category object format
+          uniqueCategories.add(item.category.name);
+        } else if (typeof item.category === "number") {
+          // Handle category ID format - use the categoriesMap to get the name
+          const categoryName = categoriesMap.get(item.category);
+          if (categoryName) {
+            uniqueCategories.add(categoryName);
+          }
+        }
       }
     });
 
     return Array.from(uniqueCategories);
-  }, [posItems]);
+  }, [posItems, categoriesMap]);
 
   // 🛒 Calculate subtotal and total
   const subtotal = (cart || []).filter(Boolean).reduce((sum, item) => {

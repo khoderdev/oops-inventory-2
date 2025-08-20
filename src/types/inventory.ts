@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
 import { materialSchema } from "@/components/materials/materialsSchema";
-import { Category } from "./categories";
+import { Category, CategoryType, CategoryTypeEntity } from "./categories";
 
 // Interface for pagination metadata
 export interface PaginationInfo {
@@ -25,7 +25,11 @@ export interface PaginationInfo {
   };
 }
 
+// Legacy hardcoded material categories for backward compatibility
 export type MaterialCategory = "meat" | "dairy" | "vegetables" | "grains" | "spices" | "beverages" | "alcohol" | "packaging" | "other" | "sweets" | "tobacco" | "hot" | "cold";
+
+// New material category type that can be either a legacy string or a Category object from the API
+export type MaterialCategoryType = MaterialCategory | Category | number | { id: number; name: string; value: string };
 
 export type UnitType = "mass" | "volume" | "piece" | "package";
 
@@ -108,7 +112,8 @@ export interface SaleResponse {
 export interface Material {
   id: string;
   name: string;
-  category: MaterialCategory;
+  category: MaterialCategoryType;
+  categoryId?: number;
   baseUnit: string;
   unitType: UnitType;
   inputUnit?: string;
@@ -123,13 +128,13 @@ export interface Material {
 // Form data interfaces
 export interface MaterialFormData extends z.infer<typeof materialSchema> {
   name: string;
-  category: string;
+  category: string | Category;
   baseUnit: string;
   unitType: UnitType;
   inputUnit: string;
   packageQuantity?: number;
   description?: string;
-  categoryId?: string;
+  categoryId?: number | string;
 }
 
 export interface MaterialFormProps {
@@ -140,7 +145,8 @@ export interface MaterialFormProps {
 
 export interface CreateMaterialData {
   name: string;
-  category: MaterialCategory;
+  category?: MaterialCategoryType;
+  categoryId?: number;
   baseUnit: string;
   unitType: UnitType;
   inputUnit?: string;
@@ -151,8 +157,8 @@ export interface CreateMaterialData {
 
 export interface UpdateMaterialData {
   name?: string;
-  category?: MaterialCategory;
-  categoryId?: string;
+  category?: MaterialCategoryType;
+  categoryId?: number | string;
   baseUnit?: string;
   unitType?: UnitType;
   inputUnit?: string;
@@ -565,7 +571,7 @@ export interface POSItem {
   name: string;
   description?: string;
   price: number;
-  category: string;
+  category: string | Category | number | { id: number; name: string; value: string };
   unit: string;
   availableQuantity: number;
   costPerUnit: number;
@@ -737,30 +743,31 @@ export interface TablesLayoutProps {
 }
 
 export interface CategoryTabsProps {
-  categories: string[];
+  categories: string[] | Category[];
   activeCategory: string;
   onCategoryChange: (category: string) => void;
 }
 
 //-----------------------------------------------------------------------------
 
+// Legacy hardcoded menu item categories for backward compatibility
 export type MenuItemCategory = "appetizers" | "burgers" | "sandwiches" | "plates" | "pasta" | "sushi" | "pizza" | "salads" | "desserts" | "cold" | "hot" | "alcohol" | "breakfast" | "shisha";
 
+// New menu item category type that can be either a legacy string or a Category object from the API
+export type MenuItemCategoryType = MenuItemCategory | Category | number | { id: number; name: string; value: string };
+
+// Legacy hardcoded beverage item categories for backward compatibility
 export type BeverageItemCategory = "beverages" | "cold" | "hot" | "alcohol";
+
+// New beverage item category type that can be either a legacy string or a Category object from the API
+export type BeverageItemCategoryType = BeverageItemCategory | Category | number | { id: number; name: string; value: string };
 
 export interface MenuItem {
   id: string;
   name: string;
   description?: string;
-  category:
-    | MenuItemCategory
-    | number
-    | {
-        value: boolean;
-        id: number;
-        name: string;
-      }
-    | null;
+  category: MenuItemCategoryType | null;
+  categoryId?: number;
   price: number;
   ingredients: MenuItemIngredient[];
   menuItemIngredients?: MenuItemIngredient[];
@@ -794,7 +801,8 @@ export interface BeverageItem {
   id: string;
   name: string;
   description?: string;
-  category: BeverageItemCategory | number | { id: number; name: string } | null;
+  category: BeverageItemCategoryType | null;
+  categoryId?: number;
   price: number;
   unit: string;
   availableQuantity: number;
@@ -815,7 +823,7 @@ export interface BeverageItem {
 }
 
 export interface CategoryOption {
-  id: string;
+  id: number | string;
   value: string;
   name: string;
 }
@@ -852,7 +860,8 @@ export interface MenuItemIngredient {
 export interface CreateMenuItemData {
   name: string;
   description?: string;
-  category: MenuItemCategory | number | { id: number; name: string } | null;
+  category?: MenuItemCategoryType | null;
+  categoryId?: number;
   price: number;
   ingredients: MenuItemIngredient[];
   isPOSItem?: boolean;
@@ -876,7 +885,8 @@ export interface CreateMenuItemData {
 export interface UpdateMenuItemData {
   name?: string;
   description?: string;
-  category?: MenuItemCategory | number | { id: number; name: string } | null;
+  category?: MenuItemCategoryType | null;
+  categoryId?: number;
   price?: number;
   ingredients?: MenuItemIngredient[];
   isPOSItem?: boolean;
