@@ -747,7 +747,7 @@ const stockEntriesController = {
       const wasteRecord = await Wasting.create({
         stockEntryId: stockEntry.id,
         materialName: material.name,
-        category: material.category,
+        category: material.category || material.categoryId || 'uncategorized',
         quantity: wasteInSmallerUnit,
         unit: wasteUnitForRecord,
         costPerBaseUnit: costPerSmallerUnit,

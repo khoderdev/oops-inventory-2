@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Material, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
+import { formatCleanCurrency, formatCleanNumber } from "@/utils/numberFormatting";
 import { highlightText } from "@/utils/highlightText";
 import { AlertTriangle, Edit, Eye, EyeOff, Printer, Trash2 } from "lucide-react";
 import { useMemo } from "react";
@@ -118,7 +119,7 @@ export function useStockEntriesTableColumns({
           const cost = getValue();
           return (
             <div className="space-y-1 text-center w-full px-2">
-              <div className="font-medium">{formatCurrency(cost)}</div>
+              <div className="font-medium">{formatCleanCurrency(cost)}</div>
               {row.original.material?.unitType === "package" && <div className="text-xs text-muted-foreground">(per {row.original.purchasedUnit})</div>}
             </div>
           );
@@ -144,7 +145,7 @@ export function useStockEntriesTableColumns({
         ),
         cell: ({ getValue }) => (
           <div className="text-center w-full px-2">
-            <span className="font-medium">{formatCurrency(getValue())}</span>
+            <span className="font-medium">{formatCleanCurrency(getValue())}</span>
           </div>
         ),
         enableSorting: false

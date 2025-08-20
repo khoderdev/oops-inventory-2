@@ -6,23 +6,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { PackageUnit } from "@/types/conversion";
-import { Material, StockEntry, StockFormData, StockFormInputs } from "@/types/inventory";
+import { StockFormData, WasteFromEntryTabProps } from "@/types/inventory";
 import { getConversionFactor } from "@/utils/getConversionFactor";
+import { formatCleanNumber, formatCleanCurrency } from "@/utils/numberFormatting";
 import { format } from "date-fns";
 import { CalendarIcon, FileText, Minus, Package, Plus, Trash2 } from "lucide-react";
 import { useEffect } from "react";
-import { UseFormReturn, useWatch } from "react-hook-form";
+import { useWatch } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
-
-interface WasteFromEntryTabProps {
-  form: UseFormReturn<StockFormInputs>;
-  materials: Material[];
-  availableUnits: string[];
-  selectedMaterial: Material | undefined;
-  stockEntry: StockEntry;
-  onRecordWaste: (data: StockFormData & { stockEntryId: string }) => void;
-  onCancel: () => void;
-}
 
 export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMaterial, stockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
   const watchedQuantity = useWatch({ control: form.control, name: "wasteQuantity" });
@@ -31,52 +22,38 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
 
   useEffect(() => {
     const purchasedUnit = watchedPurchasedUnit;
-
     if (!selectedMaterial || !stockEntry || !purchasedUnit) {
       form.setValue("costPerPurchasedUnit", "0.0000");
       return;
     }
-
-    // Calculate cost per unit based on the original stock entry's total cost and quantity
     const originalTotalCost = Number(stockEntry.totalCost) || 0;
     const originalQuantity = Number(stockEntry.purchasedQuantity) || 0;
     const originalUnit = stockEntry.purchasedUnit;
-
     if (originalTotalCost === 0 || originalQuantity === 0) {
       form.setValue("costPerPurchasedUnit", "0.0000");
       return;
     }
-
-    // Calculate cost per original unit (e.g., cost per kg if original was in kg)
     const costPerOriginalUnit = originalTotalCost / originalQuantity;
-
     if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity) {
       const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle"];
-
       if (purchasedUnit === selectedMaterial.baseUnit) {
-        // If wasting in base unit (e.g., pieces), calculate cost per piece
         const costPerPiece = costPerOriginalUnit / selectedMaterial.packageQuantity;
-        form.setValue("costPerPurchasedUnit", isNaN(costPerPiece) ? "0.0000" : costPerPiece.toFixed(4));
+        form.setValue("costPerPurchasedUnit", isNaN(costPerPiece) ? "0" : formatCleanNumber(costPerPiece));
       } else if (validPackageUnits.includes(purchasedUnit as PackageUnit) && purchasedUnit === selectedMaterial.inputUnit) {
-        // If wasting in input unit (e.g., boxes), use original cost per unit
-        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toFixed(4));
+        form.setValue("costPerPurchasedUnit", formatCleanNumber(costPerOriginalUnit));
       } else {
-        form.setValue("costPerPurchasedUnit", "0.0000");
+        form.setValue("costPerPurchasedUnit", "0");
       }
     } else {
-      // For mass, volume, etc. - calculate proportional cost
       if (purchasedUnit === originalUnit) {
-        // Same unit as original entry - use direct cost per unit
-        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toFixed(4));
+        form.setValue("costPerPurchasedUnit", formatCleanNumber(costPerOriginalUnit));
       } else {
-        // Different unit - convert using conversion factor
         const conversionFactor = getConversionFactor(originalUnit, purchasedUnit, selectedMaterial.unitType, selectedMaterial);
         if (conversionFactor > 0) {
-          // Convert original unit cost to waste unit cost
           const costPerWasteUnit = costPerOriginalUnit / conversionFactor;
-          form.setValue("costPerPurchasedUnit", isNaN(costPerWasteUnit) ? "0.0000" : costPerWasteUnit.toFixed(4));
+          form.setValue("costPerPurchasedUnit", isNaN(costPerWasteUnit) ? "0" : formatCleanNumber(costPerWasteUnit));
         } else {
-          form.setValue("costPerPurchasedUnit", "0.0000");
+          form.setValue("costPerPurchasedUnit", "0");
         }
       }
     }
@@ -92,7 +69,6 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
   const handleSubmit = async () => {
     const data = form.getValues();
     const wasteQty = parseFloat(data.wasteQuantity) || 0;
-
     const formData: StockFormData & { stockEntryId: string } = {
       materialId: data.materialId,
       supplier: stockEntry.supplier,
@@ -109,7 +85,6 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
       wasteReason: data.wasteReason,
       stockEntryId: stockEntry.id
     };
-
     onRecordWaste(formData);
   };
 
@@ -192,7 +167,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input type="number" step="1" min="0" placeholder="0" {...field} value={field.value || ""} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <Button
                         type="button"
                         variant="outline"
@@ -305,7 +280,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-500">Original Total Cost:</span>
-                <span className="ml-2 font-medium">${Number(stockEntry?.totalCost || 0).toFixed(2)}</span>
+                <span className="ml-2 font-medium">{formatCleanCurrency(stockEntry?.totalCost || 0)}</span>
               </div>
               <div>
                 <span className="text-gray-500">Original Quantity:</span>
@@ -315,7 +290,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
               </div>
               <div>
                 <span className="text-gray-500">Cost per {stockEntry?.purchasedUnit}:</span>
-                <span className="ml-2 font-medium">${(Number(stockEntry?.totalCost || 0) / Number(stockEntry?.purchasedQuantity || 1)).toFixed(4)}</span>
+                <span className="ml-2 font-medium">${formatCleanNumber(Number(stockEntry?.totalCost || 0) / Number(stockEntry?.purchasedQuantity || 1))}</span>
               </div>
               <div>
                 <span className="text-gray-500">Remaining Stock:</span>

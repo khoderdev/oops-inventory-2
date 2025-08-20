@@ -49,7 +49,13 @@ const StockEntry = sequelize.define(
     },
     costPerPurchasedUnit: {
       type: DataTypes.DECIMAL(10, 6),
-      allowNull: true
+      allowNull: true,
+      get() {
+        const rawValue = this.getDataValue('costPerPurchasedUnit');
+        if (rawValue === null || rawValue === undefined) return null;
+        // Remove trailing zeros and unnecessary decimal point
+        return parseFloat(rawValue).toString();
+      }
     },
     costPerBaseUnit: {
       type: DataTypes.DECIMAL(10, 6),
@@ -57,7 +63,14 @@ const StockEntry = sequelize.define(
     },
     totalCost: {
       type: DataTypes.DECIMAL(10, 6),
-      allowNull: true
+      allowNull: true,
+      get() {
+        const rawValue = this.getDataValue('totalCost');
+        if (rawValue === null || rawValue === undefined) return null;
+        // For currency, keep 2 decimal places but remove trailing zeros
+        const formatted = parseFloat(rawValue).toFixed(2);
+        return parseFloat(formatted).toString();
+      }
     },
     printerId: {
       type: DataTypes.INTEGER,

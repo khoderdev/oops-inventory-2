@@ -7,7 +7,6 @@ import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
 import { materialSchema } from "@/components/materials/materialsSchema";
 
-
 // Interface for pagination metadata
 export interface PaginationInfo {
   currentPage: number;
@@ -751,9 +750,15 @@ export interface MenuItem {
   id: string;
   name: string;
   description?: string;
-  category: MenuItemCategory | number | {
-    value: boolean; id: number; name: string 
-} | null;
+  category:
+    | MenuItemCategory
+    | number
+    | {
+        value: boolean;
+        id: number;
+        name: string;
+      }
+    | null;
   price: number;
   ingredients: MenuItemIngredient[];
   menuItemIngredients?: MenuItemIngredient[];
@@ -835,7 +840,6 @@ export interface BeverageItemFormProps {
   enableVariants?: boolean;
 }
 
-
 export interface MenuItemIngredient {
   materialId: string;
   quantity: number;
@@ -856,13 +860,15 @@ export interface CreateMenuItemData {
   unit?: string;
   availableQuantity?: number;
   costPerUnit?: number;
-  variants?: {
-    selectedVariants: string[];
-    variantVolumes: Record<string, number>;
-    variantVolumeUnits: Record<string, string>;
-    variantPrices: Record<string, number>;
-    nameFormat?: "prefix" | "suffix";
-  } | Record<string, { volume: number; unit: string; price: number }>;
+  variants?:
+    | {
+        selectedVariants: string[];
+        variantVolumes: Record<string, number>;
+        variantVolumeUnits: Record<string, string>;
+        variantPrices: Record<string, number>;
+        nameFormat?: "prefix" | "suffix";
+      }
+    | Record<string, { volume: number; unit: string; price: number }>;
 }
 
 export interface UpdateMenuItemData {
@@ -878,13 +884,15 @@ export interface UpdateMenuItemData {
   unit?: string;
   availableQuantity?: number;
   costPerUnit?: number;
-  variants?: {
-    selectedVariants: string[];
-    variantVolumes: Record<string, number>;
-    variantVolumeUnits: Record<string, string>;
-    variantPrices: Record<string, number>;
-    nameFormat?: "prefix" | "suffix";
-  } | Record<string, { volume: number; unit: string; price: number }>;
+  variants?:
+    | {
+        selectedVariants: string[];
+        variantVolumes: Record<string, number>;
+        variantVolumeUnits: Record<string, string>;
+        variantPrices: Record<string, number>;
+        nameFormat?: "prefix" | "suffix";
+      }
+    | Record<string, { volume: number; unit: string; price: number }>;
 }
 
 export interface MenuItemBuilderProps {
@@ -896,7 +904,6 @@ export interface MenuItemBuilderProps {
   onUpdateMenuItem?: (id: string, menuItem: Partial<MenuItem>) => Promise<void>;
   onDeleteMenuItem?: (id: string) => Promise<void>;
 }
-
 
 //-----------------------------------------------------------------------------
 
@@ -919,7 +926,6 @@ export const UNIT_OPTIONS: Readonly<Record<UnitType, ReadonlyArray<string>>> = {
   piece: ["piece", "unit", "dozen"],
   package: ["box", "pack", "case", "bottle", "piece"]
 };
-
 
 //-----------------------------------------------------------------------------
 // Stock Operations Types
@@ -1022,6 +1028,28 @@ export interface StockFormProps {
   onRecordWaste?: (data: RecordWasteData) => void;
   onAddToSpecificEntry?: (data: StockFormData & { stockEntryId: string }) => void;
   onWasteFromSpecificEntry?: (data: StockFormData & { stockEntryId: string }) => void;
+  onCancel: () => void;
+}
+
+export interface UpdateEntryTabProps {
+  form: UseFormReturn<StockFormInputs>;
+  materials: Material[];
+  availableUnits: string[];
+  selectedMaterial: Material | undefined;
+  watchedQuantity: string;
+  watchedCostPerUnit: string;
+  stockEntry: StockEntry;
+  onSubmit: (data: StockFormData) => void;
+  onCancel: () => void;
+}
+
+export interface WasteFromEntryTabProps {
+  form: UseFormReturn<StockFormInputs>;
+  materials: Material[];
+  availableUnits: string[];
+  selectedMaterial: Material | undefined;
+  stockEntry: StockEntry;
+  onRecordWaste: (data: StockFormData & { stockEntryId: string }) => void;
   onCancel: () => void;
 }
 
@@ -1292,26 +1320,35 @@ export interface DayOperationReport {
     profit: number;
     profitMargin: number;
   }>;
-  salesByCategory: Record<string, {
-    count: number;
-    total: number;
-    percentage: number;
-  }>;
-  salesBySection: Record<string, {
-    count: number;
-    total: number;
-    percentage: number;
-  }>;
+  salesByCategory: Record<
+    string,
+    {
+      count: number;
+      total: number;
+      percentage: number;
+    }
+  >;
+  salesBySection: Record<
+    string,
+    {
+      count: number;
+      total: number;
+      percentage: number;
+    }
+  >;
   salesByHour: Array<{
     hour: number;
     count: number;
     total: number;
   }>;
-  paymentMethodBreakdown: Record<string, {
-    count: number;
-    total: number;
-    percentage: number;
-  }>;
+  paymentMethodBreakdown: Record<
+    string,
+    {
+      count: number;
+      total: number;
+      percentage: number;
+    }
+  >;
   stockMovements: Array<{
     materialId: number;
     materialName: string;

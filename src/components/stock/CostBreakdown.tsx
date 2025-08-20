@@ -2,21 +2,14 @@ import { PackageUnit, PackagedGood } from "@/types/conversion";
 import { Material } from "@/types/inventory";
 import { calculatePackagedGoodCost } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
+import { formatCleanCurrency } from "@/utils/numberFormatting";
 import { Calculator, DollarSign, Package } from "lucide-react";
 import { Badge } from "../ui/badge";
 
-// Helper function to format currency cleanly
-const formatCurrency = (value: number): string => {
-  if (value % 1 === 0) {
-    // Whole number - no decimals
-    return `$${value}`;
-  } else {
-    // Has decimals - show with appropriate decimal places
-    return `$${value.toFixed(6)}`;
-  }
-};
+// Use the clean currency formatting utility
+const formatCurrency = formatCleanCurrency;
 
-export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costPerPurchasedUnit }: { selectedMaterial: Material | null; quantity: string; purchasedUnit: string; costPerPurchasedUnit: string }) => {
+export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costPerPurchasedUnit, totalCost }: { selectedMaterial: Material | null; quantity: string; purchasedUnit: string; costPerPurchasedUnit: string; totalCost?: string }) => {
   const numQuantity = parseFloat(quantity) || 0;
   const numCostPerUnit = parseFloat(costPerPurchasedUnit) || 0;
 

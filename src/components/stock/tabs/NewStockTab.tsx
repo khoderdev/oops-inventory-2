@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { formatCleanNumber } from "@/utils/numberFormatting";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { Material, StockEntry, StockFormData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Minus, Plus } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
@@ -215,7 +216,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           onClick={() => {
                             const currentValue = parseFloat(field.value) || 0;
                             const newValue = Math.max(0, currentValue - 0.0001);
-                            field.onChange(newValue.toFixed(4));
+                            field.onChange(formatCleanNumber(newValue));
                           }}
                           disabled={parseFloat(field.value) <= 0}
                         >
@@ -239,7 +240,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           onClick={() => {
                             const currentValue = parseFloat(field.value) || 0;
                             const newValue = currentValue + 0.0001;
-                            field.onChange(newValue.toFixed(4));
+                            field.onChange(formatCleanNumber(newValue));
                           }}
                         >
                           <Plus className="h-4 w-4" />

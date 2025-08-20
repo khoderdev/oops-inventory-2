@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { formatCleanNumber } from "@/utils/numberFormatting";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,6 +11,7 @@ import { CalendarIcon, Minus, Package, Plus, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
+import { Calendar } from "@/components/ui/calendar";
 
 interface AddToEntryTabProps {
   form: UseFormReturn<StockFormInputs>;
@@ -46,9 +47,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       }
 
       if (defaultCost > 0) {
-        form.setValue("costPerPurchasedUnit", defaultCost.toFixed(4));
+        form.setValue("costPerPurchasedUnit", formatCleanNumber(defaultCost));
       } else {
-        form.setValue("costPerPurchasedUnit", "0.0000");
+        form.setValue("costPerPurchasedUnit", "0");
       }
     }
   }, [watchedUnit, selectedMaterial, stockEntry, form]);
@@ -68,7 +69,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         if (packageCost > 0 && Math.abs(currentCost - packageCost) / packageCost > 0.5) {
           form.setError("costPerPurchasedUnit", {
             type: "manual",
-            message: `Cost per ${watchedUnit} ($${currentCost.toFixed(4)}) deviates significantly from expected ($${packageCost.toFixed(4)})`
+            message: `Cost per ${watchedUnit} ($${formatCleanNumber(currentCost)}) deviates significantly from expected ($${formatCleanNumber(packageCost)})`
           });
         } else {
           form.clearErrors("costPerPurchasedUnit");
@@ -77,7 +78,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         form.clearErrors("costPerPurchasedUnit");
       }
     } else {
-      form.setValue("totalCost", "0.0000");
+      form.setValue("totalCost", "0");
       form.clearErrors("costPerPurchasedUnit");
     }
   }, [watchedCostPerUnit, watchedQuantity, watchedUnit, selectedMaterial, form]);

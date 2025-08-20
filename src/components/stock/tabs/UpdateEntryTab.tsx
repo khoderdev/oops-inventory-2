@@ -1,27 +1,15 @@
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { formatCleanNumber } from "@/utils/numberFormatting";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Material, StockEntry, StockFormData, StockFormInputs } from "@/types/inventory";
+import { StockFormData, StockFormInputs, UpdateEntryTabProps } from "@/types/inventory";
 import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Minus, Package, Plus } from "lucide-react";
-import { UseFormReturn } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
-
-interface UpdateEntryTabProps {
-  form: UseFormReturn<StockFormInputs>;
-  materials: Material[];
-  availableUnits: string[];
-  selectedMaterial: Material | undefined;
-  watchedQuantity: string;
-  watchedCostPerUnit: string;
-  stockEntry: StockEntry;
-  onSubmit: (data: StockFormData) => void;
-  onCancel: () => void;
-}
 
 export function UpdateEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onSubmit, onCancel }: UpdateEntryTabProps) {
   const handleSubmit = (data: StockFormInputs) => {
@@ -177,7 +165,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
                           const newValue = Math.max(0, currentValue - 0.0001);
-                          field.onChange(newValue.toFixed(4));
+                          field.onChange(formatCleanNumber(newValue));
                         }}
                         disabled={parseFloat(field.value) <= 0}
                       >
@@ -192,7 +180,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
                           const newValue = currentValue + 0.0001;
-                          field.onChange(newValue.toFixed(4));
+                          field.onChange(formatCleanNumber(newValue));
                         }}
                       >
                         <Plus className="h-4 w-4" />
@@ -220,7 +208,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
                           const newValue = Math.max(0, currentValue - 0.0001);
-                          field.onChange(newValue.toFixed(4));
+                          field.onChange(formatCleanNumber(newValue));
                         }}
                         disabled={parseFloat(field.value) <= 0}
                       >
@@ -235,7 +223,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
                           const newValue = currentValue + 0.0001;
-                          field.onChange(newValue.toFixed(4));
+                          field.onChange(formatCleanNumber(newValue));
                         }}
                       >
                         <Plus className="h-4 w-4" />
@@ -278,8 +266,8 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               onClick={() => {
                 // Log specific error details
                 Object.entries(form.formState.errors).forEach(([field, error]) => {
