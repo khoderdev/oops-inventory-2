@@ -5,24 +5,8 @@ import { inventoryAPI } from "@/api/inventory.api";
 import { stockEntriesAtom, materialsAtom, menuItemsAtom, optimisticStockEntriesAtom } from "./inventoryAtoms";
 import type { StockEntry, Material, MenuItem, CreateMenuItemData, UpdateMenuItemData } from "@/types/inventory";
 import { atom } from "jotai";
-import {
-  optimisticAssignmentsAtom,
-  optimisticMaterialsAtom,
-  optimisticSectionsAtom,
-  sectionAssignmentsAtom,
-  sectionsAtom,
-  tabErrorAtom,
-  tabLoadingAtom,
-} from "./inventoryAtoms";
-import type {
-  MaterialWithStock,
-  StockEntryWithMaterial,
-  Section,
-  SectionAssignment,
-  MenuItemCategory,
-  AddStockData,
-  RecordWasteData,
-} from "@/types/inventory";
+import { optimisticAssignmentsAtom, optimisticMaterialsAtom, optimisticSectionsAtom, sectionAssignmentsAtom, sectionsAtom, tabErrorAtom, tabLoadingAtom } from "./inventoryAtoms";
+import type { MaterialWithStock, StockEntryWithMaterial, Section, SectionAssignment, MenuItemCategory, AddStockData, RecordWasteData } from "@/types/inventory";
 
 // Data fetching actions
 export const fetchMaterialsAction = atom(null, async (get, set) => {
@@ -129,12 +113,13 @@ export const fetchMenuItemsAction = atom(null, async (get, set) => {
       createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
       updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
       // Transform menuItemIngredients to ingredients array for frontend compatibility
-      ingredients: item.menuItemIngredients?.map(ingredient => ({
-        materialId: ingredient.materialId.toString(),
-        quantity: ingredient.quantity,
-        unit: ingredient.unit,
-        cost: ingredient.cost
-      })) || []
+      ingredients:
+        item.menuItemIngredients?.map(ingredient => ({
+          materialId: ingredient.materialId.toString(),
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          cost: ingredient.cost
+        })) || []
     }));
 
     set(menuItemsAtom, transformedMenuItems);
@@ -427,9 +412,7 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
     const createData: CreateMenuItemData = {
       name: data.name,
       description: data.description,
-      category: typeof data.category === 'string' ? data.category as MenuItemCategory : 
-                typeof data.category === 'object' && data.category?.name ? data.category.name as MenuItemCategory :
-                'plates' as MenuItemCategory, // fallback category
+      category: typeof data.category === "string" ? (data.category as MenuItemCategory) : typeof data.category === "object" && data.category?.name ? (data.category.name as MenuItemCategory) : ("plates" as MenuItemCategory), // fallback category
       price: data.price,
       ingredients: data.ingredients,
       isPOSItem: data.isPOSItem,
@@ -508,7 +491,7 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
       createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
       updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
     };
-    
+
     // Replace the optimistic item with server response and ensure it stays at the top
     set(menuItemsAtom, prev => {
       const filteredItems = prev.filter(item => item.id !== id);
@@ -523,15 +506,13 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
 });
 
 export const deleteMenuItemAction = atom(null, async (get, set, id: string) => {
-  
   // Get current state before optimistic update
   const currentMenuItems = get(menuItemsAtom);
-  
+
   const itemToDelete = currentMenuItems.find(item => item.id === id);
   if (!itemToDelete) {
     throw new Error(`Menu item with id ${id} not found`);
   }
-  
 
   // Optimistic update - remove menu item immediately
   set(menuItemsAtom, prev => {
@@ -651,28 +632,21 @@ export const recordWasteAction = atom(null, async (get, set, data: RecordWasteDa
 
 // Add quantity to a specific stock entry
 export const addToSpecificEntryAction = atom(null, async (get, set, data: { entryId: string; additionalQuantity: number; unit: string; additionDate?: Date; notes?: string }) => {
-  // Get current state before optimistic update
   const currentStockEntries = get(optimisticStockEntriesAtom);
-
   try {
-    // Optimistic update - update the specific entry immediately
     set(optimisticStockEntriesAtom, prev =>
       prev.map(entry => {
         if (entry.id === data.entryId) {
-          // For optimistic updates, only update individual quantity for display
-          // The server will calculate the correct values and we'll get them back
           return {
             ...entry,
             purchasedIndividualQuantity: (entry.purchasedIndividualQuantity || 0) + data.additionalQuantity,
             updatedAt: new Date()
-            // Don't modify purchasedQuantity optimistically - let server handle it
           };
         }
         return entry;
       })
     );
 
-    // Make API call
     const response = await stockAPI.addToSpecificEntry(data.entryId, {
       additionalQuantity: data.additionalQuantity,
       unit: data.unit,
