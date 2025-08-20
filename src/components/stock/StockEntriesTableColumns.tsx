@@ -198,7 +198,7 @@ export function useStockEntriesTableColumns({
                     {entry.isPOSItem ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="top" sideOffset={5}>
                   <p>{!isAllowedPOSCategory(entry.material) ? "Only beverage items can be shown in POS" : entry.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
                 </TooltipContent>
               </Tooltip>
@@ -217,7 +217,7 @@ export function useStockEntriesTableColumns({
                     <Printer className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="top" sideOffset={5}>
                   <p>{entry.assignedPrinter ? `Assigned to: ${entry.assignedPrinter.name}` : "Assign printer to " + (entry.material?.name || "stock entry")}</p>
                 </TooltipContent>
               </Tooltip>
@@ -236,7 +236,7 @@ export function useStockEntriesTableColumns({
                     <Edit className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="top" sideOffset={5}>
                   <p>Edit {entry.material?.name || "stock entry"}</p>
                 </TooltipContent>
               </Tooltip>
@@ -250,7 +250,7 @@ export function useStockEntriesTableColumns({
                       </Button>
                     </TooltipTrigger>
                   </AlertDialogTrigger>
-                  <TooltipContent>
+                  <TooltipContent side="top" sideOffset={5}>
                     <p>Delete {entry.material?.name || "stock entry"}</p>
                   </TooltipContent>
                 </Tooltip>
