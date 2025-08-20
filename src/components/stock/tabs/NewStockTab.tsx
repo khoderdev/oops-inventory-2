@@ -10,62 +10,75 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Minus, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
 import { useEffect, useState } from "react";
-import { formatNumberUI } from "@/utils/conversionLogic";
 
 export function NewStockTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: NewStockTabProps) {
   const [lastChangedField, setLastChangedField] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if fields are empty strings or valid numbers
     const isQuantityEmpty = watchedQuantity === "";
     const isCostPerUnitEmpty = watchedCostPerUnit === "";
     const isTotalCostEmpty = watchedTotalCost === "";
-
-    // Parse values only if they're not empty
     const quantity = isQuantityEmpty ? 0 : parseFloat(watchedQuantity);
     const costPerUnit = isCostPerUnitEmpty ? 0 : parseFloat(watchedCostPerUnit);
     const totalCost = isTotalCostEmpty ? 0 : parseFloat(watchedTotalCost);
-
+    
     if (lastChangedField === "totalCost") {
-      // When total cost changes directly
-      if (quantity > 0 && !isTotalCostEmpty) {
-        // Calculate cost per unit from total cost
-        const calculatedCostPerUnit = totalCost / quantity;
-        // Only set if the result is valid and not zero
-        if (!isNaN(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
-          form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(2), { shouldValidate: true });
-        } else if (isNaN(calculatedCostPerUnit)) {
-          // If calculation is invalid, leave the field empty
-          form.setValue("costPerPurchasedUnit", "", { shouldValidate: true });
+      // When total cost is changed
+      if (!isTotalCostEmpty) {
+        if (quantity > 0) {
+          // If quantity exists, calculate cost per unit
+          const calculatedCostPerUnit = totalCost / quantity;
+          if (!isNaN(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
+            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(2), { shouldValidate: true });
+          }
+        } else if (!isCostPerUnitEmpty) {
+          // If quantity is empty but cost per unit exists, update quantity based on total and cost per unit
+          const calculatedQuantity = totalCost / costPerUnit;
+          if (!isNaN(calculatedQuantity) && calculatedQuantity > 0) {
+            form.setValue("purchasedQuantity", Math.round(calculatedQuantity).toString(), { shouldValidate: true });
+          }
         }
+        // If both quantity and cost per unit are empty, do nothing and wait for user input
       }
-      // Don't override the total cost that was just entered
     } else if (lastChangedField === "purchasedQuantity") {
-      // When quantity changes
+      // When quantity is changed
       if (isQuantityEmpty) {
-        // If quantity is empty, set total cost to empty if cost per unit exists
         if (!isCostPerUnitEmpty) {
           form.setValue("totalCost", "", { shouldValidate: true });
         }
-      } else if (quantity > 0 && costPerUnit > 0) {
-        // Only calculate if both values are valid
-        const calculatedTotal = quantity * costPerUnit;
-        form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
+      } else if (quantity > 0) {
+        if (costPerUnit > 0) {
+          // If cost per unit exists, calculate total
+          const calculatedTotal = quantity * costPerUnit;
+          form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
+        } else if (!isTotalCostEmpty) {
+          // If total cost exists but not cost per unit, calculate cost per unit
+          const calculatedCostPerUnit = totalCost / quantity;
+          if (!isNaN(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
+            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(2), { shouldValidate: true });
+          }
+        }
       }
     } else if (lastChangedField === "costPerPurchasedUnit") {
-      // When cost per unit changes
+      // When cost per unit is changed
       if (isCostPerUnitEmpty) {
-        // If cost per unit is empty, set total cost to empty if quantity exists
         if (!isQuantityEmpty) {
           form.setValue("totalCost", "", { shouldValidate: true });
         }
-      } else if (quantity > 0 && costPerUnit > 0) {
-        // Only calculate if both values are valid
-        const calculatedTotal = quantity * costPerUnit;
-        form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
+      } else if (costPerUnit > 0) {
+        if (quantity > 0) {
+          // If quantity exists, calculate total
+          const calculatedTotal = quantity * costPerUnit;
+          form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
+        } else if (!isTotalCostEmpty) {
+          // If total cost exists but not quantity, calculate quantity
+          const calculatedQuantity = totalCost / costPerUnit;
+          if (!isNaN(calculatedQuantity) && calculatedQuantity > 0) {
+            form.setValue("purchasedQuantity", Math.round(calculatedQuantity).toString(), { shouldValidate: true });
+          }
+        }
       }
     }
-    // Removed the default calculation when no field is changed to prevent overriding empty values
   }, [watchedQuantity, watchedCostPerUnit, watchedTotalCost, form, lastChangedField]);
   const handleSubmit = async (data: StockFormInputs) => {
     const requiredFields = [
