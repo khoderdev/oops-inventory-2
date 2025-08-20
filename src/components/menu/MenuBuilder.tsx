@@ -1,5 +1,4 @@
 import { menuAPI } from "@/api/inventory.api";
-import { getCategoriesByType } from "@/api/categories.api";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
-import { Category } from "@/types/categories";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { highlightText } from "@/utils/highlightText";
@@ -26,10 +24,44 @@ import { MenuItemForm } from "./MenuItemForm";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 
-export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
+export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, categories, categoriesLoading, categoriesError, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
   const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems || [];
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
+
+  // Filter categories for menu items only
+  const menuItemCategories = useMemo(() => {
+    console.log('📥 MenuItemBuilder: Received categories from TabMenu:', {
+      count: categories?.length || 0,
+      loading: categoriesLoading,
+      error: categoriesError
+    });
+    
+    if (!categories) return [];
+    
+    const filtered = categories.filter(category => {
+      // Check if category has categoryTypes with type "menu_items"
+      const hasMenuItemType = category.categoryTypes?.some(type => type.type === "menu_items");
+      console.log(`🔍 Category "${category.name}":`, {
+        categoryTypes: category.categoryTypes?.map(ct => ct.type),
+        hasMenuItemType
+      });
+      return hasMenuItemType;
+    });
+    
+    console.log('🏷️ MenuItemBuilder: Filtered menu_items categories:', {
+      total: categories.length,
+      filtered: filtered.length,
+      categories: filtered.map(cat => ({
+        id: cat.id, 
+        name: cat.name, 
+        value: cat.value,
+        types: cat.categoryTypes?.map(ct => ct.type)
+      }))
+    });
+    
+    return filtered;
+  }, [categories, categoriesLoading, categoriesError]);
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
   const [lastValidationTime, setLastValidationTime] = useState<number>(0);
@@ -58,27 +90,15 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, [materials, stockEntries, lastValidationTime, dataValidationEnabled]);
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await getCategoriesByType("menu_items");
-        setCategories(response.totalItems || []);
-      } catch (error) {
-        console.error("Failed to fetch menu categories:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load menu categories",
-          variant: "destructive",
-          duration: 1000
-        });
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    console.log('🔄 MenuBuilder: Fetching fresh menu data');
     fetchTabData("menu");
   }, [fetchTabData]);
+
+  // Debug menu items data
+  useEffect(() => {
+    if (currentMenuItems && currentMenuItems.length > 0) {
+      const itemsWithIngredients = currentMenuItems.filter(item => item.ingredients && item.ingredients.length > 0);
+    }
+  }, [currentMenuItems]);
 
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
     if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
@@ -236,8 +256,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  // Remove loading state for instant rendering
-  const [categories, setCategories] = useState<Category[]>([]);
+  // Categories are now passed down from TabMenu component
 
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {
@@ -245,8 +264,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         return 0;
       }
       return ingredients.reduce((sum, ingredient) => {
-        if (ingredient.cost && ingredient.cost > 0) {
-          return sum + ingredient.cost;
+        if (ingredient.cost && parseFloat(String(ingredient.cost)) > 0) {
+          return sum + parseFloat(String(ingredient.cost));
         }
         const material = availableMaterials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
         if (!material) {
@@ -288,7 +307,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         }
 
         // Refresh store data for instant rendering with force=true to bypass cache
-        console.log('🔄 MenuBuilder: Fetching fresh menu data after delete');
+        console.log("🔄 MenuBuilder: Fetching fresh menu data after delete");
         await fetchTabData("menu");
 
         toast({
@@ -426,7 +445,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         id: "cost",
         header: "Cost",
         cell: ({ row }) => {
-          const totalCost = calculateMenuItemCost(row.original.ingredients || []);
+          const ingredients = row.original.ingredients || [];
+          const totalCost = calculateMenuItemCost(ingredients);
           return <div className="text-right font-medium">{formatCurrency(totalCost)}</div>;
         },
         size: 96
@@ -447,8 +467,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           const totalCost = calculateMenuItemCost(row.original.ingredients || []);
           const profit = row.original.price - totalCost;
           // Ensure we have valid numbers for the profit margin calculation
-          const profitMargin = (row.original.price && row.original.price > 0) ? 
-            (profit / row.original.price) * 100 : 0;
+          const profitMargin = row.original.price && row.original.price > 0 ? (profit / row.original.price) * 100 : 0;
           return (
             <div className={`text-right font-medium ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
               <div>{formatCurrency(profit)}</div>
@@ -563,10 +582,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     return currentMenuItems.filter(item => {
       const searchLower = searchTerm.toLowerCase();
       const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
-      const matchesIngredients = item.ingredients && Array.isArray(item.ingredients) ? item.ingredients.some(ingredient => {
-        const materialName = getMaterialName(ingredient.materialId);
-        return materialName.toLowerCase().includes(searchLower);
-      }) : false;
+      const matchesIngredients =
+        item.ingredients && Array.isArray(item.ingredients)
+          ? item.ingredients.some(ingredient => {
+              const materialName = getMaterialName(ingredient.materialId);
+              return materialName.toLowerCase().includes(searchLower);
+            })
+          : false;
       const matchesSearch = matchesNameOrDescription || matchesIngredients;
       // Handle different category formats: string, object, or number
       const matchesCategory =
@@ -575,7 +597,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           if (typeof item.category === "string") {
             // Support both stored category value and name (case-insensitive)
             if (item.category === selectedCategory) return true;
-            const categoryObj = categories.find(c => c.value === item.category) || categories.find(c => c.name?.toLowerCase() === (typeof item.category === 'string' ? item.category.toLowerCase() : String(item.category).toLowerCase()));
+            const categoryObj = categories.find(c => c.value === item.category) || categories.find(c => c.name?.toLowerCase() === (typeof item.category === "string" ? item.category.toLowerCase() : String(item.category).toLowerCase()));
             return categoryObj?.value === selectedCategory;
           } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
             // For category objects, we need to find the matching category by name and compare values
@@ -644,7 +666,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         }
 
         // Refresh store data for instant rendering with force=true to bypass cache
-        console.log('🔄 MenuBuilder: Fetching fresh menu data after create');
+        console.log("🔄 MenuBuilder: Fetching fresh menu data after create");
         await fetchTabData("menu");
 
         setShowMenuItemForm(false);
@@ -691,7 +713,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         }
 
         // Refresh store data for instant rendering with force=true to bypass cache
-        console.log('🔄 MenuBuilder: Fetching fresh menu data after update');
+        console.log("🔄 MenuBuilder: Fetching fresh menu data after update");
         await fetchTabData("menu");
 
         setShowMenuItemForm(false);
@@ -737,7 +759,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, []);
 
   const handlePrinterAssignmentComplete = useCallback(async () => {
-    console.log('🔄 MenuBuilder: Fetching fresh menu data after printer assignment');
+    console.log("🔄 MenuBuilder: Fetching fresh menu data after printer assignment");
     await fetchTabData("menu");
     handleClosePrinterDialog();
   }, [fetchTabData, handleClosePrinterDialog]);
@@ -766,7 +788,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, []);
 
   const handleBulkPrinterAssignmentComplete = useCallback(async () => {
-    console.log('🔄 MenuBuilder: Fetching fresh menu data after bulk printer assignment');
+    console.log("🔄 MenuBuilder: Fetching fresh menu data after bulk printer assignment");
     await fetchTabData("menu");
     setSelectedMenuItems(new Set());
     setBulkSelectionMode(false);
@@ -816,7 +838,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         variant: "default",
         duration: 1000
       });
-      console.log('🔄 MenuBuilder: Fetching fresh menu data after bulk category update');
+      console.log("🔄 MenuBuilder: Fetching fresh menu data after bulk category update");
       await fetchTabData("menu");
       setSelectedMenuItems(new Set());
       setBulkSelectionMode(false);
@@ -834,7 +856,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
-      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex flex-col h-[calc(100vh-6.5rem)] overflow-hidden">
         <Card className="!border-0 !shadow-none !bg-background flex flex-col h-full">
           <CardHeader className="flex-shrink-0 px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -851,7 +873,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map(category => (
+                    {menuItemCategories.map(category => (
                       <SelectItem key={category.value} value={category.value}>
                         {category.name}
                       </SelectItem>
@@ -927,7 +949,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                 <DialogHeader>
                   <DialogTitle className="text-lg sm:text-xl">{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={categories} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} stockEntries={stockEntries} />
+                <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={menuItemCategories} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} stockEntries={stockEntries} />
               </DialogContent>
             </Dialog>
 
@@ -1043,7 +1065,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
                   <SelectValue placeholder="Choose a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(category => (
+                  {menuItemCategories.map(category => (
                     <SelectItem key={category.value} value={category.value}>
                       {category.name}
                     </SelectItem>
@@ -1076,19 +1098,18 @@ interface TanStackVirtualizedTableProps {
 const TanStackVirtualizedTable: React.FC<TanStackVirtualizedTableProps> = ({ table }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const rows = table.getRowModel().rows;
-  
+
   // Enhanced virtualizer configuration for instant rendering
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 60,
     overscan: 20, // Increased overscan for smoother scrolling
-    measureElement: typeof window !== 'undefined' ? 
-      (element) => element?.getBoundingClientRect().height || 60 : undefined
+    measureElement: typeof window !== "undefined" ? element => element?.getBoundingClientRect().height || 60 : undefined
   });
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 border rounded-md md:max-w-[calc(100vw-180px)]">
+    <div className="flex flex-1 flex-col min-h-0 border rounded-md">
       <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
         <Table>
           <TableHeader>

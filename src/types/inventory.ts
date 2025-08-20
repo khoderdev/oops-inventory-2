@@ -902,6 +902,9 @@ export interface MenuItemBuilderProps {
   materials?: Material[];
   sections: Section[];
   menuItems: MenuItem[];
+  categories?: Category[];
+  categoriesLoading?: boolean;
+  categoriesError?: string | null;
   onCreateMenuItem?: (menuItem: CreateMenuItemData, imageFile?: File) => Promise<void>;
   onUpdateMenuItem?: (id: string, menuItem: Partial<MenuItem>) => Promise<void>;
   onDeleteMenuItem?: (id: string) => Promise<void>;

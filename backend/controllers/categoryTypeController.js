@@ -79,14 +79,10 @@ const categoryTypeController = {
         });
       }
 
+      // Get category types without include since there's no direct association
       const categoryTypes = await CategoryType.findAll({
         where: { type },
-        include: [{
-          model: Category,
-          as: "category",
-          attributes: ["id", "name", "value", "description", "isActive"]
-        }],
-        order: [["categoryId", "ASC"]]
+        order: [["id", "ASC"]]
       });
 
       res.json({

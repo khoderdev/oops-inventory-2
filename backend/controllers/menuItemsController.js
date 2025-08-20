@@ -12,7 +12,7 @@ const menuItemsController = {
           {
             model: Category,
             as: "category",
-            attributes: ["id", "name", "value", "type"],
+            attributes: ["id", "name", "value"],
             required: false
           },
           {
@@ -55,7 +55,7 @@ const menuItemsController = {
           {
             model: Category,
             as: "category",
-            attributes: ["id", "name", "value", "type"],
+            attributes: ["id", "name", "value"],
             required: false
           },
           {
@@ -144,11 +144,11 @@ const menuItemsController = {
           }
         } catch (e) {
           let categoryRecord = await Category.findOne({
-            where: { value: category, type: "menu_items", isActive: true }
+            where: { value: category, isActive: true }
           });
           if (!categoryRecord) {
             categoryRecord = await Category.findOne({
-              where: { name: category, type: "menu_items", isActive: true }
+              where: { name: category, isActive: true }
             });
           }
           if (categoryRecord) {
@@ -159,7 +159,7 @@ const menuItemsController = {
       } else if (typeof category === "number") {
         categoryId = category;
         const categoryRecord = await Category.findByPk(categoryId);
-        if (categoryRecord && categoryRecord.type === "menu_items" && categoryRecord.isActive) {
+        if (categoryRecord && categoryRecord.isActive) {
           categoryValue = categoryRecord.value;
         } else {
         }
@@ -171,7 +171,7 @@ const menuItemsController = {
         });
       }
       const categoryRecord = await Category.findOne({
-        where: { id: categoryId, type: "menu_items", isActive: true }
+        where: { id: categoryId, isActive: true }
       });
       if (!categoryRecord) {
         await transaction.rollback();
@@ -334,7 +334,7 @@ const menuItemsController = {
           {
             model: Category,
             as: "category",
-            attributes: ["id", "name", "value", "type"],
+            attributes: ["id", "name", "value"],
             required: false
           },
           {
@@ -409,11 +409,11 @@ const menuItemsController = {
             }
           } catch (e) {
             let categoryRecord = await Category.findOne({
-              where: { value: category, type: "menu_items", isActive: true }
+              where: { value: category, isActive: true }
             });
             if (!categoryRecord) {
               categoryRecord = await Category.findOne({
-                where: { name: category, type: "menu_items", isActive: true }
+                where: { name: category, isActive: true }
               });
             }
             if (categoryRecord) {
@@ -425,7 +425,7 @@ const menuItemsController = {
         } else if (typeof category === "number") {
           categoryId = category;
           const categoryRecord = await Category.findByPk(categoryId);
-          if (categoryRecord && categoryRecord.type === "menu_items" && categoryRecord.isActive) {
+          if (categoryRecord && categoryRecord.isActive) {
             categoryValue = categoryRecord.value;
           }
         }
@@ -436,7 +436,7 @@ const menuItemsController = {
           });
         }
         const categoryRecord = await Category.findOne({
-          where: { id: categoryId, type: "menu_items", isActive: true }
+          where: { id: categoryId, isActive: true }
         });
         if (!categoryRecord) {
           await transaction.rollback();
@@ -543,7 +543,7 @@ const menuItemsController = {
           {
             model: Category,
             as: "category",
-            attributes: ["id", "name", "value", "type"],
+            attributes: ["id", "name", "value"],
             required: false
           },
           {
@@ -790,7 +790,7 @@ const menuItemsController = {
           {
             model: Category,
             as: "category",
-            attributes: ["id", "name", "value", "type"],
+            attributes: ["id", "name", "value"],
             required: false
           },
           {
@@ -849,7 +849,7 @@ const menuItemsController = {
             {
               model: Category,
               as: "category",
-              attributes: ["id", "name", "value", "type"],
+              attributes: ["id", "name", "value"],
               required: false
             },
             {

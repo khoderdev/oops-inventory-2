@@ -47,7 +47,7 @@ const materialController = {
       queryOptions.include = [{
         model: Category,
         as: "category",
-        attributes: ['id', 'name', 'value', 'type'],
+        attributes: ['id', 'name', 'value'],
         required: false
       }];
 
@@ -199,7 +199,7 @@ const materialController = {
         include: [{
           model: Category,
           as: "category",
-          attributes: ['id', 'name', 'value', 'type']
+          attributes: ['id', 'name', 'value']
         }]
       });
 
@@ -239,7 +239,7 @@ const materialController = {
       if (category && !categoryId) {
         // If category value is provided, find the corresponding categoryId
         const categoryRecord = await Category.findOne({ 
-          where: { value: category, type: 'materials', isActive: true } 
+          where: { value: category, isActive: true } 
         });
         if (categoryRecord) {
           finalCategoryId = categoryRecord.id;
@@ -308,7 +308,7 @@ const materialController = {
       if (category && !categoryId) {
         // If category value is provided, find the corresponding categoryId
         const categoryRecord = await Category.findOne({ 
-          where: { value: category, type: 'materials', isActive: true } 
+          where: { value: category, isActive: true } 
         });
         if (categoryRecord) {
           finalCategoryId = categoryRecord.id;

@@ -45,9 +45,8 @@ const beverageStockController = {
             {
               model: Category,
               as: "category",
-              attributes: ["id", "name", "value", "type"],
+              attributes: ["id", "name", "value"],
               where: {
-                type: "materials",
                 value: {
                   [Op.in]: ["beverages", "cold", "hot", "drinks", "alcohol", "shisha"]
                 }
@@ -110,9 +109,8 @@ const beverageStockController = {
             {
               model: Category,
               as: "category",
-              attributes: ["id", "name", "value", "type"],
+              attributes: ["id", "name", "value"],
               where: {
-                type: "materials",
                 value: {
                   [Op.in]: ["beverages", "cold", "hot", "drinks", "alcohol", "shisha"]
                 }
@@ -147,9 +145,8 @@ const beverageStockController = {
             {
               model: Category,
               as: "category",
-              attributes: ["id", "name", "value", "type"],
+              attributes: ["id", "name", "value"],
               where: {
-                type: "materials",
                 value: {
                   [Op.in]: ["beverages", "cold", "hot", "drinks", "alcohol", "shisha"]
                 }

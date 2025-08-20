@@ -11,20 +11,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { BeverageItemForm } from "./BeverageItemForm";
 import { Plus, Search, Check, X, Square, CheckSquare } from "lucide-react";
-import { toast } from "../ui/use-toast";
 
 interface BeveragesMenuBuilderProps {
   stockEntries: StockEntry[];
   materials: Material[];
   menuItems: MenuItem[];
   categories: Category[];
+  categoriesLoading?: boolean;
+  categoriesError?: string | null;
   sections: Section[];
   onCreateBeverageItem: (data: CreateMenuItemData, imageFile?: File) => void | Promise<void>;
   onUpdateBeverageItem: (id: string, data: Partial<MenuItem>) => void | Promise<void>;
   onDeleteBeverageItem: (id: string) => void | Promise<void>;
 }
 
-const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, stockEntries, materials, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
+const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, categoriesLoading, categoriesError, stockEntries, materials, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
   const [showBeverageItemForm, setShowBeverageItemForm] = useState(false);
@@ -34,23 +35,42 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   const [showVariantDialog, setShowVariantDialog] = useState(false);
   const [currentVariantItem, setCurrentVariantItem] = useState<MenuItem | null>(null);
 
-  // Filter categories for beverages
-  const beverageCategoriesRaw = useMemo(() => {
-    // Check if category type is 'beverages' OR if value matches specific beverage types
-    const filtered = categories.filter(cat => cat.type === "beverages" || ["beverages", "cold", "hot", "alcohol"].includes(cat.value.toLowerCase()));
-    console.log("Filtered beverageCategoriesRaw:", filtered);
+  // Filter categories for beverages only
+  const beverageCategoriesFiltered = useMemo(() => {
+    console.log('📥 BeveragesMenuBuilder: Received categories from TabMenu:', {
+      count: categories?.length || 0,
+      loading: categoriesLoading,
+      error: categoriesError
+    });
+    
+    if (!categories) return [];
+    
+    const filtered = categories.filter(category => 
+      category.categoryTypes?.some(type => type.type === "beverages")
+    );
+    
+    console.log('🍹 BeveragesMenuBuilder: Filtered beverages categories:', {
+      total: categories.length,
+      filtered: filtered.length,
+      categories: filtered.map(cat => ({ 
+        id: cat.id, 
+        name: cat.name, 
+        value: cat.value,
+        types: cat.categoryTypes?.map(ct => ct.type)
+      }))
+    });
     return filtered;
-  }, [categories]);
+  }, [categories, categoriesLoading, categoriesError]);
 
   // Convert Category[] to CategoryOption[] with string IDs for BeverageItemForm
   const beverageCategories = useMemo(() => {
-    const converted = beverageCategoriesRaw.map(cat => ({
+    const converted = beverageCategoriesFiltered.map(cat => ({
       ...cat,
       id: String(cat.id) // Convert number id to string
     }));
     console.log("Converted beverageCategories with string IDs:", converted);
     return converted;
-  }, [beverageCategoriesRaw]);
+  }, [beverageCategoriesFiltered]);
 
   // Filter menu items for beverages
   const beverageBeverageItems = useMemo(() => {
@@ -61,7 +81,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
         } else if (typeof item.category === "object" && item.category?.name) {
           return ["cold", "hot", "alcohol", "beverages"].includes(item.category.name.toLowerCase());
         } else if (typeof item.category === "number") {
-          const categoryObj = categories.find(c => c.id === item.category);
+          const categoryObj = beverageCategoriesFiltered.find(c => c.id === item.category);
           return categoryObj && ["cold", "hot", "alcohol", "beverages"].includes(categoryObj.value.toLowerCase());
         }
         return false;
@@ -69,7 +89,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
 
       return isBeverageCategory;
     });
-  }, [menuItems, categories]);
+  }, [menuItems, beverageCategoriesFiltered]);
 
   const filteredBeverageItems = useMemo(() => {
     return beverageBeverageItems.filter(item => {
@@ -87,10 +107,10 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
         categoryValue = String(item.category.value);
       } else if (typeof item.category === "object" && item.category?.name) {
         // Try to find the category by name
-        const matchingCategory = beverageCategoriesRaw.find(c => c.name.toLowerCase() === item.category.name.toLowerCase());
+        const matchingCategory = beverageCategoriesFiltered.find(c => c.name.toLowerCase() === item.category.name.toLowerCase());
         categoryValue = matchingCategory?.value;
       } else if (typeof item.category === "number") {
-        const categoryObj = categories.find(c => c.id === item.category);
+        const categoryObj = beverageCategoriesFiltered.find(c => c.id === item.category);
         categoryValue = categoryObj?.value;
       }
 
@@ -98,7 +118,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
 
       return matchesSearch && categoryValue === selectedCategory;
     });
-  }, [beverageBeverageItems, searchTerm, selectedCategory, categories, beverageCategoriesRaw]);
+  }, [beverageBeverageItems, searchTerm, selectedCategory, beverageCategoriesFiltered]);
 
   const columnHelper = createColumnHelper<MenuItem>();
 
@@ -124,7 +144,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
           } else if (typeof row.category === "object" && row.category?.name) {
             return row.category.name;
           } else if (typeof row.category === "number") {
-            const categoryObj = categories.find(c => c.id === row.category);
+            const categoryObj = beverageCategoriesFiltered.find(c => c.id === row.category);
             return categoryObj?.value || "Unknown";
           }
           return "Unknown";
@@ -292,7 +312,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                 {selectedCategory !== "all" && (
                   <span className="block sm:inline">
                     {" "}
-                    in <span className="font-medium">{beverageCategoriesRaw.find(c => c.value === selectedCategory)?.name}</span>
+                    in <span className="font-medium">{beverageCategoriesFiltered.find(c => c.value === selectedCategory)?.name}</span>
                   </span>
                 )}
               </div>
@@ -345,12 +365,12 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                   stockEntries={stockEntries}
                   onSubmit={
                     editingBeverageItem
-                      ? (data, imageFile) => {
+                      ? (data) => {
                           onUpdateBeverageItem(editingBeverageItem.id, data);
                           handleCloseModal();
                         }
-                      : (data, imageFile) => {
-                          onCreateBeverageItem(data, imageFile);
+                      : (data) => {
+                          onCreateBeverageItem(data);
                           handleCloseModal();
                         }
                   }

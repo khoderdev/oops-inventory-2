@@ -152,7 +152,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
   // Render table view for desktop
   const renderDesktopTableView = () => {
     return (
-      <div className="h-[calc(100vh-220px)] w-full flex flex-col overflow-y-hidden">
+      <div className="h-[calc(100vh-270px)] w-full flex flex-col overflow-y-hidden">
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="categories">
             {provided => (
