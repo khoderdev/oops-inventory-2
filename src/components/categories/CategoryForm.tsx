@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { CategoryFormProps, CategoryFormData, CategoryType, CategoryTypeEntity } from "@/types/categories";
+import { CategoryFormProps, CategoryFormData, CategoryTypeEntity, TypeMultiSelectProps } from "@/types/categories";
 import { Loader2, Save, X, Check, ChevronsUpDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -13,28 +13,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-// TypeMultiSelect Component
-interface TypeMultiSelectProps {
-  selectedTypeIds: number[];
-  availableTypes: CategoryTypeEntity[];
-  onSelectionChange: (typeIds: number[]) => void;
-  loading: boolean;
-  error?: string;
-}
-
 function TypeMultiSelect({ selectedTypeIds, availableTypes, onSelectionChange, loading, error }: TypeMultiSelectProps) {
   const [open, setOpen] = useState(false);
-
-  // Ensure arrays are defined with fallbacks
   const safeSelectedTypeIds = selectedTypeIds || [];
   const safeAvailableTypes = availableTypes || [];
 
   const handleSelect = (typeId: number) => {
     if (safeSelectedTypeIds.includes(typeId)) {
-      // Remove type if already selected
       onSelectionChange(safeSelectedTypeIds.filter(id => id !== typeId));
     } else {
-      // Add type if not selected
       onSelectionChange([...safeSelectedTypeIds, typeId]);
     }
   };
@@ -47,17 +34,7 @@ function TypeMultiSelect({ selectedTypeIds, availableTypes, onSelectionChange, l
     <div className="space-y-2">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className={cn(
-              "w-full justify-between",
-              error ? "border-red-500" : "",
-              safeSelectedTypeIds.length === 0 ? "text-muted-foreground" : ""
-            )}
-            disabled={loading}
-          >
+          <Button variant="outline" role="combobox" aria-expanded={open} className={cn("w-full justify-between", error ? "border-red-500" : "", safeSelectedTypeIds.length === 0 ? "text-muted-foreground" : "")} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -66,7 +43,7 @@ function TypeMultiSelect({ selectedTypeIds, availableTypes, onSelectionChange, l
             ) : safeSelectedTypeIds.length === 0 ? (
               "Select category types..."
             ) : (
-              `${safeSelectedTypeIds.length} type${safeSelectedTypeIds.length > 1 ? 's' : ''} selected`
+              `${safeSelectedTypeIds.length} type${safeSelectedTypeIds.length > 1 ? "s" : ""} selected`
             )}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -76,38 +53,28 @@ function TypeMultiSelect({ selectedTypeIds, availableTypes, onSelectionChange, l
             <CommandInput placeholder="Search types..." />
             <CommandEmpty>No types found.</CommandEmpty>
             <CommandGroup>
-              {safeAvailableTypes.filter(typeEntity => typeEntity && typeEntity.type && typeEntity.type.trim() !== "").map((typeEntity) => (
-                <CommandItem
-                  key={typeEntity.id}
-                  value={typeEntity.type}
-                  onSelect={() => handleSelect(typeEntity.id)}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      safeSelectedTypeIds.includes(typeEntity.id) ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {getTypeLabel(typeEntity.type)}
-                </CommandItem>
-              ))}
+              {safeAvailableTypes
+                .filter(typeEntity => typeEntity && typeEntity.type && typeEntity.type.trim() !== "")
+                .map(typeEntity => (
+                  <CommandItem key={typeEntity.id} value={typeEntity.type} onSelect={() => handleSelect(typeEntity.id)}>
+                    <Check className={cn("mr-2 h-4 w-4", safeSelectedTypeIds.includes(typeEntity.id) ? "opacity-100" : "opacity-0")} />
+                    {getTypeLabel(typeEntity.type)}
+                  </CommandItem>
+                ))}
             </CommandGroup>
           </Command>
         </PopoverContent>
       </Popover>
-      
+
       {/* Selected Types Display */}
       {safeSelectedTypeIds.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {safeSelectedTypeIds.map((typeId) => {
+          {safeSelectedTypeIds.map(typeId => {
             const typeEntity = safeAvailableTypes.find(t => t.id === typeId);
             return typeEntity ? (
               <Badge key={typeId} variant="secondary" className="flex items-center gap-1">
                 {getTypeLabel(typeEntity.type)}
-                <X 
-                  className="h-3 w-3 cursor-pointer hover:text-red-500" 
-                  onClick={() => removeType(typeId)}
-                />
+                <X className="h-3 w-3 cursor-pointer hover:text-red-500" onClick={() => removeType(typeId)} />
               </Badge>
             ) : null;
           })}
@@ -124,7 +91,7 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
     categoryTypeIds: [],
     description: "",
     isActive: true,
-    sortOrder: 0,
+    sortOrder: 0
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [availableTypes, setAvailableTypes] = useState<CategoryTypeEntity[]>([]);
@@ -177,7 +144,7 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
 
   const handleNameChange = (name: string) => {
     if (name === undefined || name === null) return;
-    
+
     const generatedValue = name
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "_")
@@ -219,14 +186,14 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
       });
       return;
     }
-    
+
     // For updates, don't send value if name changed - let backend auto-generate
     const submitData = { ...formData };
     if (category && category.name !== formData.name) {
       // Name changed during edit, remove value to trigger auto-generation
       delete (submitData as any).value;
     }
-    
+
     onSubmit(submitData);
   };
 
@@ -236,13 +203,7 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
         {/* Name */}
         <div className="space-y-2">
           <Label htmlFor="name">Name *</Label>
-          <Input 
-            id="name" 
-            value={formData.name || ""} 
-            onChange={e => handleNameChange(e.target.value)} 
-            placeholder="e.g., Meat & Poultry" 
-            className={errors.name ? "border-red-500" : ""} 
-          />
+          <Input id="name" value={formData.name || ""} onChange={e => handleNameChange(e.target.value)} placeholder="e.g., Meat & Poultry" className={errors.name ? "border-red-500" : ""} />
           {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
         </div>
       </div>
@@ -251,13 +212,7 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
         {/* Types - Multi Select */}
         <div className="space-y-2">
           <Label htmlFor="categoryTypeIds">Types *</Label>
-          <TypeMultiSelect
-            selectedTypeIds={formData.categoryTypeIds || []}
-            availableTypes={availableTypes || []}
-            onSelectionChange={(typeIds) => setFormData(prev => ({ ...prev, categoryTypeIds: typeIds || [] }))}
-            loading={typesLoading}
-            error={errors.categoryTypeIds}
-          />
+          <TypeMultiSelect selectedTypeIds={formData.categoryTypeIds || []} availableTypes={availableTypes || []} onSelectionChange={typeIds => setFormData(prev => ({ ...prev, categoryTypeIds: typeIds || [] }))} loading={typesLoading} error={errors.categoryTypeIds} />
           {errors.categoryTypeIds && <p className="text-sm text-red-500">{errors.categoryTypeIds}</p>}
         </div>
 
@@ -283,11 +238,7 @@ export function CategoryForm({ category, onSubmit, onCancel, loading = false }: 
 
       {/* Active Status */}
       <div className="flex items-center space-x-2">
-        <Switch 
-          id="isActive" 
-          checked={formData.isActive ?? true} 
-          onCheckedChange={checked => setFormData(prev => ({ ...prev, isActive: checked }))} 
-        />
+        <Switch id="isActive" checked={formData.isActive ?? true} onCheckedChange={checked => setFormData(prev => ({ ...prev, isActive: checked }))} />
         <Label htmlFor="isActive">Active</Label>
         <p className="text-sm text-muted-foreground">Inactive categories won't appear in dropdowns</p>
       </div>

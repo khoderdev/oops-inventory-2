@@ -151,7 +151,6 @@ export interface BulkDeleteRequest {
   ids: number[];
 }
 
-
 export interface CategoryModalProps {
   showForm: boolean;
   setShowForm: (show: boolean) => void;
@@ -159,4 +158,25 @@ export interface CategoryModalProps {
   handleFormSubmit: (formData: CategoryFormData) => void;
   handleFormCancel: () => void;
   formLoading: boolean;
+}
+
+export interface CategoryTypeProps {
+  onCategoryTypeChange?: () => void;
+}
+
+export interface CategoryTypeFormProps {
+  categoryType?: CategoryTypeEntity;
+  onSave: (data: CategoryTypeFormData) => Promise<void>;
+  onCancel: () => void;
+  isLoading: boolean;
+}
+
+
+// TypeMultiSelect Component
+export interface TypeMultiSelectProps {
+  selectedTypeIds: number[];
+  availableTypes: CategoryTypeEntity[];
+  onSelectionChange: (typeIds: number[]) => void;
+  loading: boolean;
+  error?: string;
 }

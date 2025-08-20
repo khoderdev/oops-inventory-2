@@ -4,33 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { CategoryTypeEntity, CategoryTypeFormData, CategoryTypeFilters } from "@/types/categories";
+import { CategoryTypeEntity, CategoryTypeFormData, CategoryTypeFilters, CategoryTypeFormProps, CategoryTypeProps } from "@/types/categories";
 import { getCategoryTypes, createCategoryType, updateCategoryType, deleteCategoryType, bulkDeleteCategoryTypes } from "@/api/categories.api";
-import { Edit, Trash2, Plus, Search, Package2, CheckSquare, Square } from "lucide-react";
-
-interface CategoryTypeProps {
-  onCategoryTypeChange?: () => void;
-}
-
-interface CategoryTypeFormProps {
-  categoryType?: CategoryTypeEntity;
-  onSave: (data: CategoryTypeFormData) => Promise<void>;
-  onCancel: () => void;
-  isLoading: boolean;
-}
+import { Edit, Trash2, Plus, Search, Package2 } from "lucide-react";
 
 // CategoryType Form Component
-const CategoryTypeForm: React.FC<CategoryTypeFormProps> = ({
-  categoryType,
-  onSave,
-  onCancel,
-  isLoading
-}) => {
+const CategoryTypeForm: React.FC<CategoryTypeFormProps> = ({ categoryType, onSave, onCancel, isLoading }) => {
   const [formData, setFormData] = useState<CategoryTypeFormData>({
     type: categoryType?.type || "",
     ...(categoryType?.categoryId && { categoryId: categoryType.categoryId })
@@ -49,7 +31,6 @@ const CategoryTypeForm: React.FC<CategoryTypeFormProps> = ({
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.type.trim()) {
       newErrors.type = "Type is required";
     } else if (formData.type.length < 2) {
@@ -57,25 +38,20 @@ const CategoryTypeForm: React.FC<CategoryTypeFormProps> = ({
     } else if (formData.type.length > 50) {
       newErrors.type = "Type must be less than 50 characters";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
     try {
-      // Clean form data - remove null/undefined categoryId for new category types
       const cleanFormData: CategoryTypeFormData = {
         type: formData.type,
         ...(formData.categoryId && { categoryId: formData.categoryId })
       };
-      
       await onSave(cleanFormData);
     } catch (error) {
       console.error("Form submission error:", error);
@@ -84,7 +60,6 @@ const CategoryTypeForm: React.FC<CategoryTypeFormProps> = ({
 
   const handleInputChange = (field: keyof CategoryTypeFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
@@ -94,18 +69,9 @@ const CategoryTypeForm: React.FC<CategoryTypeFormProps> = ({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="type">Type *</Label>
-        <Input
-          id="type"
-          value={formData.type}
-          onChange={(e) => handleInputChange("type", e.target.value)}
-          placeholder="e.g., materials, menu_items, beverages"
-          className={errors.type ? "border-red-500" : ""}
-          disabled={isLoading}
-        />
+        <Input id="type" value={formData.type} onChange={e => handleInputChange("type", e.target.value)} placeholder="e.g., materials, menu_items, beverages" className={errors.type ? "border-red-500" : ""} disabled={isLoading} />
         {errors.type && <p className="text-sm text-red-500">{errors.type}</p>}
-        <p className="text-sm text-muted-foreground">
-          Enter a unique type identifier (lowercase, underscores allowed)
-        </p>
+        <p className="text-sm text-muted-foreground">Enter a unique type identifier (lowercase, underscores allowed)</p>
       </div>
 
       <DialogFooter>
@@ -129,7 +95,6 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCategoryType, setEditingCategoryType] = useState<CategoryTypeEntity | undefined>();
-  
   const { toast } = useToast();
 
   // Load category types
@@ -140,7 +105,6 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
       if (searchTerm.trim()) {
         filters.type = searchTerm.trim();
       }
-      
       const response = await getCategoryTypes(filters);
       setCategoryTypes(response.totalItems);
     } catch (error: any) {
@@ -164,7 +128,6 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
   const handleSave = async (formData: CategoryTypeFormData) => {
     try {
       setFormLoading(true);
-      
       if (editingCategoryType) {
         await updateCategoryType(editingCategoryType.id, formData);
         toast({
@@ -175,12 +138,11 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
       } else {
         await createCategoryType(formData);
         toast({
-          title: "Success", 
+          title: "Success",
           description: "Category type created successfully",
           duration: 2000
         });
       }
-      
       setIsFormOpen(false);
       setEditingCategoryType(undefined);
       await loadCategoryTypes();
@@ -223,7 +185,7 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
   // Handle bulk delete
   const handleBulkDelete = async () => {
     if (selectedItems.size === 0) return;
-    
+
     try {
       await bulkDeleteCategoryTypes({ ids: Array.from(selectedItems) });
       toast({
@@ -283,9 +245,7 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
     }
   };
 
-  const filteredCategoryTypes = categoryTypes.filter(ct =>
-    ct.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCategoryTypes = categoryTypes.filter(ct => ct.type.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const allSelected = filteredCategoryTypes.length > 0 && selectedItems.size === filteredCategoryTypes.length;
   const someSelected = selectedItems.size > 0 && selectedItems.size < filteredCategoryTypes.length;
@@ -313,18 +273,13 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
             <Package2 className="h-5 w-5" />
             Category Types ({filteredCategoryTypes.length})
           </CardTitle>
-          
+
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search types..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-64"
-              />
+              <Input placeholder="Search types..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 w-full sm:w-64" />
             </div>
-            
+
             {selectedItems.size > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -336,10 +291,7 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Category Types</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete {selectedItems.size} category type(s)? 
-                      This action cannot be undone and may affect existing categories.
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>Are you sure you want to delete {selectedItems.size} category type(s)? This action cannot be undone and may affect existing categories.</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -350,7 +302,7 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            
+
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
               <DialogTrigger asChild>
                 <Button onClick={handleCreateNew}>
@@ -360,22 +312,10 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>
-                    {editingCategoryType ? "Edit Category Type" : "Create Category Type"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {editingCategoryType 
-                      ? "Update the category type information below."
-                      : "Create a new category type to organize your categories."
-                    }
-                  </DialogDescription>
+                  <DialogTitle>{editingCategoryType ? "Edit Category Type" : "Create Category Type"}</DialogTitle>
+                  <DialogDescription>{editingCategoryType ? "Update the category type information below." : "Create a new category type to organize your categories."}</DialogDescription>
                 </DialogHeader>
-                <CategoryTypeForm
-                  categoryType={editingCategoryType}
-                  onSave={handleSave}
-                  onCancel={handleFormCancel}
-                  isLoading={formLoading}
-                />
+                <CategoryTypeForm categoryType={editingCategoryType} onSave={handleSave} onCancel={handleFormCancel} isLoading={formLoading} />
               </DialogContent>
             </Dialog>
           </div>
@@ -386,44 +326,44 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
         {filteredCategoryTypes.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Package2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>
-              {searchTerm ? "No category types found matching your search." : "No category types available. Create your first category type to get started."}
-            </p>
+            <p>{searchTerm ? "No category types found matching your search." : "No category types available. Create your first category type to get started."}</p>
           </div>
         ) : (
           <div className="space-y-4">
             {/* Select All Header */}
             <div className="flex items-center gap-2 pb-2 border-b">
-              <Checkbox
+              <input
+                type="checkbox"
                 checked={allSelected}
-                ref={(el) => {
-                  if (el) (el as any).indeterminate = someSelected;
+                ref={el => {
+                  if (el) el.indeterminate = someSelected;
                 }}
-                onCheckedChange={handleSelectAll}
+                onChange={e => handleSelectAll(e.target.checked)}
+                className="w-4 h-4"
               />
-              <span className="text-sm font-medium">
-                {selectedItems.size > 0 ? `${selectedItems.size} selected` : "Select all"}
-              </span>
+              <span className="text-sm font-medium">{selectedItems.size > 0 ? `${selectedItems.size} selected` : "Select all"}</span>
             </div>
 
             {/* Category Types List */}
             <div className="grid gap-3">
-              {filteredCategoryTypes.map((categoryType) => (
+              {filteredCategoryTypes.map(categoryType => (
                 <div
                   key={categoryType.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={(e) => {
+                  onClick={e => {
                     // Don't trigger selection if clicking on action buttons
-                    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="dialog"]')) {
+                    if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest('[role="dialog"]')) {
                       return;
                     }
                     handleItemSelect(categoryType.id, !selectedItems.has(categoryType.id));
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <Checkbox
+                    <input
+                      type="checkbox"
                       checked={selectedItems.has(categoryType.id)}
-                      onCheckedChange={(checked) => handleItemSelect(categoryType.id, checked as boolean)}
+                      onChange={e => handleItemSelect(categoryType.id, e.target.checked)}
+                      className="w-4 h-4"
                     />
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
@@ -431,21 +371,15 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
                           {categoryType.type}
                         </Badge>
                       </div>
-                      <span className="text-xs text-muted-foreground mt-1">
-                        Created: {new Date(categoryType.createdAt).toLocaleDateString()}
-                      </span>
+                      <span className="text-xs text-muted-foreground mt-1">Created: {new Date(categoryType.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEdit(categoryType)}
-                    >
+                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(categoryType)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    
+
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
@@ -455,17 +389,11 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete Category Type</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete the category type "{categoryType.type}"? 
-                            This action cannot be undone and may affect existing categories using this type.
-                          </AlertDialogDescription>
+                          <AlertDialogDescription>Are you sure you want to delete the category type "{categoryType.type}"? This action cannot be undone and may affect existing categories using this type.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => handleDelete(categoryType.id)} 
-                            className="bg-red-600 hover:bg-red-700"
-                          >
+                          <AlertDialogAction onClick={() => handleDelete(categoryType.id)} className="bg-red-600 hover:bg-red-700">
                             Delete
                           </AlertDialogAction>
                         </AlertDialogFooter>
