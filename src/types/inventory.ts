@@ -1053,6 +1053,18 @@ export interface WasteFromEntryTabProps {
   onCancel: () => void;
 }
 
+export interface AddToEntryTabProps {
+  form: UseFormReturn<StockFormInputs>;
+  materials: Material[];
+  availableUnits: string[];
+  selectedMaterial: Material | undefined;
+  watchedQuantity: string;
+  watchedCostPerUnit: string; 
+  stockEntry: StockEntry | undefined;
+  onAddToSpecificEntry: (data: StockFormData & { stockEntryId: string }) => void;
+  onCancel: () => void;
+}
+
 //-----------------------------------------------------------------------------
 
 export interface ReportConfig {

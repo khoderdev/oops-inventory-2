@@ -5,47 +5,45 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Material, StockEntry, StockFormData, StockFormInputs } from "@/types/inventory";
+import { AddToEntryTabProps, Material, StockFormData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { CalendarIcon, Minus, Package, Plus, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
-import { UseFormReturn } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
 import { Calendar } from "@/components/ui/calendar";
-
-interface AddToEntryTabProps {
-  form: UseFormReturn<StockFormInputs>;
-  materials: Material[];
-  availableUnits: string[];
-  selectedMaterial: Material | undefined;
-  watchedQuantity: string;
-  watchedCostPerUnit: string;
-  stockEntry: StockEntry | undefined;
-  onAddToSpecificEntry: (data: StockFormData & { stockEntryId: string }) => void;
-  onCancel: () => void;
-}
 
 export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const watchedUnit = form.watch("purchasedUnit");
 
-  // Set default costPerPurchasedUnit based on unit and material
   useEffect(() => {
     if (selectedMaterial && stockEntry) {
       const packageCost = typeof selectedMaterial.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial.costPerUnit || 0;
       const stockEntryCost = typeof stockEntry.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry.costPerPurchasedUnit || 0;
-
       let defaultCost: number;
-      if (selectedMaterial.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && selectedMaterial.packageQuantity) {
-        // For bottle/piece units, use the stock entry's cost per box divided by package quantity
+      
+      // Handle gram to kilogram conversion
+      if (watchedUnit === "g" && selectedMaterial.inputUnit === "kg") {
+        // Convert kg cost to g cost (divide by 1000)
+        const kgCost = stockEntryCost > 0 ? stockEntryCost : packageCost;
+        defaultCost = kgCost / 1000;
+        console.log("🔄 Converting kg cost to g cost:", { kgCost, gCost: defaultCost });
+        form.clearErrors("costPerPurchasedUnit");
+      }
+      // Handle piece or bottle in package
+      else if (selectedMaterial.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && selectedMaterial.packageQuantity) {
         defaultCost = stockEntryCost > 0 ? stockEntryCost / selectedMaterial.packageQuantity : packageCost / selectedMaterial.packageQuantity;
-        form.clearErrors("costPerPurchasedUnit"); // Clear errors when switching to piece or bottle
-      } else if (selectedMaterial.unitType === "package" && watchedUnit === selectedMaterial.inputUnit) {
+        form.clearErrors("costPerPurchasedUnit");
+      } 
+      // Handle same unit as material input unit
+      else if (selectedMaterial.unitType === "package" && watchedUnit === selectedMaterial.inputUnit) {
         defaultCost = stockEntryCost || packageCost;
-      } else {
+      } 
+      // Default case
+      else {
         defaultCost = stockEntryCost || packageCost || 0;
       }
-
+      
       if (defaultCost > 0) {
         form.setValue("costPerPurchasedUnit", formatCleanNumber(defaultCost));
       } else {
@@ -54,16 +52,13 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
     }
   }, [watchedUnit, selectedMaterial, stockEntry, form]);
 
-  // Calculate totalCost
   useEffect(() => {
     const currentCost = parseFloat(watchedCostPerUnit) || 0;
     const quantity = parseFloat(watchedQuantity) || 0;
     if (selectedMaterial && !isNaN(currentCost) && !isNaN(quantity)) {
-      // Calculate total cost
-      const totalCost = parseFloat((currentCost * quantity).toFixed(6));
-      form.setValue("totalCost", totalCost.toFixed(6));
-
-      // Validate cost for non-piece/non-bottle units
+      // Calculate total cost and format as string with 2 decimal places
+      const calculatedTotal = currentCost * quantity;
+      form.setValue("totalCost", calculatedTotal.toString());
       if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && watchedUnit !== "bottle" && selectedMaterial.inputUnit === watchedUnit) {
         const packageCost = typeof selectedMaterial.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial.costPerUnit || 0;
         if (packageCost > 0 && Math.abs(currentCost - packageCost) / packageCost > 0.5) {
@@ -84,98 +79,122 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   }, [watchedCostPerUnit, watchedQuantity, watchedUnit, selectedMaterial, form]);
 
   const handleSubmit = async () => {
-    console.log("🚀 AddToEntryTab handleSubmit called!");
-    
-    // Prevent multiple submissions
     if (isSubmitting) {
       console.log("⏳ Already submitting, ignoring duplicate request");
       return;
     }
-    
     setIsSubmitting(true);
-    
     try {
-      // Get current form values
       const data = form.getValues();
       console.log("📝 Current form values:", data);
-    
-    // Validate only the fields we need for adding to entry (skip waste fields)
-    const fieldsToValidate = [
-      'materialId',
-      'supplier', 
-      'purchasedQuantity',
-      'purchasedUnit',
-      'costPerPurchasedUnit',
-      'totalCost'
-    ];
-    
-    console.log("🔍 Validating specific fields:", fieldsToValidate);
-    const isValid = await form.trigger(fieldsToValidate as (keyof StockFormInputs)[]);
-    console.log("🔍 Validation result:", isValid);
-    console.log("🔍 Errors after validation:", form.formState.errors);
-    
-    if (!isValid) {
-      console.log("❌ Validation failed, not submitting");
-      return;
-    }
-    
-    const formData = data as unknown as StockFormData;
-    
-    // Parse and validate quantities
-    const additionalQuantity = parseFloat(data.purchasedQuantity);
-    const costPerPurchasedUnit = parseFloat(data.costPerPurchasedUnit);
-    const totalCost = parseFloat(data.totalCost);
-    
-    // Additional validation to prevent sending invalid data
-    if (isNaN(additionalQuantity) || additionalQuantity <= 0) {
-      console.error("❌ Invalid additional quantity:", { purchasedQuantity: data.purchasedQuantity, additionalQuantity });
-      form.setError("purchasedQuantity", {
-        type: "manual",
-        message: "Additional quantity must be a positive number"
+      console.log("🔍 Form value types:", {
+        materialId: typeof data.materialId,
+        supplier: typeof data.supplier,
+        purchasedQuantity: typeof data.purchasedQuantity,
+        purchasedUnit: typeof data.purchasedUnit,
+        costPerPurchasedUnit: typeof data.costPerPurchasedUnit,
+        totalCost: typeof data.totalCost,
+        totalCostValue: data.totalCost
       });
-      return;
-    }
-    
-    if (!data.purchasedUnit) {
-      console.error("❌ Missing unit:", { purchasedUnit: data.purchasedUnit });
-      form.setError("purchasedUnit", {
-        type: "manual",
-        message: "Unit is required"
+      
+      // Get form errors before validation
+      const formErrors = form.formState.errors;
+      console.log("⚠️ Current form errors before validation:", formErrors);
+      
+      // Convert materialId to string before validation
+      if (typeof data.materialId === 'number') {
+        form.setValue("materialId", String(data.materialId));
+      }
+      
+      const fieldsToValidate = ["materialId", "supplier", "purchasedQuantity", "purchasedUnit", "costPerPurchasedUnit", "totalCost"];
+      const isValid = await form.trigger(fieldsToValidate as (keyof StockFormInputs)[]);
+      
+      // Get form errors after validation
+      const formErrorsAfter = form.formState.errors;
+      console.log("⚠️ Form errors after validation:", formErrorsAfter);
+      
+      if (!isValid) {
+        console.log("❌ Validation failed, not submitting");
+        console.log("🧪 Schema validation details:", { 
+          totalCost: {
+            value: data.totalCost,
+            type: typeof data.totalCost,
+            parsed: parseFloat(data.totalCost),
+            isNaN: isNaN(parseFloat(data.totalCost))
+          }
+        });
+        return;
+      }
+      const additionalQuantity = parseFloat(data.purchasedQuantity);
+      const costPerPurchasedUnit = parseFloat(data.costPerPurchasedUnit);
+      // Always parse totalCost as a number for consistency
+      const totalCost = parseFloat(data.totalCost);
+      if (isNaN(additionalQuantity) || additionalQuantity <= 0) {
+        console.error("❌ Invalid additional quantity:", { purchasedQuantity: data.purchasedQuantity, additionalQuantity });
+        form.setError("purchasedQuantity", {
+          type: "manual",
+          message: "Additional quantity must be a positive number"
+        });
+        return;
+      }
+      if (!data.purchasedUnit) {
+        console.error("❌ Missing unit:", { purchasedUnit: data.purchasedUnit });
+        form.setError("purchasedUnit", {
+          type: "manual",
+          message: "Unit is required"
+        });
+        return;
+      }
+      if (!stockEntry?.id) {
+        console.error("❌ No stock entry ID available");
+        form.setError("materialId", {
+          type: "manual",
+          message: "Stock entry is required"
+        });
+        return;
+      }
+      // Log the parsed values for debugging
+      console.log("🔢 Parsed numeric values:", {
+        additionalQuantity,
+        costPerPurchasedUnit,
+        totalCost,
+        isNaN_totalCost: isNaN(totalCost)
       });
-      return;
-    }
-    
-    if (!stockEntry?.id) {
-      console.error("❌ No stock entry ID available");
-      form.setError("materialId", {
-        type: "manual",
-        message: "Stock entry is required"
+      
+      // Create a properly typed object for submission
+      const specificEntryData = {
+        // Convert materialId to string to match schema expectation
+        materialId: String(data.materialId),
+        supplier: data.supplier,
+        purchasedQuantity: additionalQuantity,
+        purchasedUnit: data.purchasedUnit,
+        costPerPurchasedUnit: isNaN(costPerPurchasedUnit) ? 0 : costPerPurchasedUnit,
+        // Convert to string then back to number to ensure proper type
+        totalCost: isNaN(totalCost) ? 0 : Number(totalCost),
+        purchaseDate: data.purchaseDate,
+        expiryDate: data.expiryDate,
+        batchNumber: data.batchNumber,
+        notes: data.notes,
+        stockEntryId: stockEntry.id
+      };
+      
+      console.log("🧩 Final submission object types:", {
+        materialId: typeof specificEntryData.materialId,
+        supplier: typeof specificEntryData.supplier,
+        purchasedQuantity: typeof specificEntryData.purchasedQuantity,
+        purchasedUnit: typeof specificEntryData.purchasedUnit,
+        costPerPurchasedUnit: typeof specificEntryData.costPerPurchasedUnit,
+        totalCost: typeof specificEntryData.totalCost,
+        totalCostValue: specificEntryData.totalCost
       });
-      return;
-    }
-
-    const specificEntryData = {
-      ...formData,
-      stockEntryId: stockEntry.id,
-      additionalQuantity,
-      unit: data.purchasedUnit,
-      costPerPurchasedUnit: isNaN(costPerPurchasedUnit) ? 0 : costPerPurchasedUnit,
-      totalCost: isNaN(totalCost) ? 0 : totalCost
-    };
-    console.log("📤 Calling onAddToSpecificEntry with:", specificEntryData);
-    await onAddToSpecificEntry(specificEntryData);
+      console.log("📤 Calling onAddToSpecificEntry with:", JSON.stringify(specificEntryData, null, 2));
+      await onAddToSpecificEntry(specificEntryData);
     } catch (error) {
       console.error("❌ Error adding to specific entry:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  console.log("📌 AddToEntryTab is rendering! This should be the ADD TO ENTRY tab, not waste!");
-  console.log("📌 Stock Entry:", stockEntry);
-  console.log("📌 Selected Material:", selectedMaterial);
-  
-  // Guard clause: If no stock entry, show error message
   if (!stockEntry) {
     return (
       <div className="space-y-6">
@@ -186,9 +205,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
             </div>
             <h3 className="text-lg font-semibold text-red-800">No Stock Entry Selected</h3>
           </div>
-          <p className="text-sm text-red-700 mb-4">
-            Please select a stock entry from the table to add additional quantity to it.
-          </p>
+          <p className="text-sm text-red-700 mb-4">Please select a stock entry from the table to add additional quantity to it.</p>
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>
               Go Back
@@ -198,7 +215,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="bg-green-50 border border-green-200 rounded-xl p-4">
@@ -209,7 +226,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
           <h3 className="text-lg font-semibold text-green-800">Add Quantity to This Entry</h3>
         </div>
         <p className="text-sm text-green-700 mb-4">
-          Current stock: <strong>{stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}` : `${stockEntry?.purchasedQuantity || 0} ${stockEntry?.purchasedUnit || 'units'}`}</strong>. Add additional quantity to this specific entry.
+          Current stock: <strong>{stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}` : `${stockEntry?.purchasedQuantity || 0} ${stockEntry?.purchasedUnit || "units"}`}</strong>. Add additional quantity to this specific entry.
           {selectedMaterial?.unitType === "package" && selectedMaterial?.packageQuantity && (
             <span className="block text-xs text-green-600 mt-1">
               ({selectedMaterial.packageQuantity} {selectedMaterial.baseUnit} per {selectedMaterial.inputUnit})
@@ -310,7 +327,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     </div>
                   </FormControl>
                   <p className="text-xs text-green-600 mt-1">
-                    This will be added to the existing {stockEntry?.purchasedQuantity || 0} {stockEntry?.purchasedUnit || 'units'}
+                    This will be added to the existing {stockEntry?.purchasedQuantity || 0} {stockEntry?.purchasedUnit || "units"}
                     {selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && <span className="block text-xs text-green-600 mt-1">Individual {watchedUnit} quantities are allowed</span>}
                   </p>
                   <FormMessage />
@@ -427,12 +444,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button 
-              type="button" 
-              className="bg-green-600 hover:bg-green-700 text-white" 
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-            >
+            <Button type="button" className="bg-green-600 hover:bg-green-700 text-white" onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />

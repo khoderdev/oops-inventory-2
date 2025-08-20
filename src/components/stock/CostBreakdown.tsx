@@ -2,7 +2,7 @@ import { PackageUnit, PackagedGood } from "@/types/conversion";
 import { Material } from "@/types/inventory";
 import { calculatePackagedGoodCost } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
-import { formatCleanCurrency } from "@/utils/numberFormatting";
+import { formatCleanCurrency, formatCleanNumber } from "@/utils/numberFormatting";
 import { Calculator, DollarSign, Package } from "lucide-react";
 import { Badge } from "../ui/badge";
 
@@ -136,7 +136,9 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
               <DollarSign className="h-4 w-4 text-orange-600" />
               <span className="text-sm font-medium text-gray-600">Cost per {selectedMaterial.baseUnit}</span>
             </div>
-            <p className="text-xl font-bold text-gray-800">{formatCurrency(costPerBaseUnit)}</p>
+            <p className="text-xl font-bold text-gray-800">
+              {formatCurrency(costPerBaseUnit, selectedMaterial.baseUnit === "g" ? 6 : 2)}
+            </p>
           </div>
         )}
       </div>
