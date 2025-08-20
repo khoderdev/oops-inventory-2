@@ -35,13 +35,9 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
       const searchLower = searchTerm.toLowerCase();
       const matchesName = material.name.toLowerCase().includes(searchLower);
       const matchesSearch = searchTerm === "" || matchesName;
-      
-      // Handle category filtering with different data formats
       const matchesCategory = categoryFilter === "all" || (() => {
         const materialCategoryId = (material as any).categoryId;
         const categoryInfo = categories.find(c => c.id === materialCategoryId || c.value === material.category);
-        
-        // Check if category matches by value
         if (typeof material.category === 'string') {
           return material.category === categoryFilter;
         } else if (typeof material.category === 'object' && material.category !== null && 'value' in material.category) {
@@ -49,10 +45,8 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
         } else if (categoryInfo) {
           return categoryInfo.value === categoryFilter;
         }
-        
         return false;
       })();
-
       return matchesSearch && matchesCategory;
     });
   }, [filteredMaterials, searchTerm, categoryFilter, categories]);
@@ -149,7 +143,6 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
       } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
         setShowFloatingButton(false);
       }
-
       setLastScrollY(currentScrollY);
     };
 
@@ -201,8 +194,6 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
           const category = getValue();
           const materialCategoryId = (row.original as any).categoryId;
           const categoryInfo = categories.find(c => c.id === materialCategoryId || c.value === category);
-          
-          // If no category value, show a placeholder
           if (!category && !materialCategoryId) {
             return (
               <Badge variant="outline" className="text-xs font-medium bg-gray-100 text-gray-500 border-gray-200">
@@ -210,7 +201,6 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
               </Badge>
             );
           }
-
           return (
             <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryInfo?.value || category)}`}>
               {categoryInfo?.name || category}
