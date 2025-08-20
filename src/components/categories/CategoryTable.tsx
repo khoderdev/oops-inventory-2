@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { CategoriesTableProps } from "@/types/categories";
+import { CategoriesTableProps, CategoryTypeEntity } from "@/types/categories";
 import { Edit, Trash2, GripVertical, Package, ArrowUpDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -11,7 +11,6 @@ import { getTypeBadge, getTypeIcon } from "./constants";
 import { Separator } from "@/components/ui/separator";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
-
 if (typeof window !== "undefined" && !window.matchMedia) {
   console.warn("matchMedia is not supported by your browser. Mobile view will not work properly.");
 }
@@ -19,6 +18,29 @@ if (typeof window !== "undefined" && !window.matchMedia) {
 export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, onUpdateSortOrder }: CategoriesTableProps) {
   const [draggedCategories, setDraggedCategories] = useState(categories);
   const isMobile = useMediaQuery("(max-width: 600px)");
+
+  // Helper function to render category types
+  const renderCategoryTypes = (category: any) => {
+    if (!category.categoryTypes || category.categoryTypes.length === 0) {
+      return <Badge variant="outline">No types</Badge>;
+    }
+    
+    return (
+      <div className="flex flex-wrap gap-1">
+        {category.categoryTypes.map((categoryType: CategoryTypeEntity) => 
+          getTypeBadge(categoryType.type)
+        )}
+      </div>
+    );
+  };
+
+  // Helper function to get the primary type icon (first type)
+  const getPrimaryTypeIcon = (category: any) => {
+    if (!category.categoryTypes || category.categoryTypes.length === 0) {
+      return getTypeIcon("unknown");
+    }
+    return getTypeIcon(category.categoryTypes[0].type);
+  };
 
   useEffect(() => {
     setDraggedCategories(categories);
@@ -74,7 +96,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                           <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                {getTypeIcon(category.type)}
+                                {getPrimaryTypeIcon(category)}
                                 <CardTitle className="text-lg">{category.name}</CardTitle>
                               </div>
                               <div {...provided.dragHandleProps} className="cursor-grab">
@@ -82,7 +104,7 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                               </div>
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                              {getTypeBadge(category.type)}
+                              {renderCategoryTypes(category)}
                               <Badge variant="outline" className="ml-2">
                                 Order: {category.sortOrder}
                               </Badge>
@@ -175,11 +197,11 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
                                   </td>
                                   <td className="w-[30%] px-4 py-3 font-medium">
                                     <div className="flex items-center gap-2">
-                                      {getTypeIcon(category.type)}
+                                      {getPrimaryTypeIcon(category)}
                                       {category.name}
                                     </div>
                                   </td>
-                                  <td className="w-[20%] px-4 py-3">{getTypeBadge(category.type)}</td>
+                                  <td className="w-[20%] px-4 py-3">{renderCategoryTypes(category)}</td>
                                   <td className="w-[15%] px-4 py-3">
                                     <Badge variant="outline">{category.sortOrder}</Badge>
                                   </td>

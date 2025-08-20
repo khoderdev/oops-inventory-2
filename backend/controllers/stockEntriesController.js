@@ -42,7 +42,7 @@ const stockEntriesController = {
               {
                 model: Category,
                 as: "category",
-                attributes: ["id", "name", "value", "type"]
+                attributes: ["id", "name", "value", "categoryTypeIds"]
               }
             ]
           }

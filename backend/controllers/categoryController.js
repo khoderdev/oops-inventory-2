@@ -1,4 +1,5 @@
 import Category from "../models/Category.js";
+import CategoryType from "../models/CategoryType.js";
 import { Op } from "sequelize";
 import { parsePaginationParams, buildPaginationResponse, buildFilterConditions, parseFieldSelection } from "../utils/paginationHelpers.js";
 
@@ -25,29 +26,41 @@ const categoryController = {
       const paginationParams = parsePaginationParams(req.query, {
         defaultLimit: 50,
         maxLimit: 200,
-        allowedSortFields: ["name", "value", "type", "sortOrder", "createdAt", "updatedAt"]
+        allowedSortFields: ["name", "value", "sortOrder", "createdAt", "updatedAt"]
       });
 
-      // Build filter conditions
+      // Build filter conditions for Category
       const whereClause = buildFilterConditions(
         req.query,
         {
           searchFields: ["name", "value", "description"],
-          exactFilters: ["type"],
           booleanFilters: ["isActive"]
         },
         Op
       );
 
       // Parse field selection for optimized transfer
-      const attributes = parseFieldSelection(fields, ["id", "name", "value", "type", "description", "isActive", "sortOrder", "createdAt", "updatedAt"]);
+      const attributes = parseFieldSelection(fields, ["id", "name", "value", "description", "isActive", "sortOrder", "createdAt", "updatedAt"]);
 
+      // Get categories without include (since we removed associations)
       const { count, rows } = await Category.findAndCountAll({
         where: whereClause,
         attributes,
-        ...paginationParams,
-        distinct: true
+        ...paginationParams
       });
+
+      // Manually populate categoryTypes for each category
+      for (const category of rows) {
+        if (category.categoryTypeIds && category.categoryTypeIds.length > 0) {
+          const categoryTypes = await CategoryType.findAll({
+            where: { id: category.categoryTypeIds },
+            attributes: ["id", "type", "createdAt", "updatedAt"]
+          });
+          category.dataValues.categoryTypes = categoryTypes;
+        } else {
+          category.dataValues.categoryTypes = [];
+        }
+      }
 
       const response = buildPaginationResponse(rows, count, paginationParams);
       res.json(response);
@@ -56,30 +69,78 @@ const categoryController = {
     }
   },
 
-  // Get categories by type (materials or menu_items)
+  // Get categories by type (materials, menu_items, or beverages)
   getCategoriesByType: async (req, res, next) => {
     try {
       const { type } = req.params;
       const { isActive = "true" } = req.query;
 
-      if (!["materials", "menu_items", "beverages"].includes(type)) {
+      if (typeof type !== 'string' || type.trim().length === 0 || type.length > 50) {
         return res.status(400).json({
-          error: "Invalid category type. Must be 'materials', 'menu_items', or 'beverages'"
+          error: "Type must be a non-empty string with maximum 50 characters"
         });
       }
 
-      const whereClause = { type };
+      // First find the category type by name to get its ID
+      const categoryType = await CategoryType.findOne({
+        where: { type },
+        attributes: ['id']
+      });
+
+      if (!categoryType) {
+        return res.json({
+          currentPage: 1,
+          totalPages: 1,
+          totalItems: [],
+          endIndex: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+          itemsPerPage: {
+            page: 1,
+            limit: 0,
+            offset: 0,
+            sortBy: "sortOrder",
+            sortOrder: "ASC"
+          },
+          limit: 0,
+          offset: 0,
+          page: 1,
+          sortBy: "sortOrder",
+          sortOrder: "ASC",
+          startIndex: 1
+        });
+      }
+
+      // Build where clause for Category
+      const categoryWhere = {
+        categoryTypeIds: {
+          [Op.contains]: [categoryType.id]
+        }
+      };
       if (isActive !== "all") {
-        whereClause.isActive = isActive === "true";
+        categoryWhere.isActive = isActive === "true";
       }
 
       const categories = await Category.findAll({
-        where: whereClause,
+        where: categoryWhere,
         order: [
           ["sortOrder", "ASC"],
           ["name", "ASC"]
         ]
       });
+
+      // Manually populate categoryTypes for each category
+      for (const category of categories) {
+        if (category.categoryTypeIds && category.categoryTypeIds.length > 0) {
+          const categoryTypes = await CategoryType.findAll({
+            where: { id: category.categoryTypeIds },
+            attributes: ["id", "type", "createdAt", "updatedAt"]
+          });
+          category.dataValues.categoryTypes = categoryTypes;
+        } else {
+          category.dataValues.categoryTypes = [];
+        }
+      }
 
       // Return structure consistent with CategoriesResponse interface
       res.json({
@@ -113,7 +174,13 @@ const categoryController = {
     try {
       const { id } = req.params;
 
-      const category = await Category.findByPk(id);
+      const category = await Category.findByPk(id, {
+        include: [{
+          model: CategoryType,
+          as: "categoryTypes",
+          attributes: ["type"]
+        }]
+      });
 
       if (!category) {
         return res.status(404).json({
@@ -133,99 +200,97 @@ const categoryController = {
   // Create new category
   createCategory: async (req, res, next) => {
     try {
-      const { name, value, type, description, isActive, sortOrder } = req.body;
-      if (!name || !type) {
+      const { name, value, categoryTypeIds, description, isActive, sortOrder } = req.body;
+
+      // Validate required fields
+      if (!name || !categoryTypeIds || !Array.isArray(categoryTypeIds) || categoryTypeIds.length === 0) {
         return res.status(400).json({
-          error: "Name and type are required fields"
+          error: "Name and categoryTypeIds array are required fields"
         });
       }
-      
-      // Auto-generate value from name if not provided
+
+      // Validate categoryTypeIds array
+      const invalidIds = categoryTypeIds.filter(id => 
+        typeof id !== 'number' || id <= 0 || !Number.isInteger(id)
+      );
+      if (invalidIds.length > 0) {
+        return res.status(400).json({
+          error: "All categoryTypeIds must be positive integers"
+        });
+      }
+
+      // Verify all category type IDs exist
+      const existingCategoryTypes = await CategoryType.findAll({
+        where: { id: categoryTypeIds },
+        attributes: ['id']
+      });
+
+      if (existingCategoryTypes.length !== categoryTypeIds.length) {
+        const foundIds = existingCategoryTypes.map(ct => ct.id);
+        const missingIds = categoryTypeIds.filter(id => !foundIds.includes(id));
+        return res.status(400).json({
+          error: `Category type IDs not found: ${missingIds.join(', ')}` 
+        });
+      }
+
       const categoryValue = value || generateValueFromName(name);
-      // Validate type
-      if (!["materials", "menu_items", "beverages"].includes(type)) {
-        return res.status(400).json({
-          error: "Type must be 'materials', 'menu_items', or 'beverages'"
-        });
-      }
+
+      // Check if category with same name or value already exists
       const existingCategory = await Category.findOne({
         where: {
-          value: categoryValue,
-          type
+          [Op.or]: [{ name }, { value: categoryValue }]
         }
       });
 
       if (existingCategory) {
         return res.status(400).json({
-          error: `Category value '${categoryValue}' already exists for type '${type}'. Please choose a different value or use a different type.`
+          error: `Category with name '${name}' or value '${categoryValue}' already exists. Please choose different values.` 
         });
       }
-      try {
-        const category = await Category.create({
-          name,
-          value: categoryValue,
-          type,
-          description,
-          isActive: isActive !== undefined ? isActive : true,
-          sortOrder: sortOrder || 0
+
+      // Create the category
+      const category = await Category.create({
+        name,
+        value: categoryValue,
+        description,
+        isActive: isActive !== undefined ? isActive : true,
+        sortOrder: sortOrder || 0,
+        categoryTypeIds
+      });
+
+      // Fetch the created category and manually populate categoryTypes
+      const createdCategory = await Category.findByPk(category.id);
+      
+      // Manually fetch categoryTypes if categoryTypeIds exist
+      if (categoryTypeIds && categoryTypeIds.length > 0) {
+        const categoryTypes = await CategoryType.findAll({
+          where: { id: categoryTypeIds }
         });
-        res.status(201).json({
-          success: true,
-          message: "Category created successfully",
-          data: category
-        });
-      } catch (err) {
-        console.error("Failed to create category in database:", err);
-        console.error("Validation errors:", err.errors ? JSON.stringify(err.errors) : "No validation details");
-        
-        // Handle PostgreSQL sequence out of sync error
-        if (err.name === "SequelizeUniqueConstraintError" && err.parent?.constraint === "categories_pkey") {
-          console.log("🔧 Detected PostgreSQL sequence issue, attempting to fix...");
-          try {
-            // Get max ID and reset sequence
-            const [maxResult] = await Category.sequelize.query('SELECT MAX(id) as max_id FROM categories');
-            const maxId = maxResult[0].max_id || 0;
-            await Category.sequelize.query(`SELECT setval('categories_id_seq', ${maxId})`);
-            console.log(`✅ Sequence reset to ${maxId}, retrying category creation...`);
-            
-            // Retry the creation
-            const category = await Category.create({
-              name,
-              value: categoryValue,
-              type,
-              description,
-              isActive: isActive !== undefined ? isActive : true,
-              sortOrder: sortOrder || 0
-            });
-            
-            return res.status(201).json({
-              success: true,
-              message: "Category created successfully (after sequence fix)",
-              data: category
-            });
-          } catch (retryErr) {
-            console.error("Failed to fix sequence and retry:", retryErr);
-            return res.status(500).json({
-              error: "Database sequence error - please try again",
-              details: retryErr.message
-            });
-          }
-        }
-        
-        if (err.name === "SequelizeValidationError" || err.name === "SequelizeUniqueConstraintError") {
-          return res.status(400).json({
-            error: err.message,
-            details: err.errors.map(e => ({ field: e.path, message: e.message }))
-          });
-        }
-        throw err;
+        createdCategory.dataValues.categoryTypes = categoryTypes;
+      } else {
+        createdCategory.dataValues.categoryTypes = [];
       }
+
+      res.status(201).json({
+        success: true,
+        message: "Category created successfully",
+        data: createdCategory
+      });
+
     } catch (error) {
       console.error("Error creating category:", error);
-      return res.status(500).json({
-        error: "Internal Server Error",
-        details: error.message
-      });
+      
+      if (error.name === "SequelizeValidationError" || error.name === "SequelizeUniqueConstraintError") {
+        return res.status(400).json({
+          error: error.message,
+          details: error.errors ? error.errors.map(e => ({
+            field: e.path,
+            message: e.message
+          })) : []
+        });
+      }
+      
+      next(error);
     }
   },
 
@@ -233,8 +298,10 @@ const categoryController = {
   updateCategory: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { name, value, type, description, isActive, sortOrder } = req.body;
+      const { name, value, categoryTypeIds, description, isActive, sortOrder } = req.body;
+      
       const category = await Category.findByPk(id);
+      
       if (!category) {
         return res.status(404).json({
           error: "Category not found"
@@ -244,48 +311,91 @@ const categoryController = {
       // Auto-generate value from name if name changed, unless explicit value provided
       let categoryValue;
       if (value !== undefined) {
-        // Explicit value provided, use it
         categoryValue = value;
       } else if (name && name !== category.name) {
-        // Name changed and no explicit value, auto-generate from new name
         categoryValue = generateValueFromName(name);
       } else {
-        // No changes to name or value, keep existing
         categoryValue = category.value;
       }
       
-      const updatedType = type || category.type;
-      if ((categoryValue && categoryValue !== category.value) || (type && type !== category.type)) {
+      // Check for conflicts with name or value
+      if ((name && name !== category.name) || (categoryValue && categoryValue !== category.value)) {
         const existingCategory = await Category.findOne({
           where: {
-            value: categoryValue,
-            type: updatedType,
+            [Op.or]: [
+              { name: name || category.name },
+              { value: categoryValue }
+            ],
             id: { [Op.ne]: id }
           }
         });
+        
         if (existingCategory) {
           return res.status(400).json({
-            error: `Category value '${categoryValue}' already exists for type '${updatedType}'. Please choose a different value.`
+            error: `Category with name '${name || category.name}' or value '${categoryValue}' already exists. Please choose different values.`
           });
         }
       }
-      if (type && !["materials", "menu_items", "beverages"].includes(type)) {
-        return res.status(400).json({
-          error: "Type must be 'materials', 'menu_items', or 'beverages'"
+      
+      // Validate categoryTypeIds if provided
+      if (categoryTypeIds) {
+        if (!Array.isArray(categoryTypeIds) || categoryTypeIds.length === 0) {
+          return res.status(400).json({
+            error: "CategoryTypeIds must be a non-empty array"
+          });
+        }
+        
+        const invalidIds = categoryTypeIds.filter(id => 
+          typeof id !== 'number' || id <= 0 || !Number.isInteger(id)
+        );
+        if (invalidIds.length > 0) {
+          return res.status(400).json({
+            error: "All categoryTypeIds must be positive integers"
+          });
+        }
+
+        // Verify all category type IDs exist
+        const existingCategoryTypes = await CategoryType.findAll({
+          where: { id: categoryTypeIds },
+          attributes: ['id']
         });
+
+        if (existingCategoryTypes.length !== categoryTypeIds.length) {
+          const foundIds = existingCategoryTypes.map(ct => ct.id);
+          const missingIds = categoryTypeIds.filter(id => !foundIds.includes(id));
+          return res.status(400).json({
+            error: `Category type IDs not found: ${missingIds.join(', ')}`
+          });
+        }
       }
+      
+      // Update category
       await category.update({
         ...(name !== undefined && { name }),
         ...(categoryValue !== category.value && { value: categoryValue }),
-        ...(type !== undefined && { type }),
         ...(description !== undefined && { description }),
         ...(isActive !== undefined && { isActive }),
-        ...(sortOrder !== undefined && { sortOrder })
+        ...(sortOrder !== undefined && { sortOrder }),
+        ...(categoryTypeIds !== undefined && { categoryTypeIds })
       });
+      
+      // Fetch updated category and manually populate categoryTypes
+      const updatedCategory = await Category.findByPk(id);
+      
+      // Manually fetch categoryTypes if categoryTypeIds exist
+      if (updatedCategory.categoryTypeIds && updatedCategory.categoryTypeIds.length > 0) {
+        const categoryTypes = await CategoryType.findAll({
+          where: { id: updatedCategory.categoryTypeIds }
+        });
+        updatedCategory.dataValues.categoryTypes = categoryTypes;
+      } else {
+        updatedCategory.dataValues.categoryTypes = [];
+      }
+      
       res.json({
         success: true,
         message: "Category updated successfully",
-        data: category
+        data: updatedCategory
       });
     } catch (error) {
       if (error.name === "SequelizeValidationError") {
@@ -308,7 +418,10 @@ const categoryController = {
           error: "Category not found"
         });
       }
+      
+      // Delete category (no need for transaction since CategoryType is now independent)
       await category.destroy();
+        
       res.json({
         success: true,
         message: "Category deleted successfully"

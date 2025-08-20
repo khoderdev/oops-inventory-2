@@ -12,6 +12,7 @@ const Category = sequelize.define(
     name: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: true,
       validate: {
         notEmpty: { msg: "Category name cannot be empty" },
         len: { args: [1, 100], msg: "Category name must be between 1 and 100 characters" }
@@ -20,20 +21,11 @@ const Category = sequelize.define(
     value: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: true,
       validate: {
         notEmpty: { msg: "Category value cannot be empty" },
         len: { args: [1, 50], msg: "Category value must be between 1 and 50 characters" },
         is: { args: /^[a-z0-9_-]+$/, msg: "Category value must contain only lowercase letters, numbers, underscores, and hyphens" }
-      }
-    },
-    type: {
-      type: DataTypes.ENUM("materials", "menu_items", "beverages"),
-      allowNull: false,
-      validate: {
-        isIn: {
-          args: [["materials", "menu_items", "beverages"]],
-          msg: "Category type must be 'materials', 'menu_items', or 'beverages'"
-        }
       }
     },
     description: {
@@ -52,6 +44,21 @@ const Category = sequelize.define(
       validate: {
         min: { args: [0], msg: "Sort order cannot be negative" }
       }
+    },
+    categoryTypeIds: {
+      type: DataTypes.ARRAY(DataTypes.INTEGER),
+      allowNull: true,
+      defaultValue: [],
+      validate: {
+        isArrayOfIntegers(value) {
+          if (value && !Array.isArray(value)) {
+            throw new Error('CategoryTypeIds must be an array');
+          }
+          if (value && value.some(id => typeof id !== 'number' || id <= 0)) {
+            throw new Error('All CategoryTypeIds must be positive integers');
+          }
+        }
+      }
     }
   },
   {
@@ -60,17 +67,22 @@ const Category = sequelize.define(
     indexes: [
       {
         unique: true,
-        fields: ["value", "type"]
+        fields: ["name"]
       },
       {
-        fields: ["type"]
+        unique: true,
+        fields: ["value"]
       },
       {
         fields: ["isActive"]
       },
       {
         fields: ["sortOrder"]
-      }
+      },
+      {
+        fields: ["categoryTypeIds"],
+        using: "gin"
+      },
     ]
   }
 );

@@ -245,15 +245,15 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
         console.log("✅ Database schema synchronized successfully");
         try {
           console.log("🔧 Initializing essential data...");
-          await seedTables();
-          await seedPrinters();
-          console.log("✅ Tables seeded successfully");
           console.log("👤 Initializing admin user...");
           const adminResult = await initializeAdminUser();
           console.log(`✅ Admin user initialized: ${adminResult.created} created, ${adminResult.existing} existing`);
           console.log("👤 Initializing cashier user...");
           const cashierResult = await initializeCashier();
           console.log(`✅ Cashier user initialized: ${cashierResult.created} created, ${cashierResult.existing} existing`);
+          await seedTables();
+          await seedPrinters();
+          console.log("✅ Tables and printers seeded successfully");
           console.log("✅ Essential initialization completed");
           console.log("ℹ️  For comprehensive data seeding, run: npm run seed");
         } catch (seedError) {

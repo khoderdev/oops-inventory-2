@@ -3,6 +3,7 @@ import Assignment from "./Assignment.js";
 import AuditLog from "./AuditLog.js";
 import BackupSchedule from "./BackupSchedule.js";
 import Category from "./Category.js";
+import CategoryType from "./CategoryType.js";
 import DayOperation from "./dayOperation.js";
 import DayOperationReport from "./dayOperationsReports.js";
 import Employee from "./Employee.js";
@@ -22,7 +23,7 @@ import ScheduleExecution from "./ScheduleExecution.js";
 import Section from "./sections.js";
 import Session from "./Session.js";
 import StockEntry from "./StockEntry.js";
-import SystemLogs from "./StockEntryLogSimple.js"; // SystemLogs model
+import SystemLogs from "./StockEntryLogSimple.js";
 import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";
@@ -129,7 +130,11 @@ MenuItemIngredient.belongsTo(MenuItem, {
   onUpdate: "CASCADE"
 });
 
-// Material ↔ Category
+// Category ↔ CategoryType (No direct relationship - Category stores categoryTypeIds array)
+// CategoryType is now independent - no foreign key relationships needed
+// Associations will be handled manually in controllers using the categoryTypeIds array
+
+// Material ↔ Category (through CategoryType)
 Material.belongsTo(Category, {
   foreignKey: "categoryId",
   as: "category",
@@ -143,7 +148,7 @@ Category.hasMany(Material, {
   onUpdate: "CASCADE"
 });
 
-// MenuItem ↔ Category
+// MenuItem ↔ Category (through CategoryType)
 MenuItem.belongsTo(Category, {
   foreignKey: "categoryId",
   as: "category",
@@ -702,4 +707,4 @@ Variants.belongsTo(MenuItem, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, DayOperation, DayOperationReport, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };
+export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };

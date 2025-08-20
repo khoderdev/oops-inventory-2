@@ -8,6 +8,7 @@ import Order from "../models/Order.js";
 import Printer from "../models/Printer.js";
 import User from "../models/User.js";
 import Category from "../models/Category.js";
+import CategoryType from "../models/CategoryType.js";
 import Table from "../models/Table.js";
 import DayOperation from "../models/DayOperation.js";
 import DayOperationReport from "../models/dayOperationsReports.js";
@@ -79,6 +80,7 @@ async function truncateTables() {
     await safeTruncate("saleMenuItems");
     await safeTruncate("sales");
     await safeTruncate("categories");
+    await safeTruncate("categoryTypes");
     await safeTruncate("tables");
     
     console.log("🔄 Truncating employee-related tables...");
@@ -116,6 +118,7 @@ async function truncateTables() {
     const printerCount = await Printer.count();
     const auditLogCount = await AuditLog.count();
     const categoryCount = await Category.count();
+    const categoryTypeCount = await CategoryType.count();
     const tableCount = await Table.count();
     const dayOperationCount = await DayOperation.count();
     const dayOperationReportCount = await DayOperationReport.count();
@@ -132,11 +135,12 @@ async function truncateTables() {
     console.log(`Printers: ${printerCount} remaining`);
     console.log(`Audit Logs: ${auditLogCount} remaining`);
     console.log(`Categories: ${categoryCount} remaining`);
+    console.log(`Category Types: ${categoryTypeCount} remaining`);
     console.log(`Tables: ${tableCount} remaining`);
     console.log(`Day Operations: ${dayOperationCount} remaining`);
     console.log(`Day Operation Reports: ${dayOperationReportCount} remaining`);
 
-    const totalRemaining = materialCount + stockCount + menuCount + ingredientCount + userCount + employeeCount + orderCount + printerCount + auditLogCount + categoryCount + tableCount + dayOperationCount + dayOperationReportCount;
+    const totalRemaining = materialCount + stockCount + menuCount + ingredientCount + userCount + employeeCount + orderCount + printerCount + auditLogCount + categoryCount + categoryTypeCount + tableCount + dayOperationCount + dayOperationReportCount;
 
     if (totalRemaining === 0) {
       console.log("\n✅ All tables successfully truncated!");

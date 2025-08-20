@@ -1,21 +1,29 @@
-export type CategoryType = "materials" | "menu_items" | "beverages";
+export type CategoryType = string;
+
+export interface CategoryTypeEntity {
+  id: number;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Category {
   id: number;
   name: string;
   value: string;
-  type: CategoryType;
   description?: string;
   isActive: boolean;
   sortOrder: number;
+  categoryTypeIds: number[];
   createdAt: string;
   updatedAt: string;
+  categoryTypes?: CategoryTypeEntity[];
 }
 
 export interface CategoryFormData {
   name: string;
   value: string;
-  type: CategoryType;
+  categoryTypeIds: number[];
   description?: string;
   isActive?: boolean;
   sortOrder?: number;
@@ -81,4 +89,74 @@ export interface CategoryResponse {
 export interface SortOrderUpdate {
   id: number;
   sortOrder: number;
+}
+
+// CategoryType interfaces
+export interface CategoryTypeEntity {
+  id: number;
+  categoryId: number;
+  type: CategoryType;
+  createdAt: string;
+  updatedAt: string;
+  category?: Category;
+}
+
+export interface CategoryTypeFormData {
+  categoryId: number;
+  type: CategoryType;
+}
+
+export interface CategoryTypeFilters {
+  type?: CategoryType;
+  categoryId?: number;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "ASC" | "DESC";
+  fields?: string;
+}
+
+export interface CategoryTypesResponse {
+  currentPage: number;
+  totalPages: number | null;
+  totalItems: CategoryTypeEntity[];
+  endIndex: number | null;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  itemsPerPage: {
+    page: number;
+    limit: number;
+    offset: number;
+    sortBy: string;
+    sortOrder: string;
+  };
+  limit: number;
+  offset: number;
+  page: number;
+  sortBy: string;
+  sortOrder: string;
+  startIndex: number | null;
+}
+
+export interface CategoryTypeResponse {
+  success: boolean;
+  data: CategoryTypeEntity;
+}
+
+export interface BulkCategoryTypeRequest {
+  categoryTypes: CategoryTypeFormData[];
+}
+
+export interface BulkDeleteRequest {
+  ids: number[];
+}
+
+
+export interface CategoryModalProps {
+  showForm: boolean;
+  setShowForm: (show: boolean) => void;
+  selectedCategory?: Category;
+  handleFormSubmit: (formData: CategoryFormData) => void;
+  handleFormCancel: () => void;
+  formLoading: boolean;
 }

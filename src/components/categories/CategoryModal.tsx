@@ -1,15 +1,6 @@
-import { Category, CategoryFormData } from "@/types/categories";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CategoryForm } from "./CategoryForm";
-
-interface CategoryModalProps {
-  showForm: boolean;
-  setShowForm: (show: boolean) => void;
-  selectedCategory?: Category;
-  handleFormSubmit: (formData: CategoryFormData) => void;
-  handleFormCancel: () => void;
-  formLoading: boolean;
-}
+import { CategoryModalProps } from "@/types/categories";
 
 export const CategoryModal = ({ showForm, setShowForm, selectedCategory, handleFormSubmit, handleFormCancel, formLoading }: CategoryModalProps) => {
   return (
