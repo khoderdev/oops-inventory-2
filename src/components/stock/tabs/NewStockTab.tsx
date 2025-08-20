@@ -29,7 +29,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
           // If quantity exists, calculate cost per unit
           const calculatedCostPerUnit = totalCost / quantity;
           if (!isNaN(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
-            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(2), { shouldValidate: true });
+            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(6), { shouldValidate: true });
           }
         } else if (!isCostPerUnitEmpty) {
           // If quantity is empty but cost per unit exists, update quantity based on total and cost per unit
@@ -55,7 +55,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
           // If total cost exists but not cost per unit, calculate cost per unit
           const calculatedCostPerUnit = totalCost / quantity;
           if (!isNaN(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
-            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(2), { shouldValidate: true });
+            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(6), { shouldValidate: true });
           }
         }
       }
