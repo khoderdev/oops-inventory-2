@@ -37,24 +37,16 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   const [editingBeverageItem, setEditingBeverageItem] = useState<MenuItem | null>(null);
   const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
   const [selectedBeverageItems, setSelectedBeverageItems] = useState<Set<string>>(new Set());
-  const [showVariantDialog, setShowVariantDialog] = useState(false);
-  const [currentVariantItem, setCurrentVariantItem] = useState<MenuItem | null>(null);
+  const [, setShowVariantDialog] = useState(false);
+  const [, setCurrentVariantItem] = useState<MenuItem | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedBeverageDetails, setSelectedBeverageDetails] = useState<MenuItem | null>(null);
-
-  // Categories are now pre-filtered by type in TabMenu
-  console.log("📥 BeveragesMenuBuilder: Received pre-filtered beverage categories:", {
-    count: categories?.length || 0,
-    loading: categoriesLoading,
-    error: categoriesError
-  });
 
   const beverageCategories = useMemo(() => {
     const converted = categories.map(cat => ({
       ...cat,
-      id: String(cat.id) // Convert number id to string
+      id: String(cat.id) 
     }));
-    console.log("Converted beverageCategories with string IDs:", converted);
     return converted;
   }, [categories]);
 
@@ -89,7 +81,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
       } else if (typeof item.category === "object" && item.category?.value !== undefined) {
         categoryValue = String(item.category.value);
       } else if (typeof item.category === "object" && item.category?.name) {
-        // Ensure item.category is an object with name property before accessing it
         const categoryName = item.category.name;
         const matchingCategory = categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
         categoryValue = matchingCategory?.value;

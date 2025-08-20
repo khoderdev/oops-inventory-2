@@ -19,3 +19,5 @@ router.patch("/bulk-assign-printer", menuItemsController.bulkAssignPrinter);
 router.post("/beverage-variants", menuItemsController.createBeverageVariants);
 
 export default router;
+
+

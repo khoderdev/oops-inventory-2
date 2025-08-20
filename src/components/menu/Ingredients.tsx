@@ -39,7 +39,6 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
   const availableMaterials = useMemo(() => {
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
     const excludedCategories = ["beverages", "cold", "hot", "alcohol"];
-
     return materials.filter(m => !usedMaterialIds.has(m.id) && !excludedCategories.includes(m.category?.toLowerCase() || ""));
   }, [materials, ingredients]);
 
@@ -52,102 +51,66 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
 
   const calculateIngredientCost = useCallback(
     (ingredient: Omit<MenuItemIngredient, "cost">) => {
-      // Add debugging to trace calculation
-      console.log(`Calculating cost for ingredient:`, ingredient);
-
       const material = materials.find(m => String(m.id) === String(ingredient.materialId));
       if (!material) {
         console.warn(`Material not found for ID: ${ingredient.materialId}`);
         return 0;
       }
-      console.log(`Found material:`, material);
-
-      // Get all stock entries for this material
       const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(ingredient.materialId));
-      console.log(`Found ${allStockEntries.length} stock entries for material ${material.name}`);
-
       if (allStockEntries.length === 0) {
         console.warn(`No stock entries found for material ${material.name}`);
         return 0;
       }
-
       let costPerUnit = 0;
       let totalWeightedCost = 0;
       let totalQuantity = 0;
-
-      // Calculate weighted average cost per base unit from all stock entries
       for (const entry of allStockEntries) {
-        console.log(`Processing stock entry:`, entry);
-
-        // Use purchasedIndividualQuantity if available, otherwise use purchasedQuantity converted to base units
         let quantity = entry.purchasedIndividualQuantity || 0;
         if (quantity <= 0 && entry.purchasedQuantity) {
           try {
-            // Convert purchased quantity to base units
             const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
             quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
-            console.log(`Converted quantity: ${entry.purchasedQuantity} ${entry.purchasedUnit} = ${quantity} ${material.baseUnit}`);
           } catch (error) {
             console.error(`Error converting units for ${material.name}:`, error);
             continue;
           }
         }
-
         if (quantity <= 0) {
           console.warn(`Invalid quantity for stock entry:`, entry);
           continue;
         }
-
         let unitCost = 0;
-
-        // First try to use costPerBaseUnit if available
         if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
           unitCost = entry.costPerBaseUnit;
-          console.log(`Using costPerBaseUnit: ${unitCost} per ${material.baseUnit}`);
         }
-        // Otherwise calculate from totalCost and quantity (in base units)
         else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
-          console.log(`Calculated from totalCost: ${entry.totalCost} / ${quantity} = ${unitCost} per ${material.baseUnit}`);
         }
-        // Fallback to costPerPurchasedUnit with conversion
         else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
           try {
-            // Convert from purchased unit cost to base unit cost
             const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
             unitCost = parseFloat(String(entry.costPerPurchasedUnit)) / conversionFactor;
-            console.log(`Converted costPerPurchasedUnit: ${entry.costPerPurchasedUnit} per ${entry.purchasedUnit} = ${unitCost} per ${material.baseUnit}`);
           } catch (error) {
             console.error(`Error converting cost units for ${material.name}:`, error);
             continue;
           }
         }
-
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
           totalQuantity += quantity;
-          console.log(`Added to weighted cost: ${unitCost} * ${quantity} = ${unitCost * quantity}`);
         } else {
           console.warn(`Could not determine unit cost for stock entry:`, entry);
         }
       }
-
-      // Calculate average cost per base unit
       if (totalQuantity > 0) {
         costPerUnit = totalWeightedCost / totalQuantity;
-        console.log(`Calculated average cost per base unit: ${totalWeightedCost} / ${totalQuantity} = ${costPerUnit} per ${material.baseUnit}`);
       } else {
         console.warn(`No valid quantity data for material ${material.name}`);
         return 0;
       }
-
       try {
-        // Convert ingredient quantity to base unit and calculate final cost
         const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
         const finalCost = ingredient.quantity * costPerUnit * conversionFactor;
-        console.log(`Final cost calculation: ${ingredient.quantity} ${ingredient.unit} * ${costPerUnit} per ${material.baseUnit} * ${conversionFactor} = ${finalCost}`);
-
-        // Ensure we return a valid number, not NaN
         return isNaN(finalCost) ? 0 : finalCost;
       } catch (error) {
         console.error(`Error calculating final cost for ${material.name}:`, error);
@@ -163,44 +126,28 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
       if (!material) {
         return 0;
       }
-
       const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(materialId));
-
       if (allStockEntries.length === 0) {
         return 0;
       }
-
       let totalWeightedCost = 0;
       let totalQuantity = 0;
-
-      // Calculate weighted average cost per base unit from all stock entries
       for (const entry of allStockEntries) {
-        // Use purchasedIndividualQuantity if available, otherwise use purchasedQuantity converted to base units
         let quantity = entry.purchasedIndividualQuantity || 0;
         if (quantity <= 0 && entry.purchasedQuantity) {
-          // Convert purchased quantity to base units
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
         }
         if (quantity <= 0) continue;
-
         let unitCost = 0;
-
-        // First try to use costPerBaseUnit if available
         if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
           unitCost = entry.costPerBaseUnit;
-        }
-        // Otherwise calculate from totalCost and quantity (in base units)
-        else if (entry.totalCost && entry.totalCost > 0) {
+        } else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
-        }
-        // Fallback to costPerPurchasedUnit with conversion
-        else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          // Convert from purchased unit cost to base unit cost
+        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
           const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
           unitCost = parseFloat(String(entry.costPerPurchasedUnit)) * conversionFactor;
         }
-
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
           totalQuantity += quantity;
@@ -213,24 +160,13 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
   );
 
   const totalIngredientsCost = useMemo(() => {
-    console.log("Calculating total ingredients cost for", ingredients.length, "ingredients");
-
-    // Initialize total as a number to ensure proper addition
     let total = 0;
-
-    // Process each ingredient
     ingredients.forEach(ingredient => {
-      // Use stored cost if available (for existing menu items), otherwise calculate
       const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
       const cost = storedCost || calculateIngredientCost(ingredient);
-
-      // Convert to number and add to total
       const costValue = isNaN(parseFloat(String(cost))) ? 0 : parseFloat(String(cost));
-      console.log(`Ingredient ${ingredient.materialId}: cost = ${costValue}`);
       total += costValue;
     });
-
-    console.log("Total ingredients cost calculated:", total);
     return isNaN(total) ? 0 : total;
   }, [ingredients, calculateIngredientCost, menuItem]);
 
@@ -243,37 +179,29 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
       onErrorsChange?.(newErrors);
       return;
     }
-
     const quantity = parseFloat(ingredientQuantity);
     if (isNaN(quantity) || quantity <= 0) {
       const newErrors = { ...errors, ingredientQuantity: "Valid quantity is required" };
       onErrorsChange?.(newErrors);
       return;
     }
-
     const material = materials.find(m => String(m.id) === selectedMaterialId);
     const cost = material ? calculateIngredientCost({ materialId: selectedMaterialId, quantity, unit: ingredientUnit }) : 0;
-
     const newIngredient: MenuItemIngredient = {
       materialId: selectedMaterialId,
       quantity,
       unit: ingredientUnit,
       cost
     };
-
     const newIngredients = [...ingredients, newIngredient];
     onIngredientsChange(newIngredients);
-
     setSelectedMaterialId("");
     setMaterialSearchTerm("");
     setShowMaterialDropdown(false);
     setIngredientQuantity("");
     setIngredientUnit("");
-
     const newErrors = { ...errors, ingredientQuantity: undefined, ingredients: undefined };
     onErrorsChange?.(newErrors);
-
-    // Scroll to the ingredients input section and focus on Material Selection
     setTimeout(() => {
       if (ingredientsInputSectionRef.current) {
         ingredientsInputSectionRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -319,7 +247,6 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
   }, [materialSearchTerm, filteredMaterials]);
 
   const handleMaterialInputBlur = useCallback(() => {
-    // Delay hiding dropdown to allow for clicks
     setTimeout(() => setShowMaterialDropdown(false), 150);
   }, []);
 
@@ -333,7 +260,6 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
     }
   };
 
-  // Check if ingredients are required for this category
   const noIngredientsCategories = ["alcohol", "cold", "hot", "shisha"];
   const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
 
@@ -352,30 +278,23 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
       <TanStackVirtualizedIngredientsTable ingredients={ingredients} materials={materials} menuItem={menuItem} calculateIngredientCost={calculateIngredientCost} getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit} formatNumber={formatNumber} formatCurrency={formatCurrency} handleRemoveIngredient={handleRemoveIngredient} totalIngredientsCost={totalIngredientsCost} price={price} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
-
-        <Selection 
-          label="Material" 
-          searchTerm={materialSearchTerm} 
-          onSearchChange={handleMaterialSearchChange} 
-          onInputFocus={handleMaterialInputFocus} 
-          onInputBlur={handleMaterialInputBlur} 
-          onKeyDown={handleKeyDown} 
-          showDropdown={showMaterialDropdown} 
-          items={filteredMaterials} 
-          onItemSelect={handleMaterialSelect} 
-          getDisplayValue={item => item.name} 
-          getItemId={item => String(item.id)} 
-          placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."} 
+        <Selection
+          label="Material"
+          searchTerm={materialSearchTerm}
+          onSearchChange={handleMaterialSearchChange}
+          onInputFocus={handleMaterialInputFocus}
+          onInputBlur={handleMaterialInputBlur}
+          onKeyDown={handleKeyDown}
+          showDropdown={showMaterialDropdown}
+          items={filteredMaterials}
+          onItemSelect={handleMaterialSelect}
+          getDisplayValue={item => item.name}
+          getItemId={item => String(item.id)}
+          placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."}
           noResultsText={`No materials found matching "{searchTerm}"`}
           inputRef={materialSelectRef}
           itemRenderer={({ item, onSelect }) => (
-            <button 
-              key={item.id} 
-              type="button" 
-              className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" 
-              onClick={() => onSelect(String(item.id), item.name)} 
-              onMouseDown={e => e.preventDefault()}
-            >
+            <button key={item.id} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(String(item.id), item.name)} onMouseDown={e => e.preventDefault()}>
               <div className="font-medium">{item.name}</div>
               <div className="text-sm text-muted-foreground">Base unit: {item.baseUnit}</div>
             </button>

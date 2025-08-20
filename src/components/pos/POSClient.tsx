@@ -2,7 +2,6 @@ import { ordersAPI } from "@/api/orders.api";
 import { printerAPI } from "@/api/printer.api";
 import { tablesAPI } from "@/api/tables.api";
 import { getCategoriesByType } from "@/api/categories.api";
-import { materialsAPI } from "@/api/matierials.api.ts";
 import { menuAPI } from "@/api/menu.api.ts";
 import { stockAPI } from "@/api/stock.api.ts";
 import PrinterSelector from "@/components/common/PrinterSelector";
@@ -750,7 +749,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     const fetchCategories = async () => {
       try {
         console.log("📂 Fetching ACTIVE categories for POS");
-        const [menuCategories, materialCategories] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("materials")]);
+        const [menuCategories, materialCategories] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("materials"), getCategoriesByType("beverages")]);
 
         const categoryMap = new Map<number, string>();
 
@@ -2463,3 +2462,4 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     </>
   );
 };
+

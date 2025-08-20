@@ -18,14 +18,6 @@ interface MenuItemFormProps {
 }
 
 export function MenuItemForm({ menuItem, materials, stockEntries, categories, onSubmit, onCancel }: MenuItemFormProps) {
-  console.log("[MenuItemForm] Initialization with props:", {
-    menuItem: menuItem ? "exists" : "undefined",
-    materialsCount: materials ? materials.length : "undefined",
-    stockEntriesCount: stockEntries ? stockEntries.length : "undefined",
-    categories: categories,
-    categoriesType: typeof categories,
-    categoriesIsArray: Array.isArray(categories)
-  });
   const [name, setName] = useState(menuItem?.name || "");
   const [category, setCategory] = useState<MenuItemCategory | "">("");
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
@@ -46,38 +38,24 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
   // Initialize category when menuItem or categories change
   useEffect(() => {
-    console.log("[MenuItemForm] useEffect for category initialization:", {
-      categories,
-      categoriesType: typeof categories,
-      categoriesIsArray: Array.isArray(categories),
-      menuItemCategory: menuItem?.category,
-      menuItemCategoryType: menuItem?.category ? typeof menuItem.category : "undefined"
-    });
     if (!Array.isArray(categories) || categories.length === 0) {
       setCategory("");
       return;
     }
-
     if (!menuItem?.category) {
       setCategory("");
       return;
     }
-
-    // Handle different category formats from MenuItem
     if (typeof menuItem.category === "number") {
-      // If category is a number (categoryId), find the corresponding category value
       const categoryObj = categories.find(cat => cat.id === menuItem.category);
       setCategory((categoryObj?.value || "") as MenuItemCategory | "");
     } else if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
-      // If category is an object, find the corresponding category value by ID
       const categoryId = (menuItem.category as { id: number }).id;
       const categoryObj = categories.find(cat => cat.id === categoryId);
       setCategory((categoryObj?.value || "") as MenuItemCategory | "");
     } else if (typeof menuItem.category === "string") {
-      // If category is a string, use it directly
       setCategory(menuItem.category as MenuItemCategory | "");
     } else {
-      // Fallback for any other format
       setCategory("");
     }
   }, [menuItem?.category, categories]);
@@ -87,15 +65,11 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     if (!name.trim()) newErrors.name = "required";
     if (!category) newErrors.category = "required";
     if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) newErrors.price = "required";
-
-    // Check if ingredients are required for this category
     const noIngredientsCategories = ["alcohol", "cold", "hot", "shisha"];
     const requiresIngredients = !noIngredientsCategories.includes(category.toLowerCase());
-
     if (requiresIngredients && ingredients.length === 0) {
       newErrors.ingredients = "At least one ingredient is required";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [name, category, price, ingredients]);
@@ -107,7 +81,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   useEffect(() => {
     if (menuItem) {
       setName(menuItem.name || "");
-      // Handle different category formats: object, string, or number
       let categoryValue: MenuItemCategory | "" = "";
       if (typeof menuItem.category === "object" && menuItem.category !== null) {
         // Category is an object with id and name

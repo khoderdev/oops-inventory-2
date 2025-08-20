@@ -174,18 +174,23 @@ const categoryController = {
     try {
       const { id } = req.params;
 
-      const category = await Category.findByPk(id, {
-        include: [{
-          model: CategoryType,
-          as: "categoryTypes",
-          attributes: ["type"]
-        }]
-      });
+      const category = await Category.findByPk(id);
 
       if (!category) {
         return res.status(404).json({
           error: "Category not found"
         });
+      }
+
+      // Manually fetch categoryTypes if categoryTypeIds exist
+      if (category.categoryTypeIds && category.categoryTypeIds.length > 0) {
+        const categoryTypes = await CategoryType.findAll({
+          where: { id: category.categoryTypeIds },
+          attributes: ["id", "type", "createdAt", "updatedAt"]
+        });
+        category.dataValues.categoryTypes = categoryTypes;
+      } else {
+        category.dataValues.categoryTypes = [];
       }
 
       res.json({
