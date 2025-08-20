@@ -282,7 +282,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                   <Edit className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="!z-[9999]">
+              <TooltipContent side="top" sideOffset={5}>
                 <p>Edit {row.original.name}</p>
               </TooltipContent>
             </Tooltip>
@@ -292,7 +292,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                   <Plus className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="!z-[9999] relative" side="top" sideOffset={5}>
+              <TooltipContent side="top" sideOffset={5}>
                 <p>{row.original.stockEntries && row.original.stockEntries.length > 0 ? `Add more stock for ${row.original.name} (${row.original.stockEntries.length} entries)` : `No stock entries - Add initial stock for ${row.original.name}`}</p>
               </TooltipContent>
             </Tooltip>
@@ -305,7 +305,7 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                     </Button>
                   </TooltipTrigger>
                 </AlertDialogTrigger>
-                <TooltipContent className="!z-[9999]">
+                <TooltipContent side="top" sideOffset={5}>
                   <p>Delete {row.original.name}</p>
                 </TooltipContent>
               </Tooltip>
