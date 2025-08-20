@@ -13,12 +13,12 @@ import { CostBreakdown } from "../CostBreakdown";
 import { Calendar } from "@/components/ui/calendar";
 import { useWatch } from "react-hook-form";
 
-export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
+export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const watchedUnit = form.watch("purchasedUnit");
-  const watchedQuantity = useWatch({ control: form.control, name: "purchasedQuantity" });
-  const watchedCostPerUnit = useWatch({ control: form.control, name: "costPerPurchasedUnit" });
+  const watchedPurchasedQuantity = useWatch({ control: form.control, name: "purchasedQuantity" });
   const watchedPurchasedUnit = useWatch({ control: form.control, name: "purchasedUnit" });
+  const [lastChangedField, setLastChangedField] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedMaterial && stockEntry && watchedUnit) {
@@ -62,11 +62,21 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
 
   useEffect(() => {
     const currentCost = parseFloat(watchedCostPerUnit) || 0;
-    const quantity = parseFloat(watchedQuantity) || 0;
-    console.log("Second useEffect - currentCost:", currentCost, "quantity:", quantity, "watchedUnit:", watchedUnit);
-    if (selectedMaterial && !isNaN(currentCost) && !isNaN(quantity)) {
+    const quantity = parseFloat(watchedPurchasedQuantity) || 0;
+    const totalCost = parseFloat(watchedTotalCost) || 0;
+    
+    if (lastChangedField === "totalCost" && quantity > 0) {
+      // Calculate cost per unit from total cost
+      const calculatedCostPerUnit = totalCost / quantity;
+      form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString());
+    } else if ((lastChangedField === "purchasedQuantity" || lastChangedField === "costPerPurchasedUnit") || !lastChangedField) {
+      // Calculate total cost from quantity and cost per unit
       const calculatedTotal = currentCost * quantity;
-      form.setValue("totalCost", calculatedTotal.toString());
+      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString());
+    }
+    
+    // Validation for package costs
+    if (selectedMaterial && !isNaN(currentCost)) {
       if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && watchedUnit !== "bottle" && selectedMaterial.inputUnit === watchedUnit) {
         const packageCost = typeof selectedMaterial.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial.costPerUnit || 0;
         if (packageCost > 0 && Math.abs(currentCost - packageCost) / packageCost > 0.5) {
@@ -81,10 +91,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         form.clearErrors("costPerPurchasedUnit");
       }
     } else {
-      form.setValue("totalCost", "0");
       form.clearErrors("costPerPurchasedUnit");
     }
-  }, [watchedCostPerUnit, watchedQuantity, watchedUnit, selectedMaterial, form]);
+  }, [watchedCostPerUnit, watchedPurchasedQuantity, watchedTotalCost, watchedUnit, selectedMaterial, form, lastChangedField]);
 
   const handleSubmit = async () => {
     if (isSubmitting) {
@@ -255,7 +264,11 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         min="0"
                         placeholder="0"
                         {...field}
-                        onChange={e => field.onChange(watchedUnit === "piece" || watchedUnit === "bottle" ? Math.round(parseFloat(e.target.value) || 0) : e.target.value)}
+                        onChange={e => {
+                          const value = watchedUnit === "piece" || watchedUnit === "bottle" ? Math.round(parseFloat(e.target.value) || 0) : e.target.value;
+                          field.onChange(value);
+                          setLastChangedField("purchasedQuantity");
+                        }}
                         className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <Button
@@ -322,7 +335,18 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                       Cost per Unit
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.0001" min="0" placeholder="0" {...field} className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input 
+                        type="number" 
+                        step="0.0001" 
+                        min="0" 
+                        placeholder="0" 
+                        {...field} 
+                        onChange={e => {
+                          field.onChange(e.target.value);
+                          setLastChangedField("costPerPurchasedUnit");
+                        }}
+                        className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                      />
                     </FormControl>
                     <p className="text-xs text-green-600 mt-1">Cost per {watchedUnit || "unit"}</p>
                     <FormMessage />
@@ -387,7 +411,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
             />
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={watchedUnit} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedPurchasedQuantity} purchasedUnit={watchedUnit} costPerPurchasedUnit={watchedCostPerUnit} totalCost={watchedTotalCost} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

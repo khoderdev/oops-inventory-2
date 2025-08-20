@@ -1053,6 +1053,7 @@ export interface NewStockTabProps {
   selectedMaterial: Material | undefined;
   watchedQuantity: string;
   watchedCostPerUnit: string;
+  watchedTotalCost: string;
   stockEntry?: StockEntry;
   onSubmit: (data: StockFormData) => void;
   onCancel: () => void;
@@ -1065,6 +1066,7 @@ export interface UpdateEntryTabProps {
   selectedMaterial: Material | undefined;
   watchedQuantity: string;
   watchedCostPerUnit: string;
+  watchedTotalCost: string;
   stockEntry: StockEntry;
   onSubmit: (data: StockFormData) => void;
   onCancel: () => void;
@@ -1075,6 +1077,9 @@ export interface WasteFromEntryTabProps {
   materials: Material[];
   availableUnits: string[];
   selectedMaterial: Material | undefined;
+  watchedQuantity: string;
+  watchedCostPerUnit: string;
+  watchedTotalCost: string;
   stockEntry: StockEntry;
   onRecordWaste: (data: StockFormData & { stockEntryId: string }) => void;
   onCancel: () => void;
@@ -1086,7 +1091,8 @@ export interface AddToEntryTabProps {
   availableUnits: string[];
   selectedMaterial: Material | undefined;
   watchedQuantity: string;
-  watchedCostPerUnit: string; 
+  watchedCostPerUnit: string;
+  watchedTotalCost: string;
   stockEntry: StockEntry | undefined;
   onAddToSpecificEntry: (data: StockFormData & { stockEntryId: string }) => void;
   onCancel: () => void;

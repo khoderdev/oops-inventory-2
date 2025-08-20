@@ -16,14 +16,14 @@ import { useWatch } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
 import { stockAPI } from "@/api/stock.api.ts";
 
-export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMaterial, stockEntry: initialStockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
+export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry: initialStockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
   const [selectedStockEntry, setSelectedStockEntry] = useState<StockEntry | null>(initialStockEntry || null);
   const [isLoading, setIsLoading] = useState(false);
   const watchedMaterialId = useWatch({ control: form.control, name: "materialId" });
-  const watchedQuantity = useWatch({ control: form.control, name: "wasteQuantity" });
-  const watchedCostPerUnit = useWatch({ control: form.control, name: "costPerPurchasedUnit" });
+  const watchedWasteQuantity = useWatch({ control: form.control, name: "wasteQuantity" });
   const watchedPurchasedUnit = useWatch({ control: form.control, name: "purchasedUnit" });
+  const [lastChangedField, setLastChangedField] = useState<string | null>(null);
 
   useEffect(() => {
     if (watchedMaterialId) {
@@ -99,11 +99,20 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
   }, [form, selectedMaterial, selectedStockEntry, watchedPurchasedUnit]);
 
   useEffect(() => {
-    const quantity = parseFloat(watchedQuantity) || 0;
+    const quantity = parseFloat(watchedWasteQuantity) || 0;
     const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
-    const totalCost = quantity * costPerUnit;
-    form.setValue("totalCost", isNaN(totalCost) ? "0" : totalCost.toString());
-  }, [watchedQuantity, watchedCostPerUnit, watchedPurchasedUnit, form, selectedStockEntry, selectedMaterial]);
+    const totalCost = parseFloat(watchedTotalCost) || 0;
+    
+    if (lastChangedField === "totalCost" && quantity > 0) {
+      // Calculate cost per unit from total cost
+      const calculatedCostPerUnit = totalCost / quantity;
+      form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString());
+    } else if ((lastChangedField === "wasteQuantity" || lastChangedField === "costPerPurchasedUnit") || !lastChangedField) {
+      // Calculate total cost from quantity and cost per unit
+      const calculatedTotalCost = quantity * costPerUnit;
+      form.setValue("totalCost", isNaN(calculatedTotalCost) ? "0" : calculatedTotalCost.toString());
+    }
+  }, [watchedWasteQuantity, watchedCostPerUnit, watchedTotalCost, watchedPurchasedUnit, form, selectedStockEntry, selectedMaterial, lastChangedField]);
 
   const handleSubmit = async () => {
     if (!selectedStockEntry) {
@@ -271,7 +280,19 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input type="number" step="1" min="0" placeholder="0" {...field} value={field.value || ""} onChange={e => field.onChange(e.target.value)} className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input 
+                        type="number" 
+                        step="1" 
+                        min="0" 
+                        placeholder="0" 
+                        {...field} 
+                        value={field.value || ""} 
+                        onChange={e => {
+                          field.onChange(e.target.value);
+                          setLastChangedField("wasteQuantity");
+                        }} 
+                        className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                      />
                       <Button
                         type="button"
                         variant="outline"
@@ -411,7 +432,7 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
             </div>
           )}
 
-          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={watchedPurchasedUnit} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedWasteQuantity} purchasedUnit={watchedPurchasedUnit} costPerPurchasedUnit={watchedCostPerUnit} totalCost={watchedTotalCost} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>

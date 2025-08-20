@@ -35,6 +35,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   const watchedMaterialId = form.watch("materialId");
   const watchedQuantity = form.watch("purchasedQuantity");
   const watchedCostPerUnit = form.watch("costPerPurchasedUnit");
+  const watchedTotalCost = form.watch("totalCost");
 
   useEffect(() => {
     if (selectedMaterialId && selectedMaterialId !== watchedMaterialId) {
@@ -155,18 +156,56 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
     }
   }, [selectedMaterial, form, stockEntry]);
 
-  React.useEffect(() => {
-    if (watchedQuantity && watchedCostPerUnit) {
-      const numQuantity = typeof watchedQuantity === "string" ? parseFloat(watchedQuantity) : watchedQuantity;
-      const numCostPerUnit = typeof watchedCostPerUnit === "string" ? parseFloat(watchedCostPerUnit) : watchedCostPerUnit;
+  // Track which field was last changed to determine calculation direction
+  const [lastChangedField, setLastChangedField] = useState<'quantity' | 'costPerUnit' | 'totalCost' | null>(null);
 
-      if (!isNaN(numQuantity) && !isNaN(numCostPerUnit)) {
-        // Calculate exact cost without rounding for backend precision
-        const totalCost = numQuantity * numCostPerUnit;
-        form.setValue("totalCost", totalCost.toString());
+  // Set up field change listeners
+  useEffect(() => {
+    const quantityField = document.querySelector('input[name="purchasedQuantity"]');
+    const costPerUnitField = document.querySelector('input[name="costPerPurchasedUnit"]');
+    const totalCostField = document.querySelector('input[name="totalCost"]');
+
+    const handleQuantityChange = () => setLastChangedField('quantity');
+    const handleCostPerUnitChange = () => setLastChangedField('costPerUnit');
+    const handleTotalCostChange = () => setLastChangedField('totalCost');
+
+    quantityField?.addEventListener('input', handleQuantityChange);
+    costPerUnitField?.addEventListener('input', handleCostPerUnitChange);
+    totalCostField?.addEventListener('input', handleTotalCostChange);
+
+    return () => {
+      quantityField?.removeEventListener('input', handleQuantityChange);
+      costPerUnitField?.removeEventListener('input', handleCostPerUnitChange);
+      totalCostField?.removeEventListener('input', handleTotalCostChange);
+    };
+  }, []);
+
+  // Bidirectional calculation between Cost per Unit and Total Cost
+  React.useEffect(() => {
+    const numQuantity = typeof watchedQuantity === "string" ? parseFloat(watchedQuantity) : watchedQuantity;
+    const numCostPerUnit = typeof watchedCostPerUnit === "string" ? parseFloat(watchedCostPerUnit) : watchedCostPerUnit;
+    const numTotalCost = typeof watchedTotalCost === "string" ? parseFloat(watchedTotalCost) : watchedTotalCost;
+
+    // Skip calculation if quantity is zero or not a number
+    if (isNaN(numQuantity) || numQuantity === 0) {
+      return;
+    }
+
+    // Calculate based on which field was last changed
+    if (lastChangedField === 'totalCost' && !isNaN(numTotalCost)) {
+      // Calculate Cost per Unit from Total Cost and Quantity
+      const calculatedCostPerUnit = numTotalCost / numQuantity;
+      if (!isNaN(calculatedCostPerUnit) && isFinite(calculatedCostPerUnit)) {
+        form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toString());
+      }
+    } else if ((lastChangedField === 'costPerUnit' || lastChangedField === 'quantity') && !isNaN(numCostPerUnit)) {
+      // Calculate Total Cost from Cost per Unit and Quantity
+      const calculatedTotalCost = numQuantity * numCostPerUnit;
+      if (!isNaN(calculatedTotalCost)) {
+        form.setValue("totalCost", calculatedTotalCost.toString());
       }
     }
-  }, [watchedQuantity, watchedCostPerUnit, form]);
+  }, [watchedQuantity, watchedCostPerUnit, watchedTotalCost, form, lastChangedField]);
 
   React.useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
@@ -235,37 +274,37 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
           <div className="h-full overflow-y-auto">
             <TabsContent value="new-stock" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
-                <NewStockTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} stockEntry={stockEntry} onSubmit={onSubmit} onCancel={onCancel} />
+                <NewStockTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onSubmit={onSubmit} onCancel={onCancel} />
               </div>
             </TabsContent>
 
             <TabsContent value="add-stock" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
-                <AddToEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} stockEntry={stockEntry} onAddToSpecificEntry={onAddToSpecificEntry} onCancel={onCancel} />
+                <AddToEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onAddToSpecificEntry={onAddToSpecificEntry} onCancel={onCancel} />
               </div>
             </TabsContent>
 
             <TabsContent value="update-entry" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
-                <UpdateEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} stockEntry={stockEntry} onSubmit={onSubmit} onCancel={onCancel} />
+                <UpdateEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onSubmit={onSubmit} onCancel={onCancel} />
               </div>
             </TabsContent>
 
             <TabsContent value="add-to-entry" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
-                <AddToEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} stockEntry={stockEntry} onAddToSpecificEntry={onAddToSpecificEntry} onCancel={onCancel} />
+                <AddToEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onAddToSpecificEntry={onAddToSpecificEntry} onCancel={onCancel} />
               </div>
             </TabsContent>
 
             <TabsContent value="waste-from-entry" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
-                <WasteFromEntryTab2 form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
+                <WasteFromEntryTab2 form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
               </div>
             </TabsContent>
 
             <TabsContent value="record-waste" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
-                <WasteFromEntryTab2 form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
+                <WasteFromEntryTab2 form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
               </div>
             </TabsContent>
           </div>

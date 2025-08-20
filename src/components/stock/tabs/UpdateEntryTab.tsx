@@ -9,8 +9,27 @@ import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Minus, Package, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
+import { useEffect, useState } from "react";
+import { useWatch } from "react-hook-form";
 
-export function UpdateEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, stockEntry, onSubmit, onCancel }: UpdateEntryTabProps) {
+export function UpdateEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: UpdateEntryTabProps) {
+  const [lastChangedField, setLastChangedField] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const quantity = parseFloat(watchedQuantity) || 0;
+    const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
+    const totalCost = parseFloat(watchedTotalCost) || 0;
+    
+    if (lastChangedField === "totalCost" && quantity > 0) {
+      // Calculate cost per unit from total cost
+      const calculatedCostPerUnit = totalCost / quantity;
+      form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString());
+    } else if ((lastChangedField === "purchasedQuantity" || lastChangedField === "costPerPurchasedUnit") || !lastChangedField) {
+      // Calculate total cost from quantity and cost per unit
+      const calculatedTotal = quantity * costPerUnit;
+      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString());
+    }
+  }, [watchedQuantity, watchedCostPerUnit, watchedTotalCost, form, lastChangedField]);
   const handleSubmit = (data: StockFormInputs) => {
     const formData = data as unknown as StockFormData;
     onSubmit(formData);
@@ -102,7 +121,18 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input type="number" step="1" min="0" placeholder="0" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-green-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input 
+                        type="number" 
+                        step="1" 
+                        min="0" 
+                        placeholder="0" 
+                        {...field} 
+                        onChange={e => {
+                          field.onChange(e.target.value);
+                          setLastChangedField("purchasedQuantity");
+                        }} 
+                        className="h-11 border-green-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                      />
                       <Button
                         type="button"
                         variant="outline"
@@ -171,7 +201,19 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input onWheel={e => e.preventDefault()} type="number" step="0.0001" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input 
+                        onWheel={e => e.preventDefault()} 
+                        type="number" 
+                        step="0.0001" 
+                        min="0" 
+                        placeholder="0.00" 
+                        {...field} 
+                        onChange={e => {
+                          field.onChange(e.target.value);
+                          setLastChangedField("costPerPurchasedUnit");
+                        }} 
+                        className="h-11 border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                      />
                       <Button
                         type="button"
                         variant="outline"
@@ -216,7 +258,18 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <Input type="number" step="0.0001" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.value)} className="h-11 border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      <Input 
+                        type="number" 
+                        step="0.0001" 
+                        min="0" 
+                        placeholder="0.00" 
+                        {...field} 
+                        onChange={e => {
+                          field.onChange(e.target.value);
+                          setLastChangedField("totalCost");
+                        }} 
+                        className="h-11 border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                      />
                       <Button
                         type="button"
                         variant="outline"
@@ -263,7 +316,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
             />
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={form.watch("totalCost")} />
+          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch("purchasedUnit")} costPerPurchasedUnit={watchedCostPerUnit} totalCost={watchedTotalCost} />
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>
