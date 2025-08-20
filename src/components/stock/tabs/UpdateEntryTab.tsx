@@ -233,7 +233,6 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
                           const newValue = Math.max(0, currentValue - 0.0001);
-                          // Store exact value and explicitly set lastChangedField
                           field.onChange(newValue.toString());
                           setLastChangedField("totalCost");
                           console.log("🔽 Decreased total cost to:", newValue);
@@ -249,12 +248,9 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         placeholder="0.00"
                         value={field.value}
                         onChange={(e) => {
-                          // Directly update the form value
                           const newValue = e.target.value;
                           field.onChange(newValue);
-                          // Set the flag to prevent automatic recalculation
                           setLastChangedField("totalCost");
-                          console.log("✏️ Manual total cost edit:", newValue);
                         }}
                         className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -266,10 +262,8 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
                           const newValue = currentValue + 0.0001;
-                          // Store exact value and explicitly set lastChangedField
                           field.onChange(newValue.toString());
                           setLastChangedField("totalCost");
-                          console.log("🔼 Increased total cost to:", newValue);
                         }}
                       >
                         <Plus className="h-4 w-4" />
@@ -285,7 +279,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
               control={form.control}
               name="purchaseDate"
               render={({ field }) => (
-                <FormItem className="flex flex-col">
+                <FormItem className="flex flex-col mt-3">
                   <FormLabel>Purchase Date</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>

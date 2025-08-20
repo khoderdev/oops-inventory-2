@@ -5,8 +5,9 @@ import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Calculator, DollarSign, Package } from "lucide-react";
 import { Badge } from "../ui/badge";
 
-// Use the UI-friendly currency formatting utility
+// Use the enhanced UI-friendly formatting utilities
 const formatCurrency = formatCurrencyUI;
+const formatNumber = formatNumberUI;
 
 export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costPerPurchasedUnit }: { selectedMaterial: Material | null; quantity: string; purchasedUnit: string; costPerPurchasedUnit: string; totalCost?: string }) => {
   const numQuantity = parseFloat(quantity) || 0;
@@ -122,7 +123,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
             <span className="text-sm font-medium text-gray-600">Quantity</span>
           </div>
           <p className="text-xl font-bold text-gray-800">
-            {formatNumberUI(numQuantity)} {purchasedUnit || "units"}
+            {formatNumber(numQuantity)} {purchasedUnit || "units"}
           </p>
         </div>
 

@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Minus, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
 import { useEffect, useState } from "react";
+import { formatNumberUI } from "@/utils/conversionLogic";
 
 export function NewStockTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: NewStockTabProps) {
   const [lastChangedField, setLastChangedField] = useState<string | null>(null);
@@ -223,6 +224,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                             const newValue = Math.max(0, currentValue - 0.0001);
                             // Store exact value but display formatted
                             field.onChange(newValue.toString());
+                            setLastChangedField("costPerPurchasedUnit");
+                            console.log("🔽 Decreased cost per unit to:", newValue);
                           }}
                           disabled={parseFloat(field.value) <= 0}
                         >
@@ -234,10 +237,11 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           step="0.0001"
                           min="0"
                           placeholder="0.00"
-                          {...field}
+                          value={field.value}
                           onChange={e => {
                             field.onChange(e.target.value);
                             setLastChangedField("costPerPurchasedUnit");
+                            console.log("✏️ Manual edit on Cost Per Unit:", e.target.value);
                           }}
                           className={cn("h-11 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-colors", !hasValue && "border-red-200 focus:border-red-500 focus:ring-red-500", hasValue && !fieldState.error && "border-gray-300 focus:border-blue-500 focus:ring-blue-500")}
                         />
@@ -251,6 +255,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                             const newValue = currentValue + 0.0001;
                             // Store exact value but display formatted
                             field.onChange(newValue.toString());
+                            setLastChangedField("costPerPurchasedUnit");
+                            console.log("🔺 Increased cost per unit to:", newValue);
                           }}
                         >
                           <Plus className="h-4 w-4" />

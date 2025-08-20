@@ -360,7 +360,6 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         onChange={e => {
                           field.onChange(e.target.value);
                           setLastChangedField("costPerPurchasedUnit");
-                          console.log("✏️ Manual cost per unit edit:", e.target.value);
                         }}
                         className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                       />
