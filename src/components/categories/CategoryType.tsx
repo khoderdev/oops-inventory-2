@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CategoryTypeEntity, CategoryTypeFormData, CategoryTypeFilters, CategoryTypeFormProps, CategoryTypeProps } from "@/types/categories";
+import { CategoryTypeEntity, CategoryTypeFormData, CategoryTypeFormProps, CategoryTypeProps } from "@/types/categories";
 import { getCategoryTypes, createCategoryType, updateCategoryType, deleteCategoryType, bulkDeleteCategoryTypes } from "@/api/categories.api";
 import { Edit, Trash2, Plus, Search, Package2 } from "lucide-react";
 
@@ -268,9 +268,7 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
         <CardHeader className="sticky top-0 z-10 bg-background border-b p-2 px-4">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-                Category Types ({filteredCategoryTypes.length})
-              </h1>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Category Types ({filteredCategoryTypes.length})</h1>
 
               <div className="flex flex-row gap-2 w-full sm:w-auto">
                 <div className="relative flex-1">
