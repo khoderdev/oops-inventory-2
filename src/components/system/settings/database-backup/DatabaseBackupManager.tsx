@@ -28,7 +28,6 @@ const DatabaseBackupManager: React.FC = () => {
 
   const loadData = useCallback(async (forceRefresh = false) => {
     try {
-      const timestamp = new Date().toLocaleTimeString();
       if (forceRefresh) {
         backupAPI.clearCache();
         await new Promise(resolve => setTimeout(resolve, 1000));

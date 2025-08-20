@@ -135,22 +135,34 @@ const selectedFormats = formatArgs.length > 0
   : ['custom']; // Default to custom format only
 
 // Validate format selection
-const validFormats = ['custom', 'directory', 'sql'];
-const invalidFormats = selectedFormats.filter(f => !validFormats.includes(f));
+const validFormats = ['custom', 'directory', 'sql', 'plain'];
+// Map 'plain' to 'sql' for compatibility with backup.js
+const normalizedFormats = selectedFormats.map(f => f === 'plain' ? 'sql' : f);
+const invalidFormats = normalizedFormats.filter(f => !['custom', 'directory', 'sql'].includes(f));
 if (invalidFormats.length > 0) {
   console.error(`❌ Invalid format(s): ${invalidFormats.join(', ')}`);
   console.error(`Valid formats: ${validFormats.join(', ')}`);
   process.exit(1);
 }
 
-console.log(`📋 Selected formats: ${selectedFormats.join(', ')}`);
+console.log(`📋 Selected formats: ${normalizedFormats.join(', ')}`);
 
 try {
   // Import database config to test connection
   console.log("📦 Testing database connection...");
   const { default: sequelize } = await import("../config/database.js");
-  await sequelize.authenticate();
-  console.log("   ✓ Database connection successful");
+  const testConnection = async () => {
+    try {
+      console.log('Testing database connection');
+      await sequelize.authenticate();
+      console.log('Database connection successful');
+      return true;
+    } catch (error) {
+      console.error('Unable to connect to the database:', error);
+      return false;
+    }
+  };
+  await testConnection();
 
   // Get database info
   const [dbInfo] = await sequelize.query(`
@@ -162,8 +174,16 @@ try {
   // Close sequelize connection
   await sequelize.close();
 
-  // Find PostgreSQL installation
-  console.log("🔍 Locating PostgreSQL installation...");
+  // Find PostgreSQL installation path
+  console.log('Locating PostgreSQL installation');
+  const pgPath = await findPostgreSQLPath();
+  if (!pgPath) {
+    console.error("PostgreSQL installation not found");
+    process.exit(1);
+  }
+  console.log('PostgreSQL installation found');
+
+  // Find PostgreSQL bin path
   const { pgDumpPath, pgDumpExecutable } = await findPostgreSQLBinPath();
   console.log(`PostgreSQL bin path: ${pgDumpPath || 'Using PATH'}`);
   console.log(`pg_dump executable: ${pgDumpExecutable}`);
@@ -177,29 +197,15 @@ try {
     fs.mkdirSync(baseBackupDir, { recursive: true });
   }
 
-  // Generate backup folder with readable format (including seconds for uniqueness)
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const hours = now.getHours();
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const displayHours = hours % 12 || 12;
+  // Generate backup folder with timestamp
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const backupFolder = `pgdump_${timestamp}`;
+  const backupPath = path.join(baseBackupDir, backupFolder);
 
-  const backupFolderName = `pgdump_${year}-${month}-${day}_${displayHours}-${minutes}-${seconds}-${ampm}`;
-  const backupDir = path.join(baseBackupDir, backupFolderName);
-
-  // Remove existing backup folder if it exists (cleanup)
-  if (fs.existsSync(backupDir)) {
-    console.log(`🧹 Cleaning up existing backup folder...`);
-    fs.rmSync(backupDir, { recursive: true, force: true });
+  if (!fs.existsSync(backupPath)) {
+    fs.mkdirSync(backupPath, { recursive: true });
+    console.log(`Created backup folder: ${backupPath}`);
   }
-
-  // Create individual backup folder
-  fs.mkdirSync(backupDir, { recursive: true });
-  console.log(`📁 Created backup folder: ${backupFolderName}`);
 
   // Database configuration from main config
   const DB_CONFIG = {
@@ -209,7 +215,7 @@ try {
     password: sequelize.config.password,
     port: sequelize.config.port
   };
-  
+
   console.log(`🗄️  Backing up database: ${DB_CONFIG.database}`);
 
   // Set PGPASSWORD environment variable
@@ -235,43 +241,76 @@ try {
   const createdFiles = [];
 
   // 1. Custom format backup (for pg_restore)
-  if (selectedFormats.includes('custom')) {
+  if (normalizedFormats.includes('custom')) {
     console.log("   📦 Creating custom format backup...");
-    const customBackupFile = path.join(backupDir, "backup.custom");
-    const customCommand = buildPgDumpCommand("custom", customBackupFile);
+    const customBackupFile = path.join(backupPath, `${DB_CONFIG.database}.custom`);
+    const customCmd = buildPgDumpCommand("custom", customBackupFile);
 
-    await execAsync(customCommand, { env });
-    console.log("   ✓ Custom format backup created");
-    createdFiles.push({ name: "backup.custom", type: "custom", path: customBackupFile });
+    console.log("Creating custom format backup");
+    try {
+      await execAsync(customCmd, { env });
+      console.log("Custom format backup created successfully");
+      
+      // Verify the file was actually created
+      if (fs.existsSync(customBackupFile)) {
+        console.log(`✅ Custom backup file verified: ${customBackupFile}`);
+        createdFiles.push({ name: `${DB_CONFIG.database}.custom`, type: "custom", path: customBackupFile });
+      } else {
+        throw new Error(`Custom backup file was not created: ${customBackupFile}`);
+      }
+    } catch (error) {
+      console.error("Error creating custom format backup:", error);
+      throw error; // Re-throw to fail the entire backup process
+    }
   }
 
   // 2. Directory format backup (for pg_restore)
-  if (selectedFormats.includes('directory')) {
+  if (normalizedFormats.includes('directory')) {
     console.log("   📁 Creating directory format backup...");
-    const dirBackupPath = path.join(backupDir, "backup_directory");
+    const dirBackupPath = path.join(backupPath, `${DB_CONFIG.database}_dir`);
+    const dirCmd = buildPgDumpCommand("directory", dirBackupPath);
 
-    // Ensure directory doesn't exist (pg_dump --format=directory fails if target exists)
-    if (fs.existsSync(dirBackupPath)) {
-      fs.rmSync(dirBackupPath, { recursive: true, force: true });
+    console.log("Creating directory format backup");
+    try {
+      await execAsync(dirCmd, { env });
+      console.log("Directory format backup created successfully");
+      
+      // Verify the directory was actually created
+      if (fs.existsSync(dirBackupPath)) {
+        console.log(`✅ Directory backup verified: ${dirBackupPath}`);
+        createdFiles.push({ name: `${DB_CONFIG.database}_dir/`, type: "directory", path: dirBackupPath });
+      } else {
+        throw new Error(`Directory backup was not created: ${dirBackupPath}`);
+      }
+    } catch (error) {
+      console.error("Error creating directory format backup:", error);
+      throw error; // Re-throw to fail the entire backup process
     }
-
-    const dirCommand = buildPgDumpCommand("directory", dirBackupPath);
-
-    await execAsync(dirCommand, { env });
-    console.log("   ✓ Directory format backup created");
-    createdFiles.push({ name: "backup_directory/", type: "directory", path: dirBackupPath });
   }
 
   // 3. Plain SQL backup (for psql)
-  if (selectedFormats.includes('sql')) {
+  if (normalizedFormats.includes('sql')) {
     console.log("   📄 Creating plain SQL backup...");
-    const sqlBackupFile = path.join(backupDir, "backup.sql");
-    // Use 'plain' format for pg_dump when 'sql' is requested
+    const sqlBackupFile = path.join(backupPath, `${DB_CONFIG.database}.sql`);
+    // Use 'plain' format for pg_dump command
     const sqlCommand = buildPgDumpCommand("plain", sqlBackupFile, "--column-inserts");
 
-    await execAsync(sqlCommand, { env });
-    console.log("   ✓ Plain SQL backup created");
-    createdFiles.push({ name: "backup.sql", type: "sql", path: sqlBackupFile });
+    console.log("Creating plain SQL backup");
+    try {
+      await execAsync(sqlCommand, { env });
+      console.log("Plain SQL backup created successfully");
+      
+      // Verify the file was actually created
+      if (fs.existsSync(sqlBackupFile)) {
+        console.log(`✅ SQL backup file verified: ${sqlBackupFile}`);
+        createdFiles.push({ name: `${DB_CONFIG.database}.sql`, type: "sql", path: sqlBackupFile });
+      } else {
+        throw new Error(`SQL backup file was not created: ${sqlBackupFile}`);
+      }
+    } catch (error) {
+      console.error("Error creating plain SQL backup:", error);
+      throw error; // Re-throw to fail the entire backup process
+    }
   }
 
   // Get file sizes for created files
@@ -319,21 +358,21 @@ try {
 - **Created**: ${new Date().toLocaleString()}
 - **Database**: ${DB_CONFIG.database}
 - **PostgreSQL Version**: Compatible with PostgreSQL 17+
-- **Selected Formats**: ${selectedFormats.join(', ').toUpperCase()}
+- **Selected Formats**: ${normalizedFormats.join(', ').toUpperCase()}
 
 ## Available Backup Formats
 
 `;
 
   // Add instructions for each created format
-  if (selectedFormats.includes('custom') && fileStats.custom) {
-    restoreInstructions += `### Custom Format (backup.custom)
+  if (normalizedFormats.includes('custom') && fileStats.custom) {
+    restoreInstructions += `### Custom Format (${DB_CONFIG.database}.custom)
 **Best for**: pgAdmin Restore, pg_restore command
 **Size**: ${(fileStats.custom.size / 1024 / 1024).toFixed(2)} MB
 
 #### Using pgAdmin:
 1. Right-click on your database → Restore
-2. Select "backup.custom" file
+2. Select "${DB_CONFIG.database}.custom" file
 3. Choose restore options and click Restore
 
 #### Using pg_restore command:
@@ -342,14 +381,14 @@ try {
 createdb -U postgres new_inventory_db
 
 # Restore from custom backup
-pg_restore -U postgres -d new_inventory_db -v backup.custom
+pg_restore -U postgres -d new_inventory_db -v ${DB_CONFIG.database}.custom
 \`\`\`
 
 `;
   }
 
-  if (selectedFormats.includes('directory') && fileStats.directory) {
-    restoreInstructions += `### Directory Format (backup_directory/)
+  if (normalizedFormats.includes('directory') && fileStats.directory) {
+    restoreInstructions += `### Directory Format (${DB_CONFIG.database}_dir/)
 **Best for**: Parallel restore, large databases
 **Size**: ${(fileStats.directory.size / 1024 / 1024).toFixed(2)} MB
 
@@ -359,26 +398,26 @@ pg_restore -U postgres -d new_inventory_db -v backup.custom
 createdb -U postgres new_inventory_db
 
 # Restore from directory backup (parallel jobs)
-pg_restore -U postgres -d new_inventory_db -v -j 4 backup_directory/
+pg_restore -U postgres -d new_inventory_db -v -j 4 ${DB_CONFIG.database}_dir/
 \`\`\`
 
 `;
   }
 
-  if (selectedFormats.includes('sql') && fileStats.sql) {
-    restoreInstructions += `### Plain SQL Format (backup.sql)
+  if (normalizedFormats.includes('sql') && fileStats.sql) {
+    restoreInstructions += `### Plain SQL Format (${DB_CONFIG.database}.sql)
 **Best for**: Cross-platform compatibility, manual editing
 **Size**: ${(fileStats.sql.size / 1024 / 1024).toFixed(2)} MB
 
 #### Using psql command:
 \`\`\`bash
 # The SQL file contains CREATE DATABASE, so just run:
-psql -U postgres -f backup.sql
+psql -U postgres -f ${DB_CONFIG.database}.sql
 \`\`\`
 
 #### Using pgAdmin Query Tool:
 1. Open pgAdmin Query Tool
-2. Open backup.sql file
+2. Open ${DB_CONFIG.database}.sql file
 3. Execute the SQL statements
 
 `;
@@ -397,12 +436,12 @@ psql -U postgres -f backup.sql
 - For large databases, use directory format with parallel restore
 `;
 
-  const instructionsFile = path.join(backupDir, "RESTORE.md");
+  const instructionsFile = path.join(backupPath, "RESTORE.md");
   fs.writeFileSync(instructionsFile, restoreInstructions);
 
   console.log("\n🎉 pg_dump backup completed successfully!");
   console.log("==========================================");
-  console.log(`📁 Backup folder: ${backupDir}`);
+  console.log(`📁 Backup folder: ${backupPath}`);
   console.log("");
   console.log(`📦 Files created (${createdFiles.length} format${createdFiles.length !== 1 ? 's' : ''}):`);
   
@@ -427,14 +466,14 @@ psql -U postgres -f backup.sql
   console.log(`   📋 RESTORE.md - Detailed restore instructions`);
 
   console.log("");
-  console.log(`✅ Selected backup format${selectedFormats.length !== 1 ? 's' : ''} created successfully!`);
+  console.log(`✅ Selected backup format${normalizedFormats.length !== 1 ? 's' : ''} created successfully!`);
   
   // Show usage instructions based on created formats
   const usageInstructions = [];
-  if (selectedFormats.includes('custom') || selectedFormats.includes('directory')) {
+  if (normalizedFormats.includes('custom') || normalizedFormats.includes('directory')) {
     usageInstructions.push('Use backup.custom or backup_directory with pgAdmin Restore');
   }
-  if (selectedFormats.includes('sql')) {
+  if (normalizedFormats.includes('sql')) {
     usageInstructions.push('Use backup.sql with psql or pgAdmin Query Tool');
   }
   
@@ -443,7 +482,7 @@ psql -U postgres -f backup.sql
   });
   
   console.log("");
-  console.log(`📝 Usage: node pgDumpFixed.js --format=${selectedFormats.join(',')}`);
+  console.log(`📝 Usage: node pgDumpFixed.js --format=${normalizedFormats.join(',')}`);
   console.log(`📝 Available formats: ${validFormats.join(', ')}`);
   console.log(`📝 Example: node pgDumpFixed.js --format=sql,custom`);
 } catch (error) {

@@ -1,5 +1,5 @@
 import archiver from "archiver";
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import express from "express";
 import fs from "fs";
 import fsPromises from "fs/promises";
@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import os from "os";
 import sequelize from "../config/database.js";
 import { findPostgreSQLPath } from "../scripts/pgPathFinder.js";
+import backupProgressTracker from "../utils/backupProgressTracker.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -192,21 +193,89 @@ const getBackupMetadata = async (backupPath, type) => {
   }
 };
 
-// Helper function to run backup script
-const runBackupScript = async (format = 'custom') => {
+// Helper function to run backup script with progress tracking
+const runBackupScript = async (format = 'custom', backupId) => {
   try {
-    // Map 'sql' to 'plain' for pg_dump compatibility
-    const pgDumpFormat = format === 'sql' ? 'sql' : format;
-    
+    // Use the format directly as pgDumpFixed.js validates formats internally
+    const pgDumpFormat = format;
     const scriptPath = path.join(__dirname, "..", "scripts", "pgDumpFixed.js");
     console.log(`Running backup with format: ${pgDumpFormat}`);
-    const result = await execAsync(`node "${scriptPath}" --format=${pgDumpFormat}`, {
-      cwd: path.join(__dirname, ".."),
-      env: { ...process.env }
+    // Initialize progress tracking
+    backupProgressTracker.initializeProgress(backupId);
+    return new Promise((resolve, reject) => {
+      // Use spawn instead of exec to get real-time output
+      const backupProcess = spawn('node', [
+        scriptPath,
+        `--format=${pgDumpFormat}`
+      ], {
+        cwd: path.join(__dirname, ".."),
+        env: { ...process.env }
+      });
+      
+      let output = '';
+      let errorOutput = '';
+      
+      // Track progress based on output
+      backupProcess.stdout.on('data', (data) => {
+        const chunk = data.toString();
+        output += chunk;
+        
+        // Update progress based on output patterns
+        if (chunk.includes('Testing database connection')) {
+          backupProgressTracker.updateProgress(backupId, 'INITIALIZING', 50);
+        } else if (chunk.includes('Database connection successful')) {
+          backupProgressTracker.updateProgress(backupId, 'INITIALIZING', 100);
+          backupProgressTracker.updateProgress(backupId, 'PREPARING_DATABASE', 10);
+        } else if (chunk.includes('Locating PostgreSQL installation')) {
+          backupProgressTracker.updateProgress(backupId, 'PREPARING_DATABASE', 50);
+        } else if (chunk.includes('Created backup folder:')) {
+          backupProgressTracker.updateProgress(backupId, 'PREPARING_DATABASE', 100);
+          backupProgressTracker.updateProgress(backupId, 'DUMPING_SCHEMA', 10);
+        } else if (chunk.includes('Creating custom format backup')) {
+          backupProgressTracker.updateProgress(backupId, 'DUMPING_SCHEMA', 50);
+        } else if (chunk.includes('Custom format backup created')) {
+          backupProgressTracker.updateProgress(backupId, 'DUMPING_SCHEMA', 100);
+          backupProgressTracker.updateProgress(backupId, 'DUMPING_DATA', 20);
+        } else if (chunk.includes('Creating directory format backup')) {
+          backupProgressTracker.updateProgress(backupId, 'DUMPING_DATA', 40);
+        } else if (chunk.includes('Directory format backup created')) {
+          backupProgressTracker.updateProgress(backupId, 'DUMPING_DATA', 70);
+        } else if (chunk.includes('Creating plain SQL backup')) {
+          backupProgressTracker.updateProgress(backupId, 'DUMPING_DATA', 80);
+        } else if (chunk.includes('Plain SQL backup created')) {
+          backupProgressTracker.updateProgress(backupId, 'DUMPING_DATA', 100);
+          backupProgressTracker.updateProgress(backupId, 'CREATING_INDEXES', 50);
+        } else if (chunk.includes('pg_dump backup completed successfully')) {
+          backupProgressTracker.updateProgress(backupId, 'CREATING_INDEXES', 100);
+          backupProgressTracker.updateProgress(backupId, 'FINALIZING', 50);
+        }
+      });
+      
+      backupProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+      
+      backupProcess.on('close', (code) => {
+        if (code === 0) {
+          // Success
+          backupProgressTracker.updateProgress(backupId, 'FINALIZING', 100);
+          backupProgressTracker.completeProgress(backupId, true, "Backup completed successfully");
+          resolve({ stdout: output });
+        } else {
+          // Failure
+          backupProgressTracker.completeProgress(backupId, false, `Backup failed with code ${code}: ${errorOutput}`);
+          reject(new Error(`Backup process exited with code ${code}: ${errorOutput}`));
+        }
+      });
+      
+      backupProcess.on('error', (error) => {
+        backupProgressTracker.completeProgress(backupId, false, `Backup process error: ${error.message}`);
+        reject(error);
+      });
     });
-    return result;
   } catch (error) {
     console.error("Backup script error:", error);
+    backupProgressTracker.completeProgress(backupId, false, `Backup error: ${error.message}`);
     throw error;
   }
 };
@@ -268,17 +337,22 @@ initPostgreSQLPaths();
 router.post("/create", async (req, res) => {
   try {
     // Extract format from the formats array if provided, otherwise default to custom
-    const { name, formats, includeData = true, includeSchema = true } = req.body;
+    const { name, formats } = req.body;
     const type = formats && formats.length > 0 ? formats[0] : "custom";
     
     console.log(`Creating backup with name: ${name}, format: ${type}`);
     
-
     // Generate backup name if not provided
-    const backupName = name || `backup_${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    const backupName = name || `backup_${new Date().toISOString().replace(/[:.]/g, "-")}`;  
+    
+    // Generate a unique backup ID
+    const backupId = `backup_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
-    // Run the backup script with the specified format
-    const result = await runBackupScript(type);
+    // Run the backup script with the specified format and track progress
+    const result = await runBackupScript(type, backupId);
+
+    // Add a small delay to ensure file system sync
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Find the created backup directory
     const backupDirs = await fsPromises.readdir(BACKUP_DIR);
@@ -293,6 +367,10 @@ router.post("/create", async (req, res) => {
 
     const backupDir = path.join(BACKUP_DIR, latestBackup);
     const backupFiles = await fs.promises.readdir(backupDir);
+    
+    console.log(`Running backup with format: ${type}`);
+    console.log(`Backup directory: ${backupDir}`);
+    console.log(`Files in backup directory:`, backupFiles);
 
     // Determine the main backup file based on type
     let mainFile;
@@ -301,7 +379,7 @@ router.post("/create", async (req, res) => {
         mainFile = backupFiles.find(f => f.endsWith(".custom"));
         break;
       case "directory":
-        mainFile = backupFiles.find(f => f === "backup_directory");
+        mainFile = backupFiles.find(f => f.includes("_dir"));
         break;
       case "sql":
         mainFile = backupFiles.find(f => f.endsWith(".sql"));
@@ -310,24 +388,28 @@ router.post("/create", async (req, res) => {
         mainFile = backupFiles.find(f => f.endsWith(".custom"));
     }
 
+    console.log(`Looking for ${type} backup file, found:`, mainFile);
+
     if (!mainFile) {
+      console.error(`Available files:`, backupFiles);
       throw new Error(`No ${type} backup file found`);
     }
 
     const backupPath = path.join(backupDir, mainFile);
     const metadata = await getBackupMetadata(backupPath, type);
 
-    // Create a backup ID that includes the format
-    const backupId = `${latestBackup}_${type}`;
+    // Create a backup ID that includes the format for the API response
+    const backupFileId = `${latestBackup}_${type}`;
     
     const backupInfo = {
-      id: backupId,
+      id: backupFileId,
       name: backupName,
       type,
       path: backupPath,
       size: metadata.size,
       createdAt: metadata.createdAt,
-      metadata: metadata.metadata
+      metadata: metadata.metadata,
+      progressId: backupId // Include the progress tracking ID
     };
 
     res.json({
@@ -347,23 +429,41 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// Get backup progress (placeholder for real-time updates)
+// Get backup progress (real-time updates)
 router.get("/progress/:backupId", async (req, res) => {
   try {
     const { backupId } = req.params;
-
-    // For now, return completed status
-    // In a real implementation, you'd track progress in a database or cache
+    
+    // Get progress from the tracker
+    const progress = backupProgressTracker.getProgress(backupId);
+    
+    if (!progress) {
+      // If no progress is found, check if this is a legacy backup ID
+      // For backwards compatibility, return completed status
+      return res.json({
+        success: true,
+        data: {
+          status: "completed",
+          progress: 100,
+          message: "Backup completed successfully",
+          currentStep: "Finished"
+        }
+      });
+    }
+    
+    // Return the current progress
     res.json({
       success: true,
       data: {
-        status: "completed",
-        progress: 100,
-        message: "Backup completed successfully",
-        currentStep: "Finished"
+        status: progress.status,
+        progress: progress.progress,
+        message: progress.message,
+        currentStep: progress.currentStep,
+        estimatedTimeRemaining: progress.estimatedTimeRemaining
       }
     });
   } catch (error) {
+    console.error("Error getting backup progress:", error);
     res.status(500).json({
       success: false,
       message: "Failed to get backup progress",
