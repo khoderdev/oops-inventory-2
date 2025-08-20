@@ -56,7 +56,7 @@ export function useStockEntriesTableColumns({
 
       columnHelper.display({
         id: "materialName",
-        size: 220,
+        size: 180,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -64,10 +64,10 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "materialName" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("materialName", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent justify-start bg-green-400"
+            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[180px] bg-green-400 flex items-center"
           >
             Material Name
-            <span className="text-xs">{sortBy === "materialName" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+            <span className="text-xs ml-1">{sortBy === "materialName" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
         cell: ({ row }) => {
@@ -75,7 +75,7 @@ export function useStockEntriesTableColumns({
           const materialName = entry.material?.name;
           const isNegativeStock = hasNegativeStock(entry);
           return (
-            <div className="flex items-center gap-2 w-full border border-green-400">
+            <div className="flex items-center gap-2 w-[180px] h-8 px-2">
               {isNegativeStock && <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />}
               <span className="truncate font-medium">{materialName ? highlightText(materialName, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}</span>
             </div>
@@ -86,21 +86,21 @@ export function useStockEntriesTableColumns({
 
       columnHelper.display({
         id: "remainingQty",
-        size: 120,
-        header: ({ column }) => <div className="text-center w-full font-semibold flex items-center justify-center bg-teal-400">Current Qty</div>,
-        cell: ({ row }) => <div className="text-center w-full flex items-center justify-center -ml-2 border border-teal-400">{renderQuantityDisplay(row.original)}</div>
+        size: 100,
+        header: ({ column }) => <div className="text-left w-[100px] font-semibold bg-teal-400 px-2 flex items-center h-8">Current Qty</div>,
+        cell: ({ row }) => <div className="text-left w-[100px] h-8 px-2 flex items-center">{renderQuantityDisplay(row.original)}</div>
       }),
 
       columnHelper.display({
         id: "unit",
-        size: 120,
-        header: ({ column }) => <div className="text-center font-semibold bg-orange-400">Base Unit</div>,
-        cell: ({ row }) => <div className="text-center w-full border border-orange-400">{renderUnitDisplay(row.original)}</div>
+        size: 80,
+        header: ({ column }) => <div className="text-left w-[80px] font-semibold bg-orange-400 px-2 flex items-center h-8">Base Unit</div>,
+        cell: ({ row }) => <div className="text-left w-[80px] h-8 px-2 flex items-center">{renderUnitDisplay(row.original)}</div>
       }),
 
       columnHelper.accessor("costPerPurchasedUnit", {
         id: "costPerUnit",
-        size: 150,
+        size: 110,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -108,10 +108,10 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "costPerPurchasedUnit" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("costPerPurchasedUnit", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent justify-start bg-blue-400"
+            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[110px] bg-blue-400 flex items-center"
           >
             Unit Cost
-            <span className="text-xs">{sortBy === "costPerPurchasedUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+            <span className="text-xs ml-1">{sortBy === "costPerPurchasedUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
         cell: ({ row, getValue }) => {
@@ -120,9 +120,9 @@ export function useStockEntriesTableColumns({
           const purchasedUnit = entry.purchasedUnit;
           
           return (
-            <div className="flex items-center justify-start space-y-1 gap-2 w-full border border-blue-400">
-              <div className="font-medium text-left">{formatCleanCurrency(cost)}</div>
-              <div className="text-xs text-muted-foreground text-left">(per {purchasedUnit})</div>
+            <div className="flex flex-col justify-center w-[110px] h-8 px-2">
+              <div className="font-medium">{formatCleanCurrency(cost)}</div>
+              <div className="text-xs text-muted-foreground">(per {purchasedUnit})</div>
             </div>
           );
         },
@@ -131,7 +131,7 @@ export function useStockEntriesTableColumns({
 
       columnHelper.accessor("totalCost", {
         id: "totalCost",
-        size: 10,
+        size: 90,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -139,14 +139,14 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "totalCost" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("totalCost", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent justify-start bg-yellow-400"
+            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[90px] bg-yellow-400 flex items-center"
           >
             Total Cost
-            <span className="text-xs">{sortBy === "totalCost" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+            <span className="text-xs ml-1">{sortBy === "totalCost" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
         cell: ({ getValue }) => (
-          <div className="text-left w-full px-2 border border-yellow-400">
+          <div className="text-left w-[90px] h-8 px-2 flex items-center">
             <span className="font-medium">{formatCleanCurrency(getValue())}</span>
           </div>
         ),
@@ -155,7 +155,7 @@ export function useStockEntriesTableColumns({
 
       columnHelper.accessor("purchaseDate", {
         id: "purchaseDate",
-        size: 80,
+        size: 110,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -163,14 +163,14 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "purchaseDate" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("purchaseDate", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent justify-start bg-purple-400"
+            className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[110px] bg-purple-400 flex items-center"
           >
             Purchase Date
-            <span className="text-xs">{sortBy === "purchaseDate" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+            <span className="text-xs ml-1">{sortBy === "purchaseDate" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
         cell: ({ getValue }) => (
-          <div className="text-left w-full px-2 border border-purple-400">
+          <div className="text-left w-[110px] h-8 px-2 flex items-center">
             <span className="font-medium">{new Date(getValue()).toLocaleDateString()}</span>
           </div>
         ),
@@ -179,13 +179,13 @@ export function useStockEntriesTableColumns({
 
       columnHelper.display({
         id: "actions",
-        size: 140,
+        size: 130,
         enableSorting: false,
-        header: ({ column }) => <div className="text-left font-semibold  bg-red-400">Actions</div>,
+        header: ({ column }) => <div className="text-left font-semibold bg-red-400 px-2 w-[130px] flex items-center h-8">Actions</div>,
         cell: ({ row }) => {
           const entry = row.original;
           return (
-            <div className="flex items-center justify-start gap-1 border border-red-400">
+            <div className="flex items-center gap-1 h-8 px-2 w-[130px]">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
