@@ -708,7 +708,7 @@ const stockEntriesController = {
       // If wasting all, set everything to 0 immediately
       let newPurchasedQuantity = isWastingAll ? 0 : Math.max(0, parseFloat(stockEntry.purchasedQuantity) - wasteInOriginalUnit);
       let newIndividualQuantity = isWastingAll ? 0 : 0; // Start at 0, will be calculated below if not wasting all
-      let newIndividualUnit = isWastingAll ? material.baseUnit : (stockEntry.purchasedIndividualUnit || material.baseUnit);
+      let newIndividualUnit = isWastingAll ? material.baseUnit : stockEntry.purchasedIndividualUnit || material.baseUnit;
       if (isWastingAll) {
         newIndividualQuantity = 0;
         newIndividualUnit = material.baseUnit;
@@ -732,11 +732,20 @@ const stockEntriesController = {
       const costReduction = wasteInOriginalUnit * parseFloat(stockEntry.costPerPurchasedUnit);
       const newTotalCost = Math.max(0, parseFloat((parseFloat(stockEntry.totalCost) - costReduction).toFixed(6)));
       const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
+      // CRITICAL FIX: Ensure proper synchronization between quantities for mass units
       let newPurchasedConvertedQuantity;
       let newPurchasedConvertedUnit;
+      
       if (material.unitType === "mass") {
+        // For mass units, ensure converted quantity matches the individual quantity in base units
         newPurchasedConvertedQuantity = newIndividualQuantity;
         newPurchasedConvertedUnit = material.baseUnit;
+        
+        // CRITICAL FIX: For mass units, ensure individual quantity is properly calculated from purchased quantity
+        // This ensures purchasedIndividualQuantity is exactly 1000 * purchasedQuantity for kg->g conversions
+        if (stockEntry.purchasedUnit === "kg" && material.baseUnit === "g") {
+          newIndividualQuantity = Math.round(newPurchasedQuantity * 1000);
+        }
       } else if (material.unitType === "package") {
         newPurchasedConvertedQuantity = newPurchasedQuantity;
         newPurchasedConvertedUnit = stockEntry.purchasedUnit;
@@ -744,10 +753,11 @@ const stockEntriesController = {
         newPurchasedConvertedQuantity = newIndividualQuantity;
         newPurchasedConvertedUnit = newIndividualUnit;
       }
+      
+      // isWastingAll is already handled above, just ensure converted quantity is also 0 if wasting all
       if (isWastingAll) {
-        newPurchasedQuantity = 0;
-        newIndividualQuantity = 0;
         newPurchasedConvertedQuantity = 0;
+        newIndividualQuantity = 0;
       }
       console.log(`📊 [wasteFromSpecificEntry] Waste calculations for ${material.name}:`, {
         wasteInOriginalUnit,
@@ -893,121 +903,6 @@ const stockEntriesController = {
     }
   },
 
-  recordWaste: async (req, res, next) => {
-    try {
-      const { materialId, wasteQuantity, unit, wasteReason, wasteDate, notes } = req.body;
-      if (!materialId || !wasteQuantity || !unit || !wasteReason) {
-        return res.status(400).json({ error: "Missing required fields: materialId, wasteQuantity, unit, wasteReason" });
-      }
-      const numericWasteQuantity = parseFloat(wasteQuantity);
-      if (isNaN(numericWasteQuantity) || numericWasteQuantity <= 0) {
-        return res.status(400).json({ error: "Waste quantity must be a positive number" });
-      }
-      const material = await Material.findByPk(materialId);
-      if (!material) {
-        return res.status(404).json({ error: "Material not found" });
-      }
-      let wasteIndividualQuantity = numericWasteQuantity;
-      let wasteIndividualUnit = unit;
-      if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-        wasteIndividualQuantity = Math.round(numericWasteQuantity * material.packageQuantity);
-        wasteIndividualUnit = material.baseUnit;
-      } else if (material.unitType === "mass") {
-        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
-        const conversionFactor = massConversions[unit.toLowerCase()];
-        if (conversionFactor) {
-          wasteIndividualQuantity = Math.round(numericWasteQuantity * conversionFactor);
-          wasteIndividualUnit = material.baseUnit;
-        }
-      }
-      const stockEntries = await StockEntry.findAll({
-        where: {
-          materialId,
-          purchasedIndividualQuantity: { [Op.gt]: 0 }
-        },
-        order: [["createdAt", "ASC"]],
-        include: { model: Material, as: "material" }
-      });
-      if (stockEntries.length === 0) {
-        return res.status(400).json({ error: "No stock available for this material" });
-      }
-      const totalAvailableIndividualQuantity = stockEntries.reduce((sum, entry) => sum + entry.purchasedIndividualQuantity, 0);
-      if (wasteIndividualQuantity > totalAvailableIndividualQuantity) {
-        return res.status(400).json({
-          error: `Insufficient stock. Available: ${totalAvailableIndividualQuantity} ${wasteIndividualUnit}, Requested: ${wasteIndividualQuantity} ${wasteIndividualUnit}`
-        });
-      }
-      let remainingWasteQuantity = wasteIndividualQuantity;
-      const updatedEntries = [];
-      for (const entry of stockEntries) {
-        if (remainingWasteQuantity <= 0) break;
-        const entryAvailableQuantity = entry.purchasedIndividualQuantity;
-        const quantityToReduce = Math.min(remainingWasteQuantity, entryAvailableQuantity);
-        const newIndividualQuantity = entryAvailableQuantity - quantityToReduce;
-        let newPurchasedQuantity = entry.purchasedQuantity;
-        if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-          newPurchasedQuantity = Math.max(0, newIndividualQuantity / material.packageQuantity);
-        } else if (material.unitType === "mass") {
-          const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
-          const conversionFactor = massConversions[entry.purchasedUnit.toLowerCase()] || 1;
-          newPurchasedQuantity = Math.max(0, newIndividualQuantity / conversionFactor);
-        } else {
-          newPurchasedQuantity = newIndividualQuantity;
-        }
-        const costReduction = (quantityToReduce / entry.purchasedIndividualQuantity) * entry.totalCost;
-        const newTotalCost = Math.max(0, parseFloat((entry.totalCost - costReduction).toFixed(6)));
-        const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
-        let finalConvertedQuantity, finalConvertedUnit;
-        if (material.unitType === "mass") {
-          finalConvertedQuantity = newIndividualQuantity;
-          finalConvertedUnit = material.baseUnit;
-        } else if (material.unitType === "package") {
-          finalConvertedQuantity = newPurchasedQuantity;
-          finalConvertedUnit = entry.purchasedUnit;
-        } else {
-          finalConvertedQuantity = newIndividualQuantity;
-          finalConvertedUnit = entry.purchasedIndividualUnit || entry.purchasedUnit;
-        }
-        await entry.update({
-          purchasedQuantity: newPurchasedQuantity,
-          purchasedIndividualQuantity: newIndividualQuantity,
-          purchasedConvertedQuantity: finalConvertedQuantity,
-          purchasedConvertedUnit: finalConvertedUnit,
-          totalCost: newTotalCost,
-          costPerBaseUnit: newCostPerBaseUnit
-        });
-        updatedEntries.push({
-          id: entry.id,
-          originalQuantity: entryAvailableQuantity,
-          reducedBy: quantityToReduce,
-          newQuantity: newIndividualQuantity
-        });
-        remainingWasteQuantity -= quantityToReduce;
-      }
-      const wasteRecord = await Wasting.create({
-        materialId,
-        materialName: material.name,
-        category: material.category,
-        quantity: numericWasteQuantity,
-        unit,
-        costPerBaseUnit: material.costPerUnit || 0,
-        totalCost: numericWasteQuantity * (material.costPerUnit || 0),
-        wasteReason,
-        wasteDate: wasteDate ? new Date(wasteDate) : new Date(),
-        notes: notes || `Waste recorded: ${wasteReason} - ${numericWasteQuantity} ${unit}`
-      });
-      res.status(201).json({
-        message: `Successfully recorded waste of ${numericWasteQuantity} ${unit} for ${material.name}`,
-        wasteRecord,
-        updatedEntries,
-        reason: wasteReason
-      });
-    } catch (error) {
-      console.error("Error recording waste:", error);
-      next(error);
-    }
-  },
-
   // Update POS visibility for a stock entry
   updateStockEntryPOS: async (req, res, next) => {
     try {
@@ -1040,48 +935,6 @@ const stockEntriesController = {
       });
     } catch (error) {
       console.error("Error updating stock entry POS visibility:", error);
-      next(error);
-    }
-  },
-
-  // Assign printer to stock entry
-  assignPrinter: async (req, res, next) => {
-    try {
-      const { id } = req.params;
-      const { printerId } = req.body;
-      if (!/^\d+$/.test(id)) {
-        return res.status(400).json({ error: "Invalid stock entry ID" });
-      }
-      if (printerId) {
-        const printer = await Printer.findByPk(printerId);
-        if (!printer) {
-          return res.status(404).json({ error: "Printer not found" });
-        }
-      }
-      const [updatedRowsCount] = await StockEntry.update({ printerId: printerId || null }, { where: { id } });
-      if (updatedRowsCount === 0) {
-        return res.status(404).json({ error: "Stock entry not found" });
-      }
-      const updatedStockEntry = await StockEntry.findByPk(id, {
-        include: [
-          {
-            model: Material,
-            as: "material",
-            attributes: ["id", "name", "baseUnit", "unitType", "categoryId"]
-          },
-          {
-            model: Printer,
-            as: "assignedPrinter",
-            attributes: ["id", "name", "type", "status"]
-          }
-        ]
-      });
-      res.status(200).json({
-        message: printerId ? "Printer assigned successfully" : "Printer assignment removed",
-        stockEntry: updatedStockEntry
-      });
-    } catch (error) {
-      console.error("Error assigning printer to stock entry:", error);
       next(error);
     }
   },
@@ -1146,6 +999,48 @@ const stockEntriesController = {
       });
     } catch (error) {
       console.error("Error fetching stock entries with printers:", error);
+      next(error);
+    }
+  },
+
+  // Assign printer to stock entry
+  assignPrinter: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { printerId } = req.body;
+      if (!/^\d+$/.test(id)) {
+        return res.status(400).json({ error: "Invalid stock entry ID" });
+      }
+      if (printerId) {
+        const printer = await Printer.findByPk(printerId);
+        if (!printer) {
+          return res.status(404).json({ error: "Printer not found" });
+        }
+      }
+      const [updatedRowsCount] = await StockEntry.update({ printerId: printerId || null }, { where: { id } });
+      if (updatedRowsCount === 0) {
+        return res.status(404).json({ error: "Stock entry not found" });
+      }
+      const updatedStockEntry = await StockEntry.findByPk(id, {
+        include: [
+          {
+            model: Material,
+            as: "material",
+            attributes: ["id", "name", "baseUnit", "unitType", "categoryId"]
+          },
+          {
+            model: Printer,
+            as: "assignedPrinter",
+            attributes: ["id", "name", "type", "status"]
+          }
+        ]
+      });
+      res.status(200).json({
+        message: printerId ? "Printer assigned successfully" : "Printer assignment removed",
+        stockEntry: updatedStockEntry
+      });
+    } catch (error) {
+      console.error("Error assigning printer to stock entry:", error);
       next(error);
     }
   },
