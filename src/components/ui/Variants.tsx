@@ -26,8 +26,8 @@ interface VariantsProps {
 export const Variants: React.FC<VariantsProps> = ({
   initialVariantSizes = ["small", "medium", "large", "glass", "shot"],
   initialSelectedVariants = [],
-  initialVariantVolumes = { small: 2, medium: 3, large: 5, glass: 3, shot: 3 },
-  initialVariantVolumeUnits = { small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl" },
+  initialVariantVolumes = { small: 2, medium: 3, large: 5, glass: 3, shot: 10 },
+  initialVariantVolumeUnits = { small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "ml" },
   initialVariantPrices = { small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0 },
   onChange,
   title = "Item Variants",

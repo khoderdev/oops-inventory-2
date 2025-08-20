@@ -412,7 +412,7 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
     const createData: CreateMenuItemData = {
       name: data.name,
       description: data.description,
-      category: typeof data.category === "string" ? (data.category as MenuItemCategory) : typeof data.category === "object" && data.category?.name ? (data.category.name as MenuItemCategory) : ("plates" as MenuItemCategory), // fallback category
+      category: typeof data.category === "string" ? (data.category as MenuItemCategory) : typeof data.category === "object" && data.category !== null ? data.category : ("plates" as MenuItemCategory), // preserve category object
       price: data.price,
       ingredients: data.ingredients,
       isPOSItem: data.isPOSItem,

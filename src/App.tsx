@@ -52,9 +52,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
       try {
         // Fetch both menu_items and beverages categories
         const [menuResponse, beverageResponse] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("beverages")]);
-
         const allCategories = [...(menuResponse.totalItems || []), ...(beverageResponse.totalItems || [])];
-
         setCategories(allCategories);
         console.log("Fetched categories:", allCategories);
       } catch (error) {
@@ -71,22 +69,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
 
   // Convert handler functions to return Promises to match TabMenu prop types
   const handleCreateMenuItemAsync = async (data: any, imageFile?: File) => {
-    console.log("🔍 App.tsx - handleCreateMenuItemAsync received:", {
-      data,
-      imageFile,
-      beverageFields: {
-        beverageStockId: (data as any)?.beverageStockId,
-        unit: (data as any)?.unit,
-        availableQuantity: (data as any)?.availableQuantity,
-        costPerUnit: (data as any)?.costPerUnit,
-        variants: (data as any)?.variants
-      }
-    });
-
-    // Include imageFile in the data object as expected by the store
     const dataWithImage = { ...data, imageFile };
-    console.log("🔍 App.tsx - Calling handleCreateMenuItem with:", dataWithImage);
-
     await handleCreateMenuItem(dataWithImage);
     return Promise.resolve();
   };

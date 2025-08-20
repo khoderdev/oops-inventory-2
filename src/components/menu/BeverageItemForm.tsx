@@ -262,15 +262,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       Object.entries(formData).filter(([_, value]) => value !== undefined)
     );
 
-    onSubmit({
-      ...cleanedFormData,
-      imageFile: imageFile,
-      name: "",
-      price: 0,
-      ingredients: [],
-      category: 0,
-      menuItemIngredients: []
-    });
+    // Pass the form data with the properly structured category object
+    onSubmit(cleanedFormData);
     
     setName("");
     setCategoryId("");
@@ -285,7 +278,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     setVariantData({
       selectedVariants: [],
       variantVolumes: { small: 2, medium: 3, large: 5, glass: 3, shot: 1 },
-      variantVolumeUnits: { small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl" },
+      variantVolumeUnits: { small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "ml" },
       variantPrices: { small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0 }
     });
   }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, showVariantsSection, variantData, categories, ingredients, validateForm, onSubmit]);

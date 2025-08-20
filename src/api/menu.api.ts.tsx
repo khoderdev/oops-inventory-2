@@ -36,11 +36,11 @@ const processMenuItemData = (menuItemData: CreateMenuItemData | UpdateMenuItemDa
   
   const processedData = { ...menuItemData };
   
-  // Handle category object - extract the name for backend
+  // Preserve the category object structure for backend
   if (processedData.category && typeof processedData.category === 'object') {
     const originalCategory = processedData.category;
-    (processedData as any).category = (processedData.category as any).name || processedData.category;
-    console.log('🔍 Category conversion:', { from: originalCategory, to: (processedData as any).category });
+    // Keep the full category object intact
+    console.log('🔍 Category preserved:', { category: originalCategory });
   }
   
   console.log('🔍 processMenuItemData - END - Final output:', {

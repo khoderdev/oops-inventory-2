@@ -136,7 +136,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showPrinterSelector, setShowPrinterSelector] = useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
-  const [isSaving, setIsSaving] = useState(false);
 
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>();
@@ -340,15 +339,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
       const currentOrderId = currentOrder.id.toString();
       console.log("📋 Current order loaded:", { orderId: currentOrderId, items: currentOrder.items.length });
-
-      // Don't reload cart if user is actively editing (has unsaved changes)
       if (hasUnsavedChanges) {
         console.log("🚫 Blocking currentOrder cart reload - user has unsaved changes");
         return;
       }
-
-      // CRITICAL FIX: Don't reload if this order was already loaded by selectedOrderForPOS effect
-      // Only block if the cart actually has items (meaning selectedOrderForPOS effect successfully loaded it)
       if (selectedOrderForPOS && selectedOrderForPOS.id.toString() === currentOrderId && cart.length > 0) {
         console.log("🚫 Blocking currentOrder cart reload - order already loaded by selectedOrderForPOS effect:", {
           currentOrderId,
@@ -748,11 +742,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        console.log("📂 Fetching ACTIVE categories for POS");
-        const [menuCategories, materialCategories] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("materials"), getCategoriesByType("beverages")]);
-
+        const [menuCategories, beveragesCategories] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("beverages")]);
         const categoryMap = new Map<number, string>();
-
         // Add ONLY ACTIVE menu categories
         if (menuCategories?.totalItems) {
           menuCategories.totalItems
@@ -761,16 +752,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               categoryMap.set(category.id, category.name);
             });
         }
-
         // Add ONLY ACTIVE material categories
-        if (materialCategories?.totalItems) {
-          materialCategories.totalItems
+        if (beveragesCategories?.totalItems) {
+          beveragesCategories.totalItems
             .filter(category => category.isActive) // Only include active categories
             .forEach(category => {
               categoryMap.set(category.id, category.name);
             });
         }
-
         console.log("📂 ACTIVE categories map created:", { size: categoryMap.size });
         setCategoriesMap(categoryMap);
       } catch (error) {
