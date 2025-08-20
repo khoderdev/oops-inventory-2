@@ -432,7 +432,15 @@ const DayOperationsPage: React.FC = () => {
       </div>
 
       {/* Open Day Modal */}
-      <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} isLoading={actionLoading} formatCurrency={formatCurrency} />
+      <DayOperationsModal 
+        open={showOpenModal} 
+        onOpenChange={setShowOpenModal} 
+        onSubmit={handleOpenDay} 
+        type="open" 
+        formData={convertToModalFormData("open")} 
+        onFormChange={data => handleModalFormChange("open", data)} 
+        formatCurrency={formatCurrency} 
+      />
 
       {/* Close Day Modal */}
       <DayOperationsModal
@@ -442,13 +450,6 @@ const DayOperationsPage: React.FC = () => {
         type="close"
         formData={convertToModalFormData("close")}
         onFormChange={data => handleModalFormChange("close", data)}
-        isLoading={actionLoading}
-        currentDay={
-          {
-            ...currentDay,
-            userOrderStats: userOrderStats
-          } as any
-        }
         formatCurrency={formatCurrency}
       />
 

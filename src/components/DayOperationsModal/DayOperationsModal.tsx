@@ -4,7 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { DayOperationsFormData, DayOperationsModalProps } from "@/types/dayOperations";
+import { DayOperationsFormData } from "@/types/dayOperations";
+import { useDayOperations } from "@/contexts/DayOperationsContext";
+
+// Simplified modal props interface
+interface DayOperationsModalProps {
+  open?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
+  onSubmit: (formData: DayOperationsFormData) => void;
+  type: "open" | "close";
+  formData: DayOperationsFormData;
+  onFormChange?: (data: DayOperationsFormData) => void;
+  onChange?: (data: DayOperationsFormData) => void;
+  formatCurrency?: (amount: number) => string;
+}
  
 const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
   open,
@@ -16,15 +31,17 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
   formData,
   onFormChange,
   onChange,
-  isLoading = false,
-  currentDay,
-  expectedCash,
-  userOrderStats,
   formatCurrency = amount => {
     const numAmount = typeof amount === "number" ? amount : 0;
     return `$${numAmount.toFixed(2)}`;
   }
 }) => {
+  // Use context for day operations data
+  const {
+    currentDay,
+    userOrderStats,
+    actionLoading
+  } = useDayOperations();
   const isModalOpen = open ?? isOpen ?? false;
   const handleOpenChange = (state: boolean) => {
     if (onOpenChange) onOpenChange(state);
@@ -36,14 +53,6 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
     if (onChange) onChange(data);
   };
 
-  const effectiveCurrentDay =
-    currentDay ??
-    (expectedCash !== undefined || userOrderStats !== undefined
-      ? {
-          expectedCash: expectedCash,
-          userOrderStats: userOrderStats
-        }
-      : null);
   const isOpenType = type === "open";
   const isGlobalDayOpen = currentDay?.status === "opened";
   const title = isOpenType ? (isGlobalDayOpen ? "Open Shift" : "Open New Day") : "Close Current Day";
@@ -51,7 +60,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
   const loadingText = isOpenType ? "Opening..." : "Closing...";
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !isLoading) {
+    if (e.key === "Enter" && !actionLoading) {
       e.preventDefault();
       onSubmit(formData);
     } else if (e.key === "Escape") {
@@ -82,15 +91,15 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
   };
 
   const handleNotesKeyDown = (e: React.KeyboardEvent) => {
-    if (isOpenType && e.key === "Enter" && e.ctrlKey && !isLoading) {
+    if (isOpenType && e.key === "Enter" && e.ctrlKey && !actionLoading) {
       e.preventDefault();
       onSubmit(formData);
     }
   };
 
   const handleUseExpectedCash = () => {
-    if (effectiveCurrentDay?.expectedCash !== undefined) {
-      handleFormChange({ ...formData, closingCash: effectiveCurrentDay.expectedCash });
+    if (currentDay?.expectedCash !== undefined) {
+      handleFormChange({ ...formData, closingCash: currentDay.expectedCash });
     }
   };
 
@@ -108,7 +117,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
           <div className="space-y-2">
             <Label htmlFor="cash-amount">{isOpenType ? "Opening Cash Amount" : "Actual Closing Cash Amount *"}</Label>
 
-            {!isOpenType && effectiveCurrentDay ? (
+            {!isOpenType && currentDay ? (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <Input
                   id="cash-amount"
@@ -117,7 +126,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
                   value={cashValue}
                   onChange={e => handleCashChange(e.target.value)}
                   onKeyDown={e => {
-                    if (e.key === "Enter" && !isLoading) {
+                    if (e.key === "Enter" && !actionLoading) {
                       e.preventDefault();
                       onSubmit(formData);
                     }
@@ -128,7 +137,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
                   className="flex-1"
                 />
                 <Button type="button" variant="outline" onClick={handleUseExpectedCash} className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 whitespace-nowrap" title="Click to use expected cash amount">
-                  Expected: {formatCurrency(effectiveCurrentDay.expectedCash || 0)}
+                  Expected: {formatCurrency(currentDay.expectedCash || 0)}
                 </Button>
               </div>
             ) : (
@@ -139,7 +148,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
                 value={cashValue}
                 onChange={e => handleCashChange(e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === "Enter" && !isLoading) {
+                  if (e.key === "Enter" && !actionLoading) {
                     e.preventDefault();
                     onSubmit(formData);
                   }
@@ -156,7 +165,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
             <p className="text-xs text-muted-foreground">Automatically detected from logged-in user</p>
           </div>
 
-          {!isOpenType && effectiveCurrentDay?.userOrderStats && effectiveCurrentDay.userOrderStats.length > 0 && (
+          {!isOpenType && userOrderStats && userOrderStats.length > 0 && (
             <div className="space-y-2">
               <Label>User Order Statistics</Label>
               <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-48 overflow-y-auto">
@@ -169,7 +178,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {effectiveCurrentDay.userOrderStats.map((stat, index) => (
+                    {userOrderStats.map((stat, index) => (
                       <tr key={index} className="border-t border-gray-200">
                         <td className="px-2 py-1 font-medium">{stat.userName}</td>
                         <td className="px-2 py-1 text-right">{stat.orderCount}</td>
@@ -180,8 +189,8 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
                   <tfoot className="font-medium border-t border-gray-300 bg-gray-50">
                     <tr>
                       <td className="px-2 py-1">Total</td>
-                      <td className="px-2 py-1 text-right">{effectiveCurrentDay.userOrderStats.reduce((sum, stat) => sum + stat.orderCount, 0)}</td>
-                      <td className="px-2 py-1 text-right">{formatCurrency(effectiveCurrentDay.userOrderStats.reduce((sum, stat) => sum + stat.totalAmount, 0))}</td>
+                      <td className="px-2 py-1 text-right">{userOrderStats.reduce((sum, stat) => sum + stat.orderCount, 0)}</td>
+                      <td className="px-2 py-1 text-right">{formatCurrency(userOrderStats.reduce((sum, stat) => sum + stat.totalAmount, 0))}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -199,8 +208,8 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => onSubmit(formData)} disabled={isLoading} variant={isOpenType ? "default" : "destructive"}>
-            {isLoading ? loadingText : submitText}
+          <Button onClick={() => onSubmit(formData)} disabled={actionLoading} variant={isOpenType ? "default" : "destructive"}>
+            {actionLoading ? loadingText : submitText}
           </Button>
         </DialogFooter>
       </DialogContent>
