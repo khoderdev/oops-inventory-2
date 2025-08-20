@@ -33,7 +33,7 @@ const CategoryTypeForm: React.FC<CategoryTypeFormProps> = ({
 }) => {
   const [formData, setFormData] = useState<CategoryTypeFormData>({
     type: categoryType?.type || "",
-    categoryId: categoryType?.categoryId || null
+    ...(categoryType?.categoryId && { categoryId: categoryType.categoryId })
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -42,7 +42,7 @@ const CategoryTypeForm: React.FC<CategoryTypeFormProps> = ({
     if (categoryType) {
       setFormData({
         type: categoryType.type,
-        categoryId: categoryType.categoryId
+        ...(categoryType.categoryId && { categoryId: categoryType.categoryId })
       });
     }
   }, [categoryType]);
@@ -70,7 +70,13 @@ const CategoryTypeForm: React.FC<CategoryTypeFormProps> = ({
     }
 
     try {
-      await onSave(formData);
+      // Clean form data - remove null/undefined categoryId for new category types
+      const cleanFormData: CategoryTypeFormData = {
+        type: formData.type,
+        ...(formData.categoryId && { categoryId: formData.categoryId })
+      };
+      
+      await onSave(cleanFormData);
     } catch (error) {
       console.error("Form submission error:", error);
     }
@@ -405,7 +411,14 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
               {filteredCategoryTypes.map((categoryType) => (
                 <div
                   key={categoryType.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={(e) => {
+                    // Don't trigger selection if clicking on action buttons
+                    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="dialog"]')) {
+                      return;
+                    }
+                    handleItemSelect(categoryType.id, !selectedItems.has(categoryType.id));
+                  }}
                 >
                   <div className="flex items-center gap-3">
                     <Checkbox
@@ -417,17 +430,14 @@ export const CategoryType: React.FC<CategoryTypeProps> = ({ onCategoryTypeChange
                         <Badge variant="outline" className="font-mono">
                           {categoryType.type}
                         </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          ID: {categoryType.id}
-                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground mt-1">
                         Created: {new Date(categoryType.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="sm"

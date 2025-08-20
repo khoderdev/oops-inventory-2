@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { CategoryTable } from "./CategoryTable";
+import { CategoryType } from "./CategoryType";
 import { Category, CategoryFormData, CategoryManagementProps } from "@/types/categories";
 import { Plus } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -7,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { getCategories, createCategory, updateCategory, deleteCategory, updateSortOrders } from "@/api/categories.api";
 import { CategoryModal } from "./CategoryModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function CategoryManagement({ onCategoryChange }: CategoryManagementProps) {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -17,6 +19,7 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
   const [showFloatingButton, setShowFloatingButton] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [activeTab, setActiveTab] = useState("categories");
 
   useEffect(() => {
     const handleScroll = () => {
@@ -187,25 +190,55 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
 
   return (
     <div className="space-y-6 relative">
-      {/* Categories Table */}
-      <CategoryTable categories={categories} onEdit={handleEdit} onDelete={handleDelete} onToggleActive={handleToggleActive} onUpdateSortOrder={handleUpdateSortOrder} loading={loading} />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="categories">Categories</TabsTrigger>
+          <TabsTrigger value="category-types">Category Types</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="categories" className="space-y-6">
+          {/* Categories Table */}
+          <CategoryTable 
+            categories={categories} 
+            onEdit={handleEdit} 
+            onDelete={handleDelete} 
+            onToggleActive={handleToggleActive} 
+            onUpdateSortOrder={handleUpdateSortOrder} 
+            loading={loading} 
+          />
+        </TabsContent>
+        
+        <TabsContent value="category-types" className="space-y-6">
+          {/* Category Types */}
+          <CategoryType onCategoryTypeChange={onCategoryChange} />
+        </TabsContent>
+      </Tabs>
 
-      {/* Floating Button */}
-      <div className={`fixed bottom-6 right-6 z-40 transition-all duration-300 ease-in-out transform ${showFloatingButton ? "translate-y-0 opacity-100 scale-100" : "translate-y-16 opacity-0 scale-95 pointer-events-none"}`}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button onClick={handleCreateNew} className="bg-primary hover:bg-primary/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group" size="lg">
-              <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Add new category</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
+      {/* Floating Button - Only show for Categories tab */}
+      {activeTab === "categories" && (
+        <div className={`fixed bottom-6 right-6 z-40 transition-all duration-300 ease-in-out transform ${showFloatingButton ? "translate-y-0 opacity-100 scale-100" : "translate-y-16 opacity-0 scale-95 pointer-events-none"}`}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button onClick={handleCreateNew} className="bg-primary hover:bg-primary/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full h-14 w-14 p-0 group" size="lg">
+                <Plus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Add new category</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       {/* Form Dialog */}
-      <CategoryModal showForm={showForm} setShowForm={setShowForm} selectedCategory={selectedCategory} handleFormSubmit={handleFormSubmit} handleFormCancel={handleFormCancel} formLoading={formLoading} />
+      <CategoryModal 
+        showForm={showForm} 
+        setShowForm={setShowForm} 
+        selectedCategory={selectedCategory} 
+        handleFormSubmit={handleFormSubmit} 
+        handleFormCancel={handleFormCancel} 
+        formLoading={formLoading} 
+      />
     </div>
   );
 }

@@ -102,7 +102,7 @@ export interface CategoryTypeEntity {
 }
 
 export interface CategoryTypeFormData {
-  categoryId: number;
+  categoryId?: number | null;
   type: CategoryType;
 }
 
