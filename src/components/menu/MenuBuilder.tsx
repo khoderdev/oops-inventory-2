@@ -28,40 +28,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
   const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems || [];
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
-
-  // Filter categories for menu items only
-  const menuItemCategories = useMemo(() => {
-    console.log('📥 MenuItemBuilder: Received categories from TabMenu:', {
-      count: categories?.length || 0,
-      loading: categoriesLoading,
-      error: categoriesError
-    });
-    
-    if (!categories) return [];
-    
-    const filtered = categories.filter(category => {
-      // Check if category has categoryTypes with type "menu_items"
-      const hasMenuItemType = category.categoryTypes?.some(type => type.type === "menu_items");
-      console.log(`🔍 Category "${category.name}":`, {
-        categoryTypes: category.categoryTypes?.map(ct => ct.type),
-        hasMenuItemType
-      });
-      return hasMenuItemType;
-    });
-    
-    console.log('🏷️ MenuItemBuilder: Filtered menu_items categories:', {
-      total: categories.length,
-      filtered: filtered.length,
-      categories: filtered.map(cat => ({
-        id: cat.id, 
-        name: cat.name, 
-        value: cat.value,
-        types: cat.categoryTypes?.map(ct => ct.type)
-      }))
-    });
-    
-    return filtered;
-  }, [categories, categoriesLoading, categoriesError]);
+  const menuItemCategories = categories || [];
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
   const [lastValidationTime, setLastValidationTime] = useState<number>(0);
@@ -93,12 +60,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     fetchTabData("menu");
   }, [fetchTabData]);
 
-  // Debug menu items data
-  useEffect(() => {
-    if (currentMenuItems && currentMenuItems.length > 0) {
-      const itemsWithIngredients = currentMenuItems.filter(item => item.ingredients && item.ingredients.length > 0);
-    }
-  }, [currentMenuItems]);
 
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
     if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
@@ -123,7 +84,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     if (issues.length > 0) {
       console.group(`🔍 Ingredient Validation Issues for ${material.name}`);
       issues.forEach(issue => {
-        const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
       });
       console.groupEnd();
     }
@@ -158,7 +118,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     if (materialIssues.length > 0) {
       console.group(`🔍 Material Issues for ${material.name}`);
       materialIssues.forEach(issue => {
-        const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
       });
       console.groupEnd();
     }
@@ -173,7 +132,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         if (entryIssues.length > 0) {
           console.group(`🔍 Stock Entry Issues for ${material.name}`);
           entryIssues.forEach(issue => {
-            const icon = issue.type === "error" ? "❌" : issue.type === "warning" ? "⚠️" : "ℹ️";
           });
           console.groupEnd();
         }

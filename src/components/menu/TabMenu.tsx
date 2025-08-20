@@ -27,7 +27,8 @@ export const MenuPage: React.FC<TabMenuProps> = ({
   onDeleteMenuItem,
 }) => {
   const [activeTab, setActiveTab] = useState("menu-items");
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [menuItemCategories, setMenuItemCategories] = useState<Category[]>([]);
+  const [beverageCategories, setBeverageCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
@@ -46,25 +47,16 @@ export const MenuPage: React.FC<TabMenuProps> = ({
         getCategoriesByType("beverages", true)
       ]);
       
-      // Combine categories from both types
-      const allCategories = [
-        ...menuItemsResponse.totalItems,
-        ...beveragesResponse.totalItems
-      ];
-      
       console.timeEnd('⏱️ Categories fetch duration');
       console.log('✅ MenuPage: Categories fetched successfully:', {
         menuItems: menuItemsResponse.totalItems.length,
         beverages: beveragesResponse.totalItems.length,
-        total: allCategories.length,
-        categoryTypes: allCategories.map(cat => ({
-          id: cat.id,
-          name: cat.name,
-          types: cat.categoryTypes?.map(t => t.type)
-        }))
+        total: menuItemsResponse.totalItems.length + beveragesResponse.totalItems.length
       });
       
-      setCategories(allCategories);
+      // Store categories separately by type
+      setMenuItemCategories(menuItemsResponse.totalItems);
+      setBeverageCategories(beveragesResponse.totalItems);
     } catch (error) {
       console.error('❌ MenuPage: Failed to fetch categories:', error);
       setCategoriesError('Failed to load categories');
@@ -108,14 +100,13 @@ export const MenuPage: React.FC<TabMenuProps> = ({
 
   // Log when categories are passed to child components
   useEffect(() => {
-    if (categories.length > 0) {
+    if (menuItemCategories.length > 0 || beverageCategories.length > 0) {
       console.log('📦 MenuPage: Passing categories to child components:', {
-        count: categories.length,
-        menuItemCategories: categories.filter(c => c.categoryTypes?.some(t => t.type === "menu_items")).length,
-        beverageCategories: categories.filter(c => c.categoryTypes?.some(t => t.type === "beverages")).length
+        menuItemCategories: menuItemCategories.length,
+        beverageCategories: beverageCategories.length
       });
     }
-  }, [categories]);
+  }, [menuItemCategories, beverageCategories]);
 
   return (
     <Tabs defaultValue="menu-items" value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -129,7 +120,7 @@ export const MenuPage: React.FC<TabMenuProps> = ({
           menuItems={menuItems}
           stockEntries={stockEntries}
           materials={materials}
-          categories={categories}
+          categories={menuItemCategories}
           sections={sections}
           onCreateMenuItem={handleCreateMenuItem}
           onUpdateMenuItem={handleUpdateMenuItem}
@@ -144,7 +135,7 @@ export const MenuPage: React.FC<TabMenuProps> = ({
           menuItems={menuItems}
           stockEntries={stockEntries}
           materials={materials}
-          categories={categories}
+          categories={beverageCategories}
           sections={sections}
           onCreateBeverageItem={handleCreateMenuItem}
           onUpdateBeverageItem={handleUpdateMenuItem}

@@ -35,42 +35,24 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   const [showVariantDialog, setShowVariantDialog] = useState(false);
   const [currentVariantItem, setCurrentVariantItem] = useState<MenuItem | null>(null);
 
-  // Filter categories for beverages only
-  const beverageCategoriesFiltered = useMemo(() => {
-    console.log('📥 BeveragesMenuBuilder: Received categories from TabMenu:', {
-      count: categories?.length || 0,
-      loading: categoriesLoading,
-      error: categoriesError
-    });
-    
-    if (!categories) return [];
-    
-    const filtered = categories.filter(category => 
-      category.categoryTypes?.some(type => type.type === "beverages")
-    );
-    
-    console.log('🍹 BeveragesMenuBuilder: Filtered beverages categories:', {
-      total: categories.length,
-      filtered: filtered.length,
-      categories: filtered.map(cat => ({ 
-        id: cat.id, 
-        name: cat.name, 
-        value: cat.value,
-        types: cat.categoryTypes?.map(ct => ct.type)
-      }))
-    });
-    return filtered;
-  }, [categories, categoriesLoading, categoriesError]);
+  // Categories are now pre-filtered by type in TabMenu
+  console.log('📥 BeveragesMenuBuilder: Received pre-filtered beverage categories:', {
+    count: categories?.length || 0,
+    loading: categoriesLoading,
+    error: categoriesError
+  });
+  
+  // Use categories directly as they're already filtered for beverages
 
   // Convert Category[] to CategoryOption[] with string IDs for BeverageItemForm
   const beverageCategories = useMemo(() => {
-    const converted = beverageCategoriesFiltered.map(cat => ({
+    const converted = categories.map(cat => ({
       ...cat,
       id: String(cat.id) // Convert number id to string
     }));
     console.log("Converted beverageCategories with string IDs:", converted);
     return converted;
-  }, [beverageCategoriesFiltered]);
+  }, [categories]);
 
   // Filter menu items for beverages
   const beverageBeverageItems = useMemo(() => {
@@ -81,7 +63,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
         } else if (typeof item.category === "object" && item.category?.name) {
           return ["cold", "hot", "alcohol", "beverages"].includes(item.category.name.toLowerCase());
         } else if (typeof item.category === "number") {
-          const categoryObj = beverageCategoriesFiltered.find(c => c.id === item.category);
+          const categoryObj = categories.find(c => c.id === item.category);
           return categoryObj && ["cold", "hot", "alcohol", "beverages"].includes(categoryObj.value.toLowerCase());
         }
         return false;
@@ -89,7 +71,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
 
       return isBeverageCategory;
     });
-  }, [menuItems, beverageCategoriesFiltered]);
+  }, [menuItems, categories]);
 
   const filteredBeverageItems = useMemo(() => {
     return beverageBeverageItems.filter(item => {
@@ -97,28 +79,23 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
       if (selectedCategory === "all") {
         return matchesSearch;
       }
-
-      // Get the category value for comparison
       let categoryValue: string | undefined;
-
       if (typeof item.category === "string") {
         categoryValue = item.category;
       } else if (typeof item.category === "object" && item.category?.value !== undefined) {
         categoryValue = String(item.category.value);
       } else if (typeof item.category === "object" && item.category?.name) {
-        // Try to find the category by name
-        const matchingCategory = beverageCategoriesFiltered.find(c => c.name.toLowerCase() === item.category.name.toLowerCase());
+        // Ensure item.category is an object with name property before accessing it
+        const categoryName = item.category.name;
+        const matchingCategory = categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
         categoryValue = matchingCategory?.value;
       } else if (typeof item.category === "number") {
-        const categoryObj = beverageCategoriesFiltered.find(c => c.id === item.category);
+        const categoryObj = categories.find(c => c.id === item.category);
         categoryValue = categoryObj?.value;
       }
-
-      console.log(`Item: ${item.name}, Category: ${JSON.stringify(item.category)}, CategoryValue: ${categoryValue}, Selected: ${selectedCategory}, Match: ${categoryValue === selectedCategory}`);
-
       return matchesSearch && categoryValue === selectedCategory;
     });
-  }, [beverageBeverageItems, searchTerm, selectedCategory, beverageCategoriesFiltered]);
+  }, [beverageBeverageItems, searchTerm, selectedCategory, categories]);
 
   const columnHelper = createColumnHelper<MenuItem>();
 
@@ -144,7 +121,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
           } else if (typeof row.category === "object" && row.category?.name) {
             return row.category.name;
           } else if (typeof row.category === "number") {
-            const categoryObj = beverageCategoriesFiltered.find(c => c.id === row.category);
+            const categoryObj = categories.find(c => c.id === row.category);
             return categoryObj?.value || "Unknown";
           }
           return "Unknown";
@@ -312,7 +289,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                 {selectedCategory !== "all" && (
                   <span className="block sm:inline">
                     {" "}
-                    in <span className="font-medium">{beverageCategoriesFiltered.find(c => c.value === selectedCategory)?.name}</span>
+                    in <span className="font-medium">{categories.find(c => c.value === selectedCategory)?.name}</span>
                   </span>
                 )}
               </div>
