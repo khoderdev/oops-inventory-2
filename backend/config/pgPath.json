@@ -1,0 +1,9 @@
+{
+  "binPath": "C:\\Program Files\\PostgreSQL\\17\\bin",
+  "executable": "pg_dump.exe",
+  "version": "pg_dump (PostgreSQL) 17.5",
+  "inPath": false,
+  "timestamp": "2025-08-20T02:16:48.343Z",
+  "platform": "win32",
+  "notFound": false
+}

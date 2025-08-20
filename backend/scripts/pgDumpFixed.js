@@ -6,68 +6,21 @@ import { dirname } from 'path';
 import { promisify } from "util";
 import os from "os";
 import sequelize from "../config/database.js";
-import { findPostgreSQLPath } from './pgPathFinder.js';
+import { findPostgreSQLPath, testPgDump } from './pgPathFinder.js';
 
-const execAsync = promisify(exec);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-console.log("🗄️  PostgreSQL pg_dump Compatible Backup");
-console.log("========================================");
-
-// Cross-platform PostgreSQL detection
-async function findPostgreSQLBinPath() {
-  try {
-    // Check if we have a saved configuration
-    const configPath = path.join(__dirname, '..', 'config', 'pgPath.json');
-    let pgInfo;
-    
-    if (fs.existsSync(configPath)) {
-      try {
-        const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        console.log('📋 Using saved PostgreSQL configuration');
-        
-        // Verify the saved path still works
-        if (configData.inPath || (configData.binPath && fs.existsSync(configData.binPath))) {
-          pgInfo = configData;
-        } else {
-          console.log('⚠️ Saved PostgreSQL path is no longer valid, detecting again...');
-          pgInfo = await findPostgreSQLPath();
-        }
-      } catch (error) {
-        console.log(`⚠️ Error reading saved configuration: ${error.message}`);
-        pgInfo = await findPostgreSQLPath();
-      }
-    } else {
-      // No saved configuration, detect PostgreSQL
-      console.log('🔍 Detecting PostgreSQL installation...');
-      pgInfo = await findPostgreSQLPath();
-    }
-    
-    if (pgInfo.notFound) {
-      throw new Error('PostgreSQL not found. Please install PostgreSQL and ensure pg_dump is available.');
-    }
-    
-    return { 
-      pgDumpPath: pgInfo.binPath, 
-      pgDumpExecutable: pgInfo.executable 
-    };
-  } catch (error) {
-    console.error(`❌ Error finding PostgreSQL: ${error.message}`);
-    throw error;
-  }
-}
+// Set this to false to prevent writing config file during server startup
+const WRITE_CONFIG_ON_STARTUP = false;
 
 // Test if pg_dump is available
-async function testPgDump(pgDumpPath, pgDumpExecutable) {
+async function testPgDumpAvailability(pgDumpPath, pgDumpExecutable) {
   const pgDumpFullPath = pgDumpPath ? path.join(pgDumpPath, pgDumpExecutable) : pgDumpExecutable;
   
   try {
     const { stdout } = await execAsync(`"${pgDumpFullPath}" --version`);
-    console.log(`pg_dump version: ${stdout.trim()}`);
+    console.log(`✅ pg_dump version: ${stdout.trim()}`);
     return true;
   } catch (error) {
-    console.error(`Error testing pg_dump: ${error.message}`);
+    console.error(`❌ Error testing pg_dump: ${error.message}`);
     
     // Provide detailed troubleshooting steps based on platform
     const platform = os.platform();
@@ -87,7 +40,7 @@ async function testPgDump(pgDumpPath, pgDumpExecutable) {
         If using the API, make sure the PGPASSWORD environment variable is set correctly.
         
         You can also run the pgPathFinder.js script to automatically detect PostgreSQL:
-        node --experimental-modules backend/scripts/pgPathFinder.js
+        node backend/scripts/pgPathFinder.js
       `;
     } else {
       troubleshootingSteps = `
@@ -105,13 +58,73 @@ async function testPgDump(pgDumpPath, pgDumpExecutable) {
         If using the API, make sure the PGPASSWORD environment variable is set correctly.
         
         You can also run the pgPathFinder.js script to automatically detect PostgreSQL:
-        node --experimental-modules backend/scripts/pgPathFinder.js
+        node backend/scripts/pgPathFinder.js
       `;
     }
     
     throw new Error(`pg_dump not found or not working. ${error.message}\n${troubleshootingSteps}`);
   }
 }
+
+const execAsync = promisify(exec);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+console.log("🗄️  PostgreSQL pg_dump Compatible Backup");
+console.log("========================================");
+
+// Cross-platform PostgreSQL detection
+async function findPostgreSQLBinPath() {
+  try {
+    // Check if we have a saved configuration
+    const configPath = path.join(__dirname, '..', 'config', 'pgPath.json');
+    console.log(`Looking for PostgreSQL configuration at: ${configPath}`);
+    
+    let pgInfo;
+    
+    // Create config directory if it doesn't exist
+    const configDir = path.dirname(configPath);
+    if (!fs.existsSync(configDir)) {
+      console.log(`Creating config directory: ${configDir}`);
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    
+    if (fs.existsSync(configPath)) {
+      try {
+        const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        console.log('📋 Using saved PostgreSQL configuration');
+        
+        // Verify the saved path still works
+        if (configData.inPath || (configData.binPath && fs.existsSync(configData.binPath))) {
+          pgInfo = configData;
+        } else {
+          console.log('⚠️ Saved PostgreSQL path is no longer valid, detecting again...');
+          pgInfo = await findPostgreSQLPath(WRITE_CONFIG_ON_STARTUP);
+        }
+      } catch (error) {
+        console.log(`⚠️ Error reading saved configuration: ${error.message}`);
+        pgInfo = await findPostgreSQLPath(WRITE_CONFIG_ON_STARTUP);
+      }
+    } else {
+      // No saved configuration, detect PostgreSQL
+      console.log('🔍 Detecting PostgreSQL installation...');
+      pgInfo = await findPostgreSQLPath(WRITE_CONFIG_ON_STARTUP);
+    }
+    
+    if (pgInfo.notFound) {
+      throw new Error('PostgreSQL not found. Please install PostgreSQL and ensure pg_dump is available.');
+    }
+    
+    return { 
+      pgDumpPath: pgInfo.binPath, 
+      pgDumpExecutable: pgInfo.executable 
+    };
+  } catch (error) {
+    console.error(`❌ Error finding PostgreSQL: ${error.message}`);
+    throw error;
+  }
+}
+
 
 // Parse command line arguments for format selection
 const args = process.argv.slice(2);
@@ -155,7 +168,7 @@ try {
   console.log(`pg_dump executable: ${pgDumpExecutable}`);
 
   // Test if pg_dump is available
-  await testPgDump(pgDumpPath, pgDumpExecutable);
+  await testPgDumpAvailability(pgDumpPath, pgDumpExecutable);
 
   // Create backup directory structure
   const baseBackupDir = path.join(__dirname, "..", "backups");
@@ -207,11 +220,14 @@ try {
   function buildPgDumpCommand(format, outputFile, additionalOptions = "") {
     const baseOptions = `--host=${DB_CONFIG.host} --port=${DB_CONFIG.port} --username=${DB_CONFIG.username} --dbname=${DB_CONFIG.database} --verbose --clean --create --if-exists --no-owner --no-privileges`;
 
-    if (os.platform() === "win32") {
-      return `"${pgDumpExecutable}" ${baseOptions} --format=${format} ${additionalOptions} --file="${outputFile}"`;
-    } else {
-      return `"${pgDumpExecutable}" ${baseOptions} --format=${format} ${additionalOptions} --file="${outputFile}"`;
-    }
+    // Use full path to pg_dump executable if available
+    const pgDumpCmd = pgDumpPath ? 
+      path.join(pgDumpPath, pgDumpExecutable) : 
+      pgDumpExecutable;
+      
+    console.log(`Using pg_dump command: ${pgDumpCmd}`);
+    
+    return `"${pgDumpCmd}" ${baseOptions} --format=${format} ${additionalOptions} --file="${outputFile}"`;
   }
 
   // Store created files for summary

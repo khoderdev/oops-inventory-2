@@ -214,7 +214,7 @@ router.get("/database-info", async (req, res) => {
 
     // Get last backup info
     try {
-      const backupDirs = await fs.readdir(BACKUP_DIR);
+      const backupDirs = await fs.promises.readdir(BACKUP_DIR);
       const pgdumpDirs = backupDirs
         .filter(dir => dir.startsWith("pgdump_"))
         .sort()
@@ -222,7 +222,7 @@ router.get("/database-info", async (req, res) => {
 
       if (pgdumpDirs.length > 0) {
         const lastBackupDir = path.join(BACKUP_DIR, pgdumpDirs[0]);
-        const stats = await fs.stat(lastBackupDir);
+        const stats = await fs.promises.stat(lastBackupDir);
         dbInfo.lastBackup = stats.birthtime.toISOString();
       }
     } catch (error) {
@@ -283,7 +283,7 @@ router.post("/create", async (req, res) => {
     }
 
     const backupDir = path.join(BACKUP_DIR, latestBackup);
-    const backupFiles = await fs.readdir(backupDir);
+    const backupFiles = await fs.promises.readdir(backupDir);
 
     // Determine the main backup file based on type
     let mainFile;

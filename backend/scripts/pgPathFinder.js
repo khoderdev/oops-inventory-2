@@ -3,6 +3,7 @@ import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import os from 'os';
+import { fileURLToPath } from 'url';
 
 const execAsync = promisify(exec);
 
@@ -124,9 +125,10 @@ async function testPgDumpInPath() {
 }
 
 /**
- * Finds PostgreSQL installation path
+ * Main function to find PostgreSQL path
+ * @param {boolean} writeConfig - Whether to write the config file (default: true)
  */
-async function findPostgreSQLPath() {
+export async function findPostgreSQLPath(writeConfig = true) {
   const platform = os.platform();
   console.log(`🖥️  Detected OS: ${platform}`);
   
@@ -195,7 +197,10 @@ async function findPostgreSQLPath() {
  * Writes PostgreSQL path configuration to a file
  */
 async function writePathConfig(pgInfo) {
-  const configPath = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'config', 'pgPath.json');
+  // Fix for Windows paths - use fileURLToPath to handle file:// URLs properly
+  const __filename = new URL(import.meta.url).pathname;
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const configPath = path.join(__dirname, '..', 'config', 'pgPath.json');
   
   const configData = {
     binPath: pgInfo.binPath,
@@ -208,6 +213,34 @@ async function writePathConfig(pgInfo) {
   };
   
   try {
+    // Check if config file already exists and compare content
+    if (fs.existsSync(configPath)) {
+      try {
+        const existingConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        
+        // Compare essential properties (ignore timestamp)
+        if (existingConfig.binPath === configData.binPath && 
+            existingConfig.executable === configData.executable &&
+            existingConfig.version === configData.version &&
+            existingConfig.platform === configData.platform) {
+          // Config hasn't changed, no need to write
+          console.log(`✅ PostgreSQL configuration unchanged, using existing file`);
+          return true;
+        }
+      } catch (readError) {
+        // If reading fails, proceed with writing new config
+        console.log(`Could not read existing config: ${readError.message}`);
+      }
+    }
+    
+    // Ensure the directory exists
+    const configDir = path.dirname(configPath);
+    await fs.promises.mkdir(configDir, { recursive: true });
+    
+    // Only log when actually writing
+    console.log(`Writing PostgreSQL configuration to: ${configPath}`);
+    
+    // Write the configuration file
     await fs.promises.writeFile(configPath, JSON.stringify(configData, null, 2));
     console.log(`✅ PostgreSQL path configuration written to: ${configPath}`);
     return true;
@@ -254,10 +287,14 @@ async function main() {
       console.log(`📍 Location: ${pgInfo.binPath || 'In PATH'}`);
       console.log(`📋 Version: ${pgInfo.version}`);
       
-      // Write configuration
-      await writePathConfig(pgInfo);
+      // Write configuration for future use if requested
+      if (writeConfig) {
+        await writePathConfig(pgInfo);
+      } else {
+        console.log('⏭️ Skipping config write to prevent nodemon restart');
+      }
       
-      console.log('\n📋 Configuration saved. You can now run database backups.');
+      return pgInfo;
     }
   } catch (error) {
     console.error(`❌ Error: ${error.message}`);
@@ -265,11 +302,13 @@ async function main() {
   }
 }
 
-// Run the main function
-main().catch(error => {
-  console.error(`❌ Fatal error: ${error.message}`);
-  process.exit(1);
-});
+// Only run the main function when this script is executed directly (not imported)
+if (import.meta.url === new URL(process.argv[1], 'file:').href) {
+  main().catch(error => {
+    console.error(`❌ Fatal error: ${error.message}`);
+    process.exit(1);
+  });
+}
 
 // Export functions for use in other modules
-export { findPostgreSQLPath, testPgDump, testPgDumpInPath };
+export { testPgDump, testPgDumpInPath };
