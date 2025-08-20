@@ -21,7 +21,7 @@ type StockEntriesTableColumnsProps = {
   isAllowedPOSCategory: (material: Material | undefined) => boolean;
   hasNegativeStock: (entry: StockEntryWithMaterial) => boolean;
   renderQuantityDisplay: (entry: StockEntryWithMaterial) => JSX.Element;
-  // renderUnitDisplay: (entry: StockEntryWithMaterial) => JSX.Element;
+  renderUnitDisplay: (entry: StockEntryWithMaterial) => JSX.Element;
 };
 
 export function useStockEntriesTableColumns({
@@ -37,7 +37,7 @@ export function useStockEntriesTableColumns({
   isAllowedPOSCategory,
   hasNegativeStock,
   renderQuantityDisplay,
-  // renderUnitDisplay,
+  renderUnitDisplay,
 }: StockEntriesTableColumnsProps) {
   const columnHelper = createColumnHelper<StockEntryWithMaterial>();
 
@@ -49,7 +49,7 @@ export function useStockEntriesTableColumns({
               id: "select",
               size: 50,
               header: ({ table }) => <input type="checkbox" checked={table.getIsAllRowsSelected()} onChange={table.getToggleAllRowsSelectedHandler()} className="h-4 w-4" aria-label="Select all stock entries" />,
-              cell: ({ row }) => <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} className="h-4 w-4" aria-label={`Select ${row.original.material?.name || "stock entry"}`} onClick={e => e.stopPropagation()} />
+              cell: ({ row }) => <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} className="h-4 w-4 " aria-label={`Select ${row.original.material?.name || "stock entry"}`} onClick={e => e.stopPropagation()} />
             })
           ]
         : []),
@@ -64,10 +64,10 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "materialName" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("materialName", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent justify-start w-full"
+            className="h-auto p-0 font-semibold hover:bg-transparent justify-start bg-green-400"
           >
             Material Name
-            <span className="ml-2 text-xs">{sortBy === "materialName" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+            <span className="text-xs">{sortBy === "materialName" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
         cell: ({ row }) => {
@@ -75,7 +75,7 @@ export function useStockEntriesTableColumns({
           const materialName = entry.material?.name;
           const isNegativeStock = hasNegativeStock(entry);
           return (
-            <div className="flex items-center gap-2 w-full">
+            <div className="flex items-center gap-2 w-full border border-green-400">
               {isNegativeStock && <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />}
               <span className="truncate font-medium">{materialName ? highlightText(materialName, searchTerm) : `Unknown Material (ID: ${entry.materialId})`}</span>
             </div>
@@ -87,20 +87,20 @@ export function useStockEntriesTableColumns({
       columnHelper.display({
         id: "remainingQty",
         size: 120,
-        header: ({ column }) => <div className="text-center w-full font-semibold flex items-center justify-center">Current Qty</div>,
-        cell: ({ row }) => <div className="text-center w-full flex items-center justify-center -ml-2">{renderQuantityDisplay(row.original)}</div>
+        header: ({ column }) => <div className="text-center w-full font-semibold flex items-center justify-center bg-teal-400">Current Qty</div>,
+        cell: ({ row }) => <div className="text-center w-full flex items-center justify-center -ml-2 border border-teal-400">{renderQuantityDisplay(row.original)}</div>
       }),
 
-      // columnHelper.display({
-      //   id: "unit",
-      //   size: 80,
-      //   header: ({ column }) => <div className="text-center w-full font-semibold">Unit</div>,
-      //   cell: ({ row }) => <div className="text-center w-full">{renderUnitDisplay(row.original)}</div>
-      // }),
+      columnHelper.display({
+        id: "unit",
+        size: 120,
+        header: ({ column }) => <div className="text-center font-semibold bg-orange-400">Base Unit</div>,
+        cell: ({ row }) => <div className="text-center w-full border border-orange-400">{renderUnitDisplay(row.original)}</div>
+      }),
 
       columnHelper.accessor("costPerPurchasedUnit", {
         id: "costPerUnit",
-        size: 110,
+        size: 150,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -108,18 +108,21 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "costPerPurchasedUnit" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("costPerPurchasedUnit", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent justify-center w-full"
+            className="h-auto p-0 font-semibold hover:bg-transparent justify-start bg-blue-400"
           >
-            Cost/Unit
-            <span className="ml-2 text-xs">{sortBy === "costPerPurchasedUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+            Unit Cost
+            <span className="text-xs">{sortBy === "costPerPurchasedUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
         cell: ({ row, getValue }) => {
           const cost = getValue();
+          const entry = row.original;
+          const purchasedUnit = entry.purchasedUnit;
+          
           return (
-            <div className="space-y-1 text-center w-full px-2">
-              <div className="font-medium">{formatCleanCurrency(cost)}</div>
-              {row.original.material?.unitType === "package" && <div className="text-xs text-muted-foreground">(per {row.original.purchasedUnit})</div>}
+            <div className="flex items-center justify-start space-y-1 gap-2 w-full border border-blue-400">
+              <div className="font-medium text-left">{formatCleanCurrency(cost)}</div>
+              <div className="text-xs text-muted-foreground text-left">(per {purchasedUnit})</div>
             </div>
           );
         },
@@ -128,7 +131,7 @@ export function useStockEntriesTableColumns({
 
       columnHelper.accessor("totalCost", {
         id: "totalCost",
-        size: 110,
+        size: 10,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -136,14 +139,14 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "totalCost" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("totalCost", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent justify-center w-full"
+            className="h-auto p-0 font-semibold hover:bg-transparent justify-start bg-yellow-400"
           >
             Total Cost
-            <span className="ml-2 text-xs">{sortBy === "totalCost" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+            <span className="text-xs">{sortBy === "totalCost" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
         cell: ({ getValue }) => (
-          <div className="text-center w-full px-2">
+          <div className="text-left w-full px-2 border border-yellow-400">
             <span className="font-medium">{formatCleanCurrency(getValue())}</span>
           </div>
         ),
@@ -152,7 +155,7 @@ export function useStockEntriesTableColumns({
 
       columnHelper.accessor("purchaseDate", {
         id: "purchaseDate",
-        size: 130,
+        size: 80,
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -160,14 +163,14 @@ export function useStockEntriesTableColumns({
               const newOrder = sortBy === "purchaseDate" && sortOrder === "ASC" ? "DESC" : "ASC";
               handleSortChange("purchaseDate", newOrder);
             }}
-            className="h-auto p-0 font-semibold hover:bg-transparent justify-center w-full"
+            className="h-auto p-0 font-semibold hover:bg-transparent justify-start bg-purple-400"
           >
             Purchase Date
-            <span className="ml-2 text-xs">{sortBy === "purchaseDate" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+            <span className="text-xs">{sortBy === "purchaseDate" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
         cell: ({ getValue }) => (
-          <div className="text-right w-full px-2">
+          <div className="text-left w-full px-2 border border-purple-400">
             <span className="font-medium">{new Date(getValue()).toLocaleDateString()}</span>
           </div>
         ),
@@ -178,11 +181,11 @@ export function useStockEntriesTableColumns({
         id: "actions",
         size: 140,
         enableSorting: false,
-        header: ({ column }) => <div className="text-center w-full font-semibold">Actions</div>,
+        header: ({ column }) => <div className="text-left font-semibold  bg-red-400">Actions</div>,
         cell: ({ row }) => {
           const entry = row.original;
           return (
-            <div className="flex items-center justify-center gap-1 w-full">
+            <div className="flex items-center justify-start gap-1 border border-red-400">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -292,7 +295,7 @@ export function useStockEntriesTableColumns({
       handleSortChange,
       hasNegativeStock,
       renderQuantityDisplay,
-      // renderUnitDisplay,
+      renderUnitDisplay,
     ]
   );
 
