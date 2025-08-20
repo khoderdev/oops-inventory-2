@@ -281,7 +281,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         placeholder="0"
                         {...field}
                         onChange={e => {
-                          const value = watchedUnit === "piece" || watchedUnit === "bottle" ? Math.round(parseFloat(e.target.value) || 0) : e.target.value;
+                          const value = watchedUnit === "piece" || watchedUnit === "bottle" && e.target.value !== "" ? 
+                            Math.round(parseFloat(e.target.value) || 0) : 
+                            e.target.value === "" ? "" : e.target.value;
                           field.onChange(value);
                           setLastChangedField("purchasedQuantity");
                         }}
@@ -356,9 +358,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         step="0.0001" 
                         min="0" 
                         placeholder="0" 
-                        value={field.value}
+                        {...field}
                         onChange={e => {
-                          field.onChange(e.target.value);
+                          field.onChange(e.target.value === "" ? "" : e.target.value);
                           setLastChangedField("costPerPurchasedUnit");
                         }}
                         className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
@@ -413,8 +415,8 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                       type="number" 
                       step="0.01" 
                       min="0" 
-                      placeholder="0" 
-                      {...field} 
+                      placeholder="" 
+                      value={field.value}
                       onChange={e => {
                         field.onChange(e.target.value);
                         setLastChangedField("totalCost");

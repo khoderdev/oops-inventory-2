@@ -19,10 +19,10 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
     defaultValues: {
       materialId: stockEntry?.materialId || selectedMaterialId || "",
       supplier: stockEntry?.supplier || "",
-      purchasedQuantity: stockEntry?.purchasedQuantity?.toString() || "0",
+      purchasedQuantity: stockEntry?.purchasedQuantity?.toString() || "",
       purchasedUnit: stockEntry?.purchasedUnit || "",
-      costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "0",
-      totalCost: stockEntry?.totalCost?.toString() || "0",
+      costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "",
+      totalCost: stockEntry?.totalCost?.toString() || "",
       purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
       expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
       batchNumber: stockEntry?.batchNumber || "",
@@ -93,10 +93,10 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
     form.reset({
       materialId: stockEntry?.materialId || selectedMaterialId || "",
       supplier: stockEntry?.supplier || "",
-      purchasedQuantity: shouldClearQuantityFields ? "" : stockEntry?.purchasedQuantity?.toString() || "0",
+      purchasedQuantity: shouldClearQuantityFields ? "" : stockEntry?.purchasedQuantity?.toString() || "",
       purchasedUnit: isWasteFromEntry ? stockEntry?.purchasedUnit || "" : shouldClearQuantityFields ? "" : stockEntry?.purchasedUnit || "",
-      costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "0",
-      totalCost: stockEntry?.totalCost?.toString() || "0",
+      costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "",
+      totalCost: stockEntry?.totalCost?.toString() || "",
       purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
       expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
       batchNumber: stockEntry?.batchNumber || "",
@@ -121,13 +121,15 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   React.useEffect(() => {
     if (selectedMaterial && !stockEntry) {
       const currentCostPerUnit = form.getValues("costPerPurchasedUnit");
-      const numericCurrentCost = typeof currentCostPerUnit === "string" ? parseFloat(currentCostPerUnit) : currentCostPerUnit;
-      if (numericCurrentCost === 0 || isNaN(numericCurrentCost)) {
-        let suggestedCost = 0;
+      // Only suggest a cost if the field is empty (not "0" or any other value)
+      if (currentCostPerUnit === "") {
+        let suggestedCost = null;
         if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit && selectedMaterial.packageQuantity) {
           const packageCost = selectedMaterial.costPerUnit;
           const numericPackageCost = typeof packageCost === "string" ? parseFloat(packageCost) : packageCost;
-          suggestedCost = typeof numericPackageCost === "number" && !isNaN(numericPackageCost) && numericPackageCost > 0 ? numericPackageCost : 0;
+          if (typeof numericPackageCost === "number" && !isNaN(numericPackageCost) && numericPackageCost > 0) {
+            suggestedCost = numericPackageCost;
+          }
         } else {
           const purchasedUnit = form.getValues("purchasedUnit") || selectedMaterial.inputUnit;
 
@@ -135,21 +137,25 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
             const baseCost = selectedMaterial.costPerUnit;
             const numericBaseCost = typeof baseCost === "string" ? parseFloat(baseCost) : baseCost;
 
-            if (selectedMaterial.inputUnit === "kg" && selectedMaterial.baseUnit === "g") {
-              suggestedCost = numericBaseCost * 1000;
-            } else if (selectedMaterial.inputUnit === "l" && selectedMaterial.baseUnit === "ml") {
-              suggestedCost = numericBaseCost * 1000;
-            } else {
-              suggestedCost = numericBaseCost;
+            if (!isNaN(numericBaseCost) && numericBaseCost > 0) {
+              if (selectedMaterial.inputUnit === "kg" && selectedMaterial.baseUnit === "g") {
+                suggestedCost = numericBaseCost * 1000;
+              } else if (selectedMaterial.inputUnit === "l" && selectedMaterial.baseUnit === "ml") {
+                suggestedCost = numericBaseCost * 1000;
+              } else {
+                suggestedCost = numericBaseCost;
+              }
             }
           } else {
             const baseCost = selectedMaterial.costPerUnit;
             const numericBaseCost = typeof baseCost === "string" ? parseFloat(baseCost) : baseCost;
-            suggestedCost = typeof numericBaseCost === "number" && !isNaN(numericBaseCost) && numericBaseCost > 0 ? numericBaseCost : 0;
+            if (typeof numericBaseCost === "number" && !isNaN(numericBaseCost) && numericBaseCost > 0) {
+              suggestedCost = numericBaseCost;
+            }
           }
         }
-        if (suggestedCost >= 0 && !isNaN(suggestedCost)) {
-          // Preserve exact decimal value for backend precision
+        // Only set a value if we have a valid suggested cost
+        if (suggestedCost !== null && !isNaN(suggestedCost) && suggestedCost > 0) {
           form.setValue("costPerPurchasedUnit", suggestedCost.toString());
         }
       }

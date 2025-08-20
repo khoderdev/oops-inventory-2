@@ -23,36 +23,24 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     }
   }, [form]);
 
-  // Only manually update cost per unit when total cost changes
+  // Combined effect for handling all field changes and calculations
   useEffect(() => {
-    // Only run this effect when totalCost is changed by the user
-    if (lastChangedField !== "totalCost") return;
-    
-    console.log("🔄 Total Cost changed manually:", watchedTotalCost);
-    const quantity = parseFloat(watchedQuantity) || 0;
-    const totalCost = parseFloat(watchedTotalCost) || 0;
-    
-    // Only update cost per unit if quantity is greater than 0
-    if (quantity > 0) {
-      // Calculate cost per unit from total cost
-      const calculatedCostPerUnit = totalCost / quantity;
-      console.log("📊 Updating cost per unit based on total cost:", calculatedCostPerUnit);
-      form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString(), { shouldValidate: true });
-    }
-  }, [lastChangedField, watchedQuantity, watchedTotalCost, form]);
-  
-  // Only update total cost when quantity or cost per unit changes
-  useEffect(() => {
-    // Skip if we're directly editing the total cost field
-    if (lastChangedField === "totalCost") {
-      console.log("⏭️ Skipping total cost calculation because user is editing total cost directly");
-      return;
-    }
-    
     const quantity = parseFloat(watchedQuantity) || 0;
     const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
+    const totalCost = parseFloat(watchedTotalCost) || 0;
     
-    if (lastChangedField === "purchasedQuantity" && costPerUnit > 0) {
+    if (lastChangedField === "totalCost") {
+      // When total cost changes directly
+      console.log("🔄 Total Cost changed manually:", watchedTotalCost);
+      
+      // Calculate cost per unit if quantity is available
+      if (quantity > 0) {
+        const calculatedCostPerUnit = totalCost / quantity;
+        console.log("📊 Updating cost per unit based on total cost:", calculatedCostPerUnit);
+        form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString(), { shouldValidate: true });
+      }
+      // Don't override the total cost that was just entered
+    } else if (lastChangedField === "purchasedQuantity" && costPerUnit > 0) {
       // When quantity changes, update total cost
       const calculatedTotal = quantity * costPerUnit;
       console.log("📊 Quantity changed, updating total cost:", calculatedTotal);
@@ -68,7 +56,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
       console.log("📊 Initial calculation, setting total cost:", calculatedTotal);
       form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
     }
-  }, [watchedQuantity, watchedCostPerUnit, lastChangedField, form]);
+  }, [watchedQuantity, watchedCostPerUnit, watchedTotalCost, lastChangedField, form]);
   const handleSubmit = (data: StockFormInputs) => {
     const formData = data as unknown as StockFormData;
     onSubmit(formData);
@@ -155,6 +143,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                           const currentValue = parseInt(field.value) || 0;
                           const newValue = Math.max(0, currentValue - 1);
                           field.onChange(newValue.toString());
+                          setLastChangedField("purchasedQuantity");
                         }}
                         disabled={parseInt(field.value) <= 0}
                       >
@@ -167,7 +156,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         placeholder="0"
                         {...field}
                         onChange={e => {
-                          field.onChange(e.target.value);
+                          field.onChange(e.target.value === "" ? "" : e.target.value);
                           setLastChangedField("purchasedQuantity");
                         }}
                         className="h-11 border-green-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -181,6 +170,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                           const currentValue = parseInt(field.value) || 0;
                           const newValue = currentValue + 1;
                           field.onChange(newValue.toString());
+                          setLastChangedField("purchasedQuantity");
                         }}
                       >
                         <Plus className="h-4 w-4" />
