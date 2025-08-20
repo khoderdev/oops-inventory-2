@@ -11,7 +11,7 @@ import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, Ch
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
-import { getCategories } from "@/api/categories.api";
+import { getCategoriesByType } from "@/api/categories.api";
 import { Category } from "@/types/categories";
 
 export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
@@ -120,13 +120,14 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
     const fetchCategories = async () => {
       try {
         setLoadingCategories(true);
-        const response = await getCategories({ isActive: true });
+        // Fetch only material categories specifically
+        const response = await getCategoriesByType("materials", true);
         const sortedCategories = [...(response.totalItems || [])];
         sortedCategories.sort((a, b) => a.name.localeCompare(b.name));
         setCategories(sortedCategories);
-        console.log("Categories loaded:", sortedCategories.length);
+        console.log("Material categories loaded:", sortedCategories.length);
       } catch (error) {
-        console.error("Failed to fetch categories:", error);
+        console.error("Failed to fetch material categories:", error);
         setCategories([]);
       } finally {
         setLoadingCategories(false);
@@ -225,23 +226,30 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
           const category = getValue();
           const materialCategoryId = (row.original as any).categoryId;
           
-          // Find category by ID first (most reliable)
+          // Debug logging for category resolution
+          console.log(`Material ${row.original.name}: categoryId=${materialCategoryId}, category=`, category);
+          
+          // Find category by ID first (most reliable for materials)
           let categoryInfo: Category | undefined;
-          if (materialCategoryId && categoriesById.has(materialCategoryId)) {
+          if (materialCategoryId && typeof materialCategoryId === 'number' && categoriesById.has(materialCategoryId)) {
             categoryInfo = categoriesById.get(materialCategoryId);
+            console.log(`Found category by ID ${materialCategoryId}:`, categoryInfo);
           }
           // Fallback to category object if present
           else if (typeof category === "object" && category !== null) {
             const categoryObj = category as any;
-            if (categoryObj.id && categoriesById.has(categoryObj.id)) {
+            if (categoryObj.id && typeof categoryObj.id === 'number' && categoriesById.has(categoryObj.id)) {
               categoryInfo = categoriesById.get(categoryObj.id);
-            } else if (categoryObj.value && categoriesByValue.has(categoryObj.value)) {
+              console.log(`Found category by object ID ${categoryObj.id}:`, categoryInfo);
+            } else if (categoryObj.value && typeof categoryObj.value === 'string' && categoriesByValue.has(categoryObj.value)) {
               categoryInfo = categoriesByValue.get(categoryObj.value);
+              console.log(`Found category by object value ${categoryObj.value}:`, categoryInfo);
             }
           }
           // Fallback to string category value
           else if (typeof category === "string" && category && categoriesByValue.has(category)) {
             categoryInfo = categoriesByValue.get(category);
+            console.log(`Found category by string value ${category}:`, categoryInfo);
           }
 
           // Handle no category case
@@ -253,14 +261,23 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
             );
           }
 
-          // Get display values
+          // Get display values with better fallback logic
           const displayName = categoryInfo?.name || 
             (typeof category === "object" && category !== null && (category as any).name) || 
-            (typeof category === "string" ? category : "Unknown");
+            (typeof category === "string" && category !== "" ? category : "Unknown Category");
           
           const categoryValue = categoryInfo?.value || 
             (typeof category === "object" && category !== null && (category as any).value) || 
-            (typeof category === "string" ? category : "unknown");
+            (typeof category === "string" && category !== "" ? category : "unknown");
+
+          // Show debug info if category couldn't be resolved properly
+          if (!categoryInfo && (materialCategoryId || category)) {
+            console.warn(`Could not resolve category for material ${row.original.name}:`, {
+              materialCategoryId,
+              category,
+              availableCategories: categories.map(c => ({ id: c.id, name: c.name, value: c.value }))
+            });
+          }
 
           return (
             <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
@@ -526,17 +543,17 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
               {paginatedMaterials.map(material => {
                 const materialCategoryId = (material as any).categoryId;
 
-                // Find category by ID first (most reliable)
+                // Find category by ID first (most reliable for materials)
                 let categoryInfo: Category | undefined;
-                if (materialCategoryId && categoriesById.has(materialCategoryId)) {
+                if (materialCategoryId && typeof materialCategoryId === 'number' && categoriesById.has(materialCategoryId)) {
                   categoryInfo = categoriesById.get(materialCategoryId);
                 }
                 // Fallback to category object if present
                 else if (typeof material.category === "object" && material.category !== null) {
                   const categoryObj = material.category as any;
-                  if (categoryObj.id && categoriesById.has(categoryObj.id)) {
+                  if (categoryObj.id && typeof categoryObj.id === 'number' && categoriesById.has(categoryObj.id)) {
                     categoryInfo = categoriesById.get(categoryObj.id);
-                  } else if (categoryObj.value && categoriesByValue.has(categoryObj.value)) {
+                  } else if (categoryObj.value && typeof categoryObj.value === 'string' && categoriesByValue.has(categoryObj.value)) {
                     categoryInfo = categoriesByValue.get(categoryObj.value);
                   }
                 }
@@ -545,14 +562,14 @@ export function MaterialTable({ filteredMaterials, onEditMaterial, onAddStock, o
                   categoryInfo = categoriesByValue.get(material.category);
                 }
 
-                // Get display values
+                // Get display values with better fallback logic
                 const displayName = categoryInfo?.name || 
                   (typeof material.category === "object" && material.category !== null && (material.category as any).name) || 
-                  (typeof material.category === "string" ? material.category : "Unknown");
+                  (typeof material.category === "string" && material.category !== "" ? material.category : "Unknown Category");
 
                 const categoryValue = categoryInfo?.value || 
                   (typeof material.category === "object" && material.category !== null && (material.category as any).value) || 
-                  (typeof material.category === "string" ? material.category : "unknown");
+                  (typeof material.category === "string" && material.category !== "" ? material.category : "unknown");
 
                 return (
                   <div key={material.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">

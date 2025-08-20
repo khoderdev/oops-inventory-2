@@ -83,11 +83,15 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
   // Render card view for mobile devices
   const renderMobileCardView = () => {
     return (
-      <div className="h-[calc(100vh-220px)] overflow-y-auto px-1 w-full bg-gray-100">
+      <div className="h-[calc(100vh-220px)] px-1 w-full bg-gray-100">
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="categories-mobile" direction="vertical">
             {provided => (
-              <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4 pb-4">
+              <div 
+                {...provided.droppableProps} 
+                ref={provided.innerRef} 
+                className="space-y-4 pb-4 h-full overflow-y-auto"
+              >
                 {draggedCategories.map((category, index) => (
                   <Draggable key={category.id} draggableId={category.id.toString()} index={index}>
                     {(provided, snapshot) => (
