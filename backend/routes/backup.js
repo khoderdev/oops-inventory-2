@@ -524,6 +524,84 @@ router.delete("/:backupId", async (req, res) => {
   }
 });
 
+// Validate a backup
+router.get("/validate/:backupId", async (req, res) => {
+  try {
+    const { backupId } = req.params;
+    
+    console.log(`🔍 Validating backup: ${backupId}`);
+    
+    // Parse backup ID to get directory and type
+    const parts = backupId.split("_");
+    const type = parts[parts.length - 1];
+    
+    // The directory name is the full backup ID without the type suffix
+    const dirName = backupId.substring(0, backupId.length - type.length - 1);
+    
+    const backupDir = path.join(BACKUP_DIR, dirName);
+    
+    // Check if backup directory exists
+    try {
+      await fsPromises.access(backupDir);
+    } catch (error) {
+      console.error(`❌ Backup directory not found: ${backupDir}`);
+      return res.status(404).json({ 
+        success: false, 
+        message: "Backup not found", 
+        error: "Directory not found" 
+      });
+    }
+    
+    // Check for backup files
+    const files = await fsPromises.readdir(backupDir);
+    console.log(`📄 Found files in backup directory:`, files);
+    
+    let mainFile;
+    let issues = [];
+    
+    switch (type) {
+      case "custom":
+        mainFile = files.find(f => f.endsWith(".custom"));
+        if (!mainFile) issues.push("Custom backup file not found");
+        break;
+      case "sql":
+        mainFile = files.find(f => f.endsWith(".sql"));
+        if (!mainFile) issues.push("SQL backup file not found");
+        break;
+      case "directory":
+        mainFile = files.find(f => f === "backup_directory");
+        if (!mainFile) issues.push("Directory backup not found");
+        break;
+      default:
+        issues.push(`Unknown backup type: ${type}`);
+    }
+    
+    if (issues.length > 0) {
+      console.error(`❌ Validation failed:`, issues);
+      return res.status(400).json({ 
+        success: false, 
+        data: { valid: false, issues, metadata: {} } 
+      });
+    }
+    
+    const backupPath = path.join(backupDir, mainFile);
+    const metadata = await getBackupMetadata(backupPath, type);
+    
+    console.log(`✅ Backup validated successfully`);
+    res.json({ 
+      success: true, 
+      data: { valid: true, issues: [], metadata: metadata.metadata } 
+    });
+  } catch (error) {
+    console.error(`❌ Error validating backup:`, error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to validate backup", 
+      error: error.message 
+    });
+  }
+});
+
 // Download a backup
 router.get("/download/:backupId", async (req, res) => {
   try {
