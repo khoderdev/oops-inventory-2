@@ -1,1 +1,1 @@
-export { default as DatabaseBackupManager } from './DatabaseBackupManager';
+export { default as DatabaseBackupManager } from './database-backup/DatabaseBackupManager';

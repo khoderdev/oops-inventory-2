@@ -1,3 +1,5 @@
+import { BackupInfo } from "@/api/backup.api";
+
 export interface BackupSchedule {
   id: string;
   name: string;
@@ -54,4 +56,45 @@ export interface ScheduleExecution {
   backupId?: string;
   error?: string;
   duration?: number; // in seconds
+}
+
+export interface CreateScheduleDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onScheduleCreated: () => void;
+  editSchedule?: BackupSchedule | null;
+}
+
+export interface BackupSchedulerProps {
+  refreshTrigger?: number;
+}
+
+//---------------------------------------------------------------------------------
+
+// Database Backup
+
+export interface CreateBackupDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onBackupCreated: () => void;
+}
+
+export interface RestoreBackupDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  backup: BackupInfo | null;
+  onRestoreCompleted: () => void;
+}
+
+export interface UploadBackupDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onBackupUploaded: () => void;
+}
+
+export interface DeleteConfirmationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  backup: BackupInfo | null;
+  onConfirm: () => void;
 }
