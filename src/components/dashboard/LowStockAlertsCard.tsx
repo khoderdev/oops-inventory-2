@@ -22,7 +22,7 @@ export const LowStockAlertsCard: React.FC<LowStockAlertsCardProps> = ({
   totalLowStock 
 }) => {
   return (
-    <Card>
+    <Card className="border-l-4 border-l-red-500 rounded-2xl">
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-red-500" />

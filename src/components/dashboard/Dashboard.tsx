@@ -43,7 +43,7 @@ export const Dashboard: React.FC = () => {
   const { materialsWithStock, stockEntries, menuItems } = useInventoryStore();
   const [employees] = useAtom(employeesAtom);
   const [usageStats] = useAtom(usageStatsAtom);
-  
+
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     totalMaterials: 0,
     totalStockEntries: 0,
@@ -65,7 +65,8 @@ export const Dashboard: React.FC = () => {
       totalStockValue: materialsWithStock.reduce((sum, m) => {
         // Skip any suspicious values (extremely large values)
         const value = m.totalValue || 0;
-        if (value > 1000000) { // Cap at $1M per material as a sanity check
+        if (value > 1000000) {
+          // Cap at $1M per material as a sanity check
           console.warn(`Extremely large stock value detected for material ${m.name}: $${value}`);
           return sum;
         }
@@ -149,9 +150,7 @@ export const Dashboard: React.FC = () => {
   ];
 
   // Filter actions based on permissions
-  const availableActions = quickActions.filter(action => 
-    !action.permission || hasPermission(action.permission)
-  );
+  const availableActions = quickActions.filter(action => !action.permission || hasPermission(action.permission));
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -159,12 +158,7 @@ export const Dashboard: React.FC = () => {
       <WelcomeHeader username={user?.firstName || user?.username || ""} />
 
       {/* Day Operations Status */}
-      {hasPermission(PERMISSIONS.DAY_OPERATIONS_READ) && (
-        <DayOperationsCard 
-          loading={dayOpsLoading} 
-          currentDay={currentDay} 
-        />
-      )}
+      {hasPermission(PERMISSIONS.DAY_OPERATIONS_READ) && <DayOperationsCard loading={dayOpsLoading} currentDay={currentDay} />}
 
       {/* Key Metrics */}
       <KeyMetricsGrid stats={dashboardStats} />
@@ -172,16 +166,29 @@ export const Dashboard: React.FC = () => {
       {/* Quick Actions */}
       <QuickActionsCard actions={availableActions} />
 
+      {/* System Status */}
+      <SystemStatusCard
+        user={user}
+        currentDay={
+          currentDay
+            ? {
+                status: currentDay.status,
+                openedAt: currentDay.openedAt instanceof Date ? currentDay.openedAt.toISOString() : String(currentDay.openedAt)
+              }
+            : undefined
+        }
+      />
+
       {/* Recent Activity & Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex">
         {/* Low Stock Alerts */}
         {hasPermission(PERMISSIONS.STOCK_READ) && dashboardStats.lowStockItems > 0 && (
-          <LowStockAlertsCard 
+          <LowStockAlertsCard
             lowStockMaterials={materialsWithStock
               .filter(m => m.availableQuantity < 10)
               .map(m => ({
                 ...m,
-                id: typeof m.id === 'string' ? parseInt(m.id, 10) : m.id
+                id: typeof m.id === "string" ? parseInt(m.id, 10) : m.id
               }))
               .slice(0, 5)}
             totalLowStock={dashboardStats.lowStockItems}
@@ -189,19 +196,8 @@ export const Dashboard: React.FC = () => {
         )}
 
         {/* Employee Usage Summary */}
-        {hasPermission(PERMISSIONS.EMPLOYEE_USAGE_VIEW) && usageStats && (
-          <EmployeeUsageCard usageStats={usageStats} />
-        )}
+        {hasPermission(PERMISSIONS.EMPLOYEE_USAGE_VIEW) && usageStats && <EmployeeUsageCard usageStats={usageStats} />}
       </div>
-
-      {/* System Status */}
-      <SystemStatusCard 
-        user={user} 
-        currentDay={currentDay ? {
-          status: currentDay.status,
-          openedAt: currentDay.openedAt instanceof Date ? currentDay.openedAt.toISOString() : String(currentDay.openedAt)
-        } : undefined} 
-      />
     </div>
   );
 };

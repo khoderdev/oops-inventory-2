@@ -71,32 +71,45 @@ export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMa
       return;
     }
     const costPerOriginalUnit = originalTotalCost / originalQuantity;
+    let calculatedCostPerUnit = 0;
+    
     if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity) {
       const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle", "bag"];
-      if (purchasedUnit === selectedMaterial.baseUnit) {
-        const costPerPiece = costPerOriginalUnit / selectedMaterial.packageQuantity;
-        form.setValue("costPerPurchasedUnit", isNaN(costPerPiece) ? "0" : costPerPiece.toString());
+      if (purchasedUnit === selectedMaterial.baseUnit || purchasedUnit === "piece") {
+        // Calculate cost per piece for package materials
+        calculatedCostPerUnit = costPerOriginalUnit / selectedMaterial.packageQuantity;
+        form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString());
       } else if (validPackageUnits.includes(purchasedUnit as PackageUnit) && purchasedUnit === selectedMaterial.inputUnit) {
-        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toString());
+        calculatedCostPerUnit = costPerOriginalUnit;
+        form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toString());
       } else if (purchasedUnit === originalUnit) {
-        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toString());
+        calculatedCostPerUnit = costPerOriginalUnit;
+        form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toString());
       } else {
         form.setValue("costPerPurchasedUnit", "0");
       }
     } else {
       if (purchasedUnit === originalUnit) {
-        form.setValue("costPerPurchasedUnit", costPerOriginalUnit.toString());
+        calculatedCostPerUnit = costPerOriginalUnit;
+        form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toString());
       } else {
         const conversionFactor = getConversionFactor(originalUnit, purchasedUnit, selectedMaterial.unitType, selectedMaterial);
         if (conversionFactor > 0) {
-          const costPerWasteUnit = costPerOriginalUnit / conversionFactor;
-          form.setValue("costPerPurchasedUnit", isNaN(costPerWasteUnit) ? "0" : costPerWasteUnit.toString());
+          calculatedCostPerUnit = costPerOriginalUnit / conversionFactor;
+          form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString());
         } else {
           form.setValue("costPerPurchasedUnit", "0");
         }
       }
     }
-  }, [form, selectedMaterial, selectedStockEntry, watchedPurchasedUnit]);
+
+    // Auto-calculate total cost when unit changes and we have a waste quantity
+    const currentWasteQuantity = parseFloat(watchedWasteQuantity) || 0;
+    if (currentWasteQuantity > 0 && calculatedCostPerUnit > 0) {
+      const calculatedTotalCost = currentWasteQuantity * calculatedCostPerUnit;
+      form.setValue("totalCost", isNaN(calculatedTotalCost) ? "0" : calculatedTotalCost.toString());
+    }
+  }, [form, selectedMaterial, selectedStockEntry, watchedPurchasedUnit, watchedWasteQuantity]);
 
   useEffect(() => {
     const quantity = parseFloat(watchedWasteQuantity) || 0;

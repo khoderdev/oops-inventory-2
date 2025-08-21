@@ -669,13 +669,31 @@ const stockEntriesController = {
       if (stockEntry.purchasedUnit !== unit) {
         if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
           if (unit === material.baseUnit) {
+            // Wasting in base unit (e.g., pieces from a box)
             wasteInOriginalUnit = numericWasteQuantity / material.packageQuantity;
             wasteInSmallerUnit = numericWasteQuantity;
             wasteUnitForRecord = material.baseUnit;
-          } else if (unit !== stockEntry.purchasedUnit) {
-            return res.status(400).json({
-              error: `Package unit mismatch: cannot waste ${unit} from ${stockEntry.purchasedUnit}. Use ${stockEntry.purchasedUnit} or ${material.baseUnit}`
-            });
+          } else if (unit === stockEntry.purchasedUnit) {
+            // Wasting in purchased unit (e.g., boxes)
+            wasteInOriginalUnit = numericWasteQuantity;
+            wasteInSmallerUnit = numericWasteQuantity * material.packageQuantity;
+            wasteUnitForRecord = material.baseUnit;
+          } else {
+            // Allow flexible waste recording - convert any valid unit
+            console.log(`⚠️ Flexible waste unit conversion: ${unit} from ${stockEntry.purchasedUnit} for material ${material.name}`);
+            
+            // Try to handle common unit conversions for packages
+            if (unit === "piece" || unit === "item" || unit === "unit") {
+              // Treat as base unit
+              wasteInOriginalUnit = numericWasteQuantity / material.packageQuantity;
+              wasteInSmallerUnit = numericWasteQuantity;
+              wasteUnitForRecord = material.baseUnit;
+            } else {
+              // Default: treat as purchased unit
+              wasteInOriginalUnit = numericWasteQuantity;
+              wasteInSmallerUnit = numericWasteQuantity * material.packageQuantity;
+              wasteUnitForRecord = material.baseUnit;
+            }
           }
         } else if (material.unitType === "mass") {
           const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };

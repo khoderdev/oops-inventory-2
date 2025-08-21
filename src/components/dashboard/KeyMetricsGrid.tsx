@@ -20,7 +20,7 @@ interface KeyMetricsGridProps {
 
 export const KeyMetricsGrid: React.FC<KeyMetricsGridProps> = ({ stats }) => {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <Card className="rounded-2xl">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -59,7 +59,7 @@ export const KeyMetricsGrid: React.FC<KeyMetricsGridProps> = ({ stats }) => {
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl">
+      {/* <Card className="rounded-2xl">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -69,7 +69,7 @@ export const KeyMetricsGrid: React.FC<KeyMetricsGridProps> = ({ stats }) => {
             <AlertTriangle className={`h-8 w-8 ${stats.lowStockItems > 0 ? 'text-red-500' : 'text-gray-400'}`} />
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 };
