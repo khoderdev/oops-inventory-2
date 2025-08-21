@@ -222,7 +222,7 @@ class ApiClient {
 const api = new ApiClient({
   baseURL: "https://oops-pos-backend.onrender.com/api",
   // baseURL: "http://localhost:3000/api",
-  timeout: 15000
+  timeout: 30000
 });
 
 export default api;
