@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Search, Settings, User } from "lucide-react";
 import React from "react";
@@ -15,10 +15,97 @@ interface SidebarLayoutProps {
   pageTitle?: string;
 }
 
-export function SidebarLayout({ children, showSearch = true, showNotifications = true, pageTitle }: SidebarLayoutProps) {
+function SidebarLayoutContent({ children, showSearch = true, showNotifications = true, pageTitle }: SidebarLayoutProps) {
   const { user } = usePermissions();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = React.useState("");
+  const { setOpen, open } = useSidebar();
+
+  // Hover state management
+  const [isHovering, setIsHovering] = React.useState(false);
+  const [hoverTimeout, setHoverTimeout] = React.useState<NodeJS.Timeout | null>(null);
+  const [leaveTimeout, setLeaveTimeout] = React.useState<NodeJS.Timeout | null>(null);
+  const [isLocked, setIsLocked] = React.useState(true);
+
+  // Check if mobile
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Handle toggle lock/unlock
+  const handleToggleLock = React.useCallback(() => {
+    setIsLocked(prev => {
+      const newLocked = !prev;
+      if (newLocked) {
+        // When locking, keep current state
+        // Clear any pending timeouts
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          setHoverTimeout(null);
+        }
+        if (leaveTimeout) {
+          clearTimeout(leaveTimeout);
+          setLeaveTimeout(null);
+        }
+      }
+      return newLocked;
+    });
+  }, [hoverTimeout, leaveTimeout]);
+
+  // Handle sidebar hover expand/collapse (only on desktop and when not locked)
+  const handleSidebarMouseEnter = React.useCallback(() => {
+    if (isMobile || isLocked) return;
+
+    // Clear any existing leave timeout
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      setLeaveTimeout(null);
+    }
+
+    setIsHovering(true);
+
+    // Faster expansion: reduced delay from 150ms to 75ms
+    const timeout = setTimeout(() => {
+      setOpen(true);
+    }, 75);
+
+    setHoverTimeout(timeout);
+  }, [isMobile, isLocked, leaveTimeout, setOpen]);
+
+  const handleSidebarMouseLeave = React.useCallback(() => {
+    if (isMobile || isLocked) return;
+
+    // Clear any existing hover timeout
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
+    }
+
+    setIsHovering(false);
+
+    // Faster collapse: reduced delay from 300ms to 150ms
+    const timeout = setTimeout(() => {
+      setOpen(false);
+    }, 150);
+
+    setLeaveTimeout(timeout);
+  }, [isMobile, isLocked, hoverTimeout, setOpen]);
+
+  // Cleanup timeouts on unmount
+  React.useEffect(() => {
+    return () => {
+      if (hoverTimeout) clearTimeout(hoverTimeout);
+      if (leaveTimeout) clearTimeout(leaveTimeout);
+    };
+  }, [hoverTimeout, leaveTimeout]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,12 +115,31 @@ export function SidebarLayout({ children, showSearch = true, showNotifications =
   };
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <AppSidebar />
-      <SidebarInset className="flex flex-col min-h-screen transition-all duration-300 ease-in-out">
+    <>
+      <div
+        className="fixed inset-y-0 left-0 z-50"
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
+        style={{
+          width: open ? '240px' : '64px',
+          transition: 'width 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        <AppSidebar />
+      </div>
+      <SidebarInset
+        className="flex flex-col min-h-screen transition-all duration-200 ease-out"
+        style={{
+          marginLeft: open ? '240px' : '64px',
+          transition: 'margin-left 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
         <header className="flex h-12 shrink-0 items-center gap-2 sm:gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 safe-area-top">
           <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 w-full min-w-0">
-            <SidebarTrigger className="-ml-1 btn-touch flex-shrink-0" />
+            <SidebarTrigger 
+              className="-ml-1 btn-touch flex-shrink-0" 
+              onClick={handleToggleLock}
+            />
             {pageTitle && <div className={`font-semibold text-foreground ${showSearch ? "hidden sm:block" : "block"} truncate min-w-0 text-sm sm:text-base`}>{pageTitle}</div>}
             <div className="flex-1 min-w-0" />
             {showSearch && (
@@ -97,6 +203,14 @@ export function SidebarLayout({ children, showSearch = true, showNotifications =
           <div className="flex-1 flex flex-col gap-4 animate-fade-in">{children}</div>
         </main>
       </SidebarInset>
+    </>
+  );
+}
+
+export function SidebarLayout(props: SidebarLayoutProps) {
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <SidebarLayoutContent {...props} />
     </SidebarProvider>
   );
 }
