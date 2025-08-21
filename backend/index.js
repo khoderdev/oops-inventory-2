@@ -58,7 +58,15 @@ let httpServer = null;
 
 app.use(
   cors({
-    origin: ["http://localhost", "http://localhost:5173", "http://192.168.88.86", "http://127.0.0.1", "http://192.168.88.86:5173, https://oops-pos.vercel.app", "https://oops-pos-git-dev-66-khoderdevs-projects.vercel.app"],
+    origin: [
+      "http://localhost", 
+      "http://localhost:5173", 
+      "http://192.168.88.86", 
+      "http://127.0.0.1", 
+      "http://192.168.88.86:5173", 
+      "https://oops-pos.vercel.app", 
+      "https://oops-pos-git-dev-66-khoderdevs-projects.vercel.app"
+    ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
