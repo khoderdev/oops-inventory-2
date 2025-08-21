@@ -186,8 +186,12 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
             duration: 1000
           });
         } else {
+          // Ensure categoryId is a number if it exists
+          const categoryId = data.categoryId ? Number(data.categoryId) : undefined;
+          
           await materialsAPI.createMaterial({
             ...data,
+            categoryId,
             category: data.category as MaterialCategory,
             isPOSItem: false
           });
@@ -626,7 +630,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
 
       {/* Stock Form Dialog */}
       <Dialog open={showStockForm} onOpenChange={setShowStockForm} modal={true}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] sm:w-[95vw] md:w-[65vw] xl:w-[40vw] rounded-lg p-0 py-2" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] sm:w-[95vw] md:w-[65vw] xl:w-[48vw] rounded-lg p-0 py-2" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
           <DialogHeader className="px-4 sm:px-6 py">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Package className="h-4 w-4 sm:h-5 sm:w-5" />

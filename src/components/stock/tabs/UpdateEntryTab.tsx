@@ -23,11 +23,38 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     }
   }, [form]);
 
+  // Effect to ensure material is properly loaded when editing
+  useEffect(() => {
+    if (stockEntry && stockEntry.materialId) {
+      console.log('🔍 Setting material ID for editing:', stockEntry.materialId);
+      
+      // Force reset the form value to ensure UI updates
+      form.setValue("materialId", "", { shouldValidate: false });
+      
+      // Small timeout to ensure the reset takes effect before setting the new value
+      setTimeout(() => {
+        form.setValue("materialId", String(stockEntry.materialId), { shouldValidate: true });
+        console.log('💾 Material ID set in form:', String(stockEntry.materialId));
+        
+        // Find the material in the materials list
+        const material = materials.find(m => String(m.id) === String(stockEntry.materialId));
+        if (material) {
+          console.log('✅ Found material for editing:', material.name);
+        } else {
+          console.warn('⚠️ Could not find material with ID:', stockEntry.materialId);
+        }
+      }, 0);
+    }
+  }, [stockEntry, materials, form]);
+
   // Combined effect for handling all field changes and calculations
   useEffect(() => {
-    const quantity = parseFloat(watchedQuantity) || 0;
-    const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
-    const totalCost = parseFloat(watchedTotalCost) || 0;
+    const isQuantityEmpty = watchedQuantity === "";
+    const isCostPerUnitEmpty = watchedCostPerUnit === "";
+    const isTotalCostEmpty = watchedTotalCost === "";
+    const quantity = isQuantityEmpty ? 0 : parseFloat(watchedQuantity);
+    const costPerUnit = isCostPerUnitEmpty ? 0 : parseFloat(watchedCostPerUnit);
+    const totalCost = isTotalCostEmpty ? 0 : parseFloat(watchedTotalCost);
     
     if (lastChangedField === "totalCost") {
       // When total cost changes directly
@@ -37,24 +64,47 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
       if (quantity > 0) {
         const calculatedCostPerUnit = totalCost / quantity;
         console.log("📊 Updating cost per unit based on total cost:", calculatedCostPerUnit);
-        form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString(), { shouldValidate: true });
+        form.setValue(
+          "costPerPurchasedUnit", 
+          isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toFixed(6), 
+          { shouldValidate: true }
+        );
       }
       // Don't override the total cost that was just entered
-    } else if (lastChangedField === "purchasedQuantity" && costPerUnit > 0) {
-      // When quantity changes, update total cost
-      const calculatedTotal = quantity * costPerUnit;
-      console.log("📊 Quantity changed, updating total cost:", calculatedTotal);
-      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
-    } else if (lastChangedField === "costPerPurchasedUnit" && quantity > 0) {
-      // When cost per unit changes, update total cost
-      const calculatedTotal = quantity * costPerUnit;
-      console.log("📊 Cost per unit changed, updating total cost:", calculatedTotal);
-      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
-    } else if (!lastChangedField && quantity > 0 && costPerUnit > 0) {
-      // Initial calculation or when no specific field was changed
-      const calculatedTotal = quantity * costPerUnit;
-      console.log("📊 Initial calculation, setting total cost:", calculatedTotal);
-      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
+    } else if (lastChangedField === "purchasedQuantity") {
+      if (isQuantityEmpty) {
+        if (!isCostPerUnitEmpty) {
+          form.setValue("totalCost", "", { shouldValidate: true });
+        }
+      } else if (quantity > 0) {
+        if (costPerUnit > 0) {
+          const calculatedTotal = quantity * costPerUnit;
+          console.log("📊 Quantity changed, updating total cost:", calculatedTotal);
+          form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
+        } else if (!isTotalCostEmpty) {
+          const calculatedCostPerUnit = totalCost / quantity;
+          if (!isNaN(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
+            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(6), { shouldValidate: true });
+          }
+        }
+      }
+    } else if (lastChangedField === "costPerPurchasedUnit") {
+      if (isCostPerUnitEmpty) {
+        if (!isQuantityEmpty) {
+          form.setValue("totalCost", "", { shouldValidate: true });
+        }
+      } else if (costPerUnit > 0) {
+        if (quantity > 0) {
+          const calculatedTotal = quantity * costPerUnit;
+          console.log("📊 Cost per unit changed, updating total cost:", calculatedTotal);
+          form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
+        } else if (!isTotalCostEmpty) {
+          const calculatedQuantity = totalCost / costPerUnit;
+          if (!isNaN(calculatedQuantity) && calculatedQuantity > 0) {
+            form.setValue("purchasedQuantity", Math.round(calculatedQuantity).toString(), { shouldValidate: true });
+          }
+        }
+      }
     }
   }, [watchedQuantity, watchedCostPerUnit, watchedTotalCost, lastChangedField, form]);
   const handleSubmit = (data: StockFormInputs) => {
@@ -69,7 +119,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
           <div className="p-2 bg-blue-100 rounded-lg">
             <Package className="h-5 w-5 text-blue-600" />
           </div>
-          <h3 className="text-lg font-semibold text-blue-800">Updateeeee Stock Entry Details</h3>
+          <h3 className="text-lg font-semibold text-blue-800">Update Stock Entry Details</h3>
         </div>
         <p className="text-sm text-blue-700 mb-4">
           Modify the details of this stock entry. Current: <strong>{stockEntry?.purchasedIndividualQuantity !== undefined && stockEntry?.purchasedIndividualUnit ? `${stockEntry.purchasedIndividualQuantity} ${stockEntry.purchasedIndividualUnit}` : `${stockEntry?.purchasedQuantity} ${stockEntry?.purchasedUnit}`}</strong>
@@ -90,7 +140,19 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Material</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select 
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      console.log('🔄 Material selected manually:', value);
+                      // Find the selected material
+                      const material = materials.find(m => String(m.id) === String(value));
+                      if (material) {
+                        console.log('✅ Material found after selection:', material.name);
+                      }
+                    }} 
+                    value={field.value}
+                    defaultValue={stockEntry?.materialId ? String(stockEntry.materialId) : undefined}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select material" />
@@ -209,6 +271,63 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
 
             <FormField
               control={form.control}
+              name="costPerPurchasedUnit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cost Per Unit ($)</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                        onClick={() => {
+                          const currentValue = parseFloat(field.value) || 0;
+                          const newValue = Math.max(0, currentValue - 0.000001);
+                          field.onChange(newValue.toFixed(6));
+                          setLastChangedField("costPerPurchasedUnit");
+                        }}
+                        disabled={parseFloat(field.value) <= 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <Input
+                        type="number"
+                        step="0.000001"
+                        min="0"
+                        placeholder="0.000000"
+                        value={field.value}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          field.onChange(newValue);
+                          setLastChangedField("costPerPurchasedUnit");
+                        }}
+                        className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                        onClick={() => {
+                          const currentValue = parseFloat(field.value) || 0;
+                          const newValue = currentValue + 0.000001;
+                          field.onChange(newValue.toFixed(6));
+                          setLastChangedField("costPerPurchasedUnit");
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="totalCost"
               render={({ field }) => (
                 <FormItem>
@@ -222,8 +341,8 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 0.0001);
-                          field.onChange(newValue.toString());
+                          const newValue = Math.max(0, currentValue - 0.01);
+                          field.onChange(newValue.toFixed(2));
                           setLastChangedField("totalCost");
                           console.log("🔽 Decreased total cost to:", newValue);
                         }}
@@ -233,7 +352,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                       </Button>
                       <Input
                         type="number"
-                        step="0.0001"
+                        step="0.01"
                         min="0"
                         placeholder="0.00"
                         value={field.value}
@@ -251,8 +370,8 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = currentValue + 0.0001;
-                          field.onChange(newValue.toString());
+                          const newValue = currentValue + 0.01;
+                          field.onChange(newValue.toFixed(2));
                           setLastChangedField("totalCost");
                         }}
                       >

@@ -378,12 +378,37 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     setShowPrinterDialog(true);
   };
 
-  const handleEditStockEntry = (stockEntry: StockEntry) => {
+  const handleEditStockEntry = async (stockEntry: StockEntry) => {
     setSelectedStockEntry(stockEntry);
-    const material = (materials as (MaterialWithStock | Material)[]).find(m => (m as any).id === stockEntry.materialId) as MaterialWithStock | undefined;
-    if (material) {
-      setSelectedMaterial(material);
+    
+    // First try to find the material in the current materials list
+    let material = (materials as (MaterialWithStock | Material)[]).find(
+      m => String(m.id) === String(stockEntry.materialId)
+    ) as MaterialWithStock | undefined;
+    
+    // If material is not found in current state, fetch fresh materials data
+    if (!material) {
+      console.log('🔍 Material not found in current state, fetching fresh data...');
+      try {
+        const freshMaterials = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
+        setMaterials(freshMaterials);
+        
+        // Try to find the material in the fresh data
+        material = freshMaterials.find(
+          m => String(m.id) === String(stockEntry.materialId)
+        ) as MaterialWithStock | undefined;
+      } catch (err) {
+        console.error('❌ Failed to fetch fresh materials data:', err);
+      }
     }
+    
+    if (material) {
+      console.log('✅ Setting selected material for editing:', material.name);
+      setSelectedMaterial(material);
+    } else {
+      console.warn('⚠️ Could not find material with ID:', stockEntry.materialId);
+    }
+    
     setShowStockForm(true);
   };
 

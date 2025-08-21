@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { NewStockTabProps, StockFormData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Minus, Plus } from "lucide-react";
+import { CalendarIcon, Minus, Plus, Trash2 } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
 import { useEffect, useState } from "react";
 
@@ -21,38 +21,30 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
     const quantity = isQuantityEmpty ? 0 : parseFloat(watchedQuantity);
     const costPerUnit = isCostPerUnitEmpty ? 0 : parseFloat(watchedCostPerUnit);
     const totalCost = isTotalCostEmpty ? 0 : parseFloat(watchedTotalCost);
-    
     if (lastChangedField === "totalCost") {
-      // When total cost is changed
       if (!isTotalCostEmpty) {
         if (quantity > 0) {
-          // If quantity exists, calculate cost per unit
           const calculatedCostPerUnit = totalCost / quantity;
           if (!isNaN(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
             form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(6), { shouldValidate: true });
           }
         } else if (!isCostPerUnitEmpty) {
-          // If quantity is empty but cost per unit exists, update quantity based on total and cost per unit
           const calculatedQuantity = totalCost / costPerUnit;
           if (!isNaN(calculatedQuantity) && calculatedQuantity > 0) {
             form.setValue("purchasedQuantity", Math.round(calculatedQuantity).toString(), { shouldValidate: true });
           }
         }
-        // If both quantity and cost per unit are empty, do nothing and wait for user input
       }
     } else if (lastChangedField === "purchasedQuantity") {
-      // When quantity is changed
       if (isQuantityEmpty) {
         if (!isCostPerUnitEmpty) {
           form.setValue("totalCost", "", { shouldValidate: true });
         }
       } else if (quantity > 0) {
         if (costPerUnit > 0) {
-          // If cost per unit exists, calculate total
           const calculatedTotal = quantity * costPerUnit;
           form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
         } else if (!isTotalCostEmpty) {
-          // If total cost exists but not cost per unit, calculate cost per unit
           const calculatedCostPerUnit = totalCost / quantity;
           if (!isNaN(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
             form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(6), { shouldValidate: true });
@@ -60,18 +52,15 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
         }
       }
     } else if (lastChangedField === "costPerPurchasedUnit") {
-      // When cost per unit is changed
       if (isCostPerUnitEmpty) {
         if (!isQuantityEmpty) {
           form.setValue("totalCost", "", { shouldValidate: true });
         }
       } else if (costPerUnit > 0) {
         if (quantity > 0) {
-          // If quantity exists, calculate total
           const calculatedTotal = quantity * costPerUnit;
           form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
         } else if (!isTotalCostEmpty) {
-          // If total cost exists but not quantity, calculate quantity
           const calculatedQuantity = totalCost / costPerUnit;
           if (!isNaN(calculatedQuantity) && calculatedQuantity > 0) {
             form.setValue("purchasedQuantity", Math.round(calculatedQuantity).toString(), { shouldValidate: true });
@@ -80,6 +69,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
       }
     }
   }, [watchedQuantity, watchedCostPerUnit, watchedTotalCost, form, lastChangedField]);
+
   const handleSubmit = async (data: StockFormInputs) => {
     const requiredFields = [
       { name: "materialId", element: document.querySelector('[name="materialId"]') },
@@ -106,7 +96,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
     <div className="space-y-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 border border-red-500">
             <FormField
               control={form.control}
               name="materialId"
@@ -118,7 +108,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                   </FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger className={cn("transition-colors", !field.value && "border-red-200 focus:border-red-500", field.value && !fieldState.error && "border-green-200 focus:border-green-500")}>
+                      <SelectTrigger className="h-10 border-gray-200">
                         <SelectValue placeholder="Select material" />
                       </SelectTrigger>
                     </FormControl>
@@ -148,7 +138,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                     <span className="text-red-500 text-sm">*</span>
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., ABC Food Distributors" {...field} className={cn("transition-colors", !field.value && "border-red-200 focus:border-red-500", field.value && !fieldState.error && "border-green-200 focus:border-green-500")} />
+                    <Input placeholder="e.g., ABC Food Distributors" {...field} className="h-10 border-gray-200" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -158,65 +148,64 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
             <FormField
               control={form.control}
               name="purchasedQuantity"
-              render={({ field, fieldState }) => {
-                const hasValue = field.value && field.value !== "";
+              render={({ field }) => {
                 return (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1">
-                      Purchased Quantity
-                      <span className="text-red-500 text-sm">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
-                          onClick={() => {
-                            const currentValue = field.value === "" ? 0 : parseInt(field.value, 10);
-                            const newValue = Math.max(0, currentValue - 1);
-                            field.onChange(newValue === 0 ? "" : newValue.toString());
-                            setLastChangedField("purchasedQuantity");
-                          }}
-                          disabled={!field.value || field.value === ""}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <input
-                          type="text"
-                          placeholder=""
-                          value={field.value || ""}
-                          onKeyDown={e => {
-                            if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
-                              e.preventDefault();
-                            }
-                          }}
-                          onChange={e => {
-                            const value = e.target.value.replace(/[^0-9]/g, "");
-                            field.onChange(value);
-                            setLastChangedField("purchasedQuantity");
-                          }}
-                          className={cn("h-11 text-center font-medium overflow-hidden flex-1 border rounded-md px-3 py-2", !hasValue && "border-red-200 focus:border-red-500 focus:ring-red-500", hasValue && !fieldState.error && "border-green-300 focus:border-green-500 focus:ring-green-500")}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
-                          onClick={() => {
-                            const currentValue = field.value === "" ? 0 : parseInt(field.value, 10);
-                            const newValue = currentValue + 1;
-                            field.onChange(newValue.toString());
-                            setLastChangedField("purchasedQuantity");
-                          }}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        Purchased Quantity
+                        <span className="text-red-500 text-sm">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <div className="flex items-center gap-2 max-w-[200px]">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                            onClick={() => {
+                              const currentValue = field.value === "" ? 0 : parseInt(field.value, 10);
+                              const newValue = Math.max(0, currentValue - 1);
+                              field.onChange(newValue === 0 ? "" : newValue.toString());
+                              setLastChangedField("purchasedQuantity");
+                            }}
+                            disabled={!field.value || field.value === ""}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <input
+                            type="text"
+                            placeholder="0"
+                            value={field.value || ""}
+                            onKeyDown={e => {
+                              if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
+                                e.preventDefault();
+                              }
+                            }}
+                            onChange={e => {
+                              const value = e.target.value.replace(/[^0-9]/g, "");
+                              field.onChange(value);
+                              setLastChangedField("purchasedQuantity");
+                            }}
+                            className="h-11 w-16 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-11 w-11 border-gray-300 hover:border-red-500 hover:bg-red-50"
+                            onClick={() => {
+                              const currentValue = field.value === "" ? 0 : parseInt(field.value, 10);
+                              const newValue = currentValue + 1;
+                              field.onChange(newValue.toString());
+                              setLastChangedField("purchasedQuantity");
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                 );
               }}
             />
@@ -225,27 +214,29 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
               control={form.control}
               name="purchasedUnit"
               render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-1">
-                    Unit
-                    <span className="text-red-500 text-sm">*</span>
-                  </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className={cn("transition-colors", !field.value && "border-red-200 focus:border-red-500", field.value && !fieldState.error && "border-green-200 focus:border-green-500")}>
-                        <SelectValue placeholder="Select unit" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {availableUnits.map(unit => (
-                        <SelectItem key={unit} value={unit}>
-                          {unit}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+                <div className="w-full">
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1">
+                      Unit
+                      <span className="text-red-500 text-sm">*</span>
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="h-10 border-gray-200">
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableUnits.map(unit => (
+                          <SelectItem key={unit} value={unit}>
+                            {unit}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                </div>
               )}
             />
 
@@ -266,7 +257,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          className="h-10 w-10 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                           onClick={() => {
                             const currentValue = field.value === "" ? 0 : parseFloat(field.value);
                             const newValue = Math.max(0, currentValue - 0.01);
@@ -279,7 +270,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         </Button>
                         <input
                           type="text"
-                          placeholder=""
+                          placeholder="0"
                           value={field.value || ""}
                           onKeyDown={e => {
                             if (!/[0-9.]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
@@ -288,23 +279,22 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           }}
                           onChange={e => {
                             const value = e.target.value.replace(/[^0-9.]/g, "");
-                            // Ensure only one decimal point
                             const parts = value.split(".");
                             const formattedValue = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : value;
                             field.onChange(formattedValue);
                             setLastChangedField("costPerPurchasedUnit");
                           }}
-                          className={cn("h-11 text-center font-medium overflow-hidden flex-1 border rounded-md px-3 py-2", !hasValue && "border-red-200 focus:border-red-500 focus:ring-red-500", hasValue && !fieldState.error && "border-green-300 focus:border-green-500 focus:ring-green-500")}
+                          className={cn("h-10 text-center font-medium overflow-hidden flex-1 border rounded-md px-3 py-2", "border-gray-200")}
                         />
                         <Button
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          className="h-10 w-10 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                           onClick={() => {
                             const currentValue = field.value === "" ? 0 : parseFloat(field.value);
                             const newValue = currentValue + 0.01;
-                            field.onChange(newValue.toFixed(6));
+                            field.onChange(newValue.toFixed(2));
                             setLastChangedField("costPerPurchasedUnit");
                           }}
                         >
@@ -332,7 +322,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          className="h-10 w-10 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                           onClick={() => {
                             const currentValue = field.value === "" ? 0 : parseFloat(field.value);
                             const newValue = Math.max(0, currentValue - 0.01);
@@ -345,7 +335,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         </Button>
                         <input
                           type="text"
-                          placeholder=""
+                          placeholder="0"
                           value={field.value || ""}
                           onKeyDown={e => {
                             if (!/[0-9.]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
@@ -354,19 +344,18 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                           }}
                           onChange={e => {
                             const value = e.target.value.replace(/[^0-9.]/g, "");
-                            // Ensure only one decimal point
                             const parts = value.split(".");
                             const formattedValue = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : value;
                             field.onChange(formattedValue);
                             setLastChangedField("totalCost");
                           }}
-                          className={cn("h-11 text-center font-medium overflow-hidden flex-1 border rounded-md px-3 py-2", !hasValue && "border-red-200 focus:border-red-500 focus:ring-red-500", hasValue && !fieldState.error && "border-green-300 focus:border-green-500 focus:ring-green-500")}
+                          className={cn("h-10 text-center font-medium overflow-hidden flex-1 border rounded-md px-3 py-2", "border-gray-200")}
                         />
                         <Button
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          className="h-10 w-10 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                           onClick={() => {
                             const currentValue = field.value === "" ? 0 : parseFloat(field.value);
                             const newValue = currentValue + 0.01;
@@ -393,7 +382,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
-                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                        <Button variant="outline" className={cn("w-full h-10 pl-3 text-left font-normal border-gray-200", !field.value && "text-muted-foreground")}>
                           {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
