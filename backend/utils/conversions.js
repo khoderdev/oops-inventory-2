@@ -1,32 +1,10 @@
-export const MATERIAL_CATEGORIES = [
-  { value: "meat", label: "Meat & Poultry" },
-  { value: "seafood", label: "Seafood & Fish" },
-  { value: "dairy", label: "Dairy Products" },
-  { value: "vegetables", label: "Vegetables" },
-  { value: "fruits", label: "Fruits" },
-  { value: "sweets", label: "Sweets" },
-  { value: "grains", label: "Grains & Cereals" },
-  { value: "spices", label: "Spices & Seasonings" },
-  { value: "beverages", label: "Beverages" },
-  { value: "alcohol", label: "Alcohol" },
-  { value: "hot", label: "Hot" },
-  { value: "cold", label: "Cold" },
-  { value: "tobacco", label: "Tobacco" },
-  { value: "packaging", label: "Packaging" },
-  { value: "other", label: "Other" }
-];
-
 export const UNIT_OPTIONS = {
   mass: ["kg", "g", "lb", "oz"],
   volume: ["l", "ml", "gal", "fl oz"],
   piece: ["piece", "unit", "dozen"],
-  package: ["piece", "bottle", "item", "unit", "ml"] // Base units that packages can contain (ml added for bottles)
+  package: ["piece", "bottle", "item", "unit", "ml"]
 };
 
-// Helper function to validate material category
-export function isValidMaterialCategory(category) {
-  return MATERIAL_CATEGORIES.some(c => c.value === category);
-}
 
 // Helper function to validate unit type
 export function isValidUnitType(unitType) {

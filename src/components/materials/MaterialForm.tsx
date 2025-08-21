@@ -34,7 +34,17 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     resolver: zodResolver(materialSchema),
     defaultValues: {
       name: material?.name || "",
-      category: material?.category || "",
+      category: (() => {
+        if (!material?.category) return "";
+        if (typeof material.category === 'string') return material.category;
+        if (typeof material.category === 'object' && material.category?.name) return material.category.value || material.category.name;
+        if (typeof material.category === 'number') {
+          // Try to find category by ID
+          const categoryObj = categories.find(c => c.id === material.category);
+          return categoryObj?.value || "";
+        }
+        return "";
+      })(),
       unitType: material?.unitType || "piece",
       inputUnit: material?.inputUnit || material?.baseUnit || "",
       packageQuantity: material?.packageQuantity || 1,
@@ -48,7 +58,17 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       console.log("🔄 MaterialForm: Resetting form with material data:", material);
       form.reset({
         name: material.name,
-        category: material.category,
+        category: (() => {
+          if (!material.category) return "";
+          if (typeof material.category === 'string') return material.category;
+          if (typeof material.category === 'object' && material.category?.name) return material.category.value || material.category.name;
+          if (typeof material.category === 'number') {
+            // Try to find category by ID
+            const categoryObj = categories.find(c => c.id === material.category);
+            return categoryObj?.value || "";
+          }
+          return "";
+        })(),
         unitType: material.unitType || "piece",
         inputUnit: material.inputUnit || material.baseUnit || "",
         packageQuantity: material.packageQuantity || 1,
