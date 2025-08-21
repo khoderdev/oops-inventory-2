@@ -31,7 +31,6 @@ import { errorHandler } from "./utils/logger.js";
 import { seedTables } from "./utils/seedTables.js";
 import { seedPrinters } from "./seeds/seedPrinters.js";
 
-
 process.on("uncaughtException", error => {
   console.error("🚨 Uncaught Exception:", error.message);
   console.log("🔄 Server continuing to run despite uncaught exception...");
@@ -59,7 +58,7 @@ let httpServer = null;
 
 app.use(
   cors({
-    origin: ["http://localhost", "http://localhost:5173", "http://192.168.88.86", "http://127.0.0.1", "http://192.168.88.86:5173"],
+    origin: ["http://localhost", "http://localhost:5173", "http://192.168.88.86", "http://127.0.0.1", "http://192.168.88.86:5173, https://oops-pos.vercel.app", "https://oops-pos-git-dev-66-khoderdevs-projects.vercel.app"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
@@ -241,7 +240,14 @@ const connectToDatabase = async (retries = 5, delay = 5000) => {
       console.log("✅ Database connection established successfully");
       try {
         console.log("🔄 Synchronizing database schema...");
-        await sequelize.sync({ force: false, alter: { drop: false }, logging: sql => { if (!sql.trim().toUpperCase().startsWith("SELECT")) { } } });
+        await sequelize.sync({
+          force: false,
+          alter: { drop: false },
+          logging: sql => {
+            if (!sql.trim().toUpperCase().startsWith("SELECT")) {
+            }
+          }
+        });
         console.log("✅ Database schema synchronized successfully");
         try {
           console.log("🔧 Initializing essential data...");
