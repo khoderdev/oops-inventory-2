@@ -1,6 +1,6 @@
 import { ValidationResult } from "@/utils/dataValidation";
 import { Category } from "./categories";
-import { MenuItem, MenuItemIngredient } from "./inventory";
+import { CreateMenuItemData, Material, MenuItem, MenuItemIngredient, Section, StockEntry } from "./inventory";
 import { Table } from "@tanstack/react-table";
 
 export interface MenuBuilderLayoutProps {
@@ -51,7 +51,6 @@ export const mapToCategory = (categories: { id?: number; value: string; name: st
   }));
 };
 
-
 export interface MenuItemColumnsProps {
   searchTerm: string;
   categories: { id?: number; value: string; name: string }[];
@@ -62,4 +61,17 @@ export interface MenuItemColumnsProps {
   handleDeleteMenuItem: (id: string) => void;
   setEditingMenuItem: (item: MenuItem | null) => void;
   setShowMenuItemForm: (show: boolean) => void;
+}
+
+export interface BeveragesMenuBuilderProps {
+  stockEntries: StockEntry[];
+  materials: Material[];
+  menuItems: MenuItem[];
+  categories: Category[];
+  categoriesLoading?: boolean;
+  categoriesError?: string | null;
+  sections: Section[];
+  onCreateBeverageItem: (data: CreateMenuItemData, imageFile?: File) => void | Promise<void>;
+  onUpdateBeverageItem: (id: string, data: Partial<MenuItem>) => void | Promise<void>;
+  onDeleteBeverageItem: (id: string) => void | Promise<void>;
 }

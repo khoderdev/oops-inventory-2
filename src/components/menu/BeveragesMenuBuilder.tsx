@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { MenuItem, Material, StockEntry, MenuItemCategory, Section, CreateMenuItemData } from "@/types/inventory";
-import { Category } from "@/types/categories";
+import { MenuItem, MenuItemCategory } from "@/types/inventory";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
@@ -15,19 +14,7 @@ import { menuAPI } from "@/api/inventory.api";
 import { toast } from "../ui/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { formatCurrency } from "@/utils/conversionLogic";
-
-interface BeveragesMenuBuilderProps {
-  stockEntries: StockEntry[];
-  materials: Material[];
-  menuItems: MenuItem[];
-  categories: Category[];
-  categoriesLoading?: boolean;
-  categoriesError?: string | null;
-  sections: Section[];
-  onCreateBeverageItem: (data: CreateMenuItemData, imageFile?: File) => void | Promise<void>;
-  onUpdateBeverageItem: (id: string, data: Partial<MenuItem>) => void | Promise<void>;
-  onDeleteBeverageItem: (id: string) => void | Promise<void>;
-}
+import { BeveragesMenuBuilderProps } from "@/types/menuItems";
 
 const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, categoriesLoading, categoriesError, stockEntries, materials, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const { fetchTabData } = useInventoryStore();
@@ -37,15 +24,13 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   const [editingBeverageItem, setEditingBeverageItem] = useState<MenuItem | null>(null);
   const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
   const [selectedBeverageItems, setSelectedBeverageItems] = useState<Set<string>>(new Set());
-  const [, setShowVariantDialog] = useState(false);
-  const [, setCurrentVariantItem] = useState<MenuItem | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedBeverageDetails, setSelectedBeverageDetails] = useState<MenuItem | null>(null);
 
   const beverageCategories = useMemo(() => {
     const converted = categories.map(cat => ({
       ...cat,
-      id: String(cat.id) 
+      id: String(cat.id)
     }));
     return converted;
   }, [categories]);
@@ -159,6 +144,21 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
         header: ({ table }) => <div className="flex items-center justify-center">{bulkSelectionMode && <input type="checkbox" checked={table.getIsAllRowsSelected()} onChange={table.getToggleAllRowsSelectedHandler()} className="h-4 w-4" />}</div>,
         cell: ({ row }) => <div className="flex items-center justify-center">{bulkSelectionMode && <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} className="h-4 w-4" />}</div>,
         size: 40
+      }),
+      columnHelper.accessor("image", {
+        header: "Image",
+        cell: info => (
+          <div className="flex items-center">
+            {info.getValue() ? (
+              <img src={info.getValue()} alt="Beverage" className="w-16 h-20 object-contain rounded-md border border-gray-200" />
+            ) : (
+              <div className="w-14 h-14 bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center">
+                <span className="text-gray-400 text-xs">No Image</span>
+              </div>
+            )}
+          </div>
+        ),
+        size: 80
       }),
       columnHelper.accessor("name", {
         header: "Name",
@@ -297,11 +297,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   const handleCloseDetailsModal = useCallback(() => {
     setShowDetailsModal(false);
     setSelectedBeverageDetails(null);
-  }, []);
-
-  const handleCreateVariants = useCallback((menuItem: MenuItem) => {
-    setCurrentVariantItem(menuItem);
-    setShowVariantDialog(true);
   }, []);
 
   const handleSelectAllBeverageItems = useCallback(() => {
@@ -482,29 +477,21 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                       </div>
                     )}
 
-                    {selectedBeverageDetails.variants && Object.keys(selectedBeverageDetails.variants).length > 0 && (
+                    {selectedBeverageDetails.variants && Array.isArray(selectedBeverageDetails.variants) && selectedBeverageDetails.variants.length > 0 && (
                       <div>
                         <h4 className="font-medium mb-2">Variants</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {Object.entries(selectedBeverageDetails.variants).map(([key, variant]) => {
-                            // Create a properly typed variant object with fallbacks
-                            const typedVariant = {
-                              volume: typeof variant === 'object' && 'volume' in variant ? Number(variant.volume) : 0,
-                              unit: typeof variant === 'object' && 'unit' in variant ? String(variant.unit) : '',
-                              price: typeof variant === 'object' && 'price' in variant ? Number(variant.price) : 0
-                            };
-                            return (
-                              <div key={key} className="border rounded-md p-3">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium">{key}</span>
-                                  <span className="text-sm font-semibold">{formatCurrency(typedVariant.price)}</span>
-                                </div>
-                                <div className="text-sm text-gray-500 mt-1">
-                                  {typedVariant.volume} {typedVariant.unit}
-                                </div>
+                          {selectedBeverageDetails.variants.map(variant => (
+                            <div key={variant.id} className="border rounded-md p-3">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium">{variant.name}</span>
+                                <span className="text-sm font-semibold">{formatCurrency(Number(variant.price))}</span>
                               </div>
-                            );
-                          })}
+                              <div className="text-sm text-gray-500 mt-1">
+                                {variant.volume} {variant.unit}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}

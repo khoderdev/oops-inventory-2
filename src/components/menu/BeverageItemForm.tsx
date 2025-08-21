@@ -9,7 +9,7 @@ import { CostBreakdown } from "./CostBreakdown";
 import { Ingredients } from "./Ingredients";
 import { toast } from "../ui/use-toast";
 import { beverageStockAPI } from "@/api/stock.api.ts";
-import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient } from "@/types/inventory";
+import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient, MenuItem } from "@/types/inventory";
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, materials = [], stockEntries = [], onSubmit, onCancel, enableVariants = false }) => {
   const [name, setName] = useState(menuItem?.name || "");
@@ -224,46 +224,46 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       return;
     }
 
-    // Prepare form data to match backend expectations
-    const formData = {
+    // Prepare form data to match the expected type in BeverageItemFormProps
+    const formData: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
+      beverageStockId?: string;
+      variants?: {
+        selectedVariants: string[];
+        variantVolumes: Record<string, number>;
+        variantVolumeUnits: Record<string, string>;
+        variantPrices: Record<string, number>;
+      };
+      imageFile?: File;
+    } = {
       name,
-      category: selectedCategoryObj
-        ? {
-            id: parseInt(selectedCategoryObj.id),
-            name: selectedCategoryObj.name,
-            value: true
-          }
-        : null,
+      category: selectedCategoryObj ? {
+        id: typeof selectedCategoryObj.id === 'string' ? parseInt(selectedCategoryObj.id) : selectedCategoryObj.id,
+        name: selectedCategoryObj.name,
+        value: selectedCategoryObj.value
+      } : null,
       price: parseFloat(price),
       description: "",
-      ingredients: ingredients.length > 0 ? ingredients : undefined,
+      ingredients: ingredients.length > 0 ? ingredients : [],
       isPOSItem,
       image: image || "",
       imageFile: imageFile,
-      beverageStockId: selectedBeverageStock?.id ? parseInt(selectedBeverageStock.id.toString()) : undefined,
+      beverageStockId: selectedBeverageStock?.id ? selectedBeverageStock.id.toString() : undefined,
       unit: selectedBeverageStock?.purchasedUnit || "piece",
       availableQuantity: selectedBeverageStock?.purchasedQuantity ? parseFloat(selectedBeverageStock.purchasedQuantity.toString()) : undefined,
       costPerUnit: selectedBeverageStock?.costPerPurchasedUnit ? parseFloat(selectedBeverageStock.costPerPurchasedUnit.toString()) : undefined,
-      variants:
-        showVariantsSection && variantData.selectedVariants.length > 0
-          ? Object.fromEntries(
-              variantData.selectedVariants.map(variant => [
-                variant,
-                {
-                  volume: variantData.variantVolumes[variant],
-                  unit: variantData.variantVolumeUnits[variant],
-                  price: variantData.variantPrices[variant]
-                }
-              ])
-            )
-          : undefined
+      // Convert variants to the expected format
+      variants: showVariantsSection && variantData.selectedVariants.length > 0
+        ? {
+            selectedVariants: variantData.selectedVariants,
+            variantVolumes: variantData.variantVolumes,
+            variantVolumeUnits: variantData.variantVolumeUnits,
+            variantPrices: variantData.variantPrices
+          }
+        : undefined
     };
-    const cleanedFormData = Object.fromEntries(
-      Object.entries(formData).filter(([_, value]) => value !== undefined)
-    );
 
-    // Pass the form data with the properly structured category object
-    onSubmit(cleanedFormData);
+    // Pass the properly typed form data
+    onSubmit(formData);
     
     setName("");
     setCategoryId("");

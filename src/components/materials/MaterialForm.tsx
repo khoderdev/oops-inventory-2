@@ -24,11 +24,9 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   const [showForm, setShowForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | undefined>();
   const [formLoading, setFormLoading] = useState(false);
-  
-  // State for beverage stock entries
-  const [beverageStockEntries, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
-  const [loadingBeverages, setLoadingBeverages] = useState(false);
-  const [beverageError, setBeverageError] = useState<string | null>(null);
+  const [, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
+  const [, setLoadingBeverages] = useState(false);
+  const [, setBeverageError] = useState<string | null>(null);
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
@@ -36,10 +34,9 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       name: material?.name || "",
       category: (() => {
         if (!material?.category) return "";
-        if (typeof material.category === 'string') return material.category;
-        if (typeof material.category === 'object' && material.category?.name) return material.category.value || material.category.name;
-        if (typeof material.category === 'number') {
-          // Try to find category by ID
+        if (typeof material.category === "string") return material.category;
+        if (typeof material.category === "object" && material.category?.name) return material.category.value || material.category.name;
+        if (typeof material.category === "number") {
           const categoryObj = categories.find(c => c.id === material.category);
           return categoryObj?.value || "";
         }
@@ -51,19 +48,17 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       baseUnit: material?.baseUnit || ""
     }
   });
-  
+
   // Reset form with material data when material changes
   useEffect(() => {
     if (material) {
-      console.log("🔄 MaterialForm: Resetting form with material data:", material);
       form.reset({
         name: material.name,
         category: (() => {
           if (!material.category) return "";
-          if (typeof material.category === 'string') return material.category;
-          if (typeof material.category === 'object' && material.category?.name) return material.category.value || material.category.name;
-          if (typeof material.category === 'number') {
-            // Try to find category by ID
+          if (typeof material.category === "string") return material.category;
+          if (typeof material.category === "object" && material.category?.name) return material.category.value || material.category.name;
+          if (typeof material.category === "number") {
             const categoryObj = categories.find(c => c.id === material.category);
             return categoryObj?.value || "";
           }
@@ -76,15 +71,13 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       });
     }
   }, [material, form]);
-
+  
   const watchedUnitType = form.watch("unitType");
   const watchedInputUnit = form.watch("inputUnit");
   const watchedPackageQuantity = form.watch("packageQuantity");
-
   const suggestedUnits = getSuggestedUnits(watchedUnitType);
   const uniqueSuggestedUnits = useMemo(() => Array.from(new Set(suggestedUnits)), [suggestedUnits]);
 
-  // Set default category if none selected and categories are loaded
   useEffect(() => {
     if (categories.length > 0 && !form.getValues("category") && !material) {
       const defaultCategory = categories.find(cat => cat.value === "other") || categories[0];
@@ -92,22 +85,13 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     }
   }, [categories, form, material]);
 
-  // Convert categoryId to category value when editing existing material (one-time only)
   useEffect(() => {
     if (categories.length > 0 && material && (material as any).categoryId) {
       const categoryId = (material as any).categoryId;
-      console.log(
-        "🔍 Looking for categoryId:",
-        categoryId,
-        "in categories:",
-        categories.map(c => `${c.id}:${c.name}`)
-      );
       const matchingCategory = categories.find(cat => cat.id === categoryId);
       if (matchingCategory) {
-        console.log("✅ Found matching category:", matchingCategory.name, "value:", matchingCategory.value);
         form.setValue("category", matchingCategory.value, { shouldDirty: true, shouldTouch: true });
       } else {
-        // Fallback: categoryId doesn't match any materials category - just leave it empty for user to select
         console.warn("⚠️ Material categoryId", categoryId, "not found in materials categories. User needs to select manually.");
         form.setValue("category", "");
       }
@@ -128,38 +112,31 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     }
   };
 
-  // Check if input unit is a package type
   const isPackageUnit = (unit: string): boolean => {
     return ["box", "pack", "bag", "bottle"].includes(unit);
   };
 
-  // Calculate conversion information (without cost)
   const conversionData = useMemo(() => {
     if (!watchedInputUnit || !watchedUnitType) {
       return null;
     }
-
-    // Get the base unit for package contents
     const getPackageBaseUnit = (inputUnit: string): string => {
       if (inputUnit === "box" && watchedUnitType === "package") {
-        return "bottle"; // Default for boxes
+        return "bottle";
       }
       if (inputUnit === "pack" && watchedUnitType === "package") {
-        return "piece"; // Default for packs
+        return "piece";
       }
       if (inputUnit === "bottle" && watchedUnitType === "package") {
-        return "ml"; // For bottles, use 'ml' as base unit (logical for beverages)
+        return "ml";
       }
-      return "piece"; // Default fallback
+      return "piece";
     };
 
     const baseUnit = getBaseUnitForType(watchedUnitType);
-
-    // Handle package units differently
     if (isPackageUnit(watchedInputUnit) && watchedUnitType === "package") {
       const packageQuantity = watchedPackageQuantity || 1;
       const packageBaseUnit = getPackageBaseUnit(watchedInputUnit);
-
       return {
         inputUnit: watchedInputUnit,
         baseUnit: packageBaseUnit,
@@ -168,10 +145,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
         isPackage: true
       };
     }
-
-    // Handle regular units - check if input unit is same as base unit
     if (watchedInputUnit === baseUnit) {
-      // Direct conversion - no conversion needed
       return {
         inputUnit: watchedInputUnit,
         baseUnit,
@@ -179,18 +153,12 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
         isPackage: false
       };
     }
-
-    // Handle regular units with conversion
     const inputUnitDef = UNIT_DEFINITIONS[watchedInputUnit];
     const baseUnitDef = UNIT_DEFINITIONS[baseUnit];
-
     if (!inputUnitDef || !baseUnitDef || inputUnitDef.category !== baseUnitDef.category) {
       return null;
     }
-
-    // Convert input unit to base unit
     const conversionFactor = inputUnitDef.baseQuantity / baseUnitDef.baseQuantity;
-
     return {
       inputUnit: watchedInputUnit,
       baseUnit,
@@ -199,14 +167,12 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     };
   }, [watchedInputUnit, watchedUnitType, watchedPackageQuantity]);
 
-  // Auto-update base unit when conversion data changes
   useEffect(() => {
     if (conversionData) {
       form.setValue("baseUnit", conversionData.baseUnit);
     }
   }, [conversionData, form]);
 
-  // Prevent wheel scrolling on number inputs
   React.useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -237,7 +203,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       baseUnit: data.baseUnit,
       packageQuantity: data.unitType === "package" ? data.packageQuantity : undefined
     };
-    console.log("📤 Submitting material with categoryId:", selectedCategory?.id);
     onSubmit(finalData);
   };
 
@@ -245,10 +210,8 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     try {
       setLoading(true);
       setLoadingCategories(true);
-      // Fetch only material categories (active)
       const response = await getCategoriesByType("materials", true);
       const fetched = response.totalItems;
-      // Preserve the currently selected category (possibly newly created)
       setCategories(prev => {
         const currentVal = form.getValues("category");
         let next = fetched;
@@ -274,79 +237,63 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     loadCategories();
     loadBeverageStockEntries();
   }, [loadCategories]);
-  
+
   // Function to load beverage stock entries
   const loadBeverageStockEntries = async () => {
     try {
       setLoadingBeverages(true);
       setBeverageError(null);
-      
-      // Fetch stock entries with material information
       const stockEntries = await stockAPI.getStockEntries({
-        includeMaterial: 'true',
-        limit: 1000 // Fetch a large number to ensure we get all relevant entries
+        includeMaterial: "true",
+        limit: 1000
       });
-      
-      // Filter stock entries by beverage-related categories
-      const beverageCategories = ['beverages', 'cold', 'hot', 'drinks', 'alcohol'];
-      
-      const filteredEntries = stockEntries.filter(entry => 
-        entry.material && 
-        beverageCategories.includes(entry.material.category)
-      );
-      
-      // Sort by material name for better user experience
+      const beverageCategories = ["beverages", "cold", "hot", "drinks", "alcohol"];
+      const filteredEntries = stockEntries.filter(entry => {
+        if (!entry.material) return false;
+        const category = entry.material.category;
+        if (typeof category === "string") {
+          return beverageCategories.includes(category);
+        } else if (typeof category === "object" && category?.name) {
+          return beverageCategories.includes(category.name);
+        } else if (typeof category === "number") {
+          const categoryObj = categories.find(c => c.id === category);
+          return categoryObj ? beverageCategories.includes(categoryObj.value) : false;
+        }
+        return false;
+      });
       const sortedEntries = filteredEntries.sort((a, b) => {
-        const nameA = a.material?.name || '';
-        const nameB = b.material?.name || '';
+        const nameA = a.material?.name || "";
+        const nameB = b.material?.name || "";
         return nameA.localeCompare(nameB);
       });
-      
       setBeverageStockEntries(sortedEntries);
     } catch (error) {
-      console.error('Error loading beverage stock entries:', error);
-      setBeverageError('Failed to load beverage options');
+      console.error("Error loading beverage stock entries:", error);
+      setBeverageError("Failed to load beverage options");
     } finally {
       setLoadingBeverages(false);
     }
   };
-  
-  // Transform stock entries into unique beverage options
-  const beverageOptions = useMemo(() => {
-    const uniqueNames = new Map();
-    
-    beverageStockEntries.forEach(entry => {
-      if (entry.material?.name) {
-        uniqueNames.set(entry.material.name, entry.material.name);
-      }
-    });
-    
-    return Array.from(uniqueNames.values()).sort();
-  }, [beverageStockEntries]);
 
   const handleFormSubmit = async (formData: CategoryFormData) => {
     try {
       setFormLoading(true);
       let savedCategory: Category | undefined;
-      console.log(formData);
       if (selectedCategory) {
         const res = await updateCategory(selectedCategory.id, formData);
-        // Unwrap possible shapes: axios -> res.data, backend wrapper -> res.data.data
         const unwrapped = ((res as any)?.data?.data ?? (res as any)?.data ?? (res as any)) as any;
         savedCategory = unwrapped as unknown as Category;
       } else {
         const res = await createCategory({
           ...formData,
-          type: "materials",
+          categoryTypeIds: [1],
           isActive: true
         });
         const unwrapped = ((res as any)?.data?.data ?? (res as any)?.data ?? (res as any)) as any;
         savedCategory = unwrapped as unknown as Category;
       }
-      console.log("savedCategory 1111 (unwrapped)", savedCategory);
       let finalSelectedValue: string | undefined;
       if (savedCategory) {
-        console.log("savedCategory 2222", savedCategory);
         const normalized: Category = {
           ...savedCategory,
           value: (savedCategory as any)?.value ?? (savedCategory as any)?.name
@@ -358,7 +305,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
         });
         const optimisticValue = (normalized as any).value ?? (normalized as any).name ?? "";
         finalSelectedValue = optimisticValue;
-        console.log("🔧 Optimistically selecting category:", optimisticValue);
         form.setValue("category", optimisticValue, {
           shouldDirty: true,
           shouldTouch: true
@@ -368,7 +314,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
           const fetched = await loadCategories();
           const match = fetched.find(c => c.id === normalized.id || c.value === normalized.value || c.name === normalized.name);
           if (match && match.value) {
-            console.log("🔁 Server-confirmed category value:", match.value);
             form.setValue("category", match.value, {
               shouldDirty: true,
               shouldTouch: true
@@ -388,7 +333,6 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
         setTimeout(() => {
           const current = form.getValues("category");
           if (current !== finalSelectedValue) {
-            console.log("⚠️ Re-asserting category value after close. Prev:", current, " -> New:", finalSelectedValue);
             form.setValue("category", finalSelectedValue!, { shouldDirty: true, shouldTouch: true });
             form.trigger("category");
           }
