@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,30 +22,23 @@ import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, CalendarIcon, CheckCircle, CheckSquare, DollarSign, Loader2, Package, Printer, Search, ShoppingBag, ShoppingCart, Square, Trash2, Undo2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
-import { useNavigate } from "react-router-dom";
 
 export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const navigate = useNavigate();
   const [selectedItem, setSelectedItem] = useAtom(selectedItemFilterAtom);
   const [selectedSection, setSelectedSection] = useAtom(selectedSectionFilterAtom);
   const [dateFilter, setDateFilter] = useAtom(dateFilterAtom);
-
-  // Date range picker state
   const [dateFrom, setDateFrom] = React.useState<Date | undefined>(() => {
-    // Default to today's date
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return today;
   });
   const [dateTo, setDateTo] = React.useState<Date | undefined>(() => {
-    // Default to today's date
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     return today;
   });
   const [dateFromOpen, setDateFromOpen] = React.useState(false);
   const [dateToOpen, setDateToOpen] = React.useState(false);
-  // View mode tab: all vs staff
   const [viewMode, setViewMode] = React.useState<"all" | "staff">("all");
   const [staffSales, setStaffSales] = React.useState<typeof sales>([]);
   const [isLoadingStaff, setIsLoadingStaff] = React.useState(false);
@@ -101,27 +94,18 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
   } = useSalesOperations();
 
   const [selectedItemIds, setSelectedItemIds] = React.useState<Set<string>>(new Set());
-
-  // Receipt printer state
   const [showReceiptDialog, setShowReceiptDialog] = React.useState(false);
   const [receiptData, setReceiptData] = React.useState<ReceiptData | null>(null);
   const [isPrintingReport, setIsPrintingReport] = React.useState(false);
-
-  // Sales report receipt state
   const [showSalesReportDialog, setShowSalesReportDialog] = React.useState(false);
   const [salesReportData, setSalesReportData] = React.useState<ReceiptData | null>(null);
-
-  // Convert sale data to receipt format
   const currentSales = viewMode === "staff" ? staffSales : sales;
 
   const convertSaleToReceipt = useCallback(
     (saleId: string) => {
       const sale = currentSales.find(s => s.id.toString() === saleId);
       if (!sale) return;
-
       const receiptItems: ReceiptData["items"] = [];
-
-      // Add individual items
       sale.items?.forEach(item => {
         receiptItems.push({
           name: item.materialName || `Item ${item.materialId}`,
@@ -131,8 +115,6 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
           type: "material"
         });
       });
-
-      // Add menu items
       sale.menuItems?.forEach(menuItem => {
         receiptItems.push({
           name: menuItem.menuItemName || `Menu Item ${menuItem.menuItemId}`,
@@ -142,7 +124,6 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
           type: "menu_item"
         });
       });
-
       const saleDate = new Date(sale.saleDate);
       const receipt: ReceiptData = {
         id: `SALE-${sale.id}`,
@@ -211,11 +192,10 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
       });
     }
 
-    // Use date range filter instead of single date filter
     if (dateFrom || dateTo) {
       filtered = filtered.filter(item => {
         const itemDate = new Date(item.saleDate);
-        itemDate.setHours(0, 0, 0, 0); // Reset time for comparison
+        itemDate.setHours(0, 0, 0, 0);
 
         let withinRange = true;
 

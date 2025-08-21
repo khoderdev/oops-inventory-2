@@ -13,6 +13,7 @@ interface TabMenuProps {
   stockEntries: StockEntry[];
   materials: Material[];
   sections: Section[];
+  categories?: Category[];
   onCreateMenuItem: (menuItem: CreateMenuItemData, imageFile?: File) => Promise<void>;
   onUpdateMenuItem: (id: string, menuItem: Partial<MenuItem>) => Promise<void>;
   onDeleteMenuItem: (id: string) => Promise<void>;
@@ -23,6 +24,7 @@ export const MenuPage: React.FC<TabMenuProps> = ({
   stockEntries,
   materials,
   sections,
+  categories: externalCategories,
   onCreateMenuItem,
   onUpdateMenuItem,
   onDeleteMenuItem,
@@ -38,6 +40,27 @@ export const MenuPage: React.FC<TabMenuProps> = ({
     try {
       setCategoriesLoading(true);
       setCategoriesError(null);
+      
+      // If external categories are provided, use them instead of fetching
+      if (externalCategories && externalCategories.length > 0) {
+        console.log('📦 MenuPage: Using externally provided categories:', externalCategories.length);
+        
+        // Filter categories by type
+        const menuItems = externalCategories.filter(cat => cat.type === 'menu_items');
+        const beverages = externalCategories.filter(cat => cat.type === 'beverages');
+        
+        console.log('✅ MenuPage: Categories filtered by type:', {
+          menuItems: menuItems.length,
+          beverages: beverages.length,
+          total: menuItems.length + beverages.length
+        });
+        
+        // Store categories separately by type
+        setMenuItemCategories(menuItems);
+        setBeverageCategories(beverages);
+        setCategoriesLoading(false);
+        return;
+      }
       
       console.log('🔄 MenuPage: Fetching categories from server - SINGLE SOURCE OF TRUTH');
       console.time('⏱️ Categories fetch duration');
@@ -69,7 +92,7 @@ export const MenuPage: React.FC<TabMenuProps> = ({
     } finally {
       setCategoriesLoading(false);
     }
-  }, []);
+  }, [externalCategories]);
 
   // Fetch categories on component mount
   useEffect(() => {

@@ -28,6 +28,80 @@ export function SideBarHeader() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+
+  const isActiveLink = React.useCallback(
+    (href: string): boolean => {
+      if (href === "/") {
+        return location.pathname === "/";
+      }
+      return location.pathname === href || location.pathname.startsWith(href + "/");
+    },
+    [location.pathname]
+  );
+
+  const hasActiveChild = React.useCallback(
+    (item: NavigationItem): boolean => {
+      if (!item.children) return false;
+      return item.children.some(child => {
+        if (child.href && isActiveLink(child.href)) {
+          return true;
+        }
+        // Also check nested children if any
+        if (child.children) {
+          return child.children.some(grandchild => grandchild.href && isActiveLink(grandchild.href));
+        }
+        return false;
+      });
+    },
+    [isActiveLink]
+  );
+  
+  // Auto-expand sections with active submenu items and ensure they stay expanded
+  React.useEffect(() => {
+    // Ensure this effect runs after all dependencies are properly initialized
+    if (!location.pathname) return;
+    
+    try {
+      // Find all sections that have active children
+      const activeMenuSections = navigationItems
+        .filter(item => {
+          // Check if this item has any active children
+          if (!item.children) return false;
+          
+          // Check each child to see if it's active
+          return item.children.some(child => {
+            // Direct match for child
+            if (child.href && isActiveLink(child.href)) return true;
+            
+            // Check nested children if any
+            if (child.children) {
+              return child.children.some(grandchild => 
+                grandchild.href && isActiveLink(grandchild.href)
+              );
+            }
+            
+            return false;
+          });
+        })
+        .map(item => item.label);
+      
+      // If we found active sections, make sure they're expanded
+      if (activeMenuSections.length > 0) {
+        setOpenSections(prev => {
+          const newSections = [...prev];
+          activeMenuSections.forEach(section => {
+            if (!newSections.includes(section)) {
+              newSections.push(section);
+            }
+          });
+          return newSections;
+        });
+      }
+    } catch (error) {
+      console.error('Error in auto-expand effect:', error);
+    }
+  }, [location.pathname, isActiveLink, navigationItems]);
   
   const effectiveState = isMobile ? "expanded" : state;
 
@@ -47,23 +121,9 @@ export function SideBarHeader() {
     [hasRole, hasPermission]
   );
 
-  const isActiveLink = React.useCallback(
-    (href: string): boolean => {
-      if (href === "/") {
-        return location.pathname === "/";
-      }
-      return location.pathname === href || location.pathname.startsWith(href + "/");
-    },
-    [location.pathname]
-  );
 
-  const hasActiveChild = React.useCallback(
-    (item: NavigationItem): boolean => {
-      if (!item.children) return false;
-      return item.children.some(child => child.href && isActiveLink(child.href));
-    },
-    [isActiveLink]
-  );
+
+
 
   const toggleSection = React.useCallback((section: string) => {
     setOpenSections(prev => (prev.includes(section) ? prev.filter(s => s !== section) : [...prev, section]));
@@ -88,7 +148,7 @@ export function SideBarHeader() {
           {effectiveState === "expanded" ? (
             <Collapsible open={isOpen} onOpenChange={() => toggleSection(item.label)}>
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton isActive={hasActiveChildren} className="w-full justify-start transition-all duration-200 group min-h-[40px] px-3 hover:bg-gray-200 rounded-lg text-gray-700 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700" tooltip={undefined}>
+                <SidebarMenuButton isActive={isActive || hasActiveChildren} className="w-full justify-start transition-all duration-300 ease-in-out group min-h-[40px] px-3 hover:bg-gray-200 rounded-lg text-gray-700 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700 data-[active=true]:font-medium" tooltip={undefined}>
                   <div className="flex items-center gap-3 w-full min-w-0">
                     <item.icon className="h-5 w-5 flex-shrink-0" />
                     <span className="truncate text-sm font-medium">{item.label}</span>
@@ -105,7 +165,7 @@ export function SideBarHeader() {
                 <SidebarMenuSub className="ml-6">
                   {visibleChildren.map(child => (
                     <SidebarMenuSubItem key={child.label}>
-                      <SidebarMenuSubButton asChild isActive={child.href ? isActiveLink(child.href) : false} className="min-h-[36px] px-3 hover:bg-gray-200 rounded-lg text-gray-600 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700">
+                      <SidebarMenuSubButton asChild isActive={child.href ? isActiveLink(child.href) : false} className="min-h-[36px] px-3 hover:bg-gray-200 rounded-lg text-gray-600 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700 data-[active=true]:font-medium transition-all duration-300 ease-in-out">
                         <Link to={child.href!} className="flex items-center gap-3 w-full min-w-0">
                           <child.icon className="h-4 w-4 flex-shrink-0" />
                           <span className="truncate text-sm">{child.label}</span>
@@ -124,7 +184,7 @@ export function SideBarHeader() {
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton isActive={hasActiveChildren} className="w-full justify-center transition-all duration-200 group min-h-[44px] relative" tooltip={item.label}>
+                <SidebarMenuButton isActive={isActive || hasActiveChildren} className="w-full justify-center transition-all duration-300 ease-in-out group min-h-[44px] relative" tooltip={item.label}>
                   <div className="flex items-center justify-center gap-2.5 w-full">
                     <item.icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                     {item.badge && (

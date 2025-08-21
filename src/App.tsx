@@ -35,7 +35,7 @@ const DayOperationsPage = lazy(() => import("./pages/DayOperationsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const POSClientPage = lazy(() => import("./pages/POSClientPage"));
 const SalesHistoryPage = lazy(() => import("./pages/SalesHistoryPage").then(m => ({ default: m.SalesHistoryPage })));
-const SystemLogs = lazy(() => import("./pages/SystemLogs"));
+const SystemLogsGenerator = lazy(() => import("./components/system/system-logs/SystemLogsGenerator").then(m => ({ default: m.SystemLogsGenerator })));
 const PlaceholderPage = lazy(() => import("./components/common/PlaceholderPage"));
 const queryClient = new QueryClient();
 
@@ -47,22 +47,20 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
   const [, setSelectedEmployee] = useAtom(selectedEmployeeAtom);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // Fetch categories for menu items and beverages
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        // Fetch both menu_items and beverages categories
-        const [menuResponse, beverageResponse] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("beverages")]);
-        const allCategories = [...(menuResponse.totalItems || []), ...(beverageResponse.totalItems || [])];
-        setCategories(allCategories);
-        console.log("Fetched categories:", allCategories);
-      } catch (error) {
-        console.error("Failed to fetch categories:", error);
-      }
-    };
-
-    fetchCategories();
-  }, []);
+  // // Fetch categories for menu items and beverages
+  // useEffect(() => {
+  //   const fetchCategories = async () => {
+  //     try {
+  //       // Fetch both menu_items and beverages categories
+  //       const [menuResponse, beverageResponse] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("beverages")]);
+  //       console.log("Fetched Menu categories:", menuResponse.totalItems);
+  //       console.log("Fetched Beverages categories:", beverageResponse.totalItems);
+  //     } catch (error) {
+  //       console.error("Failed to fetch categories:", error);
+  //     }
+  //   };
+  //   fetchCategories();
+  // }, []);
 
   const handleCreateMenuItem = onCreateMenuItem || storeCreateMenuItem;
   const handleUpdateMenuItem = onUpdateMenuItem || storeUpdateMenuItem;
@@ -103,10 +101,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
           }}
         >
           <AuthProvider>
-            <DayOperationsProvider 
-              autoRefreshInterval={30000} 
-              enableAutoRefresh={true}
-            >
+            <DayOperationsProvider autoRefreshInterval={30000} enableAutoRefresh={true}>
               <Suspense
                 fallback={
                   <div className="min-h-screen flex items-center justify-center">
@@ -114,265 +109,255 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                   </div>
                 }
               >
-              <Routes>
-                {/* Public routes */}
-                <Route path="/login" element={<LoginPage />} />
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/login" element={<LoginPage />} />
 
-                {/* Dashboard - Default route */}
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute pageTitle="Dashboard">
-                      <AuthenticatedLayout pageTitle="Dashboard" showSearch={true} showNotifications={true}>
-                        <Dashboard />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Dashboard - Default route */}
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute pageTitle="Dashboard">
+                        <AuthenticatedLayout pageTitle="Dashboard" showSearch={true} showNotifications={true}>
+                          <Dashboard />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/permissions"
-                  element={
-                    // <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_READ}>
-                    <PermissionsTest />
-                    // </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/permissions"
+                    element={
+                      // <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_READ}>
+                      <PermissionsTest />
+                      // </ProtectedRoute>
+                    }
+                  />
 
-                {/* POS System Routes */}
-                <Route
-                  path="/pos"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
-                      <POSClientPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* POS System Routes */}
+                  <Route
+                    path="/pos"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
+                        <POSClientPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Inventory & Stock Management */}
-                <Route
-                  path="/inventory"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ || PERMISSIONS.REPORTS_READ}>
-                      <AuthenticatedLayout>
-                        <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Inventory & Stock Management */}
+                  <Route
+                    path="/inventory"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ || PERMISSIONS.REPORTS_READ}>
+                        <AuthenticatedLayout>
+                          <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Sales & Transactions */}
-                <Route
-                  path="/sales"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
-                      <AuthenticatedLayout>
-                        <SalesHistoryPage />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/sales/history"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
-                      <AuthenticatedLayout>
-                        <SalesHistoryPage />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                {/* Orders Management */}
-                <Route
-                  path="/orders"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_READ}>
-                      <AuthenticatedLayout>
-                        <POSClientOrders />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Sales & Transactions */}
+                  <Route
+                    path="/sales"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
+                        <AuthenticatedLayout>
+                          <SalesHistoryPage isOpen={false} onClose={() => {}} />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Orders Management */}
+                  <Route
+                    path="/orders"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_READ}>
+                        <AuthenticatedLayout>
+                          <POSClientOrders />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Menu Management */}
-                <Route
-                  path="/menu"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
-                      <AuthenticatedLayout>
-                        <MenuPage stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} categories={categories} sections={sections} onCreateMenuItem={handleCreateMenuItemAsync} onUpdateMenuItem={handleUpdateMenuItemAsync} onDeleteMenuItem={handleDeleteMenuItemAsync} />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Menu Management */}
+                  <Route
+                    path="/menu"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
+                        <AuthenticatedLayout>
+                          <MenuPage stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} categories={categories} sections={sections} onCreateMenuItem={handleCreateMenuItemAsync} onUpdateMenuItem={handleUpdateMenuItemAsync} onDeleteMenuItem={handleDeleteMenuItemAsync} />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/menu/categories"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Menu Categories" description="Manage menu categories and organization" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/menu/recipes"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Recipe Management" description="Create and manage item recipes" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/menu/categories"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
+                        <AuthenticatedLayout>
+                          <PlaceholderPage title="Menu Categories" description="Manage menu categories and organization" />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/menu/recipes"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
+                        <AuthenticatedLayout>
+                          <PlaceholderPage title="Recipe Management" description="Create and manage item recipes" />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Day Operations */}
-                <Route
-                  path="/day-operations"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
-                      <AuthenticatedLayout>
-                        <DayOperationsPage />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/day-operations/close"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CLOSE}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Close Day" description="Close daily operations and generate reports" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/day-operations/cash-count"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CASH_COUNT}>
-                      <AuthenticatedLayout>
-                        <PlaceholderPage title="Cash Count" description="Perform cash drawer counting and reconciliation" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Day Operations */}
+                  <Route
+                    path="/day-operations"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
+                        <AuthenticatedLayout>
+                          <DayOperationsPage />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/day-operations/close"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CLOSE}>
+                        <AuthenticatedLayout>
+                          <PlaceholderPage title="Close Day" description="Close daily operations and generate reports" />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/day-operations/cash-count"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CASH_COUNT}>
+                        <AuthenticatedLayout>
+                          <PlaceholderPage title="Cash Count" description="Perform cash drawer counting and reconciliation" />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Reports & Analytics */}
-                <Route
-                  path="/reports"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
-                      <AuthenticatedLayout>
-                        <ReportGenerator className="w-full" />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Reports & Analytics */}
+                  <Route
+                    path="/reports"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
+                        <AuthenticatedLayout>
+                          <ReportGenerator className="w-full" />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Employee Management */}
-                <Route
-                  path="/employees"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_READ}>
-                      <AuthenticatedLayout>
-                        <EmployeeTable employees={employees} onEdit={handleEditEmployee} />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Employee Management */}
+                  <Route
+                    path="/employees"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_READ}>
+                        <AuthenticatedLayout>
+                          <EmployeeTable employees={employees} onEdit={handleEditEmployee} />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/employees/usage"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_USAGE_VIEW}>
-                      <AuthenticatedLayout>
-                        <EmployeeUsageView />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/employees/usage"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_USAGE_VIEW}>
+                        <AuthenticatedLayout>
+                          <EmployeeUsageView />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/employees/settlements"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
-                      <AuthenticatedLayout>
-                        <EmployeeSettlements />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/employees/settlements"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
+                        <AuthenticatedLayout>
+                          <EmployeeSettlements />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Profile Management */}
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <AuthenticatedLayout>
-                        <ProfilePage />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile/sessions"
-                  element={
-                    <ProtectedRoute>
-                      <AuthenticatedLayout>
-                        <SessionManagementPage />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Profile Management */}
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <AuthenticatedLayout>
+                          <ProfilePage />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile/sessions"
+                    element={
+                      <ProtectedRoute>
+                        <AuthenticatedLayout>
+                          <SessionManagementPage />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Administration Routes */}
-                <Route
-                  path="/admin/users"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.USERS_READ} requiredRole={["admin", "manager"]}>
-                      <AuthenticatedLayout>
-                        <UserManagementPage />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Administration Routes */}
+                  <Route
+                    path="/admin/users"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.USERS_READ} requiredRole={["admin", "manager"]}>
+                        <AuthenticatedLayout>
+                          <UserManagementPage />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/admin/system"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
-                      <AuthenticatedLayout>
-                        <System />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/system/backup"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
-                      <AuthenticatedLayout>
-                        <DatabaseBackupManager />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/system-logs"
-                  element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_LOGS}>
-                      <AuthenticatedLayout>
-                        <SystemLogs />
-                      </AuthenticatedLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/admin/system"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
+                        <AuthenticatedLayout>
+                          <System />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/system/backup"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
+                        <AuthenticatedLayout>
+                          <DatabaseBackupManager />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/system-logs"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_LOGS}>
+                        <AuthenticatedLayout pageTitle="System Logs" showSearch={false} showNotifications={false}>
+                          <SystemLogsGenerator />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* 404 */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  {/* 404 */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
               </Suspense>
             </DayOperationsProvider>
           </AuthProvider>
