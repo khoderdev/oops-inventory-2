@@ -9,19 +9,23 @@ import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { navigationItems } from "./navigationItems";
 
-export function SideBarHeader() {
+interface SideBarHeaderProps {
+  onMobileMenuItemClick?: () => void;
+}
+
+export function SideBarHeader({ onMobileMenuItemClick }: SideBarHeaderProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, hasRole, hasPermission } = usePermissions();
-  const { state } = useSidebar();
+  const { state, isMobile } = useSidebar();
   const [openSections, setOpenSections] = React.useState<string[]>([]);
   
   // Force expanded state on mobile
-  const [isMobile, setIsMobile] = React.useState(false);
+  const [isLargeMobile, setIsLargeMobile] = React.useState(false);
   
   React.useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+      setIsLargeMobile(window.innerWidth < 1024); // lg breakpoint
     };
     
     checkMobile();
@@ -103,7 +107,14 @@ export function SideBarHeader() {
     }
   }, [location.pathname, isActiveLink, navigationItems]);
   
-  const effectiveState = isMobile ? "expanded" : state;
+  const effectiveState = isLargeMobile ? "expanded" : state;
+
+  // Handle menu item clicks on mobile
+  const handleMenuItemClick = React.useCallback(() => {
+    if (isMobile && onMobileMenuItemClick) {
+      onMobileMenuItemClick();
+    }
+  }, [isMobile, onMobileMenuItemClick]);
 
   const isItemVisible = React.useCallback(
     (item: NavigationItem): boolean => {
@@ -166,7 +177,7 @@ export function SideBarHeader() {
                   {visibleChildren.map(child => (
                     <SidebarMenuSubItem key={child.label}>
                       <SidebarMenuSubButton asChild isActive={child.href ? isActiveLink(child.href) : false} className="min-h-[36px] px-3 hover:bg-gray-200 rounded-lg text-gray-600 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700 data-[active=true]:font-medium transition-all duration-300 ease-in-out">
-                        <Link to={child.href!} className="flex items-center gap-3 w-full min-w-0">
+                        <Link to={child.href!} onClick={handleMenuItemClick} className="flex items-center gap-3 w-full min-w-0">
                           <child.icon className="h-4 w-4 flex-shrink-0" />
                           <span className="truncate text-sm">{child.label}</span>
                           {child.badge && (
@@ -203,7 +214,7 @@ export function SideBarHeader() {
                 <DropdownMenuSeparator />
                 {visibleChildren.map(child => (
                   <DropdownMenuItem key={child.label} asChild className="transition-all duration-200 cursor-pointer">
-                    <Link to={child.href!} className={`flex items-center gap-2 min-w-0 ${child.href && isActiveLink(child.href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}`}>
+                    <Link to={child.href!} onClick={handleMenuItemClick} className={`flex items-center gap-2 min-w-0 ${child.href && isActiveLink(child.href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}`}>
                       <child.icon className="h-4 w-4 flex-shrink-0" />
                       <span className="truncate">{child.label}</span>
                       {child.badge && (
@@ -224,7 +235,7 @@ export function SideBarHeader() {
     return (
       <SidebarMenuItem key={item.label}>
         <SidebarMenuButton asChild isActive={isActive} tooltip={state === "collapsed" ? item.label : undefined} className="group min-h-[40px] px-3 relative hover:bg-gray-200 rounded-lg text-gray-700 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700">
-          <Link to={item.href!}>
+          <Link to={item.href!} onClick={handleMenuItemClick}>
             <div className="flex items-center gap-3 w-full justify-start group-data-[state=collapsed]:justify-center min-w-0">
               <item.icon className="h-5 w-5 flex-shrink-0" />
               <span className="truncate group-data-[state=collapsed]:hidden text-sm font-medium">{item.label}</span>

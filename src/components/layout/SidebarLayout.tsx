@@ -111,7 +111,7 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
           transition: "width 150ms ease-in-out cubic-bezier(0.4, 0, 0.2, 1)"
         }}
       >
-        <SideBarHeader />
+        <SideBarHeader onMobileMenuItemClick={() => setOpenMobile(false)} />
       </div>
 
       {/* Mobile sidebar is handled by the Sidebar component in sidebar.tsx */}
