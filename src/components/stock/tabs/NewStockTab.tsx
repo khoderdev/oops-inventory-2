@@ -31,13 +31,18 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
     console.log(`Calculating with lastChangedField=${lastChangedField}, quantity=${quantity}, costPerUnit=${costPerUnit}, totalCost=${totalCost}`);
 
     if (lastChangedField === "totalCost") {
-      if (!isTotalCostEmpty) {
+      if (isTotalCostEmpty) {
+        // Clear cost per unit when total cost is cleared
+        form.setValue("costPerPurchasedUnit", "", { shouldValidate: true });
+      } else {
         if (quantity > 0) {
           // Calculate cost per unit from total cost and quantity
           const calculatedCostPerUnit = totalCost / quantity;
-          if (!isNaN(calculatedCostPerUnit) && isFinite(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
-            console.log(`Setting costPerUnit to ${calculatedCostPerUnit.toFixed(2)} from totalCost=${totalCost} / quantity=${quantity}`);
-            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(2), { shouldValidate: true });
+          if (!isNaN(calculatedCostPerUnit) && isFinite(calculatedCostPerUnit)) {
+            // Format to 2 decimal places and ensure it's positive
+            const formattedCostPerUnit = Math.max(0, calculatedCostPerUnit).toFixed(2);
+            console.log(`Setting costPerUnit to ${formattedCostPerUnit} from totalCost=${totalCost} / quantity=${quantity}`);
+            form.setValue("costPerPurchasedUnit", formattedCostPerUnit, { shouldValidate: true });
           }
         } else if (!isCostPerUnitEmpty) {
           // Calculate quantity from total cost and cost per unit
@@ -50,10 +55,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
       }
     } else if (lastChangedField === "purchasedQuantity") {
       if (isQuantityEmpty) {
-        if (!isCostPerUnitEmpty) {
-          // Clear total cost if quantity is empty
-          form.setValue("totalCost", "", { shouldValidate: true });
-        }
+        // Clear total cost if quantity is empty
+        form.setValue("totalCost", "", { shouldValidate: true });
       } else if (quantity > 0) {
         if (costPerUnit > 0) {
           // Calculate total from quantity and cost per unit
@@ -63,18 +66,18 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
         } else if (!isTotalCostEmpty) {
           // Calculate cost per unit from total and quantity
           const calculatedCostPerUnit = totalCost / quantity;
-          if (!isNaN(calculatedCostPerUnit) && isFinite(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
-            console.log(`Setting costPerUnit to ${calculatedCostPerUnit.toFixed(2)} from totalCost=${totalCost} / quantity=${quantity}`);
-            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(2), { shouldValidate: true });
+          if (!isNaN(calculatedCostPerUnit) && isFinite(calculatedCostPerUnit)) {
+            // Format to 2 decimal places and ensure it's positive
+            const formattedCostPerUnit = Math.max(0, calculatedCostPerUnit).toFixed(2);
+            console.log(`Setting costPerUnit to ${formattedCostPerUnit} from totalCost=${totalCost} / quantity=${quantity}`);
+            form.setValue("costPerPurchasedUnit", formattedCostPerUnit, { shouldValidate: true });
           }
         }
       }
     } else if (lastChangedField === "costPerPurchasedUnit") {
       if (isCostPerUnitEmpty) {
-        if (!isQuantityEmpty) {
-          // Clear total cost if cost per unit is empty
-          form.setValue("totalCost", "", { shouldValidate: true });
-        }
+        // Clear total cost if cost per unit is empty
+        form.setValue("totalCost", "", { shouldValidate: true });
       } else if (costPerUnit > 0) {
         if (quantity > 0) {
           // Calculate total from quantity and cost per unit
@@ -82,11 +85,13 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
           console.log(`Setting totalCost to ${calculatedTotal.toFixed(2)} from quantity=${quantity} * costPerUnit=${costPerUnit}`);
           form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
         } else if (!isTotalCostEmpty) {
-          // Calculate quantity from total and cost per unit
+          // Calculate quantity from total cost and cost per unit
           const calculatedQuantity = totalCost / costPerUnit;
-          if (!isNaN(calculatedQuantity) && isFinite(calculatedQuantity) && calculatedQuantity > 0) {
-            console.log(`Setting quantity to ${Math.round(calculatedQuantity)} from totalCost=${totalCost} / costPerUnit=${costPerUnit}`);
-            form.setValue("purchasedQuantity", Math.round(calculatedQuantity).toString(), { shouldValidate: true });
+          if (!isNaN(calculatedQuantity) && isFinite(calculatedQuantity)) {
+            // Round to nearest whole number and ensure it's positive
+            const roundedQuantity = Math.max(0, Math.round(calculatedQuantity));
+            console.log(`Setting quantity to ${roundedQuantity} from totalCost=${totalCost} / costPerUnit=${costPerUnit}`);
+            form.setValue("purchasedQuantity", roundedQuantity.toString(), { shouldValidate: true });
           }
         }
       }
