@@ -110,7 +110,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
 
   // Check if input unit is a package type
   const isPackageUnit = (unit: string): boolean => {
-    return ["box", "pack", "bag"].includes(unit);
+    return ["box", "pack", "bag", "bottle"].includes(unit);
   };
 
   // Calculate conversion information (without cost)
@@ -121,12 +121,14 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
 
     // Get the base unit for package contents
     const getPackageBaseUnit = (inputUnit: string): string => {
-      // For packages, the base unit is typically piece, bottle, or item
       if (inputUnit === "box" && watchedUnitType === "package") {
         return "bottle"; // Default for boxes
       }
       if (inputUnit === "pack" && watchedUnitType === "package") {
         return "piece"; // Default for packs
+      }
+      if (inputUnit === "bottle" && watchedUnitType === "package") {
+        return "ml"; // For bottles, use 'ml' as base unit (logical for beverages)
       }
       return "piece"; // Default fallback
     };

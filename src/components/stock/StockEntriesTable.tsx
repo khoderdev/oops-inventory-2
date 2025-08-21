@@ -427,6 +427,12 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
         variant: "default",
         duration: 1000
       });
+      
+      // Clear selections after deletion
+      setSelectedStockEntries(new Set());
+      if (bulkSelectionMode) {
+        table.toggleAllRowsSelected(false);
+      }
     } catch (error) {
       setStockEntries(originalEntries);
       console.error("Error deleting stock entry:", error);
@@ -514,6 +520,12 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
           ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter }
           : stockEntry
       ));
+      
+      // Clear selections after printer assignment
+      setSelectedStockEntries(new Set());
+      if (bulkSelectionMode) {
+        table.toggleAllRowsSelected(false);
+      }
     }
   };
 
@@ -701,7 +713,13 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                       </div>
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Unit Cost</span>
-                        <p className="text-sm font-medium text-gray-900">{formatCurrency(entry.costPerPurchasedUnit)}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {Number(entry.costPerPurchasedUnit) > 0 
+                            ? formatCurrency(Number(entry.costPerPurchasedUnit))
+                            : entry.costPerBaseUnit 
+                              ? `${formatCurrency(Number(entry.costPerBaseUnit))} per ${entry.material?.baseUnit || 'unit'}`
+                              : '$0.00'}
+                        </p>
                       </div>
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Cost</span>

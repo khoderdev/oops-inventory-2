@@ -39,7 +39,7 @@ export const BulkPrinterAssignmentDialog: React.FC<BulkPrinterAssignmentDialogPr
           setIsLoading(true);
           const response = await printersAPI.getPrinters();
           // Handle the API response format: { success: true, printers: [...] }
-          const printersData = response.data.printers || [];
+          const printersData = response.printers || [];
           // Ensure we always have an array
           setPrinters(Array.isArray(printersData) ? printersData : []);
         } catch (error) {

@@ -6,6 +6,7 @@ import { MenuItemBuilder } from "./MenuBuilder";
 import BeveragesMenuBuilder from "./BeveragesMenuBuilder";
 import { getCategoriesByType } from "@/api/categories.api";
 import { toast } from "../ui/use-toast";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface TabMenuProps {
   menuItems: MenuItem[];
@@ -108,42 +109,59 @@ export const MenuPage: React.FC<TabMenuProps> = ({
     }
   }, [menuItemCategories, beverageCategories]);
 
+  // Check if the screen is mobile size
+  const isMobile = useMediaQuery("(max-width: 640px)");
+
   return (
     <Tabs defaultValue="menu-items" value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-2 mb-4">
-        <TabsTrigger value="menu-items">Menu Items</TabsTrigger>
-        <TabsTrigger value="beverages">Beverages</TabsTrigger>
-      </TabsList>
+      <div className="sticky top-0 z-10 bg-background pt-2 pb-3 mb-4">
+        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+          <TabsTrigger 
+            value="menu-items" 
+            className={`px-2 py-1.5 text-sm sm:text-base ${isMobile ? 'text-xs' : ''}`}
+          >
+            Menu Items
+          </TabsTrigger>
+          <TabsTrigger 
+            value="beverages" 
+            className={`px-2 py-1.5 text-sm sm:text-base ${isMobile ? 'text-xs' : ''}`}
+          >
+            Beverages
+          </TabsTrigger>
+        </TabsList>
+      </div>
       
-      <TabsContent value="menu-items" className="w-full">
-        <MenuItemBuilder
-          menuItems={menuItems}
-          stockEntries={stockEntries}
-          materials={materials}
-          categories={menuItemCategories}
-          sections={sections}
-          onCreateMenuItem={handleCreateMenuItem}
-          onUpdateMenuItem={handleUpdateMenuItem}
-          onDeleteMenuItem={handleDeleteMenuItem}
-          categoriesLoading={categoriesLoading}
-          categoriesError={categoriesError}
-        />
-      </TabsContent>
-      
-      <TabsContent value="beverages" className="w-full">
-        <BeveragesMenuBuilder
-          menuItems={menuItems}
-          stockEntries={stockEntries}
-          materials={materials}
-          categories={beverageCategories}
-          sections={sections}
-          onCreateBeverageItem={handleCreateMenuItem}
-          onUpdateBeverageItem={handleUpdateMenuItem}
-          onDeleteBeverageItem={handleDeleteMenuItem}
-          categoriesLoading={categoriesLoading}
-          categoriesError={categoriesError}
-        />
-      </TabsContent>
+      <div className="px-2 sm:px-4 md:px-6">
+        <TabsContent value="menu-items" className="w-full mt-0">
+          <MenuItemBuilder
+            menuItems={menuItems}
+            stockEntries={stockEntries}
+            materials={materials}
+            categories={menuItemCategories}
+            sections={sections}
+            onCreateMenuItem={handleCreateMenuItem}
+            onUpdateMenuItem={handleUpdateMenuItem}
+            onDeleteMenuItem={handleDeleteMenuItem}
+            categoriesLoading={categoriesLoading}
+            categoriesError={categoriesError}
+          />
+        </TabsContent>
+        
+        <TabsContent value="beverages" className="w-full mt-0">
+          <BeveragesMenuBuilder
+            menuItems={menuItems}
+            stockEntries={stockEntries}
+            materials={materials}
+            categories={beverageCategories}
+            sections={sections}
+            onCreateBeverageItem={handleCreateMenuItem}
+            onUpdateBeverageItem={handleUpdateMenuItem}
+            onDeleteBeverageItem={handleDeleteMenuItem}
+            categoriesLoading={categoriesLoading}
+            categoriesError={categoriesError}
+          />
+        </TabsContent>
+      </div>
     </Tabs>
   );
 };

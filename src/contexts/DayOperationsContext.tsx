@@ -12,8 +12,6 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
   enableAutoRefresh = true
 }) => {
   const { user } = useAuth();
-
-  // Core state
   const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
@@ -21,18 +19,13 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Auto-refresh state
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(enableAutoRefresh);
   const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
-
-  // Computed values
   const isDayOpen = currentDay?.status === "opened";
   const isDayClosed = currentDay?.status === "closed";
   const hasActiveDay = currentDay !== null;
 
-  // Clear functions
   const clearError = useCallback(() => setError(null), []);
   const clearSuccess = useCallback(() => setSuccess(null), []);
 

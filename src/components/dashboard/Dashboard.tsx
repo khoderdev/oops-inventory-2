@@ -62,7 +62,15 @@ export const Dashboard: React.FC = () => {
       totalStockEntries: stockEntries.length,
       totalMenuItems: menuItems.length,
       lowStockItems: materialsWithStock.filter(m => m.availableQuantity < 10).length,
-      totalStockValue: materialsWithStock.reduce((sum, m) => sum + (m.totalValue || 0), 0),
+      totalStockValue: materialsWithStock.reduce((sum, m) => {
+        // Skip any suspicious values (extremely large values)
+        const value = m.totalValue || 0;
+        if (value > 1000000) { // Cap at $1M per material as a sanity check
+          console.warn(`Extremely large stock value detected for material ${m.name}: $${value}`);
+          return sum;
+        }
+        return sum + value;
+      }, 0),
       totalEmployees: employees.length,
       pendingOrders: 0, // This would come from orders API
       todaysSales: currentDay?.totalSales || 0

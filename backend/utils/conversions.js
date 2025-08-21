@@ -20,7 +20,7 @@ export const UNIT_OPTIONS = {
   mass: ["kg", "g", "lb", "oz"],
   volume: ["l", "ml", "gal", "fl oz"],
   piece: ["piece", "unit", "dozen"],
-  package: ["piece", "bottle", "item", "unit"] // Base units that packages can contain
+  package: ["piece", "bottle", "item", "unit", "ml"] // Base units that packages can contain (ml added for bottles)
 };
 
 // Helper function to validate material category
