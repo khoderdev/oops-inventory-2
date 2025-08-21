@@ -27,7 +27,6 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
   const setValue = <K extends Path<StockFormInputs>>(name: K, value: PathValue<StockFormInputs, K>) => {
     form.setValue(name, value, { shouldValidate: true });
   };
-  // Flexible formatting for CPU string in input (no $ sign, adaptive decimals)
   const fmtCPU = (n: number): string => {
     if (!isFinite(n) || isNaN(n) || n < 0) return "";
     const s = formatCurrencyUI(n);
@@ -36,34 +35,24 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
   const handleUnitChange = (newUnit: string) => {
     const currentUnit = form.getValues("purchasedUnit");
     if (!newUnit) return;
-
-    // Always set the unit
     setValue("purchasedUnit", newUnit);
-
     if (!currentUnit || newUnit === currentUnit) return;
-
     const qty = toNumber(form.getValues("purchasedQuantity"));
     if (isNaN(qty) || qty <= 0) return;
-
     let newQty = qty;
     if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
       newQty = convertMass(qty, currentUnit, newUnit);
     } else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
       newQty = convertVolume(qty, currentUnit, newUnit);
     } else {
-      // Incompatible units; don't alter quantity/cost
       return;
     }
-
     const total = toNumber(form.getValues("totalCost"));
     const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
-
     setValue("purchasedQuantity", formatNumber(newQty, newUnit));
-
     if (!isNaN(total) && newQty > 0) {
       setValue("costPerPurchasedUnit", fmtCPU(total / newQty));
     } else if (!isNaN(cpu)) {
-      // Convert CPU to the new unit so displayed CPU matches selected unit
       let cpuNew = cpu;
       if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
         const oneNewInOld = convertMass(1, newUnit, currentUnit);
@@ -73,7 +62,6 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
         cpuNew = cpu * oneNewInOld;
       }
       setValue("costPerPurchasedUnit", fmtCPU(cpuNew));
-      // And recompute total to stay consistent
       setValue("totalCost", fmtMoney(cpuNew * newQty));
     }
   };
@@ -83,12 +71,10 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
     const qty = toNumber(qtyStr);
     const total = toNumber(form.getValues("totalCost"));
     const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
-
     if (isNaN(qty) || qty <= 0) {
       setValue("totalCost", "");
       return;
     }
-
     if (!isNaN(cpu) && cpu > 0) {
       setValue("totalCost", fmtMoney(qty * cpu));
     } else if (!isNaN(total)) {
@@ -104,12 +90,10 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
     const total = toNumber(totalStr);
     const qty = toNumber(form.getValues("purchasedQuantity"));
     const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
-
     if (isNaN(total)) {
       setValue("costPerPurchasedUnit", "");
       return;
     }
-
     if (!isNaN(qty) && qty > 0) {
       setValue("costPerPurchasedUnit", fmtCPU(total / qty));
     } else if (!isNaN(cpu) && cpu > 0) {
@@ -126,12 +110,10 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
     const cpu = toNumber(cpuStr);
     const qty = toNumber(form.getValues("purchasedQuantity"));
     const total = toNumber(form.getValues("totalCost"));
-
     if (isNaN(cpu)) {
       setValue("totalCost", "");
       return;
     }
-
     if (!isNaN(qty) && qty > 0) {
       setValue("totalCost", fmtMoney(qty * cpu));
     } else if (!isNaN(total) && cpu > 0) {
@@ -144,33 +126,26 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
   };
 
   const handleSubmit = async (data: StockFormInputs) => {
-    // Let RHF validate first
     await form.trigger();
-
-    // Additional simple business rules
     const qty = toNumber(data.purchasedQuantity);
     const total = toNumber(data.totalCost);
     const cpu = !data.costPerPurchasedUnit || data.costPerPurchasedUnit === "" ? (!isNaN(qty) && qty > 0 && !isNaN(total) ? total / qty : NaN) : toNumber(data.costPerPurchasedUnit);
-
     if (isNaN(qty) || qty <= 0) {
       form.setError("purchasedQuantity", { type: "manual", message: "Quantity must be greater than 0" });
     }
     if (isNaN(cpu) || cpu < 0) {
       form.setError("costPerPurchasedUnit", { type: "manual", message: "Cost per unit must be ≥ 0" });
     }
-
     const hasErrors = Object.keys(form.formState.errors).length > 0;
     if (hasErrors) {
       const firstError = Object.keys(form.formState.errors)[0] as keyof StockFormInputs | undefined;
       if (firstError) form.setFocus(firstError as any);
       return;
     }
-
     const formData: StockFormData = {
       ...(data as any),
       costPerPurchasedUnit: fmtMoney(cpu)
     } as unknown as StockFormData;
-
     onSubmit(formData);
   };
 
