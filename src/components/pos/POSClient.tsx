@@ -1040,11 +1040,45 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       const cartId = `pos-${posItem.id}`;
       setCart(prevCart => {
         const currentCart = prevCart || [];
-        const existingItem = currentCart.find(cartItem => cartItem.id === cartId);
+        
+        // Check if item already exists in cart (including items from loaded saved orders)
+        let existingItem = currentCart.find(cartItem => cartItem.id === cartId);
+        
+        // If not found by cartId, check by item type and ID for better matching
+        if (!existingItem) {
+          existingItem = currentCart.find(cartItem => {
+            if (posItem.type === "menu_item" && cartItem.type === "menu_item") {
+              const cartMenuItemId = cartItem.menuItemId;
+              const posMenuItemId = posItem.menuItemId;
+              const cartIdNormalized = typeof cartMenuItemId === "string" ? parseInt(cartMenuItemId) || 0 : cartMenuItemId;
+              const posIdNormalized = typeof posMenuItemId === "string" ? parseInt(posMenuItemId) || 0 : posMenuItemId;
+              return cartIdNormalized === posIdNormalized;
+            } else if (posItem.type === "material" && cartItem.type === "material") {
+              const cartMaterialId = cartItem.stockEntryId;
+              const posMaterialId = posItem.materialId;
+              return String(cartMaterialId) === String(posMaterialId);
+            }
+            return false;
+          });
+        }
+        
         let newCart: POSCartItem[];
         if (existingItem) {
-          newCart = currentCart.map(cartItem => (cartItem.id === cartId ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem));
-          console.log("🛒 Updated existing item quantity:", { itemId: cartId, newQuantity: existingItem.quantity + 1 });
+          newCart = currentCart.map(cartItem => {
+            // Update by cartId or by matching item properties
+            const shouldUpdate = cartItem.id === cartId || 
+              (posItem.type === "menu_item" && cartItem.type === "menu_item" && 
+               cartItem.menuItemId === (typeof posItem.menuItemId === "string" ? parseInt(posItem.menuItemId) || 0 : posItem.menuItemId)) ||
+              (posItem.type === "material" && cartItem.type === "material" && 
+               String(cartItem.stockEntryId) === String(posItem.materialId));
+            
+            return shouldUpdate ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
+          });
+          console.log("🛒 Updated existing item quantity:", { 
+            itemName: posItem.name, 
+            itemId: existingItem.id, 
+            newQuantity: existingItem.quantity + 1 
+          });
         } else {
           if (posItem.type === "menu_item") {
             const menuItemId = posItem.menuItemId;
@@ -1498,10 +1532,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       
       // Generate optimistic order identifier
       const optimisticOrderId = currentOrder?.orderNumber || currentOrder?.id || `ORDER-${Date.now()}`;
-      console.log("📋 Order saved (optimistic):", { orderIdentifier: optimisticOrderId });
       
-      // Show immediate success feedback
-      showSuccess(`Order ${optimisticOrderId} saved successfully!`);
 
       // Start cart clearing animation immediately
       setTimeout(() => {
