@@ -33,6 +33,7 @@ import { ItemsGrid } from "./ItemsGrid";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
+import { Category } from "@/types/categories";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
   const [stock, setStock] = useState<StockEntryWithMaterial[]>([]);
@@ -1008,7 +1009,20 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [refreshInventory, fetchTablesData, refreshCountsRef]);
 
   const availablePosItems = posItems.filter(posItem => {
-    const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || posItem.category?.toLowerCase().includes(searchTerm.toLowerCase());
+    const getCategoryString = (category: string | number | Category | { id: number; name: string; value: string } | undefined): string => {
+      if (!category) return "";
+      if (typeof category === "string") return category;
+      if (typeof category === "number") return category.toString();
+      if (typeof category === "object") {
+        return category.name || category.value || "";
+      }
+      return "";
+    };
+
+    const categoryString = getCategoryString(posItem.category);
+    const matchesSearch = searchTerm === "" || 
+      posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      categoryString.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -1053,7 +1067,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               const cartIdNormalized = typeof cartMenuItemId === "string" ? parseInt(cartMenuItemId) || 0 : cartMenuItemId;
               const posIdNormalized = typeof posMenuItemId === "string" ? parseInt(posMenuItemId) || 0 : posMenuItemId;
               return cartIdNormalized === posIdNormalized;
-            } else if (posItem.type === "material" && cartItem.type === "material") {
+            } else if (posItem.type === "stock_entry" && cartItem.type === "material") {
               const cartMaterialId = cartItem.stockEntryId;
               const posMaterialId = posItem.materialId;
               return String(cartMaterialId) === String(posMaterialId);
@@ -1068,9 +1082,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             // Update by cartId or by matching item properties
             const shouldUpdate = cartItem.id === cartId || 
               (posItem.type === "menu_item" && cartItem.type === "menu_item" && 
-               cartItem.menuItemId === (typeof posItem.menuItemId === "string" ? parseInt(posItem.menuItemId) || 0 : posItem.menuItemId)) ||
-              (posItem.type === "material" && cartItem.type === "material" && 
-               String(cartItem.stockEntryId) === String(posItem.materialId));
+               Number(cartItem.menuItemId) === Number(posItem.menuItemId)) ||
+              (posItem.type === "stock_entry" && cartItem.type === "stock_entry" && 
+               String(cartItem.stockEntryId) === String(posItem.stockEntryId));
             
             return shouldUpdate ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
           });
