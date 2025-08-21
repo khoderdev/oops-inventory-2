@@ -20,6 +20,12 @@ router.get("/type/:type", categoryController.getCategoriesByType);
 // PUT /api/categories/sort-orders - Bulk update sort orders (must be before /:id route)
 router.put("/sort-orders", categoryController.updateSortOrders);
 
+// DELETE /api/categories/bulk - Bulk delete categories (must be before /:id route)
+router.delete("/bulk", categoryController.bulkDeleteCategories);
+
+// PUT /api/categories/bulk - Bulk update categories (must be before /:id route)
+router.put("/bulk", categoryController.bulkUpdateCategories);
+
 // ===== CATEGORY TYPES ROUTES (must be before /:id route) =====
 
 // GET /api/categories/types - Get all category types with filtering and pagination

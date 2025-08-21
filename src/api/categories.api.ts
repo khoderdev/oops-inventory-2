@@ -1,4 +1,4 @@
-import { Category, CategoryFilters, CategoriesResponse, CategoryResponse, CategoryFormData, SortOrderUpdate, CategoryTypeEntity, CategoryTypeFilters, CategoryTypesResponse, CategoryTypeResponse, CategoryTypeFormData, BulkCategoryTypeRequest, BulkDeleteRequest } from "@/types/categories";
+import { Category, CategoryFilters, CategoriesResponse, CategoryResponse, CategoryFormData, SortOrderUpdate, CategoryTypeEntity, CategoryTypeFilters, CategoryTypesResponse, CategoryTypeResponse, CategoryTypeFormData, BulkCategoryTypeRequest, BulkDeleteRequest, BulkDeleteResponse, BulkUpdateResponse } from "@/types/categories";
 import api from "../lib/http";
 
 // Get all categories with filtering and pagination
@@ -74,6 +74,18 @@ export const deleteCategory = async (id: number): Promise<{ success: boolean; me
 export const updateSortOrders = async (categories: SortOrderUpdate[]): Promise<{ success: boolean; message: string }> => {
   const response = await api.put('/categories/sort-orders', { categories });
   return response.data as { success: boolean; message: string };
+};
+
+// Bulk delete categories
+export const bulkDeleteCategories = async (deleteData: BulkDeleteRequest): Promise<BulkDeleteResponse> => {
+  const response = await api.delete("/categories/bulk", { data: deleteData } as any);
+  return response.data as BulkDeleteResponse;
+};
+
+// Bulk update categories
+export const bulkUpdateCategories = async (ids: number[], data: Partial<Category>): Promise<BulkUpdateResponse> => {
+  const response = await api.put("/categories/bulk", { ids, data });
+  return response.data as BulkUpdateResponse;
 };
 
 // Get categories by specific type (for dropdowns)
@@ -171,6 +183,8 @@ export default {
   updateCategory,
   deleteCategory,
   updateSortOrders,
+  bulkDeleteCategories,
+  bulkUpdateCategories,
   getCategoriesForDropdown,
   getMaterialCategories,
   getMenuItemCategories,

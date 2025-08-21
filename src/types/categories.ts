@@ -45,6 +45,8 @@ export interface CategoriesTableProps {
   onDelete: (id: number) => void;
   onToggleActive: (id: number, isActive: boolean) => void;
   onUpdateSortOrder: (categories: { id: number; sortOrder: number }[]) => void;
+  onBulkDelete?: (ids: number[]) => Promise<void>;
+  onBulkEdit?: (ids: number[], data: Partial<CategoryFormData>) => Promise<void>;
   loading?: boolean;
 }
 
@@ -149,6 +151,19 @@ export interface BulkCategoryTypeRequest {
 
 export interface BulkDeleteRequest {
   ids: number[];
+}
+
+export interface BulkDeleteResponse {
+  success: boolean;
+  message: string;
+  deletedCount: number;
+}
+
+export interface BulkUpdateResponse {
+  success: boolean;
+  message: string;
+  updatedCount: number;
+  data: Category[];
 }
 
 export interface CategoryModalProps {

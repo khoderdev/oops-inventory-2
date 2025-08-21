@@ -509,6 +509,123 @@ const categoryController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  // Bulk delete categories
+  bulkDeleteCategories: async (req, res, next) => {
+    try {
+      const { ids } = req.body;
+      
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({
+          error: "IDs must be a non-empty array"
+        });
+      }
+
+      // Check if categories exist before deleting
+      const existingCategories = await Category.findAll({
+        where: { id: ids },
+        attributes: ['id', 'name']
+      });
+
+      if (existingCategories.length === 0) {
+        return res.status(404).json({
+          error: "No categories found with the provided IDs"
+        });
+      }
+
+      // Delete the categories
+      const deletedCount = await Category.destroy({
+        where: { id: ids }
+      });
+
+      res.json({
+        success: true,
+        message: `${deletedCount} categor${deletedCount === 1 ? 'y' : 'ies'} deleted successfully`,
+        deletedCount
+      });
+    } catch (error) {
+      console.error('Error in bulkDeleteCategories:', error);
+      next(error);
+    }
+  },
+
+  // Bulk update categories
+  bulkUpdateCategories: async (req, res, next) => {
+    try {
+      const { ids, data } = req.body;
+      
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({
+          error: "IDs must be a non-empty array"
+        });
+      }
+
+      if (!data || typeof data !== 'object') {
+        return res.status(400).json({
+          error: "Data object is required for bulk update"
+        });
+      }
+
+      // Check if categories exist before updating
+      const existingCategories = await Category.findAll({
+        where: { id: ids },
+        attributes: ['id', 'name']
+      });
+
+      if (existingCategories.length === 0) {
+        return res.status(404).json({
+          error: "No categories found with the provided IDs"
+        });
+      }
+
+      // Prepare update data - only include fields that are provided
+      const updateData = {};
+      
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.value !== undefined) updateData.value = data.value;
+      if (data.isActive !== undefined) updateData.isActive = data.isActive;
+      if (data.categoryTypeIds !== undefined) updateData.categoryTypeIds = data.categoryTypeIds;
+
+      // Generate value from name if name is provided but value is not
+      if (data.name && !data.value) {
+        updateData.value = generateValueFromName(data.name);
+      }
+
+      // Perform bulk update
+      const [updatedCount] = await Category.update(updateData, {
+        where: { id: ids }
+      });
+
+      // Fetch updated categories to return
+      const updatedCategories = await Category.findAll({
+        where: { id: ids },
+        order: [['sortOrder', 'ASC'], ['name', 'ASC']]
+      });
+
+      // Populate categoryTypes for each updated category
+      for (const category of updatedCategories) {
+        if (category.categoryTypeIds && category.categoryTypeIds.length > 0) {
+          const categoryTypes = await CategoryType.findAll({
+            where: { id: category.categoryTypeIds },
+            attributes: ["id", "type", "createdAt", "updatedAt"]
+          });
+          category.dataValues.categoryTypes = categoryTypes;
+        } else {
+          category.dataValues.categoryTypes = [];
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `${updatedCount} categor${updatedCount === 1 ? 'y' : 'ies'} updated successfully`,
+        updatedCount,
+        data: updatedCategories
+      });
+    } catch (error) {
+      console.error('Error in bulkUpdateCategories:', error);
+      next(error);
+    }
   }
 };
 

@@ -5,7 +5,15 @@ import { Category, CategoryFormData, CategoryManagementProps } from "@/types/cat
 import { Plus } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
-import { getCategories, createCategory, updateCategory, deleteCategory, updateSortOrders } from "@/api/categories.api";
+import {
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  updateSortOrders,
+  bulkDeleteCategories,
+  bulkUpdateCategories,
+} from "@/api/categories.api";
 import { CategoryModal } from "./CategoryModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -203,12 +211,67 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
     setFormError(undefined);
   };
 
+  // Handle bulk delete
+  const handleBulkDelete = async (ids: number[]) => {
+    try {
+      await bulkDeleteCategories({ ids });
+      toast({
+        title: "Success",
+        description: `${ids.length} categor${ids.length === 1 ? 'y' : 'ies'} deleted successfully`,
+        duration: 2000
+      });
+      await loadCategories();
+      onCategoryChange?.();
+    } catch (error: any) {
+      console.error("Error bulk deleting categories:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to delete categories",
+        variant: "destructive",
+        duration: 3000
+      });
+    }
+  };
+
+  // Handle bulk edit
+  const handleBulkEdit = async (ids: number[], data: Partial<CategoryFormData>) => {
+    try {
+      setLoading(true);
+      
+      // Use bulk update API for better performance
+      await bulkUpdateCategories(ids, data);
+      
+      toast({
+        title: "Success",
+        description: `${ids.length} categor${ids.length === 1 ? 'y' : 'ies'} updated successfully`,
+      });
+      
+      // Refresh categories
+      await loadCategories();
+      onCategoryChange?.();
+    } catch (error) {
+      console.error('Error bulk updating categories:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update categories. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Refetch categories helper
+  const refetchCategories = async () => {
+    await loadCategories();
+  };
+
   return (
-    <div className="space-y-6 relative">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+    <div className="space-y-6 h-full flex flex-col" ref={scrollContainerRef}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="categories">Categories</TabsTrigger>
-          <TabsTrigger value="category-types">Category Types</TabsTrigger>
+          <TabsTrigger value="categories" className="text-gray-900 active:bg-primary">Categories</TabsTrigger>
+          <TabsTrigger value="category-types" className="text-gray-900 active:text-primary">Category Types</TabsTrigger>
         </TabsList>
         
         <TabsContent value="categories" className="space-y-6">
@@ -219,6 +282,8 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
             onDelete={handleDelete} 
             onToggleActive={handleToggleActive} 
             onUpdateSortOrder={handleUpdateSortOrder} 
+            onBulkDelete={handleBulkDelete}
+            onBulkEdit={handleBulkEdit}
             loading={loading} 
           />
         </TabsContent>
