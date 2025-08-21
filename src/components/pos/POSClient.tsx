@@ -1759,210 +1759,278 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       clearOrder();
       return;
     }
-    console.log("💳 Initiating payment");
+
+    console.log("💳 Initiating ultra-fast payment processing");
     setIsPOSActionInProgress(true);
     setIsLoading(true);
+
+    // Generate optimistic data immediately for instant UX
+    const optimisticSaleId = `sale-${Date.now()}`;
+    const optimisticPaymentData = {
+      paymentMethod: "cash",
+      paymentAmount: parseFloat(paymentAmount) || total,
+      change: Math.max(0, (parseFloat(paymentAmount) || total) - total)
+    };
+
+    // Create receipt data immediately for instant display
+    const optimisticReceiptData = {
+      id: optimisticSaleId,
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString(),
+      cashier: selectedEmployee && orderType === "employees" 
+        ? `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim()
+        : "",
+      items: cart.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        totalPrice: item.price * item.quantity,
+        type: item.type
+      })),
+      subtotal: subtotal,
+      tax: tax,
+      total: total,
+      paymentAmount: optimisticPaymentData.paymentAmount,
+      change: optimisticPaymentData.change || 0,
+      paymentMethod: optimisticPaymentData.paymentMethod,
+      discountType: appliedDiscount?.type || null,
+      discountValue: appliedDiscount?.value || null,
+      discountAmount: appliedDiscount?.amount || null,
+      discountReason: appliedDiscount?.reason || null,
+      employeeName: selectedEmployee && orderType === "employees" 
+        ? `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim()
+        : null,
+      orderType: orderType,
+      tableNumber: selectedTable?.number || null
+    };
+
     try {
-      let orderToComplete = currentOrder;
-      if (!currentOrder) {
-        const orderData = {
-          orderType,
-          tableId: selectedTable?.id,
-          employeeId: selectedEmployee?.id,
-          items: cart.map(item => {
-            const orderItem = {
-              materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
-              menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
-              assignmentId: undefined,
-              name: item.name,
-              quantity: item.quantity,
-              unitPrice: item.price,
-              totalPrice: item.price * item.quantity,
-              type: item.type as "material" | "menu_item",
-              notes: item.notes || undefined,
-              menuItem: item.type === "menu_item"
-            };
-            return orderItem;
-          }),
-          notes: orderNotes || undefined,
-          discountType: appliedDiscount?.type,
-          discountValue: appliedDiscount?.value,
-          discountAmount: appliedDiscount?.amount || 0,
-          discountReason: appliedDiscount?.reason
-        };
-        console.log("📋 Creating order for payment:", { orderType, itemCount: orderData.items.length });
-        const createOrderResponse = await createOrder(orderData);
-        if (createOrderResponse && typeof createOrderResponse === "object" && "order" in createOrderResponse) {
-          orderToComplete = (createOrderResponse as any).order;
-        } else {
-          orderToComplete = createOrderResponse;
-        }
-      }
-      if (!orderToComplete && currentOrder) {
-        orderToComplete = currentOrder;
-      }
-      if (!orderToComplete) {
-        throw new Error("No order available - both orderToComplete and currentOrder are null");
-      }
-      if (!orderToComplete.id) {
-        const orderAny = orderToComplete as any;
-        const orderId = orderToComplete.id || orderAny.orderId || orderAny.orderNumber;
-        if (orderId) {
-          orderToComplete.id = orderId;
-        } else {
-          throw new Error(`Order created but missing ID. Order structure: ${JSON.stringify(orderToComplete)}`);
-        }
-      }
-      const paymentData = {
-        paymentMethod: "cash",
-        paymentAmount: parseFloat(paymentAmount) || total,
-        change: Math.max(0, (parseFloat(paymentAmount) || total) - total)
-      };
-      console.log("💳 Processing payment:", { orderId: orderToComplete.id, paymentAmount: paymentData.paymentAmount });
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Order completion timeout - API call took too long")), 15000));
-      const response = (await Promise.race([ordersAPI.completeOrder(orderToComplete.id, paymentData), timeoutPromise])) as any;
-      let order: any, saleId: string;
-
-      if (response?.data) {
-        if (response.data.order && response.data.saleId) {
-          order = response.data.order;
-          saleId = response.data.saleId;
-        } else if (response.data.order) {
-          order = response.data.order;
-          saleId = order.id || `sale-${Date.now()}`;
-        } else if (response.data.id) {
-          order = response.data;
-          saleId = response.data.id;
-        } else {
-          order = { id: orderToComplete.id, items: cart, subtotal: subtotal, tax: tax, total: total, status: "completed" };
-          saleId = `sale-${Date.now()}`;
-        }
-      } else {
-        order = { id: orderToComplete.id, items: cart, subtotal: subtotal, tax: tax, total: total, status: "completed" };
-        saleId = `sale-${Date.now()}`;
-      }
-      console.log("💳 Payment completed:", { saleId, orderId: order.id });
-
-      const receiptData = {
-        id: saleId || `receipt-${Date.now()}`,
-        date: new Date().toLocaleDateString(),
-        time: new Date().toLocaleTimeString(),
-        cashier: selectedEmployee && orderType === "employees" 
-          ? `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim()
-          : "",
-        items: (order.items || cart).map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice || item.price,
-          totalPrice: item.totalPrice || item.price * item.quantity,
-          type: item.type
-        })),
-        subtotal: order.subtotal || subtotal,
-        tax: order.tax || tax,
-        total: order.total || total,
-        paymentAmount: paymentData.paymentAmount,
-        change: paymentData.change || 0,
-        paymentMethod: paymentData.paymentMethod,
-        discountType: order.discountType || appliedDiscount?.type || null,
-        discountValue: order.discountValue ? (typeof order.discountValue === "string" ? parseFloat(order.discountValue) : order.discountValue) : appliedDiscount?.value || null,
-        discountAmount: order.discountAmount ? (typeof order.discountAmount === "string" ? parseFloat(order.discountAmount) : order.discountAmount) : appliedDiscount?.amount || null,
-        discountReason: order.discountReason || appliedDiscount?.reason || null,
-        // Add employee information for staff orders
-        employeeName: selectedEmployee && orderType === "employees" 
-          ? `${selectedEmployee.user?.firstName || ''} ${selectedEmployee.user?.lastName || ''}`.trim()
-          : null,
-        orderType: orderType,
-        tableNumber: selectedTable?.number || null
-      };
-      console.log("🖨️ Generated receipt for payment:", { receiptId: receiptData.id, items: receiptData.items.length });
-
-      if (selectedTable && orderType === "table") {
-        try {
-          console.log("📍 Clearing table reservation:", selectedTable.id);
-          await tablesAPI.clearReservation(selectedTable.id);
-          const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
-          const responseData = tablesResponse.data as Table[] | { data: Table[] };
-          const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
-          console.log("📍 Tables refreshed after payment:", { count: refreshedTables.length });
-          setTables(refreshedTables);
-        } catch (error) {
-          console.error("⚠️ Table update error (non-critical):", error);
-        }
-      }
-
-      if (selectedEmployee && orderType === "employees") {
-        try {
-          const { recordEmployeeUsageWithSettlementUpdate } = await import("@/utils/employeeUsageUtils");
-          const posTransactionId = order.orderNumber || saleId;
-          console.log("👤 Recording employee usage:", { employeeId: selectedEmployee.id, transactionId: posTransactionId });
-          await recordEmployeeUsageWithSettlementUpdate(selectedEmployee, cart, posTransactionId);
-          console.log("✅ Employee usage recorded and settlement updated");
-        } catch (error) {
-          console.error("⚠️ Employee usage recording error (non-critical):", error);
-        }
-      }
-      await printItemsToAssignedPrinters(cart);
-      setLastSaleData(receiptData);
-      setShowReceiptDialog(true);
-      setShouldAutoPrint(hasSavedPrinter());
+      // INSTANT UI UPDATES - Show success immediately
       setShowPaymentDialog(false);
       setPaymentAmount("");
-
-      // Set payment completed flag to prevent order reloading
       setIsPaymentCompleted(true);
+      setLastSaleData(optimisticReceiptData);
+      setShowReceiptDialog(true);
+      setShouldAutoPrint(hasSavedPrinter());
+      setShowSuccessCheckmark(true);
 
-      // Mark order as completed to prevent future reloading
-      completedOrdersRef.current.add(orderToComplete.id.toString());
-      console.log("✅ Order marked as completed:", {
-        orderId: orderToComplete.id,
-        completedOrders: Array.from(completedOrdersRef.current)
-      });
+      // CRITICAL: Mark order as completed immediately to prevent reloading
+      if (currentOrder?.id) {
+        completedOrdersRef.current.add(currentOrder.id.toString());
+        console.log("🚫 Order marked as completed immediately:", {
+          orderId: currentOrder.id,
+          completedOrders: Array.from(completedOrdersRef.current)
+        });
+      }
 
-      // Clear all order-related state immediately
+      // Clear UI state immediately for instant feedback
       setAppliedDiscount(null);
       setDiscountAmount(0);
       setOrderNotes("");
-      setSelectedEmployee(null);
       setHasUnsavedChanges(false);
       processedOrderRef.current = null;
-
-      // Clear current order state to prevent reloading
-      clearOrder();
-      setSelectedTable(null);
-
-      // Clear order persistence
       OrderPersistence.clearCurrentOrder();
 
-      // Show success animation
-      setShowSuccessCheckmark(true);
-      
-      // Clear cart with animation after showing success
+      // Start cart clearing animation immediately
       setTimeout(() => {
         clearCartWithAnimation();
-        // Hide success animation after clearing cart
-        setTimeout(() => {
-          setShowSuccessCheckmark(false);
-        }, 2000);
+        setTimeout(() => setShowSuccessCheckmark(false), 2000);
       }, 100);
 
-      // Reset to takeaway mode
+      // BACKGROUND PROCESSING - Handle actual API calls without blocking UI
+      const backgroundProcessing = async () => {
+        try {
+          let orderToComplete = currentOrder;
+          
+          // Create order if needed
+          if (!currentOrder) {
+            const orderData = {
+              orderType,
+              tableId: selectedTable?.id,
+              employeeId: selectedEmployee?.id,
+              items: cart.map(item => ({
+                materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+                menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
+                assignmentId: undefined,
+                name: item.name,
+                quantity: item.quantity,
+                unitPrice: item.price,
+                totalPrice: item.price * item.quantity,
+                type: item.type as "material" | "menu_item",
+                notes: item.notes || undefined,
+                menuItem: item.type === "menu_item"
+              })),
+              notes: orderNotes || undefined,
+              discountType: appliedDiscount?.type,
+              discountValue: appliedDiscount?.value,
+              discountAmount: appliedDiscount?.amount || 0,
+              discountReason: appliedDiscount?.reason
+            };
+            
+            console.log("📋 Creating order in background:", { orderType, itemCount: orderData.items.length });
+            const createOrderResponse = await createOrder(orderData);
+            orderToComplete = createOrderResponse && typeof createOrderResponse === "object" && "order" in createOrderResponse 
+              ? (createOrderResponse as any).order 
+              : createOrderResponse;
+          }
+
+          if (!orderToComplete) {
+            throw new Error("No order available for completion");
+          }
+
+          // Ensure order has valid ID
+          if (!orderToComplete.id) {
+            const orderAny = orderToComplete as any;
+            const orderId = orderToComplete.id || orderAny.orderId || orderAny.orderNumber;
+            if (orderId) {
+              orderToComplete.id = orderId;
+            } else {
+              throw new Error(`Order created but missing ID`);
+            }
+          }
+
+          console.log("💳 Processing payment in background:", { orderId: orderToComplete.id });
+          
+          // Complete order with timeout protection
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Order completion timeout")), 10000)
+          );
+          
+          const response = await Promise.race([
+            ordersAPI.completeOrder(orderToComplete.id, optimisticPaymentData), 
+            timeoutPromise
+          ]) as any;
+
+          // Extract order and sale ID from response
+          let order: any, saleId: string;
+          if (response?.data) {
+            if (response.data.order && response.data.saleId) {
+              order = response.data.order;
+              saleId = response.data.saleId;
+            } else if (response.data.order) {
+              order = response.data.order;
+              saleId = order.id || optimisticSaleId;
+            } else if (response.data.id) {
+              order = response.data;
+              saleId = response.data.id;
+            } else {
+              order = { id: orderToComplete.id, items: cart, subtotal, tax, total, status: "completed" };
+              saleId = optimisticSaleId;
+            }
+          } else {
+            order = { id: orderToComplete.id, items: cart, subtotal, tax, total, status: "completed" };
+            saleId = optimisticSaleId;
+          }
+
+          console.log("💳 Payment completed in background:", { saleId, orderId: order.id });
+
+          // Update receipt with actual data if different from optimistic
+          if (saleId !== optimisticSaleId) {
+            const updatedReceiptData = { ...optimisticReceiptData, id: saleId };
+            setLastSaleData(updatedReceiptData);
+          }
+
+          // Mark order as completed
+          completedOrdersRef.current.add(orderToComplete.id.toString());
+          console.log("✅ Order marked as completed:", { orderId: orderToComplete.id });
+
+          // PARALLEL BACKGROUND OPERATIONS - Don't block UI
+          const backgroundOperations = [];
+
+          // Table clearing
+          if (selectedTable && orderType === "table") {
+            backgroundOperations.push(
+              (async () => {
+                try {
+                  console.log("📍 Clearing table reservation in background:", selectedTable.id);
+                  await tablesAPI.clearReservation(selectedTable.id);
+                  const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
+                  const responseData = tablesResponse.data as Table[] | { data: Table[] };
+                  const refreshedTables = Array.isArray(responseData) ? responseData : responseData.data || [];
+                  setTables(refreshedTables);
+                  console.log("📍 Tables refreshed in background:", { count: refreshedTables.length });
+                } catch (error) {
+                  console.error("⚠️ Table update error (non-critical):", error);
+                }
+              })()
+            );
+          }
+
+          // Employee usage recording
+          if (selectedEmployee && orderType === "employees") {
+            backgroundOperations.push(
+              (async () => {
+                try {
+                  const { recordEmployeeUsageWithSettlementUpdate } = await import("@/utils/employeeUsageUtils");
+                  const posTransactionId = order.orderNumber || saleId;
+                  console.log("👤 Recording employee usage in background:", { employeeId: selectedEmployee.id });
+                  await recordEmployeeUsageWithSettlementUpdate(selectedEmployee, cart, posTransactionId);
+                  console.log("✅ Employee usage recorded in background");
+                } catch (error) {
+                  console.error("⚠️ Employee usage recording error (non-critical):", error);
+                }
+              })()
+            );
+          }
+
+          // Printing
+          backgroundOperations.push(
+            (async () => {
+              try {
+                await printItemsToAssignedPrinters(cart);
+                console.log("🖨️ Printing completed in background");
+              } catch (error) {
+                console.error("⚠️ Printing error (non-critical):", error);
+              }
+            })()
+          );
+
+          // Count refresh
+          backgroundOperations.push(
+            (async () => {
+              try {
+                await refreshAllCounts();
+                console.log("🔄 Counts refreshed in background");
+              } catch (error) {
+                console.error("⚠️ Count refresh error (non-critical):", error);
+              }
+            })()
+          );
+
+          // Execute all background operations in parallel
+          await Promise.allSettled(backgroundOperations);
+
+          // Trigger sale completion callback
+          if (onSaleComplete) {
+            const response = {
+              sale: { id: saleId },
+              message: "Sale completed"
+            } as SaleResponse;
+            console.log("💳 Sale completion callback triggered in background:", { saleId });
+            onSaleComplete(response);
+          }
+
+        } catch (error: unknown) {
+          console.error("❌ Background payment processing failed:", error);
+          // Don't show error to user since UI already shows success
+          // Log for debugging purposes only
+        }
+      };
+
+      // Start background processing without awaiting
+      backgroundProcessing();
+
+      // Clear order state after UI updates
+      clearOrder();
+      setSelectedEmployee(null);
+      setSelectedTable(null);
       resetToTakeaway();
 
-      // Refresh counts but prevent order reloading
-      await refreshAllCounts();
-
-      // Reset payment completed flag after a delay to allow for proper cleanup
+      // Reset flags after UI animations complete
       setTimeout(() => {
         setIsPaymentCompleted(false);
       }, 2000);
-      if (onSaleComplete) {
-        const response = {
-          sale: { id: saleId },
-          message: "Sale completed"
-        } as SaleResponse;
-        console.log("💳 Sale completion callback triggered:", { saleId });
-        onSaleComplete(response);
-      }
+
     } catch (error: unknown) {
       console.error("❌ Payment failed:", error);
       const errorMessage = error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object" && "data" in error.response && error.response.data && typeof error.response.data === "object" && "message" in error.response.data ? (error.response.data.message as string) : "Sale failed. Please try again.";
