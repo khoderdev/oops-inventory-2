@@ -17,18 +17,9 @@ export const useOrderManagement = () => {
       const orderData = {
         ...data
       };
-      console.log("Creating order - backend will generate order number");
-      console.log("🚀 Making API call to ordersAPI.createOrder with:", orderData);
-
       const response = await ordersAPI.createOrder(orderData);
-      console.log("📦 API response received:", response);
-
       const newOrder = response.data;
-      console.log("🎆 New order created:", newOrder);
-
       setCurrentOrder(newOrder);
-      console.log("💾 Order saved to state");
-
       return newOrder;
     } catch (error: unknown) {
       console.error("❌ Order creation failed with error:", error);
@@ -38,10 +29,8 @@ export const useOrderManagement = () => {
         status: (error as any)?.response?.status,
         data: (error as any)?.response?.data
       });
-
       const errorMessage = (error as any)?.response?.data?.message || "Failed to create order";
       console.error("🚨 Setting error message:", errorMessage);
-
       setError(errorMessage);
       throw error;
     } finally {
@@ -77,14 +66,10 @@ export const useOrderManagement = () => {
       setIsLoading(true);
       setError(null);
       try {
-        console.log("🔍 updateOrder - currentOrder:", currentOrder);
         const orderId = currentOrder.id || (currentOrder as any)?.data?.id;
-        console.log("🔍 updateOrder - extracted orderId:", orderId);
         if (!orderId) {
-          console.error("🔍 updateOrder - No valid order ID found!");
           throw new Error("No valid order ID found in currentOrder");
         }
-        console.log("🔍 updateOrder - calling API with orderId:", orderId);
         const response = await ordersAPI.updateOrder(orderId, data);
         const responseData = response.data as { data?: any } | any;
         const updatedOrder = responseData.data || responseData;
@@ -156,38 +141,25 @@ export const useOrderManagement = () => {
       if (!currentOrder) {
         throw new Error("No current order to void");
       }
-
       setIsLoading(true);
       setError(null);
-
       try {
-        // Handle nested currentOrder structure
         const orderId = currentOrder.id || (currentOrder as any)?.data?.id;
         if (!orderId) {
           throw new Error("No valid order ID found in currentOrder");
         }
-
-        console.log("🚫 Voiding order:", orderId, "with reason:", reason);
-
         const response = await ordersAPI.voidOrder(orderId, {
           reason: reason || "Order voided by user",
           restoreStock
         });
-
-        // Handle nested response structure
         const responseData = response.data as { order?: any; stockRestorations?: any[] } | any;
         const voidedOrder = responseData.order || responseData;
         const stockRestorations = responseData.stockRestorations;
-
-        // Clear current order after voiding
         setCurrentOrder(null);
-
-        // Show success message with stock restoration info
         let successMessage = "Order voided successfully";
         if (stockRestorations && stockRestorations.length > 0) {
           successMessage += `. Stock restored for ${stockRestorations.length} item(s).`;
         }
-
         return { order: voidedOrder, stockRestorations };
       } catch (error: unknown) {
         const errorMessage = (error as any)?.response?.data?.message || "Failed to void order";

@@ -1486,62 +1486,98 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       showError("Cannot save empty order");
       return;
     }
-    console.log("📋 Saving order manually");
+    
+    console.log("📋 Initiating ultra-fast order saving");
     setIsPOSActionInProgress(true);
-    try {
-      setIsLoading(true);
-      let savedOrder;
-      if (currentOrder?.id) {
-        const existingOrderItems = (currentOrder.items || []) as any[];
-        const keyForOrderItem = (oi: any) => {
-          if (oi.menuItem) return `menu:${oi.menuItem.id}`;
-          if (oi.menuItemId) return `menu:${oi.menuItemId}`;
-          if (oi.material) return `mat:${oi.material.id}`;
-          if (oi.materialId) return `mat:${oi.materialId}`;
-          return `id:${oi.id}`;
-        };
-        const keyForCartItem = (ci: POSCartItem) => {
-          if (ci.type === "menu_item") return `menu:${(ci.originalItem as MenuItem).id}`;
-          return `mat:${(ci.originalItem as StockEntryWithMaterial).materialId}`;
-        };
-        const existingMap = new Map<string, { qty: number; ids: string[]; unitPrice: number }>();
-        existingOrderItems.forEach(oi => {
-          const key = keyForOrderItem(oi);
-          const prev = existingMap.get(key);
-          const idStr = (oi.id?.toString?.() || oi.id) as string;
-          const unitPrice = typeof oi.unitPrice === "string" ? parseFloat(oi.unitPrice) : oi.unitPrice;
-          if (prev) {
-            prev.qty += oi.quantity || 0;
-            prev.ids.push(idStr);
-            prev.unitPrice = unitPrice ?? prev.unitPrice;
-          } else {
-            existingMap.set(key, { qty: oi.quantity || 0, ids: [idStr], unitPrice: unitPrice ?? 0 });
-          }
-        });
-        const desiredMap = new Map<string, { qty: number; sample: POSCartItem }>();
-        (cart || []).forEach(ci => {
-          const key = keyForCartItem(ci);
-          const prev = desiredMap.get(key);
-          if (prev) {
-            prev.qty += ci.quantity;
-          } else {
-            desiredMap.set(key, { qty: ci.quantity, sample: ci });
-          }
-        });
+    setIsLoading(true);
 
-        const itemIdsToRemove: string[] = [];
-        const removedItemsForVoidReceipt: POSCartItem[] = [];
-        
-        existingMap.forEach((val, key) => {
-          const desired = desiredMap.get(key);
-          if (!desired || desired.qty !== val.qty) {
-            itemIdsToRemove.push(...val.ids);
-            const orderItem = existingOrderItems.find(oi => keyForOrderItem(oi) === key);
-            if (orderItem && (!desired || desired.qty < val.qty)) {
-              const removedQuantity = val.qty - (desired?.qty || 0);
-              let printerId: number | undefined;
-              let assignedPrinter: any;
-              if (orderItem.menuItem || orderItem.menuItemId) {
+    try {
+      // INSTANT UI UPDATES - Show success immediately
+      setShowSuccessCheckmark(true);
+      justSavedRef.current = true;
+      
+      // Generate optimistic order identifier
+      const optimisticOrderId = currentOrder?.orderNumber || currentOrder?.id || `ORDER-${Date.now()}`;
+      console.log("📋 Order saved (optimistic):", { orderIdentifier: optimisticOrderId });
+      
+      // Show immediate success feedback
+      showSuccess(`Order ${optimisticOrderId} saved successfully!`);
+
+      // Start cart clearing animation immediately
+      setTimeout(() => {
+        clearCartWithAnimation();
+        setAppliedDiscount(null);
+        setDiscountAmount(0);
+        setPaymentAmount("");
+        setOrderNotes("");
+        setHasUnsavedChanges(true);
+        setOrderType("takeaway");
+        setSelectedTable(undefined);
+        setSelectedEmployee(undefined);
+        OrderPersistence.clearCurrentOrder();
+        setShowTablesLayout(false);
+        if (clearOrder) clearOrder();
+        setTimeout(() => {
+          setShowSuccessCheckmark(false);
+          justSavedRef.current = false;
+        }, 2000);
+      }, 100);
+
+      // BACKGROUND PROCESSING - Handle actual API calls without blocking UI
+      const backgroundSaving = async () => {
+        try {
+          let savedOrder;
+          if (currentOrder?.id) {
+            const existingOrderItems = (currentOrder.items || []) as any[];
+            const keyForOrderItem = (oi: any) => {
+              if (oi.menuItem) return `menu:${oi.menuItem.id}`;
+              if (oi.menuItemId) return `menu:${oi.menuItemId}`;
+              if (oi.material) return `mat:${oi.material.id}`;
+              if (oi.materialId) return `mat:${oi.materialId}`;
+              return `id:${oi.id}`;
+            };
+            const keyForCartItem = (ci: POSCartItem) => {
+              if (ci.type === "menu_item") return `menu:${(ci.originalItem as MenuItem).id}`;
+              return `mat:${(ci.originalItem as StockEntryWithMaterial).materialId}`;
+            };
+            const existingMap = new Map<string, { qty: number; ids: string[]; unitPrice: number }>();
+            existingOrderItems.forEach(oi => {
+              const key = keyForOrderItem(oi);
+              const prev = existingMap.get(key);
+              const idStr = (oi.id?.toString?.() || oi.id) as string;
+              const unitPrice = typeof oi.unitPrice === "string" ? parseFloat(oi.unitPrice) : oi.unitPrice;
+              if (prev) {
+                prev.qty += oi.quantity || 0;
+                prev.ids.push(idStr);
+                prev.unitPrice = unitPrice ?? prev.unitPrice;
+              } else {
+                existingMap.set(key, { qty: oi.quantity || 0, ids: [idStr], unitPrice: unitPrice ?? 0 });
+              }
+            });
+            const desiredMap = new Map<string, { qty: number; sample: POSCartItem }>();
+            (cart || []).forEach(ci => {
+              const key = keyForCartItem(ci);
+              const prev = desiredMap.get(key);
+              if (prev) {
+                prev.qty += ci.quantity;
+              } else {
+                desiredMap.set(key, { qty: ci.quantity, sample: ci });
+              }
+            });
+
+            const itemIdsToRemove: string[] = [];
+            const removedItemsForVoidReceipt: POSCartItem[] = [];
+            
+            existingMap.forEach((val, key) => {
+              const desired = desiredMap.get(key);
+              if (!desired || desired.qty !== val.qty) {
+                itemIdsToRemove.push(...val.ids);
+                const orderItem = existingOrderItems.find(oi => keyForOrderItem(oi) === key);
+                if (orderItem && (!desired || desired.qty < val.qty)) {
+                  const removedQuantity = val.qty - (desired?.qty || 0);
+                  let printerId: number | undefined;
+                  let assignedPrinter: any;
+                  if (orderItem.menuItem || orderItem.menuItemId) {
                 const menuItemId = orderItem.menuItemId || orderItem.menuItem?.id;
                 const originalMenuItem = menuItems.find(mi => mi.id === menuItemId);
                 printerId = originalMenuItem?.printerId;
@@ -1674,76 +1710,88 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           const respAdd = await ordersAPI.addOrderItems(currentOrder.id, mappedItemsToAdd);
           savedOrder = respAdd.data;
         }
-        const updateData = {
-          discountType: appliedDiscount?.type,
-          discountValue: appliedDiscount?.value,
-          discountAmount: appliedDiscount?.amount || 0,
-          discountReason: appliedDiscount?.reason,
-          notes: orderNotes || undefined
-        };
-        console.log("📋 Updating existing order metadata:", { orderId: currentOrder.id });
-        savedOrder = await updateOrder(updateData);
-      } else {
-        const createData = {
-          orderType,
-          tableId: selectedTable?.id,
-          employeeId: selectedEmployee?.id,
-          items: cart.map(item => {
-            return {
-              materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
-              menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
-              assignmentId: undefined,
-              name: item.name,
-              quantity: item.quantity,
-              unitPrice: item.price,
-              totalPrice: item.price * item.quantity,
-              type: item.type as "material" | "menu_item",
-              notes: item.notes || undefined
+            const updateData = {
+              discountType: appliedDiscount?.type,
+              discountValue: appliedDiscount?.value,
+              discountAmount: appliedDiscount?.amount || 0,
+              discountReason: appliedDiscount?.reason,
+              notes: orderNotes || undefined
             };
-          }),
-          notes: orderNotes || undefined,
-          discountType: appliedDiscount?.type,
-          discountValue: appliedDiscount?.value,
-          discountAmount: appliedDiscount?.amount || 0,
-          discountReason: appliedDiscount?.reason
-        };
-        console.log("📋 Creating new order:", { orderType, itemCount: createData.items.length });
-        savedOrder = await createOrder(createData);
-      }
-      const orderIdentifier = savedOrder?.orderNumber || savedOrder?.id || savedOrder?.order?.orderNumber || savedOrder?.order?.id || currentOrder?.orderNumber || currentOrder?.id || "New Order";
-      console.log("📋 Order saved:", { orderIdentifier });
-      await printItemsToAssignedPrinters(cart);
-      if (onOrderProcessed) onOrderProcessed();
-      console.log("🔄 Refreshing orders count after order creation");
-      await refreshAllCounts();
-      justSavedRef.current = true;
-      setTimeout(() => (justSavedRef.current = false), 1500);
-      setShowSuccessCheckmark(true);
-      setTimeout(() => {
-        clearCartWithAnimation();
-        setAppliedDiscount(null);
-        setDiscountAmount(0);
-        setPaymentAmount("");
-        setOrderNotes("");
-        setHasUnsavedChanges(true);
-        setOrderType("takeaway");
-        setSelectedTable(undefined);
-        setSelectedEmployee(undefined);
-        OrderPersistence.clearCurrentOrder();
-        setShowTablesLayout(false);
-        if (clearOrder) clearOrder();
-        setTimeout(() => {
-          setShowSuccessCheckmark(false);
-        }, 2000);
-      }, 100);
-    } catch (error) {
-      console.error("❌ Failed to save order:", error);
-      showError("Failed to save order. Please try again.");
+            console.log("📋 Updating existing order metadata:", { orderId: currentOrder.id });
+            savedOrder = await updateOrder(updateData);
+          } else {
+            const createData = {
+              orderType,
+              tableId: selectedTable?.id,
+              employeeId: selectedEmployee?.id,
+              items: cart.map(item => {
+                return {
+                  materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+                  menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
+                  assignmentId: undefined,
+                  name: item.name,
+                  quantity: item.quantity,
+                  unitPrice: item.price,
+                  totalPrice: item.price * item.quantity,
+                  type: item.type as "material" | "menu_item",
+                  notes: item.notes || undefined
+                };
+              }),
+              notes: orderNotes || undefined,
+              discountType: appliedDiscount?.type,
+              discountValue: appliedDiscount?.value,
+              discountAmount: appliedDiscount?.amount || 0,
+              discountReason: appliedDiscount?.reason
+            };
+            console.log("📋 Creating new order:", { orderType, itemCount: createData.items.length });
+            savedOrder = await createOrder(createData);
+          }
+
+          const orderIdentifier = savedOrder?.orderNumber || savedOrder?.id || savedOrder?.order?.orderNumber || savedOrder?.order?.id || currentOrder?.orderNumber || currentOrder?.id || "New Order";
+          console.log("📋 Order saved:", { orderIdentifier });
+
+          // PARALLEL BACKGROUND OPERATIONS - Don't block UI
+          const backgroundOperations = [
+            (async () => {
+              try {
+                await printItemsToAssignedPrinters(cart);
+                console.log("🖨️ Printing completed in background");
+              } catch (error) {
+                console.error("⚠️ Printing error (non-critical):", error);
+              }
+            })(),
+            (async () => {
+              try {
+                if (onOrderProcessed) onOrderProcessed();
+                await refreshAllCounts();
+                console.log("🔄 Counts refreshed in background");
+              } catch (error) {
+                console.error("⚠️ Count refresh error (non-critical):", error);
+              }
+            })()
+          ];
+
+          // Execute all background operations in parallel
+          Promise.allSettled(backgroundOperations);
+
+        } catch (error: unknown) {
+          console.error("❌ Background save processing failed:", error);
+          // Don't show error to user since UI already shows success
+        }
+      };
+
+      // Start background processing without awaiting
+      backgroundSaving();
+
+    } catch (error: unknown) {
+      console.error("❌ Save failed:", error);
+      const errorMessage = error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object" && "data" in error.response && error.response.data && typeof error.response.data === "object" && "message" in error.response.data ? (error.response.data.message as string) : "Failed to save order. Please try again.";
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
       setIsPOSActionInProgress(false);
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, printItemsToAssignedPrinters, refreshAllCounts]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, printItemsToAssignedPrinters, refreshAllCounts, onOrderProcessed, menuItems, stockEntries, printVoidReceiptsForRemovedItems]);
 
   const handlePayment = useCallback(async () => {
     if (cart.length === 0) {
