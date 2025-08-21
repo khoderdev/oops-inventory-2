@@ -1,20 +1,19 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { MenuItem, MenuItemCategory } from "@/types/inventory";
-import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
-import { BeverageItemForm } from "./BeverageItemForm";
-import { Plus, Search, Check, X, Square, CheckSquare, Eye, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Check, X, Square, CheckSquare } from "lucide-react";
 import { menuAPI } from "@/api/inventory.api";
 import { toast } from "../ui/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { formatCurrency } from "@/utils/conversionLogic";
 import { BeveragesMenuBuilderProps } from "@/types/menuItems";
+import { BeverageItemFormDialog, BeverageDetailsDialog } from "./components/BeveragesMenuDialogs";
+import { useBeveragesMenuColumns } from "./components/BeveragesMenuColumns";
 
 const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, categoriesLoading, categoriesError, stockEntries, materials, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const { fetchTabData } = useInventoryStore();
@@ -135,135 +134,14 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
     [onDeleteBeverageItem]
   );
 
-  const columnHelper = createColumnHelper<MenuItem>();
-
-  const columns = useMemo(
-    () => [
-      columnHelper.display({
-        id: "select",
-        header: ({ table }) => <div className="flex items-center justify-center">{bulkSelectionMode && <input type="checkbox" checked={table.getIsAllRowsSelected()} onChange={table.getToggleAllRowsSelectedHandler()} className="h-4 w-4" />}</div>,
-        cell: ({ row }) => <div className="flex items-center justify-center">{bulkSelectionMode && <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} className="h-4 w-4" />}</div>,
-        size: 40
-      }),
-      columnHelper.accessor("image", {
-        header: "Image",
-        cell: info => (
-          <div className="flex items-center">
-            {info.getValue() ? (
-              <img src={info.getValue()} alt="Beverage" className="w-16 h-20 object-contain rounded-md border border-gray-200" />
-            ) : (
-              <div className="w-14 h-14 bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center">
-                <span className="text-gray-400 text-xs">No Image</span>
-              </div>
-            )}
-          </div>
-        ),
-        size: 80
-      }),
-      columnHelper.accessor("name", {
-        header: "Name",
-        cell: info => <div className="font-medium">{info.getValue()}</div>,
-        size: 200
-      }),
-
-      // Category column
-      columnHelper.accessor(
-        row => {
-          if (typeof row.category === "string") {
-            return row.category;
-          } else if (typeof row.category === "object" && row.category?.name) {
-            return row.category.name;
-          } else if (typeof row.category === "number") {
-            const categoryObj = categories.find(c => c.id === row.category);
-            return categoryObj?.value || "Unknown";
-          }
-          return "Unknown";
-        },
-        {
-          id: "category",
-          header: "Category",
-          cell: info => <div>{info.getValue()}</div>,
-          size: 150
-        }
-      ),
-
-      // Price column
-      columnHelper.accessor("price", {
-        header: "Price",
-        cell: info => <div>{formatCurrency(info.getValue())}</div>,
-        size: 100
-      }),
-
-      // Actions column
-      columnHelper.display({
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant={row.original.isPOSItem ? "default" : "outline"}
-                  className={row.original.isPOSItem ? "bg-teal-600 hover:bg-teal-700 text-white" : ""}
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleTogglePOSVisibility(row.original);
-                  }}
-                  aria-label={`${row.original.isPOSItem ? "Hide from" : "Show in"} POS`}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{row.original.isPOSItem ? "Hide from POS" : "Show in POS"}</p>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleEditBeverageItem(row.original);
-                  }}
-                  className="h-8 w-8 p-0"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Edit {row.original.name}</p>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleDeleteBeverageItem(row.original.id);
-                  }}
-                  className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete {row.original.name}</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        ),
-        size: 120
-      })
-    ],
-    [categories, handleTogglePOSVisibility, handleEditBeverageItem, handleDeleteBeverageItem]
-  );
+  // Use the extracted columns component
+  const { columns } = useBeveragesMenuColumns({
+    categories,
+    bulkSelectionMode,
+    handleTogglePOSVisibility,
+    handleEditBeverageItem,
+    handleDeleteBeverageItem
+  });
 
   // Set up table
   const table = useReactTable({
@@ -277,14 +155,12 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
     },
     onRowSelectionChange: updater => {
       const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedBeverageItems).map(id => [filteredBeverageItems.findIndex(item => item.id === id), true]))) : updater;
-
       const newSelectedBeverageItems = new Set<string>();
       Object.entries(newSelection).forEach(([index, isSelected]) => {
         if (isSelected && filteredBeverageItems[Number(index)]) {
           newSelectedBeverageItems.add(filteredBeverageItems[Number(index)].id);
         }
       });
-
       setSelectedBeverageItems(newSelectedBeverageItems);
     }
   });
@@ -396,149 +272,38 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
             </Table>
 
             {/* Beverage Item Form Dialog */}
-            <Dialog open={showBeverageItemForm} onOpenChange={handleCloseModal} modal={true}>
-              <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
-                <DialogHeader>
-                  <DialogTitle className="text-lg sm:text-xl">{editingBeverageItem ? "Edit Beverage Item" : "Create New Beverage Item"}</DialogTitle>
-                </DialogHeader>
-                <BeverageItemForm
-                  menuItem={editingBeverageItem}
-                  categories={beverageCategories}
-                  materials={materials}
-                  stockEntries={stockEntries}
-                  onSubmit={
-                    editingBeverageItem
-                      ? data => {
-                          onUpdateBeverageItem(editingBeverageItem.id, data);
-                          handleCloseModal();
-                        }
-                      : data => {
-                          onCreateBeverageItem(data);
-                          handleCloseModal();
-                        }
-                  }
-                  onCancel={handleCloseModal}
-                  enableVariants={true}
-                />
-              </DialogContent>
-            </Dialog>
+            <BeverageItemFormDialog
+              open={showBeverageItemForm}
+              onOpenChange={handleCloseModal}
+              editingBeverageItem={editingBeverageItem}
+              categories={beverageCategories}
+              materials={materials}
+              stockEntries={stockEntries}
+              onSubmit={
+                editingBeverageItem
+                  ? data => {
+                      onUpdateBeverageItem(editingBeverageItem.id, data);
+                      handleCloseModal();
+                    }
+                  : data => {
+                      onCreateBeverageItem(data);
+                      handleCloseModal();
+                    }
+              }
+              onCancel={handleCloseModal}
+            />
 
             {/* Beverage Details Modal */}
-            <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-              <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[95vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="text-lg sm:text-xl">{selectedBeverageDetails?.name || "Beverage Details"}</DialogTitle>
-                </DialogHeader>
-                {selectedBeverageDetails && (
-                  <div className="grid gap-6 py-4">
-                    <div className="flex items-start gap-6">
-                      {selectedBeverageDetails.image ? (
-                        <img src={selectedBeverageDetails.image} alt={selectedBeverageDetails.name} className="w-32 h-32 object-cover rounded-md border" />
-                      ) : (
-                        <div className="w-32 h-32 bg-gray-100 rounded-md border flex items-center justify-center">
-                          <span className="text-gray-400">No Image</span>
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <h3 className="text-xl font-semibold">{selectedBeverageDetails.name}</h3>
-                        <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2">
-                          <div>
-                            <span className="text-sm text-gray-500">Category</span>
-                            <p className="font-medium">{typeof selectedBeverageDetails.category === "object" && selectedBeverageDetails.category?.name ? selectedBeverageDetails.category.name : typeof selectedBeverageDetails.category === "string" ? selectedBeverageDetails.category : "Uncategorized"}</p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-gray-500">Price</span>
-                            <p className="font-medium">{formatCurrency(selectedBeverageDetails.price)}</p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-gray-500">POS Status</span>
-                            <p className="font-medium flex items-center gap-1">
-                              {selectedBeverageDetails.isPOSItem ? (
-                                <>
-                                  <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-                                  Visible in POS
-                                </>
-                              ) : (
-                                <>
-                                  <span className="inline-block w-2 h-2 rounded-full bg-gray-300"></span>
-                                  Hidden from POS
-                                </>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {selectedBeverageDetails.description && (
-                      <div>
-                        <h4 className="font-medium mb-1">Description</h4>
-                        <p className="text-gray-700">{selectedBeverageDetails.description}</p>
-                      </div>
-                    )}
-
-                    {selectedBeverageDetails.variants && Array.isArray(selectedBeverageDetails.variants) && selectedBeverageDetails.variants.length > 0 && (
-                      <div>
-                        <h4 className="font-medium mb-2">Variants</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {selectedBeverageDetails.variants.map(variant => (
-                            <div key={variant.id} className="border rounded-md p-3">
-                              <div className="flex justify-between items-center">
-                                <span className="font-medium">{variant.name}</span>
-                                <span className="text-sm font-semibold">{formatCurrency(Number(variant.price))}</span>
-                              </div>
-                              <div className="text-sm text-gray-500 mt-1">
-                                {variant.volume} {variant.unit}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedBeverageDetails.beverageStockId && (
-                      <div>
-                        <h4 className="font-medium mb-1">Inventory Information</h4>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                          <div>
-                            <span className="text-sm text-gray-500">Stock ID</span>
-                            <p className="font-medium">{selectedBeverageDetails.beverageStockId}</p>
-                          </div>
-                          {selectedBeverageDetails.availableQuantity !== undefined && (
-                            <div>
-                              <span className="text-sm text-gray-500">Available Quantity</span>
-                              <p className="font-medium">
-                                {selectedBeverageDetails.availableQuantity} {selectedBeverageDetails.unit || "units"}
-                              </p>
-                            </div>
-                          )}
-                          {selectedBeverageDetails.costPerUnit !== undefined && (
-                            <div>
-                              <span className="text-sm text-gray-500">Cost Per Unit</span>
-                              <p className="font-medium">{formatCurrency(selectedBeverageDetails.costPerUnit)}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-end gap-3 mt-4">
-                      <Button variant="outline" onClick={handleCloseDetailsModal}>
-                        Close
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          handleCloseDetailsModal();
-                          handleEditBeverageItem(selectedBeverageDetails);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </DialogContent>
-            </Dialog>
+            <BeverageDetailsDialog
+              open={showDetailsModal}
+              onOpenChange={setShowDetailsModal}
+              selectedBeverageDetails={selectedBeverageDetails}
+              onClose={handleCloseDetailsModal}
+              onEdit={menuItem => {
+                handleCloseDetailsModal();
+                handleEditBeverageItem(menuItem);
+              }}
+            />
           </CardContent>
         </Card>
 

@@ -450,3 +450,33 @@ export const formatPOSPrice = (amount: number): string => {
     }).format(amount);
   }
 };
+
+
+/**
+ * Format volume values for display:
+ * - For values with decimals like 3.888888077, show only 6 decimal places
+ * - For values with .00 decimals like 3.00, show only the integer part (3)
+ */
+export function formatVolume(value: number | string): string {
+  // Convert to number if it's a string
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  
+  // Handle invalid values
+  if (numValue === null || numValue === undefined || isNaN(numValue)) {
+    return '0';
+  }
+  
+  // Check if it's a whole number (no decimal part)
+  if (Number.isInteger(numValue)) {
+    return numValue.toString();
+  }
+  
+  // Check if it has only zeros after decimal point (like 3.00)
+  if (numValue % 1 === 0) {
+    return Math.floor(numValue).toString();
+  }
+  
+  // For numbers with significant decimals, limit to 6 decimal places
+  // and remove trailing zeros
+  return numValue.toFixed(6).replace(/\.?0+$/, '');
+}

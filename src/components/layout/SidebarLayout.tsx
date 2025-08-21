@@ -184,18 +184,18 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64 mr-2 sm:mr-4" sideOffset={8}>
-                  <DropdownMenuLabel>
+                  <DropdownMenuLabel className="py-1.5">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium truncate">{user?.fullName || "User"}</p>
+                      <p className="text-xs font-medium truncate">{user?.fullName || "User"}</p>
                       <p className="text-xs text-gray-500 truncate">@{user?.username}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/profile")} className="transition-all duration-200 cursor-pointer">
+                  <DropdownMenuItem onClick={() => navigate("/profile")} className="transition-all duration-200 cursor-pointer py-1.5 text-sm">
                     <User className="mr-2 h-4 w-4" />
                     Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/profile/sessions")} className="transition-all duration-200 cursor-pointer">
+                  <DropdownMenuItem onClick={() => navigate("/profile/sessions")} className="transition-all duration-200 cursor-pointer py-1.5 text-sm">
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </DropdownMenuItem>

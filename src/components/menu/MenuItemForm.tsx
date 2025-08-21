@@ -1,21 +1,12 @@
-import { Material, MenuItem, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
-import { Category } from "@/types/categories";
+import { MenuItemCategory, MenuItemIngredient } from "@/types/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
 import { ImageUpload } from "../ui/image-upload";
 import { toast } from "../ui/use-toast";
-import { Ingredients } from "./Ingredients";
-
-interface MenuItemFormProps {
-  menuItem?: MenuItem;
-  materials: Material[];
-  stockEntries: StockEntry[];
-  categories: Category[];
-  onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;
-  onCancel: () => void;
-}
+import { Ingredients } from "./components/Ingredients";
+import { MenuItemFormProps } from "@/types/menuItems";
 
 export function MenuItemForm({ menuItem, materials, stockEntries, categories, onSubmit, onCancel }: MenuItemFormProps) {
   const [name, setName] = useState(menuItem?.name || "");
@@ -24,10 +15,7 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
-  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(
-    // Check both menuItem.ingredients and menuItem.menuItemIngredients
-    menuItem && menuItem.ingredients && Array.isArray(menuItem.ingredients) ? menuItem.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) : menuItem && menuItem.menuItemIngredients && Array.isArray(menuItem.menuItemIngredients) ? menuItem.menuItemIngredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) : []
-  );
+  const [ingredients, setIngredients] = useState<MenuItemIngredient[]>(menuItem && menuItem.ingredients && Array.isArray(menuItem.ingredients) ? menuItem.ingredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) : menuItem && menuItem.menuItemIngredients && Array.isArray(menuItem.menuItemIngredients) ? menuItem.menuItemIngredients.map(i => ({ materialId: i.materialId, quantity: i.quantity, unit: i.unit, cost: i.cost })) : []);
   const [errors, setErrors] = useState<{
     name?: string;
     category?: string;
@@ -135,13 +123,8 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
     }
 
     try {
-      // Ingredients already have costs calculated by the Ingredients component
       const ingredientsWithCosts = ingredients;
-
-      // Find the selected category to validate it exists
       const selectedCategory = Array.isArray(categories) ? categories.find(cat => cat.value === category) : undefined;
-
-      // Validate that we found a valid category
       if (!selectedCategory && category) {
         console.error("Invalid category selected:", category);
         toast({
@@ -152,13 +135,14 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         });
         return;
       }
-      let categoryToSubmit: number | MenuItemCategory | { id: number; name: string } | null = null;
+      let categoryToSubmit: number | MenuItemCategory | { id: number; name: string; value: string } | null = null;
       if (selectedCategory) {
         categoryToSubmit = {
           id: selectedCategory.id,
-          name: selectedCategory.name
+          name: selectedCategory.name,
+          value: selectedCategory.value
         };
-      } else if (category && category !== "") {
+      } else if (category) {
         categoryToSubmit = category as MenuItemCategory;
       }
 
@@ -169,8 +153,8 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
         ingredients: ingredientsWithCosts,
         isPOSItem,
         image,
-        imageFile, // Include the File object for API
-        menuItemIngredients: false,
+        imageFile,
+        menuItemIngredients: ingredientsWithCosts,
         unit: "",
         availableQuantity: 0,
         costPerUnit: 0

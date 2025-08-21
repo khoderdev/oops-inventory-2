@@ -75,3 +75,47 @@ export interface BeveragesMenuBuilderProps {
   onUpdateBeverageItem: (id: string, data: Partial<MenuItem>) => void | Promise<void>;
   onDeleteBeverageItem: (id: string) => void | Promise<void>;
 }
+
+export interface BeverageItemFormDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editingBeverageItem: MenuItem | null;
+  categories: { id: string; name: string; value: string }[];
+  materials: any[];
+  stockEntries: any[];
+  onSubmit: (data: any) => void;
+  onCancel: () => void;
+}
+
+export interface BeverageDetailsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedBeverageDetails: MenuItem | null;
+  onClose: () => void;
+  onEdit: (menuItem: MenuItem) => void;
+}
+
+export interface MenuItemFormProps {
+  menuItem?: MenuItem;
+  materials: Material[];
+  stockEntries: StockEntry[];
+  categories: Category[];
+  onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;
+  onCancel: () => void;
+}
+
+export interface IngredientsProps {
+  ingredients: MenuItemIngredient[];
+  materials: Material[];
+  stockEntries: StockEntry[];
+  menuItem?: MenuItem;
+  category: string;
+  price: string;
+  onIngredientsChange: (ingredients: MenuItemIngredient[]) => void;
+  onValidationChange?: (hasErrors: boolean) => void;
+  errors?: {
+    ingredients?: string;
+    ingredientQuantity?: string;
+  };
+  onErrorsChange?: (errors: { ingredients?: string; ingredientQuantity?: string }) => void;
+}

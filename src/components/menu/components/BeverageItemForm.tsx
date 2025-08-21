@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Input } from "../ui/input";
-import { Button } from "../ui/button";
-import { Switch } from "../ui/switch";
-import { ImageUpload } from "../ui/image-upload";
-import { Selection, StockEntryItemRenderer } from "../ui/Selection";
-import { Variants, VariantData } from "../ui/Variants";
+import { Input } from "../../ui/input";
+import { Button } from "../../ui/button";
+import { Switch } from "../../ui/switch";
+import { ImageUpload } from "../../ui/image-upload";
+import { Selection, StockEntryItemRenderer } from "../../ui/Selection";
+import { Variants, VariantData } from "../../ui/Variants";
 import { CostBreakdown } from "./CostBreakdown";
 import { Ingredients } from "./Ingredients";
-import { toast } from "../ui/use-toast";
+import { toast } from "../../ui/use-toast";
 import { beverageStockAPI } from "@/api/stock.api.ts";
 import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient, MenuItem } from "@/types/inventory";
 

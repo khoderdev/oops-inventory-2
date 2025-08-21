@@ -1,4 +1,4 @@
-import { Material, MenuItem, MenuItemIngredient, StockEntry } from "@/types/inventory";
+import { Material, MenuItem, MenuItemIngredient } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
@@ -6,28 +6,13 @@ import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Selection } from "../ui/Selection";
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui/table";
+import { Selection } from "../../ui/Selection";
+import { IngredientsProps } from "@/types/menuItems";
 
-interface IngredientsProps {
-  ingredients: MenuItemIngredient[];
-  materials: Material[];
-  stockEntries: StockEntry[];
-  menuItem?: MenuItem;
-  category: string;
-  price: string;
-  onIngredientsChange: (ingredients: MenuItemIngredient[]) => void;
-  onValidationChange?: (hasErrors: boolean) => void;
-  errors?: {
-    ingredients?: string;
-    ingredientQuantity?: string;
-  };
-  onErrorsChange?: (errors: { ingredients?: string; ingredientQuantity?: string }) => void;
-}
-
-export function Ingredients({ ingredients, materials, stockEntries, menuItem, category, price, onIngredientsChange, onValidationChange, errors = {}, onErrorsChange }: IngredientsProps) {
+export function Ingredients({ ingredients, materials, stockEntries, menuItem, category, price, onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
@@ -39,7 +24,18 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
   const availableMaterials = useMemo(() => {
     const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
     const excludedCategories = ["beverages", "cold", "hot", "alcohol"];
-    return materials.filter(m => !usedMaterialIds.has(m.id) && !excludedCategories.includes(m.category?.toLowerCase() || ""));
+    return materials.filter(m => {
+      let categoryName = "";
+      if (typeof m.category === "string") {
+        categoryName = m.category.toLowerCase();
+      } else if (typeof m.category === "object" && m.category?.name) {
+        categoryName = m.category.name.toLowerCase();
+      } else if (typeof m.category === "object" && m.category?.value) {
+        categoryName = m.category.value.toLowerCase();
+      }
+
+      return !usedMaterialIds.has(m.id) && !excludedCategories.includes(categoryName);
+    });
   }, [materials, ingredients]);
 
   const filteredMaterials = useMemo(() => {
@@ -82,11 +78,9 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
         let unitCost = 0;
         if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
           unitCost = entry.costPerBaseUnit;
-        }
-        else if (entry.totalCost && entry.totalCost > 0) {
+        } else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
-        }
-        else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
           try {
             const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
             unitCost = parseFloat(String(entry.costPerPurchasedUnit)) / conversionFactor;
@@ -357,7 +351,7 @@ interface TanStackVirtualizedIngredientsTableProps {
   price: string;
 }
 
-const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ ingredients, materials, menuItem, calculateIngredientCost, getMaterialCostPerBaseUnit, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost, price }) => {
+const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ ingredients, materials, menuItem, calculateIngredientCost, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost, price }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnHelper = createColumnHelper<MenuItemIngredient & { index: number }>();
