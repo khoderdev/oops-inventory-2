@@ -220,7 +220,8 @@ class ApiClient {
 
 // Create API instance
 const api = new ApiClient({
-  baseURL: "http://localhost:3000/api",
+  baseURL: "https://oops-pos-backend.onrender.com/api",
+  // baseURL: "http://localhost:3000/api",
   timeout: 15000
 });
 
