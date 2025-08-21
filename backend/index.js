@@ -1,3 +1,7 @@
+import dotenv from "dotenv";
+// Load environment variables first
+dotenv.config();
+
 import cors from "cors";
 import express from "express";
 import { createServer } from "http";

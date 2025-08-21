@@ -218,10 +218,25 @@ class ApiClient {
   }
 }
 
+// Environment-based API configuration
+const getApiBaseURL = () => {
+  // Check if we're in production environment
+  const isProduction = import.meta.env.PROD || (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1");
+
+  const productionURL = "https://oops-pos-backend.onrender.com/api";
+  const developmentURL = "http://localhost:3000/api";
+
+  const baseURL = isProduction ? productionURL : developmentURL;
+
+  console.log(`🔧 Frontend API Config - Environment: ${isProduction ? "PRODUCTION" : "DEVELOPMENT"}`);
+  console.log(`🔧 Frontend API Config - Using API URL: ${baseURL}`);
+
+  return baseURL;
+};
+
 // Create API instance
 const api = new ApiClient({
-  baseURL: "https://oops-pos-backend.onrender.com/api",
-  // baseURL: "http://localhost:3000/api",
+  baseURL: getApiBaseURL(),
   timeout: 30000
 });
 
