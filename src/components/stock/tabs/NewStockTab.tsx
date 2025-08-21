@@ -7,116 +7,170 @@ import { cn } from "@/lib/utils";
 import { NewStockTabProps, StockFormData, StockFormInputs } from "@/types/inventory";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Minus, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Minus, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
-import { useEffect, useState } from "react";
+import type { Path, PathValue } from "react-hook-form";
+import { convertMass, convertVolume, isMassUnit, isVolumeUnit, formatNumber, formatCurrencyUI } from "@/utils/conversionLogic";
 
 export function NewStockTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: NewStockTabProps) {
-  const [lastChangedField, setLastChangedField] = useState<string | null>(null);
+  const toNumber = (v: string | undefined | null): number => {
+    if (!v || v === "") return NaN;
+    const n = parseFloat(v);
+    return isNaN(n) || !isFinite(n) ? NaN : n;
+  };
 
-  useEffect(() => {
-    // Skip calculations if no field has been changed yet
-    if (!lastChangedField) return;
+  const fmtMoney = (n: number): string => {
+    if (isNaN(n) || !isFinite(n)) return "";
+    return Math.max(0, n).toFixed(2);
+  };
 
-    // Parse values with consistent handling
-    const isQuantityEmpty = !watchedQuantity || watchedQuantity === "";
-    const isCostPerUnitEmpty = !watchedCostPerUnit || watchedCostPerUnit === "";
-    const isTotalCostEmpty = !watchedTotalCost || watchedTotalCost === "";
+  const setValue = <K extends Path<StockFormInputs>>(name: K, value: PathValue<StockFormInputs, K>) => {
+    form.setValue(name, value, { shouldValidate: true });
+  };
+  // Flexible formatting for CPU string in input (no $ sign, adaptive decimals)
+  const fmtCPU = (n: number): string => {
+    if (!isFinite(n) || isNaN(n) || n < 0) return "";
+    const s = formatCurrencyUI(n);
+    return s.startsWith("$") ? s.slice(1) : s;
+  };
+  const handleUnitChange = (newUnit: string) => {
+    const currentUnit = form.getValues("purchasedUnit");
+    if (!newUnit) return;
 
-    // Convert to numbers with fallbacks
-    const quantity = isQuantityEmpty ? 0 : parseFloat(watchedQuantity);
-    const costPerUnit = isCostPerUnitEmpty ? 0 : parseFloat(watchedCostPerUnit);
-    const totalCost = isTotalCostEmpty ? 0 : parseFloat(watchedTotalCost);
+    // Always set the unit
+    setValue("purchasedUnit", newUnit);
 
-    console.log(`Calculating with lastChangedField=${lastChangedField}, quantity=${quantity}, costPerUnit=${costPerUnit}, totalCost=${totalCost}`);
+    if (!currentUnit || newUnit === currentUnit) return;
 
-    if (lastChangedField === "totalCost") {
-      if (isTotalCostEmpty) {
-        // Clear cost per unit when total cost is cleared
-        form.setValue("costPerPurchasedUnit", "", { shouldValidate: true });
-      } else {
-        if (quantity > 0) {
-          // Calculate cost per unit from total cost and quantity
-          const calculatedCostPerUnit = totalCost / quantity;
-          if (!isNaN(calculatedCostPerUnit) && isFinite(calculatedCostPerUnit)) {
-            // Format to 2 decimal places and ensure it's positive
-            const formattedCostPerUnit = Math.max(0, calculatedCostPerUnit).toFixed(2);
-            console.log(`Setting costPerUnit to ${formattedCostPerUnit} from totalCost=${totalCost} / quantity=${quantity}`);
-            form.setValue("costPerPurchasedUnit", formattedCostPerUnit, { shouldValidate: true });
-          }
-        } else if (!isCostPerUnitEmpty) {
-          // Calculate quantity from total cost and cost per unit
-          const calculatedQuantity = totalCost / costPerUnit;
-          if (!isNaN(calculatedQuantity) && isFinite(calculatedQuantity) && calculatedQuantity > 0) {
-            console.log(`Setting quantity to ${Math.round(calculatedQuantity)} from totalCost=${totalCost} / costPerUnit=${costPerUnit}`);
-            form.setValue("purchasedQuantity", Math.round(calculatedQuantity).toString(), { shouldValidate: true });
-          }
-        }
+    const qty = toNumber(form.getValues("purchasedQuantity"));
+    if (isNaN(qty) || qty <= 0) return;
+
+    let newQty = qty;
+    if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
+      newQty = convertMass(qty, currentUnit, newUnit);
+    } else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
+      newQty = convertVolume(qty, currentUnit, newUnit);
+    } else {
+      // Incompatible units; don't alter quantity/cost
+      return;
+    }
+
+    const total = toNumber(form.getValues("totalCost"));
+    const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
+
+    setValue("purchasedQuantity", formatNumber(newQty, newUnit));
+
+    if (!isNaN(total) && newQty > 0) {
+      setValue("costPerPurchasedUnit", fmtCPU(total / newQty));
+    } else if (!isNaN(cpu)) {
+      // Convert CPU to the new unit so displayed CPU matches selected unit
+      let cpuNew = cpu;
+      if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
+        const oneNewInOld = convertMass(1, newUnit, currentUnit);
+        cpuNew = cpu * oneNewInOld;
+      } else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
+        const oneNewInOld = convertVolume(1, newUnit, currentUnit);
+        cpuNew = cpu * oneNewInOld;
       }
-    } else if (lastChangedField === "purchasedQuantity") {
-      if (isQuantityEmpty) {
-        // Clear total cost if quantity is empty
-        form.setValue("totalCost", "", { shouldValidate: true });
-      } else if (quantity > 0) {
-        if (costPerUnit > 0) {
-          // Calculate total from quantity and cost per unit
-          const calculatedTotal = quantity * costPerUnit;
-          console.log(`Setting totalCost to ${calculatedTotal.toFixed(2)} from quantity=${quantity} * costPerUnit=${costPerUnit}`);
-          form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
-        } else if (!isTotalCostEmpty) {
-          // Calculate cost per unit from total and quantity
-          const calculatedCostPerUnit = totalCost / quantity;
-          if (!isNaN(calculatedCostPerUnit) && isFinite(calculatedCostPerUnit)) {
-            // Format to 2 decimal places and ensure it's positive
-            const formattedCostPerUnit = Math.max(0, calculatedCostPerUnit).toFixed(2);
-            console.log(`Setting costPerUnit to ${formattedCostPerUnit} from totalCost=${totalCost} / quantity=${quantity}`);
-            form.setValue("costPerPurchasedUnit", formattedCostPerUnit, { shouldValidate: true });
-          }
-        }
-      }
-    } else if (lastChangedField === "costPerPurchasedUnit") {
-      if (isCostPerUnitEmpty) {
-        // Clear total cost if cost per unit is empty
-        form.setValue("totalCost", "", { shouldValidate: true });
-      } else if (costPerUnit > 0) {
-        if (quantity > 0) {
-          // Calculate total from quantity and cost per unit
-          const calculatedTotal = quantity * costPerUnit;
-          console.log(`Setting totalCost to ${calculatedTotal.toFixed(2)} from quantity=${quantity} * costPerUnit=${costPerUnit}`);
-          form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
-        } else if (!isTotalCostEmpty) {
-          // Calculate quantity from total cost and cost per unit
-          const calculatedQuantity = totalCost / costPerUnit;
-          if (!isNaN(calculatedQuantity) && isFinite(calculatedQuantity)) {
-            // Round to nearest whole number and ensure it's positive
-            const roundedQuantity = Math.max(0, Math.round(calculatedQuantity));
-            console.log(`Setting quantity to ${roundedQuantity} from totalCost=${totalCost} / costPerUnit=${costPerUnit}`);
-            form.setValue("purchasedQuantity", roundedQuantity.toString(), { shouldValidate: true });
-          }
-        }
+      setValue("costPerPurchasedUnit", fmtCPU(cpuNew));
+      // And recompute total to stay consistent
+      setValue("totalCost", fmtMoney(cpuNew * newQty));
+    }
+  };
+
+  const recomputeFromQuantity = (qtyStr: string) => {
+    setValue("purchasedQuantity", qtyStr);
+    const qty = toNumber(qtyStr);
+    const total = toNumber(form.getValues("totalCost"));
+    const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
+
+    if (isNaN(qty) || qty <= 0) {
+      setValue("totalCost", "");
+      return;
+    }
+
+    if (!isNaN(cpu) && cpu > 0) {
+      setValue("totalCost", fmtMoney(qty * cpu));
+    } else if (!isNaN(total)) {
+      setValue("costPerPurchasedUnit", fmtCPU(total / qty));
+    } else {
+      setValue("totalCost", "");
+      setValue("costPerPurchasedUnit", "");
+    }
+  };
+
+  const recomputeFromTotal = (totalStr: string) => {
+    setValue("totalCost", totalStr);
+    const total = toNumber(totalStr);
+    const qty = toNumber(form.getValues("purchasedQuantity"));
+    const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
+
+    if (isNaN(total)) {
+      setValue("costPerPurchasedUnit", "");
+      return;
+    }
+
+    if (!isNaN(qty) && qty > 0) {
+      setValue("costPerPurchasedUnit", fmtCPU(total / qty));
+    } else if (!isNaN(cpu) && cpu > 0) {
+      const calcQty = total / cpu;
+      if (isFinite(calcQty) && !isNaN(calcQty) && calcQty > 0) {
+        const unit = form.getValues("purchasedUnit");
+        setValue("purchasedQuantity", formatNumber(calcQty, unit));
       }
     }
-  }, [watchedQuantity, watchedCostPerUnit, watchedTotalCost, form, lastChangedField]);
+  };
+
+  const recomputeFromCPU = (cpuStr: string) => {
+    setValue("costPerPurchasedUnit", cpuStr);
+    const cpu = toNumber(cpuStr);
+    const qty = toNumber(form.getValues("purchasedQuantity"));
+    const total = toNumber(form.getValues("totalCost"));
+
+    if (isNaN(cpu)) {
+      setValue("totalCost", "");
+      return;
+    }
+
+    if (!isNaN(qty) && qty > 0) {
+      setValue("totalCost", fmtMoney(qty * cpu));
+    } else if (!isNaN(total) && cpu > 0) {
+      const calcQty = total / cpu;
+      if (isFinite(calcQty) && !isNaN(calcQty)) {
+        const unit = form.getValues("purchasedUnit");
+        setValue("purchasedQuantity", formatNumber(Math.max(0, calcQty), unit));
+      }
+    }
+  };
 
   const handleSubmit = async (data: StockFormInputs) => {
-    const requiredFields = [
-      { name: "materialId", element: document.querySelector('[name="materialId"]') },
-      { name: "supplier", element: document.querySelector('[name="supplier"]') },
-      { name: "purchasedQuantity", element: document.querySelector('[name="purchasedQuantity"]') },
-      { name: "purchasedUnit", element: document.querySelector('[name="purchasedUnit"]') },
-      { name: "costPerPurchasedUnit", element: document.querySelector('[name="costPerPurchasedUnit"]') }
-    ];
-    for (const field of requiredFields) {
-      const value = form.getValues(field.name as keyof StockFormInputs);
-      const isEmpty = !value || (typeof value === "string" && value.trim() === "") || (field.name === "purchasedQuantity" && parseFloat(value as string) <= 0) || (field.name === "costPerPurchasedUnit" && parseFloat(value as string) < 0);
-      if (isEmpty && field.element) {
-        field.element.scrollIntoView({ behavior: "smooth", block: "center" });
-        (field.element as HTMLElement).focus();
-        form.trigger(field.name as keyof StockFormInputs);
-        return;
-      }
+    // Let RHF validate first
+    await form.trigger();
+
+    // Additional simple business rules
+    const qty = toNumber(data.purchasedQuantity);
+    const total = toNumber(data.totalCost);
+    const cpu = !data.costPerPurchasedUnit || data.costPerPurchasedUnit === "" ? (!isNaN(qty) && qty > 0 && !isNaN(total) ? total / qty : NaN) : toNumber(data.costPerPurchasedUnit);
+
+    if (isNaN(qty) || qty <= 0) {
+      form.setError("purchasedQuantity", { type: "manual", message: "Quantity must be greater than 0" });
     }
-    const formData = data as unknown as StockFormData;
+    if (isNaN(cpu) || cpu < 0) {
+      form.setError("costPerPurchasedUnit", { type: "manual", message: "Cost per unit must be ≥ 0" });
+    }
+
+    const hasErrors = Object.keys(form.formState.errors).length > 0;
+    if (hasErrors) {
+      const firstError = Object.keys(form.formState.errors)[0] as keyof StockFormInputs | undefined;
+      if (firstError) form.setFocus(firstError as any);
+      return;
+    }
+
+    const formData: StockFormData = {
+      ...(data as any),
+      costPerPurchasedUnit: fmtMoney(cpu)
+    } as unknown as StockFormData;
+
     onSubmit(formData);
   };
 
@@ -182,7 +236,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                   <FormLabel className="flex items-center gap-1">
                     Unit <span className="text-red-500">*</span>
                   </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={handleUnitChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger className="h-10 w-full border-gray-200">
                         <SelectValue placeholder="Select unit" />
@@ -218,7 +272,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         className="h-10 w-10 flex items-center justify-center border-r border-gray-200 bg-gray-50 hover:bg-gray-100"
                         onClick={() => {
                           const current = Number(field.value) || 0;
-                          field.onChange(Math.max(0, current - 1).toString());
+                          const next = Math.max(0, current - 1).toString();
+                          recomputeFromQuantity(next);
                         }}
                         disabled={!field.value}
                       >
@@ -231,8 +286,10 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         value={field.value || ""}
                         placeholder="0"
                         onChange={e => {
-                          field.onChange(e.target.value.replace(/[^0-9]/g, ""));
-                          setLastChangedField("purchasedQuantity");
+                          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                          const parts = cleaned.split(".");
+                          const normalized = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : cleaned;
+                          recomputeFromQuantity(normalized);
                         }}
                         className="h-10 flex-1 w-20 text-center font-medium border-0 focus:ring-0 focus:outline-none"
                       />
@@ -243,7 +300,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         className="h-10 w-10 flex items-center justify-center border-l border-gray-200 bg-gray-50 hover:bg-gray-100"
                         onClick={() => {
                           const current = Number(field.value) || 0;
-                          field.onChange((current + 1).toString());
+                          const next = (current + 1).toString();
+                          recomputeFromQuantity(next);
                         }}
                       >
                         <Plus className="h-4 w-4 text-gray-600" />
@@ -270,8 +328,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         onClick={() => {
                           const currentValue = field.value === "" ? 0 : parseFloat(field.value);
                           const newValue = Math.max(0, currentValue - 0.01);
-                          field.onChange(newValue === 0 ? "" : newValue.toFixed(2));
-                          setLastChangedField("totalCost");
+                          const next = newValue === 0 ? "" : newValue.toFixed(2);
+                          recomputeFromTotal(next);
                         }}
                         disabled={!field.value || field.value === ""}
                       >
@@ -283,8 +341,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         placeholder="0.00"
                         className="h-10 flex-1 w-20 text-center font-medium border-0 focus:ring-0 focus:outline-none"
                         onChange={e => {
-                          field.onChange(e.target.value.replace(/[^0-9.]/g, ""));
-                          setLastChangedField("totalCost");
+                          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                          recomputeFromTotal(cleaned);
                         }}
                       />
                       <button
@@ -293,8 +351,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         onClick={() => {
                           const currentValue = field.value === "" ? 0 : parseFloat(field.value);
                           const newValue = currentValue + 0.01;
-                          field.onChange(newValue.toFixed(2));
-                          setLastChangedField("totalCost");
+                          const next = newValue.toFixed(2);
+                          recomputeFromTotal(next);
                         }}
                       >
                         <Plus className="h-4 w-4" />
@@ -322,8 +380,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         className="h-10 w-10 flex items-center justify-center border-r border-gray-200 bg-gray-50 hover:bg-gray-100"
                         onClick={() => {
                           const current = parseFloat(field.value) || 0;
-                          field.onChange(Math.max(0, current - 0.01).toFixed(2));
-                          setLastChangedField("costPerPurchasedUnit");
+                          const next = Math.max(0, current - 0.01).toFixed(2);
+                          recomputeFromCPU(next);
                         }}
                         disabled={true}
                       >
@@ -336,8 +394,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         className="h-10 flex-1 w-20 text-center font-medium border-0 focus:ring-0 focus:outline-none"
                         disabled={true}
                         onChange={e => {
-                          field.onChange(e.target.value.replace(/[^0-9.]/g, ""));
-                          setLastChangedField("costPerPurchasedUnit");
+                          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                          recomputeFromCPU(cleaned);
                         }}
                       />
                       <button
@@ -346,8 +404,8 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                         className="h-10 w-10 flex items-center justify-center border-l border-gray-200 bg-gray-50 hover:bg-gray-100"
                         onClick={() => {
                           const current = parseFloat(field.value) || 0;
-                          field.onChange((current + 0.01).toFixed(2));
-                          setLastChangedField("costPerPurchasedUnit");
+                          const next = (current + 0.01).toFixed(2);
+                          recomputeFromCPU(next);
                         }}
                       >
                         <Plus className="h-4 w-4" />
