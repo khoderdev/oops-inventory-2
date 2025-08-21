@@ -158,6 +158,7 @@ export interface CategoryModalProps {
   handleFormSubmit: (formData: CategoryFormData) => void;
   handleFormCancel: () => void;
   formLoading: boolean;
+  error?: string;
 }
 
 export interface CategoryTypeProps {

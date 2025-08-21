@@ -24,11 +24,11 @@ import { EmployeeUsageView } from "./components/employees/EmployeeUsageView";
 import { PermissionsTest } from "./PermissionsTest";
 
 // Lazy load components for better performance
+const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
 const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
 const ReportGenerator = lazy(() => import("./components/analytics/ReportGenerator").then(m => ({ default: m.ReportGenerator })));
 const LoginPage = lazy(() => import("./components/auth/LoginPage"));
 const InventoryManagementPanel = lazy(() => import("./components/inventory/InventoryManagementPanel").then(m => ({ default: m.InventoryManagementPanel })));
-const MenuItemBuilder = lazy(() => import("./components/menu/MenuBuilder").then(m => ({ default: m.MenuItemBuilder })));
 const ProfilePage = lazy(() => import("./components/profile/ProfilePage"));
 const SessionManagementPage = lazy(() => import("./components/profile/SessionManagementPage"));
 const DayOperationsPage = lazy(() => import("./pages/DayOperationsPage"));
@@ -122,9 +122,9 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                 <Route
                   path="/"
                   element={
-                    <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ} pageTitle="Dashboard">
+                    <ProtectedRoute pageTitle="Dashboard">
                       <AuthenticatedLayout pageTitle="Dashboard" showSearch={true} showNotifications={true}>
-                        <DayOperationsPage />
+                        <Dashboard />
                       </AuthenticatedLayout>
                     </ProtectedRoute>
                   }

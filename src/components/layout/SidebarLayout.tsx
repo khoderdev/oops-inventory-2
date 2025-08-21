@@ -6,7 +6,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { Search, Settings, User } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { AppSidebar } from "./AppSidebar";
+import { SideBarHeader } from "./SideBarHeader";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -113,16 +113,16 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
         style={{
-          width: open ? "240px" : "64px",
-          transition: "width 150ms cubic-bezier(0.4, 0, 0.2, 1)"
+          width: open ? "240px" : "50px",
+          transition: "width 150ms ease-in-out cubic-bezier(0.4, 0, 0.2, 1)"
         }}
       >
-        <AppSidebar />
+        <SideBarHeader />
       </div>
       <SidebarInset
         className="flex flex-col min-h-screen transition-all duration-200 ease-out"
         style={{
-          marginLeft: open ? "240px" : "64px",
+          marginLeft: open ? "240px" : "55px",
           transition: "margin-left 150ms cubic-bezier(0.4, 0, 0.2, 1)"
         }}
       >
@@ -193,7 +193,7 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
             </div>
           </div>
         </header>
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white">
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-100">
           <div className="flex-1 flex flex-col">{children}</div>
         </main>
       </SidebarInset>

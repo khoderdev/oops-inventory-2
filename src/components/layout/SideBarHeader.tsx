@@ -9,7 +9,7 @@ import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { navigationItems } from "./navigationItems";
 
-export function AppSidebar() {
+export function SideBarHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, hasRole, hasPermission } = usePermissions();

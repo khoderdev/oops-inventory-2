@@ -16,6 +16,7 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
   const [showForm, setShowForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | undefined>();
   const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState<string | undefined>();
   const [showFloatingButton, setShowFloatingButton] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -66,7 +67,10 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
   // Handle form submission
   const handleFormSubmit = async (formData: CategoryFormData) => {
     try {
+      // Clear any previous errors
+      setFormError(undefined);
       setFormLoading(true);
+      
       if (selectedCategory) {
         await updateCategory(selectedCategory.id, formData);
         toast({
@@ -88,12 +92,22 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
       onCategoryChange?.();
     } catch (error: any) {
       console.error("Error saving category:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || "Failed to save category",
-        variant: "destructive",
-        duration: 1000
-      });
+      
+      // Check for duplicate category error
+      const errorMessage = error.response?.data?.error || "Failed to save category";
+      
+      // Set the form error for display in the modal
+      setFormError(errorMessage);
+      
+      // Only show toast for non-duplicate errors or if preferred
+      if (!errorMessage.includes("already exists")) {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 1000
+        });
+      }
     } finally {
       setFormLoading(false);
     }
@@ -186,6 +200,7 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
   const handleFormCancel = () => {
     setShowForm(false);
     setSelectedCategory(undefined);
+    setFormError(undefined);
   };
 
   return (
@@ -230,14 +245,15 @@ export function CategoryManagement({ onCategoryChange }: CategoryManagementProps
         </div>
       )}
 
-      {/* Form Dialog */}
-      <CategoryModal 
-        showForm={showForm} 
-        setShowForm={setShowForm} 
-        selectedCategory={selectedCategory} 
-        handleFormSubmit={handleFormSubmit} 
-        handleFormCancel={handleFormCancel} 
-        formLoading={formLoading} 
+      {/* Category Form Modal */}
+      <CategoryModal
+        showForm={showForm}
+        setShowForm={setShowForm}
+        selectedCategory={selectedCategory}
+        handleFormSubmit={handleFormSubmit}
+        handleFormCancel={handleFormCancel}
+        formLoading={formLoading}
+        error={formError}
       />
     </div>
   );

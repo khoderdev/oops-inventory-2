@@ -98,31 +98,31 @@ export function useStockEntriesTableColumns({
         cell: ({ row }) => <div className="text-left w-[80px] h-8 px-2 flex items-center">{renderUnitDisplay(row.original)}</div>
       }),
 
-      columnHelper.accessor("costPerPurchasedUnit", {
+      columnHelper.display({
         id: "costPerUnit",
         size: 110,
         header: ({ column }) => (
           <Button
             variant="ghost"
             onClick={() => {
-              const newOrder = sortBy === "costPerPurchasedUnit" && sortOrder === "ASC" ? "DESC" : "ASC";
-              handleSortChange("costPerPurchasedUnit", newOrder);
+              const newOrder = sortBy === "costPerBaseUnit" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("costPerBaseUnit", newOrder);
             }}
             className="h-8 px-2 font-semibold hover:bg-transparent text-left w-[110px] flex items-center"
           >
             Unit Cost
-            <span className="text-xs ml-1">{sortBy === "costPerPurchasedUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+            <span className="text-xs ml-1">{sortBy === "costPerBaseUnit" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
-        cell: ({ row, getValue }) => {
-          const cost = getValue();
+        cell: ({ row }) => {
           const entry = row.original;
-          const purchasedUnit = entry.purchasedUnit;
+          const cost = entry.costPerBaseUnit || entry.costPerPurchasedUnit;
+          const unit = entry.material?.baseUnit || entry.purchasedUnit;
           
           return (
             <div className="flex flex-col justify-center w-[110px] h-8 px-2">
               <div className="font-medium">{formatCleanCurrency(cost)}</div>
-              <div className="text-xs text-muted-foreground">(per {purchasedUnit})</div>
+              <div className="text-xs text-muted-foreground">(per {unit})</div>
             </div>
           );
         },
