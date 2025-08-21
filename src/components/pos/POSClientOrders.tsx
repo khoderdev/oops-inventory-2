@@ -81,7 +81,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
       let fetchedOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
 
-      const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
+      const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready", "paid"];
       fetchedOrders = fetchedOrders.filter(order => {
         if (order.orderType === "employees") return false;
         if (!incompleteStatuses.includes(order.status)) return false;

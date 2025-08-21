@@ -67,7 +67,7 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
     setIsHovering(true);
     const timeout = setTimeout(() => {
       setOpen(true);
-    }, 75);
+    }, 0);
     setHoverTimeout(timeout);
   }, [isMobile, isLocked, leaveTimeout, setOpen]);
 
@@ -80,7 +80,7 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
     setIsHovering(false);
     const timeout = setTimeout(() => {
       setOpen(false);
-    }, 150);
+    }, 0);
     setLeaveTimeout(timeout);
   }, [isMobile, isLocked, hoverTimeout, setOpen]);
 

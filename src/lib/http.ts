@@ -201,7 +201,7 @@ class ApiClient {
     if (errorObj && typeof errorObj === "object" && errorObj.message) {
       return {
         message: errorObj.message as string,
-        code: errorObj.code === "ERR_BAD_REQUEST" ? undefined : (errorObj.code as string), // Ignore generic axios codes
+        code: errorObj.code === "ERR_BAD_REQUEST" ? undefined : (errorObj.code as string),
         status: errorObj.status as number,
         field: errorObj.field as string,
         fields: errorObj.fields as string[],
@@ -220,7 +220,7 @@ class ApiClient {
 
 // Create API instance
 const api = new ApiClient({
-  baseURL: "http://localhost:3000/api",
+  baseURL: "http://192.168.88.86:3000/api",
   timeout: 15000
 });
 
