@@ -101,7 +101,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
       const sortedCategories = [...allCategories];
       sortedCategories.sort((a, b) => a.name.localeCompare(b.name));
       setCategories(sortedCategories);
-      console.log("All categories loaded for materials:", sortedCategories.length, sortedCategories.map(c => `${c.id}: ${c.name}`));
     } catch (error) {
       console.error("❌ Error fetching categories:", error);
       setCategories([]);
@@ -575,6 +574,53 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
     [refresh, setShowStockForm]
   );
 
+  const handleBulkDeleteMaterials = useCallback(
+    async (materialIds: string[]) => {
+      try {
+        await materialsAPI.bulkDeleteMaterials(materialIds);
+        await refresh("materials");
+        await refresh("stock");
+        return true;
+      } catch (error) {
+        console.error("❌ Error bulk deleting materials:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete materials",
+          variant: "destructive",
+          duration: 1000
+        });
+        return false;
+      }
+    },
+    [refresh]
+  );
+
+  const handleBulkUpdateCategories = useCallback(
+    async (materialIds: string[], categoryId: number) => {
+      try {
+        // Make sure we're sending the correct payload format: { ids: string[], categoryId: number }
+        await materialsAPI.bulkUpdateMaterialCategories(materialIds, categoryId);
+        await refresh("materials");
+        toast({
+          title: "Success",
+          description: `Updated ${materialIds.length} materials to new category`,
+          duration: 1000
+        });
+        return true;
+      } catch (error) {
+        console.error("❌ Error bulk updating material categories:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update material categories",
+          variant: "destructive",
+          duration: 1000
+        });
+        return false;
+      }
+    },
+    [refresh]
+  );
+
   return (
     <div className="h-[calc(100vh-4rem)] w-full flex flex-col overflow-hidden">
       <Tabs defaultValue="stock" value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
@@ -606,11 +652,28 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
         </TabsList>
 
         <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden ">
-          <MaterialTable filteredMaterials={materialsWithStock} categories={categories} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} />
+          <MaterialTable 
+            filteredMaterials={materialsWithStock} 
+            categories={categories} 
+            onEditMaterial={handleEditMaterial} 
+            onAddStock={handleAddStock} 
+            onDeleteMaterial={handleDeleteMaterial}
+            onBulkDelete={handleBulkDeleteMaterials}
+            onBulkEdit={handleBulkUpdateCategories}
+          />
         </TabsContent>
 
         <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden ">
-          <StockEntriesTable stockEntries={stock} materials={materials} loading={loading.stock} onRefresh={handleRefreshAll} onDeleteStockEntry={handleDeleteStockEntry} onTogglePOSVisibility={handleTogglePOSVisibility} onAssign={handleAssignPrinter} onBulkAssign={handleBulkAssignPrinter} />
+          <StockEntriesTable 
+            stockEntries={stock} 
+            materials={materials} 
+            loading={loading.stock} 
+            onRefresh={handleRefreshAll} 
+            onDeleteStockEntry={handleDeleteStockEntry} 
+            onTogglePOSVisibility={handleTogglePOSVisibility} 
+            onAssign={handleAssignPrinter} 
+            onBulkAssign={handleBulkAssignPrinter} 
+          />
         </TabsContent>
 
         <TabsContent value="categories" className="flex-1 focus-visible:outline-none overflow-hidden">

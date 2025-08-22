@@ -78,5 +78,12 @@ export const materialsAPI = {
   createMaterial: (materialData: CreateMaterialData) => api.post<Material, CreateMaterialData>("/materials", materialData),
   updateMaterial: (id: string, materialData: UpdateMaterialData) => api.put<Material, UpdateMaterialData>(`/materials/${id}`, materialData),
   updateMaterialPOS: (id: string, materialData: UpdateMaterialData) => api.patch<Material, UpdateMaterialData>(`/materials/${id}`, materialData),
-  deleteMaterial: (id: string) => api.delete<null>(`/materials/${id}`)
+  deleteMaterial: (id: string) => api.delete<null>(`/materials/${id}`),
+  
+  // Bulk delete materials
+  bulkDeleteMaterials: (ids: string[]) => api.post<null, { ids: string[] }>("/materials/delete-all", { ids }),
+  
+  // Bulk update materials categories
+  bulkUpdateMaterialCategories: (ids: string[], categoryId: number) => 
+    api.post<null, { ids: string[], categoryId: number }>("/materials/update-all-categories", { ids, categoryId })
 };

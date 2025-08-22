@@ -173,6 +173,8 @@ export interface MaterialTableProps {
   filteredMaterials: MaterialWithStock[];
   categories: Category[];
   onEditMaterial: (material: MaterialWithStock) => void;
+  onBulkEdit: (materialIds: string[], data: any) => void;
+  onBulkDelete: (materialIds: string[]) => void;
   onAddStock: (materialId: string) => void;
   onDeleteMaterial: (materialId: string) => void;
 }

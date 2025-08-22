@@ -12,8 +12,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import { Category } from "@/types/categories";
+import { BulkSelectionToolbar, BulkEditDialog } from "@/components/ui/BulkSelectionToolbar";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
-export function MaterialTable({ filteredMaterials, categories, onEditMaterial, onAddStock, onDeleteMaterial }: MaterialTableProps) {
+export function MaterialTable({ filteredMaterials, categories, onEditMaterial, onBulkEdit, onBulkDelete, onAddStock, onDeleteMaterial }: MaterialTableProps) {
   const { setShowMaterialForm } = useInventoryStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -26,6 +30,84 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [showBulkEditDialog, setShowBulkEditDialog] = useState(false);
+  const [bulkEditData, setBulkEditData] = useState<{ categoryId?: number | null }>({});
+  const [bulkEditLoading, setBulkEditLoading] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 600px)");
+
+  const handleBulkEditOpen = () => {
+    // Initialize form with common values or defaults
+    setBulkEditData({});
+    setShowBulkEditDialog(true);
+  };
+  
+  const handleBulkEditSubmit = async () => {
+    const selectedRows = table?.getState().rowSelection || {};
+    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
+    
+    if (selectedIds.length === 0 || !onBulkEdit) return;
+    if (!bulkEditData.categoryId) {
+      toast({
+        title: "Error",
+        description: "Please select a category",
+        variant: "destructive",
+        duration: 1000
+      });
+      return;
+    }
+
+    try {
+      setBulkEditLoading(true);
+      // Ensure categoryId is passed as a number
+      const categoryId = Number(bulkEditData.categoryId);
+      console.log('🔄 Bulk updating materials with categoryId:', categoryId);
+      await onBulkEdit(selectedIds, categoryId);
+      toast({
+        title: "Success",
+        description: `Updated ${selectedIds.length} material${selectedIds.length === 1 ? '' : 's'} successfully`,
+        duration: 1000
+      });
+      setShowBulkEditDialog(false);
+      table?.setRowSelection({});
+    } catch (error) {
+      console.error("Error updating items:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update materials",
+        variant: "destructive",
+        duration: 1000
+      });
+    } finally {
+      setBulkEditLoading(false);
+    }
+  };
+  
+  
+  const handleBulkDelete = async () => {
+    const selectedRows = table.getState().rowSelection;
+    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
+    
+    if (selectedIds.length === 0 || !onBulkDelete) return;
+    
+    try {
+      await onBulkDelete(selectedIds);
+      toast({
+        title: "Success",
+        description: `Deleted ${selectedIds.length} material${selectedIds.length === 1 ? '' : 's'} successfully`,
+        duration: 1000
+      });
+      table.setRowSelection({});
+    } catch (error) {
+      console.error("Error deleting materials:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete materials",
+        variant: "destructive",
+        duration: 1000
+      });
+    }
+  };
 
   const categoriesById = useMemo(() => {
     const map = new Map<number, Category>();
@@ -90,12 +172,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     const paginated = sortedMaterials.slice(startIndex, endIndex);
-    console.log('Paginated materials sample:', paginated.slice(0, 2).map(m => ({
-      name: m.name,
-      unitType: m.unitType,
-      inputUnit: m.inputUnit,
-      baseUnit: m.baseUnit
-    })));
     return paginated;
   }, [sortedMaterials, currentPage, pageSize]);
 
@@ -169,6 +245,33 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
 
   const columns = useMemo<ColumnDef<MaterialWithStock>[]>(
     () => [
+      columnHelper.display({
+        id: "select",
+        enableSorting: false,
+        size: 50,
+        header: ({ table }) => (
+          <input
+            type="checkbox"
+            checked={table.getIsAllRowsSelected()}
+            ref={el => {
+              if (el) {
+                el.indeterminate = table.getIsSomeRowsSelected();
+              }
+            }}
+            onChange={table.getToggleAllRowsSelectedHandler()}
+            className="w-4 h-4"
+          />
+        ),
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={row.getIsSelected()}
+            disabled={!row.getCanSelect()}
+            onChange={row.getToggleSelectedHandler()}
+            className="w-4 h-4"
+          />
+        )
+      }),
       columnHelper.accessor("name", {
         header: ({ column }) => (
           <Button
@@ -206,35 +309,24 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
           const category = getValue();
           const materialCategoryId = (row.original as any).categoryId;
 
-          // Debug logging
-          console.log(`🔍 Material ${row.original.name}:`, {
-            materialCategoryId,
-            category,
-            categoriesAvailable: Array.from(categoriesById.keys()),
-            hasCategory: categoriesById.has(materialCategoryId)
-          });
 
           // Find category by ID first (most reliable for materials)
           let categoryInfo: Category | undefined;
           if (materialCategoryId && categoriesById.has(materialCategoryId)) {
             categoryInfo = categoriesById.get(materialCategoryId);
-            console.log(`✅ Found category by ID ${materialCategoryId}:`, categoryInfo);
           }
           // Fallback to category object if present
           else if (typeof category === "object" && category !== null) {
             const categoryObj = category as any;
             if (categoryObj.id && categoriesById.has(categoryObj.id)) {
               categoryInfo = categoriesById.get(categoryObj.id);
-              console.log(`✅ Found category by object ID ${categoryObj.id}:`, categoryInfo);
             } else if (categoryObj.value && categoriesByValue.has(categoryObj.value)) {
               categoryInfo = categoriesByValue.get(categoryObj.value);
-              console.log(`✅ Found category by object value ${categoryObj.value}:`, categoryInfo);
             }
           }
           // Fallback to string category value
           else if (typeof category === "string" && category && categoriesByValue.has(category)) {
             categoryInfo = categoriesByValue.get(category);
-            console.log(`✅ Found category by string ${category}:`, categoryInfo);
           }
 
           // If no category found, try to map common beverage category IDs to existing categories
@@ -247,7 +339,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
             );
             if (beverageCategory) {
               categoryInfo = beverageCategory;
-              console.log(`🔄 Mapped categoryId 17 to ${beverageCategory.name}`);
             }
           }
 
@@ -265,7 +356,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
 
           const categoryValue = categoryInfo?.value || (typeof category === "object" && category !== null && (category as any).value) || (typeof category === "string" && category ? category : "unknown");
 
-          console.log(`📊 Final display for ${row.original.name}:`, { displayName, categoryValue });
 
           return (
             <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
@@ -312,7 +402,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
         ),
         cell: ({ getValue, row }) => {
           const unitType = getValue();
-          console.log('UnitType for', row.original.name, ':', unitType);
           return <div className="text-gray-700 capitalize">{unitType || "-"}</div>;
         },
         enableSorting: false,
@@ -324,7 +413,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
         cell: ({ getValue, row }) => {
           const inputUnit = getValue();
           const baseUnit = row.original.baseUnit;
-          console.log('InputUnit for', row.original.name, ':', inputUnit, 'baseUnit:', baseUnit);
           return <div className="text-gray-700 font-mono text-sm">{inputUnit || baseUnit || "-"}</div>;
         },
         enableSorting: false,
@@ -396,7 +484,26 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
     columns,
     state: {
       sorting,
-      columnFilters
+      columnFilters,
+      rowSelection: Object.fromEntries(
+        Array.from(selectedItems).map(id => [id, true])
+      )
+    },
+    enableRowSelection: true,
+    onRowSelectionChange: (updater) => {
+      // Convert the updater function or value to a new selection state
+      const newSelection = typeof updater === 'function' 
+        ? updater(Object.fromEntries(Array.from(selectedItems).map(id => [id, true])))
+        : updater;
+      
+      // Convert the object back to a Set
+      const newSelectedItems = new Set(
+        Object.entries(newSelection)
+          .filter(([_, selected]) => selected)
+          .map(([id, _]) => Number(id))
+      );
+      
+      setSelectedItems(newSelectedItems);
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -417,6 +524,24 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
       }));
     }
   }, [categories, table]);
+  
+  // Define these functions after table is initialized
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      // Create a selection object with all visible materials selected
+      const allSelected = Object.fromEntries(
+        filteredMaterials.map(material => [material.id, true])
+      );
+      table.setRowSelection(allSelected);
+    } else {
+      // Clear all selections
+      table.setRowSelection({});
+    }
+  };
+  
+  const handleClearSelection = () => {
+    table.setRowSelection({});
+  };
 
   const getCategoryColor = useCallback((category: string) => {
     switch (category) {
@@ -441,7 +566,37 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
-      <div className="h-full flex flex-col p-2">
+      <div className="h-full flex flex-col p-2 relative">
+        {selectedItems.size > 0 && (
+          <BulkSelectionToolbar
+            selectedItems={selectedItems}
+            totalItems={filteredMaterials.length}
+            selectionLabel="material"
+            onClearSelection={handleClearSelection}
+            bulkActions={[
+              {
+                id: 'edit',
+                label: 'Edit',
+                icon: <Edit />,
+                onClick: handleBulkEditOpen,
+                variant: 'outline'
+              },
+              {
+                id: 'delete',
+                label: 'Delete',
+                icon: <Trash2 />,
+                variant: 'destructive',
+                onClick: handleBulkDelete,
+                requiresConfirmation: true,
+                confirmationTitle: 'Delete Materials',
+                confirmationDescription: `Are you sure you want to delete ${selectedItems.size} material${selectedItems.size === 1 ? '' : 's'}? This action cannot be undone.`,
+                confirmationActionText: 'Delete'
+              }
+            ]}
+            className="mb-4"
+          />
+        )}
+        
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-4 px-5">
           {/* Title Section */}
@@ -572,86 +727,106 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
 
                 return (
                   <div key={material.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-base mb-1 truncate">{highlightText(material.name, searchTerm)}</h3>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
-                            {displayName}
-                          </Badge>
-                          {material.isPOSItem && (
-                            <Badge variant="secondary" className="text-xs font-medium">
-                              POS
+                    <div className="flex items-center mb-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.has(Number(material.id))}
+                        onChange={() => {
+                          // Use the table's row selection mechanism
+                          const isSelected = selectedItems.has(Number(material.id));
+                          const newSelection = { ...table.getState().rowSelection };
+                          
+                          if (isSelected) {
+                            delete newSelection[material.id];
+                          } else {
+                            newSelection[material.id] = true;
+                          }
+                          
+                          table.setRowSelection(newSelection);
+                        }}
+                        className="w-4 h-4 mr-2"
+                      />
+                      <div className="flex justify-between items-start mb-3 w-full">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-base mb-1 truncate">{highlightText(material.name, searchTerm)}</h3>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
+                              {displayName}
                             </Badge>
-                          )}
+                            {material.isPOSItem && (
+                              <Badge variant="secondary" className="text-xs font-medium">
+                                POS
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                      <div className="space-y-1">
-                        <span className="text-gray-500 text-xs font-medium">Base Unit</span>
-                        <p className="font-mono text-gray-900">{material.baseUnit}</p>
+                      <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                        <div className="space-y-1">
+                          <span className="text-gray-500 text-xs font-medium">Base Unit</span>
+                          <p className="font-mono text-gray-900">{material.baseUnit}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-gray-500 text-xs font-medium">Unit Type</span>
+                          <p className="capitalize text-gray-900">{material.unitType}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-gray-500 text-xs font-medium">Input Unit</span>
+                          <p className="font-mono text-gray-900">{material.inputUnit || material.baseUnit || "-"}</p>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <span className="text-gray-500 text-xs font-medium">Unit Type</span>
-                        <p className="capitalize text-gray-900">{material.unitType}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-gray-500 text-xs font-medium">Input Unit</span>
-                        <p className="font-mono text-gray-900">{material.inputUnit || material.baseUnit || "-"}</p>
-                      </div>
-                    </div>
 
-                    <div className="flex gap-2 pt-2 border-t border-gray-100">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => onEditMaterial(material)} className="flex-1 h-8 text-xs hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700">
-                            <Edit className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="z-[9999]">
-                          <p>Edit {material.name}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)} className={`flex-1 h-8 text-xs hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 ${material.stockEntries && material.stockEntries.length > 0 ? "bg-teal-500/25 border-teal-300" : "bg-red-500/25 border-red-300"}`}>
-                            <Plus className="h-3 w-3 mr-1" />
-                            Stock
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="z-[9999]">
-                          <p>{material.stockEntries && material.stockEntries.length > 0 ? `Add more stock for ${material.name} (${material.stockEntries.length} entries)` : `No stock entries - Add initial stock for ${material.name}`}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <AlertDialog>
+                      <div className="flex gap-2 pt-2 border-t border-gray-100">
                         <Tooltip>
-                          <AlertDialogTrigger asChild>
-                            <TooltipTrigger asChild>
-                              <Button variant="outline" size="sm" className="h-8 px-3 text-xs hover:bg-red-50 hover:border-red-300 hover:text-red-700">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                          </AlertDialogTrigger>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => onEditMaterial(material)} className="flex-1 h-8 text-xs hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700">
+                              <Edit className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                          </TooltipTrigger>
                           <TooltipContent className="z-[9999]">
-                            <p>Delete {material.name}</p>
+                            <p>Edit {material.name}</p>
                           </TooltipContent>
                         </Tooltip>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Material</AlertDialogTitle>
-                            <AlertDialogDescription>Are you sure you want to delete "{material.name}"? This action cannot be undone.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDeleteMaterial(material.id)} className="bg-red-600 hover:bg-red-700">
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => onAddStock(material.id)} className={`flex-1 h-8 text-xs hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 ${material.stockEntries && material.stockEntries.length > 0 ? "bg-teal-500/25 border-teal-300" : "bg-red-500/25 border-red-300"}`}>
+                              <Plus className="h-3 w-3 mr-1" />
+                              Stock
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="z-[9999]">
+                            <p>{material.stockEntries && material.stockEntries.length > 0 ? `Add more stock for ${material.name} (${material.stockEntries.length} entries)` : `No stock entries - Add initial stock for ${material.name}`}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <AlertDialog>
+                          <Tooltip>
+                            <AlertDialogTrigger asChild>
+                              <TooltipTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8 px-3 text-xs hover:bg-red-50 hover:border-red-300 hover:text-red-700">
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                            </AlertDialogTrigger>
+                            <TooltipContent className="z-[9999]">
+                              <p>Delete {material.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Material</AlertDialogTitle>
+                              <AlertDialogDescription>Are you sure you want to delete "{material.name}"? This action cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDeleteMaterial(material.id)} className="bg-red-600 hover:bg-red-700">
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   </div>
                 );
@@ -687,7 +862,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
             </div>
           )}
         </div>
-
         {/* Floating Add Button */}
         <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-in-out transform ${showFloatingButton ? "translate-y-0 opacity-100 scale-100" : "translate-y-16 opacity-0 scale-95 pointer-events-none"}`}>
           <Tooltip>
@@ -701,6 +875,33 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
             </TooltipContent>
           </Tooltip>
         </div>
+
+        {/* Standalone Bulk Edit Dialog */}
+        <BulkEditDialog
+          isOpen={showBulkEditDialog}
+          onClose={() => setShowBulkEditDialog(false)}
+          title="Bulk Edit Materials"
+          description={`Edit ${selectedItems.size} selected material${selectedItems.size === 1 ? '' : 's'}. Only the fields you modify will be updated.`}
+          onSubmit={handleBulkEditSubmit}
+          isLoading={bulkEditLoading}
+          submitText="Update Materials"
+        >
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <select
+              value={bulkEditData.categoryId || ''}
+              onChange={e => setBulkEditData(prev => ({ ...prev, categoryId: e.target.value ? Number(e.target.value) : null }))}
+              className="w-full p-2 border rounded"
+            >
+              <option value="">Select category...</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </BulkEditDialog>
       </div>
     </TooltipProvider>
   );
