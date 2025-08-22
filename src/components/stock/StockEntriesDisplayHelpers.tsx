@@ -8,69 +8,17 @@ export const hasNegativeStock = (entry: StockEntryWithMaterial) => {
 };
 
 export const renderQuantityDisplay = (entry: StockEntryWithMaterial) => {
-  const { material } = entry;
   const isNegative = hasNegativeStock(entry);
+  const currentQty = entry.purchasedIndividualQuantity || 0;
+  const unit = entry.purchasedIndividualUnit || entry.material?.baseUnit || entry.purchasedUnit || 'pc';
 
   return (
-    <div className="space-y-1">
-      {(() => {
-        if (material?.unitType === "mass" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
-          return (
-            <>
-              <Badge variant="default" className={`w-fit bg-primary/25 font-bold text-teal-700 hover:bg-primary/25 flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
-                {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
-                <span>
-                  {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
-                </span>
-              </Badge>
-              {/* <div className="text-xs text-muted-foreground text-center">
-                (from {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit})
-              </div> */}
-            </>
-          );
-        } else if (material?.unitType === "volume" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
-          return (
-            <>
-              <Badge variant="default" className={`w-fit font-bold bg-primary/25 text-teal-700 hover:bg-primary/25 flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
-                {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
-                <span>
-                  {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
-                </span>
-              </Badge>
-              {/* <div className="text-xs text-muted-foreground text-center">
-                (from {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit})
-              </div> */}
-            </>
-          );
-        } else if (material?.unitType === "package" && entry.purchasedIndividualQuantity !== undefined && entry.purchasedIndividualUnit) {
-          return (
-            <>
-              <Badge variant="default" className={`w-fit font-bold bg-primary/25 text-teal-700 hover:bg-primary/25 flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
-                {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
-                <span>
-                  {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
-                </span>
-              </Badge>
-              {/* Only show "(from X pack)" if individual quantity is positive */}
-              {/* {entry.purchasedIndividualQuantity > 0 && material?.packageQuantity && (
-                <div className="text-xs text-muted-foreground text-center">
-                  (from {formatNumber(Math.ceil(entry.purchasedIndividualQuantity / material.packageQuantity))} {entry.purchasedUnit})
-                </div>
-              )} */}
-            </>
-          );
-        } else {
-          return (
-            <Badge variant="default" className={`w-fit font-bold bg-primary/25 text-teal-700 hover:bg-primary/25 flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
-              {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
-              <span>
-                {formatNumber(entry.purchasedQuantity)} {entry.purchasedUnit}
-              </span>
-            </Badge>
-          );
-        }
-      })()}
-    </div>
+    <Badge variant="default" className={`w-fit bg-primary/25 font-bold text-teal-700 hover:bg-primary/25 flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
+      {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
+      <span>
+        {formatNumber(currentQty)} {unit}
+      </span>
+    </Badge>
   );
 };
 
