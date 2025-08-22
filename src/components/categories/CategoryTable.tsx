@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CategoriesTableProps, CategoryTypeEntity, CategoryFormData } from "@/types/categories";
 import { Edit, Trash2, GripVertical, Package, ArrowUpDown, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -14,6 +13,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { getTypeBadge, getTypeIcon } from "./constants";
 import { Separator } from "@/components/ui/separator";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { BulkSelectionToolbar, BulkEditDialog } from "@/components/ui/BulkSelectionToolbar";
 
 if (typeof window !== "undefined" && !window.matchMedia) {
   console.warn("matchMedia is not supported by your browser. Mobile view will not work properly.");
@@ -134,6 +134,11 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
     }
   };
 
+  // Handle clear selection
+  const handleClearSelection = () => {
+    setSelectedItems(new Set());
+  };
+
   // Handle bulk edit submit
   const handleBulkEditSubmit = async () => {
     if (selectedItems.size === 0 || !onBulkEdit) return;
@@ -205,58 +210,76 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
   const renderMobileCardView = () => {
     return (
       <div className="h-[calc(100vh-220px)] px-1 w-full bg-gray-100">
-        {/* Select All Checkbox for Mobile */}
+        {/* Bulk Selection Toolbar for Mobile */}
         {draggedCategories.length > 0 && (
-          <div className="flex items-center justify-between gap-2 px-2 py-2 mb-4 bg-white rounded-lg border">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                ref={el => {
-                  if (el) el.indeterminate = someSelected;
-                }}
-                onChange={e => handleSelectAll(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm font-medium">
-                {selectedItems.size > 0 ? `${selectedItems.size} selected` : "Select all"}
-              </span>
-            </div>
-            {selectedItems.size > 0 && (
-              <div className="flex gap-2">
-                {onBulkEdit && (
-                  <Button variant="outline" size="sm" onClick={handleBulkEditOpen}>
-                    <Settings className="h-4 w-4 mr-1" />
-                    Edit ({selectedItems.size})
-                  </Button>
-                )}
-                {onBulkDelete && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm">
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete ({selectedItems.size})
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Categories</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete {selectedItems.size} categor{selectedItems.size === 1 ? 'y' : 'ies'}? This action cannot be undone and may affect existing materials or menu items.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600 hover:bg-red-700">
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
-            )}
-          </div>
+          <BulkSelectionToolbar
+            selectedItems={selectedItems}
+            totalItems={draggedCategories.length}
+            selectionLabel="category"
+            onSelectAll={handleSelectAll}
+            onClearSelection={handleClearSelection}
+            position="top"
+            bulkActions={[
+              ...(onBulkDelete ? [{
+                id: 'delete',
+                label: 'Delete',
+                icon: <Trash2 className="h-4 w-4" />,
+                variant: 'destructive' as const,
+                onClick: handleBulkDelete,
+                requiresConfirmation: true,
+                confirmationTitle: 'Delete Categories',
+                confirmationDescription: `Are you sure you want to delete ${selectedItems.size} categor${selectedItems.size === 1 ? 'y' : 'ies'}? This action cannot be undone and may affect existing materials or menu items.`,
+                confirmationActionText: 'Delete'
+              }] : [])
+            ]}
+            bulkEditDialog={onBulkEdit ? {
+              isOpen: showBulkEditDialog,
+              onOpen: handleBulkEditOpen,
+              onClose: () => setShowBulkEditDialog(false),
+              title: 'Bulk Edit Categories',
+              description: `Edit ${selectedItems.size} selected categor${selectedItems.size === 1 ? 'y' : 'ies'}. Only the fields you modify will be updated.`,
+              children: (
+                <>
+                  <div className="space-y-2">
+                    <Label>Category Types</Label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
+                      {availableTypes.map(type => (
+                        <div key={type.id} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`type-${type.id}`}
+                            checked={bulkEditData.categoryTypeIds?.includes(type.id) || false}
+                            onChange={e => handleCategoryTypeChange(type.id, e.target.checked)}
+                            className="w-4 h-4"
+                          />
+                          <Label htmlFor={`type-${type.id}`} className="text-sm font-normal">
+                            {type.type}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Select category types to apply to all selected categories
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="bulk-active"
+                      checked={bulkEditData.isActive ?? false}
+                      onChange={e => setBulkEditData(prev => ({ ...prev, isActive: e.target.checked }))}
+                      className="w-4 h-4"
+                    />
+                    <Label htmlFor="bulk-active">Set as Active</Label>
+                  </div>
+                </>
+              ),
+              onSubmit: handleBulkEditSubmit,
+              isLoading: bulkEditLoading,
+              submitText: 'Update Categories'
+            } : undefined}
+          />
         )}
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="categories-mobile" direction="vertical">
@@ -466,54 +489,91 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
             )}
           </h1>
           
+          {/* Desktop Bulk Actions */}
           {selectedItems.size > 0 && !isMobile && (
-            <div className="flex gap-2">
-              {onBulkEdit && (
-                <Button variant="outline" size="sm" onClick={handleBulkEditOpen}>
-                  <Settings className="h-4 w-4 mr-1" />
-                  Edit ({selectedItems.size})
-                </Button>
-              )}
-              {onBulkDelete && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete ({selectedItems.size})
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Categories</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete {selectedItems.size} categor{selectedItems.size === 1 ? 'y' : 'ies'}? This action cannot be undone and may affect existing materials or menu items.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600 hover:bg-red-700">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
+            <BulkSelectionToolbar
+              selectedItems={selectedItems}
+              totalItems={draggedCategories.length}
+              selectionLabel="category"
+              showSelectAll={false}
+              bulkActions={[
+                ...(onBulkDelete ? [{
+                  id: 'delete',
+                  label: 'Delete',
+                  icon: <Trash2 className="h-4 w-4" />,
+                  variant: 'destructive' as const,
+                  onClick: handleBulkDelete,
+                  requiresConfirmation: true,
+                  confirmationTitle: 'Delete Categories',
+                  confirmationDescription: `Are you sure you want to delete ${selectedItems.size} categor${selectedItems.size === 1 ? 'y' : 'ies'}? This action cannot be undone and may affect existing materials or menu items.`,
+                  confirmationActionText: 'Delete'
+                }] : [])
+              ]}
+              bulkEditDialog={onBulkEdit ? {
+                isOpen: showBulkEditDialog,
+                onOpen: handleBulkEditOpen,
+                onClose: () => setShowBulkEditDialog(false),
+                title: 'Bulk Edit Categories',
+                description: `Edit ${selectedItems.size} selected categor${selectedItems.size === 1 ? 'y' : 'ies'}. Only the fields you modify will be updated.`,
+                children: (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Category Types</Label>
+                      <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
+                        {availableTypes.map(type => (
+                          <div key={type.id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`type-${type.id}`}
+                              checked={bulkEditData.categoryTypeIds?.includes(type.id) || false}
+                              onChange={e => handleCategoryTypeChange(type.id, e.target.checked)}
+                              className="w-4 h-4"
+                            />
+                            <Label htmlFor={`type-${type.id}`} className="text-sm font-normal">
+                              {type.type}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Select category types to apply to all selected categories
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="bulk-active"
+                        checked={bulkEditData.isActive ?? false}
+                        onChange={e => setBulkEditData(prev => ({ ...prev, isActive: e.target.checked }))}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="bulk-active">Set as Active</Label>
+                    </div>
+                  </>
+                ),
+                onSubmit: handleBulkEditSubmit,
+                isLoading: bulkEditLoading,
+                submitText: 'Update Categories'
+              } : undefined}
+              className="border-none px-0"
+            />
           )}
         </div>
       </CardHeader>
       <CardContent className="flex justify-center w-full">{isMobile ? renderMobileCardView() : renderDesktopTableView()}</CardContent>
       
-      {/* Bulk Edit Dialog */}
-      <Dialog open={showBulkEditDialog} onOpenChange={setShowBulkEditDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Bulk Edit Categories</DialogTitle>
-            <DialogDescription>
-              Edit {selectedItems.size} selected categor{selectedItems.size === 1 ? 'y' : 'ies'}. Only the fields you modify will be updated.
-            </DialogDescription>
-          </DialogHeader>
-          
+      {/* Render the BulkEditDialog component */}
+      {onBulkEdit && (
+        <BulkEditDialog
+          isOpen={showBulkEditDialog}
+          onClose={() => setShowBulkEditDialog(false)}
+          title="Bulk Edit Categories"
+          description={`Edit ${selectedItems.size} selected categor${selectedItems.size === 1 ? 'y' : 'ies'}. Only the fields you modify will be updated.`}
+          onSubmit={handleBulkEditSubmit}
+          isLoading={bulkEditLoading}
+          submitText="Update Categories"
+        >
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Category Types</Label>
@@ -549,26 +609,8 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
               <Label htmlFor="bulk-active">Set as Active</Label>
             </div>
           </div>
-          
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setShowBulkEditDialog(false)}
-              disabled={bulkEditLoading}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="button" 
-              onClick={handleBulkEditSubmit}
-              disabled={bulkEditLoading}
-            >
-              {bulkEditLoading ? "Updating..." : "Update Categories"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </BulkEditDialog>
+      )}
     </Card>
   );
 }
