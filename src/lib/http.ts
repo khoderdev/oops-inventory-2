@@ -228,8 +228,8 @@ const getApiBaseURL = () => {
 
   const baseURL = isProduction ? productionURL : developmentURL;
 
-  console.log(`🔧 Frontend API Config - Environment: ${isProduction ? "PRODUCTION" : "DEVELOPMENT"}`);
-  console.log(`🔧 Frontend API Config - Using API URL: ${baseURL}`);
+  // console.log(`🔧 Frontend API Config - Environment: ${isProduction ? "PRODUCTION" : "DEVELOPMENT"}`);
+  // console.log(`🔧 Frontend API Config - Using API URL: ${baseURL}`);
 
   return baseURL;
 };

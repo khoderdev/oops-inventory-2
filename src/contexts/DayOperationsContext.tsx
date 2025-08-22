@@ -32,11 +32,11 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
   // Refresh functions
   const refreshCurrentDay = useCallback(async () => {
     try {
-      console.log("🔄 DayOperationsContext: Refreshing current day...");
+      // console.log("🔄 DayOperationsContext: Refreshing current day...");
       const response = await dayOperationsAPI.getCurrentDayOperation();
       setCurrentDay(response.currentDay);
       setLastRefresh(new Date());
-      console.log("✅ DayOperationsContext: Current day refreshed", response.currentDay?.status);
+      // console.log("✅ DayOperationsContext: Current day refreshed", response.currentDay?.status);
     } catch (err) {
       console.error("❌ DayOperationsContext: Failed to refresh current day:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to load current day";
@@ -51,10 +51,10 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
     }
 
     try {
-      console.log("🔄 DayOperationsContext: Refreshing activities...");
+      // console.log("🔄 DayOperationsContext: Refreshing activities...");
       const response = await dayOperationsAPI.getCurrentDayActivities();
       setActivities(response.activities);
-      console.log("✅ DayOperationsContext: Activities refreshed", response.activities.length, "items");
+      // console.log("✅ DayOperationsContext: Activities refreshed", response.activities.length, "items");
     } catch (err) {
       console.warn("⚠️ DayOperationsContext: Could not load activities:", err);
       setActivities([]);
@@ -68,10 +68,10 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
     }
 
     try {
-      console.log("🔄 DayOperationsContext: Refreshing user stats...");
+      // console.log("🔄 DayOperationsContext: Refreshing user stats...");
       const response = await dayOperationsAPI.getUserOrderStats();
       setUserOrderStats(response.userOrderStats || []);
-      console.log("✅ DayOperationsContext: User stats refreshed", response.userOrderStats?.length || 0, "users");
+      // console.log("✅ DayOperationsContext: User stats refreshed", response.userOrderStats?.length || 0, "users");
     } catch (err) {
       console.warn("⚠️ DayOperationsContext: Could not load user stats:", err);
       setUserOrderStats([]);
@@ -83,7 +83,7 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
     setError(null);
 
     try {
-      console.log("🔄 DayOperationsContext: Full refresh started...");
+      // console.log("🔄 DayOperationsContext: Full refresh started...");
 
       // Always refresh current day first
       await refreshCurrentDay();
@@ -93,7 +93,7 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
         await Promise.all([refreshActivities(), refreshUserStats()]);
       }
 
-      console.log("✅ DayOperationsContext: Full refresh completed");
+      // console.log("✅ DayOperationsContext: Full refresh completed");
     } catch (err) {
       console.error("❌ DayOperationsContext: Full refresh failed:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to refresh day operations";
@@ -110,7 +110,7 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
         setActionLoading(true);
         setError(null);
 
-        console.log("🚀 DayOperationsContext: Opening day...", data);
+        // console.log("🚀 DayOperationsContext: Opening day...", data);
 
         // Ensure user ID is included
         const openDayData = {
@@ -133,7 +133,7 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
           refreshAll();
         }, 500);
 
-        console.log("✅ DayOperationsContext: Day opened successfully");
+        // console.log("✅ DayOperationsContext: Day opened successfully");
       } catch (err) {
         console.error("❌ DayOperationsContext: Failed to open day:", err);
         const errorMessage = err instanceof Error ? err.message : "Failed to open day";
@@ -151,7 +151,7 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
         setActionLoading(true);
         setError(null);
 
-        console.log("🛑 DayOperationsContext: Closing day...", data);
+        // console.log("🛑 DayOperationsContext: Closing day...", data);
 
         // Ensure user ID is included
         const closeDayData = {
@@ -178,7 +178,7 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
           refreshAll();
         }, 500);
 
-        console.log("✅ DayOperationsContext: Day closed successfully");
+        // console.log("✅ DayOperationsContext: Day closed successfully");
       } catch (err) {
         console.error("❌ DayOperationsContext: Failed to close day:", err);
         const errorMessage = err instanceof Error ? err.message : "Failed to close day";
@@ -193,17 +193,17 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
   // Auto-refresh effect
   useEffect(() => {
     if (autoRefreshEnabled && isDayOpen) {
-      console.log("🔄 DayOperationsContext: Starting auto-refresh interval", autoRefreshInterval / 1000, "seconds");
+      // console.log("🔄 DayOperationsContext: Starting auto-refresh interval", autoRefreshInterval / 1000, "seconds");
 
       const interval = setInterval(() => {
-        console.log("⏰ DayOperationsContext: Auto-refresh triggered");
+        // console.log("⏰ DayOperationsContext: Auto-refresh triggered");
         refreshAll();
       }, autoRefreshInterval);
 
       setRefreshInterval(interval);
 
       return () => {
-        console.log("🛑 DayOperationsContext: Stopping auto-refresh interval");
+        // console.log("🛑 DayOperationsContext: Stopping auto-refresh interval");
         clearInterval(interval);
       };
     } else {
@@ -216,14 +216,14 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
 
   // Initial load effect
   useEffect(() => {
-    console.log("🚀 DayOperationsContext: Initial load started");
+    // console.log("🚀 DayOperationsContext: Initial load started");
     refreshAll();
   }, []);
 
   // User change effect
   useEffect(() => {
-    if (user) {
-      console.log("👤 DayOperationsContext: User changed, refreshing data for:", user.fullName);
+    if (user) { 
+      // console.log("👤 DayOperationsContext: User changed, refreshing data for:", user.fullName);
       refreshAll();
     }
   }, [user?.id]);

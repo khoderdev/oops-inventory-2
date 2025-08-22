@@ -4,6 +4,7 @@ import { menuAPI } from "@/api/menu.api.ts";
 import { salesAPI } from "@/api/sales.api.ts";
 import { sectionAPI } from "@/api/sections.api.ts";
 import { stockAPI } from "@/api/stock.api.ts";
+import { getCategoriesByType } from "@/api/categories.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -16,7 +17,7 @@ import { ReportGeneratorProps, SaleRecord, StockEntry } from "@/types/inventory"
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { format, isValid } from "date-fns";
 import { CalendarIcon, Download, FileText, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { REPORT_CONFIGS, ReportType } from "./configs";
 import { generateCategoryAnalysisReport, generateCategorySalesAnalysisReport, generateCostAnalysisReport, generateExpiryAlertsReport, generateInventorySummaryReport, generateMenuProfitabilityReport, generateSalesPerformanceReport, generateSectionPerformanceReport, generateStockPurchasesReport, generateSupplierPerformanceReport, generateVarianceAnalysisReport, generateWasteReport } from "./generationFunctions";
 import { ReportSummary } from "./ReportSummary";
@@ -39,6 +40,8 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     materials: Record<string, unknown>[];
     sales: Record<string, unknown>[];
   }>({ materials: [], sales: [] });
+  const [allSalesData, setAllSalesData] = useState<SaleRecord[]>([]);
+  const [allMenuItems, setAllMenuItems] = useState<any[]>([]);
   const currentReportConfig = REPORT_CONFIGS.find(config => config.id === selectedReportType);
 
   const handleReportTypeChange = (newReportType: ReportType) => {
@@ -53,33 +56,27 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     setCategories([]);
     setCategoryAnalysisView("materials");
     setCategoryAnalysisData({ materials: [], sales: [] });
+    setAllSalesData([]);
+    setAllMenuItems([]);
     const newConfig = REPORT_CONFIGS.find(config => config.id === newReportType);
     if (!newConfig?.requiresDateRange) {
       setDateFrom(undefined);
       setDateTo(undefined);
     }
     if (newReportType === "sales-performance") {
-      menuAPI
-        .getMenus()
-        .then(res => {
+      getCategoriesByType("menu_items", true)
+        .then(response => {
           try {
-            const raw: string[] = (res?.data || []).map((i: any) => (typeof i?.category === "string" ? i.category : "")).filter((v: string) => v.trim().length > 0);
-            const seen = new Set<string>();
-            const dedup: string[] = [];
-            for (const c of raw) {
-              const key = c.trim().toLowerCase();
-              if (!seen.has(key)) {
-                seen.add(key);
-                dedup.push(c.trim());
-              }
-            }
-            setCategories(dedup);
-          } catch {
-            // ignore
+            const categoryNames = (response?.totalItems || [])
+              .map(category => category.name)
+              .filter(name => name && name.trim().length > 0);
+            setCategories(categoryNames);
+          } catch (error) {
+            console.error("Error processing categories:", error);
           }
         })
-        .catch(() => {
-          // ignore fetch errors for categories in preloading
+        .catch(error => {
+          console.error("Error fetching categories:", error);
         });
     }
     setTimeout(() => {
@@ -87,6 +84,49 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
       setIsChangingReportType(false);
     }, 150);
   };
+
+  useEffect(() => {
+    if (selectedReportType === "sales-performance" && hasGenerated && allSalesData.length > 0 && allMenuItems.length > 0) {
+      const filterAndUpdateReport = async () => {
+        try {
+          const categoryFilterActive = selectedCategory && selectedCategory !== "all";
+          const filteredMenuItems = categoryFilterActive
+            ? allMenuItems.filter((i: any) => {
+                let categoryName = "";
+                if (typeof i?.category === "string") {
+                  categoryName = i.category;
+                } else if (typeof i?.category === "object" && i?.category?.name) {
+                  categoryName = i.category.name;
+                } else if (typeof i?.category === "object" && i?.category?.value) {
+                  categoryName = i.category.value;
+                }
+                const matches = categoryName.toLowerCase().trim() === selectedCategory.toLowerCase().trim();
+                return matches;
+              })
+            : allMenuItems;
+            
+          let salesData = allSalesData;
+          if (dateFrom || dateTo) {
+            const today = new Date();
+            const fromDate = new Date(dateFrom ?? today);
+            const toDate = new Date(dateTo ?? today);
+            toDate.setHours(23, 59, 59, 999);
+            salesData = allSalesData.filter(sale => {
+              const saleDate = new Date(sale.saleDate);
+              return saleDate >= fromDate && saleDate <= toDate;
+            });
+          }
+
+          const reportResults = await generateSalesPerformanceReport(salesData, filteredMenuItems);
+          setReportData(reportResults);
+        } catch (error) {
+          console.error("❌ Real-time filtering error:", error);
+        }
+      };
+
+      filterAndUpdateReport();
+    }
+  }, [selectedCategory, dateFrom, dateTo, selectedReportType, hasGenerated, allSalesData, allMenuItems]);
 
   const isDateRangeValid = useMemo(() => {
     if (!currentReportConfig?.requiresDateRange) return true;
@@ -101,7 +141,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
         title: "Invalid Date Range",
         description: "Please select a valid date range for this report.",
         variant: "destructive",
-        duration: 1500
+        duration: 1000
       });
       return;
     }
@@ -140,15 +180,11 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           reportResults = await generateStockPurchasesReport(filteredData?.stockEntries || [], materials);
           break;
         case "sales-performance": {
-          const normalize = (v: unknown) => (typeof v === "string" ? v.trim().toLowerCase() : "");
-          const categoryFilterActive = selectedCategory && selectedCategory !== "all";
-          const selectedKey = normalize(selectedCategory);
-          const filteredMenuItems = categoryFilterActive
-            ? (menuItems.data || []).filter((i: any) => {
-                const itemCategory = normalize(i?.category);
-                return itemCategory === selectedKey;
-              })
-            : menuItems.data;
+          // Store data for real-time filtering
+          setAllSalesData(sales.data);
+          setAllMenuItems(menuItems.data || []);
+          
+          // Initial report generation (all categories)
           let salesData = sales.data;
           if (dateFrom || dateTo) {
             const today = new Date();
@@ -161,7 +197,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
             });
           }
 
-          reportResults = await generateSalesPerformanceReport(salesData, filteredMenuItems);
+          reportResults = await generateSalesPerformanceReport(salesData, menuItems.data || []);
           break;
         }
         case "cost-analysis":
@@ -220,7 +256,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
       toast({
         title: "Report Generated",
         description: `${currentReportConfig?.name} has been generated successfully.`,
-        duration: 1500
+        duration: 1000
       });
     } catch (error) {
       console.error("Error generating report:", error);
@@ -247,7 +283,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     toast({
       title: "Filters Cleared",
       description: "All filters have been reset.",
-      duration: 1500
+      duration: 1000
     });
   };
 
