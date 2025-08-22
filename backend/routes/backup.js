@@ -762,7 +762,7 @@ router.post("/restore/:backupId", async (req, res) => {
         break;
 
       case "sql":
-        const sqlFiles = await fs.readdir(backupDir);
+        const sqlFiles = await fsPromises.readdir(backupDir);
         const sqlFile = sqlFiles.find(f => f.endsWith(".sql"));
         if (!sqlFile) throw new Error("SQL backup file not found");
         filePath = path.join(backupDir, sqlFile);
