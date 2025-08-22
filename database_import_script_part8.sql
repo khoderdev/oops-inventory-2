@@ -132,6 +132,74 @@ BEGIN
         ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
     END IF;
 
+    -- espresso ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'espresso';
+    SELECT id INTO material_id FROM materials WHERE name = 'espresso coffee';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 10, 'G', 0.130000, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    -- hot chocolate ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'hot chocolate';
+    SELECT id INTO material_id FROM materials WHERE name = 'chocolate powder';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 30, 'G', 0.390000, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    SELECT id INTO material_id FROM materials WHERE name = 'milk liquid';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 100, 'ML', 0.144444, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    SELECT id INTO material_id FROM materials WHERE name = 'whipped crème';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 10, 'G', 0.159111, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    -- pepsi ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'pepsi';
+    SELECT id INTO material_id FROM materials WHERE name = 'pepsi';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 1, 'PC', 0.520833, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    -- redbull ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'redbull';
+    SELECT id INTO material_id FROM materials WHERE name = 'redbull';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 1, 'PC', 0.583333, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    -- turkish coffee ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'turkish coffee';
+    SELECT id INTO material_id FROM materials WHERE name = 'turkish coffee';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 10, 'G', 0.195000, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    -- tisane ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'tisane';
+    SELECT id INTO material_id FROM materials WHERE name = 'tisane';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 1, 'PC', 0.083333, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
     -- café latte ingredients
     SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'café latte';
     SELECT id INTO material_id FROM materials WHERE name = 'espresso coffee';

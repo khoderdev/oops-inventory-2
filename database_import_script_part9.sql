@@ -192,26 +192,60 @@ BEGIN
         ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
     END IF;
 
-    -- hot chocolate ingredients
-    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'hot chocolate';
-    SELECT id INTO material_id FROM materials WHERE name = 'chocolate powder';
+    -- hot chocolate ingredients (already handled in part 8, skip duplicate)
+    
+    -- Add more beverage ingredients for existing menu items
+    -- miranda ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'miranda';
+    SELECT id INTO material_id FROM materials WHERE name = 'miranda';
     IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
         INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
-        VALUES (menu_item_id, material_id, 30, 'G', 0.390000, NOW(), NOW())
+        VALUES (menu_item_id, material_id, 1, 'PC', 0.520833, NOW(), NOW())
         ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
     END IF;
 
-    SELECT id INTO material_id FROM materials WHERE name = 'milk liquid';
+    -- pepsi diet ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'pepsi diet';
+    SELECT id INTO material_id FROM materials WHERE name = 'pepsi diet';
     IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
         INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
-        VALUES (menu_item_id, material_id, 100, 'ML', 0.144444, NOW(), NOW())
+        VALUES (menu_item_id, material_id, 1, 'PC', 0.520833, NOW(), NOW())
         ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
     END IF;
 
-    SELECT id INTO material_id FROM materials WHERE name = 'whipped crème';
+    -- water l ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'water l';
+    SELECT id INTO material_id FROM materials WHERE name = 'water l';
     IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
         INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
-        VALUES (menu_item_id, material_id, 10, 'G', 0.159111, NOW(), NOW())
+        VALUES (menu_item_id, material_id, 1, 'PC', 0.208333, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    -- water s ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'water s';
+    SELECT id INTO material_id FROM materials WHERE name = 'water s';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 1, 'PC', 0.125000, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    -- nescafe 2-1 ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'nescafe 2-1';
+    SELECT id INTO material_id FROM materials WHERE name = 'nescafe 2-1';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 1, 'PC', 0.083333, NOW(), NOW())
+        ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
+    END IF;
+
+    -- nescafe 3-1 ingredients
+    SELECT id INTO menu_item_id FROM "menuItems" WHERE name = 'nescafe 3-1';
+    SELECT id INTO material_id FROM materials WHERE name = 'nescafe 3-1';
+    IF menu_item_id IS NOT NULL AND material_id IS NOT NULL THEN
+        INSERT INTO "menuItemIngredients" ("menuItemId", "materialId", quantity, unit, cost, "createdAt", "updatedAt") 
+        VALUES (menu_item_id, material_id, 1, 'PC', 0.083333, NOW(), NOW())
         ON CONFLICT ("menuItemId", "materialId") DO NOTHING;
     END IF;
 
