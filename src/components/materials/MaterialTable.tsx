@@ -37,15 +37,19 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
   const isMobile = useMediaQuery("(max-width: 600px)");
 
   const handleBulkEditOpen = () => {
-    // Initialize form with common values or defaults
     setBulkEditData({});
     setShowBulkEditDialog(true);
   };
   
   const handleBulkEditSubmit = async () => {
     const selectedRows = table?.getState().rowSelection || {};
-    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
-    
+    const selectedIds = Object.keys(selectedRows)
+      .filter(index => selectedRows[index])
+      .map(index => {
+        const material = paginatedMaterials[parseInt(index)];
+        return material ? material.id.toString() : null;
+      })
+      .filter(id => id !== null); 
     if (selectedIds.length === 0 || !onBulkEdit) return;
     if (!bulkEditData.categoryId) {
       toast({
@@ -59,9 +63,9 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
 
     try {
       setBulkEditLoading(true);
-      // Ensure categoryId is passed as a number
       const categoryId = Number(bulkEditData.categoryId);
       console.log('🔄 Bulk updating materials with categoryId:', categoryId);
+      console.log('Selected material IDs:', selectedIds);
       await onBulkEdit(selectedIds, categoryId);
       toast({
         title: "Success",

@@ -2,7 +2,7 @@ import api from "@/lib/http";
 import { Material, POSItemsResponse, SaleRecord, SaleResponse, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 
 // Import the updated materials API
-import { materialsAPI } from "./matierials.api.ts.tsx";
+import { materialsAPI } from "./materials.api.ts";
 
 export const posAPI = {
   getMaterials: () => materialsAPI.getMaterials(),

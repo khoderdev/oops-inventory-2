@@ -6,7 +6,7 @@ import { CategoryManagement } from "@/components/categories/CategoryManagement";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { materialsAPI } from "@/api/matierials.api.ts.tsx";
+import { materialsAPI } from "@/api/materials.api.ts";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { getCategoriesByType } from "@/api/categories.api";
 import { InventoryManagementPanelProps, MaterialWithStock, StockEntry, MaterialFormData, StockFormData, RecordWasteData, CreateStockEntryData, MaterialCategory, Material } from "@/types/inventory";

@@ -1,5 +1,5 @@
 import { assignmentsAPI } from "@/api/assignments.api.ts";
-import { materialsAPI } from "@/api/matierials.api.ts";
+import { materialsAPI } from "@/api/materials.api.ts";
 import { menuAPI } from "@/api/menu.api.ts";
 import { salesAPI } from "@/api/sales.api.ts";
 import { sectionAPI } from "@/api/sections.api.ts";
