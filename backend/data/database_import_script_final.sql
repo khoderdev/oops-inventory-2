@@ -7,13 +7,16 @@
 -- EXECUTION ORDER:
 -- 1. database_import_script_part1.sql  - Category types, categories, initial materials
 -- 2. database_import_script_part2.sql  - Dairy, proteins, and other material categories
--- 3. database_import_script_part3.sql  - Vegetables, sauces, fruits materials
+-- 3. database_import_script_part3.sql  - Vegetables, sauces, fruits materials (UPDATED)
 -- 4. database_import_script_part4.sql  - Syrups, grains, bread, alcohol, tobacco, desserts
 -- 5. database_import_script_part5.sql  - Stock entries with cost and quantity data
 -- 6. database_import_script_part6.sql  - Menu items with proper category references
 -- 7. database_import_script_part7.sql  - Additional menu items (milkshakes, smoothies, etc.)
 -- 8. database_import_script_part8.sql  - Menu item ingredients relationships (part 1)
 -- 9. database_import_script_part9.sql  - Menu item ingredients relationships (part 2)
+-- 10. database_import_script_missing_materials.sql - All missing materials/ingredients (NEW)
+-- 11. database_import_script_comprehensive_menu_items.sql - Complete menu items (NEW)
+-- 12. database_import_script_comprehensive_ingredients.sql - Complete ingredient relationships (NEW)
 
 -- POSTGRESQL EXECUTION COMMANDS:
 -- Run these commands in your PostgreSQL client (psql, pgAdmin, etc.)
@@ -27,6 +30,9 @@
 -- \i database_import_script_part7.sql
 -- \i database_import_script_part8.sql
 -- \i database_import_script_part9.sql
+-- \i database_import_script_missing_materials.sql
+-- \i database_import_script_comprehensive_menu_items.sql
+-- \i database_import_script_comprehensive_ingredients.sql
 
 -- ALTERNATIVE: Single command execution
 -- You can also run all scripts in sequence with:

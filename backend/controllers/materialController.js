@@ -1,37 +1,34 @@
 import { Material, StockEntry, Category } from "../models/index.js";
 import conversions from "../utils/conversions.js";
 import { Op } from "sequelize";
-import { 
-  parsePaginationParams, 
-  buildPaginationResponse, 
-  buildFilterConditions, 
-  parseFieldSelection 
-} from "../utils/paginationHelpers.js";
+import { parsePaginationParams, buildPaginationResponse, buildFilterConditions, parseFieldSelection } from "../utils/paginationHelpers.js";
 import { isValidCategory, getMaterialCategories } from "../utils/categoryHelpers.js";
 
 const materialController = {
   // Get all materials with stock information (with pagination and filtering)
   getMaterialsWithStock: async (req, res, next) => {
     try {
-      const { includeStockEntries = 'true', fields = '' } = req.query;
-      
+      const { includeStockEntries = "true", fields = "" } = req.query;
+
       // Parse pagination parameters
       const paginationParams = parsePaginationParams(req.query, {
         defaultLimit: 10000, // Increased default to load all materials
-        maxLimit: 50000,     // Increased max limit to handle large datasets
-        allowedSortFields: ['name', 'categoryId', 'unitType', 'createdAt', 'updatedAt', 'baseUnit']
+        maxLimit: 50000, // Increased max limit to handle large datasets
+        allowedSortFields: ["name", "categoryId", "unitType", "createdAt", "updatedAt", "baseUnit"]
       });
 
       // Build filter conditions
-      const whereClause = buildFilterConditions(req.query, {
-        searchFields: ['name'],
-        exactFilters: ['categoryId', 'unitType']
-      }, Op);
+      const whereClause = buildFilterConditions(
+        req.query,
+        {
+          searchFields: ["name"],
+          exactFilters: ["categoryId", "unitType"]
+        },
+        Op
+      );
 
       // Parse field selection for optimized transfer
-      const selectedFields = parseFieldSelection(fields, [
-        'id', 'name', 'baseUnit', 'unitType', 'inputUnit', 'packageQuantity', 'categoryId', 'createdAt', 'updatedAt'
-      ]);
+      const selectedFields = parseFieldSelection(fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "categoryId", "createdAt", "updatedAt"]);
 
       // Base query options
       const queryOptions = {
@@ -44,32 +41,22 @@ const materialController = {
       };
 
       // Always include category information
-      queryOptions.include = [{
-        model: Category,
-        as: "category",
-        attributes: ['id', 'name', 'value'],
-        required: false
-      }];
+      queryOptions.include = [
+        {
+          model: Category,
+          as: "category",
+          attributes: ["id", "name", "value"],
+          required: false
+        }
+      ];
 
       // Conditionally include stock entries based on query parameter
-      if (includeStockEntries === 'true') {
+      if (includeStockEntries === "true") {
         queryOptions.include.push({
           model: StockEntry,
           as: "stockEntries",
           required: false,
-          attributes: [
-            'id', 
-            'purchasedQuantity', 
-            'purchasedUnit', 
-            'purchasedConvertedQuantity',
-            'purchasedConvertedUnit',
-            'costPerPurchasedUnit', 
-            'costPerBaseUnit',
-            'totalCost',
-            'expiryDate', 
-            'purchaseDate',
-            'createdAt'
-          ]
+          attributes: ["id", "purchasedQuantity", "purchasedUnit", "purchasedConvertedQuantity", "purchasedConvertedUnit", "costPerPurchasedUnit", "costPerBaseUnit", "totalCost", "expiryDate", "purchaseDate", "createdAt"]
         });
       }
 
@@ -104,7 +91,7 @@ const materialController = {
         };
 
         // Only include stock entries if requested
-        if (includeStockEntries !== 'true') {
+        if (includeStockEntries !== "true") {
           delete result.stockEntries;
         }
 
@@ -117,9 +104,9 @@ const materialController = {
         data: materialsWithStock,
         pagination,
         filters: {
-          search: req.query.search || '',
-          category: req.query.category || '',
-          unitType: req.query.unitType || '',
+          search: req.query.search || "",
+          category: req.query.category || "",
+          unitType: req.query.unitType || "",
           sortBy: paginationParams.sortBy,
           sortOrder: paginationParams.sortOrder,
           includeStockEntries,
@@ -141,21 +128,23 @@ const materialController = {
       // Parse pagination parameters
       const paginationParams = parsePaginationParams(req.query, {
         defaultLimit: 10000, // Increased default to load all materials
-        maxLimit: 50000,     // Increased max limit to handle large datasets
-        allowedSortFields: ['name', 'category', 'unitType', 'baseUnit', 'createdAt', 'updatedAt']
+        maxLimit: 50000, // Increased max limit to handle large datasets
+        allowedSortFields: ["name", "category", "unitType", "baseUnit", "createdAt", "updatedAt"]
       });
 
       // Build filter conditions
-      const whereClause = buildFilterConditions(req.query, {
-        searchFields: ['name'],
-        exactFilters: ['category', 'unitType'],
-        rangeFilters: ['createdAt', 'updatedAt']
-      }, Op);
+      const whereClause = buildFilterConditions(
+        req.query,
+        {
+          searchFields: ["name"],
+          exactFilters: ["category", "unitType"],
+          rangeFilters: ["createdAt", "updatedAt"]
+        },
+        Op
+      );
 
       // Parse field selection for optimized data transfer
-      const selectedFields = parseFieldSelection(req.query.fields, [
-        'id', 'name', 'baseUnit', 'unitType', 'inputUnit', 'packageQuantity', 'category', 'createdAt', 'updatedAt'
-      ]);
+      const selectedFields = parseFieldSelection(req.query.fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "category", "createdAt", "updatedAt"]);
 
       const queryOptions = {
         where: whereClause,
@@ -173,12 +162,12 @@ const materialController = {
         data: materials,
         pagination,
         filters: {
-          search: req.query.search || '',
-          category: req.query.category || '',
-          unitType: req.query.unitType || '',
+          search: req.query.search || "",
+          category: req.query.category || "",
+          unitType: req.query.unitType || "",
           sortBy: paginationParams.sortBy,
           sortOrder: paginationParams.sortOrder,
-          fields: req.query.fields || ''
+          fields: req.query.fields || ""
         },
         meta: {
           requestTime: new Date().toISOString(),
@@ -194,13 +183,15 @@ const materialController = {
   getMaterial: async (req, res, next) => {
     try {
       const { id } = req.params;
-      
+
       const material = await Material.findByPk(id, {
-        include: [{
-          model: Category,
-          as: "category",
-          attributes: ['id', 'name', 'value']
-        }]
+        include: [
+          {
+            model: Category,
+            as: "category",
+            attributes: ["id", "name", "value"]
+          }
+        ]
       });
 
       if (!material) {
@@ -233,13 +224,13 @@ const materialController = {
   createMaterial: async (req, res, next) => {
     try {
       const { name, baseUnit, unitType, inputUnit, packageQuantity, category, categoryId } = req.body;
-      
+
       // Handle both category (value) and categoryId for backwards compatibility
       let finalCategoryId = categoryId;
       if (category && !categoryId) {
         // If category value is provided, find the corresponding categoryId
-        const categoryRecord = await Category.findOne({ 
-          where: { value: category, isActive: true } 
+        const categoryRecord = await Category.findOne({
+          where: { value: category, isActive: true }
         });
         if (categoryRecord) {
           finalCategoryId = categoryRecord.id;
@@ -258,15 +249,15 @@ const materialController = {
 
       // Validate categoryId if provided
       if (finalCategoryId) {
-        const categoryExists = await Category.findOne({ 
-          where: { 
-            id: finalCategoryId, 
+        const categoryExists = await Category.findOne({
+          where: {
+            id: finalCategoryId,
             isActive: true
-          } 
+          }
         });
         if (!categoryExists) {
-          return res.status(400).json({ 
-            error: `Invalid category ID: ${finalCategoryId}. Please use a valid category ID.` 
+          return res.status(400).json({
+            error: `Invalid category ID: ${finalCategoryId}. Please use a valid category ID.`
           });
         }
       }
@@ -302,13 +293,13 @@ const materialController = {
     try {
       const { id } = req.params;
       const { name, baseUnit, unitType, inputUnit, packageQuantity, category, categoryId } = req.body;
-      
+
       // Handle both category (value) and categoryId for backwards compatibility
       let finalCategoryId = categoryId;
       if (category && !categoryId) {
         // If category value is provided, find the corresponding categoryId
-        const categoryRecord = await Category.findOne({ 
-          where: { value: category, isActive: true } 
+        const categoryRecord = await Category.findOne({
+          where: { value: category, isActive: true }
         });
         if (categoryRecord) {
           finalCategoryId = categoryRecord.id;
@@ -327,15 +318,15 @@ const materialController = {
 
       // Validate categoryId if provided
       if (finalCategoryId !== undefined && finalCategoryId) {
-        const categoryExists = await Category.findOne({ 
-          where: { 
-            id: finalCategoryId, 
+        const categoryExists = await Category.findOne({
+          where: {
+            id: finalCategoryId,
             isActive: true
-          } 
+          }
         });
         if (!categoryExists) {
-          return res.status(400).json({ 
-            error: `Invalid category ID: ${finalCategoryId}. Please use a valid category ID.` 
+          return res.status(400).json({
+            error: `Invalid category ID: ${finalCategoryId}. Please use a valid category ID.`
           });
         }
       }
@@ -395,6 +386,50 @@ const materialController = {
         data: categories,
         count: categories.length
       });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // Bulk delete materials
+  bulkDeleteMaterial: async (req, res, next) => {
+    try {
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "Invalid request format" });
+      }
+      const materials = await Material.findAll({ where: { id: ids } });
+      if (materials.length === 0) {
+        return res.status(404).json({ error: "Materials not found" });
+      }
+      await Material.destroy({ where: { id: ids } });
+      // Clear materials cache after deletion
+      import("../middleware/cacheMiddleware.js").then(({ clearCacheByPattern }) => {
+        clearCacheByPattern("materials");
+      });
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // Bulk update materials categories
+  bulkUpdateMaterialCategories: async (req, res, next) => {
+    try {
+      const { ids, categoryId } = req.body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0 || !categoryId) {
+        return res.status(400).json({ error: "Invalid request format" });
+      }
+      const materials = await Material.findAll({ where: { id: ids } });
+      if (materials.length === 0) {
+        return res.status(404).json({ error: "Materials not found" });
+      }
+      await Material.update({ categoryId }, { where: { id: ids } });
+      // Clear materials cache after update
+      import("../middleware/cacheMiddleware.js").then(({ clearCacheByPattern }) => {
+        clearCacheByPattern("materials");
+      });
+      res.status(204).send();
     } catch (err) {
       next(err);
     }

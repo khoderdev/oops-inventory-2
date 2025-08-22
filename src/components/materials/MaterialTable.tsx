@@ -89,7 +89,14 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
   const paginatedMaterials = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    return sortedMaterials.slice(startIndex, endIndex);
+    const paginated = sortedMaterials.slice(startIndex, endIndex);
+    console.log('Paginated materials sample:', paginated.slice(0, 2).map(m => ({
+      name: m.name,
+      unitType: m.unitType,
+      inputUnit: m.inputUnit,
+      baseUnit: m.baseUnit
+    })));
+    return paginated;
   }, [sortedMaterials, currentPage, pageSize]);
 
   const paginationInfo = useMemo(() => {
@@ -199,23 +206,49 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
           const category = getValue();
           const materialCategoryId = (row.original as any).categoryId;
 
+          // Debug logging
+          console.log(`🔍 Material ${row.original.name}:`, {
+            materialCategoryId,
+            category,
+            categoriesAvailable: Array.from(categoriesById.keys()),
+            hasCategory: categoriesById.has(materialCategoryId)
+          });
+
           // Find category by ID first (most reliable for materials)
           let categoryInfo: Category | undefined;
           if (materialCategoryId && categoriesById.has(materialCategoryId)) {
             categoryInfo = categoriesById.get(materialCategoryId);
+            console.log(`✅ Found category by ID ${materialCategoryId}:`, categoryInfo);
           }
           // Fallback to category object if present
           else if (typeof category === "object" && category !== null) {
             const categoryObj = category as any;
             if (categoryObj.id && categoriesById.has(categoryObj.id)) {
               categoryInfo = categoriesById.get(categoryObj.id);
+              console.log(`✅ Found category by object ID ${categoryObj.id}:`, categoryInfo);
             } else if (categoryObj.value && categoriesByValue.has(categoryObj.value)) {
               categoryInfo = categoriesByValue.get(categoryObj.value);
+              console.log(`✅ Found category by object value ${categoryObj.value}:`, categoryInfo);
             }
           }
           // Fallback to string category value
           else if (typeof category === "string" && category && categoriesByValue.has(category)) {
             categoryInfo = categoriesByValue.get(category);
+            console.log(`✅ Found category by string ${category}:`, categoryInfo);
+          }
+
+          // If no category found, try to map common beverage category IDs to existing categories
+          if (!categoryInfo && materialCategoryId === 17) {
+            // Try to find a beverage-related category
+            const beverageCategory = Array.from(categoriesById.values()).find(cat => 
+              cat.name.toLowerCase().includes('cold') || 
+              cat.name.toLowerCase().includes('drink') ||
+              cat.name.toLowerCase().includes('beverage')
+            );
+            if (beverageCategory) {
+              categoryInfo = beverageCategory;
+              console.log(`🔄 Mapped categoryId 17 to ${beverageCategory.name}`);
+            }
           }
 
           // Handle no category case
@@ -231,6 +264,8 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
           const displayName = categoryInfo?.name || (typeof category === "object" && category !== null && (category as any).name) || (typeof category === "string" && category ? category : "Unknown Category");
 
           const categoryValue = categoryInfo?.value || (typeof category === "object" && category !== null && (category as any).value) || (typeof category === "string" && category ? category : "unknown");
+
+          console.log(`📊 Final display for ${row.original.name}:`, { displayName, categoryValue });
 
           return (
             <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
@@ -275,7 +310,11 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
             <span className="ml-2 text-xs">{sortBy === "unitType" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
-        cell: ({ getValue }) => <div className="text-gray-700 capitalize">{getValue()}</div>,
+        cell: ({ getValue, row }) => {
+          const unitType = getValue();
+          console.log('UnitType for', row.original.name, ':', unitType);
+          return <div className="text-gray-700 capitalize">{unitType || "-"}</div>;
+        },
         enableSorting: false,
         size: 120
       }),
@@ -285,7 +324,8 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
         cell: ({ getValue, row }) => {
           const inputUnit = getValue();
           const baseUnit = row.original.baseUnit;
-          return <div className="text-gray-700 font-mono text-sm">{inputUnit && inputUnit !== baseUnit ? inputUnit : "-"}</div>;
+          console.log('InputUnit for', row.original.name, ':', inputUnit, 'baseUnit:', baseUnit);
+          return <div className="text-gray-700 font-mono text-sm">{inputUnit || baseUnit || "-"}</div>;
         },
         enableSorting: false,
         size: 120
@@ -557,12 +597,10 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
                         <span className="text-gray-500 text-xs font-medium">Unit Type</span>
                         <p className="capitalize text-gray-900">{material.unitType}</p>
                       </div>
-                      {material.inputUnit && material.inputUnit !== material.baseUnit && (
-                        <div className="col-span-2 space-y-1">
-                          <span className="text-gray-500 text-xs font-medium">Input Unit</span>
-                          <p className="font-mono text-gray-900">{material.inputUnit}</p>
-                        </div>
-                      )}
+                      <div className="space-y-1">
+                        <span className="text-gray-500 text-xs font-medium">Input Unit</span>
+                        <p className="font-mono text-gray-900">{material.inputUnit || material.baseUnit || "-"}</p>
+                      </div>
                     </div>
 
                     <div className="flex gap-2 pt-2 border-t border-gray-100">

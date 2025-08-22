@@ -60,4 +60,22 @@ router.delete("/:id", requirePermission("materials.delete"), auditAction("materi
   next();
 }, materialController.deleteMaterial);
 
+
+router.post("/delete-all", requirePermission("materials.delete"), auditAction("material_delete", "material"), (req, res, next) => {
+  // Clear materials cache after deletion
+  import("../middleware/cacheMiddleware.js").then(({ clearCacheByPattern }) => {
+    clearCacheByPattern("materials");
+  });
+  next();
+}, materialController.bulkDeleteMaterial);
+
+
+router.post("/update-all-categories", requirePermission("materials.update"), auditAction("material_update", "material"), (req, res, next) => {
+  // Clear materials cache after update
+  import("../middleware/cacheMiddleware.js").then(({ clearCacheByPattern }) => {
+    clearCacheByPattern("materials");
+  });
+  next();
+}, materialController.bulkUpdateMaterialCategories);
+
 export default router;

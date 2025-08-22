@@ -84,13 +84,26 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await getCategoriesByType("materials", true);
-      const sortedCategories = [...(response.totalItems || [])];
+      // Fetch all category types to handle materials that might reference different category types
+      const [materialsResponse, beveragesResponse, menuItemsResponse] = await Promise.all([
+        getCategoriesByType("materials", true).catch(() => ({ totalItems: [] })),
+        getCategoriesByType("beverages", true).catch(() => ({ totalItems: [] })),
+        getCategoriesByType("menu_items", true).catch(() => ({ totalItems: [] }))
+      ]);
+      
+      // Combine all categories for materials that might reference any category type
+      const allCategories = [
+        ...(materialsResponse.totalItems || []),
+        ...(beveragesResponse.totalItems || []),
+        ...(menuItemsResponse.totalItems || [])
+      ];
+      
+      const sortedCategories = [...allCategories];
       sortedCategories.sort((a, b) => a.name.localeCompare(b.name));
       setCategories(sortedCategories);
-      console.log("Material categories loaded:", sortedCategories.length);
+      console.log("All categories loaded for materials:", sortedCategories.length, sortedCategories.map(c => `${c.id}: ${c.name}`));
     } catch (error) {
-      console.error("❌ Error fetching material categories:", error);
+      console.error("❌ Error fetching categories:", error);
       setCategories([]);
     }
   }, []);

@@ -83,8 +83,16 @@ export function calculateCostForQuantity(material: Material, quantity: number, u
   }
 
   // Category-specific cost validation
-  const category = material.category?.toLowerCase();
-  if (category === "meat" && averageCostPerBaseUnit < 10) {
+  const getCategoryName = (category: any): string => {
+    if (!category) return "";
+    if (typeof category === "string") return category.toLowerCase();
+    if (typeof category === "object" && category.name) return category.name.toLowerCase();
+    if (typeof category === "object" && category.value) return category.value.toLowerCase();
+    return "";
+  };
+  
+  const categoryName = getCategoryName(material.category);
+  if (categoryName === "meat" && averageCostPerBaseUnit < 10) {
     // Example threshold
     warning = "Warning: Meat cost seems unusually low - please verify";
   }
@@ -138,7 +146,7 @@ export function getSuggestedUnits(unitType: string): string[] {
     case "volume":
       return ["l", "ml"];
     case "piece":
-      return ["piece", "unit"];
+      return ["piece", "unit", "pc"];
     case "package":
       return ["box", "pack", "bag", "piece", "bottle"];
     default:
