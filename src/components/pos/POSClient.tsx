@@ -882,12 +882,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       return;
     }
 
-    if (memoizedPosItems.length > 0 && !isItemsGridStable) {
+    if (!isItemsGridStable) {
       console.log("🛍️ Setting POS items and marking grid as stable");
       setPosItems(memoizedPosItems);
       setIsItemsGridStable(true);
       setIsItemsGridLoading(false);
-    } else if (memoizedPosItems.length > 0 && isItemsGridStable) {
+    } else if (isItemsGridStable) {
       // Only update if there's a significant change (different count or different items)
       const hasSignificantChange = 
         memoizedPosItems.length !== posItems.length ||

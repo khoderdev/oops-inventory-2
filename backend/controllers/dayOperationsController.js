@@ -138,6 +138,7 @@ const dayOperationsController = {
       if (isUserSpecificOperation) {
         // If no global day or it's closed, auto-create/reopen it to allow staff shift to open
         let activeDay = existingDay;
+        let openingStockSnapshot = []; // Initialize at proper scope level
         if (!activeDay || activeDay.status !== "opened") {
           console.warn("[DayOps][openDay] Auto-opening global day for user-specific open", { hadExisting: !!activeDay, status: activeDay?.status });
           // Build opening stock snapshot for new/reopened day
@@ -146,7 +147,7 @@ const dayOperationsController = {
             include: [{ model: Material, as: "material", attributes: ["id", "name", "baseUnit", "categoryId"] }],
             transaction
           });
-          const openingStockSnapshot = stockSnapshot.map(entry => ({
+          openingStockSnapshot = stockSnapshot.map(entry => ({
             stockEntryId: entry.id,
             materialId: entry.materialId,
             materialName: entry.material?.name || "Unknown",
@@ -246,12 +247,23 @@ const dayOperationsController = {
           await activeDay.update({ reportData: { ...(activeDay.reportData || {}), userOrderStats } }, { transaction });
           await activeDay.reload({ transaction });
           await transaction.commit();
-          console.log("[DayOps][openDay][user] Commit successful for user-specific open", { dayId: activeDay.id, userId });
-          return res.status(existingDay ? 200 : 201).json({ message: "User day opened", dayOperation: activeDay });
+          console.log("[DayOps][openDay][user] Commit successful for user-specific open", { dayId: activeDay.id, userId, stockItemsCaptured: openingStockSnapshot.length });
+          return res.status(existingDay ? 200 : 201).json({ 
+            message: "User day opened", 
+            dayOperation: activeDay, 
+            stockItemsCaptured: openingStockSnapshot.length 
+          });
         } catch (e) {
-          await transaction.rollback();
+          // Only rollback if transaction is still active
+          if (!transaction.finished) {
+            await transaction.rollback();
+          }
           console.error("Error updating user-specific open:", e);
-          return next(e);
+          return res.status(500).json({ 
+            error: "Failed to open user shift", 
+            message: e.message || "An error occurred while opening the user shift",
+            details: e.stack
+          });
         }
       }
       if (existingDay && existingDay.status === "opened") {
@@ -327,9 +339,16 @@ const dayOperationsController = {
       console.log("[DayOps][openDay] Commit successful", { dayId: dayOperation?.id, itemsCaptured: openingStockSnapshot.length });
       return res.status(201).json({ message: existingDay ? "Day successfully reopened" : "Day successfully opened", dayOperation, stockItemsCaptured: openingStockSnapshot.length });
     } catch (error) {
-      await transaction.rollback();
+      // Only rollback if transaction is still active
+      if (!transaction.finished) {
+        await transaction.rollback();
+      }
       console.error("Error opening day:", error);
-      next(error);
+      return res.status(500).json({ 
+        error: "Failed to open day", 
+        message: error.message || "An error occurred while opening the day",
+        details: error.stack
+      });
     }
   },
 

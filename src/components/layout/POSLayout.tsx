@@ -39,14 +39,14 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [userDayOpen, setUserDayOpen] = useState(false);
   const [, setDayOperationType] = useState<"open" | "close">("open");
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
-  const [showLockOverlay, setShowLockOverlay] = useState(false);
+  const [showLockOverlay, setShowLockOverlay] = useState(true); // Show immediately by default
   const [isCheckingDayStatus, setIsCheckingDayStatus] = useState(true);
   const [dayError, setDayError] = useState<string | null>(null);
   const [daySuccess, setDaySuccess] = useState<string | null>(null);
   const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
   const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
   const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-  const isLocked = isCheckingDayStatus ? false : !userDayOpen;
+  const isLocked = !userDayOpen; // Simplified - always locked if day not open
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [, setLoading] = useState(true);
@@ -85,7 +85,14 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       setError(null);
       const currentResponse = await getCurrentDayOperation();
       setCurrentDay(currentResponse.currentDay);
-      setUserDayOpen(currentResponse.currentDay?.status === "opened");
+      const isDayOpen = currentResponse.currentDay?.status === "opened";
+      setUserDayOpen(isDayOpen);
+      
+      // Hide lock overlay immediately if day is open
+      if (isDayOpen) {
+        setShowLockOverlay(false);
+      }
+      
       const recentResponse = await getDayOperations(1, 10);
       recentResponse.dayOperations.map(day => {
         const dateStr = day.date;
@@ -435,21 +442,13 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   }, [showCloseModal, refreshExpectedAndStats]);
 
   useEffect(() => {
-    let overlayTimer: number | undefined;
     if (isCheckingDayStatus) {
-      setShowLockOverlay(false);
-      return () => {
-        if (overlayTimer) window.clearTimeout(overlayTimer);
-      };
+      // Keep overlay visible while checking
+      setShowLockOverlay(true);
+      return;
     }
-    if (isLocked) {
-      overlayTimer = window.setTimeout(() => setShowLockOverlay(true), 1500);
-    } else {
-      setShowLockOverlay(false);
-    }
-    return () => {
-      if (overlayTimer) window.clearTimeout(overlayTimer);
-    };
+    // Show/hide overlay immediately based on lock state
+    setShowLockOverlay(isLocked);
   }, [isLocked, isCheckingDayStatus]);
 
   const formatTime = (date: Date) => {
@@ -479,7 +478,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       const response = await openDay({ ...openDayForm, userId: user?.id as any });
       if (response.dayOperation) {
         setCurrentDay(response.dayOperation);
-        setUserDayOpen(response.dayOperation.status === "opened");
+        const isDayOpen = response.dayOperation.status === "opened";
+        setUserDayOpen(isDayOpen);
+        // Hide lock overlay immediately when day opens successfully
+        if (isDayOpen) {
+          setShowLockOverlay(false);
+        }
       }
       setSuccess(`Shift opened successfully! ${response.stockItemsCaptured} stock items captured.`);
       setShowOpenModal(false);
@@ -501,7 +505,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       const response = await closeDay({ ...closeDayForm, userId: user?.id as any });
       if (response.dayOperation) {
         setCurrentDay(response.dayOperation);
-        setUserDayOpen(response.dayOperation.status === "opened");
+        const isDayOpen = response.dayOperation.status === "opened";
+        setUserDayOpen(isDayOpen);
+        // Show lock overlay immediately when day closes
+        if (!isDayOpen) {
+          setShowLockOverlay(true);
+        }
       }
       setSuccess(`Shift closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
       setShowCloseModal(false);

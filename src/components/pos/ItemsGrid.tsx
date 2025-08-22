@@ -1,12 +1,15 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { ProductGridProps, POSItem } from "@/types/inventory";
 import { formatPOSPrice } from "@/utils/conversionLogic";
-import { Package, ShoppingCart } from "lucide-react";
+import { Package, ShoppingCart, Plus } from "lucide-react";
 import React, { useMemo, useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useNavigate } from "react-router-dom";
 
 export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0, isLoading = false }) => {
   const parentRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   // Calculate grid configuration based on panel width
   const gridConfig = useMemo(() => {
@@ -168,13 +171,21 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
     );
   }
 
-  if (posItems.length === 0) {
+  if (posItems.length === 0 && !isLoading) {
     return (
       <div className="flex-1 p-3 overflow-y-auto safe-area-padding">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No products available</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">You don't have any menu items yet</h3>
+            <p className="text-gray-600 mb-6">Start by adding menu items to your inventory</p>
+            <Button 
+              onClick={() => navigate('/menu')}
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Menu Items
+            </Button>
           </div>
         </div>
       </div>
