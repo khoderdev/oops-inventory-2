@@ -88,7 +88,17 @@ export function useStockEntriesTableColumns({
         id: "remainingQty",
         size: 100,
         header: ({ column }) => <div className="text-left w-[100px] font-semibold px-2 flex items-center h-8">Current Qty</div>,
-        cell: ({ row }) => <div className="text-left w-[100px] h-8 px-2 flex items-center">{renderQuantityDisplay(row.original)}</div>
+        cell: ({ row }) => {
+          const entry = row.original;
+          const currentQty = entry.purchasedIndividualQuantity || 0;
+          const unit = entry.purchasedIndividualUnit || entry.material?.baseUnit || entry.purchasedUnit || 'pc';
+          
+          return (
+            <div className="text-left w-[100px] h-8 px-2 flex items-center">
+              <span className="font-medium">{currentQty} {unit}</span>
+            </div>
+          );
+        }
       }),
 
       columnHelper.display({
