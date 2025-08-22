@@ -36,17 +36,17 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [isResizing, setIsResizing] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [, setShowDayOperationsModal] = useState(false);
-  const [userDayOpen, setUserDayOpen] = useState(false);
+  const [userDayOpen, setUserDayOpen] = useState<boolean | null>(null); // null = unknown, true = open, false = closed
   const [, setDayOperationType] = useState<"open" | "close">("open");
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
-  const [showLockOverlay, setShowLockOverlay] = useState(true); // Show immediately by default
+  const [showLockOverlay, setShowLockOverlay] = useState(false); // Don't show until we know the status
   const [isCheckingDayStatus, setIsCheckingDayStatus] = useState(true);
   const [dayError, setDayError] = useState<string | null>(null);
   const [daySuccess, setDaySuccess] = useState<string | null>(null);
   const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
   const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
   const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-  const isLocked = !userDayOpen; // Simplified - always locked if day not open
+  const isLocked = userDayOpen === false; // Only locked if explicitly false (not null/unknown)
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [, setLoading] = useState(true);
@@ -443,11 +443,10 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   useEffect(() => {
     if (isCheckingDayStatus) {
-      // Keep overlay visible while checking
-      setShowLockOverlay(true);
+      // Don't show overlay while checking - wait for actual status
       return;
     }
-    // Show/hide overlay immediately based on lock state
+    // Only show overlay if day is explicitly closed (not unknown)
     setShowLockOverlay(isLocked);
   }, [isLocked, isCheckingDayStatus]);
 
