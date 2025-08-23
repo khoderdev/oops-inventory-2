@@ -11,7 +11,7 @@ import MenuItemCardView from "../MenuItemCardView";
 import { TanStackTable } from "@/components/ui/TanStackTable";
 import { MenuItem } from "@/types/inventory";
 import { MenuBuilderLayoutProps, mapToCategory } from "@/types/menuItems";
-import { useInventoryStore } from "@/hooks/useInventoryStore";
+import { useMenuItems } from "@/contexts/MenuItemsContext";
 
 const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
   searchTerm,
@@ -44,8 +44,8 @@ const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
   calculateMenuItemCost,
   table
 }) => {
-  // Get materials from inventory store
-  const { materialsWithStock } = useInventoryStore();
+  // Get materials from context
+  const { materialsWithStock } = useMenuItems();
   
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>

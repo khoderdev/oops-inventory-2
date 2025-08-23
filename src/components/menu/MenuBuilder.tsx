@@ -2,8 +2,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient, StockEntry, UnitType } from "@/types/inventory";
+// No longer need useInventoryStore
+import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataValidation";
 import { Check, Plus, Printer, Tag, AlertTriangle, CheckCircle, X, CheckSquare, Square } from "lucide-react";
@@ -18,12 +18,15 @@ import { dataValidationEnabledAtom } from "@/store/settingsStore";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 import { menuAPI } from "@/api/menu.api.ts";
+import { useMenuItems } from "@/contexts/MenuItemsContext";
 
-export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, categories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
-  const { menuItems: storeMenuItems } = useInventoryStore();
-  const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems || [];
+export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: propCategories, onCreateMenuItem: propCreateMenuItem, onUpdateMenuItem: propUpdateMenuItem, onDeleteMenuItem: propDeleteMenuItem }) => {
+  // Get menu items and categories from context
+  const { foodMenuItems, menuItemCategories, handleCreateMenuItem, handleUpdateMenuItem, handleDeleteMenuItem } = useMenuItems();
+  // Use food menu items directly from context
+  const currentMenuItems = foodMenuItems;
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
-  const menuItemCategories = categories || [];
+  const categories = menuItemCategories.length > 0 ? menuItemCategories : propCategories || [];
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
   const [lastValidationTime, setLastValidationTime] = useState<number>(0);
@@ -175,25 +178,26 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
     return parseFloat(weightedAverageCost.toFixed(8));
   }, []);
 
-  const calculateMenuItemCost = useCallback(
-    (ingredients: MenuItemIngredient[]) => {
-      if (!ingredients || !Array.isArray(ingredients)) {
-        return 0;
-      }
+  const calculateMenuItemCost = useCallback((ingredients: MenuItemIngredient[]) => {
+    if (!ingredients || !Array.isArray(ingredients)) {
       return 0;
-    },
-    []
-  );
+    }
+    return 0;
+  }, []);
 
-  const handleDeleteMenuItem = useCallback(
+  const handleDeleteMenuItemLocal = useCallback(
     async (id: string) => {
       try {
-        // Delete via API
-        await menuAPI.deleteMenuItem(id);
-
-        // Call the callback first
-        if (onDeleteMenuItem) {
-          await onDeleteMenuItem(id);
+        // Use context method if available, otherwise use prop callback
+        if (handleDeleteMenuItem) {
+          await handleDeleteMenuItem(id);
+        } else if (propDeleteMenuItem) {
+          // Delete via API
+          await menuAPI.deleteMenuItem(id);
+          await propDeleteMenuItem(id);
+        } else {
+          // Fallback to direct API call
+          await menuAPI.deleteMenuItem(id);
         }
 
         toast({
@@ -202,8 +206,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           variant: "default",
           duration: 1000
         });
-
-        // Fetch data after the toast is shown to prevent UI flicker
       } catch (error) {
         console.error("❌ [MenuBuilder] Error deleting menu item:", error);
         toast({
@@ -214,7 +216,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         });
       }
     },
-    [onDeleteMenuItem]
+    [handleDeleteMenuItem, propDeleteMenuItem]
   );
 
   const handleTogglePOSVisibility = useCallback(
@@ -222,7 +224,17 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
       try {
         const newPOSStatus = !item.isPOSItem;
         const updatedItem = { ...item, isPOSItem: newPOSStatus };
-        await menuAPI.updateMenuItem(item.id, updatedItem);
+
+        // Use context method if available, otherwise use prop callback
+        if (handleUpdateMenuItem) {
+          await handleUpdateMenuItem(item.id, updatedItem);
+        } else if (propUpdateMenuItem) {
+          await menuAPI.updateMenuItem(item.id, updatedItem);
+          await propUpdateMenuItem(item.id, updatedItem);
+        } else {
+          // Fallback to direct API call
+          await menuAPI.updateMenuItem(item.id, updatedItem);
+        }
 
         toast({
           title: `Menu item ${newPOSStatus ? "added to" : "removed from"} POS`,
@@ -230,11 +242,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           variant: "default",
           duration: 1000
         });
-
-        // Only fetch data after the toast is shown to avoid UI flicker
-        if (onUpdateMenuItem) {
-          onUpdateMenuItem(item.id, updatedItem);
-        }
       } catch (error) {
         console.error("Error toggling POS visibility:", error);
         toast({
@@ -245,7 +252,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         });
       }
     },
-    [onUpdateMenuItem]
+    [handleUpdateMenuItem, propUpdateMenuItem]
   );
 
   const handleOpenPrinterDialog = useCallback((menuItem: MenuItem) => {
@@ -259,7 +266,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
     calculateMenuItemCost,
     handleTogglePOSVisibility,
     handleOpenPrinterDialog,
-    handleDeleteMenuItem,
+    handleDeleteMenuItem: handleDeleteMenuItemLocal,
     setEditingMenuItem,
     setShowMenuItemForm
   });
@@ -268,7 +275,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
   const filteredMenuItems = useMemo(() => {
     // Debug log all items before filtering
     console.log("🔍 MenuBuilder: All menu items before filtering:", currentMenuItems.length);
-    console.log("🔍 MenuBuilder: Data source:", storeMenuItems && storeMenuItems.length > 0 ? "useInventoryStore" : "props");
+    console.log("🔍 MenuBuilder: Data source: MenuItemsContext");
     console.log("🔍 MenuBuilder: First few items:", currentMenuItems.slice(0, 3));
 
     // Find any suspicious items that might be beverages but don't have beverageStockId
@@ -365,40 +372,37 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
   }, [currentMenuItems, searchTerm, selectedCategory, categories]);
 
   // Prepare table configuration options - memoized to prevent unnecessary re-renders
-  const tableOptions = useMemo(
-    () => {
-      console.log("📊 MenuBuilder: Table data source:", filteredMenuItems.length, "items");
-      console.log("📊 MenuBuilder: API endpoint source: /api/menu-items");
-      return {
-        data: filteredMenuItems,
-        columns: bulkSelectionMode ? columns : columns.filter(col => col.id !== "select"),
-        state: {
-          sorting,
-          columnFilters,
-          columnVisibility,
-          rowSelection: Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))
-        },
-        enableRowSelection: bulkSelectionMode,
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onColumnVisibilityChange: setColumnVisibility,
-        onRowSelectionChange: updater => {
-          const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))) : updater;
-          const newSelectedIds = new Set(
-            Object.entries(newSelection)
-              .filter(([_, selected]) => selected)
-              .map(([index]) => filteredMenuItems[parseInt(index)]?.id)
-              .filter(Boolean)
-          );
-          setSelectedMenuItems(newSelectedIds);
-        },
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getSortedRowModel: getSortedRowModel()
-      };
-    },
-    [filteredMenuItems, bulkSelectionMode, columns, sorting, columnFilters, columnVisibility, selectedMenuItems]
-  ); 
+  const tableOptions = useMemo(() => {
+    console.log("📊 MenuBuilder: Table data source:", filteredMenuItems.length, "items");
+    console.log("📊 MenuBuilder: API endpoint source: /api/menu-items");
+    return {
+      data: filteredMenuItems,
+      columns: bulkSelectionMode ? columns : columns.filter(col => col.id !== "select"),
+      state: {
+        sorting,
+        columnFilters,
+        columnVisibility,
+        rowSelection: Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))
+      },
+      enableRowSelection: bulkSelectionMode,
+      onSortingChange: setSorting,
+      onColumnFiltersChange: setColumnFilters,
+      onColumnVisibilityChange: setColumnVisibility,
+      onRowSelectionChange: updater => {
+        const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))) : updater;
+        const newSelectedIds = new Set(
+          Object.entries(newSelection)
+            .filter(([_, selected]) => selected)
+            .map(([index]) => filteredMenuItems[parseInt(index)]?.id)
+            .filter(Boolean)
+        );
+        setSelectedMenuItems(newSelectedIds);
+      },
+      getCoreRowModel: getCoreRowModel(),
+      getFilteredRowModel: getFilteredRowModel(),
+      getSortedRowModel: getSortedRowModel()
+    };
+  }, [filteredMenuItems, bulkSelectionMode, columns, sorting, columnFilters, columnVisibility, selectedMenuItems]);
 
   // Initialize table with the memoized options
   const table = useReactTable(tableOptions);
@@ -415,12 +419,16 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           updatedAt: new Date()
         };
 
-        // Create via API
-        const createdMenuItem = await menuAPI.createMenuItem(menuItemToCreate);
-
-        // Call the callback first
-        if (onCreateMenuItem) {
-          onCreateMenuItem(createdMenuItem.data);
+        // Use context method if available, otherwise use prop callback
+        if (handleCreateMenuItem) {
+          await handleCreateMenuItem(menuItemToCreate);
+        } else if (propCreateMenuItem) {
+          // Create via API
+          const createdMenuItem = await menuAPI.createMenuItem(menuItemToCreate);
+          await propCreateMenuItem(createdMenuItem.data);
+        } else {
+          // Fallback to direct API call
+          await menuAPI.createMenuItem(menuItemToCreate);
         }
 
         // Close the form before fetching data to prevent UI flicker
@@ -445,10 +453,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         });
       }
     },
-    [onCreateMenuItem]
+    [handleCreateMenuItem, propCreateMenuItem]
   );
 
-  const handleUpdateMenuItem = useCallback(
+  const handleUpdateMenuItemLocal = useCallback(
     async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
       if (!editingMenuItem) {
         console.error("editingMenuItem not provided");
@@ -463,12 +471,16 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           updatedAt: new Date()
         };
 
-        // Update via API
-        await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
-
-        // Call the callback first
-        if (onUpdateMenuItem) {
-          onUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
+        // Use context method if available, otherwise use prop callback
+        if (handleUpdateMenuItem) {
+          await handleUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
+        } else if (propUpdateMenuItem) {
+          // Update via API
+          await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
+          await propUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
+        } else {
+          // Fallback to direct API call
+          await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
         }
 
         // Close the form before fetching data to prevent UI flicker
@@ -481,8 +493,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           variant: "default",
           duration: 1000
         });
-
-        // Fetch data after the toast is shown and form is closed
       } catch (error) {
         console.error("Error updating menu item:", error);
         setShowMenuItemForm(false);
@@ -495,7 +505,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         });
       }
     },
-    [editingMenuItem, onUpdateMenuItem]
+    [editingMenuItem, handleUpdateMenuItem, propUpdateMenuItem]
   );
 
   const handleCloseModal = useCallback((open: boolean) => {
@@ -588,10 +598,20 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
       if (!response || !response.data) {
         throw new Error("Failed to update menu items");
       }
-      if (onUpdateMenuItem && response.data.menuItems) {
-        response.data.menuItems.forEach(updatedItem => {
-          onUpdateMenuItem(updatedItem.id, updatedItem);
-        });
+
+      // Update items using context or props
+      if (response.data.menuItems) {
+        if (handleUpdateMenuItem) {
+          // Use context method for each item
+          for (const updatedItem of response.data.menuItems) {
+            await handleUpdateMenuItem(updatedItem.id, updatedItem);
+          }
+        } else if (propUpdateMenuItem) {
+          // Use prop callback for each item
+          for (const updatedItem of response.data.menuItems) {
+            await propUpdateMenuItem(updatedItem.id, updatedItem);
+          }
+        }
       }
 
       const categoryLabel = categories.find(c => c.value === bulkCategoryValue)?.name || bulkCategoryValue;
@@ -614,7 +634,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         duration: 1000
       });
     }
-  }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, categories, handleCloseBulkCategoryDialog]);
+  }, [bulkCategoryValue, selectedMenuItems, handleUpdateMenuItem, propUpdateMenuItem, categories, handleCloseBulkCategoryDialog]);
 
   const isMobile = useMediaQuery("(max-width: 640px)");
 
@@ -672,7 +692,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         handleCloseModal={handleCloseModal}
         editingMenuItem={editingMenuItem}
         menuItemCategories={menuItemCategories}
-        handleUpdateMenuItem={handleUpdateMenuItem}
+        handleUpdateMenuItem={handleUpdateMenuItemLocal}
         handleAddMenuItem={handleAddMenuItem}
         handleCancel={handleCancel}
         isMobile={isMobile}
